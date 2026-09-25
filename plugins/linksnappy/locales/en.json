@@ -1,0 +1,30 @@
+{
+  "name": "LinkSnappy",
+  "description": "Resolves links of other hosters through a LinkSnappy account.",
+  "account": {
+    "secret_label": "Account password",
+    "secret_hint": "Enter your account username and your password as secret."
+  },
+  "codes": {
+    "linksnappy.account_expired": "LinkSnappy account has expired",
+    "linksnappy.account_missing": "LinkSnappy account is missing",
+    "linksnappy.api_error": "LinkSnappy API error: {message}",
+    "linksnappy.bad_credentials": "LinkSnappy username or password is wrong",
+    "linksnappy.file_offline": "LinkSnappy file is not available",
+    "linksnappy.host_unavailable": "LinkSnappy has no server available for this file host right now",
+    "linksnappy.host_unsupported": "LinkSnappy does not support this file host",
+    "linksnappy.http_error": "LinkSnappy HTTP status {status}",
+    "linksnappy.invalid_link_format": "LinkSnappy does not recognize this link's format",
+    "linksnappy.invalid_response": "Invalid LinkSnappy response",
+    "linksnappy.invalid_url": "Invalid provider URL: {error}",
+    "linksnappy.limit_reached": "LinkSnappy traffic or download limit was reached",
+    "linksnappy.no_download_url": "LinkSnappy did not return a download URL",
+    "linksnappy.password_missing": "LinkSnappy password is missing",
+    "linksnappy.password_protected": "LinkSnappy file requires a download password, which this plugin cannot supply",
+    "linksnappy.premium_required": "LinkSnappy Elite (premium) membership is required to use the download API",
+    "linksnappy.rate_limited": "LinkSnappy API rate limit was triggered",
+    "linksnappy.server_error": "LinkSnappy server error",
+    "linksnappy.too_many_requests": "LinkSnappy rejected the request; too many recent download requests",
+    "linksnappy.two_factor_required": "LinkSnappy requires confirming this login via the e-mail sent to the account"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Premiumize sign-in",
+  "description": "Signs a Premiumize account in through the provider, without an API key being typed here.",
+  "codes": {
+    "premiumize_auth.consent_denied": "The provider refused the sign-in for this account.",
+    "premiumize_auth.sign_in_refused": "The provider refused the sign-in. Start it again.",
+    "premiumize_auth.bad_reply": "The provider sent a reply this plugin could not read.",
+    "premiumize_auth.flow_expired": "The sign-in code expired before it was confirmed."
+  }
+}

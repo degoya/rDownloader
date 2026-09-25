@@ -1,0 +1,24 @@
+[package]
+name = "rd-plugin-putio-oauth"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+plugin-common = { path = "../common" }
+putio-common = { path = "../putio-common" }
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:putio-oauth"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "oauth-plugin"
+
+[lints]
+workspace = true

@@ -1,0 +1,60 @@
+{
+  "eyebrow": "Transfers",
+  "title": "Statistics",
+  "description": "What the service moved: per hour or day, by kind and provider. The figures survive restarts and are folded and deleted after the configured time.",
+  "ranges": {
+    "label": "Range",
+    "day": "24 hours",
+    "week": "7 days",
+    "month": "30 days",
+    "year": "1 year"
+  },
+  "tiles": {
+    "completed": "Completed",
+    "completed_hint": "transfers in the range",
+    "failed": "Failed",
+    "failed_hint": "final or blocked",
+    "retries": "Retries",
+    "retries_hint": "attempts scheduled again",
+    "bytes": "Transferred",
+    "bytes_hint": "data in the range",
+    "turnaround": "Turnaround",
+    "turnaround_hint": "mean from creation to completion",
+    "all_time": "All time",
+    "all_time_hint": "{completed} transfers, never thinned",
+    "turnaround_under_second": "under 1 s"
+  },
+  "chart": {
+    "title": "Data transferred",
+    "subtitle_hour": "per hour",
+    "subtitle_day": "per day",
+    "description": "Data transferred per bucket, at most {peak}.",
+    "empty": "Nothing was transferred in this range."
+  },
+  "groups": {
+    "by_kind": "By kind",
+    "by_provider": "By provider",
+    "key": "Key",
+    "completed": "Done",
+    "failed": "Failed",
+    "retries": "Retried",
+    "bytes": "Data",
+    "direct": "no account"
+  },
+  "metrics": {
+    "eyebrow": "Prometheus",
+    "title": "Scraping the metrics",
+    "description": "The service exposes its operational metrics in the Prometheus text format. A token with the “Metrics” area reaches this one route and nothing else.",
+    "endpoint": "Endpoint",
+    "scope_hint": "Create the token under Settings → API & MCP with the “Metrics” area."
+  },
+  "retention": {
+    "eyebrow": "Retention",
+    "title": "Transfer statistics",
+    "description": "Hourly figures are added into daily ones after the first period and deleted after the second. The all-time totals behind the metrics always stay.",
+    "hourly_label": "Keep hourly figures",
+    "hourly_description": "Days before hourly figures become daily ones (1 to the retention).",
+    "retention_label": "Retention",
+    "retention_description": "Days the daily figures are kept (7–3650)."
+  }
+}

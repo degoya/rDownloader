@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Found 1 cached usenet download.",
+  "data": {
+    "{{hash}}": {
+      "name": "Example.Release.Usenet",
+      "size": 2048,
+      "hash": "{{hash}}"
+    }
+  }
+}

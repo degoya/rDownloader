@@ -1,0 +1,25 @@
+[package]
+name = "{{PLUGIN_SLUG}}"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+# See the resolver template: a guest needs only the contract, which ships in `wit/`. The
+# info hash this plugin derives is SHA-1 over bytes, written out in `src/digest.rs` for the
+# same reason the oauth template writes SHA-256 out — a sandboxed guest pays for every
+# dependency in code size and in surface, and this one is sixty lines.
+wit-bindgen = "0.57"
+
+[lib]
+# `rlib` alongside `cdylib` so `cargo test` builds the scaffold for the host target and runs
+# the unit tests in `src/digest.rs`, `src/source.rs` and `src/reply.rs` without a WebAssembly
+# toolchain.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.component]
+package = "{{PLUGIN_SLUG}}:remote-job"
+
+[package.metadata.component.target]
+path = "wit"
+world = "remote-job-plugin"

@@ -1,0 +1,57 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000117"
+name = "Dropbox"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
+# emits. Never `*`: this is a hoster for its own cloud, not a multihoster.
+match_domains = ["www.dropbox.com", "dropbox.com", "dl.dropboxusercontent.com"]
+# Where the bytes come from: the content endpoints, and nothing else. A transfer is a request
+# to `files/download` or `sharing/get_shared_link_file` with the file named in the
+# `Dropbox-API-Arg` header the resolver states, and the account's token attached by the
+# scheduler because this host is listed under `secret_domains` below.
+download_domains = ["content.dropboxapi.com"]
+max_concurrent_downloads = 3
+
+[capabilities]
+secrets = ["dropbox_access_token"]
+
+# The API host the resolver itself calls, plus the content host — not because the resolver
+# fetches bytes, but because `secret_domains` may not name a host outside this sandbox.
+[capabilities.net_http]
+domains = ["api.dropboxapi.com", "content.dropboxapi.com"]
+
+[metadata]
+description = "Resolves Dropbox files and shared links through the official Dropbox API."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+# The provider row every Dropbox plugin hangs off. Only a resolver manifest may carry one,
+# which is why this plugin exists even though the folder walk and the sign-in are its siblings:
+# without this row there is no account, no vault reference and therefore no way for either of
+# them to reach anything (RD-106-04, rule 1).
+[provider]
+slug = "dropbox"
+kind = "hoster"
+credentials = "oauth"
+# The account's username field holds this installation's own Dropbox app key (RD-106-04,
+# rule 8). It is not a credential — Dropbox publishes it in the address the person is sent to —
+# so it is stored in the clear and the host expands it into `{{client_id}}`. Required, because a
+# sign-in without one cannot start: this project ships no app of its own, and one compiled in
+# here would put every installation on a single shared Dropbox rate limit.
+username_required = true
+secret_reference = "dropbox_access_token"
+# The exact hosts the token may be sent to. The content host is what lets the scheduler put
+# `Authorization: Bearer` on the transfer itself.
+secret_domains = ["api.dropboxapi.com", "content.dropboxapi.com"]
+
+[limits]
+memory_bytes = 33554432
+fuel = 1000000000
+timeout_milliseconds = 15000
+max_response_bytes = 2097152

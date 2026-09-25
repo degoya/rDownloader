@@ -1,0 +1,15 @@
+{
+    "status": "success",
+    "content": [
+        {
+            "path": null,
+            "size": 425146614.0,
+            "link": "https://download.example.test/8x6wertoi51r8vptrojn",
+            "stream_link": null,
+            "transcode_status": "not_applicable"
+        }
+    ],
+    "location": "https://download.example.test/8x6wertoi51r8vptrojn",
+    "filename": "outlander.s08e01.german.bdrip.x264-intention.rar",
+    "filesize": 425146614
+}

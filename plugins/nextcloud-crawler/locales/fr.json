@@ -1,0 +1,14 @@
+{
+  "name": "Partages Nextcloud",
+  "description": "Liste les fichiers derrière un dossier partagé public Nextcloud ou ownCloud.",
+  "codes": {
+    "nextcloud_crawler.invalid_response": "Réponse WebDAV non valide de ce serveur",
+    "nextcloud_crawler.not_a_nextcloud": "Cette adresse a la forme d'un partage, mais aucun Nextcloud n'a répondu",
+    "nextcloud_crawler.not_a_share": "Ceci n'est pas une adresse de partage Nextcloud ou ownCloud",
+    "nextcloud_crawler.password_required": "Ce partage est protégé par mot de passe : ajoutez le mot de passe à l'adresse après un #",
+    "nextcloud_crawler.password_wrong": "Le serveur n'a pas accepté le mot de passe fourni avec cette adresse de partage",
+    "nextcloud_crawler.server_busy": "Le serveur ne répond pas à ce partage pour le moment",
+    "nextcloud_crawler.share_empty": "Ce partage ne contient aucun fichier",
+    "nextcloud_crawler.share_unreachable": "Ce partage n'a pas pu être lu : il a peut-être expiré ou été retiré"
+  }
+}

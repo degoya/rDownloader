@@ -1,0 +1,37 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# Every address this plugin may reach while it walks a folder. `claims-url` decides which
+# addresses it is offered; this decides which ones it may fetch, and the host refuses the rest.
+[capabilities.net_http]
+domains = ["api.example.com"]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# The provider slug whose account this crawler runs for, so the host knows which account's
+# credential `{{secret:<reference>}}` may expand to. Leave it empty for a crawler that needs no
+# account at all; a public folder share is one.
+claims = ["example"]
+
+[metadata]
+description = "Lists the files behind a {{PLUGIN_NAME}} folder address."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+# A crawl makes several requests in one invocation, so it needs more of both than a plugin
+# that makes one. Raise them together with the walk's own limits in `src/walk.rs`, never
+# instead of them: a budget is what stops a runaway, not what bounds a correct crawl.
+fuel = 2000000000
+timeout_milliseconds = 30000
+max_response_bytes = 4194304

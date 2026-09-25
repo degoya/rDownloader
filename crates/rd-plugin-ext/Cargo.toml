@@ -1,0 +1,43 @@
+[package]
+name = "rd-plugin-ext"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+rd-core = { path = "../rd-core" }
+async-trait.workspace = true
+rd-extract = { path = "../rd-extract" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-siterules = { path = "../rd-siterules" }
+tracing.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+base64.workspace = true
+md-5.workspace = true
+serde_json.workspace = true
+tracing-subscriber.workspace = true
+tempfile.workspace = true
+sha2.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+rd-provider-registry = { path = "../rd-provider-registry" }
+# The end-to-end proof that a vaulted link fragment reaches the resolver (RD-110-38).
+rd-secrets = { path = "../rd-secrets" }
+# The MEGA contract test recomputes the key it asserts was never sent, rather than pasting it.
+mega-common = { path = "../../plugins/mega-common" }
+# The MEGA account contract wraps an invented master key's node keys, the one thing no plugin
+# does itself (RD-120-30). Already in the graph through `rd-plugin-host`.
+aes.workspace = true
+# The seam RD-120-11 found broken: what the real component answers has to be something
+# `StreamTransform::new` will accept. Already in the graph through `rd-plugin-host`.
+rd-http = { path = "../rd-http" }
+toml.workspace = true
+
+[lints]
+workspace = true

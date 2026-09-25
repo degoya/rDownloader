@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "error": "MONTHLY_LIMIT",
+  "detail": "You have reached the monthly limit of your plan.",
+  "data": null
+}

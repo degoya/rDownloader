@@ -1,0 +1,12 @@
+{
+  "name": "Connexion Put.io",
+  "description": "Connecte un compte Put.io via le point d'autorisation propre à Put.io.",
+  "codes": {
+    "putio_oauth.bad_reply": "Put.io a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "putio_oauth.code_expired": "La connexion a expiré avant d'être terminée. Recommence-la.",
+    "putio_oauth.consent_denied": "La connexion n'a pas été accordée sur Put.io.",
+    "putio_oauth.flow_unsupported": "Put.io se connecte dans le navigateur, pas avec un code d'appareil.",
+    "putio_oauth.no_entropy": "La connexion n'a pas pu démarrer : l'application ne disposait d'aucune valeur aléatoire. Réessaie.",
+    "putio_oauth.refresh_refused": "Put.io n'accepte plus la connexion enregistrée. Reconnecte-toi."
+  }
+}

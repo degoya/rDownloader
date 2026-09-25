@@ -1,0 +1,25 @@
+{
+  "name": "pCloud",
+  "description": "Resuelve archivos y enlaces públicos de pCloud a través de la API oficial de pCloud.",
+  "account": {
+    "secret_label": "Secreto de la aplicación (client secret de OAuth)",
+    "secret_hint": "El endpoint de token de pCloud es un cliente confidencial: pide el secreto de tu propia aplicación y no ofrece alternativa. Pega aquí el secreto de la App Console de pCloud, escribe la clave de la aplicación en el campo de arriba y empieza el inicio de sesión; el token de acceso obtenido se guarda aparte y nunca sobrescribe este valor.",
+    "username_label": "Clave de la aplicación (client ID de OAuth)",
+    "username_hint": "pCloud necesita una aplicación propia — este proyecto no incluye ninguna, para que cada instalación tenga su propio límite de peticiones. En la App Console de pCloud crea una aplicación, añade http://127.0.0.1:8710/api/v1/oauth/callback como URI de redirección y pega aquí su clave y abajo su secreto. Da igual si tu cuenta está en Europa o en Estados Unidos: pCloud lo indica en el inicio de sesión y rDownloader lo vuelve a deducir de la dirección de cada enlace."
+  },
+  "codes": {
+    "pcloud.account_missing": "Falta la cuenta de pCloud",
+    "pcloud.account_region": "Centro de datos de pCloud: {region}",
+    "pcloud.api_refused": "pCloud rechazó esta petición (resultado {result})",
+    "pcloud.download_not_permitted": "pCloud no sirve este archivo a esta cuenta",
+    "pcloud.file_not_found": "Este archivo de pCloud no existe en ninguno de los dos centros de datos, o esta cuenta no puede verlo",
+    "pcloud.invalid_download_host": "pCloud respondió con una dirección de descarga que no es suya, así que no se transmitió nada",
+    "pcloud.invalid_response": "Respuesta de pCloud no válida",
+    "pcloud.is_a_folder": "Esta dirección de pCloud es una carpeta. Añádela de nuevo para que la carpeta se liste",
+    "pcloud.link_unavailable": "pCloud no abre este enlace público (resultado {result}). Puede estar borrado, caducado, sin tráfico disponible o protegido con contraseña — la API de pCloud no ofrece forma de introducirla",
+    "pcloud.not_a_pcloud_link": "Esta no es una dirección de archivo de pCloud",
+    "pcloud.rate_limited": "pCloud está limitando esta aplicación. Sus demás enlaces esperan lo que pCloud haya pedido",
+    "pcloud.sign_in_required": "Ninguno de los dos centros de datos de pCloud aceptó el inicio de sesión de esta cuenta. Vuelve a iniciar sesión",
+    "pcloud.unavailable": "pCloud no está disponible temporalmente"
+  }
+}

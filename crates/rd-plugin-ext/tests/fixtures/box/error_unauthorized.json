@@ -1,0 +1,8 @@
+{
+  "type": "error",
+  "status": 401,
+  "code": "unauthorized",
+  "help_url": "http://developers.box.com/docs/#errors",
+  "message": "Unauthorized",
+  "request_id": "redacted-request-id-0002"
+}

@@ -1,0 +1,8 @@
+{
+  "device_code": "redacted-device-code-0000",
+  "user_code": "WXYZ1234",
+  "verification_url": "https://real-debrid.com/device",
+  "direct_verification_url": "https://real-debrid.com/device?code=WXYZ1234",
+  "expires_in": 1800,
+  "interval": 5
+}

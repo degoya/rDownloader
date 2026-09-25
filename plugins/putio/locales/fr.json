@@ -1,0 +1,19 @@
+{
+  "name": "Put.io",
+  "description": "Résout les fichiers d'un compte Put.io via l'API officielle.",
+  "codes": {
+    "putio.account_missing": "Cette adresse nécessite un compte Put.io",
+    "putio.api_error": "Erreur de l'API Put.io ({reason})",
+    "putio.auth_invalid": "La connexion Put.io n'est plus valide. Reconnecte-toi.",
+    "putio.disk_free": "{bytes} octets libres",
+    "putio.file_not_found": "Put.io ne conserve plus ce fichier",
+    "putio.http_error": "Statut HTTP {status} de Put.io",
+    "putio.invalid_response": "Réponse Put.io invalide",
+    "putio.is_a_folder": "Cette adresse Put.io est un dossier et non un fichier",
+    "putio.not_a_putio_link": "Ce n'est pas une adresse de fichier Put.io",
+    "putio.not_permitted": "Put.io n'autorise pas cette action pour ce compte",
+    "putio.rate_limited": "La limite de l'API Put.io est atteinte. Attente en cours.",
+    "putio.server_error": "Put.io est temporairement indisponible",
+    "putio.token_missing": "Ce compte Put.io n'est pas encore connecté"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "header": {
+    "eyebrow": "Registre des résolveurs",
+    "title": "Composants fournisseurs versionnés",
+    "description": "Avant l’installation atomique, les paquets sont vérifiés : signature, manifeste, format de composant et imports autorisés. Les paquets non signés ne fonctionnent que si le service est explicitement en mode développement."
+  },
+  "install": {
+    "label": "Paquet .rdplug",
+    "hint": "65 MiB maximum ; les données binaires ne sont pas stockées comme envoi temporaire.",
+    "submit": "Vérifier et installer",
+    "failed": "Échec de l’installation ({status})",
+    "success": "Le plugin a été installé.",
+    "network_error": "Erreur réseau pendant l’installation"
+  },
+  "installed": {
+    "eyebrow": "Versions installées",
+    "title": "Inventaire local",
+    "empty": "Aucune version de plugin externe installée pour le moment. Les résolveurs natifs v1 restent disponibles.",
+    "filter_label": "Filtrer par groupe de plugins"
+  },
+  "card": {
+    "author": "par {author}",
+    "homepage": "Site web",
+    "support": "Assistance",
+    "concurrency": "en parallèle",
+    "concurrency_hint": "Au maximum {count} téléchargements simultanés via ce plugin",
+    "api_version": "ABI {version}",
+    "capabilities": "Accordé",
+    "superseded": "Non utilisée",
+    "superseded_hint": "Une version plus récente de ce plugin est installée et chargée à sa place. Elle reste sur le disque tant qu'un travail inachevé y est rattaché ; sinon, elle peut être supprimée.",
+    "active_version_hint": "C'est la version chargée.",
+    "superseded_versions": "Versions remplacées ({count})",
+    "remove_superseded": "Supprimer la version {version}",
+    "withdrawn_badge": "Retiré",
+    "withdrawn_hint": "Cette version est refusée à partir du prochain démarrage ; la clé de signature reste intacte.",
+    "withdraw_version": "Retirer la version {version}"
+  },
+  "keys": {
+    "eyebrow": "Clés de signature",
+    "title": "Éditeurs confirmés",
+    "description": "Les plugins tiers sont signés avec la clé propre à leur auteur. Une clé confirmée ici reste approuvée jusqu’à sa révocation ; la révoquer désactive ses plugins au prochain redémarrage.",
+    "first_seen": "Vue pour la première fois avec {plugin}",
+    "revoke": "Révoquer",
+    "empty": "Aucune clé de signature tierce confirmée. Seuls les plugins signés avec la clé de publication sont acceptés."
+  },
+  "trust": {
+    "title": "Confirmer l’éditeur",
+    "intro": "{name} {version} est signé avec une clé que cette installation ne connaît pas encore.",
+    "key_id": "Identifiant de clé",
+    "fingerprint": "Empreinte",
+    "warning": "Ne confirmez que si cette empreinte correspond à celle publiée par l’auteur du plugin. Une mauvaise clé permettrait à un tiers de publier des mises à jour pour ce plugin.",
+    "cancel": "Annuler",
+    "confirm": "Approuver et installer"
+  },
+  "type": {
+    "all": "Tous",
+    "auth": "Connexion",
+    "crawler": "Explorateur de dossiers",
+    "enricher": "Métadonnées",
+    "intake": "Import",
+    "notifier": "Notification",
+    "postprocess": "Post-traitement",
+    "remote-job": "Travail distant",
+    "resolver": "Résolveur",
+    "storage": "Stockage",
+    "transfer": "Backend de transfert",
+    "oauth": "Connexion OAuth",
+    "stream-transform": "Transformation de flux"
+  },
+  "capability": {
+    "net_http": "Requêtes web",
+    "cookies": "Cookies du compte",
+    "captcha": "Résolution de CAPTCHA",
+    "secret": "Identifiant : {reference}",
+    "net_stream": "Connexions directes (ports {ports})"
+  },
+  "incompatible": {
+    "eyebrow": "Paquets refusés",
+    "title": "Installés mais non exécutables",
+    "description": "Ces paquets sont présents sur le disque, mais cette version ne peut pas les exécuter. Ils sont laissés en place jusqu'à ce que vous les supprimiez : les effacer automatiquement ferait simplement disparaître un hébergeur sans explication. Un paquet qui exige une version plus récente refonctionnera dès que son auteur l'aura recompilé.",
+    "remove": "Supprimer",
+    "reason": {
+      "plugin.manifest_outdated": "Compilé pour un contrat de plugins plus ancien. Son auteur doit le recompiler pour cette version.",
+      "plugin.capability_unknown": "Demande une permission ou un type de plugin que cette version ne connaît pas.",
+      "plugin.manifest_unreadable": "Le manifeste est totalement illisible ; le paquet est endommagé."
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnostic",
+    "duration": "{ms} ms",
+    "outcome": {
+      "ok": "OK",
+      "failed": "A signalé un échec",
+      "crash": "Plantage",
+      "timeout": "Délai dépassé",
+      "fuel": "Budget épuisé",
+      "memory": "Mémoire épuisée",
+      "host_error": "Erreur de l'hôte",
+      "denied": "Non autorisé"
+    }
+  },
+  "actions": {
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "disabled_badge": "désactivé",
+    "withdraw": "Retirer"
+  },
+  "remove": {
+    "title": "Supprimer le plugin ?",
+    "description": "« {name} » est retiré du disque. Le récupérer implique de le réinstaller.",
+    "superseded_title": "Supprimer la version remplacée ?",
+    "superseded_description": "La version {version} de « {name} » est retirée du disque. La version {active} reste installée et continue d'être chargée."
+  },
+  "withdraw": {
+    "title": "Retirer cette version ?",
+    "intro": "« {name} » {version} est refusé d’après le contenu exact du paquet, et non d’après son numéro de version.",
+    "restart": "Il continue de fonctionner jusqu’au redémarrage du service ; à partir du prochain démarrage, il est ignoré.",
+    "key_untouched": "La clé de signature reste approuvée. Tous les autres plugins signés avec elle, ainsi que les autres versions de celui-ci, continuent d’être chargés.",
+    "reason_label": "Motif (facultatif)",
+    "reason_hint": "Conservé tel quel et affiché à côté de l’entrée.",
+    "confirm": "Retirer la version"
+  },
+  "withdrawn": {
+    "eyebrow": "Paquets retirés",
+    "title": "Paquets que cette machine refuse",
+    "description": "Un retrait prend effet au prochain démarrage : un paquet déjà chargé continue de fonctionner jusque-là, puis est ignoré. Seule cette version précise est concernée — la clé de signature reste approuvée et tous les autres plugins signés avec elle continuent d’être chargés.",
+    "empty": "Aucun paquet n’est retiré. Toute version installée qui se vérifie est chargée.",
+    "installed": "Installé ici",
+    "not_installed": "Ce paquet n’est pas installé ici ; seule son empreinte l’identifie.",
+    "unknown_package": "Paquet sans nom",
+    "digest": "Empreinte du paquet",
+    "reason": "Motif : {reason}",
+    "since": "Retiré {when}",
+    "lift": "Lever le retrait"
+  }
+}

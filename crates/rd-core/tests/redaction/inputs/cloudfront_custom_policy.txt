@@ -1,0 +1,1 @@
+https://d123.cloudfront.net/media/clip.mp4?Policy=eyJTdGF0ZW1lbnQiOlt7fV19&Signature=abc123~def&Key-Pair-Id=APKAIEXAMPLE

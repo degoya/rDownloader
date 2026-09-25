@@ -1,0 +1,27 @@
+{
+  "name": "Google Drive",
+  "description": "Lädt Google-Drive-Dateien, geteilte Links und Workspace-Exporte über die offizielle Drive-API.",
+  "account": {
+    "secret_label": "Google-Anmeldung",
+    "secret_hint": "Hier ist nichts einzufügen. Google Drive wird bei Google selbst angemeldet: Trage oben deine OAuth-Client-ID ein, starte die Anmeldung und stimme im Browserfenster zu.",
+    "username_label": "OAuth-Client-ID",
+    "username_hint": "Google Drive braucht einen eigenen OAuth-Client — dieses Projekt liefert keinen mit, damit jede Installation ihr eigenes Google-Kontingent hat. Lege in der Google Cloud Console ein Projekt an, aktiviere die Google-Drive-API, erstelle unter „Anmeldedaten“ eine OAuth-Client-ID vom Typ „Desktop-App“, trage http://127.0.0.1:8710/api/v1/oauth/callback als zulässige Weiterleitungs-URI ein und füge die Client-ID hier ein. Ins Secret-Feld kommt nichts: das füllt die Anmeldung."
+  },
+  "codes": {
+    "google_drive.account_missing": "Google-Drive-Konto fehlt",
+    "google_drive.api_refused": "Google Drive hat diese Anfrage abgelehnt ({reason})",
+    "google_drive.download_not_permitted": "Der Eigentümer hat das Herunterladen abgeschaltet, oder dieses Konto darf die Datei nur ansehen",
+    "google_drive.export_format_unsupported": "Google Drive kann dieses Dokument nicht im gewünschten Format exportieren",
+    "google_drive.export_too_large": "Dieses Google-Workspace-Dokument ist zu groß für einen Drive-Export",
+    "google_drive.export_unsupported": "Google Drive kann diese Dokumentart nicht exportieren",
+    "google_drive.file_not_found": "Diese Google-Drive-Datei existiert nicht oder ist für dieses Konto nicht sichtbar",
+    "google_drive.invalid_response": "Ungültige Google-Drive-Antwort",
+    "google_drive.is_a_folder": "Diese Google-Drive-Adresse ist ein Ordner. Füge sie erneut hinzu, damit der Ordner aufgelistet wird",
+    "google_drive.not_a_drive_link": "Dies ist keine Google-Drive-Dateiadresse",
+    "google_drive.quota_exceeded": "Das Downloadkontingent dieser Google-Drive-Datei ist aufgebraucht. Google setzt es nach einiger Zeit zurück",
+    "google_drive.rate_limited": "Google Drive drosselt dieses Konto",
+    "google_drive.sign_in_required": "Dieses Google-Drive-Konto muss erneut angemeldet werden",
+    "google_drive.unavailable": "Google Drive ist vorübergehend nicht erreichbar",
+    "google_drive.virus_scan_warning": "Google konnte diese Datei nicht auf Viren prüfen und liefert sie erst nach einer Bestätigung aus"
+  }
+}

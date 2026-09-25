@@ -1,0 +1,39 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000136"
+name = "Box folders"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The Box Content API and nothing else. The listing lives here, and the account's access token
+# may be sent to `api.box.com` and to no other address.
+[capabilities]
+secrets = ["box_access_token"]
+
+[capabilities.net_http]
+domains = ["api.box.com"]
+
+[extension]
+slug = "box_crawler"
+# The provider whose account this crawler runs as. The row itself is declared by the sibling
+# resolver, because only a resolver manifest may carry one; the host looks the account up and
+# this plugin never learns which one it is, nor sees its token.
+claims = ["box"]
+
+[metadata]
+description = "Lists the files behind a Box folder address or shared link."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+[limits]
+memory_bytes = 33554432
+# A crawl walks a tree in one invocation, so it needs more room than a call that makes one
+# request. The walk in `src/walk.rs` bounds depth, breadth, pages and cycles; these bound a
+# runaway.
+fuel = 2000000000
+timeout_milliseconds = 30000
+max_response_bytes = 4194304

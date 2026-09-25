@@ -1,0 +1,67 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000001"
+name = "DDownload"
+# The version must rise with every change, or a running instance keeps the package it
+# already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
+# older version stays installed.
+version = "0.10.11"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["ddownload.com", "www.ddownload.com"]
+download_domains = ["ddownload.com", "*.ddownload.com", "*.zeuscdn.org"]
+max_concurrent_downloads = 10
+# Links without an account are served by the XFS free flow. Since 2026-09-17 the file page
+# carries the download2 form directly (page -> Turnstile + countdown -> download2 -> direct
+# link); an installation still serving the older two-step form (page -> download1 -> captcha +
+# countdown -> download2 -> direct link) is handled as before.
+requires_account = false
+
+[capabilities]
+cookies = true
+captcha = true
+secrets = ["ddownload_api_key", "ddownload_password"]
+
+[capabilities.net_http]
+domains = ["ddownload.com", "*.ddownload.com", "api-v2.ddownload.com", "*.zeuscdn.org"]
+
+[metadata]
+description = "Resolves DDownload links by signing in with the account credentials, or with an API key."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "ddownload"
+kind = "hoster"
+credentials = "login_or_api_key"
+username_required = false
+cookie_scope = "https://ddownload.com/"
+host_aliases = [
+  ["ddl.to", "ddownload.com"],
+]
+
+# One slot per credential mode, with disjoint hosts. In `api_key` mode the key only ever
+# reaches the documented API; in `login` mode the password only ever reaches the website's
+# `op=login` form. `api_key` comes first and is therefore what an account stored before this
+# choice existed falls back to, which keeps every such account behaving exactly as before.
+[[provider.secrets]]
+reference = "ddownload_api_key"
+domains = ["api-v2.ddownload.com"]
+mode = "api_key"
+
+[[provider.secrets]]
+reference = "ddownload_password"
+domains = ["ddownload.com"]
+mode = "login"
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# A free download waits out the hoster's countdown and one captcha round trip; this budget is
+# spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

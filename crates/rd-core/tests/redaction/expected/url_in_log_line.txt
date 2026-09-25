@@ -1,0 +1,1 @@
+starting chunk 3 of https://cdn.example.com/f.bin?sig=%5Bredacted%5D at offset 1024

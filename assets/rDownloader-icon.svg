@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">rDownloader App Icon</title>
+  <desc id="desc">A turquoise download arrow in a rounded dark square.</desc>
+
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="#0F172A" stroke="#2DD4BF" stroke-width="16"/>
+  <path d="M256 112V300" fill="none" stroke="#2DD4BF" stroke-width="36" stroke-linecap="round"/>
+  <path d="M174 222L256 304L338 222" fill="none" stroke="#2DD4BF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M154 382H358" fill="none" stroke="#D8FFFA" stroke-width="32" stroke-linecap="round"/>
+</svg>

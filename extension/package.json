@@ -1,0 +1,6 @@
+{
+  "name": "rdownloader-extension",
+  "private": true,
+  "type": "module",
+  "description": "Marks extension/ as ES modules. Without it Node guesses from the syntax, prints a reparse warning that points at a package.json outside this repository, and fails outright on Node 20. No dependencies: the extension is built and tested with nothing but Node."
+}

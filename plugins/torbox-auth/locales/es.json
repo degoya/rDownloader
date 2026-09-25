@@ -1,0 +1,8 @@
+{
+  "name": "Inicio de sesión de TorBox",
+  "description": "Comprueba una clave de API de TorBox con la cuenta e informa del valor del plan.",
+  "codes": {
+    "torbox_auth.key_invalid": "TorBox no aceptó esta clave de API. Cópiala de nuevo desde los ajustes de TorBox.",
+    "torbox_auth.key_missing": "Esta cuenta de TorBox no tiene clave de API"
+  }
+}

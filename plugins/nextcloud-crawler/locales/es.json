@@ -1,0 +1,14 @@
+{
+  "name": "Recursos compartidos de Nextcloud",
+  "description": "Enumera los archivos que hay detrás de una carpeta compartida pública de Nextcloud u ownCloud.",
+  "codes": {
+    "nextcloud_crawler.invalid_response": "Respuesta WebDAV no válida de este servidor",
+    "nextcloud_crawler.not_a_nextcloud": "Esta dirección tiene forma de recurso compartido, pero no respondió ninguna Nextcloud",
+    "nextcloud_crawler.not_a_share": "Esta no es una dirección de recurso compartido de Nextcloud u ownCloud",
+    "nextcloud_crawler.password_required": "Este recurso compartido está protegido por contraseña: añada la contraseña a la dirección después de una #",
+    "nextcloud_crawler.password_wrong": "El servidor no aceptó la contraseña indicada con esta dirección",
+    "nextcloud_crawler.server_busy": "El servidor no está respondiendo a este recurso compartido en este momento",
+    "nextcloud_crawler.share_empty": "Este recurso compartido no contiene archivos",
+    "nextcloud_crawler.share_unreachable": "No se pudo leer este recurso compartido: puede haber caducado o haber sido retirado"
+  }
+}

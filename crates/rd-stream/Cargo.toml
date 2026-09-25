@@ -1,0 +1,27 @@
+[package]
+name = "rd-stream"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+# For `SharedNetworkDefaults`: a thumbnail host is trusted by the same decision as an HTTP
+# host and a news server, and that decision is made in one place (rd-http/src/tls.rs).
+rd-http = { path = "../rd-http" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-tools = { path = "../rd-tools" }
+reqwest.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

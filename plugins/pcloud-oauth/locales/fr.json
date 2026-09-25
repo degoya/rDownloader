@@ -1,0 +1,14 @@
+{
+  "name": "Connexion pCloud",
+  "description": "Connecte un compte pCloud via le point de terminaison d'autorisation de pCloud.",
+  "codes": {
+    "pcloud_oauth.bad_reply": "pCloud a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "pcloud_oauth.client_not_configured": "Aucune application pCloud n'est enregistrée pour ce compte. Saisissez d'abord la clé et le secret de l'application.",
+    "pcloud_oauth.code_expired": "La connexion a expiré ou avait déjà été utilisée avant d'être terminée. Recommencez-la.",
+    "pcloud_oauth.consent_denied": "La connexion n'a pas été accordée chez pCloud.",
+    "pcloud_oauth.flow_unsupported": "pCloud se connecte via le navigateur, pas avec un code d'appareil.",
+    "pcloud_oauth.no_entropy": "La connexion n'a pas pu démarrer car l'application ne disposait d'aucun aléa. Réessayez.",
+    "pcloud_oauth.renewal_unsupported": "pCloud n'émet rien qui permette de renouveler une connexion. Si elle cesse de fonctionner, reconnectez-vous.",
+    "pcloud_oauth.sign_in_refused": "pCloud a refusé la connexion."
+  }
+}

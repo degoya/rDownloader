@@ -1,0 +1,31 @@
+{
+  "name": "Turbobit",
+  "description": "Résout les liens Turbobit en tant qu'invité via le captcha et l'attente du site, ou avec un compte.",
+  "account": {
+    "secret_label": "Mot de passe Turbobit",
+    "secret_hint": "Le mot de passe du compte Turbobit indiqué ci-dessus. rDownloader se connecte lui-même et conserve la session ; le mot de passe n'atteint que app.turbobit.net. Sans compte, les liens sont téléchargés en tant qu'invité, avec le captcha et l'attente du site.",
+    "username_label": "Adresse e-mail Turbobit",
+    "username_hint": "L'adresse e-mail avec laquelle le compte Turbobit se connecte."
+  },
+  "codes": {
+    "turbobit.account_banned": "Turbobit signale que ce compte est bloqué",
+    "turbobit.account_missing": "Compte ou mot de passe Turbobit manquant",
+    "turbobit.api_error": "Turbobit a refusé la requête ({code})",
+    "turbobit.captcha_rejected": "Turbobit a rejeté la réponse au captcha",
+    "turbobit.file_unavailable": "Le fichier Turbobit n'est pas disponible",
+    "turbobit.folder_not_file": "Ce lien Turbobit est un dossier ; ajoutez plutôt les fichiers qu'il contient",
+    "turbobit.free_limit_reached": "Limite de téléchargements gratuits Turbobit atteinte pour cette adresse IP ; un autre téléchargement sera possible dans {wait_seconds}s",
+    "turbobit.http_error": "Statut HTTP Turbobit {status}",
+    "turbobit.invalid_link": "Lien Turbobit invalide",
+    "turbobit.invalid_response": "Réponse Turbobit invalide ({field})",
+    "turbobit.invalid_url": "URL du fournisseur invalide : {error}",
+    "turbobit.login_captcha": "Turbobit n'a pas accepté la réponse au captcha de la connexion ; elle sera réessayée plus tard",
+    "turbobit.login_failed": "Turbobit a rejeté l'adresse e-mail ou le mot de passe du compte",
+    "turbobit.no_direct_link": "Turbobit n'a fourni aucun lien de téléchargement",
+    "turbobit.not_signed_in": "Turbobit a refusé la requête faute de connexion",
+    "turbobit.premium_limit_reached": "Turbobit n'a fourni aucun lien de téléchargement au compte premium ; la limite quotidienne est peut-être atteinte",
+    "turbobit.premium_only": "Turbobit ne propose ce fichier qu'aux comptes premium",
+    "turbobit.rate_limited": "Limite de requêtes Turbobit atteinte ; la requête sera réessayée plus tard",
+    "turbobit.unsupported_link": "Lien Turbobit non pris en charge"
+  }
+}

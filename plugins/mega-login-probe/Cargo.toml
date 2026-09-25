@@ -1,0 +1,22 @@
+[package]
+name = "mega-login-probe"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+aes.workspace = true
+hmac.workspace = true
+# The only bignum in the tree. It exists for this measurement and for nothing else: a MEGA
+# session identifier is RSA-encrypted, and the question this crate answers is what that costs
+# a guest. Already in `Cargo.lock` before this crate named it.
+num-bigint.workspace = true
+sha2.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true

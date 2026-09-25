@@ -1,0 +1,37 @@
+{
+  "name": "Keep2Share",
+  "account": {
+    "secret_label": "Contraseña de la cuenta",
+    "secret_hint": "Introduce el correo de tu cuenta como usuario y tu contraseña como secreto."
+  },
+  "codes": {
+    "keep2share.account_missing": "Falta la cuenta de Keep2Share",
+    "keep2share.api_error": "API de Keep2Share ({api_status}): {message}",
+    "keep2share.bad_credentials": "El usuario o la contraseña de Keep2Share son incorrectos",
+    "keep2share.captcha_rejected": "Keep2Share rechazó la respuesta del captcha",
+    "keep2share.captcha_unavailable": "Keep2Share no devolvió un captcha que se pueda resolver",
+    "keep2share.download_limit_reached": "Se alcanzó el límite de descargas de Keep2Share",
+    "keep2share.download_wait": "Keep2Share requiere esperar antes de poder descargar este archivo",
+    "keep2share.file_offline": "El archivo de Keep2Share no está disponible",
+    "keep2share.flood": "Keep2Share está limitando las solicitudes de esta cuenta o IP",
+    "keep2share.free_limit_reached": "Se alcanzó el límite de descargas gratuitas de Keep2Share para esta dirección IP",
+    "keep2share.http_error": "Estado HTTP {status} de Keep2Share",
+    "keep2share.invalid_response": "Respuesta de Keep2Share no válida",
+    "keep2share.invalid_url": "URL de proveedor no válida: {error}",
+    "keep2share.login_captcha": "Keep2Share requiere resolver un captcha",
+    "keep2share.network_restricted": "Keep2Share denegó el acceso desde esta conexión de red",
+    "keep2share.no_access": "Keep2Share denegó el acceso a este archivo",
+    "keep2share.no_download_url": "Keep2Share no devolvió una URL de descarga",
+    "keep2share.no_free_link": "La descarga gratuita de Keep2Share no produjo un enlace de archivo: {diagnosis}",
+    "keep2share.no_token": "Keep2Share no devolvió un token de inicio de sesión",
+    "keep2share.password_missing": "Falta la contraseña de Keep2Share",
+    "keep2share.premium_required": "Se requiere una cuenta premium de Keep2Share para descargar este archivo",
+    "keep2share.private_file": "El archivo de Keep2Share solo puede ser descargado por su propietario",
+    "keep2share.server_error": "Error del servidor de Keep2Share",
+    "keep2share.session_invalid": "Keep2Share informó que el token de autenticación no es válido",
+    "keep2share.temporarily_unavailable": "Keep2Share informó que la descarga no está disponible temporalmente",
+    "keep2share.too_many_parallel": "Keep2Share no permite más descargas paralelas en esta cuenta",
+    "keep2share.traffic_exhausted": "Se alcanzó el límite de tráfico de Keep2Share",
+    "keep2share.unsupported_link": "Enlace de Keep2Share no admitido"
+  }
+}

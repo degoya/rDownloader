@@ -1,0 +1,15 @@
+{
+  "id": "REDACTEDTORRENT01",
+  "filename": "Example.Release",
+  "original_filename": "Example.Release",
+  "hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+  "bytes": 0,
+  "original_bytes": 0,
+  "host": "real-debrid.com",
+  "split": 2000,
+  "progress": 0,
+  "status": "magnet_conversion",
+  "added": "2026-09-16T00:00:00.000Z",
+  "files": [],
+  "links": []
+}

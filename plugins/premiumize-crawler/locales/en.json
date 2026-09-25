@@ -1,0 +1,12 @@
+{
+  "name": "Premiumize folders",
+  "description": "Lists the files behind a Premiumize.me cloud folder or item address.",
+  "codes": {
+    "premiumize_crawler.api_key_required": "Premiumize did not accept this account for that folder",
+    "premiumize_crawler.folder_empty": "This Premiumize folder holds no files",
+    "premiumize_crawler.folder_unreachable": "This Premiumize folder could not be read",
+    "premiumize_crawler.invalid_response": "Invalid Premiumize response",
+    "premiumize_crawler.not_a_folder": "This is not a Premiumize folder or item address",
+    "premiumize_crawler.rate_limited": "Premiumize is rate limiting this account"
+  }
+}

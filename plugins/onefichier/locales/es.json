@@ -1,0 +1,29 @@
+{
+  "name": "1fichier",
+  "account": {
+    "secret_label": "Clave API (desde Parameters → API)",
+    "secret_hint": "Introduce tu clave API (Parameters → API) como secreto."
+  },
+  "codes": {
+    "1fichier.account.access": "Plan «Access»",
+    "1fichier.account_missing": "Falta la cuenta de 1fichier",
+    "1fichier.account_required": "1fichier requiere una cuenta para descargar este archivo",
+    "1fichier.api_error": "API de 1fichier: {message}",
+    "1fichier.api_key_missing": "Falta la clave API de 1fichier",
+    "1fichier.bad_api_key": "La clave API de 1fichier no es válida o ha caducado",
+    "1fichier.file_offline": "El archivo de 1fichier no está disponible",
+    "1fichier.flood": "Se activó el límite de solicitudes (protección contra flood) de la API de 1fichier",
+    "1fichier.free_limit_reached": "Se alcanzó el límite de descargas gratuitas de 1fichier para esta dirección IP",
+    "1fichier.http_error": "Estado HTTP de 1fichier {status}",
+    "1fichier.invalid_response": "Respuesta de 1fichier no válida",
+    "1fichier.invalid_url": "URL del proveedor no válida: {error}",
+    "1fichier.no_download_url": "1fichier no devolvió una URL de descarga",
+    "1fichier.no_free_form": "No se encontró el formulario de descarga gratuita de 1fichier: {diagnosis}",
+    "1fichier.no_free_link": "La descarga gratuita de 1fichier no produjo un enlace de archivo: {diagnosis}",
+    "1fichier.no_free_slots": "1fichier no tiene ninguna plaza de descarga gratuita disponible en este momento",
+    "1fichier.password_required": "El archivo de 1fichier está protegido con contraseña, algo que la descarga sin cuenta no admite",
+    "1fichier.premium_required": "Se requiere una cuenta premium de 1fichier para usar la API de descarga",
+    "1fichier.server_error": "Error del servidor de 1fichier",
+    "1fichier.unsupported_link": "Enlace de 1fichier no admitido"
+  }
+}

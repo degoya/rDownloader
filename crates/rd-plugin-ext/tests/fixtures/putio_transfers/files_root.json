@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "id": 900002,
+      "name": "ep01.mkv",
+      "size": 10,
+      "content_type": "video/x-matroska",
+      "file_type": "VIDEO",
+      "parent_id": 900001
+    },
+    {
+      "id": 900003,
+      "name": "ep02.mkv",
+      "size": 20,
+      "content_type": "video/x-matroska",
+      "file_type": "VIDEO",
+      "parent_id": 900001
+    },
+    {
+      "id": 900004,
+      "name": "Sample",
+      "size": 1,
+      "content_type": "application/x-directory",
+      "file_type": "FOLDER",
+      "parent_id": 900001
+    }
+  ],
+  "status": "OK"
+}

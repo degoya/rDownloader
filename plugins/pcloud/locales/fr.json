@@ -1,0 +1,25 @@
+{
+  "name": "pCloud",
+  "description": "Résout les fichiers et les liens publics pCloud via l'API officielle de pCloud.",
+  "account": {
+    "secret_label": "Secret de l'application (client secret OAuth)",
+    "secret_hint": "Le point de terminaison de jeton de pCloud est un client confidentiel : il exige le secret de votre propre application et n'offre pas d'alternative. Collez ici le secret issu de la App Console pCloud, saisissez la clé de l'application dans le champ ci-dessus, puis lancez la connexion ; le jeton d'accès obtenu est conservé à part et n'écrase jamais cette valeur.",
+    "username_label": "Clé de l'application (client ID OAuth)",
+    "username_hint": "pCloud demande une application à vous — ce projet n'en fournit aucune, afin que chaque installation ait son propre quota pCloud. Dans la App Console pCloud, créez une application, ajoutez http://127.0.0.1:8710/api/v1/oauth/callback comme URI de redirection, puis collez ici sa clé et ci-dessous son secret. Peu importe que votre compte soit en Europe ou aux États-Unis : pCloud l'indique lors de la connexion et rDownloader le retrouve à partir de l'adresse de chaque lien."
+  },
+  "codes": {
+    "pcloud.account_missing": "Le compte pCloud est absent",
+    "pcloud.account_region": "Centre de données pCloud : {region}",
+    "pcloud.api_refused": "pCloud a refusé cette requête (résultat {result})",
+    "pcloud.download_not_permitted": "pCloud ne sert pas ce fichier à ce compte",
+    "pcloud.file_not_found": "Ce fichier pCloud n'existe dans aucun des deux centres de données, ou ce compte ne peut pas le voir",
+    "pcloud.invalid_download_host": "pCloud a répondu avec une adresse de téléchargement qui n'est pas la sienne ; rien n'a été transmis",
+    "pcloud.invalid_response": "Réponse pCloud invalide",
+    "pcloud.is_a_folder": "Cette adresse pCloud est un dossier. Ajoutez-la de nouveau pour que le dossier soit listé",
+    "pcloud.link_unavailable": "pCloud n'ouvre pas ce lien public (résultat {result}). Il peut être supprimé, expiré, à court de trafic ou protégé par un mot de passe — l'API de pCloud n'offre aucun moyen d'en saisir un",
+    "pcloud.not_a_pcloud_link": "Ce n'est pas une adresse de fichier pCloud",
+    "pcloud.rate_limited": "pCloud limite le débit de cette application. Ses autres liens attendent aussi longtemps que pCloud l'a demandé",
+    "pcloud.sign_in_required": "Aucun des deux centres de données pCloud n'a accepté la connexion de ce compte. Reconnectez-vous",
+    "pcloud.unavailable": "pCloud est temporairement indisponible"
+  }
+}

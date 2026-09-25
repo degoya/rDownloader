@@ -1,0 +1,89 @@
+# Build, verify and conformance-check an rDownloader plugin.
+#
+# Copy into `.github/workflows/` of your plugin repository. It expects the layout `plugin new`
+# produces: `manifest.toml`, `src/`, `locales/` and `wit/` at the root.
+name: plugin
+
+on:
+  push:
+  pull_request:
+
+env:
+  # Name of the built artefact: your crate name with dashes turned into underscores.
+  COMPONENT: myhoster
+  # The rDownloader release whose `plugin package`, `verify` and `conformance` run here. Bump it
+  # when you build against a newer contract; the version must be one that supports the
+  # `api_version` in your manifest, or conformance refuses the package.
+  RDOWNLOADER_VERSION: 1.0.5
+
+jobs:
+  plugin:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      # The same cargo-component the application's own plugins are built with.
+      - run: cargo install cargo-component --version 0.21.1 --locked
+      # Reads the component's import section; see "Reject accidental WASI imports" below.
+      - uses: taiki-e/install-action@wasm-tools
+
+      - name: Install the rDownloader release binary
+        # The binary embeds the built web interface, so it cannot be `cargo install`ed from the
+        # git repository; the release archive is the supported way to obtain it.
+        run: |
+          curl --fail --silent --show-error --location \
+            --output rdownloader.tar.gz \
+            "https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}/rdownloader-linux-x86_64.tar.gz"
+          tar --extract --gzip --file rdownloader.tar.gz rdownloader
+          sudo install --mode 0755 rdownloader /usr/local/bin/rdownloader
+          rdownloader --version
+
+      - name: Build the component
+        run: cargo component build --release --target wasm32-unknown-unknown
+
+      - name: Reject accidental WASI imports
+        # A plugin that imports anything outside `rdownloader:plugin` is refused at install
+        # time; finding out here is cheaper. The import section is read with wasm-tools rather
+        # than by scanning the bytes for "wasi:", because a byte scan cannot tell an import from
+        # a string literal and rejects a plugin whose error text merely mentions WASI.
+        run: |
+          wasm="target/wasm32-unknown-unknown/release/${COMPONENT}.wasm"
+          offenders=$(wasm-tools component wit "${wasm}" \
+            | sed -n 's/^[[:space:]]*import[[:space:]]\{1,\}\([^;]*\);.*$/\1/p' \
+            | grep -v '^rdownloader:plugin/' || true)
+          if [[ -n "${offenders}" ]]; then
+            echo "::error::${wasm} imports outside rdownloader:plugin:"
+            echo "${offenders}"
+            exit 1
+          fi
+
+      - name: Package and verify
+        env:
+          # The PEM private key; the CLI reads it from this variable when `--key` is not given.
+          RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' manifest.toml | head -n 1)
+          key_id=$(sed -n 's/^key_id = "\(.*\)"/\1/p' manifest.toml)
+          public_key=$(sed -n 's/^public_key = "\(.*\)"/\1/p' manifest.toml)
+          rdownloader plugin package \
+            --manifest manifest.toml \
+            --component "target/wasm32-unknown-unknown/release/${COMPONENT}.wasm" \
+            --locales locales \
+            --output "${COMPONENT}-${version}.rdplug"
+          rdownloader plugin verify \
+            --trusted-key "${key_id}=${public_key}" \
+            --no-default-plugin-key \
+            "${COMPONENT}-${version}.rdplug"
+          rdownloader plugin conformance --json \
+            --trusted-key "${key_id}=${public_key}" \
+            --no-default-plugin-key \
+            "${COMPONENT}-${version}.rdplug"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: plugin
+          path: "*.rdplug"
+          if-no-files-found: error

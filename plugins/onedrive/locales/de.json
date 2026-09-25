@@ -1,0 +1,26 @@
+{
+  "name": "OneDrive",
+  "description": "Lädt OneDrive- und SharePoint-Dateien und Freigabelinks über Microsoft Graph.",
+  "account": {
+    "secret_label": "Microsoft-Anmeldung",
+    "secret_hint": "Hier ist nichts einzufügen. OneDrive wird bei Microsoft selbst angemeldet: Trage oben deine Anwendungs-ID (Client-ID) ein, starte die Anmeldung und stimme im Browserfenster zu — oder gib den angezeigten Kurzcode auf einem beliebigen anderen Gerät unter microsoft.com/devicelogin ein.",
+    "username_label": "Anwendungs-ID (Client-ID)",
+    "username_hint": "OneDrive braucht eine eigene App-Registrierung — dieses Projekt liefert keine mit, damit jede Installation ihr eigenes Microsoft-Drosselungsbudget hat. Lege im Microsoft Entra Admin Center (entra.microsoft.com) unter „App-Registrierungen“ eine Registrierung für Konten in einem beliebigen Organisationsverzeichnis und persönliche Microsoft-Konten an, füge die Plattform „Mobilgerät- und Desktopanwendungen“ mit http://127.0.0.1:8710/api/v1/oauth/callback als Umleitungs-URI hinzu, schalte „Öffentliche Clientflows zulassen“ für die Geräteanmeldung ein und füge die Anwendungs-ID (Client-ID) hier ein. Die Anmeldung fragt nur Files.Read.All und offline_access an. Ins Secret-Feld kommt nichts: das füllt die Anmeldung."
+  },
+  "codes": {
+    "onedrive.access_denied": "Dieses Konto darf auf dieses OneDrive-Element nicht zugreifen. Der Link wurde womöglich für ein anderes Konto oder einen anderen Mandanten freigegeben",
+    "onedrive.account_missing": "OneDrive-Konto fehlt",
+    "onedrive.api_refused": "OneDrive hat diese Anfrage abgelehnt ({reason})",
+    "onedrive.download_not_permitted": "Dieses Element darf angesehen, aber nicht heruntergeladen werden — eine Richtlinie der SharePoint-Website oder des Mandanten sperrt den Download",
+    "onedrive.invalid_request": "OneDrive konnte diesen Freigabelink nicht auflösen. Er gehört womöglich zu einem Mandanten, den dieses Konto nicht erreicht",
+    "onedrive.invalid_response": "Ungültige OneDrive-Antwort",
+    "onedrive.is_a_folder": "Diese OneDrive-Adresse ist ein Ordner. Füge sie erneut hinzu, damit der Ordner aufgelistet wird",
+    "onedrive.item_not_found": "Dieses OneDrive-Element existiert nicht, der Freigabelink wurde zurückgezogen, oder dieses Konto sieht es nicht",
+    "onedrive.malware_detected": "OneDrive hat diese Datei als Schadsoftware eingestuft und liefert sie nicht aus",
+    "onedrive.not_a_file": "Dieses OneDrive-Element ist keine herunterladbare Datei",
+    "onedrive.not_a_onedrive_link": "Dies ist keine OneDrive- oder SharePoint-Dateiadresse",
+    "onedrive.rate_limited": "OneDrive drosselt dieses Konto",
+    "onedrive.sign_in_required": "Dieses OneDrive-Konto muss erneut angemeldet werden",
+    "onedrive.unavailable": "OneDrive ist vorübergehend nicht erreichbar"
+  }
+}

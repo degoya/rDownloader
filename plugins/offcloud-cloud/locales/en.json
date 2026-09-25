@@ -1,0 +1,21 @@
+{
+  "name": "Offcloud cloud downloads",
+  "description": "Runs magnets and web addresses as cloud downloads on an Offcloud account.",
+  "codes": {
+    "offcloud_cloud.addon_required": "Offcloud needs an additional add-on for this download ({addon})",
+    "offcloud_cloud.api_error": "Offcloud API error {api_code}",
+    "offcloud_cloud.auth_invalid": "The Offcloud API key is no longer valid. Enter it again.",
+    "offcloud_cloud.container_unsupported": "Offcloud takes an address, not a torrent or NZB file",
+    "offcloud_cloud.http_error": "Offcloud HTTP status {status}",
+    "offcloud_cloud.invalid_response": "Invalid Offcloud response",
+    "offcloud_cloud.job_canceled": "This cloud download was cancelled at Offcloud",
+    "offcloud_cloud.job_failed": "Offcloud ended this cloud download with an error",
+    "offcloud_cloud.job_gone": "Offcloud no longer holds this cloud download",
+    "offcloud_cloud.no_links": "Offcloud reports this cloud download as finished but returned no addresses",
+    "offcloud_cloud.no_request_id": "Offcloud did not name the cloud download it created. Check your Offcloud account before trying again.",
+    "offcloud_cloud.no_selection": "Offcloud downloads the whole job and has no file selection",
+    "offcloud_cloud.not_a_cloud_source": "Offcloud takes a magnet address or a web address, and this is neither",
+    "offcloud_cloud.rate_limited": "The Offcloud request limit was reached. Waiting.",
+    "offcloud_cloud.server_error": "Offcloud server error"
+  }
+}

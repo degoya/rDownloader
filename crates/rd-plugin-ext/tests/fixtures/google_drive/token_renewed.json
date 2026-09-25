@@ -1,0 +1,6 @@
+{
+  "token_type": "Bearer",
+  "access_token": "redacted-access-token-0000",
+  "expires_in": 3599,
+  "scope": "https://www.googleapis.com/auth/drive.readonly"
+}

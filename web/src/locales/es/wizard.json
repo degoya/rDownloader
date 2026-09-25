@@ -1,0 +1,59 @@
+{
+  "title": "Asistente de configuración",
+  "rerun": "Asistente de configuración",
+  "steps": {
+    "password": {
+      "title": "Contraseña",
+      "description": "Proteger el servicio",
+      "lead": "Establece la contraseña de administrador local. El servicio permanece ligado a la interfaz loopback de forma predeterminada."
+    },
+    "pairing": {
+      "title": "Cliente",
+      "description": "Agente de captura y extensión",
+      "lead": "Vincula el agente de captura de escritorio o la extensión del navegador para que los enlaces lleguen automáticamente a rDownloader."
+    },
+    "storage": {
+      "title": "Almacenamiento",
+      "description": "Dónde van las descargas",
+      "lead": "Las descargas necesitan un directorio de destino. Añade al menos una ubicación de almacenamiento para continuar."
+    },
+    "mcp": {
+      "title": "API & MCP",
+      "description": "Conectar clientes externos",
+      "lead": "Opcionalmente, crea un token de API para un cliente externo o registra el servidor MCP integrado en tu asistente de IA."
+    },
+    "services": {
+      "title": "Cuentas",
+      "description": "Hosters y Usenet",
+      "lead": "Añade cuentas de hosters y servidores Usenet. Puedes omitir este paso y hacerlo más tarde en los ajustes."
+    }
+  },
+  "password": {
+    "rule": "al menos 10 caracteres",
+    "submit": "Establecer contraseña",
+    "configured": "Contraseña ya configurada",
+    "configured_hint": "La contraseña de administrador está establecida. Puedes cambiarla en cualquier momento en Ajustes → General."
+  },
+  "pairing": {
+    "intro": "La vinculación es opcional: siempre puedes añadir enlaces a mano. Un cliente vinculado envía los enlaces capturados, Click'n'Load y archivos .nzb directamente a la cola."
+  },
+  "storage": {
+    "intro": "Una ubicación de almacenamiento es el directorio base donde se escriben las descargas. Las rutas deben ser absolutas y se crean si aún no existen: en un contenedor, solo una ruta en un volumen montado sobrevive a una recreación.",
+    "default_category_hint": "Se crea una categoría predeterminada llamada «Downloads» para la primera ubicación, de modo que la cola tenga un destino.",
+    "default_category_name": "Downloads",
+    "required_hint": "Añade al menos una ubicación de almacenamiento: sin ella no puede iniciarse ninguna descarga."
+  },
+  "services": {
+    "intro": "Opcional: las cuentas premium eliminan los límites de velocidad y captcha, y un servidor Usenet habilita las descargas NZB.",
+    "accounts_tab": "Cuentas de hosters",
+    "usenet_tab": "Usenet"
+  },
+  "actions": {
+    "back": "Atrás",
+    "skip": "Omitir",
+    "continue": "Continuar",
+    "finish": "Finalizar",
+    "finish_with_tour": "Finalizar y ver la visita",
+    "close": "Cerrar asistente"
+  }
+}

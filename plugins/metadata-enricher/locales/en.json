@@ -1,0 +1,4 @@
+{
+  "name": "Film and series metadata",
+  "description": "Reads the film or series out of a release name and adds rating, year, genre and runtime."
+}

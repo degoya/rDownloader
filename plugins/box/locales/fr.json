@@ -1,0 +1,25 @@
+{
+  "name": "Box",
+  "description": "Résout les fichiers Box et les liens partagés via l'API de contenu officielle de Box.",
+  "account": {
+    "secret_label": "Secret client Box",
+    "secret_hint": "Le secret client de votre propre application Box, sur la même page que l'identifiant client ci-dessus. Box l'exige à chaque connexion et à chaque renouvellement, il reste donc enregistré ; le jeton d'accès obtenu par la connexion est conservé à côté et jamais par-dessus.",
+    "username_label": "Identifiant client (OAuth 2.0)",
+    "username_hint": "Box a besoin de votre propre application — ce projet n'en fournit aucune, afin que chaque installation ait sa propre limite Box. Dans la Box Developer Console, créez une Custom App avec User Authentication (OAuth 2.0), cochez uniquement la portée « Read all files and folders stored in Box », ajoutez http://127.0.0.1:8710/api/v1/oauth/callback comme URI de redirection, puis collez ici l'identifiant client et ci-dessous le secret client."
+  },
+  "codes": {
+    "box.account_missing": "Le compte Box est absent",
+    "box.api_refused": "Box a refusé cette requête ({reason})",
+    "box.download_not_permitted": "Box ne fournit pas ce fichier à ce compte : il est restreint, verrouillé ou partagé sans droit de téléchargement",
+    "box.file_not_found": "Ce fichier Box n'existe pas, il est à la corbeille, ou ce compte ne peut pas le voir",
+    "box.invalid_response": "Réponse Box non valide",
+    "box.is_a_folder": "Cette adresse Box est un dossier. Ajoutez-la à nouveau pour que le dossier soit listé",
+    "box.link_access_denied": "Box a refusé l'accès à ce lien partagé. S'il est protégé par un mot de passe, ajoutez ?shared_link_password=… à l'adresse ; sinon il a été partagé avec quelqu'un d'autre",
+    "box.not_a_box_link": "Ce n'est pas une adresse de fichier Box",
+    "box.not_a_file": "Cet élément Box n'est pas un fichier et n'a rien à télécharger",
+    "box.quota_exceeded": "Ce compte Box a épuisé son quota",
+    "box.rate_limited": "Box limite ce compte. Ses autres liens attendent aussi longtemps que Box l'a demandé",
+    "box.sign_in_required": "Ce compte Box doit être reconnecté",
+    "box.unavailable": "Box est temporairement indisponible"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "status": {
+    "requestId": "REDACTEDREQUEST01",
+    "status": "downloaded",
+    "fileName": "Example.Release",
+    "amount": 1000,
+    "fileSize": 1000,
+    "serverType": "cloud",
+    "url": "https://s1.offcloud.com/cloud/REDACTEDREQUEST01/Example.Release"
+  }
+}

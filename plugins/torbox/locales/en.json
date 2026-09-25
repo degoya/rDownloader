@@ -1,0 +1,20 @@
+{
+  "name": "TorBox",
+  "description": "Mints TorBox download addresses and reports what a TorBox account is worth.",
+  "codes": {
+    "torbox.account_missing": "TorBox account is missing",
+    "torbox.api_error": "TorBox API error {api_code}",
+    "torbox.auth_invalid": "The TorBox API key is invalid or expired. Enter it again.",
+    "torbox.file_gone": "TorBox no longer offers this file",
+    "torbox.http_error": "TorBox HTTP status {status}",
+    "torbox.invalid_response": "Invalid TorBox response",
+    "torbox.key_missing": "This TorBox account has no API key",
+    "torbox.limit_reached": "TorBox reports the plan limit as reached",
+    "torbox.no_download_url": "TorBox did not return a download address",
+    "torbox.not_a_ticket": "This is not a TorBox download address",
+    "torbox.not_permitted": "The TorBox plan does not cover this download",
+    "torbox.rate_limited": "The TorBox API rate limit was reached. Waiting.",
+    "torbox.request_refused": "TorBox refused this request",
+    "torbox.server_busy": "TorBox is temporarily unavailable"
+  }
+}

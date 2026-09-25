@@ -1,0 +1,20 @@
+[package]
+name = "rd-automation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+rd-core = { path = "../rd-core" }
+rd-notify = { path = "../rd-notify" }
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+{
+  "files": [
+    {
+      "id": 900005,
+      "name": "sample.mkv",
+      "size": 1,
+      "content_type": "video/x-matroska",
+      "file_type": "VIDEO",
+      "parent_id": 900004
+    }
+  ],
+  "status": "OK"
+}

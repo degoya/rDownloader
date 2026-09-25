@@ -1,0 +1,7 @@
+{
+  "name": "WebDAV",
+  "description": "Uploads finished packages to a WebDAV server, verifying each file before anything local is deleted.",
+  "codes": {
+    "webdav_storage.upload_rejected": "The WebDAV server refused the upload."
+  }
+}

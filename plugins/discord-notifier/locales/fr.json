@@ -1,0 +1,7 @@
+{
+  "name": "Discord",
+  "description": "Distribue les notifications dans un salon Discord via un webhook.",
+  "codes": {
+    "discord_notifier.rejected": "Discord a rejeté le message."
+  }
+}

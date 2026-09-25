@@ -1,0 +1,19 @@
+{
+  "name": "Put.io",
+  "description": "Resuelve archivos de una cuenta de Put.io a través de la API oficial.",
+  "codes": {
+    "putio.account_missing": "Esta dirección necesita una cuenta de Put.io",
+    "putio.api_error": "Error de la API de Put.io ({reason})",
+    "putio.auth_invalid": "El inicio de sesión de Put.io ya no es válido. Vuelve a iniciar sesión.",
+    "putio.disk_free": "{bytes} bytes libres",
+    "putio.file_not_found": "Put.io ya no conserva este archivo",
+    "putio.http_error": "Estado HTTP {status} de Put.io",
+    "putio.invalid_response": "Respuesta de Put.io no válida",
+    "putio.is_a_folder": "Esta dirección de Put.io es una carpeta, no un archivo",
+    "putio.not_a_putio_link": "Esto no es una dirección de archivo de Put.io",
+    "putio.not_permitted": "Put.io no permite esta acción a esta cuenta",
+    "putio.rate_limited": "Se alcanzó el límite de la API de Put.io. Esperando.",
+    "putio.server_error": "Put.io no está disponible temporalmente",
+    "putio.token_missing": "Esta cuenta de Put.io aún no ha iniciado sesión"
+  }
+}

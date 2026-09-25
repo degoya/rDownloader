@@ -1,0 +1,14 @@
+{
+  "name": "Nextcloud-Freigaben",
+  "description": "Listet die Dateien hinter einer öffentlichen Nextcloud- oder ownCloud-Ordnerfreigabe auf.",
+  "codes": {
+    "nextcloud_crawler.invalid_response": "Ungültige WebDAV-Antwort von diesem Server",
+    "nextcloud_crawler.not_a_nextcloud": "Diese Adresse hat die Form einer Freigabe, aber es hat keine Nextcloud geantwortet",
+    "nextcloud_crawler.not_a_share": "Dies ist keine Nextcloud- oder ownCloud-Freigabeadresse",
+    "nextcloud_crawler.password_required": "Diese Freigabe ist passwortgeschützt: Hängen Sie das Passwort nach einem # an die Adresse an",
+    "nextcloud_crawler.password_wrong": "Der Server hat das mit dieser Freigabeadresse angegebene Passwort nicht akzeptiert",
+    "nextcloud_crawler.server_busy": "Der Server beantwortet diese Freigabe gerade nicht",
+    "nextcloud_crawler.share_empty": "Diese Freigabe enthält keine Dateien",
+    "nextcloud_crawler.share_unreachable": "Diese Freigabe konnte nicht gelesen werden: Sie ist möglicherweise abgelaufen oder zurückgezogen"
+  }
+}

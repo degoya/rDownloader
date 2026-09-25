@@ -1,0 +1,19 @@
+{
+  "name": "KrakenFiles",
+  "description": "Löst KrakenFiles-Links ohne Konto über das Download-Formular der Dateiseite und dessen Cloudflare Turnstile auf.",
+  "codes": {
+    "krakenfiles.captcha_rejected": "KrakenFiles hat die Captcha-Antwort abgelehnt",
+    "krakenfiles.direct_link_foreign": "KrakenFiles hat einen Download-Link auf {host} ausgegeben, von dem dieses Plugin nicht laden darf",
+    "krakenfiles.direct_link_missing": "KrakenFiles hat die Download-Anfrage angenommen, aber keinen Download-Link zurückgegeben",
+    "krakenfiles.download_refused": "KrakenFiles hat den Download verweigert: {message}",
+    "krakenfiles.file_unavailable": "Die KrakenFiles-Datei wurde gelöscht oder hat nie existiert",
+    "krakenfiles.http_error": "KrakenFiles-HTTP-Status {status}",
+    "krakenfiles.invalid_link": "Ungültiger KrakenFiles-Link",
+    "krakenfiles.invalid_response": "Ungültige KrakenFiles-Antwort",
+    "krakenfiles.invalid_url": "Ungültige Anbieter-URL: {error}",
+    "krakenfiles.no_account": "Dieser Resolver lädt ohne Konto und hat keines zu prüfen",
+    "krakenfiles.page_layout_changed": "Die KrakenFiles-Dateiseite sieht nicht mehr wie erwartet aus: {diagnosis}",
+    "krakenfiles.rate_limited": "KrakenFiles hat den Download-Link verweigert (HTTP {status}); zu viele Verbindungen, in einer Stunde erneut versuchen",
+    "krakenfiles.unsupported_link": "Kein unterstützter KrakenFiles-Link"
+  }
+}

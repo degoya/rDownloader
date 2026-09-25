@@ -1,0 +1,103 @@
+{
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Medien",
+    "gallery": "Galerien",
+    "record": "Aufnahmen"
+  },
+  "days": {
+    "0": "Mo",
+    "1": "Di",
+    "2": "Mi",
+    "3": "Do",
+    "4": "Fr",
+    "5": "Sa",
+    "6": "So"
+  },
+  "source": {
+    "manual": "Manuelles Limit",
+    "global": "Profil",
+    "protocol": "Protokoll",
+    "host": "Host",
+    "account": "Account",
+    "category": "Kategorie"
+  },
+  "status": {
+    "eyebrow": "Gerade aktiv",
+    "no_profile": "Kein Profil aktiv",
+    "binding": "Strengste Grenze",
+    "unlimited": "Unbegrenzt",
+    "next_switch": "Nächste Umschaltung",
+    "no_switch": "Keine Umschaltung geplant",
+    "daily": "Heute ({period})",
+    "monthly": "Dieser Monat ({period})",
+    "usage": "{used} von {limit}",
+    "budget_exhausted": "Das Trafficbudget ist aufgebraucht. Laufende Transfers werden fertig; Neues startet erst im nächsten Zeitraum."
+  },
+  "capabilities": {
+    "title": "Was eine Grenze nicht vollständig erreicht"
+  },
+  "profile": {
+    "eyebrow": "Wiederverwendbare Grenzen",
+    "title": "Bandbreitenprofile",
+    "form_edit": "Profil bearbeiten",
+    "description": "Ein Profil bündelt eine globale Rate, optionale Raten je Bereich und Trafficbudgets. Der Zeitplan entscheidet, wann es gilt.",
+    "name_label": "Name",
+    "name_placeholder": "Nacht",
+    "create": "Profil anlegen",
+    "parallel_label": "Parallele Dateien",
+    "parallel_description": "Begrenzt die Queue, solange aktiv; leer behält die allgemeine Einstellung.",
+    "inherit": "Einstellung behalten",
+    "download_label": "Download-Limit",
+    "upload_label": "Torrent-Upload-Limit",
+    "upload_description": "Nur die Torrent-Engine lädt hoch.",
+    "daily_label": "Tagesbudget",
+    "monthly_label": "Monatsbudget",
+    "no_budget": "Kein Budget",
+    "empty": "Noch kein Profil.",
+    "delete_title": "Profil löschen",
+    "delete_description": "Profil „{name}“ löschen? Seine Zeitfenster gehen mit.",
+    "form_new": "Neues Profil",
+    "summary_scopes": "{count} Bereichsgrenze | {count} Bereichsgrenzen",
+    "summary_parallel": "{count} parallele Datei | {count} parallele Dateien",
+    "summary_upload": "{rate} Upload",
+    "summary_daily": "{size} pro Tag",
+    "summary_monthly": "{size} pro Monat"
+  },
+  "scope": {
+    "title": "Bereichsgrenzen",
+    "description": "Die engere Grenze gewinnt immer gegen die breitere. Welche gerade greift, steht oben im Status.",
+    "protocol": "Protokoll",
+    "host": "Host",
+    "account": "Account",
+    "category": "Kategorie",
+    "add": "Hinzufügen",
+    "placeholder_protocol": "usenet",
+    "placeholder_host": "example.com",
+    "placeholder_account": "Account-ID",
+    "placeholder_category": "Kategorie-ID"
+  },
+  "schedule": {
+    "eyebrow": "Wochenplan",
+    "title": "Zeitplan",
+    "saved": "Zeitplan gespeichert",
+    "description": "Zeitfenster sind Ortszeiten in der Zeitzone unten, damit ein Sommerzeitwechsel keine Periode überspringt oder doppelt zählt.",
+    "timezone_label": "Zeitzone",
+    "timezone_description": "IANA-Name, z. B. Europe/Berlin.",
+    "default_label": "Außerhalb aller Fenster",
+    "default_description": "Profil, wenn kein Fenster passt.",
+    "no_default": "Keine Grenzen",
+    "window_profile": "Profil",
+    "from": "Von",
+    "to": "Bis",
+    "priority": "Priorität",
+    "enabled": "Aktiv",
+    "add_window": "Fenster hinzufügen",
+    "wraps": "Dieses Fenster läuft über Mitternacht in den Folgetag.",
+    "empty": "Noch kein Fenster — das Standardprofil gilt rund um die Uhr.",
+    "needs_profile": "Zuerst ein Profil anlegen.",
+    "windows_title": "Zeitfenster"
+  }
+}

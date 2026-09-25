@@ -1,0 +1,8 @@
+{
+  "error": "invalid_grant",
+  "error_description": "AADSTS70008: The provided authorization code or refresh token has expired due to inactivity. Trace ID: redacted Correlation ID: redacted Timestamp: 2026-09-10 10:00:00Z",
+  "error_codes": [70008],
+  "timestamp": "2026-09-10 10:00:00Z",
+  "trace_id": "redacted",
+  "correlation_id": "redacted"
+}

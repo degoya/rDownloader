@@ -1,0 +1,32 @@
+manifest_version = 3
+plugin_type = "postprocess"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000106"
+name = "SHA-256 checksums"
+version = "0.9.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Nothing granted. Reading the package's files is not a capability but part of what a
+# post-processing step is, and the host hands over a handle and a file list, never a path.
+[capabilities]
+
+[extension]
+slug = "sha256_postprocess"
+# Empty: a step is switched on per category, not matched against a link.
+claims = []
+
+[metadata]
+description = "Verifies .sha256 sidecar files against the package they belong to."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+# A checksum reads every byte of the package, so the budget is generous. Stopping and
+# resuming is what keeps that bounded rather than this number.
+timeout_milliseconds = 600000
+max_response_bytes = 1048576

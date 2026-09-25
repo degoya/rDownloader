@@ -1,0 +1,91 @@
+manifest_version = 3
+plugin_type = "stream-transform"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000132"
+name = "MEGA"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# MEGA's file key is the fragment of the link (ADR 0011). Declaring the hosts here is what
+# keeps the key out of the candidate row and in the vault instead of being dropped with the
+# rest of the fragment (RD-110-38). `mega.co.nz` is the legacy host the addresses still use.
+secret_fragment_domains = ["mega.nz", "mega.co.nz"]
+
+# The command endpoint and the storage nodes. A storage address is answered per call on a
+# host of the form `gfs<n>n<n>.userstorage.mega.co.nz`, so the pattern is the suffix rather
+# than a list nobody could keep current.
+[capabilities.net_http]
+domains = ["g.api.mega.co.nz", "mega.nz", "*.userstorage.mega.co.nz"]
+
+[capabilities]
+# The session a sign-in stored, and nothing else (RD-120-30). The password slot below belongs
+# to `plugins/mega-auth`, which computes over it; this plugin neither sends nor computes over
+# the password, so it does not grant itself one.
+secrets = ["mega_session"]
+# A file in the account has its key wrapped under the master key, and the master key is the
+# key half of the session. The host unwraps under it and hands back only the file's own key;
+# the master key never enters this sandbox. A chain over sign-in key material begins with the
+# AES step -- see `docs/adr/0020-the-host-computes-over-the-secret.md`, addendum RD-120-30.
+key_derivation = true
+
+[extension]
+slug = "mega"
+claims = ["mega"]
+
+# MEGA's account row, and the only one there has ever been (RD-120-20).
+#
+# A `[provider]` section on a stream-transform manifest is deliberate, and it sits here rather
+# than on `plugins/mega-auth` for a reason the codebase decides rather than taste: a manifest's
+# message namespace **is** its provider slug (`PluginManifest::message_slug`). Putting the row
+# on the sign-in would have moved its codes from `mega_auth.*` into `mega.*`, where this plugin
+# already has thirteen of them -- two owners of one namespace, with `api_error`, `rate_limited`
+# and `unavailable` colliding outright. The namespace belongs to the provider, and so does the
+# row.
+#
+# Until now MEGA had no provider row at all: both its manifests were `[extension]` sections,
+# the registry is filled solely from `[provider]`, and so no MEGA account could be created and
+# `plugins/mega-auth` would have claimed a provider that did not exist. A stream-transform
+# plugin is a resolver in everything but the world it exports -- it claims the addresses, it
+# talks to the provider's API, it answers with the address a download runs on -- and it exports
+# the twelfth world only because MEGA encrypts on the client (ADR 0011).
+[provider]
+slug = "mega"
+kind = "hoster"
+credentials = "username_password"
+username_required = true
+
+# Two slots, because two credentials have to exist at once (RD-120-30). What the person typed
+# stays where they put it, because every later sign-in computes over it again; what the
+# sign-in obtained lives beside it. Until RD-120-30 the session was written over the password,
+# and a second sign-in computed over a session identifier and failed.
+[[provider.secrets]]
+reference = "mega_password"
+# The command endpoint and nothing else. This list is also the ceiling on what a plugin that
+# computes over the password may reach; `plugins/mega-auth` declares exactly this one host.
+domains = ["g.api.mega.co.nz"]
+
+# The session: a token the host sends as `{{secret:mega_session}}`, and sixteen bytes of key
+# material it only ever computes with (`auth_flows.key_ref`). The hosts are every one this
+# plugin reaches, because a plugin may compute over a credential only where everything it can
+# reach is somewhere that credential could itself be sent -- and a file's storage node is named
+# per call. All of them are MEGA's; the plugins send the token to the command endpoint only.
+[[provider.secrets]]
+reference = "mega_session"
+domains = ["g.api.mega.co.nz", "mega.nz", "*.userstorage.mega.co.nz"]
+filled_by = "flow"
+
+[metadata]
+description = "Resolves MEGA file links and files of the signed-in account, and describes how the host decrypts their bytes."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+# An account file is found in the account's node list, which MEGA answers in one piece
+# (`a=f`, no cursor), so this plugin carries the crawler's bounds rather than a file link's.
+[limits]
+memory_bytes = 67108864
+fuel = 1000000000
+timeout_milliseconds = 30000
+max_response_bytes = 16777216

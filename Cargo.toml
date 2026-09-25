@@ -1,0 +1,271 @@
+[workspace]
+resolver = "2"
+# The SDK templates are standalone plugin projects, not members: they have to build from a
+# copy of themselves outside this repository, which is exactly what CI checks.
+exclude = ["sdk"]
+members = [
+  "crates/rd-api",
+  "crates/rd-authn",
+  "crates/rd-automation",
+  "crates/rd-autostart",
+  "crates/rd-captcha",
+  "crates/rd-capture",
+  "crates/rd-collector",
+  "crates/rd-core",
+  "crates/rd-db",
+  "crates/rd-diagnostics",
+  "crates/rd-extract",
+  "crates/rd-files",
+  "crates/rd-ftp",
+  "crates/rd-gallery",
+  "crates/rd-hotfolder",
+  "crates/rd-media",
+  "crates/rd-http",
+  "crates/rd-limits",
+  "crates/rd-notify",
+  "crates/rd-plugin-api",
+  "crates/rd-plugin-ext",
+  "crates/rd-plugin-host",
+  "crates/rd-plugin-transfer",
+  "crates/rd-postprocess",
+  "crates/rd-power",
+  "crates/rd-provider-registry",
+  "crates/rd-scheduler",
+  "crates/rd-secrets",
+  "crates/rd-sftp",
+  "crates/rd-sign",
+  "crates/rd-siterules",
+  "crates/rd-stream",
+  "crates/rd-subscription",
+  "crates/rd-tools",
+  "crates/rd-torrent",
+  "crates/rd-transfer-file",
+  "crates/rd-usenet",
+  "crates/rd-webdav",
+  "crates/rdownloader",
+  "plugins/alldebrid",
+  "plugins/alldebrid-auth",
+  "plugins/box",
+  "plugins/box-common",
+  "plugins/box-crawler",
+  "plugins/box-oauth",
+  "plugins/common",
+  "plugins/crawljob-intake",
+  "plugins/ddownload",
+  "plugins/debridlink",
+  "plugins/debridlink-auth",
+  "plugins/directory-index-crawler",
+  "plugins/discord-notifier",
+  "plugins/dropbox",
+  "plugins/dropbox-common",
+  "plugins/dropbox-crawler",
+  "plugins/dropbox-oauth",
+  "plugins/example-oauth",
+  "plugins/example-stream-transform",
+  "plugins/example-transfer",
+  "plugins/filejoker",
+  "plugins/google-drive",
+  "plugins/google-drive-common",
+  "plugins/google-drive-crawler",
+  "plugins/google-drive-oauth",
+  "plugins/guest",
+  "plugins/hitfile",
+  "plugins/katfile",
+  "plugins/keep2share",
+  "plugins/krakenfiles",
+  "plugins/linksnappy",
+  "plugins/md5-postprocess",
+  "plugins/mediafire",
+  "plugins/mediafire-common",
+  "plugins/mediafire-crawler",
+  "plugins/mega",
+  "plugins/mega-auth",
+  "plugins/mega-common",
+  "plugins/mega-crawler",
+  "plugins/mega-login-probe",
+  "plugins/metadata-enricher",
+  "plugins/rename-postprocess",
+  "plugins/metalink-intake",
+  "plugins/nextcloud-crawler",
+  "plugins/nitroflare",
+  "plugins/ntfy-notifier",
+  "plugins/offcloud",
+  "plugins/offcloud-cloud",
+  "plugins/onedrive",
+  "plugins/onedrive-common",
+  "plugins/onedrive-crawler",
+  "plugins/onedrive-oauth",
+  "plugins/onefichier",
+  "plugins/pcloud",
+  "plugins/pcloud-common",
+  "plugins/pcloud-crawler",
+  "plugins/pcloud-oauth",
+  "plugins/peeplink-crawler",
+  "plugins/pixeldrain",
+  "plugins/pixeldrain-crawler",
+  "plugins/premiumize",
+  "plugins/premiumize-auth",
+  "plugins/premiumize-common",
+  "plugins/premiumize-crawler",
+  "plugins/premiumize-transfers",
+  "plugins/putio",
+  "plugins/putio-common",
+  "plugins/putio-oauth",
+  "plugins/putio-transfers",
+  "plugins/rapidgator",
+  "plugins/realdebrid",
+  "plugins/realdebrid-auth",
+  "plugins/realdebrid-torrents",
+  "plugins/seedr",
+  "plugins/seedr-common",
+  "plugins/seedr-jobs",
+  "plugins/sha256-postprocess",
+  "plugins/sponsorblock-enricher",
+  "plugins/telegram-notifier",
+  "plugins/torbox",
+  "plugins/torbox-auth",
+  "plugins/torbox-jobs",
+  "plugins/turbobit",
+  "plugins/turbobit-common",
+  "plugins/webdav-storage",
+  "plugins/xfs-common",
+  "plugins/xfs-generic",
+]
+
+[workspace.package]
+version = "1.3.0"
+authors = ["Alexander Herling"]
+edition = "2024"
+rust-version = "1.98"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/degoya/rDownloader"
+
+[workspace.dependencies]
+aes = "0.8"
+anyhow = "1"
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+argon2 = "0.5"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["http1", "json", "macros", "multipart", "tokio"] }
+base64 = "0.22"
+boa_engine = { version = "0.22", default-features = false, features = ["fuzz"] }
+bytes = "1"
+cbc = "0.1"
+chacha20poly1305 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = { version = "0.10", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+cookie_store = "0.22"
+crc32fast = "1"
+# Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
+# patterns, which is what people copy out of a crontab.
+croner = "3.0.1"
+ctr = "0.9"
+dunce = "1"
+directories = "6"
+ed25519-dalek = { version = "2", features = ["pem", "pkcs8", "rand_core"] }
+embed-resource = "3.0.11"
+futures-util = "0.3"
+fs2 = "0.4"
+governor = "0.10"
+hex = "0.4"
+hmac = "0.12"
+httpdate = "1"
+if-addrs = "0.14"
+# The provider is pinned to aws-lc-rs on purpose: lettre's `rustls-tls` would pull in
+# `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
+# process-wide provider at all.
+lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", "builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "webpki-roots"] }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+keyring = "4.1.6"
+# XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
+# unpacking bytes fetched from a release host is exactly the place not to link liblzma.
+lzma-rust2 = { version = "0.20", default-features = false, features = ["std", "xz"] }
+md-5 = "0.10"
+mime_guess = "2"
+notify = "8"
+# Arbitrary-precision integers, for `plugins/mega-login-probe` alone: measuring what an
+# RSA-2048 private operation costs a WebAssembly guest needs one, and nothing shipped does.
+num-bigint = "0.4"
+# Desktop toasts for the capture agent. `z` selects the pure-Rust zbus backend on Linux
+# instead of the default libdbus binding, so no C library has to be present for the
+# cross-builds; Windows and macOS use their own backends regardless.
+notify-rust = { version = "4", default-features = false, features = ["z"] }
+open = "5.4.2"
+percent-encoding = "2.3"
+# Mozilla's Public Suffix List, compiled in: an imported cookie for `com` or `co.uk` is refused
+# (RD-120-49). No runtime fetch; a list update is a dependency update.
+psl = "2.1"
+quick-xml = { version = "0.41", features = ["serialize"] }
+rand = "0.9"
+regex = "1"
+reqwest = { version = "0.13", default-features = false, features = ["cookies", "gzip", "http2", "json", "multipart", "rustls", "socks", "stream"] }
+rmcp = { version = "3.2", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
+rust-embed = { version = "8", features = ["axum"] }
+rcgen = { version = "0.14", default-features = false, features = ["aws_lc_rs", "crypto", "pem"] }
+rustls = "0.23"
+rustls-platform-verifier = "0.7"
+rust-par2 = "0.1.3"
+russh = "0.63"
+russh-sftp = "2.4"
+sanitize-filename = "0.6"
+secrecy = { version = "0.10", features = ["serde"] }
+subtle = "2.6"
+zeroize = "1.9"
+semver = "1"
+sevenz-rust2 = "0.22.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_path_to_error = "0.1.20"
+sha1 = "0.10"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["chrono", "macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
+# `deprecated` is what gates `connect_secure_implicit`, i.e. implicit FTPS on port 990.
+# It is deprecated as a protocol, not as an API, and RD-060-01 requires it.
+suppaftp = { version = "11", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
+tao = "0.37.0"
+tar = { version = "0.4", default-features = false }
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-rustls = "0.26"
+tokio-util = { version = "0.7", features = ["io", "rt"] }
+toml = "0.9"
+tower-http = { version = "0.6", features = ["cors", "fs", "limit", "request-id", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tray-icon = "0.24.2"
+unicode-normalization = "0.1"
+url = { version = "2", features = ["serde"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-axum = "0.2"
+uuid = { version = "1", features = ["serde", "v7"] }
+wasmparser = "0.240"
+wasmtime = { version = "48.0.1", default-features = false, features = ["anyhow", "async", "component-model", "component-model-async", "cranelift", "runtime", "std"] }
+webauthn-rs = "0.6.1-dev"
+# Test-only: a software authenticator, so the passkey ceremonies can be driven end to end
+# rather than mocked. Pinned to the same line as webauthn-rs so the two share their
+# protocol types; a version skew here would compare structurally identical types that the
+# compiler considers unrelated.
+webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
+wit-bindgen = "0.57.1"
+zip = { version = "6", default-features = false, features = ["deflate", "aes-crypto"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev]
+debug = "line-tables-only"          # Backtraces bleiben, DWARF schrumpft massiv
+split-debuginfo = "unpacked"        # dedupliziert Debug-Info statt sie zu kopieren

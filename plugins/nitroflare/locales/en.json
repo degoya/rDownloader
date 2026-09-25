@@ -1,0 +1,32 @@
+{
+  "name": "Nitroflare",
+  "description": "Resolves Nitroflare links with a premium key, or without one via the free flow.",
+  "account": {
+    "secret_label": "Premium key (from My Account → API)",
+    "secret_hint": "Enter your account e-mail as username and your premium key (My Account → API) as secret."
+  },
+  "codes": {
+    "nitroflare.account_missing": "Nitroflare account is missing",
+    "nitroflare.api_error": "Nitroflare API ({api_code}): {message}",
+    "nitroflare.bad_credentials": "Nitroflare premium key is invalid or login failed",
+    "nitroflare.captcha_invalid": "Nitroflare rejected a captcha response; this plugin cannot solve captchas",
+    "nitroflare.captcha_rejected": "Nitroflare rejected the captcha answer",
+    "nitroflare.captcha_required": "Nitroflare requires solving a captcha to continue using the API",
+    "nitroflare.file_offline": "Nitroflare file is not available",
+    "nitroflare.free_limit_reached": "Nitroflare free download limit reached for this IP address",
+    "nitroflare.free_link_host_mismatch": "Nitroflare returned a download link on an unexpected host: {host}",
+    "nitroflare.http_error": "Nitroflare HTTP status {status}",
+    "nitroflare.invalid_response": "Invalid Nitroflare response",
+    "nitroflare.invalid_url": "Invalid provider URL: {error}",
+    "nitroflare.no_download_url": "Nitroflare did not return a download URL",
+    "nitroflare.no_free_link": "Nitroflare free download did not yield a file link: {diagnosis}",
+    "nitroflare.no_free_markers": "Nitroflare free download page was not recognized: {diagnosis}",
+    "nitroflare.premium_key_missing": "Nitroflare premium key is missing",
+    "nitroflare.premium_required": "Nitroflare premium account is required to use the download API",
+    "nitroflare.rate_limited": "Nitroflare API rate limit was triggered",
+    "nitroflare.server_error": "Nitroflare server error",
+    "nitroflare.timer_not_started": "Nitroflare did not start the pre-download countdown (answer: {answer})",
+    "nitroflare.traffic_exhausted": "Nitroflare traffic limit was exceeded",
+    "nitroflare.unsupported_link": "Not a supported Nitroflare link"
+  }
+}

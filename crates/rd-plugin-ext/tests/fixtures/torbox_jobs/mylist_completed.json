@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Got user torrent list.",
+  "data": {
+    "id": 4711,
+    "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "name": "Example.Release",
+    "download_state": "completed",
+    "progress": 1,
+    "download_speed": 0,
+    "download_finished": true,
+    "download_present": true,
+    "files": [
+      {
+        "id": 0,
+        "name": "Example.Release/ep01.mkv",
+        "short_name": "ep01.mkv",
+        "size": 10,
+        "mimetype": "video/x-matroska"
+      },
+      {
+        "id": 1,
+        "name": "Example.Release/Sample/sample.mkv",
+        "short_name": "sample.mkv",
+        "size": 5,
+        "mimetype": "video/x-matroska"
+      }
+    ]
+  }
+}

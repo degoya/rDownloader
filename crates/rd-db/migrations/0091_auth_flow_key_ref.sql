@@ -1,0 +1,13 @@
+-- RD-120-30: the key material a sign-in leaves beside its session token.
+--
+-- MEGA's sign-in ends with two things of different kinds: a session identifier, which is a
+-- bearer token and goes into requests, and the account's master key, which must never go into
+-- a request and is only computed with -- every file in the account has its key wrapped under
+-- it. `access_ref` holds the first. This column holds the second, as a vault reference, and
+-- nothing but the host's key derivation reads it: no `{{secret:…}}` marker, no header, no
+-- route. That is what lets the host tell where a value came from. Nothing a person types is
+-- ever written here, so a chain over it may begin with the AES step (docs/adr/0020, addendum).
+--
+-- Same rules as its neighbours: never returned through the API, dropped with the row, and
+-- replaced together with `access_ref`, because the two are halves of one session.
+ALTER TABLE auth_flows ADD COLUMN key_ref TEXT;

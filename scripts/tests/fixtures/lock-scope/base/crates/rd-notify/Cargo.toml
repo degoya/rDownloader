@@ -1,0 +1,9 @@
+[package]
+name = "rd-notify"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+tokio = { workspace = true, features = ["time"] }
+tracing.workspace = true

@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "error": "BAD_TOKEN",
+  "detail": "The API key you provided is not valid.",
+  "data": null
+}

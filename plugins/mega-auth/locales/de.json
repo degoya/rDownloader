@@ -1,0 +1,16 @@
+{
+  "name": "MEGA-Anmeldung",
+  "description": "Meldet ein MEGA-Konto an, ohne dass das Passwort je in den Sandkasten gelangt.",
+  "codes": {
+    "mega_auth.account_blocked": "MEGA hat dieses Konto gesperrt",
+    "mega_auth.account_version_unsupported": "Dieses MEGA-Konto verwendet noch die alte Schlüsselableitung",
+    "mega_auth.api_error": "MEGA-API-Fehler {status}",
+    "mega_auth.bad_reply": "MEGA hat auf die Anmeldung mit etwas Unlesbarem geantwortet",
+    "mega_auth.credentials_rejected": "MEGA hat diese Adresse und dieses Passwort abgelehnt",
+    "mega_auth.multi_factor_required": "Dieses MEGA-Konto verlangt einen zweiten Faktor, der noch nicht unterstützt wird",
+    "mega_auth.nothing_to_poll": "Eine MEGA-Anmeldung ist in einem Schritt fertig; starten Sie sie erneut",
+    "mega_auth.rate_limited": "MEGA drosselt Anmeldeversuche von dieser Adresse",
+    "mega_auth.session_unreadable": "MEGAs Sitzung ließ sich mit dem Schlüssel dieses Kontos nicht öffnen",
+    "mega_auth.unavailable": "MEGA beantwortet Anmeldungen vorübergehend nicht"
+  }
+}

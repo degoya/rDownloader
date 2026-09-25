@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>/public.php/dav/files/QxT7bK2mNp9wZr4/Season%201/Raw/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>Raw</d:displayname>
+        <d:resourcetype>
+          <d:collection/>
+        </d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/public.php/dav/files/QxT7bK2mNp9wZr4/Season%201/Raw/clip%20%26%20take.mov</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>clip &amp; take.mov</d:displayname>
+        <d:getcontentlength>734003200</d:getcontentlength>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

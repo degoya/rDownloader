@@ -1,0 +1,46 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+[capabilities]
+# The vault slot the account's token lives in. Its value never reaches this plugin: requests
+# carry `{{secret:example_access_token}}` and the host substitutes it on the way out, towards
+# the domains below and nowhere else. Ask for the one slot you send, not for every slot the
+# provider has.
+secrets = ["example_access_token"]
+
+# The provider's own API, and nothing else. A remote-job manifest without at least one domain
+# here is refused: a job that cannot reach its provider cannot submit, poll, choose or delete.
+[capabilities.net_http]
+domains = ["api.example.com"]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# The provider slug whose account these jobs run on. The host looks the account up and expands
+# the secret for it; this plugin never learns which account it is and never sees a credential.
+claims = ["example"]
+
+[metadata]
+description = "Runs magnets and torrent files as jobs on a {{PLUGIN_NAME}} account."
+author = "Your name"
+license = "MIT"
+# The `remote-job` world does not exist before 1.0.7; an older core refuses this manifest as
+# an unknown plugin type rather than half-loading it.
+min_app_version = "1.0.7"
+
+[limits]
+memory_bytes = 33554432
+# Every call here makes at most one request and returns on the provider's next answer -- the
+# waiting belongs to the host -- so this needs far less room than a crawler walking a tree.
+# The one memory-shaped operation is reading a container to find its info hash, which
+# `source::MAX_CONTAINER_BYTES` bounds at four megabytes before any of this is reached.
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

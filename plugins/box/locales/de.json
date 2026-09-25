@@ -1,0 +1,25 @@
+{
+  "name": "Box",
+  "description": "Löst Box-Dateien und geteilte Links über die offizielle Box-Content-API auf.",
+  "account": {
+    "secret_label": "Box-Client-Secret",
+    "secret_hint": "Das Client-Secret Ihrer eigenen Box-Anwendung, von derselben Seite wie die Client-ID oben. Box verlangt es bei jeder Anmeldung und bei jeder Erneuerung, deshalb bleibt es gespeichert; das Zugriffstoken der Anmeldung liegt daneben und nicht darüber.",
+    "username_label": "Client-ID (OAuth 2.0)",
+    "username_hint": "Box braucht eine eigene Anwendung — dieses Projekt liefert keine mit, damit jede Installation ihr eigenes Box-Limit hat. Legen Sie in der Box Developer Console eine Custom App mit User Authentication (OAuth 2.0) an, setzen Sie ausschließlich den Anwendungs-Scope „Read all files and folders stored in Box“, tragen Sie http://127.0.0.1:8710/api/v1/oauth/callback als Redirect-URI ein und fügen Sie die Client-ID hier und das Client-Secret unten ein."
+  },
+  "codes": {
+    "box.account_missing": "Es fehlt ein Box-Konto",
+    "box.api_refused": "Box hat diese Anfrage abgelehnt ({reason})",
+    "box.download_not_permitted": "Box liefert diese Datei für dieses Konto nicht aus: sie ist eingeschränkt, gesperrt oder ohne Download-Recht geteilt",
+    "box.file_not_found": "Diese Box-Datei existiert nicht, liegt im Papierkorb oder ist für dieses Konto nicht sichtbar",
+    "box.invalid_response": "Ungültige Box-Antwort",
+    "box.is_a_folder": "Diese Box-Adresse ist ein Ordner. Fügen Sie sie erneut hinzu, damit der Ordner aufgelistet wird",
+    "box.link_access_denied": "Box hat den Zugriff auf diesen geteilten Link verweigert. Wenn er passwortgeschützt ist, hängen Sie ?shared_link_password=… an die Adresse an; sonst wurde er mit jemand anderem geteilt",
+    "box.not_a_box_link": "Das ist keine Box-Dateiadresse",
+    "box.not_a_file": "Dieses Box-Objekt ist keine Datei und hat nichts zum Herunterladen",
+    "box.quota_exceeded": "Dieses Box-Konto hat sein Kontingent aufgebraucht",
+    "box.rate_limited": "Box drosselt dieses Konto. Die übrigen Links warten so lange, wie Box es verlangt hat",
+    "box.sign_in_required": "Dieses Box-Konto muss erneut angemeldet werden",
+    "box.unavailable": "Box ist vorübergehend nicht erreichbar"
+  }
+}

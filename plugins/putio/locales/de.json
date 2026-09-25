@@ -1,0 +1,19 @@
+{
+  "name": "Put.io",
+  "description": "Löst Dateien in einem Put.io-Konto über die offizielle API auf.",
+  "codes": {
+    "putio.account_missing": "Für diese Adresse wird ein Put.io-Konto benötigt",
+    "putio.api_error": "Put.io-API-Fehler ({reason})",
+    "putio.auth_invalid": "Die Put.io-Anmeldung ist nicht mehr gültig. Melde dich erneut an.",
+    "putio.disk_free": "{bytes} Bytes frei",
+    "putio.file_not_found": "Put.io hält diese Datei nicht mehr vor",
+    "putio.http_error": "Put.io-HTTP-Status {status}",
+    "putio.invalid_response": "Ungültige Put.io-Antwort",
+    "putio.is_a_folder": "Diese Put.io-Adresse ist ein Ordner und keine Datei",
+    "putio.not_a_putio_link": "Das ist keine Put.io-Dateiadresse",
+    "putio.not_permitted": "Put.io erlaubt diesem Konto das nicht",
+    "putio.rate_limited": "Das Put.io-API-Limit wurde erreicht. Es wird gewartet.",
+    "putio.server_error": "Put.io ist vorübergehend nicht erreichbar",
+    "putio.token_missing": "Dieses Put.io-Konto ist noch nicht angemeldet"
+  }
+}

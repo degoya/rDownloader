@@ -1,0 +1,12 @@
+{
+  "name": "Carpetas de Premiumize",
+  "description": "Enumera los archivos que hay detrás de una dirección de carpeta o elemento de la nube de Premiumize.me.",
+  "codes": {
+    "premiumize_crawler.api_key_required": "Premiumize no aceptó esta cuenta para esa carpeta",
+    "premiumize_crawler.folder_empty": "Esta carpeta de Premiumize no contiene archivos",
+    "premiumize_crawler.folder_unreachable": "No se pudo leer esta carpeta de Premiumize",
+    "premiumize_crawler.invalid_response": "Respuesta de Premiumize no válida",
+    "premiumize_crawler.not_a_folder": "Esta no es una dirección de carpeta o elemento de Premiumize",
+    "premiumize_crawler.rate_limited": "Premiumize está limitando esta cuenta"
+  }
+}

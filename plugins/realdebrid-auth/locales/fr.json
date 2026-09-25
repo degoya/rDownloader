@@ -1,0 +1,14 @@
+{
+  "name": "Connexion Real-Debrid",
+  "description": "Connecte un compte Real-Debrid avec un code d'appareil et maintient le jeton renouvelé.",
+  "codes": {
+    "realdebrid_auth.consent_denied": "La connexion n'a pas été accordée chez Real-Debrid.",
+    "realdebrid_auth.code_expired": "La connexion a expiré avant d'être terminée. Relancez-la.",
+    "realdebrid_auth.sign_in_refused": "Real-Debrid n'accepte plus cette connexion. Reconnectez-vous.",
+    "realdebrid_auth.two_factor": "Real-Debrid a demandé une authentification à deux facteurs. Confirmez-la là-bas puis relancez la connexion.",
+    "realdebrid_auth.client_rejected": "Real-Debrid n'a pas accepté cette application. Vérifiez le client ID et le client secret par rapport à celle enregistrée sur real-debrid.com ; se reconnecter sans les corriger n'y changera rien.",
+    "realdebrid_auth.bad_reply": "Real-Debrid a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "realdebrid_auth.redirect_unsupported": "Real-Debrid se connecte avec un code d'appareil et n'a pas de redirection.",
+    "realdebrid_auth.client_not_configured": "Real-Debrid a besoin d'une application à vous. Enregistrez-en une sur real-debrid.com dans Mon compte → API, puis saisissez son client ID comme nom d'utilisateur et son client secret comme identifiant de ce compte."
+  }
+}

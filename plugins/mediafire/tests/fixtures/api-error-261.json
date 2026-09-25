@@ -1,0 +1,10 @@
+{
+  "_note": "SYNTHETIC FIXTURE, not a capture: error 261 ERROR_RATE_LIMIT as the getting-started page documents it; the limit was not reached on 2026-09-21.",
+  "response": {
+    "action": "file/get_info",
+    "message": "Maximum number of allowed calls for this resource is reached in a specified time",
+    "error": 261,
+    "result": "Error",
+    "current_api_version": "1.5"
+  }
+}

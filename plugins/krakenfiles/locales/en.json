@@ -1,0 +1,19 @@
+{
+  "name": "KrakenFiles",
+  "description": "Resolves KrakenFiles links without an account through the file page's download form and its Cloudflare Turnstile.",
+  "codes": {
+    "krakenfiles.captcha_rejected": "KrakenFiles rejected the captcha answer",
+    "krakenfiles.direct_link_foreign": "KrakenFiles handed out a download link on {host}, which this plugin may not download from",
+    "krakenfiles.direct_link_missing": "KrakenFiles accepted the download request but returned no download link",
+    "krakenfiles.download_refused": "KrakenFiles refused the download: {message}",
+    "krakenfiles.file_unavailable": "KrakenFiles file has been deleted or never existed",
+    "krakenfiles.http_error": "KrakenFiles HTTP status {status}",
+    "krakenfiles.invalid_link": "Invalid KrakenFiles link",
+    "krakenfiles.invalid_response": "Invalid KrakenFiles response",
+    "krakenfiles.invalid_url": "Invalid provider URL: {error}",
+    "krakenfiles.no_account": "This resolver downloads without an account and has none to check",
+    "krakenfiles.page_layout_changed": "The KrakenFiles file page no longer looks as expected: {diagnosis}",
+    "krakenfiles.rate_limited": "KrakenFiles refused the download link (HTTP {status}); too many connections, try again in an hour",
+    "krakenfiles.unsupported_link": "Not a supported KrakenFiles link"
+  }
+}

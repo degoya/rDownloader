@@ -1,0 +1,30 @@
+FROM node:24-bookworm-slim AS web
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+FROM rust:1.98-bookworm AS builder
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y clang cmake lld llvm nasm ninja-build \
+    && ln -s /usr/bin/llvm-lib-14 /usr/local/bin/llvm-lib \
+    && ln -s /usr/bin/llvm-rc-14 /usr/local/bin/llvm-rc \
+    && rm -rf /var/lib/apt/lists/*
+RUN rustup target add x86_64-pc-windows-msvc
+RUN cargo install cargo-xwin --version 0.23.1 --locked
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo/ .cargo/
+COPY crates/ crates/
+COPY plugins/ plugins/
+COPY resources/ resources/
+# The capture agent embeds its tray icon straight from the browser extension's icon set.
+COPY extension/icons/ extension/icons/
+COPY --from=web /src/web/dist web/dist
+RUN cargo xwin build --locked --release --target x86_64-pc-windows-msvc \
+    -p rdownloader -p rd-capture
+
+FROM scratch AS artifacts
+COPY --from=builder /src/target/x86_64-pc-windows-msvc/release/rdownloader.exe /
+COPY --from=builder /src/target/x86_64-pc-windows-msvc/release/rdownloader-capture.exe /

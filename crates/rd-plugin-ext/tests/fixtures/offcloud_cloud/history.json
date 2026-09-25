@@ -1,0 +1,23 @@
+[
+  {
+    "requestId": "REDACTEDREQUEST01",
+    "fileName": "Example.Release",
+    "status": "downloading",
+    "originalLink": "magnet:?xt=urn:btih:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ&dn=Example.Release",
+    "createdOn": "2026-09-23T10:00:00.000Z"
+  },
+  {
+    "requestId": "REDACTEDREQUEST02",
+    "fileName": "Someone.Elses.Release",
+    "status": "downloaded",
+    "originalLink": "magnet:?xt=urn:btih:0000000000000000000000000000000000000000&dn=Someone.Elses.Release",
+    "createdOn": "2026-09-22T09:00:00.000Z"
+  },
+  {
+    "requestId": "REDACTEDREQUEST03",
+    "fileName": "a.bin",
+    "status": "downloaded",
+    "originalLink": "https://example.invalid/f/abc123",
+    "createdOn": "2026-09-21T08:00:00.000Z"
+  }
+]

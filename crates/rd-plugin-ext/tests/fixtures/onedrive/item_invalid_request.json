@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "invalidRequest",
+    "message": "The sharing link could not be decoded, or it belongs to a tenant this account cannot access.",
+    "innerError": { "date": "2026-09-10T10:00:00", "request-id": "redacted", "client-request-id": "redacted" }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Descargas en la nube de Offcloud",
+  "description": "Ejecuta enlaces magnet y direcciones web como descargas en la nube de una cuenta de Offcloud.",
+  "codes": {
+    "offcloud_cloud.addon_required": "Offcloud necesita un complemento adicional para esta descarga ({addon})",
+    "offcloud_cloud.api_error": "Error de la API de Offcloud {api_code}",
+    "offcloud_cloud.auth_invalid": "La clave de API de Offcloud ya no es válida. Introdúcela de nuevo.",
+    "offcloud_cloud.container_unsupported": "Offcloud acepta una dirección, no un archivo torrent o NZB",
+    "offcloud_cloud.http_error": "Estado HTTP de Offcloud {status}",
+    "offcloud_cloud.invalid_response": "Respuesta de Offcloud no válida",
+    "offcloud_cloud.job_canceled": "Esta descarga en la nube se canceló en Offcloud",
+    "offcloud_cloud.job_failed": "Offcloud finalizó esta descarga en la nube con un error",
+    "offcloud_cloud.job_gone": "Offcloud ya no conserva esta descarga en la nube",
+    "offcloud_cloud.no_links": "Offcloud informa de que esta descarga en la nube ha terminado, pero no devolvió direcciones",
+    "offcloud_cloud.no_request_id": "Offcloud no nombró la descarga en la nube que creó. Revisa tu cuenta de Offcloud antes de volver a intentarlo.",
+    "offcloud_cloud.no_selection": "Offcloud descarga el trabajo completo y no admite selección de archivos",
+    "offcloud_cloud.not_a_cloud_source": "Offcloud acepta una dirección magnet o una dirección web, y esto no es ninguna de las dos",
+    "offcloud_cloud.rate_limited": "Se alcanzó el límite de peticiones de Offcloud. Se esperará.",
+    "offcloud_cloud.server_error": "Error del servidor de Offcloud"
+  }
+}

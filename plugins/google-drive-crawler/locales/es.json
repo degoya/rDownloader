@@ -1,0 +1,12 @@
+{
+  "name": "Carpetas de Google Drive",
+  "description": "Enumera los archivos que hay detrás de una dirección de carpeta o unidad compartida de Google Drive.",
+  "codes": {
+    "google_drive_crawler.folder_empty": "Esta carpeta de Google Drive no contiene archivos descargables",
+    "google_drive_crawler.folder_unreachable": "No se ha podido leer esta carpeta de Google Drive",
+    "google_drive_crawler.invalid_response": "Respuesta de Google Drive no válida",
+    "google_drive_crawler.not_a_folder": "Esta no es una dirección de carpeta de Google Drive",
+    "google_drive_crawler.rate_limited": "Google Drive está limitando la frecuencia de esta cuenta",
+    "google_drive_crawler.sign_in_required": "Google no ha aceptado esta cuenta para esa carpeta"
+  }
+}

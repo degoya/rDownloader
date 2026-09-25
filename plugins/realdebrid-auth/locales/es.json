@@ -1,0 +1,14 @@
+{
+  "name": "Inicio de sesión de Real-Debrid",
+  "description": "Inicia sesión en una cuenta de Real-Debrid con un código de dispositivo y mantiene el token renovado.",
+  "codes": {
+    "realdebrid_auth.consent_denied": "Real-Debrid no concedió el inicio de sesión.",
+    "realdebrid_auth.code_expired": "El inicio de sesión caducó antes de terminar. Vuelve a empezarlo.",
+    "realdebrid_auth.sign_in_refused": "Real-Debrid ya no acepta este inicio de sesión. Vuelve a iniciar sesión.",
+    "realdebrid_auth.two_factor": "Real-Debrid pidió una verificación en dos pasos. Confírmala allí y vuelve a iniciar la sesión.",
+    "realdebrid_auth.client_rejected": "Real-Debrid no aceptó esta aplicación. Compara el client ID y el client secret con los de la aplicación que registraste en real-debrid.com; volver a iniciar sesión sin corregirlos no servirá.",
+    "realdebrid_auth.bad_reply": "Real-Debrid envió una respuesta que este complemento no pudo leer.",
+    "realdebrid_auth.redirect_unsupported": "Real-Debrid inicia sesión con un código de dispositivo y no tiene redirección.",
+    "realdebrid_auth.client_not_configured": "Real-Debrid necesita una aplicación propia. Regístrala en real-debrid.com en Mi cuenta → API e introduce su client ID como nombre de usuario y su client secret como credencial de esta cuenta."
+  }
+}

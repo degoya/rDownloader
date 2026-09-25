@@ -1,0 +1,14 @@
+{
+  "name": "Box-Anmeldung",
+  "description": "Meldet ein Box-Konto über den Autorisierungsendpunkt von Box an.",
+  "codes": {
+    "box_oauth.bad_reply": "Box hat eine Antwort gesendet, die dieses Plugin nicht lesen konnte.",
+    "box_oauth.client_not_configured": "Für dieses Konto ist noch keine Box-Anwendung hinterlegt. Tragen Sie zuerst Client-ID und Client-Secret Ihrer eigenen Box-App ein.",
+    "box_oauth.client_refused": "Box hat diese Anwendung nicht akzeptiert. Prüfen Sie Client-ID und Client-Secret und ob die Redirect-URI exakt eingetragen ist.",
+    "box_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen war. Starten Sie sie erneut.",
+    "box_oauth.consent_denied": "Die Anmeldung wurde bei Box nicht erteilt.",
+    "box_oauth.flow_unsupported": "Box wird im Browser angemeldet, nicht mit einem Gerätecode.",
+    "box_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil der Anwendung dafür kein Zufall zur Verfügung stand. Versuchen Sie es erneut.",
+    "box_oauth.refresh_refused": "Box akzeptiert die gespeicherte Anmeldung nicht mehr. Melden Sie sich erneut an."
+  }
+}

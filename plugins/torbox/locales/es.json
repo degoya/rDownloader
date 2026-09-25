@@ -1,0 +1,20 @@
+{
+  "name": "TorBox",
+  "description": "Genera direcciones de descarga de TorBox e informa del valor de una cuenta de TorBox.",
+  "codes": {
+    "torbox.account_missing": "Falta la cuenta de TorBox",
+    "torbox.api_error": "Error de la API de TorBox {api_code}",
+    "torbox.auth_invalid": "La clave de API de TorBox no es válida o ha caducado. Vuelve a introducirla.",
+    "torbox.file_gone": "TorBox ya no ofrece este archivo",
+    "torbox.http_error": "Estado HTTP de TorBox {status}",
+    "torbox.invalid_response": "Respuesta de TorBox no válida",
+    "torbox.key_missing": "Esta cuenta de TorBox no tiene clave de API",
+    "torbox.limit_reached": "TorBox informa de que se ha alcanzado el límite del plan",
+    "torbox.no_download_url": "TorBox no devolvió ninguna dirección de descarga",
+    "torbox.not_a_ticket": "Esta no es una dirección de descarga de TorBox",
+    "torbox.not_permitted": "El plan de TorBox no cubre esta descarga",
+    "torbox.rate_limited": "Se alcanzó el límite de solicitudes de la API de TorBox. Esperando.",
+    "torbox.request_refused": "TorBox rechazó esta solicitud",
+    "torbox.server_busy": "TorBox no está disponible temporalmente"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "error": "authorization_pending",
+  "error_details": "the person has not confirmed the code yet",
+  "interval": 5
+}

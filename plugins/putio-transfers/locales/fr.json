@@ -1,0 +1,22 @@
+{
+  "name": "Transferts Put.io",
+  "description": "Exécute des liens magnet et des fichiers torrent comme transferts sur un compte Put.io.",
+  "codes": {
+    "putio_transfers.api_error": "Erreur de l'API Put.io ({reason})",
+    "putio_transfers.auth_invalid": "La connexion Put.io n'est plus valide. Reconnecte-toi.",
+    "putio_transfers.disk_full": "Le compte Put.io n'a plus de place pour ce transfert.",
+    "putio_transfers.http_error": "Statut HTTP {status} de Put.io",
+    "putio_transfers.invalid_response": "Réponse Put.io invalide",
+    "putio_transfers.no_content": "Put.io signale ce transfert comme terminé mais ne nomme aucun fichier",
+    "putio_transfers.no_remote_selection": "Put.io télécharge un torrent en entier et ne propose pas de sélection de fichiers avant. Choisis les fichiers dans le LinkGrabber.",
+    "putio_transfers.no_transfer_id": "Put.io n'a pas nommé le transfert créé. Vérifie ton compte Put.io avant de réessayer.",
+    "putio_transfers.not_a_torrent": "Ce n'est ni une adresse magnet ni un fichier torrent",
+    "putio_transfers.not_permitted": "Put.io n'autorise pas cette action pour ce compte",
+    "putio_transfers.rate_limited": "La limite de l'API Put.io est atteinte. Attente en cours.",
+    "putio_transfers.server_error": "Put.io est temporairement indisponible",
+    "putio_transfers.too_many_files": "Ce transfert Put.io contient plus de fichiers que rDownloader n'en accepte dans un seul travail",
+    "putio_transfers.transfer_cancelled": "Ce transfert a été annulé sur Put.io",
+    "putio_transfers.transfer_failed": "Put.io a terminé ce transfert avec une erreur",
+    "putio_transfers.transfer_gone": "Put.io ne conserve plus ce transfert"
+  }
+}

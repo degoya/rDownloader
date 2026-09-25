@@ -1,0 +1,823 @@
+{
+  "title": "Ajustes",
+  "headers": {
+    "system": {
+      "eyebrow": "Servicio en ejecución",
+      "title": "Resumen del sistema",
+      "description": "Estado del servicio, Usenet y captura, y los principales datos de ejecución."
+    },
+    "backup": {
+      "eyebrow": "Protección y migración",
+      "title": "Copia y restauración",
+      "description": "Guarda la configuración completa del servidor o restaura una copia existente mediante un proceso controlado."
+    },
+    "general": {
+      "eyebrow": "Ajustes básicos",
+      "title": "Descargas y acceso",
+      "description": "Paralelismo, fragmentos, ritmo y reintentos del planificador, además del puerto de la interfaz y la protección por contraseña."
+    },
+    "network": {
+      "eyebrow": "Conexiones salientes",
+      "title": "Red y certificados",
+      "description": "Perfiles proxy y el respaldo global, su propia autoridad de certificación, perfiles de autenticación para sitios protegidos y el script de reconexión."
+    },
+    "media": {
+      "eyebrow": "Herramientas externas",
+      "title": "Medios, galerías y streams",
+      "description": "Rutas y límites de yt-dlp, gallery-dl y streamlink, los ayudantes externos que convierten enlaces en descargas."
+    },
+    "postprocess": {
+      "eyebrow": "Después de la descarga",
+      "title": "Posprocesado y entrega",
+      "description": "Qué ocurre con un paquete terminado: reparar, extraer, limpiar, ejecutar un script y, opcionalmente, subirlo a un remoto de rclone."
+    },
+    "interface": {
+      "eyebrow": "Solo este navegador",
+      "title": "Interfaz",
+      "description": "Idioma, tema y notificaciones de este navegador, además de cómo se muestran los tamaños en toda la interfaz."
+    },
+    "bandwidth": {
+      "eyebrow": "Carga planificada",
+      "title": "Ancho de banda y presupuestos",
+      "description": "Perfiles programados, límites por protocolo, host, cuenta o categoría y presupuestos de tráfico diarios o mensuales."
+    },
+    "notifications": {
+      "eyebrow": "Cómo le llega",
+      "title": "Notificaciones y webhooks",
+      "description": "Webhooks firmados, correo y servicios compatibles con Apprise, filtrados por evento, categoría y gravedad, con historial de entregas."
+    },
+    "services": {
+      "eyebrow": "Transferencias",
+      "title": "Servicios",
+      "description": "Desactive lo que esta instalación no deba hacer. Un servicio desactivado rechaza los enlaces nuevos y detiene los que ya tenía."
+    },
+    "desktop": {
+      "eyebrow": "Agente de captura",
+      "title": "Cliente de escritorio",
+      "description": "Vincula el agente de captura de escritorio con este servidor para que los clics, el portapapeles y las asociaciones de archivos lleguen aquí."
+    },
+    "accounts": {
+      "eyebrow": "Acceso a proveedores",
+      "title": "Cuentas de proveedor",
+      "description": "Accesos a hosters, servicios debrid y otros proveedores. Cada cuenta usa su propia identidad de cliente aislada — cookie jar, proxy, TLS — y la API nunca devuelve un secreto ni una cookie."
+    },
+    "security": {
+      "eyebrow": "Quién entra",
+      "title": "Seguridad",
+      "description": "Segundo factor y passkeys para el inicio de sesión, las sesiones abiertas ahora mismo y el proxy inverso en el que este servicio puede confiar."
+    },
+    "mcp": {
+      "eyebrow": "Acceso externo",
+      "title": "API & MCP",
+      "description": "Tokens de API para REST, la CLI, los clientes compatibles con SABnzbd y qBittorrent y el servidor MCP, cada uno limitado a las áreas que elija."
+    },
+    "hotfolders": {
+      "eyebrow": "Carpetas vigiladas",
+      "title": "Hotfolders",
+      "description": "Carpetas que el servicio vigila en busca de archivos NZB, torrent y contenedores, la categoría que alimenta cada una y con qué frecuencia se revisan todas."
+    },
+    "unattended": {
+      "eyebrow": "Cuando nadie mira",
+      "title": "Funcionamiento desatendido",
+      "description": "Horas silenciosas, qué ocurre cuando la cola se vacía y la pausa con batería o conexión de uso medido."
+    },
+    "captcha": {
+      "eyebrow": "Descargas gratuitas",
+      "title": "Captcha y resolutor",
+      "description": "Si un captcha se envía a un servicio resolutor o se le pregunta en el navegador, y cuánto espera uno sin responder."
+    },
+    "torrent": {
+      "eyebrow": "Peer-to-peer",
+      "title": "BitTorrent",
+      "description": "Puerto de escucha, límites de compartición y siembra, interfaz de red y kill switch, lista de bloqueo y proxy del motor integrado."
+    },
+    "transfers": {
+      "eyebrow": "Servidores remotos",
+      "title": "FTP, SFTP y WebDAV",
+      "description": "Credenciales guardadas para servidores FTP, FTPS y SFTP, las claves de host SSH que ha confirmado y los límites de las transferencias remotas."
+    },
+    "tools": {
+      "eyebrow": "Ayudantes externos",
+      "title": "Herramientas",
+      "description": "Dónde se encuentran yt-dlp, ffmpeg, gallery-dl, streamlink y los descompresores, qué versión tiene cada uno y las versiones gestionadas que el servicio puede instalar por sí mismo."
+    },
+    "about": {
+      "eyebrow": "Origen y licencias",
+      "title": "Acerca de rDownloader",
+      "description": "Qué versión se ejecuta, de dónde viene, quién la hizo y bajo qué licencias están las partes que incluye."
+    }
+  },
+  "active_files": {
+    "label": "Archivos en paralelo",
+    "description": "Ranuras globales del planificador"
+  },
+  "chunks": {
+    "label": "Fragmentos por archivo",
+    "description": "Solo si el servidor admite peticiones HTTP Range"
+  },
+  "connections_per_host": {
+    "label": "Conexiones por host",
+    "description": "Se aplica conjuntamente a todas las descargas del mismo host; 0 elimina el límite"
+  },
+  "nntp_connections": {
+    "label": "Conexiones NNTP por archivo",
+    "description": "0 = tantas como permitan los servidores; un valor menor limita cada archivo",
+    "follows_servers": "Cada archivo usa todas las conexiones de cada servidor activo, actualmente {largest} en el mayor.",
+    "capped": "El mayor servidor activo permite {largest} conexiones; un archivo recibe como máximo {cap} por servidor. Con 0 las usa todas.",
+    "not_binding": "No se aplica: ningún servidor activo permite más de {largest} conexiones."
+  },
+  "speed_limit": {
+    "label": "Límite de velocidad",
+    "description": "Vacío significa ilimitado"
+  },
+  "retries": {
+    "label": "Reintentos por archivo",
+    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100)"
+  },
+  "import_history": {
+    "label": "Conservar historial de importación",
+    "description": "Conservar las entradas NZB importadas y los archivos .torrent guardados tras finalizar la descarga. Si se desactiva, se eliminan automáticamente al completarse; la detección de duplicados para NZB reimportados deja de estar disponible."
+  },
+  "auto_remove": {
+    "label": "Eliminar paquetes terminados",
+    "description": "Un equipo que descarga sin supervisión llena su cola de paquetes terminados. Estos se eliminan pasado un tiempo.",
+    "delay_label": "Conservar durante",
+    "delay_description": "Horas que un paquete terminado permanece en la cola (1–720).",
+    "keep_failed_label": "Conservar paquetes con errores",
+    "keep_failed_description": "Un paquete con un archivo que no terminó se deja intacto."
+  },
+  "mirrors": {
+    "label": "Reconocer espejos",
+    "description": "Cuando un paquete contiene varios enlaces al mismo archivo, se descarga uno y el resto se conserva como alternativa. Si el activo se rinde, otro toma el relevo."
+  },
+  "sha256": {
+    "label": "Generar SHA-256",
+    "description": "Verificar siempre por completo las descargas de varios fragmentos."
+  },
+  "admin_login": {
+    "label": "Desactivar inicio de sesión de administrador",
+    "description": "Cualquiera que acceda a la interfaz puede controlarlo todo. Solo tiene sentido si el servicio es accesible únicamente en loopback o dentro de tu propia red de confianza. Surte efecto inmediatamente tras guardar.",
+    "warning": "La protección por contraseña está desactivada."
+  },
+  "proxy": {
+    "eyebrow": "Ruta de salida",
+    "title": "Rutas de conexión (perfiles proxy)",
+    "description": "Los perfiles pueden asignarse globalmente, por cuenta o por descarga. Las contraseñas se guardan cifradas.",
+    "name_placeholder": "Nombre del perfil",
+    "username_placeholder": "Usuario (opcional)",
+    "password_placeholder": "Contraseña (cifrada)",
+    "create": "Crear perfil proxy",
+    "created": "Perfil proxy creado.",
+    "direct": "Conexión directa",
+    "empty": "La conexión directa es el valor por defecto.",
+    "name_label": "Nombre del perfil",
+    "name_description": "Se muestra allí donde se puede asignar el perfil.",
+    "kind_label": "Protocolo",
+    "kind_description": "SOCKS5 resuelve los nombres DNS en el proxy (socks5h).",
+    "endpoint_label": "Punto final",
+    "endpoint_description": "Esquema, host y puerto, p. ej. socks5h://127.0.0.1:1080.",
+    "username_label": "Usuario",
+    "username_description": "Solo necesario para proxies con autenticación.",
+    "password_label": "Contraseña",
+    "password_description": "Se guarda cifrada y la API nunca la devuelve."
+  },
+  "global_proxy": {
+    "eyebrow": "Respaldo de red",
+    "title": "Ruta de conexión global",
+    "description": "Solo se usa si ni la descarga ni su cuenta definen un perfil proxy.",
+    "label": "Ruta de conexión"
+  },
+  "custom_ca": {
+    "label": "CA propia (PEM)",
+    "description": "Autoridad de certificación de confianza adicional; vacío usa solo el almacén de confianza de la plataforma."
+  },
+  "postprocess": {
+    "eyebrow": "Posprocesado",
+    "title": "Pipeline de posprocesamiento",
+    "description": "Los paquetes y categorías pueden sobrescribir el nivel y el script.",
+    "default_level": {
+      "label": "Nivel predeterminado",
+      "description": "Se aplica a paquetes y categorías sin nivel propio."
+    },
+    "pause": {
+      "label": "Pausar descargas durante el posprocesamiento",
+      "description": "Retiene las nuevas descargas mientras se repara o extrae un paquete."
+    },
+    "cleanup_extensions": {
+      "label": "Extensiones a limpiar",
+      "description": "Los archivos con estas extensiones (sin punto) se eliminan de la carpeta del paquete tras la extracción.",
+      "placeholder": "nfo, sfv, …"
+    },
+    "ignore_samples": {
+      "label": "Ignorar samples",
+      "description": "Elimina los archivos sample tras la extracción y omite los archivos comprimidos sample."
+    },
+    "recursive_unpack": {
+      "label": "Extracción recursiva",
+      "description": "Extraer también los archivos comprimidos encontrados dentro de otros extraídos (hasta 3 niveles). Los archivos internos se eliminan tras la extracción."
+    },
+    "sfv_verify": {
+      "label": "Verificación SFV",
+      "description": "Comprobar las sumas CRC32 de cualquier índice .sfv del paquete antes de extraer. Un archivo que no coincida o falte hace fallar el paquete."
+    },
+    "safe_postproc": {
+      "label": "Posprocesar solo paquetes verificados",
+      "description": "Tras una comprobación PAR2, SFV o RAR fallida no se extrae, limpia ni entrega nada a los pasos de complementos. Activado de forma predeterminada, como en SABnzbd. Desactivado: un conjunto de recuperación dañado junto a archivos intactos ya no bloquea el paquete."
+    },
+    "delete_par2": {
+      "label": "Eliminar archivos PAR2 tras extraer",
+      "description": "Retira el conjunto de recuperación cuando la reparación y la extracción han tenido éxito. Desactivado por defecto: los datos PAR2 son lo único que puede rescatar un paquete dañado, y un reintento tras una extracción fallida todavía los necesita."
+    },
+    "enable_all_par": {
+      "label": "Descargar todos los volúmenes PAR2",
+      "description": "Descarga de inmediato todos los volúmenes de recuperación de un NZB. Desactivado: solo el índice principal baja con los datos, los volúmenes vol esperan y una reparación vuelve a encolar exactamente los que hagan falta."
+    },
+    "plugin_steps": {
+      "label": "Pasos de plugin",
+      "description": "Pasos adicionales aportados por los plugins instalados. Se ejecutan después de la limpieza y antes de un script de usuario, en el orden en que los activa; una categoría puede sustituir esta lista."
+    },
+    "sample_max": {
+      "label": "Tamaño máximo de sample",
+      "description": "Los archivos con nombre de sample solo se tratan como tales hasta este tamaño."
+    },
+    "scripts_directory": {
+      "label": "Directorio de scripts",
+      "description": "Ruta absoluta; vacío = scripts junto a la base de datos. Solo se pueden elegir nombres de archivo de esta carpeta."
+    },
+    "script_timeout": {
+      "label": "Tiempo límite del script",
+      "description": "Segundos tras los cuales se termina un script de posprocesamiento (10–86400)."
+    },
+    "passwords_file": {
+      "label": "Lista de contraseñas",
+      "description": "Una contraseña por línea; vacío = passwords.txt junto a la base de datos. Se prueba tras la contraseña del paquete y «sin contraseña»."
+    },
+    "max_files": "Archivos máximos",
+    "max_bytes": "Tamaño máximo (bytes)",
+    "rar_executable": {
+      "label": "Herramienta RAR externa",
+      "description": "Ruta absoluta opcional a unrar o 7z; se invoca sin shell."
+    },
+    "rar_tool": "Tipo de herramienta",
+    "upload": {
+      "label": "Subir a un remoto de rclone",
+      "description": "Copia o mueve la carpeta del paquete terminado a un remoto de rclone como último paso. Los remotos vienen de tu rclone.conf."
+    },
+    "upload_remote": {
+      "label": "Destino de subida",
+      "description": "Destino de rclone en formato remote:ruta; cada paquete obtiene su propia carpeta debajo."
+    },
+    "upload_mode": {
+      "label": "Modo de subida",
+      "description": "Mover elimina los archivos locales tras una subida correcta.",
+      "copy": "Copiar (conservar archivos locales)",
+      "move": "Mover (eliminar archivos locales)"
+    },
+    "rclone_executable": {
+      "label": "Ejecutable de rclone",
+      "description": "Ruta absoluta opcional de rclone; vacío = carpetas vendor y PATH."
+    },
+    "upload_destinations": {
+      "hint": "Usar un destino por plugin:"
+    },
+    "enrichment": {
+      "label": "Consultar a los plugins enriquecedores",
+      "description": "Desactivado de forma predeterminada. Un enriquecedor consulta un servicio fuera de esta máquina —SponsorBlock, por ejemplo—, así que no se pregunta nada sin su permiso. Solo se envían los enlaces que un plugin reclama, y la respuesta se muestra junto a los datos del núcleo, nunca en su lugar."
+    }
+  },
+  "appearance": {
+    "eyebrow": "Preferencias del cliente",
+    "title": "Apariencia",
+    "description": "El idioma y el tema se guardan solo en este navegador y se aplican de inmediato.",
+    "language_description": "Se aplica de inmediato, sin necesidad de guardar.",
+    "theme_description": "«Sistema» sigue la configuración del sistema operativo.",
+    "byte_display": {
+      "label": "Tamaños de datos",
+      "description": "Define cómo se muestran los tamaños y las velocidades en toda la interfaz.",
+      "binary": "Binario – KiB, MiB, GiB (1024)",
+      "decimal": "Decimal – kB, MB, GB (1000)"
+    },
+    "byte_unit": {
+      "label": "Unidad de los tamaños",
+      "description": "Automático elige la magnitud adecuada para cada valor. Una unidad fija muestra todos los valores en la misma, para poder comparar una lista por columnas.",
+      "auto": "Escalar automáticamente",
+      "byte": "Bytes – B",
+      "kilo": "Kilo – KiB / kB",
+      "mega": "Mega – MiB / MB",
+      "giga": "Giga – GiB / GB",
+      "tera": "Tera – TiB / TB",
+      "peta": "Peta – PiB / PB"
+    },
+    "title_status": {
+      "label": "Estado en la pestaña del navegador",
+      "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo el nombre de la aplicación. Desactívelo si un título que cambia constantemente le molesta."
+    }
+  },
+  "messages": {
+    "saved": "Ajustes guardados.",
+    "reset_done": "Todos los ajustes de ejecución se han restablecido a sus valores por defecto."
+  },
+  "reset": {
+    "title": "¿Restaurar los ajustes de fábrica?",
+    "description": "Todos los ajustes de ejecución se restablecerán a los valores integrados. Se conservarán las ubicaciones, categorías, reglas, cuentas, servidores, tokens y descargas.",
+    "confirm": "Restablecer",
+    "button": "Ajustes de fábrica"
+  },
+  "save": "Guardar configuración",
+  "media": {
+    "eyebrow": "Extractor de medios",
+    "title": "Vídeo y audio (yt-dlp)",
+    "description": "Los enlaces de los hosts de medios se analizan con yt-dlp y se ofrecen en el LinkGrabber como variantes de vídeo/audio.",
+    "ytdlp": {
+      "label": "Ejecutable de yt-dlp",
+      "description": "Ruta absoluta a yt-dlp.",
+      "placeholder": "Vacío = yt-dlp desde el PATH"
+    },
+    "ffmpeg": {
+      "label": "Ejecutable de ffmpeg",
+      "description": "Necesario para la conversión a MP3 y para unir flujos de vídeo/audio separados.",
+      "placeholder": "Vacío = ffmpeg desde el PATH"
+    },
+    "default_variant": {
+      "label": "Variante predeterminada",
+      "description": "Preseleccionada para nuevos enlaces de medios; se puede cambiar por enlace en el LinkGrabber."
+    },
+    "variants": {
+      "video_best": "Vídeo (mejor calidad)",
+      "video_2160": "Vídeo 2160p",
+      "video_1440": "Vídeo 1440p",
+      "video_1080": "Vídeo 1080p",
+      "video_720": "Vídeo 720p",
+      "video_480": "Vídeo 480p",
+      "audio_mp3": "Audio MP3"
+    },
+    "hosts": {
+      "label": "Hosts de medios",
+      "description": "Hosts (sin www.) que gestiona el proveedor de medios en lugar del descargador HTTP.",
+      "placeholder": "youtube.com, dumpert.nl, …",
+      "add_defaults": "Añadir hosts predeterminados",
+      "add_defaults_hint": "Fusiona la lista de hosts interna con tus entradas. No se elimina nada: así las instalaciones existentes incorporan los hosts añadidos recientemente.",
+      "defaults_added": "1 host añadido. | {count} hosts añadidos.",
+      "defaults_complete": "Todos los hosts predeterminados ya están presentes."
+    },
+    "max_parallel": {
+      "label": "Descargas de medios paralelas",
+      "description": "Descargas simultáneas con yt-dlp (1–8)."
+    },
+    "check_timeout": {
+      "label": "Tiempo de sondeo",
+      "description": "Segundos que puede durar una comprobación de metadatos antes de que el enlace cuente como fuera de línea (5–600)."
+    },
+    "status": {
+      "loading": "Comprobando herramientas …",
+      "not_found": "no encontrado",
+      "unavailable": "No se pudo cargar el estado de las herramientas.",
+      "hint": "La salida MP3 y la unión de flujos de vídeo/audio separados requieren ffmpeg."
+    },
+    "output_template": {
+      "label": "Plantilla de salida",
+      "description": "Organiza las descargas de medios dentro de la carpeta del paquete. Las carpetas se separan con /. Vacío mantiene el nombre de archivo simple. Cada enlace puede sobrescribirlo.",
+      "placeholder": "{uploader}/{upload_year}/{title}",
+      "fields": "Campos disponibles: {fields}"
+    }
+  },
+  "groups": {
+    "general": "General",
+    "downloads": "Descargas",
+    "sources": "Fuentes y protocolos",
+    "integrations": "Integraciones",
+    "network": "Red y seguridad",
+    "administration": "Administración"
+  },
+  "tabs": {
+    "accounts": "Cuentas",
+    "backup": "Copia y restauración",
+    "bandwidth": "Ancho de banda",
+    "captcha": "Captcha y resolutor",
+    "desktop": "Cliente de escritorio",
+    "general": "General",
+    "hotfolders": "Hotfolders",
+    "interface": "Interfaz",
+    "mcp": "API & MCP",
+    "media": "Medios",
+    "network": "Red",
+    "notifications": "Notificaciones",
+    "plugins": "Plugins",
+    "postprocess": "Posprocesado",
+    "routing": "Almacenamiento y reglas",
+    "security": "Seguridad",
+    "services": "Servicios",
+    "siterules": "Reglas de sitios",
+    "system": "Sistema",
+    "tools": "Herramientas",
+    "torrent": "BitTorrent",
+    "transfers": "FTP, SFTP y WebDAV",
+    "unattended": "Funcionamiento desatendido",
+    "usenet": "Usenet",
+    "about": "Acerca de rDownloader"
+  },
+  "ui_port": {
+    "label": "Puerto de la interfaz web",
+    "description": "Puerto en el que escucha la interfaz web (1024–65535); vacío mantiene el valor predeterminado interno.",
+    "placeholder": "8710",
+    "restart_hint": "Se aplica tras un reinicio. --listen y RDOWNLOADER_LISTEN tienen prioridad."
+  },
+  "collector": {
+    "eyebrow": "Recolección de enlaces",
+    "title": "Recolector",
+    "description": "Los enlaces cuyo host está en la lista de bloqueo se descartan antes de llegar al LinkGrabber.",
+    "excluded_domains": {
+      "label": "Archivo de dominios excluidos",
+      "description": "Ruta absoluta a la lista de bloqueo; vacío = excluded_domains.txt junto a la base de datos."
+    },
+    "format": {
+      "title": "Formato del archivo",
+      "one_per_line": "Un host por línea.",
+      "comments": "Las líneas que empiezan por # son comentarios y se ignoran.",
+      "www": "El prefijo www. es opcional y coincide de ambas formas.",
+      "subdomains": "Un host bloquea también todos sus subdominios.",
+      "sample_comment": "rastreadores y hosts de publicidad"
+    },
+    "dlc": {
+      "eyebrow": "Importación de contenedores",
+      "title": "Contenedores DLC",
+      "description": "Un DLC guarda sus enlaces cifrados y no se puede descifrar en este equipo. Al importarlo se pide la clave del contenedor a un servicio en línea.",
+      "enabled": {
+        "label": "Permitir la importación de DLC",
+        "description": "Desactivado de forma predeterminada. Mientras lo esté, un .dlc soltado se rechaza en lugar de enviarse a ningún sitio.",
+        "warning": "Cada importación envía la clave del contenedor al servicio de abajo. Los enlaces se quedan aquí."
+      },
+      "endpoint": {
+        "label": "Servicio de descifrado",
+        "description": "Vacío = el servicio de JDownloader en service.jdownloader.org."
+      }
+    },
+    "indexer_images": {
+      "eyebrow": "Resultados del indexador",
+      "title": "Imágenes de portada",
+      "description": "Un indexador envía la dirección de una portada con cada resultado, en la misma respuesta de búsqueda que la suscripción ya realiza. Mostrarla no cuesta ninguna petición adicional; la imagen la carga el navegador.",
+      "enabled": {
+        "label": "Mostrar imágenes de portada",
+        "description": "Activado por defecto. Mientras está desactivado, los detalles del resultado siguen visibles y solo las imágenes no se cargan, de modo que el indexador no sabe qué resultados están en pantalla."
+      }
+    }
+  },
+  "notifications": {
+    "label": "Notificaciones del navegador",
+    "description": "Muestra una notificación de escritorio cuando termina una descarga o un posprocesado. Se guarda solo en este navegador.",
+    "denied": "El navegador bloquea las notificaciones de esta página. Permítelas en los permisos del sitio y vuelve a activar el interruptor.",
+    "unsupported": "Este navegador no admite notificaciones."
+  },
+  "vendor": {
+    "eyebrow": "Herramientas externas",
+    "title": "Detección de herramientas",
+    "description": "yt-dlp, ffmpeg, ffprobe, unrar, 7z, rclone, gallery-dl, streamlink y apprise se buscan primero en el ajuste explícito, después en las carpetas vendor y por último en el PATH.",
+    "directory": {
+      "eyebrow": "Ubicación de las herramientas",
+      "title": "Carpeta vendor",
+      "label": "Directorio vendor",
+      "description": "Directorio absoluto que se consulta antes que el PATH; vacío = las carpetas vendor internas junto al ejecutable y en el directorio de datos.",
+      "placeholder": "Vacío = carpetas vendor internas"
+    },
+    "searched": "Carpetas consultadas (en este orden)",
+    "searched_empty": "No se ha indicado ninguna carpeta vendor.",
+    "not_found": "no encontrado",
+    "loading": "Comprobando herramientas …",
+    "hint": "Copia los binarios en una carpeta vendor junto al ejecutable y funcionarán sin tocar el PATH.",
+    "ffprobe_warning_title": "Falta ffprobe",
+    "ffprobe_warning": "Se encontró ffmpeg pero no ffprobe. Sin ffprobe, yt-dlp no puede combinar flujos de vídeo y audio separados ni convertir el audio a MP3. Ambos binarios se distribuyen juntos: copia ffprobe junto a ffmpeg.",
+    "source": {
+      "explicit": "Ajuste explícito",
+      "vendor": "Carpeta vendor",
+      "path": "PATH",
+      "unknown": "Desconocido",
+      "managed": "Versión gestionada"
+    },
+    "compatibility": {
+      "supported": "Compatible",
+      "too_old": "Demasiado antigua",
+      "known_bad": "Versión defectuosa",
+      "unknown": "Versión desconocida",
+      "needs": "Necesita {version} o posterior",
+      "affects": "Afecta a {capabilities}",
+      "overridden": "Regla omitida",
+      "warning_title": "Versiones de herramientas no compatibles",
+      "warning": "Al menos una herramienta es demasiado antigua o está marcada como defectuosa. Solo se bloquean las capacidades indicadas; todo lo demás sigue descargándose."
+    }
+  },
+  "gallery": {
+    "eyebrow": "Galerías",
+    "title": "Descargas de galerías (gallery-dl)",
+    "description": "Las galerías de imágenes de los hosts listados se descargan con gallery-dl; cada galería se convierte en una entrada de cola con su propia carpeta. Los inicios de sesión viven en tu gallery-dl.conf.",
+    "executable": {
+      "label": "Ejecutable de gallery-dl",
+      "description": "Ruta absoluta opcional; vacío = carpetas vendor y PATH."
+    },
+    "max_parallel": {
+      "label": "Galerías simultáneas",
+      "description": "Galerías descargando a la vez (1–8)."
+    },
+    "hosts": {
+      "label": "Hosts de galerías",
+      "description": "Los enlaces de estos hosts van a gallery-dl (los hosts de media ganan si están en ambas listas).",
+      "placeholder": "pixiv.net, deviantart.com, …",
+      "add_defaults": "Añadir hosts predeterminados",
+      "hint": "gallery-dl soporta muchos más sitios; añade cualquier host compatible."
+    }
+  },
+  "streams": {
+    "eyebrow": "Directos",
+    "title": "Grabación de streams (streamlink)",
+    "description": "Las grabaciones están exentas de los slots globales de descarga; solo aplica su propio límite.",
+    "executable": {
+      "label": "Ejecutable de streamlink",
+      "description": "Ruta absoluta opcional; vacío = carpetas vendor (incl. vendor/streamlink/bin) y PATH."
+    },
+    "quality": {
+      "label": "Calidad predeterminada",
+      "description": "Calidad predefinida usada cuando un canal no tiene una selección propia."
+    },
+    "poll_interval": {
+      "label": "Intervalo de comprobación",
+      "description": "Segundos entre comprobaciones de canales activados (60–3600)."
+    },
+    "max_parallel": {
+      "label": "Grabaciones simultáneas",
+      "description": "Grabaciones ejecutándose a la vez (1–8)."
+    }
+  },
+  "torrent": {
+    "eyebrow": "BitTorrent",
+    "title": "Torrents (motor integrado)",
+    "description": "Los torrents y enlaces magnet corren en el motor integrado con DHT, trackers y PEX. Los web seeds (BEP 19) no están soportados.",
+    "sharing": {
+      "label": "Compartir datos con otros pares",
+      "description": "Desactivado de forma predeterminada: no se sube nada, ni siquiera mientras un torrent se está descargando.",
+      "leech_only_warning": "Descargar sin subir nunca perjudica al enjambre, y algunos rastreadores privados expulsan a los clientes que lo hacen."
+    },
+    "seeding": {
+      "label": "Sembrar torrents terminados",
+      "description": "Seguir subiendo tras la descarga; la fila se completa al alcanzar un límite."
+    },
+    "seed_ratio": {
+      "label": "Límite de ratio",
+      "description": "Dejar de sembrar al alcanzar esta relación subido/descargado; 0 lo desactiva."
+    },
+    "seed_time": {
+      "label": "Límite de tiempo",
+      "description": "Dejar de sembrar tras estos minutos; vacío = sin límite."
+    },
+    "listen_port": {
+      "label": "Puerto de escucha",
+      "description": "Conexiones entrantes de pares; vacío = puerto aleatorio."
+    },
+    "upload_limit": {
+      "label": "Límite de subida",
+      "description": "Límite global de subida de torrents; vacío = ilimitado."
+    },
+    "restart_hint": "El puerto y el límite de subida aplican tras el próximo reinicio; los límites de siembra, de inmediato.",
+    "peer_addresses": {
+      "label": "Mostrar direcciones completas de los pares",
+      "description": "Desactivado de forma predeterminada: la dirección de un par es un dato personal de un tercero, y el prefijo de red basta para valorar un enjambre. En cualquier caso, las direcciones nunca se escriben en un registro ni en un evento."
+    },
+    "bind_interface": {
+      "label": "Vincular a una interfaz de red",
+      "description": "Todos los sockets de torrent usan solo esta interfaz. Junto con el interruptor de corte, es lo que hace seguro un túnel VPN.",
+      "any": "Todas las interfaces"
+    },
+    "kill_switch": {
+      "label": "Detener si la interfaz desaparece",
+      "description": "Pausa cada torrent en los diez segundos siguientes a la desaparición de la interfaz vinculada, y reanuda cuando vuelve."
+    },
+    "listen_mode": {
+      "label": "Transportes de pares",
+      "description": "Qué conexiones entrantes de pares acepta el listener.",
+      "tcp_and_utp": "TCP y uTP",
+      "tcp_only": "Solo TCP",
+      "utp_only": "Solo uTP"
+    },
+    "peer_limit": {
+      "label": "Pares por torrent",
+      "description": "Número máximo de conexiones de pares por torrent; vacío lo deja al motor."
+    },
+    "blocklist": {
+      "label": "URL de la lista de bloqueo de IP",
+      "description": "Una URL http o https que el motor carga al iniciarse. Una lista que falle solo afecta a los torrents, nunca a otras descargas."
+    },
+    "proxy": {
+      "label": "Proxy SOCKS5 para conexiones de pares",
+      "description": "Se aplica solo a las conexiones salientes hacia pares. Los anuncios a rastreadores y las solicitudes de metadatos no pasan por él: este motor no puede enrutarlos por separado.",
+      "none": "Sin proxy"
+    },
+    "upnp": {
+      "label": "Redirigir el puerto de escucha (UPnP)",
+      "description": "Pide al router que asigne el puerto de escucha. Una asignación fallida nunca bloquea las descargas salientes. NAT-PMP y PCP no son compatibles."
+    },
+    "announce_port": {
+      "label": "Puerto anunciado",
+      "description": "Puerto anunciado a los rastreadores cuando el router asigna el puerto de escucha a otro puerto externo. Vacío anuncia el puerto de escucha."
+    }
+  },
+  "auth_profiles": {
+    "approval_description": "Estas sesiones las envió la extensión del navegador. Solo se usan cuando usted las aprueba.",
+    "approval_title": "Pendiente de aprobación",
+    "approve": "Aprobar",
+    "badge_captured": "Desde el navegador",
+    "badge_certificate": "Certificado de cliente",
+    "badge_disabled": "Inactivo",
+    "badge_expired": "Caducado",
+    "cancel": "Cancelar",
+    "certificate_clear": "Eliminar el certificado guardado",
+    "certificate_description": "Clave privada y cadena de certificados en un único PEM descifrado. No se admiten claves protegidas con contraseña.",
+    "certificate_label": "Certificado de cliente (opcional)",
+    "create": "Añadir perfil",
+    "created": "Perfil de autenticación creado",
+    "delete": "Eliminar",
+    "delete_description": "Las credenciales guardadas se eliminan con él. Las tareas fijadas a él vuelven a la coincidencia automática.",
+    "delete_title": "¿Eliminar el perfil?",
+    "description": "Reutilice una sesión del navegador o envíe credenciales HTTP a un único dominio aprobado. Las cookies, los tokens y las claves privadas se guardan cifrados y no se vuelven a mostrar.",
+    "edit": "Editar",
+    "empty": "Todavía no hay perfiles de autenticación.",
+    "enabled_label": "Activo",
+    "expires_description": "Opcional. Un perfil caducado sigue en la lista pero ya no se utiliza.",
+    "expires_label": "Caduca el",
+    "eyebrow": "Sesiones",
+    "method_basic": "HTTP Basic",
+    "method_bearer": "Token Bearer",
+    "method_cookies": "Sesión del navegador (cookies)",
+    "method_label": "Método",
+    "name_label": "Nombre",
+    "name_placeholder": "Intranet",
+    "save": "Guardar",
+    "saved": "Perfil de autenticación guardado",
+    "scope_description": "Host, opcionalmente con un prefijo de ruta. La ruta decide qué perfil coincide; no limita la credencial.",
+    "scope_label": "Dominio",
+    "secret_basic": "Contraseña",
+    "secret_bearer": "Token",
+    "secret_cookies": "Cookies",
+    "secret_cookies_description": "Contenido de un cookies.txt de Netscape o una cabecera Cookie.",
+    "secret_keep": "Déjelo vacío para conservar el valor guardado.",
+    "subdomains_label": "Incluir subdominios",
+    "test": "Probar",
+    "title": "Perfiles de autenticación",
+    "username_label": "Usuario"
+  },
+  "storage": {
+    "title": "Capacidad de almacenamiento",
+    "description": "Se aplica a todos los transportes. Un destino por debajo de su umbral no acepta descargas nuevas hasta que haya espacio.",
+    "minimum_free": {
+      "label": "Espacio libre mínimo",
+      "description": "Se mantiene libre en cada raíz sin umbral propio."
+    },
+    "headroom": {
+      "label": "Margen para tamaños desconocidos",
+      "description": "Una transferencia sin tamaño declarado puede empezar mientras este múltiplo del umbral esté libre (1–64)."
+    },
+    "auto_resume": {
+      "label": "Reanudar automáticamente",
+      "description": "Libera un destino bloqueado en cuanto vuelve a tener espacio; desactivado exige la acción manual."
+    }
+  },
+  "services": {
+    "eyebrow": "Disponibilidad",
+    "title": "Servicios de transferencia",
+    "description": "Cada servicio está activo hasta que lo desactive aquí. Lo que está desactivado rechaza los enlaces correspondientes ya en la recepción y bloquea, con un motivo, lo que ya estaba en la cola.",
+    "hint": "Al volver a activar un servicio, sus entradas bloqueadas regresan a la cola.",
+    "torrent": {
+      "label": "BitTorrent",
+      "description": "Enlaces magnet, archivos .torrent y el motor entre pares."
+    },
+    "usenet": {
+      "label": "Usenet",
+      "description": "Importaciones NZB y descargas NNTP."
+    },
+    "media": {
+      "label": "Descargas de medios",
+      "description": "Enlaces de vídeo y audio que resuelve yt-dlp."
+    },
+    "gallery": {
+      "label": "Galerías",
+      "description": "Galerías de imágenes que resuelve gallery-dl."
+    },
+    "recording": {
+      "label": "Grabaciones de emisiones",
+      "description": "Emisiones en directo que graba streamlink."
+    },
+    "remote": {
+      "label": "Transferencia remota de archivos",
+      "description": "Enlaces FTP, FTPS, SFTP y WebDAV."
+    }
+  },
+  "managed_tools": {
+    "eyebrow": "Herramientas gestionadas",
+    "title": "Versiones de las herramientas",
+    "description": "rDownloader puede descargar, verificar y activar por sí mismo yt-dlp, gallery-dl, Streamlink, ffmpeg y ffprobe. Cada versión procede de un manifiesto firmado y se confirma con su suma de comprobación antes de activarse.",
+    "enabled_label": "Gestionar las herramientas automáticamente",
+    "enabled_description": "Desactivado salvo que se indique lo contrario: descargar ejecutables no es algo que deba empezar sin permiso. Una ruta configurada explícitamente sigue teniendo prioridad.",
+    "manifest_url_label": "Dirección del manifiesto",
+    "manifest_url_description": "Dirección https del manifiesto de herramientas firmado. Vacío = solo el manifiesto incluido en esta versión, que funciona con seguridad sin red.",
+    "manifest_url_placeholder": "Vacío = manifiesto incorporado",
+    "disabled_title": "La gestión está desactivada",
+    "disabled_description": "Activa «Gestionar las herramientas automáticamente» arriba para descargar y activar versiones. Los programas ya encontrados no se ven afectados.",
+    "manifest": "Manifiesto",
+    "manifest_detail": "Secuencia {sequence} · plataforma {platform}",
+    "manifest_built_in": "Manifiesto incorporado en esta versión",
+    "refresh": "Recargar el manifiesto",
+    "active": "activa {version}",
+    "available": "disponible {version}",
+    "not_managed_yet": "Sin gestionar",
+    "no_release": "Nada disponible",
+    "install": "Instalar",
+    "activate": "Activar",
+    "rollback": "Revertir",
+    "choose_version": "Elegir la versión de {tool}",
+    "installed": "{tool} se ha verificado e instalado.",
+    "activated": "{tool} funciona ahora con la versión elegida.",
+    "rolled_back": "{tool} ha vuelto a su versión anterior.",
+    "refreshed": "El manifiesto se ha verificado y adoptado.",
+    "loading": "Leyendo las herramientas gestionadas …",
+    "hint": "Una tarea en curso conserva la versión con la que empezó: activar otra surte efecto en la siguiente tarea, y nunca se elimina una versión en uso.",
+    "overrides_label": "Omitir reglas de compatibilidad",
+    "overrides_description": "Para las herramientas seleccionadas aquí el veredicto se sigue mostrando, pero no se aplica. Cada bloqueo omitido de este modo queda registrado.",
+    "overrides_placeholder": "Ninguna herramienta omitida"
+  },
+  "logs": {
+    "eyebrow": "Almacén de registros",
+    "title": "Retención del registro",
+    "description": "Cuánto del registro estructurado conserva el servicio. Las entradas antiguas se eliminan en segundo plano; la cola nunca espera por ello.",
+    "records_label": "Entradas conservadas",
+    "records_description": "Las entradas más antiguas se eliminan primero (1000-500000).",
+    "days_label": "Días conservados",
+    "days_description": "Las entradas más antiguas que esto se eliminan sea cual sea el recuento (1-365).",
+    "open": "Abrir el visor de registros"
+  },
+  "audit": {
+    "eyebrow": "Auditoría y trazas",
+    "title": "Registro de auditoría y exportación de trazas",
+    "description": "Cuánto tiempo se conserva el registro de auditoría de solo añadir y si los tramos finalizados se envían a un colector de OpenTelemetry. La exportación está desactivada hasta que la active.",
+    "records_label": "Registros de auditoría conservados",
+    "records_description": "Los registros enteros más antiguos se eliminan primero (10000-2000000).",
+    "days_label": "Días conservados",
+    "days_description": "Los registros más antiguos se eliminan sin importar la cantidad (30-3650).",
+    "open": "Abrir el registro de auditoría",
+    "otlp_enabled_label": "Exportar trazas por OTLP",
+    "otlp_enabled_description": "Desactivado por defecto. Un colector caído o lento nunca retrasa una descarga o una petición.",
+    "otlp_endpoint_label": "Punto final del colector",
+    "otlp_endpoint_description": "La URL de trazas OTLP/HTTP, por ejemplo http://127.0.0.1:4318/v1/traces.",
+    "otlp_timeout_label": "Tiempo límite de exportación",
+    "otlp_timeout_description": "Cuánto puede durar un intento antes de abandonarlo (1-60 segundos)."
+  },
+  "overview": {
+    "eyebrow": "Resumen",
+    "title": "Ajustes",
+    "description": "Todas las páginas, agrupadas por tema. Abra una aquí o elíjala en la barra lateral."
+  },
+  "about": {
+    "build": {
+      "eyebrow": "Compilación en ejecución",
+      "title": "Versión y compilación",
+      "version": "Versión",
+      "commit": "Commit",
+      "built": "Compilado",
+      "plugin_contract": "Contrato de plugins",
+      "platform": "Plataforma",
+      "unknown": "desconocido"
+    },
+    "links": {
+      "eyebrow": "Direcciones",
+      "title": "Adónde ir",
+      "source": "Código fuente",
+      "website": "Sitio web",
+      "handbook": "Manual",
+      "security": "Informar de una vulnerabilidad en privado",
+      "changelog": "Registro de cambios",
+      "unpublished": "aún no publicado"
+    },
+    "credits": {
+      "eyebrow": "Créditos",
+      "title": "Quién hace rDownloader",
+      "author": "Autor",
+      "thanks": "rDownloader se basa en los proyectos de abajo: gracias a todas las personas que los escriben y mantienen."
+    },
+    "licenses": {
+      "eyebrow": "Licencias",
+      "title": "Lo que se incluye",
+      "own": "rDownloader en sí",
+      "own_text": "Software libre bajo {license}; el texto completo está en LICENSE dentro del paquete.",
+      "tools": "Herramientas incluidas",
+      "tools_hint": "Los paquetes para Linux y Windows los incluyen en vendor/ y sus textos de licencia en vendor/licenses/.",
+      "dependencies": "Dependencias",
+      "dependencies_hint": "Generadas al compilar a partir de Cargo.lock y package-lock.json, nunca a mano.",
+      "rust": "Crates de Rust",
+      "npm": "Paquetes npm de la interfaz",
+      "show": "Mostrar los {count}",
+      "hide": "Ocultar lista",
+      "filter": "Filtrar por nombre o licencia",
+      "no_match": "Ningún paquete coincide con el filtro.",
+      "column_name": "Nombre",
+      "column_version": "Versión",
+      "column_license": "Licencia",
+      "column_file": "Texto de licencia"
+    }
+  }
+}

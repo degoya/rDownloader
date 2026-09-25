@@ -1,0 +1,354 @@
+{
+  "cards": {
+    "http": {
+      "title": "HTTP & Hoster",
+      "eyebrow": "Resolver-Kette",
+      "status": "Kern aktiv",
+      "description": "Direkt-HTTP, DDownload-Cookies und Premiumize-API-Key laufen über dieselbe isolierte Clientidentität; signierte Components bleiben installierbar."
+    },
+    "capture": {
+      "title": "Capture-Agent",
+      "eyebrow": "Windows-Brücke",
+      "paired": "Gekoppelt",
+      "ready": "Bereit zur Kopplung",
+      "description": "Zwischenablage, Click’n’Load, NZB-Dateizuordnung und Windows-Hotfolder nutzen den nativen Agenten."
+    },
+    "usenet": {
+      "title": "Usenet",
+      "eyebrow": "NNTP-Pipeline",
+      "none": "Kein NNTP-Server",
+      "summary": "{servers} · {connections}",
+      "description": "Serverprioritäten und verschlüsselte Zugangsdaten sind konfigurierbar; yEnc und sichere Postprocessing-Bausteine sind integriert."
+    }
+  },
+  "facts": {
+    "about": "Über",
+    "cnl2": "CNL2",
+    "loopback_only": "Nur Loopback",
+    "hotfolder": "Hotfolder-Scan",
+    "hotfolder_note": "Events + Reconciliation",
+    "nzb": "NZB-Eingang",
+    "nzb_note": "SHA-256-dedupliziert",
+    "web_ui": "Weboberfläche",
+    "web_ui_configured": "Konfigurierter Port · gilt ab dem nächsten Start",
+    "web_ui_default": "Adresse dieser Sitzung"
+  },
+  "pairing": {
+    "eyebrow": "Capture-Kopplung",
+    "title": "Nativen Agenten koppeln",
+    "description": "Das Bearer-Secret wird nur einmal angezeigt. Persistiert wird ausschließlich sein SHA-256-Digest mit {scope}-Scope.",
+    "submit": "Koppeln",
+    "copy_hint": "Jetzt kopieren – später nicht erneut abrufbar",
+    "copy_command": "Befehl kopieren",
+    "afterwards": "Danach optional:",
+    "copied_title": "Konfigurationsbefehl kopiert",
+    "copied_description": "Der vollständige Befehl liegt in der Zwischenablage.",
+    "extension_hint": "Browser-Erweiterung: nutze das rohe Token unten in den Erweiterungsoptionen.",
+    "copy_token": "Token kopieren",
+    "extension_steps": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge dieses Token ein und drücke „Verbindung testen“. Installation siehe extension/README.md.",
+    "token_copied_description": "Das Capture-Token liegt in der Zwischenablage."
+  },
+  "agents": {
+    "eyebrow": "Gekoppelte Verbindungen",
+    "empty": "Noch kein Capture-Agent gekoppelt.",
+    "revoke": "Capture-Verbindung löschen"
+  },
+  "revoke": {
+    "title": "Capture-Verbindung löschen",
+    "description": "Der Agent „{label}“ verliert sofort den Zugriff auf LinkGrabber und NZB-Import.",
+    "confirm": "Verbindung löschen",
+    "done": "Capture-Verbindung gelöscht"
+  },
+  "backup": {
+    "export": {
+      "eyebrow": "Konfigurationssicherung",
+      "title": "Einstellungen exportieren",
+      "description": "Alle serverseitigen Einstellungen, Kategorien, Konten und Integrationen als versioniertes JSON-Paket herunterladen.",
+      "include_secrets": "Zugangsdaten einschließen",
+      "include_secrets_description": "Zugangsdaten und Cookies werden mit der Passphrase geschützt und nie im Klartext gespeichert.",
+      "passphrase": "Passphrase",
+      "confirm_passphrase": "Passphrase bestätigen",
+      "passphrase_short": "Die Passphrase muss mindestens 8 Zeichen lang sein.",
+      "passphrase_mismatch": "Die Passphrasen stimmen nicht überein.",
+      "button": "Sicherung herunterladen",
+      "success": "Einstellungssicherung heruntergeladen"
+    },
+    "import": {
+      "eyebrow": "Konfiguration wiederherstellen",
+      "title": "Einstellungen importieren",
+      "description": "Ein rDownloader-Einstellungspaket der Version 1 wiederherstellen oder migrieren.",
+      "choose_file": "JSON-Datei auswählen",
+      "invalid_file": "Die gewählte Datei ist kein gültiges rDownloader-Einstellungspaket.",
+      "unsupported_version": "Paketversion {version} wird nicht unterstützt.",
+      "encrypted": "Zugangsdaten sind mit einer Passphrase verschlüsselt",
+      "without_secrets": "Diese Sicherung enthält keine Zugangsdaten",
+      "passphrase": "Passphrase der Sicherung",
+      "passphrase_required": "Gib die Passphrase ein, mit der diese Sicherung erstellt wurde.",
+      "confirm_title": "Alle Servereinstellungen ersetzen?",
+      "confirm_description": "Alle Einstellungen, Kategorien, Konten, Proxys, Usenet-Server, Hotfolder und Stream-Kanäle werden ersetzt. Pausiere vorher aktive Downloads. Importierte Hotfolder eines Capture-Agents müssen auf einer anderen Installation erneut gekoppelt werden.",
+      "confirm": "Konfiguration ersetzen",
+      "button": "Importieren und ersetzen",
+      "success": "Einstellungen wiederhergestellt",
+      "success_description": "{count} Konfigurationseinträge importiert."
+    }
+  },
+  "mcp": {
+    "eyebrow": "Externer Zugriff",
+    "title": "API-Zugriff & MCP",
+    "description": "API-Tokens authentifizieren REST, CLI, SABnzbd- und qBittorrent-kompatible Clients sowie den MCP-Server unter {endpoint}. Die auswählbaren Bereiche ersetzen pauschalen {scope}-Zugriff; persistiert wird nur der SHA-256-Digest.",
+    "label_placeholder": "z. B. Sonarr, Dashboard oder Claude",
+    "submit": "API-Token erstellen",
+    "copy_hint": "Dieses API-Token wird nur einmal angezeigt – jetzt sicher beim vorgesehenen Client hinterlegen.",
+    "mcp_hint": "MCP mit Claude Code verbinden:",
+    "copy_command": "Befehl kopieren",
+    "token_hint": "Rohes Token für Clients, die ausschließlich den API-Key erwarten.",
+    "copy_token": "Token kopieren",
+    "copied_title": "Kopiert",
+    "command_copied": "Der claude-mcp-add-Befehl liegt in der Zwischenablage.",
+    "token_copied": "Das API-Token liegt in der Zwischenablage.",
+    "header_hint": "Clients, die den Header aus einer Umgebungsvariablen lesen (ChatGPT Desktop): diesen vollständigen Wert eintragen.",
+    "copy_header": "Header kopieren",
+    "header_copied": "Der Authorization-Header liegt in der Zwischenablage.",
+    "single_source_hint": "Nur eine Quelle für den Authorization-Header konfigurieren. Werden zwei gesendet, gilt nur die erste — ein korrektes Token an zweiter Stelle wird nie gelesen.",
+    "tokens_eyebrow": "Aktive API-Tokens",
+    "empty": "Noch kein API-Token erstellt.",
+    "revoke_label": "API-Token widerrufen",
+    "scope_full": "Vollzugriff",
+    "revoke": {
+      "title": "API-Token widerrufen",
+      "description": "Der Client „{label}“ verliert sofort seinen API- und MCP-Zugriff.",
+      "confirm": "Token widerrufen",
+      "done": "API-Token widerrufen"
+    },
+    "edit": {
+      "label": "Berechtigungen ändern",
+      "hint": "Der Tokenwert bleibt derselbe: Der Client läuft weiter und erreicht die neuen Bereiche ab der nächsten Anfrage. Alles zu entziehen geht hier nicht — dafür das Token widerrufen.",
+      "save": "Berechtigungen speichern",
+      "cancel": "Abbrechen",
+      "done": "Berechtigungen geändert",
+      "empty": "Mindestens einen Bereich auswählen, oder das Token widerrufen."
+    },
+    "areas": {
+      "read": {
+        "name": "Lesen",
+        "description": "Warteschlange, Fortschritt, Pakete und Systemstatus. Erlaubt nichts, was etwas verändert."
+      },
+      "intake": {
+        "name": "Links hinzufügen",
+        "description": "Links, Dateien und Container in den LinkGrabber legen. Das, was eine *arr-Instanz oder eine Browser-Erweiterung braucht."
+      },
+      "queue": {
+        "name": "Warteschlange steuern",
+        "description": "Starten, pausieren, wiederholen, umsortieren und löschen."
+      },
+      "config": {
+        "name": "Konfiguration",
+        "description": "Kategorien, Regeln, Zeitpläne und Diensteinstellungen ohne Zugangsdaten."
+      },
+      "secrets": {
+        "name": "Gespeicherte Zugangsdaten",
+        "description": "Hosterkonten, Proxyprofile, Usenet-Server und der Einstellungsexport. Nichts anderes gewährt das."
+      },
+      "admin": {
+        "name": "Administration",
+        "description": "Plugins, Dienstschalter, Updates und Sicherungen. Schließt gespeicherte Zugangsdaten nicht ein."
+      },
+      "metrics": {
+        "name": "Metriken",
+        "description": "Nur die Prometheus-Route /api/v1/metrics. Erreicht sonst nichts, auch nicht die Warteschlange oder MCP."
+      }
+    },
+    "scopes_label": "Was dieses Token darf",
+    "scopes_hint": "Nur gewähren, was der Client wirklich braucht. Alles, was handelt, darf auch lesen — Lesen muss also nicht extra hinzugefügt werden.",
+    "scopes_empty": "Mindestens einen Bereich auswählen.",
+    "scope_operations": "{count} Operationen",
+    "scope_none": "Kein API-Zugriff",
+    "sensitive": "Sensibel",
+    "sensitive_warning": "Dieses Token kann gespeicherte Zugangsdaten lesen oder den Dienst verwalten. Nichts anderes gewährt das — also nur an einen Client geben, der es wirklich braucht.",
+    "also_includes": "Enthält außerdem: {areas}",
+    "minted_areas": "Dieses Token umfasst: {areas}"
+  },
+  "readiness": {
+    "eyebrow": "Einrichtung",
+    "title": "Ist die Einrichtung abgeschlossen?",
+    "complete": "Alles, was die Einrichtung verlangt, ist vorhanden.",
+    "outstanding": "Ein Schritt ist noch offen. | {count} Schritte sind noch offen.",
+    "go": "Öffnen",
+    "checks": {
+      "login": {
+        "label": "Administrator-Anmeldung",
+        "done": "Gesetzt, oder bewusst für ein vertrautes Netz abgeschaltet.",
+        "missing": "Es ist kein Passwort gesetzt und die Anmeldung ist nicht abgeschaltet."
+      },
+      "storage": {
+        "label": "Speicherziel",
+        "done": "Mindestens ein Ziel ist eingerichtet.",
+        "missing": "Downloads haben kein Ziel, solange keines existiert.",
+        "ephemeral": "Ein Ziel ist eingerichtet, aber mindestens eines liegt nicht auf dauerhaftem Speicher."
+      },
+      "category": {
+        "label": "Kategorie",
+        "done": "Mindestens eine Kategorie existiert.",
+        "missing": "Ohne Kategorie lässt sich nichts in einen Ordner einsortieren."
+      },
+      "wizard": {
+        "label": "Einrichtung abgeschlossen",
+        "done": "Die Einrichtung wurde abgeschlossen.",
+        "missing": "Die Einrichtung wurde nie beendet; starte sie erneut über die Seitenleiste."
+      }
+    }
+  },
+  "sessions": {
+    "eyebrow": "Sicherheit",
+    "title": "Angemeldete Geräte",
+    "description": "Jede offene Anmeldung an dieser Installation. Wenn hier etwas steht, das nicht von Ihnen ist, beenden Sie es und ändern Sie das Passwort.",
+    "loading": "Wird geladen …",
+    "current": "Dieses Gerät",
+    "unknown_device": "Unbekanntes Gerät",
+    "unknown_address": "Adresse unbekannt",
+    "detail": "{address} · zuletzt genutzt {lastUsed} · läuft ab {expires}",
+    "sign_out": "Abmelden",
+    "sign_out_here": "Hier abmelden",
+    "revoke": {
+      "title": "Sitzung beenden?",
+      "description": "{device} wird sofort abgemeldet.",
+      "description_current": "Sie werden auf diesem Gerät abgemeldet und müssen sich neu anmelden.",
+      "confirm": "Beenden",
+      "done": "Sitzung beendet"
+    },
+    "revoke_others": {
+      "action": "Überall sonst abmelden ({count})",
+      "title": "Überall sonst abmelden?",
+      "description": "{count} andere Sitzungen werden beendet. Diese hier bleibt bestehen.",
+      "confirm": "Beenden",
+      "done": "Andere Sitzungen beendet"
+    }
+  },
+  "proxy": {
+    "eyebrow": "Erreichbarkeit",
+    "title": "Reverse Proxy",
+    "description": "Wenn ein Proxy davor sitzt, muss rDownloader davon wissen. Sonst zählt jede Anfrage als vom Proxy kommend, und das Sitzungs-Cookie passt womöglich nicht zum Schema, unter dem der Browser die Seite lädt.",
+    "external_url": "Externe Adresse",
+    "external_url_hint": "Schema, Host und Unterpfad in einer Angabe, damit sie nicht auseinanderlaufen können. Leer lassen, wenn kein Proxy davor sitzt.",
+    "trusted": "Vertrauenswürdige Proxys",
+    "trusted_hint": "Eine Adresse oder ein CIDR-Bereich pro Zeile. Nur von diesen wird eine weitergereichte Client-Adresse geglaubt; alles andere gilt als der Aufrufer selbst.",
+    "cookie_label": "Sitzungs-Cookie",
+    "cookie_hint": "„Automatisch“ folgt dem Schema der externen Adresse und ist fast immer richtig.",
+    "cookie": {
+      "auto": "Automatisch",
+      "always": "Immer Secure",
+      "never": "Nie Secure"
+    },
+    "warning_no_proxies": "Eine externe Adresse ist gesetzt, aber kein vertrauenswürdiger Proxy. Dann sieht jede Anfrage aus, als käme sie vom Proxy: Sperren und Sitzungsliste zeigen für alle dieselbe Adresse.",
+    "warning_no_url": "Vertrauenswürdige Proxys sind gesetzt, aber keine externe Adresse. Dann kann das Cookie nicht automatisch als Secure markiert werden."
+  },
+  "mfa": {
+    "eyebrow": "Zweiter Faktor",
+    "title": "Zwei-Faktor-Anmeldung",
+    "description": "Optional. Nach dem Passwort wird zusätzlich ein Code aus einer Authenticator-App verlangt. Die Wiederherstellungscodes sind der einzige andere Weg zurück — es gibt niemanden, bei dem man sich ausweisen könnte.",
+    "enrol": {
+      "start": "Einrichten",
+      "once": "Nur jetzt sichtbar. Nach dem Verlassen der Seite ist nichts davon wieder abrufbar.",
+      "scan": "Diesen Code mit der Authenticator-App scannen:",
+      "copy_secret": "Schlüssel kopieren",
+      "copy_uri": "Link kopieren",
+      "recovery": "Wiederherstellungscodes — an einem sicheren Ort aufbewahren:",
+      "copy_codes": "Codes kopieren",
+      "confirm_label": "Code aus der App",
+      "confirm": "Bestätigen",
+      "qr_alt": "QR-Code zum Einrichten der Authenticator-App",
+      "manual": "Oder den Schlüssel von Hand eintragen:"
+    },
+    "unconfirmed": "Nicht bestätigt",
+    "last_used": "Zuletzt genutzt: {moment}",
+    "never_used": "noch nie",
+    "remaining": "{count} Wiederherstellungscodes übrig",
+    "remove": {
+      "action": "Entfernen",
+      "title": "Zweiten Faktor entfernen?",
+      "description": "„{label}“ kann danach keine Codes mehr beantworten.",
+      "confirm": "Entfernen"
+    },
+    "regenerate": {
+      "action": "Neue Wiederherstellungscodes",
+      "title": "Neue Codes erzeugen?",
+      "description": "Die bisherigen Wiederherstellungscodes gelten dann nicht mehr.",
+      "confirm": "Erzeugen"
+    },
+    "disable": {
+      "label": "Passwort",
+      "hint": "Zum Abschalten genügt das Passwort — nicht ein Code. Ein verlorenes Gerät soll nicht endgültig sein.",
+      "action": "Abschalten"
+    },
+    "enabled_toast": "Zwei-Faktor-Anmeldung ist aktiv",
+    "disabled_toast": "Zwei-Faktor-Anmeldung ist aus",
+    "copied": "Kopiert"
+  },
+  "passkeys": {
+    "eyebrow": "Passkeys",
+    "title": "Passkeys",
+    "description": "Statt mit dem Passwort mit dem Gerät anmelden. Der Authenticator prüft PIN oder Fingerabdruck, bevor er signiert — ein Schritt deckt damit beides ab. Das Passwort funktioniert weiter: ein Passkey ist ein zusätzlicher Weg hinein, kein Ersatz.",
+    "unsupported": "Dieser Browser kann hier keine Passkeys verwenden. Sie brauchen eine sichere Verbindung: entweder https oder den Dienst über localhost erreichen.",
+    "add": "Passkey hinzufügen",
+    "save": "Speichern",
+    "failed": "Der Passkey konnte nicht eingerichtet werden.",
+    "added_toast": "Passkey hinzugefügt",
+    "name_label": "Name",
+    "name_hint": "Damit später erkennbar ist, um welches Gerät es geht.",
+    "default_label": "{platform}-Passkey",
+    "fallback_label": "Passkey",
+    "last_used": "Zuletzt verwendet {moment}",
+    "never_used": "nie",
+    "remove": {
+      "action": "Entfernen",
+      "title": "Diesen Passkey entfernen?",
+      "description": "„{label}“ kann sich dann nicht mehr anmelden. Das Passwort funktioniert weiterhin.",
+      "confirm": "Entfernen"
+    }
+  },
+  "password": {
+    "eyebrow": "Passwort",
+    "title": "Administratorpasswort",
+    "description": "Ersetzt das Passwort, mit dem Sie sich anmelden. Sie brauchen dafür das aktuelle. Eine Wiederherstellung ohne das aktuelle Passwort gibt es nicht.",
+    "current_label": "Aktuelles Passwort",
+    "new_label": "Neues Passwort",
+    "confirm_label": "Neues Passwort wiederholen",
+    "new_hint": "Mindestens zehn Zeichen.",
+    "action": "Passwort ändern",
+    "mismatch": "Die beiden neuen Passwörter stimmen nicht überein.",
+    "changed_toast": "Passwort geändert",
+    "sessions_hint": "Beim Wechsel werden alle Sitzungen beendet. Dieses Fenster bleibt angemeldet, jedes andere Gerät muss sich neu anmelden.",
+    "tokens_hint": "API-Token bleiben gültig, denn sie hängen nicht am Passwort. Wer das alte Passwort kannte, konnte sich aber welche ausstellen: prüfen Sie die Token-Liste."
+  },
+  "data_reset": {
+    "button": "Leeren",
+    "stored": "{count} gespeichert",
+    "confirm": "Endgültig leeren",
+    "done": "{count} Sätze entfernt",
+    "logs": {
+      "title": "Protokoll leeren?",
+      "description": "{count} Protokollsätze werden endgültig entfernt. Audit und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+    },
+    "audit": {
+      "title": "Audit leeren?",
+      "description": "{count} Auditsätze werden endgültig entfernt. Das Leeren selbst steht danach als erster Eintrag im leeren Audit. Protokoll und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+    },
+    "stats": {
+      "title": "Statistik leeren?",
+      "description": "{count} Statistikzeilen werden endgültig entfernt, samt der Gesamtsummen. Protokoll und Audit bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+    },
+    "notifications": {
+      "title": "Benachrichtigungsverlauf leeren?",
+      "description": "{count} abgeschlossene Zustellungen werden endgültig aus dem Verlauf entfernt. Zustellungen, die noch in der Warteschlange stehen oder wiederholt werden, bleiben stehen, ebenso Ziele, Regeln, Protokoll, Audit und Statistik."
+    }
+  },
+  "session_limits": {
+    "eyebrow": "Sicherheit",
+    "title": "Wie lange eine Anmeldung gilt",
+    "description": "Eine Anmeldung endet, wenn sie so lange nicht benutzt wurde oder ihre Höchstdauer erreicht – je nachdem, was zuerst eintritt. Eine kürzere Einstellung beendet ältere Anmeldungen sofort.",
+    "idle_label": "Ohne Aktivität",
+    "idle_description": "Stunden ohne Anfrage, nach denen man sich neu anmelden muss. 1 bis 720 (30 Tage).",
+    "max_label": "Höchstdauer",
+    "max_description": "Stunden ab der Anmeldung, nach denen sie endet, auch mitten in der Arbeit. 1 bis 2160 (90 Tage)."
+  }
+}

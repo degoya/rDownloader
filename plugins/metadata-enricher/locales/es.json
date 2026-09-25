@@ -1,0 +1,4 @@
+{
+  "name": "Datos de películas y series",
+  "description": "Identifica la película o la serie a partir del nombre del release y añade valoración, año, género y duración."
+}

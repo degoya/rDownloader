@@ -1,0 +1,39 @@
+[package]
+name = "rd-plugin-premiumize"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+plugin-common = { path = "../common" }
+plugin-guest = { path = "../guest" }
+premiumize-common = { path = "../premiumize-common" }
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+url.workspace = true
+wit-bindgen.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+rd-core = { path = "../../crates/rd-core" }
+rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+uuid.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:premiumize"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "resolver-plugin"
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

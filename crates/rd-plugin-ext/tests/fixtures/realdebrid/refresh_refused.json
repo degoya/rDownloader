@@ -1,0 +1,5 @@
+{
+  "error": "invalid_grant",
+  "error_code": 8,
+  "error_details": "the stored sign-in was revoked"
+}

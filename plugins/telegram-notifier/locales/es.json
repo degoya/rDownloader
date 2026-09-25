@@ -1,0 +1,7 @@
+{
+  "name": "Telegram",
+  "description": "Entrega notificaciones a un chat de Telegram mediante un bot.",
+  "codes": {
+    "telegram_notifier.rejected": "Telegram rechazó el mensaje."
+  }
+}

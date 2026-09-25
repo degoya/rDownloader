@@ -1,0 +1,45 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000011d"
+name = "Real-Debrid torrents"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[capabilities]
+# The access token an `oauth` sign-in produced, the same slot the resolver sibling reads. It
+# is written by `realdebrid-auth` through `store-oauth-token` and read back here only as the
+# template `{{secret:realdebrid_access_token}}`, never as a value.
+#
+# Deliberately not `realdebrid_client_secret`: submitting a magnet has no business with the
+# application the person registered, and a grant it does not need is a grant it should not have.
+secrets = ["realdebrid_access_token"]
+
+# The provider's own API, and nothing else. `torrents/*` lives here.
+[capabilities.net_http]
+domains = ["api.real-debrid.com"]
+
+[extension]
+slug = "realdebrid_torrents"
+# The provider whose account these jobs run on. The host looks the account up; this plugin
+# never learns which one it is, and never sees its token.
+claims = ["realdebrid"]
+
+[metadata]
+description = "Runs magnets and torrent files as jobs on a Real-Debrid account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+# The `remote-job` world does not exist before 1.0.7; an older host could not load this.
+min_app_version = "1.0.7"
+
+[limits]
+memory_bytes = 33554432
+# Every call here makes at most two requests and returns on the provider's next answer -- the
+# waiting belongs to the host -- so this needs far less room than a crawler walking a tree.
+# The one memory-shaped operation is reading a container to find its info hash, which
+# `source::MAX_CONTAINER_BYTES` bounds at four megabytes before any of this is reached.
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

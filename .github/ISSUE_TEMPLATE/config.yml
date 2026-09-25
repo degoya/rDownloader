@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/degoya/rDownloader/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue. SECURITY.md has the details.
+  - name: User handbook
+    url: https://github.com/degoya/rDownloader/wiki
+    about: Installation, setup and everyday use of rDownloader.

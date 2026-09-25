@@ -1,0 +1,13 @@
+{
+  "name": "Carpetas de Box",
+  "description": "Enumera los archivos que hay detrás de una dirección de carpeta de Box o un enlace compartido.",
+  "codes": {
+    "box_crawler.access_denied": "Esta cuenta no puede abrir esta carpeta de Box, o el enlace compartido pide una contraseña que no se ha indicado",
+    "box_crawler.folder_empty": "Esta carpeta de Box no contiene archivos descargables",
+    "box_crawler.folder_unreachable": "No se ha podido leer esta carpeta de Box: ha desaparecido, el enlace se ha retirado o Box lo ha rechazado",
+    "box_crawler.invalid_response": "Respuesta de Box no válida",
+    "box_crawler.not_a_folder": "Esta no es una dirección de carpeta de Box",
+    "box_crawler.rate_limited": "Box está limitando esta cuenta",
+    "box_crawler.sign_in_required": "Box no ha aceptado esta cuenta para esa carpeta"
+  }
+}

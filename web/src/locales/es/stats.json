@@ -1,0 +1,60 @@
+{
+  "eyebrow": "Transferencias",
+  "title": "Estadísticas",
+  "description": "Lo que el servicio ha transferido: por hora o día, por tipo y proveedor. Las cifras sobreviven a los reinicios y se agregan y borran tras el plazo configurado.",
+  "ranges": {
+    "label": "Periodo",
+    "day": "24 horas",
+    "week": "7 días",
+    "month": "30 días",
+    "year": "1 año"
+  },
+  "tiles": {
+    "completed": "Completadas",
+    "completed_hint": "transferencias en el periodo",
+    "failed": "Fallidas",
+    "failed_hint": "definitivas o bloqueadas",
+    "retries": "Reintentos",
+    "retries_hint": "intentos programados de nuevo",
+    "bytes": "Transferido",
+    "bytes_hint": "datos en el periodo",
+    "turnaround": "Tiempo de ciclo",
+    "turnaround_hint": "media desde la creación hasta el final",
+    "all_time": "Desde el inicio",
+    "all_time_hint": "{completed} transferencias, nunca reducidas",
+    "turnaround_under_second": "menos de 1 s"
+  },
+  "chart": {
+    "title": "Datos transferidos",
+    "subtitle_hour": "por hora",
+    "subtitle_day": "por día",
+    "description": "Datos transferidos por tramo, como máximo {peak}.",
+    "empty": "No se transfirió nada en este periodo."
+  },
+  "groups": {
+    "by_kind": "Por tipo",
+    "by_provider": "Por proveedor",
+    "key": "Clave",
+    "completed": "Hechas",
+    "failed": "Fallidas",
+    "retries": "Reintentadas",
+    "bytes": "Datos",
+    "direct": "sin cuenta"
+  },
+  "metrics": {
+    "eyebrow": "Prometheus",
+    "title": "Recoger las métricas",
+    "description": "El servicio expone sus métricas operativas en el formato de texto de Prometheus. Un token con el área «Métricas» alcanza esta única ruta y nada más.",
+    "endpoint": "Dirección",
+    "scope_hint": "Crea el token en Ajustes → API y MCP con el área «Métricas»."
+  },
+  "retention": {
+    "eyebrow": "Retención",
+    "title": "Estadísticas de transferencia",
+    "description": "Las cifras por hora se suman en cifras diarias tras el primer plazo y se borran tras el segundo. Los totales históricos detrás de las métricas se conservan siempre.",
+    "hourly_label": "Conservar cifras por hora",
+    "hourly_description": "Días hasta que las cifras por hora pasan a diarias (1 hasta la retención).",
+    "retention_label": "Retención",
+    "retention_description": "Días que se conservan las cifras diarias (7–3650)."
+  }
+}

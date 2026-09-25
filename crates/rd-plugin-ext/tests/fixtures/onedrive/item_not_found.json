@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "itemNotFound",
+    "message": "The resource could not be found.",
+    "innerError": { "date": "2026-09-10T10:00:00", "request-id": "redacted", "client-request-id": "redacted" }
+  }
+}

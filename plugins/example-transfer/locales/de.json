@@ -1,0 +1,11 @@
+{
+  "name": "Example Transfer",
+  "description": "Referenz-Transfer-Backend, das den Plugin-Transfervertrag vorführt.",
+  "codes": {
+    "example.bad_url": "Das ist kein Example-Transfer-Link.",
+    "example.refused": "Der Server hat die Anfrage abgelehnt.",
+    "example.bad_reply": "Der Server hat eine Antwort geschickt, die dieses Backend nicht lesen konnte.",
+    "example.no_reply": "Der Server hat die Verbindung ohne Antwort geschlossen.",
+    "example.truncated": "Der Server hat aufgehört zu senden, bevor die ganze Datei angekommen war."
+  }
+}

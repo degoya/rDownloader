@@ -1,0 +1,19 @@
+[package]
+name = "{{PLUGIN_SLUG}}"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+# See the resolver template: a guest needs only the contract, which ships in `wit/`.
+wit-bindgen = "0.57"
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "{{PLUGIN_SLUG}}:intake"
+
+[package.metadata.component.target]
+path = "wit"
+world = "intake-plugin"

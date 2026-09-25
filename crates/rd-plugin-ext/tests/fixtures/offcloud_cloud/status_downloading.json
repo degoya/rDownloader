@@ -1,0 +1,10 @@
+{
+  "status": {
+    "requestId": "REDACTEDREQUEST01",
+    "status": "downloading",
+    "fileName": "Example.Release",
+    "amount": 425,
+    "fileSize": 1000,
+    "serverType": "cloud"
+  }
+}

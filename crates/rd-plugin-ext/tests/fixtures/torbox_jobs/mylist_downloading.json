@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Got user torrent list.",
+  "data": {
+    "id": 4711,
+    "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "name": "Example.Release",
+    "download_state": "downloading",
+    "progress": 0.425,
+    "download_speed": 1048576,
+    "eta": 120,
+    "download_finished": false,
+    "download_present": false,
+    "files": []
+  }
+}

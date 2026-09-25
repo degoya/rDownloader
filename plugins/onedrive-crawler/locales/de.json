@@ -1,0 +1,13 @@
+{
+  "name": "OneDrive-Ordner",
+  "description": "Listet die Dateien hinter einem OneDrive- oder SharePoint-Ordnerfreigabelink auf.",
+  "codes": {
+    "onedrive_crawler.access_denied": "Dieses Konto darf auf diesen OneDrive-Ordner nicht zugreifen. Der Link wurde womöglich für ein anderes Konto oder einen anderen Mandanten freigegeben",
+    "onedrive_crawler.folder_empty": "Dieser OneDrive-Ordner enthält keine herunterladbaren Dateien",
+    "onedrive_crawler.folder_unreachable": "Dieser OneDrive-Ordner konnte nicht gelesen werden",
+    "onedrive_crawler.invalid_response": "Ungültige OneDrive-Antwort",
+    "onedrive_crawler.not_a_folder": "Dies ist keine OneDrive- oder SharePoint-Ordneradresse",
+    "onedrive_crawler.rate_limited": "OneDrive drosselt dieses Konto",
+    "onedrive_crawler.sign_in_required": "Microsoft hat dieses Konto für diesen Ordner nicht akzeptiert"
+  }
+}

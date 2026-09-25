@@ -1,0 +1,16 @@
+{
+  "name": "Inicio de sesión de MEGA",
+  "description": "Inicia sesión en una cuenta de MEGA sin que la contraseña entre nunca en el entorno aislado.",
+  "codes": {
+    "mega_auth.account_blocked": "MEGA ha bloqueado esta cuenta",
+    "mega_auth.account_version_unsupported": "Esta cuenta de MEGA aún usa la derivación de clave antigua",
+    "mega_auth.api_error": "Error de la API de MEGA {status}",
+    "mega_auth.bad_reply": "MEGA respondió al inicio de sesión con algo ilegible",
+    "mega_auth.credentials_rejected": "MEGA rechazó esta dirección y contraseña",
+    "mega_auth.multi_factor_required": "Esta cuenta de MEGA pide un segundo factor, que todavía no se admite",
+    "mega_auth.nothing_to_poll": "Un inicio de sesión de MEGA termina en un solo paso; vuelva a iniciarlo",
+    "mega_auth.rate_limited": "MEGA está limitando los intentos de inicio de sesión desde esta dirección",
+    "mega_auth.session_unreadable": "No se pudo abrir la sesión de MEGA con la clave de esta cuenta",
+    "mega_auth.unavailable": "MEGA no responde temporalmente a los inicios de sesión"
+  }
+}

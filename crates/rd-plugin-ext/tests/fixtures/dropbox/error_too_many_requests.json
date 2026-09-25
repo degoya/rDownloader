@@ -1,0 +1,10 @@
+{
+  "error_summary": "too_many_requests/...",
+  "error": {
+    "reason": {
+      ".tag": "too_many_requests"
+    },
+    "retry_after": 300
+  },
+  "user_message": "A sentence Dropbox wrote."
+}

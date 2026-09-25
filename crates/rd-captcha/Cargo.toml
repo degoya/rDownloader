@@ -1,0 +1,31 @@
+[package]
+name = "rd-captcha"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-secrets = { path = "../rd-secrets" }
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+utoipa.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

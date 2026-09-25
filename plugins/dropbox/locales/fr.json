@@ -1,0 +1,23 @@
+{
+  "name": "Dropbox",
+  "description": "Télécharge les fichiers et liens partagés Dropbox via l'API Dropbox officielle.",
+  "account": {
+    "secret_label": "Connexion Dropbox",
+    "secret_hint": "Rien à coller ici. Dropbox s'authentifie chez Dropbox : saisissez ci-dessus votre clé d'application, lancez la connexion et acceptez dans la fenêtre du navigateur.",
+    "username_label": "Clé d'application (identifiant client OAuth)",
+    "username_hint": "Dropbox exige une application qui vous appartient : ce projet n'en fournit aucune, afin que chaque installation dispose de sa propre limite de requêtes. Dans la Dropbox App Console, créez une application à accès délimité sur l'ensemble de Dropbox, cochez sous « Permissions » account_info.read, files.metadata.read, files.content.read et sharing.read, ajoutez sous « OAuth 2 » http://127.0.0.1:8710/api/v1/oauth/callback comme URI de redirection, puis collez ici la clé d'application. Aucun secret d'application n'est nécessaire. Rien à coller dans le champ du secret : la connexion le remplit."
+  },
+  "codes": {
+    "dropbox.account_missing": "Compte Dropbox manquant",
+    "dropbox.api_refused": "Dropbox a refusé cette requête ({reason})",
+    "dropbox.download_not_permitted": "Dropbox ne fournit pas ce fichier : c'est un document Paper ou Google, il est restreint, ou ce compte ne peut pas le télécharger",
+    "dropbox.file_not_found": "Ce fichier Dropbox n'existe pas, le lien a été révoqué, ou ce compte ne peut pas le voir",
+    "dropbox.invalid_response": "Réponse Dropbox invalide",
+    "dropbox.is_a_folder": "Cette adresse Dropbox est un dossier. Ajoutez-la de nouveau pour que le dossier soit listé",
+    "dropbox.link_access_denied": "Dropbox a refusé l'accès à ce lien partagé. S'il est protégé par mot de passe, ajoutez ?link_password=… à l'adresse ; sinon il a été partagé avec quelqu'un d'autre",
+    "dropbox.not_a_dropbox_link": "Ceci n'est pas une adresse de fichier Dropbox",
+    "dropbox.rate_limited": "Dropbox limite cette application. Ses autres liens attendent le délai demandé par Dropbox",
+    "dropbox.sign_in_required": "Ce compte Dropbox doit être reconnecté",
+    "dropbox.unavailable": "Dropbox est temporairement indisponible"
+  }
+}

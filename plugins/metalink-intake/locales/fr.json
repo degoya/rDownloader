@@ -1,0 +1,7 @@
+{
+  "name": "Metalink",
+  "description": "Lit les documents Metalink (.metalink, .meta4) et propose les fichiers qu'ils listent.",
+  "codes": {
+    "metalink_intake.unreadable": "Ce document Metalink n'a pas pu être lu."
+  }
+}

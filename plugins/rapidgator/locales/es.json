@@ -1,0 +1,36 @@
+{
+  "name": "Rapidgator",
+  "account": {
+    "secret_label": "Contraseña de la cuenta",
+    "secret_hint": "Introduce el correo de tu cuenta como usuario y tu contraseña como secreto."
+  },
+  "codes": {
+    "rapidgator.account_missing": "Falta la cuenta de Rapidgator",
+    "rapidgator.api_error": "API de Rapidgator ({api_status}): {message}",
+    "rapidgator.bad_credentials": "El usuario o la contraseña de Rapidgator son incorrectos",
+    "rapidgator.captcha_rejected": "Rapidgator rechazó la respuesta del captcha",
+    "rapidgator.download_link_not_ready": "Rapidgator no terminó la cuenta atrás previa a la descarga (estado: {state})",
+    "rapidgator.download_link_unconfirmed": "Rapidgator no confirmó que el archivo esté fuera de línea; reintentando",
+    "rapidgator.file_offline": "El archivo de Rapidgator no está disponible",
+    "rapidgator.free_limit_reached": "Se alcanzó el límite de descargas gratuitas de Rapidgator para esta dirección IP",
+    "rapidgator.free_link_host_mismatch": "Rapidgator devolvió un enlace de descarga en un host inesperado: {host}",
+    "rapidgator.http_error": "Estado HTTP {status} de Rapidgator",
+    "rapidgator.invalid_response": "Respuesta de Rapidgator no válida",
+    "rapidgator.invalid_url": "URL de proveedor no válida: {error}",
+    "rapidgator.ip_confirmation_required": "Rapidgator requiere confirmar este inicio de sesión mediante el correo enviado a la cuenta",
+    "rapidgator.ip_denied": "Rapidgator denegó la solicitud desde esta dirección IP",
+    "rapidgator.limit_reached": "Se alcanzó el límite de tráfico o almacenamiento de Rapidgator",
+    "rapidgator.login_throttled": "El inicio de sesión de Rapidgator fue limitado; demasiados intentos recientes",
+    "rapidgator.no_download_url": "Rapidgator no devolvió una URL de descarga",
+    "rapidgator.no_free_link": "La descarga gratuita de Rapidgator no produjo ningún enlace de archivo: {diagnosis}",
+    "rapidgator.no_free_markers": "No se reconoció la página de descarga gratuita de Rapidgator: {diagnosis}",
+    "rapidgator.no_token": "Rapidgator no devolvió un token de inicio de sesión",
+    "rapidgator.password_missing": "Falta la contraseña de Rapidgator",
+    "rapidgator.premium_required": "Se requiere una cuenta premium de Rapidgator para usar la API de descarga",
+    "rapidgator.rate_limited": "Se activó el límite de solicitudes de la API de Rapidgator",
+    "rapidgator.server_error": "Error del servidor de Rapidgator",
+    "rapidgator.session_invalid": "Rapidgator informó que la sesión de inicio de sesión no es válida",
+    "rapidgator.timer_not_started": "Rapidgator no inició la cuenta atrás previa a la descarga (estado: {state})",
+    "rapidgator.unsupported_link": "Enlace de Rapidgator no admitido"
+  }
+}

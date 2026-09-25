@@ -1,0 +1,46 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# Links this plugin claims at intake.
+match_domains = ["{{PLUGIN_SLUG}}.example"]
+# Where a resolved file may be served from.
+download_domains = ["*.{{PLUGIN_SLUG}}.example"]
+max_concurrent_downloads = 3
+# `false` opts into account-less (free) resolving.
+requires_account = true
+
+[capabilities]
+# Every permission this plugin has, and nothing it does not use: an interface it was not
+# granted cannot even be linked, so asking for less than you need fails loudly at build time.
+secrets = ["{{PLUGIN_SLUG}}_password"]
+
+[capabilities.net_http]
+domains = ["{{PLUGIN_SLUG}}.example", "*.{{PLUGIN_SLUG}}.example"]
+
+[metadata]
+description = "Resolves {{PLUGIN_NAME}} links."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "{{PLUGIN_SLUG}}"
+kind = "hoster"
+credentials = "username_password"
+username_required = true
+secret_reference = "{{PLUGIN_SLUG}}_password"
+secret_domains = ["{{PLUGIN_SLUG}}.example"]
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

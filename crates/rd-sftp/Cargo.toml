@@ -1,0 +1,33 @@
+[package]
+name = "rd-sftp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+# For the protocol-agnostic half of a transfer, `rd_ftp::remote_transfer`; it cannot live in
+# rd-files, which rd-db, rd-limits and rd-scheduler all depend on themselves.
+rd-limits = { path = "../rd-limits" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-transfer-file = { path = "../rd-transfer-file" }
+rd-secrets = { path = "../rd-secrets" }
+russh.workspace = true
+russh-sftp.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,11 @@
+{
+  "name": "PEEPLink entries",
+  "description": "Lists the hoster links behind a PEEPLink or AlfaLink entry page.",
+  "codes": {
+    "peeplink_crawler.entry_empty": "This PEEPLink entry holds no links",
+    "peeplink_crawler.entry_not_found": "This PEEPLink entry does not exist any more",
+    "peeplink_crawler.password_required": "This PEEPLink entry is password protected: add the password to the address after a # to open it",
+    "peeplink_crawler.password_wrong": "The service did not accept the password given with this PEEPLink address",
+    "peeplink_crawler.site_unreachable": "This PEEPLink entry could not be read: the service did not answer"
+  }
+}

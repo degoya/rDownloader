@@ -1,0 +1,10 @@
+{
+  "name": "Premiumize sign-in",
+  "description": "Meldet ein Premiumize-Konto beim Anbieter an, ohne dass hier ein API-Schlüssel eingegeben wird.",
+  "codes": {
+    "premiumize_auth.consent_denied": "Der Anbieter hat die Anmeldung für dieses Konto abgelehnt.",
+    "premiumize_auth.sign_in_refused": "Der Anbieter hat die Anmeldung abgelehnt. Starte sie erneut.",
+    "premiumize_auth.bad_reply": "Der Anbieter hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "premiumize_auth.flow_expired": "Der Anmeldecode ist abgelaufen, bevor er bestätigt wurde."
+  }
+}

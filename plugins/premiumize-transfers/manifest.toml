@@ -1,0 +1,43 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000013f"
+name = "Premiumize transfers"
+version = "0.2.0"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[capabilities]
+# The API key the resolver sibling already keeps for this provider. It is read back only as
+# the template `{{secret:premiumize_api_key}}`, never as a value, and the host expands it
+# towards the domains below and towards nowhere else.
+secrets = ["premiumize_api_key"]
+
+# The provider's own API, and nothing else. `transfer/*`, `folder/list` and `item/details`
+# all live here.
+[capabilities.net_http]
+domains = ["www.premiumize.me", "premiumize.me"]
+
+[extension]
+slug = "premiumize_transfers"
+# The provider whose account these jobs run on. The host looks the account up; this plugin
+# never learns which one it is, and never sees its key.
+claims = ["premiumize"]
+
+[metadata]
+description = "Runs magnets, containers and plain addresses as transfers on a Premiumize.me account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+# `job-source::address` and `rdownloader:plugin@0.8.0` do not exist before 1.2.0. The cache
+# check (RD-130-11) needs `rdownloader:plugin@0.9.0`, which `api_version` already gates.
+min_app_version = "1.2.0"
+
+[limits]
+memory_bytes = 33554432
+# Every call makes at most two requests and returns on the provider's next answer -- the
+# waiting belongs to the host. The one memory-shaped operation is reading a container in
+# order to name its upload, which `container::MAX_CONTAINER_BYTES` bounds at four megabytes.
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

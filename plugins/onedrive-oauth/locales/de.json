@@ -1,0 +1,11 @@
+{
+  "name": "Microsoft-Anmeldung",
+  "description": "Meldet ein OneDrive- oder SharePoint-Konto über Microsofts eigenen Autorisierungsendpunkt an, im Browser oder per Gerätecode.",
+  "codes": {
+    "onedrive_oauth.bad_reply": "Microsoft hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "onedrive_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde, oder der Code wurde nicht akzeptiert. Starte sie erneut.",
+    "onedrive_oauth.consent_denied": "Die Anmeldung wurde bei Microsoft nicht erteilt. Auch eine Mandantenverwaltung kann eine Zustimmung verlangen oder sie sperren.",
+    "onedrive_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil der Anwendung der Zufallswert dafür fehlte. Versuche es erneut.",
+    "onedrive_oauth.refresh_refused": "Microsoft akzeptiert die gespeicherte Anmeldung nicht mehr. Melde dich erneut an."
+  }
+}

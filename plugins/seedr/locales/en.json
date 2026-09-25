@@ -1,0 +1,18 @@
+{
+  "name": "Seedr",
+  "description": "Resolves files in a Seedr account through the official REST API.",
+  "codes": {
+    "seedr.account_missing": "A Seedr account is needed for this address",
+    "seedr.api_error": "Seedr API error ({reason})",
+    "seedr.auth_invalid": "Seedr rejected this account's e-mail address or password. Enter them again.",
+    "seedr.file_not_found": "Seedr no longer holds this file",
+    "seedr.http_error": "Seedr HTTP status {status}",
+    "seedr.invalid_response": "Invalid Seedr response",
+    "seedr.not_a_seedr_link": "This is not a Seedr file address",
+    "seedr.password_missing": "This Seedr account has no password stored",
+    "seedr.plan_required": "The Seedr REST API needs a premium plan on this account",
+    "seedr.rate_limited": "The Seedr request limit was reached. Waiting.",
+    "seedr.server_error": "Seedr is temporarily unavailable",
+    "seedr.space_free": "{bytes} bytes free"
+  }
+}

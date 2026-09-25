@@ -1,0 +1,7 @@
+{
+  "name": "Telegram",
+  "description": "Stellt Benachrichtigungen über einen Bot in einem Telegram-Chat zu.",
+  "codes": {
+    "telegram_notifier.rejected": "Telegram hat die Nachricht abgelehnt."
+  }
+}

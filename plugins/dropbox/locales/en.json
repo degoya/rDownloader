@@ -1,0 +1,23 @@
+{
+  "name": "Dropbox",
+  "description": "Resolves Dropbox files and shared links through the official Dropbox API.",
+  "account": {
+    "secret_label": "Dropbox sign-in",
+    "secret_hint": "Nothing to paste here. Dropbox is signed in through Dropbox itself: enter your app key above, start the sign-in, and agree in the browser window that opens.",
+    "username_label": "App key (OAuth client ID)",
+    "username_hint": "Dropbox needs an app of your own — this project ships none, so that every installation has its own Dropbox rate limit. In the Dropbox App Console create an app with scoped access to the full Dropbox, tick the permissions account_info.read, files.metadata.read, files.content.read and sharing.read, add http://127.0.0.1:8710/api/v1/oauth/callback as a redirect URI under OAuth 2, and paste the app key here. No app secret is needed. Nothing is pasted into the secret field: the sign-in fills it."
+  },
+  "codes": {
+    "dropbox.account_missing": "Dropbox account is missing",
+    "dropbox.api_refused": "Dropbox refused this request ({reason})",
+    "dropbox.download_not_permitted": "Dropbox does not serve this file: it is a Paper document or a Google document, it is restricted, or this account may not download it",
+    "dropbox.file_not_found": "This Dropbox file does not exist, the link was revoked, or this account cannot see it",
+    "dropbox.invalid_response": "Invalid Dropbox response",
+    "dropbox.is_a_folder": "This Dropbox address is a folder. Add it again to let the folder be listed",
+    "dropbox.link_access_denied": "Dropbox denied access to this shared link. If it is password-protected, add ?link_password=… to the address; otherwise it was shared with somebody else",
+    "dropbox.not_a_dropbox_link": "This is not a Dropbox file address",
+    "dropbox.rate_limited": "Dropbox is rate limiting this app. Its other links wait as long as Dropbox asked",
+    "dropbox.sign_in_required": "This Dropbox account has to be signed in again",
+    "dropbox.unavailable": "Dropbox is temporarily unavailable"
+  }
+}

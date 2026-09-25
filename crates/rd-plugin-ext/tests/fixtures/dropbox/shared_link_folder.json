@@ -1,0 +1,18 @@
+{
+  ".tag": "folder",
+  "url": "https://www.dropbox.com/scl/fo/redacted-link-id/redacted-hash?rlkey=redacted-rlkey&dl=0",
+  "name": "Shared",
+  "id": "id:redacted-folder-id-0002",
+  "link_permissions": {
+    "can_revoke": false,
+    "resolved_visibility": {
+      ".tag": "password"
+    },
+    "requested_visibility": {
+      ".tag": "password"
+    },
+    "revoke_failure_reason": {
+      ".tag": "not_owner"
+    }
+  }
+}

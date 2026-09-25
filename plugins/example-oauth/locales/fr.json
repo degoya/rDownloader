@@ -1,0 +1,11 @@
+{
+  "name": "Example OAuth",
+  "description": "Fournisseur OAuth de référence illustrant les flux code d'autorisation et code d'appareil.",
+  "codes": {
+    "example_oauth.consent_denied": "La connexion n'a pas été accordée chez le fournisseur.",
+    "example_oauth.code_expired": "La connexion a expiré avant d'être terminée. Relancez-la.",
+    "example_oauth.refresh_refused": "Le fournisseur n'accepte plus la connexion enregistrée. Reconnectez-vous.",
+    "example_oauth.bad_reply": "Le fournisseur a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "example_oauth.no_entropy": "La connexion n'a pas pu démarrer car l'application ne disposait pas d'aléa pour cela. Réessayez."
+  }
+}

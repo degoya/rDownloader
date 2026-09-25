@@ -1,0 +1,37 @@
+{
+  "name": "Keep2Share",
+  "account": {
+    "secret_label": "Kontopasswort",
+    "secret_hint": "Gib deine Konto-E-Mail als Benutzer und dein Passwort als Secret ein."
+  },
+  "codes": {
+    "keep2share.account_missing": "Keep2Share-Account fehlt",
+    "keep2share.api_error": "Keep2Share-API ({api_status}): {message}",
+    "keep2share.bad_credentials": "Keep2Share-Login oder Passwort ist falsch",
+    "keep2share.captcha_rejected": "Keep2Share hat die Captcha-Antwort abgelehnt",
+    "keep2share.captcha_unavailable": "Keep2Share hat kein lösbares Captcha zurückgegeben",
+    "keep2share.download_limit_reached": "Das Keep2Share-Downloadlimit wurde erreicht",
+    "keep2share.download_wait": "Keep2Share verlangt eine Wartezeit, bevor diese Datei heruntergeladen werden kann",
+    "keep2share.file_offline": "Die Keep2Share-Datei ist nicht verfügbar",
+    "keep2share.flood": "Keep2Share drosselt Anfragen von diesem Account oder dieser IP",
+    "keep2share.free_limit_reached": "Keep2Share-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "keep2share.http_error": "Keep2Share-HTTP-Status {status}",
+    "keep2share.invalid_response": "Ungültige Keep2Share-Antwort",
+    "keep2share.invalid_url": "Ungültige Provider-URL: {error}",
+    "keep2share.login_captcha": "Keep2Share verlangt die Lösung eines Captchas",
+    "keep2share.network_restricted": "Keep2Share hat den Zugriff von dieser Netzwerkverbindung verweigert",
+    "keep2share.no_access": "Keep2Share hat den Zugriff auf diese Datei verweigert",
+    "keep2share.no_download_url": "Keep2Share hat keine Download-URL zurückgegeben",
+    "keep2share.no_free_link": "Der Keep2Share-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "keep2share.no_token": "Keep2Share hat kein Login-Token zurückgegeben",
+    "keep2share.password_missing": "Das Keep2Share-Passwort fehlt",
+    "keep2share.premium_required": "Für diesen Keep2Share-Download ist ein Premium-Account erforderlich",
+    "keep2share.private_file": "Die Keep2Share-Datei kann nur vom Besitzer heruntergeladen werden",
+    "keep2share.server_error": "Keep2Share-Serverfehler",
+    "keep2share.session_invalid": "Keep2Share hat das Auth-Token als ungültig gemeldet",
+    "keep2share.temporarily_unavailable": "Keep2Share hat den Download als vorübergehend nicht verfügbar gemeldet",
+    "keep2share.too_many_parallel": "Keep2Share erlaubt keine weiteren parallelen Downloads auf diesem Account",
+    "keep2share.traffic_exhausted": "Das Keep2Share-Trafficlimit wurde erreicht",
+    "keep2share.unsupported_link": "Kein unterstützter Keep2Share-Link"
+  }
+}

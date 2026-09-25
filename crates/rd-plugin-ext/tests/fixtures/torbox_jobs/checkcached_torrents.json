@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Found 1 cached torrent.",
+  "data": {
+    "{{hash}}": {
+      "name": "Example.Release",
+      "size": 31,
+      "hash": "{{hash}}"
+    }
+  }
+}

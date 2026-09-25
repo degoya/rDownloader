@@ -1,0 +1,71 @@
+{
+  "title": "Registro de auditoría",
+  "intro": "Quién hizo qué, desde dónde y cómo terminó. Los registros se añaden y nunca se modifican; solo la retención los elimina, enteros y los más antiguos primero. Ninguna contraseña, token o enlace firmado aparece en esta lista.",
+  "export": "Exportar",
+  "filters": {
+    "action": "Acción",
+    "any_action": "Todas las acciones",
+    "outcome": "Resultado",
+    "any_outcome": "Cualquier resultado",
+    "actor_kind": "Actor",
+    "any_actor": "Cualquier actor",
+    "target_kind": "Tipo de objetivo",
+    "target_placeholder": "download",
+    "target_id": "Id del objetivo",
+    "trace": "Id de traza",
+    "apply": "Aplicar",
+    "clear": "Limpiar filtros"
+  },
+  "outcomes": {
+    "success": "Correcto",
+    "failure": "Rechazado"
+  },
+  "actors": {
+    "session": "Sesión",
+    "token": "Token",
+    "anonymous": "Anónimo",
+    "system": "Servicio"
+  },
+  "actions": {
+    "login_succeeded": "Sesión iniciada",
+    "login_failed": "Inicio de sesión rechazado",
+    "logout": "Sesión cerrada",
+    "token_used": "Token utilizado",
+    "token_created": "Token creado",
+    "token_revoked": "Token revocado",
+    "token_rescoped": "Permisos del token modificados",
+    "settings_changed": "Ajustes modificados",
+    "settings_reset": "Ajustes restablecidos",
+    "plugin_installed": "Complemento instalado",
+    "plugin_removed": "Complemento eliminado",
+    "plugin_key_revoked": "Clave de firma revocada",
+    "plugin_digest_revoked": "Paquete retirado",
+    "plugin_digest_unrevoked": "Retirada anulada",
+    "download_deleted": "Descarga eliminada",
+    "package_deleted": "Paquete eliminado",
+    "category_deleted": "Categoría eliminada",
+    "storage_root_deleted": "Raíz de almacenamiento eliminada",
+    "backup_restored": "Copia de seguridad restaurada",
+    "password_changed": "Contraseña cambiada",
+    "logs_cleared": "Registro del servicio vaciado",
+    "audit_cleared": "Auditoría vaciada",
+    "stats_cleared": "Estadísticas vaciadas",
+    "notifications_cleared": "Historial de notificaciones vaciado"
+  },
+  "list": {
+    "title": "Registros",
+    "empty": "Ningún registro coincide.",
+    "shown": "{shown} de {total} registros",
+    "full_page": "Esta página está completa: hay registros más antiguos detrás.",
+    "older": "Cargar más antiguos",
+    "expand": "Mostrar detalles",
+    "collapse": "Ocultar detalles",
+    "actor_id": "Id del actor",
+    "retention": "Se conservan {days} días o {records} registros, lo que termine antes."
+  },
+  "append_only": {
+    "eyebrow": "Garantía",
+    "title": "Solo añadir",
+    "description": "No existe ninguna ruta que edite o elimine un registro, y la base de datos rechaza de plano una actualización de esta tabla. Eliminar una descarga, un paquete, una categoría o una raíz de almacenamiento deja su registro, y restaurar una copia de seguridad no toca el registro. Esto es una constancia de lo ocurrido, no una protección frente a quien tenga acceso al propio archivo."
+  }
+}

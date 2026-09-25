@@ -1,0 +1,42 @@
+{
+  "rerun": "Visita guiada",
+  "actions": {
+    "next": "Siguiente",
+    "prev": "Atrás",
+    "done": "Finalizar"
+  },
+  "steps": {
+    "nav": {
+      "title": "La vista general",
+      "description": "Descargas contiene la cola, el LinkGrabber recoge y comprueba los enlaces antes de empezar, Streams graba fuentes en directo, Suscripciones trae novedades de feeds e indexadores y Automatización reacciona a ellas. Los ajustes se abren como subpáginas propias."
+    },
+    "downloads_add": {
+      "title": "Añadir una descarga",
+      "description": "Pega un enlace aquí para ponerlo en cola de inmediato: categoría, cuenta y proxy se eligen por descarga."
+    },
+    "downloads_controls": {
+      "title": "Controlar la cola",
+      "description": "Pausa o reanuda todo de una vez y limpia de la lista las entradas terminadas o fallidas."
+    },
+    "rail": {
+      "title": "Barra de estado",
+      "description": "Rendimiento en vivo, conexiones activas y el límite de velocidad global. El límite se aplica al instante, sin guardar."
+    },
+    "grabber_add": {
+      "title": "Primero recoger",
+      "description": "Pega enlaces o importa un contenedor — .nzb, .torrent, .dlc, .ccf, .rsdf y listas .txt simples — y luego comprueba qué sigue disponible. Solo lo que pones en cola pasa a la cola de descargas."
+    },
+    "grabber_body": {
+      "title": "Paquetes antes de la descarga",
+      "description": "Los enlaces recogidos se agrupan aquí en paquetes. Si varios apuntan al mismo archivo, se descarga uno y el resto espera como alternativa. Asigna categoría o prioridad, descarta lo que no quieras y empieza."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "description": "Cada área es una subpágina propia: el enrutamiento decide dónde acaban los archivos, cuentas y Usenet guardan las credenciales, el posprocesado repara y desempaqueta, el cliente de escritorio y MCP conectan el exterior, y la copia de seguridad protege la configuración."
+    },
+    "done": {
+      "title": "Todo listo",
+      "description": "Pulsa ? en cualquier momento para ver los atajos. Esta visita y el asistente de configuración se reinician en Ajustes, Sistema, donde también se indica si la configuración está completa."
+    }
+  }
+}

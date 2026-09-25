@@ -1,0 +1,27 @@
+{
+  "response": {
+    "action": "folder/get_info",
+    "folder_info": {
+      "folderkey": "rww7bhhi0yc1l",
+      "name": "Droidfeats Galaxy S9 Walls",
+      "description": "",
+      "created": "2021-09-28 01:10:14",
+      "privacy": "public",
+      "file_count": "19",
+      "folder_count": "2",
+      "revision": "2995",
+      "owner_name": "Redacted Owner",
+      "avatar": "https://www.mediafire.com/images/icons/myfiles/default.png",
+      "flag": "0",
+      "permissions": {
+        "value": "1",
+        "explicit": "0",
+        "read": "1",
+        "write": "0"
+      },
+      "created_utc": "2021-09-28T06:10:14Z"
+    },
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

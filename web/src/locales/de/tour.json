@@ -1,0 +1,42 @@
+{
+  "rerun": "App-Tour",
+  "actions": {
+    "next": "Weiter",
+    "prev": "Zurück",
+    "done": "Fertig"
+  },
+  "steps": {
+    "nav": {
+      "title": "Der Überblick",
+      "description": "Downloads enthält die Warteschlange, der LinkGrabber sammelt und prüft Links vor dem Start, Streams nimmt Live-Quellen auf, Abonnements holen Neues aus Feeds und Indexern, und Automation reagiert darauf. Die Einstellungen klappen als eigene Unterseiten auf."
+    },
+    "downloads_add": {
+      "title": "Download hinzufügen",
+      "description": "Hier einen Link einfügen, um ihn direkt einzureihen — Kategorie, Konto und Proxy lassen sich pro Download wählen."
+    },
+    "downloads_controls": {
+      "title": "Warteschlange steuern",
+      "description": "Alles auf einmal pausieren oder fortsetzen und fertige oder fehlgeschlagene Einträge aus der Liste räumen."
+    },
+    "rail": {
+      "title": "Statusleiste",
+      "description": "Live-Durchsatz, aktive Verbindungen und das globale Tempolimit. Das Limit greift sofort — ohne Speichern."
+    },
+    "grabber_add": {
+      "title": "Erst sammeln",
+      "description": "Links einfügen oder Container importieren — .nzb, .torrent, .dlc, .ccf, .rsdf und schlichte .txt-Linklisten —, dann die Verfügbarkeit prüfen. Nur was du einreihst, wandert in die Warteschlange."
+    },
+    "grabber_body": {
+      "title": "Pakete vor dem Download",
+      "description": "Gesammelte Links werden hier zu Paketen gruppiert. Zeigen mehrere auf dieselbe Datei, lädt nur einer, der Rest wartet als Rückfallebene. Kategorie oder Priorität setzen, Unerwünschtes verwerfen und dann starten."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Jeder Bereich ist eine eigene Unterseite: Routing bestimmt, wo Dateien landen, Konten und Usenet halten die Zugangsdaten, Nachbearbeitung übernimmt Reparatur und Entpacken, Desktop-Client und MCP hängen die Außenwelt an, und Sichern & Wiederherstellen sichert die Konfiguration."
+    },
+    "done": {
+      "title": "Alles bereit",
+      "description": "Mit ? rufst du jederzeit die Tastenkürzel auf. Diese Tour und den Einrichtungsassistenten startest du unter Einstellungen → System erneut; dort steht auch, ob die Einrichtung vollständig ist."
+    }
+  }
+}

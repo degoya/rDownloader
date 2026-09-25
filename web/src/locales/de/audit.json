@@ -1,0 +1,71 @@
+{
+  "title": "Auditprotokoll",
+  "intro": "Wer was getan hat, von wo, und wie es ausging. Einträge werden angehängt und nie geändert; nur die Aufbewahrung entfernt sie, ganz und älteste zuerst. Kein Passwort, kein Token und kein signierter Link erscheint in dieser Liste.",
+  "export": "Exportieren",
+  "filters": {
+    "action": "Aktion",
+    "any_action": "Alle Aktionen",
+    "outcome": "Ergebnis",
+    "any_outcome": "Beliebiges Ergebnis",
+    "actor_kind": "Akteur",
+    "any_actor": "Beliebiger Akteur",
+    "target_kind": "Zielart",
+    "target_placeholder": "download",
+    "target_id": "Ziel-ID",
+    "trace": "Trace-ID",
+    "apply": "Anwenden",
+    "clear": "Filter zurücksetzen"
+  },
+  "outcomes": {
+    "success": "Erfolgreich",
+    "failure": "Abgelehnt"
+  },
+  "actors": {
+    "session": "Sitzung",
+    "token": "Token",
+    "anonymous": "Anonym",
+    "system": "Dienst"
+  },
+  "actions": {
+    "login_succeeded": "Angemeldet",
+    "login_failed": "Anmeldung abgelehnt",
+    "logout": "Abgemeldet",
+    "token_used": "Token verwendet",
+    "token_created": "Token erstellt",
+    "token_revoked": "Token widerrufen",
+    "token_rescoped": "Token-Berechtigungen geändert",
+    "settings_changed": "Einstellungen geändert",
+    "settings_reset": "Einstellungen zurückgesetzt",
+    "plugin_installed": "Plugin installiert",
+    "plugin_removed": "Plugin entfernt",
+    "plugin_key_revoked": "Signaturschlüssel widerrufen",
+    "plugin_digest_revoked": "Paket zurückgezogen",
+    "plugin_digest_unrevoked": "Rücknahme aufgehoben",
+    "download_deleted": "Download gelöscht",
+    "package_deleted": "Paket gelöscht",
+    "category_deleted": "Kategorie gelöscht",
+    "storage_root_deleted": "Speicherort gelöscht",
+    "backup_restored": "Sicherung wiederhergestellt",
+    "password_changed": "Passwort geändert",
+    "logs_cleared": "Protokoll geleert",
+    "audit_cleared": "Audit geleert",
+    "stats_cleared": "Statistik geleert",
+    "notifications_cleared": "Benachrichtigungsverlauf geleert"
+  },
+  "list": {
+    "title": "Einträge",
+    "empty": "Keine Einträge passen.",
+    "shown": "{shown} von {total} Einträgen",
+    "full_page": "Das ist eine volle Seite: dahinter liegen ältere Einträge.",
+    "older": "Ältere laden",
+    "expand": "Details anzeigen",
+    "collapse": "Details ausblenden",
+    "actor_id": "Akteur-ID",
+    "retention": "Aufbewahrt {days} Tage oder {records} Einträge, je nachdem was zuerst endet."
+  },
+  "append_only": {
+    "eyebrow": "Zusicherung",
+    "title": "Nur anhängen",
+    "description": "Es gibt keine Route, die einen Eintrag ändert oder löscht, und die Datenbank verweigert ein Update auf diese Tabelle rundheraus. Das Löschen eines Downloads, eines Pakets, einer Kategorie oder eines Speicherorts lässt den zugehörigen Eintrag stehen, und das Wiederherstellen einer Sicherung rührt das Protokoll nicht an. Das ist eine Aufzeichnung des Geschehenen, kein Schutz gegen jemanden mit Zugriff auf die Datei selbst."
+  }
+}

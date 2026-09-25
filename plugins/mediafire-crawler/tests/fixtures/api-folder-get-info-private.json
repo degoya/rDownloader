@@ -1,0 +1,17 @@
+{
+  "_note": "SYNTHETIC FIXTURE, not a capture: a folder the API describes as private. No private folder was available to measure on 2026-09-21; the shape is folder/get_info's with privacy changed.",
+  "response": {
+    "action": "folder/get_info",
+    "folder_info": {
+      "folderkey": "zzzzzzzzzzzzz",
+      "name": "Private things",
+      "description": "",
+      "privacy": "private",
+      "file_count": "3",
+      "folder_count": "0",
+      "flag": "0"
+    },
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

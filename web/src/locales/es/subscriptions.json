@@ -1,0 +1,144 @@
+{
+  "title": "Suscripciones",
+  "kinds": {
+    "media": "Canal o lista de reproducción",
+    "gallery": "Perfil de galería",
+    "feed": "Feed o pódcast",
+    "indexer": "Indexador",
+    "site_rule": "Página de releases",
+    "script": "Script propio"
+  },
+  "modes": {
+    "review": "Revisar primero",
+    "auto_queue": "Poner en cola automáticamente"
+  },
+  "states": {
+    "pending": "Pendiente de revisión",
+    "queued": "En cola",
+    "skipped": "Omitido",
+    "dismissed": "Descartado"
+  },
+  "backlog": {
+    "from_now": "Solo elementos nuevos a partir de ahora",
+    "review_all": "Recopilar todo para revisar"
+  },
+  "reasons": {
+    "title_not_included": "El título no coincide con la lista de inclusión",
+    "title_excluded": "El título coincide con la lista de exclusión",
+    "too_short": "Más corto que la duración mínima",
+    "too_long": "Más largo que la duración máxima",
+    "too_old": "Publicado antes de la fecha límite",
+    "language_not_wanted": "El idioma no está entre los deseados",
+    "resolution_too_low": "Por debajo de la resolución mínima",
+    "backlog": "Ya existía cuando se activó la suscripción"
+  },
+  "form": {
+    "add": "Añadir suscripción",
+    "edit": "Editar suscripción",
+    "name": "Nombre",
+    "url": "Dirección",
+    "kind": "Tipo",
+    "mode": "Elementos nuevos",
+    "mode_hint": "Revisar primero es más seguro; la puesta en cola automática no se deshace elemento por elemento.",
+    "category": "Categoría",
+    "default_category": "Automático",
+    "interval": "Comprobar cada (minutos)",
+    "backlog": "En la primera comprobación",
+    "backlog_hint": "Un canal con años de subidas no debería entrar en la cola de una vez. Con la primera opción, un primer sondeo que solo encuentra entradas más antiguas no informa de nada.",
+    "title_contains": "El título debe contener",
+    "title_excludes": "El título no debe contener",
+    "patterns_hint": "Separado por comas. Un patrón entre barras — /^S0\\d/ — es una expresión regular; lo demás se compara como texto.",
+    "api_key": "Clave API",
+    "api_key_hint": "Se guarda cifrada y no se vuelve a mostrar.",
+    "api_key_keep": "Déjalo vacío para conservar la clave guardada",
+    "add_mapping": "Añadir correspondencia de categoría",
+    "source_category": "ID de categoría del indexador",
+    "caps_summary": "{count} categorías, admite: {types}",
+    "regex_editor": "Editar como expresión regular",
+    "source_categories": "Categorías a consultar",
+    "source_categories_description": "Solo se solicitan estas categorías al indexador. Sin selección se recupera todo y se filtra después.",
+    "source_categories_all": "Todas las categorías",
+    "every_release": "Conservar cada versión",
+    "every_release_description": "Sin esta opción, un episodio se considera obtenido en cuanto se encola una vez, sea cual sea el release, la calidad o el idioma. Con ella, cada versión adicional vuelve a entrar en el LinkGrabber.",
+    "site_rule_description": "La dirección es una página de listado: una página de serie, categoría o etiqueta. Se siguen las páginas de release que hay en ella y que lee una regla; los espejos llegan al LinkGrabber como un grupo.",
+    "view": "Vista en el LinkGrabber",
+    "view_description": "Cómo se muestran los resultados de esta suscripción para decidir.",
+    "views": {
+      "list": "Lista",
+      "cards": "Tarjetas"
+    },
+    "autoplay": "Avance automático",
+    "autoplay_description": "Las tarjetas avanzan cada seis segundos; el puntero, el teclado y los detalles abiertos las detienen.",
+    "card_ratio": "Proporción de las tarjetas",
+    "card_ratio_description": "La forma de la imagen de cada tarjeta: cuadrada para portadas, ancha para banners.",
+    "card_ratio_default": "{ratio} (predeterminado)",
+    "script": "Script",
+    "script_description": "Un archivo en la carpeta de scripts del servicio. Se toma cada línea que imprime y que es un enlace; un enlace ya visto no se vuelve a tomar. Solo el administrador puede configurar una suscripción de script.",
+    "schedule": "Programación (cron)",
+    "schedule_description": "Cinco campos en la hora local del servicio, p. ej. 0 6 * * * para las 06:00 cada día. Déjelo vacío para usar el intervalo; con una programación, el intervalo solo indica cuándo se reintenta una ejecución fallida."
+  },
+  "list": {
+    "title": "Suscripciones",
+    "empty": "Aún no hay suscripciones.",
+    "last_run": "Última comprobación {at}",
+    "copy_suffix": "copia"
+  },
+  "items": {
+    "title": "Elementos",
+    "empty": "Aún no se ha encontrado nada.",
+    "no_details": "El indexador no dijo nada más sobre este resultado.",
+    "imdb": "Abrir en IMDb",
+    "password_protected": "El archivo está protegido con contraseña",
+    "attributes": {
+      "episode": "Episodio",
+      "year": "Año",
+      "imdbscore": "IMDb",
+      "resolution": "Resolución",
+      "video": "Vídeo",
+      "audio": "Audio",
+      "size": "Tamaño",
+      "grabs": "Descargas",
+      "seeders": "Semillas",
+      "genre": "Género",
+      "language": "Idioma"
+    },
+    "filter": "Mostrar",
+    "filter_all": "Todos",
+    "page_limit": "Esta comprobación alcanzó el límite de {limit} resultados en cinco páginas del indexador. El filtro de título se aplica después, por lo que pueden faltar resultados aún más antiguos. Unas categorías más concretas hacen el resultado más preciso.",
+    "show_cover": "Mostrar la portada más grande",
+    "hide_cover": "Cerrar la portada ampliada"
+  },
+  "runs": {
+    "title": "Comprobaciones recientes",
+    "counts": "{found} encontrados, {accepted} aceptados, {skipped} omitidos"
+  },
+  "actions": {
+    "poll": "Comprobar ahora",
+    "details": "Detalles",
+    "queue": "Poner en cola",
+    "dismiss": "Descartar",
+    "test": "Probar y cargar categorías",
+    "hide_details": "Ocultar detalles",
+    "enable": "Activar suscripción",
+    "disable": "Desactivar suscripción",
+    "duplicate": "Duplicar",
+    "menu": "Acciones de la suscripción"
+  },
+  "remove": {
+    "title": "¿Eliminar la suscripción?",
+    "description": "«{name}» se elimina junto con sus filtros, su enrutamiento de categorías y el registro de lo ya visto.",
+    "confirm": "Eliminar"
+  },
+  "history": {
+    "action": "Borrar historial completado",
+    "title": "¿Borrar el historial completado de «{name}»?",
+    "description": "Se eliminarán permanentemente {count} resultados completados y {runs} registros de comprobación. Los resultados abiertos se conservan. Los resultados eliminados pueden reaparecer en una comprobación posterior.",
+    "done": "Se eliminaron {deleted_items} resultados completados y {deleted_runs} registros de comprobación."
+  },
+  "notices": {
+    "poll_started": "Comprobación de «{name}» iniciada. El resultado aparecerá aquí en cuanto termine.",
+    "poll_start_failed": "No se pudo iniciar la comprobación de «{name}»: {error}",
+    "poll_finished": "Comprobación de «{name}» terminada: {found} encontrados, {accepted} aceptados, {skipped} omitidos.",
+    "poll_failed": "La comprobación de «{name}» falló: {error}"
+  }
+}

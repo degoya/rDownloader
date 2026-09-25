@@ -1,0 +1,55 @@
+{
+  "card": {
+    "eyebrow": "Unattended operation",
+    "title": "Quiet hours & completion",
+    "description": "Postpone resource-intensive work, run something once the queue is empty, and hold the queue on battery or a metered connection."
+  },
+  "quiet": {
+    "label": "Quiet hours",
+    "description": "Deferred work waits inside these windows. Downloads themselves keep running.",
+    "from": "From",
+    "to": "To",
+    "add": "Add window",
+    "defer_postprocess": "Defer repair, unpacking and uploads",
+    "defer_notifications": "Group notifications until the window ends"
+  },
+  "action": {
+    "none": "Do nothing",
+    "script": "Run a script",
+    "standby": "Standby",
+    "shutdown": "Shut down"
+  },
+  "completion": {
+    "label": "When the queue is empty",
+    "description": "Runs once per completed cycle of work, after post-processing has finished too.",
+    "script_label": "Script",
+    "script_description": "A file in the post-processing scripts directory; the same sandbox and timeout apply.",
+    "countdown_label": "Countdown",
+    "countdown_description": "Time to cancel before the action runs (10–3600 s).",
+    "approval_label": "Allow power actions on this machine",
+    "approval_description": "Standby and shutdown only run once this is switched on here.",
+    "approval_missing": "Without this approval the action is configured but never runs."
+  },
+  "context": {
+    "battery_label": "Pause on battery",
+    "metered_label": "Pause on metered connections",
+    "unavailable": "This platform cannot report it, so the policy stays off.",
+    "prevent_standby_label": "Keep the machine awake",
+    "prevent_standby_description": "While a download or unpacking is actually running. A queue that is only waiting does not hold the machine open.",
+    "prevent_display_label": "Keep the display awake too",
+    "prevent_display_description": "For a machine somebody watches. A download itself needs no lit screen.",
+    "inhibiting": "The machine is being kept awake."
+  },
+  "pending": {
+    "standby": "The machine goes to standby",
+    "shutdown": "The machine shuts down",
+    "none": "Completion action pending",
+    "script": "The completion script runs",
+    "countdown": "In {seconds} s — cancel to keep the machine on.",
+    "cancel": "Cancel"
+  },
+  "paused": {
+    "battery": "The queue is paused: the machine is running on battery.",
+    "metered": "The queue is paused: the connection reports itself as metered."
+  }
+}

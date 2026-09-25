@@ -1,0 +1,28 @@
+{
+  "name": "MediaFire",
+  "description": "Resolves public MediaFire file links through the documented API and the file page.",
+  "codes": {
+    "mediafire.api_error": "MediaFire API: {message}",
+    "mediafire.captcha_rejected": "MediaFire rejected the captcha answer",
+    "mediafire.captcha_required": "MediaFire asks for a captcha this plugin cannot answer",
+    "mediafire.download_limit_reached": "MediaFire download threshold exceeded for this address; try again in {wait_seconds} s",
+    "mediafire.error_page": "MediaFire answered with error page {errno}",
+    "mediafire.file_blocked": "MediaFire blocked this file: {reason}",
+    "mediafire.file_not_ready": "MediaFire is still processing this file",
+    "mediafire.file_unavailable": "MediaFire file is not available",
+    "mediafire.folder_not_file": "This is a MediaFire folder, not a file; folders are listed by the MediaFire folder crawler",
+    "mediafire.http_error": "MediaFire HTTP status {status}",
+    "mediafire.invalid_link": "Invalid MediaFire link",
+    "mediafire.invalid_response": "Invalid MediaFire response",
+    "mediafire.invalid_url": "Invalid provider URL: {error}",
+    "mediafire.malware_flagged": "MediaFire flagged this file as malware; it is not downloaded",
+    "mediafire.no_account": "MediaFire resolves public files without an account; there is nothing to check",
+    "mediafire.no_direct_link": "MediaFire file page carried no direct link: {diagnosis}",
+    "mediafire.owner_limit": "MediaFire refuses the download because of the uploader's limit: {reason}",
+    "mediafire.password_required": "MediaFire file is password protected; file passwords are not supported yet",
+    "mediafire.private_file": "MediaFire file is private and needs the owner's account",
+    "mediafire.rate_limited": "MediaFire is rate limiting API calls from this address",
+    "mediafire.temporarily_unavailable": "MediaFire download is temporarily unavailable; try again in {wait_seconds} s",
+    "mediafire.unsupported_link": "Not a supported MediaFire link"
+  }
+}

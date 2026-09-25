@@ -1,0 +1,31 @@
+{
+  "name": "TorBox-Aufträge",
+  "description": "Führt Magnets, Torrent-Dateien, NZBs und Weblinks als Aufträge auf einem TorBox-Konto aus.",
+  "codes": {
+    "torbox_jobs.account_missing": "Das TorBox-Konto fehlt",
+    "torbox_jobs.api_error": "TorBox-API-Fehler {api_code}",
+    "torbox_jobs.auth_invalid": "Der TorBox-API-Schlüssel ist ungültig oder abgelaufen. Hinterlege ihn neu.",
+    "torbox_jobs.cooldown": "TorBox hält dieses Konto in einer Abkühlphase. Es wird gewartet.",
+    "torbox_jobs.http_error": "TorBox-HTTP-Status {status}",
+    "torbox_jobs.invalid_response": "Ungültige TorBox-Antwort",
+    "torbox_jobs.job_exists": "TorBox hat für diesen Inhalt bereits einen Auftrag",
+    "torbox_jobs.job_failed": "TorBox hat diesen Auftrag mit einem Fehler beendet",
+    "torbox_jobs.job_gone": "TorBox hat diesen Auftrag nicht mehr",
+    "torbox_jobs.job_incomplete": "TorBox konnte nicht alle Dateien dieses Auftrags holen",
+    "torbox_jobs.job_unavailable": "TorBox meldet diesen Auftrag als nicht verfügbar",
+    "torbox_jobs.limit_reached": "TorBox meldet das Limit des Tarifs als erreicht",
+    "torbox_jobs.no_entropy": "Der Host konnte den Zufall für diese Anfrage nicht liefern",
+    "torbox_jobs.no_files": "TorBox meldet diesen Auftrag als fertig, nennt aber keine Datei",
+    "torbox_jobs.no_job_id": "TorBox hat den erzeugten Auftrag nicht benannt. Prüfe dein TorBox-Konto, bevor du es erneut versuchst.",
+    "torbox_jobs.no_selection": "TorBox lädt ganze Aufträge und bietet keine Dateiauswahl. Wähle die Dateien im LinkGrabber aus.",
+    "torbox_jobs.not_a_job": "Das ist weder ein Magnet noch eine Torrent-Datei, eine NZB oder eine Webadresse",
+    "torbox_jobs.not_permitted": "Der TorBox-Tarif deckt diese Auftragsart nicht ab",
+    "torbox_jobs.rate_limited": "Das Anfragelimit der TorBox-API wurde erreicht. Es wird gewartet.",
+    "torbox_jobs.request_refused": "TorBox hat diese Anfrage abgelehnt",
+    "torbox_jobs.server_busy": "TorBox ist vorübergehend nicht erreichbar",
+    "torbox_jobs.server_error": "TorBox-Serverfehler",
+    "torbox_jobs.source_gone": "TorBox konnte die Quelle dieses Auftrags nicht erreichen",
+    "torbox_jobs.token_missing": "Dieses TorBox-Konto hat noch keinen API-Schlüssel",
+    "torbox_jobs.too_large": "TorBox lehnt diesen Auftrag als zu groß ab"
+  }
+}

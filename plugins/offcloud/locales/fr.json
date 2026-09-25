@@ -1,0 +1,24 @@
+{
+  "name": "Offcloud",
+  "description": "Résout les liens d'autres hébergeurs via un compte Offcloud.",
+  "account": {
+    "secret_label": "Clé d'API",
+    "secret_hint": "La clé d'API figurant dans les paramètres de votre compte sur offcloud.com."
+  },
+  "codes": {
+    "offcloud.account_missing": "Le compte Offcloud est absent",
+    "offcloud.addon_required": "Offcloud nécessite un module supplémentaire pour ce lien ({addon})",
+    "offcloud.api_error": "Erreur de l'API Offcloud {api_code}",
+    "offcloud.api_key_missing": "Ce compte Offcloud n'a pas encore de clé d'API",
+    "offcloud.auth_invalid": "La clé d'API Offcloud n'est plus valide. Saisissez-la à nouveau.",
+    "offcloud.bad_download_url": "Offcloud a renvoyé une adresse de téléchargement inutilisable",
+    "offcloud.check_unsupported": "Offcloud ne peut pas vérifier les liens sans les démarrer",
+    "offcloud.download_blocked": "Offcloud n'autorise pas les téléchargements sur ce compte",
+    "offcloud.http_error": "Statut HTTP Offcloud {status}",
+    "offcloud.invalid_response": "Réponse Offcloud non valide",
+    "offcloud.link_gone": "Offcloud ne détient plus ce lien",
+    "offcloud.no_download_url": "Offcloud n'a renvoyé aucune adresse de téléchargement",
+    "offcloud.rate_limited": "La limite de requêtes d'Offcloud a été atteinte. Attente en cours.",
+    "offcloud.server_error": "Erreur du serveur Offcloud"
+  }
+}

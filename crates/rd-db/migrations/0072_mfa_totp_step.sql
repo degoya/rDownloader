@@ -1,0 +1,12 @@
+-- A TOTP code has to stop working the moment it has been used.
+--
+-- Until now an accepted code was only recorded as "last used", with no note of *which* time
+-- step it answered. TOTP accepts a window of one step either side, so the same six digits
+-- stayed valid for about ninety seconds: a code read over a shoulder, captured by a phishing
+-- proxy or left in a client log could simply be replayed within it. That is the one property a
+-- one-time password exists to have.
+--
+-- The login now records the step an accepted code belonged to and refuses anything at or below
+-- it. NULL means no code has been accepted yet, which is every credential that exists today —
+-- the first accepted code sets it, and nobody is locked out by the upgrade.
+ALTER TABLE mfa_credentials ADD COLUMN last_totp_step INTEGER;

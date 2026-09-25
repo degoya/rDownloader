@@ -1,0 +1,75 @@
+{
+  "title": "Captcha requis",
+  "description": "{host} exige la résolution d’un captcha avant que ce téléchargement puisse continuer.",
+  "unknown_host": "L’hébergeur",
+  "expires_in": "Expire dans {time}",
+  "image_alt": "Image de captcha de l’hébergeur",
+  "answer_label": "Réponse",
+  "answer_description": "Saisissez les caractères affichés sur l’image.",
+  "answer_placeholder": "Caractères de l’image",
+  "submit": "Envoyer la réponse",
+  "skip": "Refuser",
+  "queued": "Un autre captcha attend. | {count} autres captchas attendent.",
+  "kinds": {
+    "image": "Captcha image",
+    "recaptcha_v2": "reCAPTCHA v2",
+    "h_captcha": "hCaptcha",
+    "turnstile": "Cloudflare Turnstile",
+    "click_point": "Captcha à cliquer",
+    "cutcaptcha": "CutCaptcha"
+  },
+  "click": {
+    "description": "Cliquez sur l’endroit de l’image que demande la consigne. Un nouveau clic déplace la marque ; rien n’est envoyé avant d’appuyer sur le bouton.",
+    "marked": "Marqué à {x}, {y} dans l’image.",
+    "none": "Aucun endroit marqué pour l’instant.",
+    "surface": "Image du captcha : cliquez ou utilisez les flèches pour marquer un endroit, Entrée l’envoie",
+    "keyboard": "Clavier : les flèches déplacent la marque d’un pixel, de dix avec Maj ; Entrée l’envoie."
+  },
+  "widget": {
+    "title": "{kind} se résout sur la page de l’hébergeur",
+    "description": "{host} protège ce téléchargement avec {kind}. Le widget est lié au domaine de l’hébergeur et ne peut pas être affiché ici. Répondez-y dans votre propre navigateur : l’extension rDownloader ouvre la page de l’hébergeur dans un onglet et renvoie la réponse — un service de résolution y répond à votre place.",
+    "extension_connected": "L’extension de navigateur est connectée : elle signale ce captcha et ouvre {host} dans un onglet de votre navigateur.",
+    "extension_missing": "Aucune extension de navigateur n’est connectée. Sans elle, seul un service de résolution peut répondre à ce captcha. Installez et associez l’extension pour y répondre vous-même, dans votre propre navigateur.",
+    "extension_setup": "Configurer l’extension de navigateur",
+    "hint": "Connectez l’extension de navigateur et répondez au captcha dans l’onglet qu’elle ouvre, configurez un service de résolution dans les réglages réseau, ou refusez ce captcha et laissez le téléchargement échouer. Il n’y a pas d’autre voie : un widget est lié au domaine de l’hébergeur et ne peut être affiché ni dans cette interface ni dans l’agent de bureau.",
+    "configure": "Réglages des captchas"
+  },
+  "settings": {
+    "eyebrow": "Résolution des captchas",
+    "title": "Captchas",
+    "description": "Les téléchargements gratuits sans compte demandent souvent un captcha. rDownloader peut le transmettre à un service de résolution ou vous le poser directement.",
+    "state": {
+      "active": "Service actif",
+      "off": "Aucun service"
+    },
+    "solver": {
+      "label": "Service de résolution",
+      "description": "Un service doté d’une API compatible 2captcha répond aux captchas automatiquement.",
+      "none": "Aucun — me demander uniquement",
+      "two_captcha": "API compatible 2captcha"
+    },
+    "endpoint": {
+      "label": "Point de terminaison de l’API",
+      "description": "URL https absolue du service ; vide conserve le point de terminaison enregistré."
+    },
+    "api_key": {
+      "label": "Clé d’API",
+      "description": "Stockée chiffrée et jamais renvoyée par l’API.",
+      "stored": "Une clé est enregistrée. Saisissez-en une nouvelle pour la remplacer.",
+      "clear": "Supprimer la clé d’API enregistrée"
+    },
+    "test": {
+      "button": "Tester la connexion",
+      "balance": "Le service a répondu. Solde restant : {balance}."
+    },
+    "manual": {
+      "label": "Me demander pour les captchas image",
+      "description": "Les captchas image apparaissent sous forme de demande dans l’interface web."
+    },
+    "timeout": {
+      "label": "Délai de réponse",
+      "description": "Durée pendant laquelle un captcha attend votre réponse avant l’échec du téléchargement."
+    },
+    "hint": "Les captchas widget (reCAPTCHA v2, hCaptcha, Turnstile) sont liés au domaine de l’hébergeur et ne peuvent pas être affichés ici. Ils sont résolus par un service de résolution ou par vous — dans votre propre navigateur via l’extension rDownloader, qui ouvre la page de l’hébergeur dans un onglet. Cette extension est la seule voie par laquelle une personne y répond ; l’agent de bureau ne les affiche pas. La résolution manuelle dans cette interface ne couvre que les captchas image. Les modifications sont enregistrées avec la configuration."
+  }
+}

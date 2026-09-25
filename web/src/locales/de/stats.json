@@ -1,0 +1,60 @@
+{
+  "eyebrow": "Übertragungen",
+  "title": "Statistik",
+  "description": "Was der Dienst übertragen hat: je Stunde oder Tag, nach Art und Anbieter. Die Zahlen bleiben über Neustarts erhalten und werden nach der eingestellten Zeit verdichtet und gelöscht.",
+  "ranges": {
+    "label": "Zeitraum",
+    "day": "24 Stunden",
+    "week": "7 Tage",
+    "month": "30 Tage",
+    "year": "1 Jahr"
+  },
+  "tiles": {
+    "completed": "Abgeschlossen",
+    "completed_hint": "Übertragungen im Zeitraum",
+    "failed": "Fehlgeschlagen",
+    "failed_hint": "endgültig oder blockiert",
+    "retries": "Wiederholungen",
+    "retries_hint": "erneut eingeplante Versuche",
+    "bytes": "Übertragen",
+    "bytes_hint": "Daten im Zeitraum",
+    "turnaround": "Durchlaufzeit",
+    "turnaround_hint": "Mittel von Anlage bis Abschluss",
+    "all_time": "Seit Beginn",
+    "all_time_hint": "{completed} Übertragungen, nie verdichtet",
+    "turnaround_under_second": "unter 1 s"
+  },
+  "chart": {
+    "title": "Übertragene Daten",
+    "subtitle_hour": "je Stunde",
+    "subtitle_day": "je Tag",
+    "description": "Übertragene Daten je Abschnitt, höchstens {peak}.",
+    "empty": "Im Zeitraum wurde nichts übertragen."
+  },
+  "groups": {
+    "by_kind": "Nach Art",
+    "by_provider": "Nach Anbieter",
+    "key": "Schlüssel",
+    "completed": "Fertig",
+    "failed": "Fehler",
+    "retries": "Wiederholt",
+    "bytes": "Daten",
+    "direct": "ohne Konto"
+  },
+  "metrics": {
+    "eyebrow": "Prometheus",
+    "title": "Metriken abrufen",
+    "description": "Der Dienst stellt seine Betriebsmetriken im Prometheus-Textformat bereit. Ein Token mit dem Bereich „Metriken“ erreicht diese eine Route und sonst nichts.",
+    "endpoint": "Adresse",
+    "scope_hint": "Token unter Einstellungen → API & MCP anlegen, Bereich „Metriken“."
+  },
+  "retention": {
+    "eyebrow": "Aufbewahrung",
+    "title": "Übertragungsstatistik",
+    "description": "Stundenwerte werden nach der ersten Frist zu Tageswerten addiert und nach der zweiten gelöscht. Die Gesamtsummen hinter den Metriken bleiben immer.",
+    "hourly_label": "Stundenwerte behalten",
+    "hourly_description": "Tage, bis Stundenwerte zu Tageswerten werden (1 bis Aufbewahrung).",
+    "retention_label": "Aufbewahrung",
+    "retention_description": "Tage, die Tageswerte gespeichert bleiben (7–3650)."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Box folders",
+  "description": "Lists the files behind a Box folder address or shared link.",
+  "codes": {
+    "box_crawler.access_denied": "This account may not open this Box folder, or the shared link wants a password it was not given",
+    "box_crawler.folder_empty": "This Box folder holds no files that can be downloaded",
+    "box_crawler.folder_unreachable": "This Box folder could not be read: it is gone, the link was withdrawn, or Box refused",
+    "box_crawler.invalid_response": "Invalid Box response",
+    "box_crawler.not_a_folder": "This is not a Box folder address",
+    "box_crawler.rate_limited": "Box is rate limiting this account",
+    "box_crawler.sign_in_required": "Box did not accept this account for that folder"
+  }
+}

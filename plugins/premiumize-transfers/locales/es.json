@@ -1,0 +1,26 @@
+{
+  "name": "Transferencias de Premiumize",
+  "description": "Ejecuta magnets, contenedores y enlaces simples como transferencias en una cuenta de Premiumize.me.",
+  "codes": {
+    "premiumize_transfers.account_missing": "Falta la cuenta de Premiumize",
+    "premiumize_transfers.api_error": "Error de la API de Premiumize {api_code}",
+    "premiumize_transfers.auth_invalid": "El inicio de sesión de Premiumize ya no es válido. Vuelve a guardar la clave de API.",
+    "premiumize_transfers.container_unknown": "No se ha reconocido el formato de este contenedor",
+    "premiumize_transfers.empty_choice": "Una selección de archivos debe indicar al menos un archivo",
+    "premiumize_transfers.folder_too_large": "Esta transferencia ha creado más carpetas de las que puede leer una consulta",
+    "premiumize_transfers.http_error": "Estado HTTP de Premiumize {status}",
+    "premiumize_transfers.invalid_response": "Respuesta de Premiumize no válida",
+    "premiumize_transfers.limit_reached": "Premiumize indica que se ha alcanzado el límite de tráfico o de uso justo",
+    "premiumize_transfers.no_choice": "Las transferencias de Premiumize no preguntan qué archivos tomar",
+    "premiumize_transfers.no_files": "Premiumize indica que esta transferencia ha finalizado pero no ha devuelto archivos",
+    "premiumize_transfers.no_location": "Premiumize indica que esta transferencia ha finalizado pero no nombra archivo ni carpeta",
+    "premiumize_transfers.no_transfer_id": "Premiumize no ha nombrado la transferencia que ha creado. Revisa tu cuenta de Premiumize antes de volver a intentarlo.",
+    "premiumize_transfers.not_a_source": "Esto no es una dirección magnet, ni un contenedor, ni un enlace utilizable",
+    "premiumize_transfers.rate_limited": "Se ha alcanzado el límite de la API de Premiumize. Esperando.",
+    "premiumize_transfers.server_busy": "Premiumize no está disponible temporalmente",
+    "premiumize_transfers.source_unsupported": "Premiumize no acepta esta fuente",
+    "premiumize_transfers.transfer_failed": "Premiumize ha terminado esta transferencia con un error",
+    "premiumize_transfers.transfer_gone": "Premiumize ya no conserva esta transferencia",
+    "premiumize_transfers.transfer_unlisted": "Premiumize ya no muestra esta transferencia"
+  }
+}

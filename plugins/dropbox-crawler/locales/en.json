@@ -1,0 +1,13 @@
+{
+  "name": "Dropbox folders",
+  "description": "Lists the files behind a Dropbox folder or shared folder link.",
+  "codes": {
+    "dropbox_crawler.folder_empty": "This Dropbox folder holds no files that can be downloaded",
+    "dropbox_crawler.folder_unreachable": "This Dropbox folder could not be read",
+    "dropbox_crawler.invalid_response": "Invalid Dropbox response",
+    "dropbox_crawler.link_access_denied": "Dropbox denied access to this shared folder link. If it is password-protected, add ?link_password=… to the address",
+    "dropbox_crawler.not_a_folder": "This is not a Dropbox folder address",
+    "dropbox_crawler.rate_limited": "Dropbox is rate limiting this app",
+    "dropbox_crawler.sign_in_required": "Dropbox did not accept this account for that folder"
+  }
+}

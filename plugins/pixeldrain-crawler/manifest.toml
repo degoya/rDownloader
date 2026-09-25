@@ -1,0 +1,36 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000171"
+name = "Pixeldrain lists"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# One endpoint on the provider's own host: `GET /api/list/{id}`, measured 2026-09-22
+# (RD-120-07). Nothing else is reached -- the file links this answers with are handed back for
+# the selection to resolve, never followed from in here.
+[capabilities.net_http]
+domains = ["pixeldrain.com", "www.pixeldrain.com"]
+
+[extension]
+slug = "pixeldrain_crawler"
+# No provider and no account. `claims` names the provider whose account a crawler runs as, and
+# a public Pixeldrain list is readable without one -- the sibling resolver (`plugins/pixeldrain`)
+# takes no account either, for the reason its manifest records beside `credentials = "none"`.
+claims = []
+
+[metadata]
+description = "Lists the files behind a Pixeldrain list address."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.2.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 2000000000
+timeout_milliseconds = 15000
+# One JSON list and nothing else. A list's entries each carry a full metadata record, so the
+# budget is larger than a crawler that reads one page: four megabytes holds thousands of them.
+max_response_bytes = 4194304

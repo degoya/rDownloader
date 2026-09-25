@@ -1,0 +1,24 @@
+{
+  "name": "Offcloud",
+  "description": "Resuelve enlaces de otros alojamientos a través de una cuenta de Offcloud.",
+  "account": {
+    "secret_label": "Clave de API",
+    "secret_hint": "La clave de API de los ajustes de tu cuenta en offcloud.com."
+  },
+  "codes": {
+    "offcloud.account_missing": "Falta la cuenta de Offcloud",
+    "offcloud.addon_required": "Offcloud necesita un complemento adicional para este enlace ({addon})",
+    "offcloud.api_error": "Error de la API de Offcloud {api_code}",
+    "offcloud.api_key_missing": "Esta cuenta de Offcloud aún no tiene clave de API",
+    "offcloud.auth_invalid": "La clave de API de Offcloud ya no es válida. Introdúcela de nuevo.",
+    "offcloud.bad_download_url": "Offcloud devolvió una dirección de descarga inutilizable",
+    "offcloud.check_unsupported": "Offcloud no puede comprobar enlaces sin iniciarlos",
+    "offcloud.download_blocked": "Offcloud no permite descargas en esta cuenta",
+    "offcloud.http_error": "Estado HTTP de Offcloud {status}",
+    "offcloud.invalid_response": "Respuesta de Offcloud no válida",
+    "offcloud.link_gone": "Offcloud ya no conserva este enlace",
+    "offcloud.no_download_url": "Offcloud no devolvió ninguna dirección de descarga",
+    "offcloud.rate_limited": "Se alcanzó el límite de peticiones de Offcloud. Se esperará.",
+    "offcloud.server_error": "Error del servidor de Offcloud"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Found 1 cached web download.",
+  "data": {
+    "{{hash}}": {
+      "name": "Example.Release.bin",
+      "size": 4096,
+      "hash": "{{hash}}"
+    }
+  }
+}

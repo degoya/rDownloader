@@ -1,0 +1,11 @@
+{
+  "name": "Microsoft sign-in",
+  "description": "Signs a OneDrive or SharePoint account in through Microsoft's own authorization endpoint, by browser or by device code.",
+  "codes": {
+    "onedrive_oauth.bad_reply": "Microsoft sent a reply this plugin could not read.",
+    "onedrive_oauth.code_expired": "The sign-in expired before it was finished, or the code was not accepted. Start it again.",
+    "onedrive_oauth.consent_denied": "The sign-in was not granted at Microsoft. A tenant administrator can also require consent or block it.",
+    "onedrive_oauth.no_entropy": "The sign-in could not be started because the application had no randomness for it. Try again.",
+    "onedrive_oauth.refresh_refused": "Microsoft no longer accepts the stored sign-in. Sign in again."
+  }
+}

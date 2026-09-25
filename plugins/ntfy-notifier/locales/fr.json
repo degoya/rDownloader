@@ -1,0 +1,7 @@
+{
+  "name": "ntfy",
+  "description": "Distribue les notifications vers un sujet ntfy.",
+  "codes": {
+    "ntfy_notifier.rejected": "ntfy a rejeté le message."
+  }
+}

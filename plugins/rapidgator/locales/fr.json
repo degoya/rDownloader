@@ -1,0 +1,36 @@
+{
+  "name": "Rapidgator",
+  "account": {
+    "secret_label": "Mot de passe du compte",
+    "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre mot de passe comme secret."
+  },
+  "codes": {
+    "rapidgator.account_missing": "Le compte Rapidgator est manquant",
+    "rapidgator.api_error": "API Rapidgator ({api_status}) : {message}",
+    "rapidgator.bad_credentials": "L'identifiant ou le mot de passe Rapidgator est incorrect",
+    "rapidgator.captcha_rejected": "Rapidgator a rejeté la réponse au captcha",
+    "rapidgator.download_link_not_ready": "Rapidgator n'a pas terminé le compte à rebours avant le téléchargement (état : {state})",
+    "rapidgator.download_link_unconfirmed": "Rapidgator n'a pas confirmé que le fichier est hors ligne ; nouvelle tentative en cours",
+    "rapidgator.file_offline": "Le fichier Rapidgator n'est pas disponible",
+    "rapidgator.free_limit_reached": "La limite de téléchargements gratuits Rapidgator est atteinte pour cette adresse IP",
+    "rapidgator.free_link_host_mismatch": "Rapidgator a renvoyé un lien de téléchargement sur un hôte inattendu : {host}",
+    "rapidgator.http_error": "Statut HTTP Rapidgator {status}",
+    "rapidgator.invalid_response": "Réponse Rapidgator invalide",
+    "rapidgator.invalid_url": "URL de fournisseur invalide : {error}",
+    "rapidgator.ip_confirmation_required": "Rapidgator exige de confirmer cette connexion via l'e-mail envoyé au compte",
+    "rapidgator.ip_denied": "Rapidgator a refusé la requête depuis cette adresse IP",
+    "rapidgator.limit_reached": "La limite de trafic ou de stockage Rapidgator a été atteinte",
+    "rapidgator.login_throttled": "La connexion Rapidgator a été limitée ; trop de tentatives récentes",
+    "rapidgator.no_download_url": "Rapidgator n'a renvoyé aucune URL de téléchargement",
+    "rapidgator.no_free_link": "Le téléchargement gratuit Rapidgator n'a produit aucun lien de fichier : {diagnosis}",
+    "rapidgator.no_free_markers": "La page de téléchargement gratuit Rapidgator n'a pas été reconnue : {diagnosis}",
+    "rapidgator.no_token": "Rapidgator n'a renvoyé aucun jeton de connexion",
+    "rapidgator.password_missing": "Le mot de passe Rapidgator est manquant",
+    "rapidgator.premium_required": "Un compte premium Rapidgator est requis pour utiliser l'API de téléchargement",
+    "rapidgator.rate_limited": "La limite de requêtes de l'API Rapidgator a été déclenchée",
+    "rapidgator.server_error": "Erreur serveur Rapidgator",
+    "rapidgator.session_invalid": "Rapidgator a signalé que la session de connexion n'est pas valide",
+    "rapidgator.timer_not_started": "Rapidgator n'a pas démarré le compte à rebours avant le téléchargement (état : {state})",
+    "rapidgator.unsupported_link": "Lien Rapidgator non pris en charge"
+  }
+}

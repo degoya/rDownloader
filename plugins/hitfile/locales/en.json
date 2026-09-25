@@ -1,0 +1,31 @@
+{
+  "name": "HitFile",
+  "description": "Resolves HitFile links as a guest through the site's captcha and countdown, or with an account.",
+  "account": {
+    "secret_label": "HitFile password",
+    "secret_hint": "The password of the HitFile account named above. rDownloader signs in itself and keeps the session; the password only ever reaches app.hitfile.net. Without an account, links are downloaded as a guest, with the site's captcha and countdown.",
+    "username_label": "HitFile e-mail address",
+    "username_hint": "The e-mail address the HitFile account signs in with."
+  },
+  "codes": {
+    "hitfile.account_banned": "HitFile reports this account as banned",
+    "hitfile.account_missing": "HitFile account or password is missing",
+    "hitfile.api_error": "HitFile refused the request ({code})",
+    "hitfile.captcha_rejected": "HitFile rejected the captcha answer",
+    "hitfile.file_unavailable": "HitFile file is not available",
+    "hitfile.folder_not_file": "This HitFile link is a folder; add the files it contains instead",
+    "hitfile.free_limit_reached": "HitFile free download limit reached for this IP address; another download is possible in {wait_seconds}s",
+    "hitfile.http_error": "HitFile HTTP status {status}",
+    "hitfile.invalid_link": "Invalid HitFile link",
+    "hitfile.invalid_response": "Invalid HitFile response ({field})",
+    "hitfile.invalid_url": "Invalid provider URL: {error}",
+    "hitfile.login_captcha": "HitFile did not accept the sign-in's captcha answer; it is retried later",
+    "hitfile.login_failed": "HitFile rejected the account's e-mail address or password",
+    "hitfile.no_direct_link": "HitFile did not hand out a download link",
+    "hitfile.not_signed_in": "HitFile refused the request as not signed in",
+    "hitfile.premium_limit_reached": "HitFile handed out no download link to the premium account; the daily limit may be reached",
+    "hitfile.premium_only": "HitFile offers this file to premium accounts only",
+    "hitfile.rate_limited": "HitFile rate limit reached; the request is retried later",
+    "hitfile.unsupported_link": "Not a supported HitFile link"
+  }
+}

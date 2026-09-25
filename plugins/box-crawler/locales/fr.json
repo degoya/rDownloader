@@ -1,0 +1,13 @@
+{
+  "name": "Dossiers Box",
+  "description": "Liste les fichiers derrière une adresse de dossier Box ou un lien partagé.",
+  "codes": {
+    "box_crawler.access_denied": "Ce compte ne peut pas ouvrir ce dossier Box, ou le lien partagé demande un mot de passe qui n'a pas été fourni",
+    "box_crawler.folder_empty": "Ce dossier Box ne contient aucun fichier téléchargeable",
+    "box_crawler.folder_unreachable": "Ce dossier Box n'a pas pu être lu : il a disparu, le lien a été retiré, ou Box a refusé",
+    "box_crawler.invalid_response": "Réponse Box non valide",
+    "box_crawler.not_a_folder": "Ce n'est pas une adresse de dossier Box",
+    "box_crawler.rate_limited": "Box limite ce compte",
+    "box_crawler.sign_in_required": "Box n'a pas accepté ce compte pour ce dossier"
+  }
+}

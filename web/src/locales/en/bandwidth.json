@@ -1,0 +1,103 @@
+{
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Media",
+    "gallery": "Galleries",
+    "record": "Recordings"
+  },
+  "days": {
+    "0": "Mon",
+    "1": "Tue",
+    "2": "Wed",
+    "3": "Thu",
+    "4": "Fri",
+    "5": "Sat",
+    "6": "Sun"
+  },
+  "source": {
+    "manual": "Manual limit",
+    "global": "Profile",
+    "protocol": "Protocol",
+    "host": "Host",
+    "account": "Account",
+    "category": "Category"
+  },
+  "status": {
+    "eyebrow": "Active right now",
+    "no_profile": "No profile active",
+    "binding": "Strictest limit",
+    "unlimited": "Unlimited",
+    "next_switch": "Next switch",
+    "no_switch": "No switch scheduled",
+    "daily": "Today ({period})",
+    "monthly": "This month ({period})",
+    "usage": "{used} of {limit}",
+    "budget_exhausted": "The traffic budget is used up. Running transfers finish; nothing new starts until the period rolls over."
+  },
+  "capabilities": {
+    "title": "What a limit cannot fully reach"
+  },
+  "profile": {
+    "eyebrow": "Reusable limits",
+    "title": "Bandwidth profiles",
+    "form_edit": "Edit profile",
+    "description": "A profile bundles a global rate, optional per-scope rates and traffic budgets. The schedule decides when it applies.",
+    "name_label": "Name",
+    "name_placeholder": "Night",
+    "create": "Create profile",
+    "parallel_label": "Parallel files",
+    "parallel_description": "Caps the queue while active; empty keeps the general setting.",
+    "inherit": "Keep setting",
+    "download_label": "Download limit",
+    "upload_label": "Torrent upload limit",
+    "upload_description": "Only the torrent engine uploads.",
+    "daily_label": "Daily budget",
+    "monthly_label": "Monthly budget",
+    "no_budget": "No budget",
+    "empty": "No profile yet.",
+    "delete_title": "Delete profile",
+    "delete_description": "Delete the profile \"{name}\"? Its schedule windows go with it.",
+    "form_new": "New profile",
+    "summary_scopes": "{count} scope limit | {count} scope limits",
+    "summary_parallel": "{count} parallel file | {count} parallel files",
+    "summary_upload": "{rate} upload",
+    "summary_daily": "{size} per day",
+    "summary_monthly": "{size} per month"
+  },
+  "scope": {
+    "title": "Scope limits",
+    "description": "A narrower limit always wins over a broader one. The strictest applicable limit is shown in the status above.",
+    "protocol": "Protocol",
+    "host": "Host",
+    "account": "Account",
+    "category": "Category",
+    "add": "Add",
+    "placeholder_protocol": "usenet",
+    "placeholder_host": "example.com",
+    "placeholder_account": "Account ID",
+    "placeholder_category": "Category ID"
+  },
+  "schedule": {
+    "eyebrow": "Weekly plan",
+    "title": "Schedule",
+    "saved": "Schedule saved",
+    "description": "Windows are local times in the timezone below, so a daylight-saving change neither skips nor repeats a period.",
+    "timezone_label": "Timezone",
+    "timezone_description": "IANA name, e.g. Europe/Berlin.",
+    "default_label": "Outside every window",
+    "default_description": "Profile applied when no window matches.",
+    "no_default": "No limits",
+    "window_profile": "Profile",
+    "from": "From",
+    "to": "To",
+    "priority": "Priority",
+    "enabled": "Active",
+    "add_window": "Add window",
+    "wraps": "This window runs past midnight into the next day.",
+    "empty": "No window yet — the default profile applies around the clock.",
+    "needs_profile": "Create a profile first.",
+    "windows_title": "Time windows"
+  }
+}

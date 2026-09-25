@@ -1,0 +1,7 @@
+{
+  "name": "SponsorBlock",
+  "description": "Indique avant le téléchargement quelle part d'une vidéo YouTube est du sponsoring ou de l'intro.",
+  "codes": {
+    "sponsorblock_enricher.lookup_failed": "Ces segments n'ont pas pu être consultés."
+  }
+}

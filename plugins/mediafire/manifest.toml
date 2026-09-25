@@ -1,0 +1,61 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000000d"
+name = "MediaFire"
+# The version must rise with every change, or a running instance keeps the package it
+# already has (`sync_bundled` only installs newer ones).
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The hosts a share link is spelled with (RD-103-06, measured 2026-09-21): `mfi.re` and
+# `mediafire.com` redirect to `www.`, `app.mediafire.com` serves the application shell.
+match_domains = ["mediafire.com", "www.mediafire.com", "app.mediafire.com", "mfi.re", "www.mfi.re"]
+# A direct link points at `download<digits>.mediafire.com`; JDownloader also knows the
+# `mediafirecdn.com` spelling, which was not seen live.
+download_domains = ["*.mediafire.com", "*.mediafirecdn.com"]
+# The per-IP threshold (`limitReachedTTL`) is not documented in numbers; two at a time until
+# it has been measured.
+max_concurrent_downloads = 2
+# Public files need no account, and this plugin knows no other kind: the official premium
+# route needs an application registered in the person's own MediaFire account, which the
+# project does not ship a key for (see the job file's decision).
+requires_account = false
+
+[capabilities]
+cookies = false
+# The file page carries no captcha today; when `form_captcha` appears it is handed over as a
+# reCAPTCHA v2 challenge or answered as MediaFire's own checkbox, and never worked around.
+captcha = true
+
+[capabilities.net_http]
+domains = [
+  "www.mediafire.com", "mediafire.com", "app.mediafire.com", "mfi.re", "www.mfi.re",
+  "*.mediafire.com", "*.mediafirecdn.com",
+]
+
+[metadata]
+description = "Resolves public MediaFire file links through the documented API and the file page."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[provider]
+slug = "mediafire"
+kind = "hoster"
+credentials = "none"
+username_required = false
+host_aliases = [
+  ["mfi.re", "mediafire.com"],
+  ["app.mediafire.com", "mediafire.com"],
+]
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+# The file page measured 333 KB, an API answer under 64 KB.
+max_response_bytes = 2097152
+# No countdown on the file page, so no wait budget: a reported per-IP limit is handed to the
+# scheduler as a wait, not waited out inside the plugin.

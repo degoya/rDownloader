@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>/public.php/dav/files/QxT7bK2mNp9wZr4/annual%20report.pdf</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>annual report.pdf</d:displayname>
+        <d:getcontentlength>1835008</d:getcontentlength>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

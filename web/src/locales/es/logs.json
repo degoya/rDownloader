@@ -1,0 +1,83 @@
+{
+  "title": "Registros",
+  "intro": "Lo que el servicio registró, depurado antes de guardarse: las credenciales, los parámetros firmados de los enlaces y las cabeceras de autorización nunca llegan a esta lista.",
+  "filters": {
+    "level": "Nivel mínimo",
+    "component": "Componente",
+    "component_placeholder": "rd_http",
+    "code": "Código",
+    "correlation": "Id de correlación",
+    "search": "Buscar en los mensajes",
+    "apply": "Aplicar",
+    "clear": "Quitar filtros"
+  },
+  "levels": {
+    "all": "Todos los niveles",
+    "trace": "Trace",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Aviso",
+    "error": "Error"
+  },
+  "list": {
+    "title": "Entradas",
+    "empty": "Ninguna entrada coincide.",
+    "shown": "{shown} de {total} entradas",
+    "full_page": "Esta es una página completa: hay entradas más antiguas detrás.",
+    "older": "Cargar anteriores",
+    "dropped": "Se descartaron {count} entradas porque el almacén no dio abasto.",
+    "expand": "Mostrar campos",
+    "collapse": "Ocultar campos",
+    "retention": "Se conservan {days} días o {records} entradas, lo que se agote primero."
+  },
+  "bundle": {
+    "title": "Paquete de diagnóstico",
+    "eyebrow": "Soporte",
+    "intro": "Un archivo para una solicitud de soporte: versiones, metadatos de configuración, comprobaciones del sistema y los errores más recientes. No se sube nada; el archivo se escribe en este equipo, y solo después de que haya visto y aprobado su contenido.",
+    "preview": "Ver contenido",
+    "create": "Crear paquete",
+    "directory": "Guardado en {directory}",
+    "entries": "Contenido",
+    "items": "{count} elementos",
+    "redactions": "Depuraciones",
+    "excluded": "Nunca se incluye",
+    "created": "Paquete escrito: {file}",
+    "download": "Descargar",
+    "bytes": "{bytes} bytes",
+    "select_hint": "Desmarque lo que el destinatario no deba recibir."
+  },
+  "diagnostics": {
+    "bundle": {
+      "entry": {
+        "versions": {
+          "description": "versión de la aplicación, plataforma y los plugins instalados"
+        },
+        "configuration": {
+          "description": "el documento de ajustes sin sus credenciales"
+        },
+        "system_checks": {
+          "description": "rutas y versiones de las herramientas, el contrato del proxy inverso"
+        },
+        "doctor": {
+          "description": "las mismas comprobaciones tal como las imprime `rdownloader doctor`"
+        },
+        "recent_errors": {
+          "description": "las advertencias y los errores más recientes del almacén de registros"
+        }
+      },
+      "redaction": {
+        "configuration_credentials": "los campos cuyo nombre indica una credencial se sustituyen por [redacted]",
+        "configuration_pem": "el material PEM se sustituye por [present]",
+        "configuration_text": "los valores de texto pasan por la depuración de URL y cabeceras",
+        "configuration_replaced": "sustituidos: {fields}",
+        "paths": "las rutas pasan por la depuración de texto",
+        "log_records": "los mensajes y los campos se depuraron al capturarlos; no se vuelve a leer nada del archivo de registro"
+      },
+      "exclusion": {
+        "file_contents": "el contenido y los nombres de archivo de las descargas",
+        "urls": "URL completas: los valores de consulta que llevan una credencial o una firma se sustituyen",
+        "secrets": "secretos: contraseñas, tokens, claves de API, cookies, certificados y referencias al almacén"
+      }
+    }
+  }
+}

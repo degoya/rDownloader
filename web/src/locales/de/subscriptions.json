@@ -1,0 +1,144 @@
+{
+  "title": "Abonnements",
+  "kinds": {
+    "media": "Kanal oder Playlist",
+    "gallery": "Galerieprofil",
+    "feed": "Feed oder Podcast",
+    "indexer": "Indexer",
+    "site_rule": "Release-Seite",
+    "script": "Eigenes Skript"
+  },
+  "modes": {
+    "review": "Erst prüfen",
+    "auto_queue": "Automatisch einreihen"
+  },
+  "states": {
+    "pending": "Wartet auf Prüfung",
+    "queued": "Eingereiht",
+    "skipped": "Übersprungen",
+    "dismissed": "Verworfen"
+  },
+  "backlog": {
+    "from_now": "Nur neue Einträge ab jetzt",
+    "review_all": "Alles zur Prüfung sammeln"
+  },
+  "reasons": {
+    "title_not_included": "Titel passt nicht zur Einschlussliste",
+    "title_excluded": "Titel passt zur Ausschlussliste",
+    "too_short": "Kürzer als die Mindestdauer",
+    "too_long": "Länger als die Höchstdauer",
+    "too_old": "Vor dem Stichtag veröffentlicht",
+    "language_not_wanted": "Sprache gehört nicht zu den gewünschten",
+    "resolution_too_low": "Unter der Mindestauflösung",
+    "backlog": "Existierte schon beim Einschalten des Abonnements"
+  },
+  "form": {
+    "add": "Abonnement hinzufügen",
+    "edit": "Abonnement bearbeiten",
+    "name": "Name",
+    "url": "Adresse",
+    "kind": "Typ",
+    "mode": "Neue Einträge",
+    "mode_hint": "Erst prüfen ist sicherer; automatisches Einreihen lässt sich nicht einzeln rückgängig machen.",
+    "category": "Kategorie",
+    "default_category": "Automatisch",
+    "interval": "Prüfen alle (Minuten)",
+    "backlog": "Bei der ersten Prüfung",
+    "backlog_hint": "Ein Kanal mit jahrelangen Uploads soll nicht auf einmal in die Warteschlange geraten. Mit der ersten Option meldet ein erster Abruf nichts, wenn er nur ältere Einträge findet.",
+    "title_contains": "Titel muss enthalten",
+    "title_excludes": "Titel darf nicht enthalten",
+    "patterns_hint": "Kommagetrennt. Ein Muster in Schrägstrichen — /^S0\\d/ — ist ein regulärer Ausdruck, alles andere wird als Text verglichen.",
+    "api_key": "API-Key",
+    "api_key_hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+    "api_key_keep": "Leer lassen, um den gespeicherten Key zu behalten",
+    "add_mapping": "Kategoriezuordnung hinzufügen",
+    "source_category": "Indexer-Kategorie-ID",
+    "caps_summary": "{count} Kategorien, unterstützt: {types}",
+    "regex_editor": "Als regulären Ausdruck bearbeiten",
+    "source_categories": "Abzurufende Kategorien",
+    "source_categories_description": "Nur diese Kategorien werden beim Indexer abgefragt. Ohne Auswahl wird alles abgerufen und erst danach gefiltert.",
+    "source_categories_all": "Alle Kategorien",
+    "every_release": "Jede Fassung behalten",
+    "every_release_description": "Ohne diese Wahl gilt eine Folge als gehabt, sobald sie einmal eingereiht wurde — gleich in welchem Release, welcher Qualität und welcher Sprache. Mit ihr kommt jede weitere Fassung erneut in den LinkGrabber.",
+    "site_rule_description": "Die Adresse ist eine Übersichtsseite — eine Serien-, Kategorie- oder Tag-Seite. Verfolgt werden die Release-Seiten darauf, die eine Regel liest; Spiegel kommen als Gruppe in den LinkGrabber.",
+    "view": "Ansicht im LinkGrabber",
+    "view_description": "Wie die Treffer dieses Abos zur Entscheidung erscheinen.",
+    "views": {
+      "list": "Liste",
+      "cards": "Karten"
+    },
+    "autoplay": "Automatisch blättern",
+    "autoplay_description": "Die Karten blättern alle sechs Sekunden weiter; Zeiger, Tastatur und offene Details halten sie an.",
+    "card_ratio": "Seitenverhältnis der Karten",
+    "card_ratio_description": "Die Form der Bildfläche jeder Karte: quadratisch für Cover, breit für Banner.",
+    "card_ratio_default": "{ratio} (Voreinstellung)",
+    "script": "Skript",
+    "script_description": "Eine Datei im Skriptordner des Dienstes. Jede Zeile, die sie ausgibt und die ein Link ist, wird übernommen, schon gesehene Links nicht noch einmal. Nur der Administrator richtet ein Skript-Abo ein.",
+    "schedule": "Zeitplan (Cron)",
+    "schedule_description": "Fünf Felder in der Ortszeit des Dienstes, z. B. 0 6 * * * für täglich 06:00. Leer lassen, um das Intervall zu verwenden; mit Zeitplan bestimmt das Intervall nur, wie bald ein fehlgeschlagener Lauf wiederholt wird."
+  },
+  "list": {
+    "title": "Abonnements",
+    "empty": "Noch keine Abonnements.",
+    "last_run": "Zuletzt geprüft {at}",
+    "copy_suffix": "Kopie"
+  },
+  "items": {
+    "title": "Einträge",
+    "empty": "Noch nichts gefunden.",
+    "no_details": "Der Indexer hat zu diesem Treffer nichts weiter gesagt.",
+    "imdb": "Bei IMDb öffnen",
+    "password_protected": "Das Archiv ist passwortgeschützt",
+    "attributes": {
+      "episode": "Folge",
+      "year": "Jahr",
+      "imdbscore": "IMDb",
+      "resolution": "Auflösung",
+      "video": "Video",
+      "audio": "Audio",
+      "size": "Größe",
+      "grabs": "Downloads",
+      "seeders": "Seeder",
+      "genre": "Genre",
+      "language": "Sprache"
+    },
+    "filter": "Anzeigen",
+    "filter_all": "Alle",
+    "page_limit": "Diese Prüfung hat die Grenze von {limit} Treffern über fünf Indexer-Seiten erreicht. Der Titelfilter greift danach; noch ältere Treffer konnten daher fehlen. Engere Kategorien helfen, das Ergebnis gezielter zu machen.",
+    "show_cover": "Coverbild groß anzeigen",
+    "hide_cover": "Vergrößertes Coverbild schließen"
+  },
+  "runs": {
+    "title": "Letzte Prüfungen",
+    "counts": "{found} gefunden, {accepted} übernommen, {skipped} übersprungen"
+  },
+  "actions": {
+    "poll": "Jetzt prüfen",
+    "details": "Details",
+    "queue": "Einreihen",
+    "dismiss": "Verwerfen",
+    "test": "Testen und Kategorien laden",
+    "hide_details": "Details ausblenden",
+    "enable": "Abonnement aktivieren",
+    "disable": "Abonnement deaktivieren",
+    "duplicate": "Duplizieren",
+    "menu": "Aktionen für das Abo"
+  },
+  "remove": {
+    "title": "Abonnement löschen?",
+    "description": "„{name}\" wird mit allen Filtern, Kategoriezuordnungen und dem Verlauf des bereits Gesehenen entfernt.",
+    "confirm": "Löschen"
+  },
+  "history": {
+    "action": "Erledigten Verlauf löschen",
+    "title": "Erledigten Verlauf von „{name}“ löschen?",
+    "description": "{count} erledigte Treffer und {runs} Prüfprotokolle werden endgültig gelöscht. Offene Treffer bleiben erhalten. Gelöschte Treffer können bei einer späteren Prüfung erneut erscheinen.",
+    "done": "{deleted_items} erledigte Treffer und {deleted_runs} Prüfprotokolle gelöscht."
+  },
+  "notices": {
+    "poll_started": "Prüfung von „{name}\" wurde angestoßen. Das Ergebnis erscheint hier, sobald sie fertig ist.",
+    "poll_start_failed": "Die Prüfung von „{name}\" ließ sich nicht anstoßen: {error}",
+    "poll_finished": "Prüfung von „{name}\" fertig: {found} gefunden, {accepted} angenommen, {skipped} übersprungen.",
+    "poll_failed": "Prüfung von „{name}\" fehlgeschlagen: {error}"
+  }
+}

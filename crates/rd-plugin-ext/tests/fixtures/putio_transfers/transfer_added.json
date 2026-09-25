@@ -1,0 +1,13 @@
+{
+  "transfer": {
+    "id": 770001,
+    "name": "Example.Release",
+    "status": "IN_QUEUE",
+    "percent_done": 0,
+    "down_speed": 0,
+    "file_id": null,
+    "hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+    "source": "magnet:?xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709&dn=Example.Release"
+  },
+  "status": "OK"
+}

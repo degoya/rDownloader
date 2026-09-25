@@ -1,0 +1,13 @@
+{
+  "name": "Dossiers OneDrive",
+  "description": "Liste les fichiers derrière un lien de partage de dossier OneDrive ou SharePoint.",
+  "codes": {
+    "onedrive_crawler.access_denied": "Ce compte ne peut pas accéder à ce dossier OneDrive. Le lien a peut-être été partagé avec un autre compte ou un autre locataire",
+    "onedrive_crawler.folder_empty": "Ce dossier OneDrive ne contient aucun fichier téléchargeable",
+    "onedrive_crawler.folder_unreachable": "Ce dossier OneDrive n'a pas pu être lu",
+    "onedrive_crawler.invalid_response": "Réponse OneDrive invalide",
+    "onedrive_crawler.not_a_folder": "Cette adresse n'est pas celle d'un dossier OneDrive ou SharePoint",
+    "onedrive_crawler.rate_limited": "OneDrive limite le débit de ce compte",
+    "onedrive_crawler.sign_in_required": "Microsoft n'a pas accepté ce compte pour ce dossier"
+  }
+}

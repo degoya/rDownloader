@@ -1,0 +1,75 @@
+{
+  "title": "Captcha erforderlich",
+  "description": "{host} verlangt ein gelöstes Captcha, bevor dieser Download weiterlaufen kann.",
+  "unknown_host": "Der Hoster",
+  "expires_in": "Läuft ab in {time}",
+  "image_alt": "Captcha-Bild des Hosters",
+  "answer_label": "Antwort",
+  "answer_description": "Geben Sie die Zeichen aus dem Bild ein.",
+  "answer_placeholder": "Zeichen aus dem Bild",
+  "submit": "Antwort senden",
+  "skip": "Ablehnen",
+  "queued": "Ein weiteres Captcha wartet. | {count} weitere Captchas warten.",
+  "kinds": {
+    "image": "Bild-Captcha",
+    "recaptcha_v2": "reCAPTCHA v2",
+    "h_captcha": "hCaptcha",
+    "turnstile": "Cloudflare Turnstile",
+    "click_point": "Klick-Captcha",
+    "cutcaptcha": "CutCaptcha"
+  },
+  "click": {
+    "description": "Klicken Sie die Stelle im Bild an, nach der die Aufgabe fragt. Ein weiterer Klick verschiebt die Markierung; gesendet wird erst mit der Schaltfläche.",
+    "marked": "Markiert bei {x}, {y} im Bild.",
+    "none": "Noch keine Stelle markiert.",
+    "surface": "Captcha-Bild: Klicken oder mit den Pfeiltasten eine Stelle markieren, die Eingabetaste sendet sie",
+    "keyboard": "Tastatur: Die Pfeiltasten verschieben die Markierung um einen Bildpunkt, mit Umschalt um zehn; die Eingabetaste sendet sie."
+  },
+  "widget": {
+    "title": "{kind} wird auf der Seite des Hosters beantwortet",
+    "description": "{host} schützt diesen Download mit {kind}. Das Widget ist an die Domain des Hosters gebunden und lässt sich hier überhaupt nicht anzeigen. Beantworten Sie es in Ihrem eigenen Browser: Die rDownloader-Browsererweiterung öffnet die Seite des Hosters in einem Tab und reicht die Antwort zurück — ein Löserdienst beantwortet es ohne Sie.",
+    "extension_connected": "Die Browsererweiterung ist verbunden: Sie meldet dieses Captcha und öffnet {host} in einem Tab Ihres Browsers.",
+    "extension_missing": "Keine Browsererweiterung verbunden. Ohne sie kann nur ein Löserdienst dieses Captcha beantworten. Installieren und koppeln Sie die Erweiterung, um es selbst in Ihrem eigenen Browser zu beantworten.",
+    "extension_setup": "Browsererweiterung einrichten",
+    "hint": "Verbinden Sie die Browsererweiterung und beantworten Sie das Captcha im Tab, den sie öffnet, richten Sie in den Netzwerkeinstellungen einen Löserdienst ein, oder lehnen Sie dieses Captcha ab und lassen den Download fehlschlagen. Einen anderen Weg gibt es nicht: Ein Widget ist an die Domain des Hosters gebunden und lässt sich weder in dieser Oberfläche noch im Desktop-Agenten anzeigen.",
+    "configure": "Captcha-Einstellungen"
+  },
+  "settings": {
+    "eyebrow": "Captchas lösen",
+    "title": "Captchas",
+    "description": "Freie Downloads ohne Account verlangen häufig ein Captcha. rDownloader kann es an einen Löserdienst weitergeben oder Sie direkt fragen.",
+    "state": {
+      "active": "Löser aktiv",
+      "off": "Kein Löser"
+    },
+    "solver": {
+      "label": "Löserdienst",
+      "description": "Ein Dienst mit 2captcha-kompatibler API beantwortet Captchas automatisch.",
+      "none": "Keiner — nur mich fragen",
+      "two_captcha": "2captcha-kompatible API"
+    },
+    "endpoint": {
+      "label": "API-Endpunkt",
+      "description": "Absolute https-URL des Dienstes; leer behält den gespeicherten Endpunkt."
+    },
+    "api_key": {
+      "label": "API-Schlüssel",
+      "description": "Wird verschlüsselt gespeichert und nie von der API zurückgegeben.",
+      "stored": "Ein Schlüssel ist gespeichert. Zum Ersetzen einen neuen eingeben.",
+      "clear": "Gespeicherten API-Schlüssel entfernen"
+    },
+    "test": {
+      "button": "Verbindung testen",
+      "balance": "Der Dienst antwortet. Restguthaben: {balance}."
+    },
+    "manual": {
+      "label": "Bei Bild-Captchas nachfragen",
+      "description": "Bild-Captchas erscheinen als Abfrage in der Weboberfläche."
+    },
+    "timeout": {
+      "label": "Antwortfrist",
+      "description": "Wie lange ein Captcha auf Ihre Antwort wartet, bevor der Download fehlschlägt."
+    },
+    "hint": "Widget-Captchas (reCAPTCHA v2, hCaptcha, Turnstile) sind an die Domain des Hosters gebunden und lassen sich hier nicht anzeigen. Sie werden entweder von einem Löserdienst beantwortet oder von Ihnen — in Ihrem eigenen Browser über die rDownloader-Browsererweiterung, die die Seite des Hosters in einem Tab öffnet. Diese Erweiterung ist der einzige Weg, auf dem ein Mensch eines beantwortet; der Desktop-Agent zeigt sie nicht an. Manuelles Lösen in dieser Oberfläche gilt nur für Bild-Captchas. Änderungen werden mit der Konfiguration gespeichert."
+  }
+}

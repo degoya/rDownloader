@@ -1,0 +1,31 @@
+manifest_version = 3
+plugin_type = "auth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000010c"
+name = "Premiumize sign-in"
+version = "0.9.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The provider's own API, and nothing else. This list is also what bounds the address the
+# plugin may ask a person to visit: a sign-in page outside it is refused by the host.
+[capabilities.net_http]
+domains = ["www.premiumize.me", "premiumize.me"]
+
+[extension]
+slug = "premiumize_auth"
+# One provider. Which plugin signs an account in is decided by this.
+claims = ["premiumize"]
+
+[metadata]
+description = "Signs a Premiumize account in through the provider, without an API key being typed here."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 262144

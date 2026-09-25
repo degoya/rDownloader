@@ -1,0 +1,4 @@
+{
+  "name": "Namen bereinigen",
+  "description": "Ersetzt Leerzeichen durch Punkte und fasst mehrfache Trennzeichen zusammen."
+}

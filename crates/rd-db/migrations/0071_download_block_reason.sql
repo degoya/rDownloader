@@ -1,0 +1,15 @@
+-- Why a download is blocked.
+--
+-- `blocked` is one state for several unrelated causes: a storage root that filled up,
+-- validators that changed while a partial copy was already on disk, a host that refused the
+-- ranges a resume needs, and a download kind the operator switched off. The release paths are
+-- not interchangeable, but without a recorded cause they were: freeing disk space requeued
+-- every blocked row, including the one whose ETag had changed mid-transfer — the
+-- guaranteed-corruption case the block exists to prevent — and the ones of a kind that is
+-- still switched off.
+--
+-- Nullable and deliberately not backfilled: a row blocked by an older build has no honest
+-- reason to claim, and a release path that only requeues a cause it recognises leaves such a
+-- row alone rather than guessing. Those rows wait for a manual resume, which is the safe
+-- direction to err in.
+ALTER TABLE downloads ADD COLUMN block_reason TEXT;

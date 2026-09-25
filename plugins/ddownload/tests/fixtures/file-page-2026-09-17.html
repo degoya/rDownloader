@@ -1,0 +1,123 @@
+<!--
+  DDownload file page, fetched anonymously (no cookies) on 2026-09-17, HTTP 200, served by
+  Cloudflare without a challenge. Trimmed from 209 KB to what the plugin parses (RD-108-28):
+  the header with its login link, the download form, the Turnstile widget, the countdown and
+  the register modal's second login link. Everything kept is verbatim; the promo blocks,
+  stylesheets, scripts and modals are dropped. The stylesheet's hCaptcha rule is kept because
+  a page-wide widget scan mistook it for the captcha kind. (This comment names no parser
+  marker literally, so it cannot be read as one.)
+-->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Download File Adults 2025 S02E01 GERMAN WEBRiP x264 4SJ rar">
+    <title>Download Adults 2025 S02E01 GERMAN WEBRiP x264 4SJ rar</title>
+    <link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon"/>
+    <style>
+        div[class*="h-captcha"] {
+            margin: 0 auto;
+        }
+        .dk-dl-captcha [class*="turnstile"],
+        .dk-dl-captcha .cf-turnstile,
+        .dk-dl-captcha iframe { display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="header-logo">
+                <a href="/">
+                    <img src="/ds2/img/ddownload.png" alt="ddownload.com">
+                </a>
+            </div>
+            <nav class="header-nav">
+                <a class="nav-link" href="/upload" onclick="if(typeof LoginModal!=='undefined'){event.preventDefault(); LoginModal.show('/upload');}">
+                    Upload
+                </a>
+                <a class="nav-link nav-link-gradient" href="/pricing">
+                    Ultimate
+                </a>
+                <!-- Not Logged In -->
+                <a class="nav-link outlined" href="/login" onclick="if(typeof LoginModal!=='undefined'){return LoginModal.show()}">
+                    Login
+                </a>
+                <a class="nav-link primary" href="/register" onclick="if(typeof RegModal!=='undefined'){return RegModal.show()}">
+                    Sign Up
+                </a>
+            </nav>
+        </div>
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="/login" class="mobile-nav-link" onclick="if(typeof LoginModal!=='undefined'){event.preventDefault();closeMobileMenu();LoginModal.show();}">Login</a>
+            <a href="/register" class="mobile-nav-link" onclick="if(typeof RegModal!=='undefined'){event.preventDefault();closeMobileMenu();RegModal.show();}">Create Account</a>
+        </div>
+    </header>
+
+    <form name="F1" method="POST" action="" style="display:contents;">
+        <input type="hidden" name="op" value="download2">
+        <input type="hidden" name="id" value="og21jsivxm1m">
+        <input type="hidden" name="rand" value="fq5eytcd4ppxoxbmje4ld2eaf6dwnypjnrsev44mza">
+        <input type="hidden" name="referer" value="">
+        <input type="hidden" name="method_free" value="">
+        <input type="hidden" name="method_premium" value="">
+
+        <div class="dk-free-grid">
+            <a href="/pricing" class="dk-promo-card" id="dl-promo-card">
+                <h2 class="dk-promo-title">Ultimate Benefits</h2>
+                <span class="dk-promo-btn">
+                    Ultimate Download
+                </span>
+            </a>
+
+            <div class="dk-dl-card">
+                <div class="dk-dl-head">
+                    <div class="dk-dl-meta">
+                        <h2 class="dk-dl-name" title="Adults.2025.S02E01.DL.GERMAN.WEBRiP.x264-4SJ.rar">Adults.2025.S02E01.DL.GERMAN.WEBRiP.x264-4SJ.rar</h2>
+                        <p class="dk-dl-size">321.04 MB</p>
+                    </div>
+                </div>
+
+                <div class="dk-dl-captcha">
+                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+<div class="cf-turnstile" data-sitekey="0x4AAAAAABm53D0OJNkESa1O" id="cf-turnstile-widget"></div>
+<script>
+// Auto-refresh Cloudflare Turnstile token every 4 minutes (tokens expire after 5 minutes)
+setInterval(function() {
+   if (typeof turnstile !== 'undefined') {
+      var container = document.getElementById('cf-turnstile-widget');
+      if (container) {
+         turnstile.reset(container);
+      }
+   }
+}, 4 * 60 * 1000); // 4 minutes
+</script>
+                </div>
+
+                <div class="dk-countdown" id="dk2Countdown">
+                    <div class="dk-countdown-ring">
+                        <span class="dk-countdown-num" id="dk2CountdownNum">60</span>
+                    </div>
+                    <span class="dk-countdown-label">Please wait before downloading</span>
+                </div>
+                <div id="dk2ReadyText" class="dk-ready-text" style="display:none">
+                    Your file is ready to download
+                </div>
+
+                <button type="button" id="downloadbtn" class="dk-dl-btn dk-btn-disabled" disabled>
+                    Regular Download
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <div class="rm-overlay" id="rm-overlay">
+        <div class="rm-modal">
+            <div class="rm-error" id="rm-error"></div>
+            <button type="button" class="rm-btn rm-btn-primary" id="rm-btn" onclick="RegModal.register()">Sign Up</button>
+            <div class="rm-login-link">Already have an account? <a href="/login" onclick="event.preventDefault(); document.getElementById('rm-overlay').classList.remove('active'); LoginModal.show();">Login</a></div>
+        </div>
+    </div>
+    <script>var LoginModal = { show: function () {} };</script>
+</body>
+</html>

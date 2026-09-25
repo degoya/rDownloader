@@ -1,0 +1,38 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000130"
+name = "MediaFire folders"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The documented API and nothing else: `folder/get_info`, `folder/get_content` and
+# `file/get_info` all answer for public folders without a session token (RD-103-06,
+# measured 2026-09-21). No secret, because there is no account.
+[capabilities.net_http]
+domains = ["www.mediafire.com"]
+
+[extension]
+slug = "mediafire_crawler"
+# No provider and no account: a public folder needs neither, and the sibling resolver
+# (`plugins/mediafire`) takes no account either.
+claims = []
+
+[metadata]
+description = "Lists the files behind a public MediaFire folder link or a list of file keys."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[limits]
+memory_bytes = 33554432
+# A crawl walks a tree in one invocation, so it needs more room than a call that makes one
+# request. The walk in `src/walk.rs` bounds depth, breadth, chunks and cycles; these bound a
+# runaway.
+fuel = 2000000000
+timeout_milliseconds = 30000
+# One chunk of `folder/get_content` is a hundred entries; the largest measured answer was
+# under 64 KB.
+max_response_bytes = 2097152

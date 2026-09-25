@@ -1,0 +1,8 @@
+{
+  "name": "TorBox-Anmeldung",
+  "description": "Prüft einen TorBox-API-Schlüssel am Konto und meldet, was der Tarif wert ist.",
+  "codes": {
+    "torbox_auth.key_invalid": "TorBox hat diesen API-Schlüssel nicht akzeptiert. Hole ihn dir neu aus deinen TorBox-Einstellungen.",
+    "torbox_auth.key_missing": "Dieses TorBox-Konto hat noch keinen API-Schlüssel"
+  }
+}

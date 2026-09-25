@@ -1,0 +1,31 @@
+{
+  "name": "Turbobit",
+  "description": "Resolves Turbobit links as a guest through the site's captcha and countdown, or with an account.",
+  "account": {
+    "secret_label": "Turbobit password",
+    "secret_hint": "The password of the Turbobit account named above. rDownloader signs in itself and keeps the session; the password only ever reaches app.turbobit.net. Without an account, links are downloaded as a guest, with the site's captcha and countdown.",
+    "username_label": "Turbobit e-mail address",
+    "username_hint": "The e-mail address the Turbobit account signs in with."
+  },
+  "codes": {
+    "turbobit.account_banned": "Turbobit reports this account as banned",
+    "turbobit.account_missing": "Turbobit account or password is missing",
+    "turbobit.api_error": "Turbobit refused the request ({code})",
+    "turbobit.captcha_rejected": "Turbobit rejected the captcha answer",
+    "turbobit.file_unavailable": "Turbobit file is not available",
+    "turbobit.folder_not_file": "This Turbobit link is a folder; add the files it contains instead",
+    "turbobit.free_limit_reached": "Turbobit free download limit reached for this IP address; another download is possible in {wait_seconds}s",
+    "turbobit.http_error": "Turbobit HTTP status {status}",
+    "turbobit.invalid_link": "Invalid Turbobit link",
+    "turbobit.invalid_response": "Invalid Turbobit response ({field})",
+    "turbobit.invalid_url": "Invalid provider URL: {error}",
+    "turbobit.login_captcha": "Turbobit did not accept the sign-in's captcha answer; it is retried later",
+    "turbobit.login_failed": "Turbobit rejected the account's e-mail address or password",
+    "turbobit.no_direct_link": "Turbobit did not hand out a download link",
+    "turbobit.not_signed_in": "Turbobit refused the request as not signed in",
+    "turbobit.premium_limit_reached": "Turbobit handed out no download link to the premium account; the daily limit may be reached",
+    "turbobit.premium_only": "Turbobit offers this file to premium accounts only",
+    "turbobit.rate_limited": "Turbobit rate limit reached; the request is retried later",
+    "turbobit.unsupported_link": "Not a supported Turbobit link"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Connexion Microsoft",
+  "description": "Connecte un compte OneDrive ou SharePoint via le point d'autorisation de Microsoft, par navigateur ou par code d'appareil.",
+  "codes": {
+    "onedrive_oauth.bad_reply": "Microsoft a envoyé une réponse que ce plugin ne peut pas lire.",
+    "onedrive_oauth.code_expired": "La connexion a expiré avant d'être terminée, ou le code n'a pas été accepté. Relancez-la.",
+    "onedrive_oauth.consent_denied": "La connexion n'a pas été accordée chez Microsoft. Une administration de locataire peut aussi exiger un consentement ou la bloquer.",
+    "onedrive_oauth.no_entropy": "La connexion n'a pas pu démarrer : l'application ne disposait pas de l'aléa nécessaire. Réessayez.",
+    "onedrive_oauth.refresh_refused": "Microsoft n'accepte plus la connexion enregistrée. Reconnectez-vous."
+  }
+}

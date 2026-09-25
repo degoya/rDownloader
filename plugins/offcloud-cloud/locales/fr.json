@@ -1,0 +1,21 @@
+{
+  "name": "Téléchargements cloud Offcloud",
+  "description": "Exécute des liens magnet et des adresses web comme téléchargements cloud sur un compte Offcloud.",
+  "codes": {
+    "offcloud_cloud.addon_required": "Offcloud nécessite un module supplémentaire pour ce téléchargement ({addon})",
+    "offcloud_cloud.api_error": "Erreur de l'API Offcloud {api_code}",
+    "offcloud_cloud.auth_invalid": "La clé d'API Offcloud n'est plus valide. Saisissez-la à nouveau.",
+    "offcloud_cloud.container_unsupported": "Offcloud accepte une adresse, pas un fichier torrent ou NZB",
+    "offcloud_cloud.http_error": "Statut HTTP Offcloud {status}",
+    "offcloud_cloud.invalid_response": "Réponse Offcloud non valide",
+    "offcloud_cloud.job_canceled": "Ce téléchargement cloud a été annulé chez Offcloud",
+    "offcloud_cloud.job_failed": "Offcloud a mis fin à ce téléchargement cloud sur une erreur",
+    "offcloud_cloud.job_gone": "Offcloud ne détient plus ce téléchargement cloud",
+    "offcloud_cloud.no_links": "Offcloud indique ce téléchargement cloud comme terminé mais n'a renvoyé aucune adresse",
+    "offcloud_cloud.no_request_id": "Offcloud n'a pas nommé le téléchargement cloud qu'il a créé. Vérifiez votre compte Offcloud avant de réessayer.",
+    "offcloud_cloud.no_selection": "Offcloud télécharge la totalité du travail et ne propose pas de sélection de fichiers",
+    "offcloud_cloud.not_a_cloud_source": "Offcloud accepte une adresse magnet ou une adresse web, et ceci n'est ni l'une ni l'autre",
+    "offcloud_cloud.rate_limited": "La limite de requêtes d'Offcloud a été atteinte. Attente en cours.",
+    "offcloud_cloud.server_error": "Erreur du serveur Offcloud"
+  }
+}

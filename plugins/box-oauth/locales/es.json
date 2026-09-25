@@ -1,0 +1,14 @@
+{
+  "name": "Inicio de sesión de Box",
+  "description": "Inicia sesión en una cuenta de Box a través del propio punto final de autorización de Box.",
+  "codes": {
+    "box_oauth.bad_reply": "Box ha enviado una respuesta que este complemento no ha podido leer.",
+    "box_oauth.client_not_configured": "Esta cuenta aún no tiene ninguna aplicación de Box registrada. Introduzca primero el ID de cliente y el secreto de cliente de su propia app de Box.",
+    "box_oauth.client_refused": "Box no ha aceptado esta aplicación. Compruebe el ID de cliente y el secreto de cliente, y que la URI de redirección esté registrada exactamente.",
+    "box_oauth.code_expired": "El inicio de sesión caducó antes de terminar. Vuelva a empezarlo.",
+    "box_oauth.consent_denied": "El inicio de sesión no se concedió en Box.",
+    "box_oauth.flow_unsupported": "En Box se inicia sesión por el navegador, no con un código de dispositivo.",
+    "box_oauth.no_entropy": "No se ha podido iniciar la sesión porque la aplicación no disponía de aleatoriedad. Inténtelo de nuevo.",
+    "box_oauth.refresh_refused": "Box ya no acepta el inicio de sesión guardado. Vuelva a iniciar sesión."
+  }
+}

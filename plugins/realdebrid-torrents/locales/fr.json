@@ -1,0 +1,27 @@
+{
+  "name": "Torrents Real-Debrid",
+  "description": "Exécute des magnets et des fichiers torrent comme travaux sur un compte Real-Debrid.",
+  "codes": {
+    "realdebrid_torrents.account_missing": "Le compte Real-Debrid est absent",
+    "realdebrid_torrents.api_error": "Erreur {api_code} de l'API Real-Debrid",
+    "realdebrid_torrents.auth_invalid": "La connexion Real-Debrid n'est plus valide. Reconnecte-toi.",
+    "realdebrid_torrents.content_refused": "Real-Debrid refuse de transporter ce contenu",
+    "realdebrid_torrents.empty_choice": "Une sélection de fichiers doit nommer au moins un fichier",
+    "realdebrid_torrents.http_error": "Statut HTTP {status} de Real-Debrid",
+    "realdebrid_torrents.invalid_response": "Réponse Real-Debrid non valide",
+    "realdebrid_torrents.ip_not_allowed": "Real-Debrid n'autorise pas ce compte depuis cette adresse",
+    "realdebrid_torrents.limit_reached": "Real-Debrid signale que la limite de trafic ou de torrents est atteinte",
+    "realdebrid_torrents.magnet_rejected": "Real-Debrid n'a pas pu lire cette adresse magnet",
+    "realdebrid_torrents.no_links": "Real-Debrid signale ce torrent comme terminé mais n'a renvoyé aucun lien",
+    "realdebrid_torrents.no_torrent_id": "Real-Debrid n'a pas nommé le torrent créé. Vérifie ton compte Real-Debrid avant de réessayer.",
+    "realdebrid_torrents.not_a_torrent": "Ceci n'est ni une adresse magnet ni un fichier torrent",
+    "realdebrid_torrents.not_permitted": "Real-Debrid n'autorise pas les torrents sur ce compte",
+    "realdebrid_torrents.rate_limited": "La limite de requêtes de l'API Real-Debrid est atteinte. Attente en cours.",
+    "realdebrid_torrents.server_busy": "Real-Debrid est temporairement indisponible",
+    "realdebrid_torrents.server_error": "Erreur du serveur Real-Debrid",
+    "realdebrid_torrents.token_missing": "Ce compte Real-Debrid n'est pas encore connecté",
+    "realdebrid_torrents.torrent_dead": "Real-Debrid n'a trouvé aucun pair pour ce torrent",
+    "realdebrid_torrents.torrent_failed": "Real-Debrid a terminé ce torrent avec une erreur",
+    "realdebrid_torrents.torrent_gone": "Real-Debrid ne conserve plus ce torrent"
+  }
+}

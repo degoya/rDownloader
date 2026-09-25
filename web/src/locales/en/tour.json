@@ -1,0 +1,42 @@
+{
+  "rerun": "App tour",
+  "actions": {
+    "next": "Next",
+    "prev": "Back",
+    "done": "Done"
+  },
+  "steps": {
+    "nav": {
+      "title": "The overview",
+      "description": "Downloads holds the queue, the LinkGrabber collects and checks links before they start, Streams records live sources, Subscriptions bring in new items from feeds and indexers, and Automation reacts to them. Settings opens as its own sub-pages."
+    },
+    "downloads_add": {
+      "title": "Add a download",
+      "description": "Paste a link here to queue it straight away — category, account and proxy can be chosen per download."
+    },
+    "downloads_controls": {
+      "title": "Control the queue",
+      "description": "Pause or resume everything at once, and clear finished or failed entries from the list."
+    },
+    "rail": {
+      "title": "Status bar",
+      "description": "Live throughput, active connections and the global speed limit. The limit applies immediately — no save needed."
+    },
+    "grabber_add": {
+      "title": "Collect first",
+      "description": "Paste links or import a container — .nzb, .torrent, .dlc, .ccf, .rsdf and plain .txt link lists — then check what is still online. Only what you queue moves to the download queue."
+    },
+    "grabber_body": {
+      "title": "Packages before the download",
+      "description": "Collected links are grouped into packages here. Where several point at the same file, one downloads and the rest wait as its fallback. Set a category or a priority, discard what you do not want, then start."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Each area is a sub-page of its own: routing decides where files land, accounts and Usenet hold the credentials, post-processing does the repair and unpacking, the desktop client and MCP connect the outside world, and backup and restore keeps the configuration safe."
+    },
+    "done": {
+      "title": "Ready",
+      "description": "Press ? at any time for the keyboard shortcuts. This tour and the setup wizard start again under Settings, System — which also says whether the setup is complete."
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Dossiers MEGA",
+  "description": "Liste les fichiers derrière un lien public de dossier MEGA ou un dossier du compte connecté, avec noms, tailles et structure.",
+  "codes": {
+    "mega_crawler.api_error": "Erreur {status} de l'API MEGA",
+    "mega_crawler.folder_empty": "Ce dossier MEGA ne contient aucun fichier téléchargeable",
+    "mega_crawler.folder_private": "Ce dossier MEGA nécessite le compte de son propriétaire",
+    "mega_crawler.folder_unreachable": "Ce dossier MEGA n'existe plus ou n'a jamais existé",
+    "mega_crawler.http_error": "Statut HTTP {status} de MEGA",
+    "mega_crawler.invalid_response": "Réponse MEGA invalide",
+    "mega_crawler.key_invalid": "Ce lien de dossier MEGA ne porte aucune clé utilisable",
+    "mega_crawler.not_a_folder": "Ceci n'est pas une adresse de dossier MEGA",
+    "mega_crawler.not_in_account": "Ce dossier n'est plus dans le compte MEGA",
+    "mega_crawler.quota_exceeded": "Le quota de transfert MEGA pour ce dossier est épuisé",
+    "mega_crawler.rate_limited": "MEGA limite les requêtes provenant de cette adresse",
+    "mega_crawler.session_expired": "La session du compte MEGA a expiré ; reconnectez le compte",
+    "mega_crawler.too_many_files": "Ce dossier MEGA contient plus de {limit} fichiers",
+    "mega_crawler.unavailable": "MEGA ne répond temporairement pas pour ce dossier"
+  }
+}

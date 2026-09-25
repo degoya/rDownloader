@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Adds {{PLUGIN_NAME}} details to a link before it is downloaded.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.lookup_failed": "Those details could not be looked up."
+  }
+}

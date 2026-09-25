@@ -1,0 +1,55 @@
+{
+  "card": {
+    "eyebrow": "Funcionamiento desatendido",
+    "title": "Horas silenciosas y finalización",
+    "description": "Posponer trabajo intensivo, ejecutar algo cuando la cola se vacía y pausar con batería o conexión de uso medido."
+  },
+  "quiet": {
+    "label": "Horas silenciosas",
+    "description": "El trabajo pospuesto espera en estas ventanas. Las descargas siguen.",
+    "from": "Desde",
+    "to": "Hasta",
+    "add": "Añadir ventana",
+    "defer_postprocess": "Posponer reparación, desempaquetado y subidas",
+    "defer_notifications": "Agrupar notificaciones hasta el fin de la ventana"
+  },
+  "action": {
+    "none": "No hacer nada",
+    "script": "Ejecutar un script",
+    "standby": "Suspender",
+    "shutdown": "Apagar"
+  },
+  "completion": {
+    "label": "Cuando la cola está vacía",
+    "description": "Se ejecuta una vez por ciclo de trabajo completado, también tras el posprocesado.",
+    "script_label": "Script",
+    "script_description": "Un archivo del directorio de scripts de posprocesado; mismo sandbox y mismo tiempo límite.",
+    "countdown_label": "Cuenta atrás",
+    "countdown_description": "Tiempo para cancelar antes de que se ejecute (10–3600 s).",
+    "approval_label": "Permitir acciones de energía en esta máquina",
+    "approval_description": "Suspender y apagar solo se ejecutan cuando esto está activado aquí.",
+    "approval_missing": "Sin esta autorización la acción queda configurada pero nunca se ejecuta."
+  },
+  "context": {
+    "battery_label": "Pausar con batería",
+    "metered_label": "Pausar en conexiones de uso medido",
+    "unavailable": "Esta plataforma no puede informarlo, así que la regla queda desactivada.",
+    "prevent_standby_label": "Mantener el equipo despierto",
+    "prevent_standby_description": "Mientras una descarga o el desempaquetado están realmente en curso. Una cola que solo espera no mantiene el equipo abierto.",
+    "prevent_display_label": "Mantener también la pantalla encendida",
+    "prevent_display_description": "Para un equipo que alguien está mirando. Una descarga no necesita pantalla encendida.",
+    "inhibiting": "El equipo se mantiene despierto."
+  },
+  "pending": {
+    "standby": "La máquina se suspende",
+    "shutdown": "La máquina se apaga",
+    "none": "Acción de finalización pendiente",
+    "script": "Se ejecuta el script de finalización",
+    "countdown": "En {seconds} s — cancele para mantener la máquina encendida.",
+    "cancel": "Cancelar"
+  },
+  "paused": {
+    "battery": "La cola está en pausa: la máquina funciona con batería.",
+    "metered": "La cola está en pausa: la conexión se declara de uso medido."
+  }
+}

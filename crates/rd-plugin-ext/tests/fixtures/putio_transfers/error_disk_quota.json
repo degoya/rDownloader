@@ -1,0 +1,6 @@
+{
+  "error_type": "DISK_QUOTA_EXCEEDED",
+  "error_message": "redacted provider sentence",
+  "status": "ERROR",
+  "status_code": 400
+}

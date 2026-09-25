@@ -1,0 +1,103 @@
+{
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Médias",
+    "gallery": "Galeries",
+    "record": "Enregistrements"
+  },
+  "days": {
+    "0": "Lun",
+    "1": "Mar",
+    "2": "Mer",
+    "3": "Jeu",
+    "4": "Ven",
+    "5": "Sam",
+    "6": "Dim"
+  },
+  "source": {
+    "manual": "Limite manuelle",
+    "global": "Profil",
+    "protocol": "Protocole",
+    "host": "Hôte",
+    "account": "Compte",
+    "category": "Catégorie"
+  },
+  "status": {
+    "eyebrow": "Actif maintenant",
+    "no_profile": "Aucun profil actif",
+    "binding": "Limite la plus stricte",
+    "unlimited": "Illimité",
+    "next_switch": "Prochain basculement",
+    "no_switch": "Aucun basculement prévu",
+    "daily": "Aujourd'hui ({period})",
+    "monthly": "Ce mois-ci ({period})",
+    "usage": "{used} sur {limit}",
+    "budget_exhausted": "Le quota de trafic est épuisé. Les transferts en cours se terminent ; rien de nouveau ne démarre avant la période suivante."
+  },
+  "capabilities": {
+    "title": "Ce qu'une limite n'atteint pas entièrement"
+  },
+  "profile": {
+    "eyebrow": "Limites réutilisables",
+    "title": "Profils de bande passante",
+    "form_edit": "Modifier le profil",
+    "description": "Un profil réunit un débit global, des débits par portée et des quotas de trafic. Le planning décide quand il s'applique.",
+    "name_label": "Nom",
+    "name_placeholder": "Nuit",
+    "create": "Créer un profil",
+    "parallel_label": "Fichiers en parallèle",
+    "parallel_description": "Plafonne la file tant qu'il est actif ; vide conserve le réglage général.",
+    "inherit": "Conserver le réglage",
+    "download_label": "Limite de téléchargement",
+    "upload_label": "Limite d'envoi torrent",
+    "upload_description": "Seul le moteur torrent envoie.",
+    "daily_label": "Quota journalier",
+    "monthly_label": "Quota mensuel",
+    "no_budget": "Aucun quota",
+    "empty": "Aucun profil pour l'instant.",
+    "delete_title": "Supprimer le profil",
+    "delete_description": "Supprimer le profil « {name} » ? Ses fenêtres horaires disparaissent avec lui.",
+    "form_new": "Nouveau profil",
+    "summary_scopes": "{count} limite de portée | {count} limites de portée",
+    "summary_parallel": "{count} fichier en parallèle | {count} fichiers en parallèle",
+    "summary_upload": "{rate} en envoi",
+    "summary_daily": "{size} par jour",
+    "summary_monthly": "{size} par mois"
+  },
+  "scope": {
+    "title": "Limites par portée",
+    "description": "La limite la plus étroite l'emporte toujours. Celle qui s'applique est indiquée dans l'état ci-dessus.",
+    "protocol": "Protocole",
+    "host": "Hôte",
+    "account": "Compte",
+    "category": "Catégorie",
+    "add": "Ajouter",
+    "placeholder_protocol": "usenet",
+    "placeholder_host": "example.com",
+    "placeholder_account": "ID du compte",
+    "placeholder_category": "ID de la catégorie"
+  },
+  "schedule": {
+    "eyebrow": "Plan hebdomadaire",
+    "title": "Planning",
+    "saved": "Planning enregistré",
+    "description": "Les fenêtres sont des heures locales dans le fuseau ci-dessous, afin qu'un changement d'heure ne saute ni ne répète une période.",
+    "timezone_label": "Fuseau horaire",
+    "timezone_description": "Nom IANA, par ex. Europe/Berlin.",
+    "default_label": "Hors de toute fenêtre",
+    "default_description": "Profil appliqué quand aucune fenêtre ne correspond.",
+    "no_default": "Aucune limite",
+    "window_profile": "Profil",
+    "from": "De",
+    "to": "À",
+    "priority": "Priorité",
+    "enabled": "Actif",
+    "add_window": "Ajouter une fenêtre",
+    "wraps": "Cette fenêtre franchit minuit et se poursuit le lendemain.",
+    "empty": "Aucune fenêtre — le profil par défaut s'applique en permanence.",
+    "needs_profile": "Créez d'abord un profil.",
+    "windows_title": "Plages horaires"
+  }
+}

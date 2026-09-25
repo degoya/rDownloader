@@ -1,0 +1,38 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000131"
+name = "PEEPLink entries"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The two domains the service still answers on, measured on 2026-09-21 (RD-110-17). The alias
+# `alfalink.info` that both `robots.txt` and the JDownloader pattern still name is NOT here:
+# it ran into a 25 s timeout on both measuring days, so granting it would be dead
+# configuration. Nothing else is reached: an entry page is one `GET`, and the hoster links it
+# carries are handed back for the selection to resolve, never followed.
+[capabilities.net_http]
+domains = ["peeplink.in", "www.peeplink.in", "alfalink.to", "www.alfalink.to"]
+
+[extension]
+slug = "peeplink_crawler"
+# No provider and no account: an entry page is public and this plugin never signs in. The
+# reCAPTCHA, hCaptcha and QapTcha markers on those pages belong to the login and register
+# popups, which is why neither `captcha` nor `cookies` is declared here.
+claims = []
+
+[metadata]
+description = "Lists the hoster links behind a PEEPLink or AlfaLink entry page."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 2000000000
+timeout_milliseconds = 15000
+# One entry page and nothing else. The four measured pages were 6.651-11.147 B, so a megabyte
+# is two orders of magnitude of head room rather than a guess.
+max_response_bytes = 1048576

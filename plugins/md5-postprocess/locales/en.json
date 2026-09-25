@@ -1,0 +1,7 @@
+{
+  "name": "MD5 checksums",
+  "description": "Verifies .md5 sidecar files against the package they belong to.",
+  "codes": {
+    "md5_postprocess.mismatch": "A file did not match its recorded MD5."
+  }
+}

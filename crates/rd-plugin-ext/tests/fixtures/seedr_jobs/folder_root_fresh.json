@@ -1,0 +1,15 @@
+{
+  "space_max": 100,
+  "space_used": 0,
+  "torrents": [
+    {
+      "id": 11,
+      "name": "Example.Release",
+      "size": 31,
+      "progress": 0,
+      "torrent_hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
+    }
+  ],
+  "folders": [],
+  "files": []
+}

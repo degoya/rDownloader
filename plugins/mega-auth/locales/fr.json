@@ -1,0 +1,16 @@
+{
+  "name": "Connexion MEGA",
+  "description": "Connecte un compte MEGA sans que le mot de passe entre jamais dans le bac à sable.",
+  "codes": {
+    "mega_auth.account_blocked": "MEGA a bloqué ce compte",
+    "mega_auth.account_version_unsupported": "Ce compte MEGA utilise encore l'ancienne dérivation de clé",
+    "mega_auth.api_error": "Erreur d'API MEGA {status}",
+    "mega_auth.bad_reply": "MEGA a répondu à la connexion par quelque chose d'illisible",
+    "mega_auth.credentials_rejected": "MEGA a refusé cette adresse et ce mot de passe",
+    "mega_auth.multi_factor_required": "Ce compte MEGA demande un second facteur, qui n'est pas encore pris en charge",
+    "mega_auth.nothing_to_poll": "Une connexion MEGA se termine en une étape ; relancez-la",
+    "mega_auth.rate_limited": "MEGA limite les tentatives de connexion depuis cette adresse",
+    "mega_auth.session_unreadable": "La session MEGA n'a pas pu être ouverte avec la clé de ce compte",
+    "mega_auth.unavailable": "MEGA ne répond temporairement pas aux connexions"
+  }
+}

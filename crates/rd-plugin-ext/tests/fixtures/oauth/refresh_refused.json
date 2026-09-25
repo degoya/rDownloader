@@ -1,0 +1,4 @@
+{
+  "error": "invalid_grant",
+  "error_description": "the refresh token was revoked"
+}

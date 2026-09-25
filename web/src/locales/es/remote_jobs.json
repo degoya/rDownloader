@@ -1,0 +1,83 @@
+{
+  "eyebrow": "Trabajos remotos",
+  "title": "Trabajos que se ejecutan en un proveedor",
+  "description": "Un magnet entregado a una cuenta de proveedor se descarga allí en lugar de aquí y vuelve como direcciones cuando termina. Sigue avanzando mientras esta máquina no lo hace, y después la cuenta lo conserva hasta que alguien lo elimina.",
+  "empty": "No hay ningún trabajo en marcha en un proveedor.",
+  "account": "Cuenta",
+  "account_unknown": "Cuenta desconocida",
+  "content": "Contenido",
+  "remote_id": "Allí se llama",
+  "started": "Iniciado",
+  "updated": "Último cambio",
+  "states": {
+    "submitting": "Entregándose",
+    "preparing": "El proveedor lo está preparando",
+    "awaiting_choice": "Esperando tu selección",
+    "working": "Descargándose en el proveedor",
+    "ready": "Terminado",
+    "failed": "Fallido",
+    "discarded": "Eliminado en el proveedor"
+  },
+  "submit": {
+    "title": "Entregar un magnet a una cuenta",
+    "description": "El proveedor lo descarga y entrega las direcciones terminadas al LinkGrabber. El mismo magnet dos veces es un trabajo, no dos.",
+    "magnet": "Dirección magnet",
+    "magnet_placeholder": "magnet:?xt=urn:btih:…",
+    "action": "Entregar",
+    "started": "El proveedor recibió el trabajo.",
+    "already_running": "Esta cuenta ya ejecuta un trabajo para ese contenido. No se envió nada por segunda vez.",
+    "file_action": "O archivos .torrent/.nzb",
+    "file_clear": "Quitar el archivo",
+    "file_too_large": "El archivo supera los {max_mib} MiB que admite un trabajo remoto"
+  },
+  "choice": {
+    "toggle": "Entradas que ofreció el trabajo",
+    "title": "Elige lo que quieres",
+    "description": "El proveedor solo descarga lo que se elija aquí, y nada avanza hasta que se responda.",
+    "preselected": "Sugerido",
+    "size_unknown": "Tamaño no indicado",
+    "action": "Enviar la selección",
+    "sent": "La selección llegó al proveedor.",
+    "none": "Elige al menos una entrada."
+  },
+  "discard": {
+    "action": "Eliminar en el proveedor",
+    "confirm_title": "¿Eliminar este trabajo en el proveedor?",
+    "confirm_description": "Esto elimina el trabajo dentro de tu cuenta del proveedor. Ocurre fuera de esta máquina y no se puede deshacer. La entrada permanece después en esta lista y deja constancia de que se eliminó.",
+    "confirm_label": "Eliminar en el proveedor",
+    "done": "El trabajo se eliminó en el proveedor."
+  },
+  "forget": {
+    "action": "Quitar de esta lista",
+    "confirm_title": "¿Quitar esta entrada de la lista?",
+    "confirm_description": "Esto quita la entrada aquí y nada más. Lo que el proveedor tenga sigue intacto en tu cuenta.",
+    "confirm_label": "Quitar de la lista",
+    "done": "La entrada se quitó. No se eliminó nada en el proveedor."
+  },
+  "page": {
+    "eyebrow": "En el proveedor",
+    "title": "Trabajos remotos",
+    "description": "Los magnets entregados a una cuenta de proveedor se ejecutan allí, no aquí. Sígalos, responda las preguntas por las que se detienen y termínelos: en el proveedor o solo en esta lista."
+  },
+  "no_remote_job_accounts": "Ninguna de tus cuentas pertenece a un servicio con un complemento de trabajos remotos instalado. Instala uno o añade una cuenta de un servicio que lo tenga.",
+  "accounts_unavailable": "No se ha podido leer la lista de servicios que pueden aceptar un trabajo.",
+  "accounts_loading": "Comprobando qué cuentas pueden aceptar un trabajo…",
+  "files": {
+    "drop_hint": "Puedes elegir varios archivos .torrent o .nzb a la vez o soltarlos aquí: cada uno se convierte en su propio trabajo, entregado uno tras otro.",
+    "list": "Archivos elegidos",
+    "count": "{count} archivo | {count} archivos",
+    "clear": "Quitar todos los archivos",
+    "wrong_type": "Solo se pueden entregar archivos .torrent y .nzb",
+    "unreadable": "No se pudo leer el archivo",
+    "summary": "{done} de {total} archivos entregados.",
+    "summary_failed": "{failed} de {total} archivos no se pudieron entregar; cada uno indica el motivo. Los demás siguieron adelante.",
+    "states": {
+      "waiting": "En espera",
+      "sending": "Entregándose",
+      "started": "Entregado",
+      "already_running": "Ya en curso",
+      "failed": "Fallido",
+      "refused": "No enviado"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "KatFile",
+  "account": {
+    "secret_label": "Clave API",
+    "secret_hint": "Introduce tu clave API como secreto, o importa las cookies de una sesión premium iniciada en tu navegador."
+  },
+  "codes": {
+    "katfile.account_missing": "Falta la cuenta de KatFile",
+    "katfile.api_error": "API de KatFile: {message}",
+    "katfile.api_key_required": "La comprobación de enlaces de KatFile requiere la clave API",
+    "katfile.captcha_rejected": "KatFile rechazó la respuesta del captcha",
+    "katfile.captcha_required": "KatFile requiere resolver un captcha para esta descarga, lo cual no es compatible",
+    "katfile.cookie_session_invalid": "La sesión de cookies de KatFile no ha iniciado sesión: pega una sesión de cookies nueva de un navegador con la sesión iniciada: {diagnosis}",
+    "katfile.cookie_session_required": "Falta la sesión de cookies de KatFile o no contiene cookies para katfile.biz",
+    "katfile.cookie_session_required_for_download": "Las descargas de KatFile requieren una sesión de cookies (inicio de sesión en el navegador); la clave API solo proporciona metadatos",
+    "katfile.cookie_session_unconfirmed": "KatFile no confirmó la sesión de cookies en ningún sentido: la página no estaba ni con la sesión iniciada ni era una página de invitado; inténtalo de nuevo más tarde: {diagnosis}",
+    "katfile.download_session_expired": "KatFile aceptó la clave de API, pero la sesión de cookies con la que se descargan los archivos ha caducado: pega una sesión de cookies nueva de un navegador con la sesión iniciada en katfile.biz: {diagnosis}",
+    "katfile.download_wait": "KatFile requiere esperar {wait_seconds}s antes de poder descargar este archivo",
+    "katfile.file_unavailable": "El archivo de KatFile no está disponible",
+    "katfile.free_limit_reached": "Se alcanzó el límite de descargas gratuitas de KatFile para esta dirección IP",
+    "katfile.http_error": "Estado HTTP de KatFile {status}",
+    "katfile.invalid_link": "Enlace de KatFile no válido",
+    "katfile.invalid_response": "Respuesta de KatFile no válida",
+    "katfile.invalid_url": "URL del proveedor no válida: {error}",
+    "katfile.no_free_form": "No se encontró el formulario de descarga gratuita de KatFile: {diagnosis}",
+    "katfile.no_free_link": "La descarga gratuita de KatFile no devolvió ningún enlace de archivo: {diagnosis}",
+    "katfile.no_premium_file": "La sesión de cookies de KatFile no devolvió un archivo premium: {diagnosis}",
+    "katfile.premium_only": "KatFile informa que este archivo requiere una cuenta premium: {reason}",
+    "katfile.session_unconfirmed": "sesión de cookies no confirmada: la página no mostraba ni una sesión iniciada ni una página de invitado",
+    "katfile.unsupported_link": "Enlace de KatFile no admitido"
+  }
+}

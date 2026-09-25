@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "rDownloader",
+    "loading": "Leyendo el estado del servicio",
+    "title_active": "{count} activas"
+  },
+  "actions": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "remove": "Quitar",
+    "rename": "Renombrar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "refresh": "Actualizar",
+    "add": "Añadir",
+    "test": "Probar",
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "retry": "Reintentar",
+    "extract": "Extraer",
+    "select_all": "Seleccionar todo",
+    "clear_selection": "Quitar selección",
+    "copy": "Copiar",
+    "apply": "Aplicar",
+    "reset": "Restablecer",
+    "back": "Atrás",
+    "reveal": "Mostrar en la lista"
+  },
+  "states": {
+    "queued": "En cola",
+    "resolving": "Resolviendo",
+    "downloading": "Descargando",
+    "paused": "En pausa",
+    "skipped": "Espejo",
+    "retry_wait": "Reintentando",
+    "verifying": "Verificando",
+    "repairing": "Reparando",
+    "extracting": "Extrayendo",
+    "blocked": "Bloqueado",
+    "failed": "Fallido",
+    "cancelled": "Cancelado",
+    "completed": "Completado",
+    "seeding": "Sembrando",
+    "skipped_postponed": "Aplazado"
+  },
+  "priority": {
+    "high": "Alta",
+    "normal": "Normal",
+    "low": "Baja"
+  },
+  "units": {
+    "file": "ningún archivo | {count} archivo | {count} archivos",
+    "package": "ningún paquete | {count} paquete | {count} paquetes",
+    "link": "ningún enlace | {count} enlace | {count} enlaces",
+    "entry": "ninguna entrada | {count} entrada | {count} entradas",
+    "selected": "seleccionado(s)",
+    "per_second": "/s"
+  },
+  "values": {
+    "unknown": "desconocido",
+    "none": "ninguno",
+    "default": "Predeterminado",
+    "yes": "Sí",
+    "no": "No",
+    "enabled": "Activado",
+    "disabled": "Desactivado"
+  },
+  "errors": {
+    "request_failed": "No se pudo procesar la solicitud.",
+    "unknown": "Error desconocido"
+  },
+  "data": {
+    "loading": "Cargando",
+    "load_failed": "No se han podido cargar estos datos."
+  },
+  "preferences": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "theme_system": "Sistema",
+    "theme_light": "Claro",
+    "theme_dark": "Oscuro",
+    "language_and_theme": "Idioma y tema"
+  },
+  "locales": {
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español"
+  },
+  "footer": {
+    "made_with": "Made with",
+    "by": "in Germany by {author}"
+  },
+  "chart": {
+    "title": "Rendimiento · últimos 2 minutos",
+    "subtitle": "Tasa combinada de todos los archivos activos",
+    "peak": "Pico",
+    "window_start": "hace 2 min",
+    "window_end": "ahora",
+    "description": "Velocidad de descarga de los últimos dos minutos. Actualmente {current}, pico {peak}."
+  },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "groups": {
+      "navigation": "Navegación",
+      "actions": "Acciones"
+    },
+    "go_downloads": "Ir a Descargas",
+    "go_linkgrabber": "Ir a LinkGrabber",
+    "go_streams": "Ir a Streams",
+    "go_subscriptions": "Ir a Suscripciones",
+    "go_remote_jobs": "Ir a Trabajos remotos",
+    "go_automation": "Ir a Automatización",
+    "go_settings": "Ir a Ajustes",
+    "import_nzb": "Importar NZB/torrent",
+    "toggle_transfers": "Iniciar o pausar todas las descargas",
+    "show_help": "Mostrar atajos de teclado",
+    "toast": {
+      "paused": "No se pausó ninguna transferencia. | Se pausó {count} transferencia. | Se pausaron {count} transferencias.",
+      "resumed": "No se inició ninguna transferencia. | Se inició o reanudó {count} transferencia. | Se iniciaron o reanudaron {count} transferencias.",
+      "nothing": "No hay nada que pausar o reanudar."
+    },
+    "toggle_sidebar": "Plegar o desplegar la barra lateral",
+    "go_stats": "Ir a Estadísticas",
+    "go_logs": "Ir a Registros",
+    "go_audit": "Ir a Auditoría"
+  },
+  "a11y": {
+    "skip_to_content": "Ir al contenido",
+    "main_navigation": "Navegación principal",
+    "queue_status": "{active} de {total} paquetes descargándose",
+    "reorder_keys": "Las flechas arriba y abajo mueven la entrada sin ratón"
+  },
+  "backup": {
+    "export": "Exportar",
+    "import": "Importar",
+    "export_success": "Archivo creado",
+    "invalid_file": "Este archivo no es un paquete de rDownloader",
+    "confirm_title": "¿Importar el paquete?",
+    "confirm": "Importar",
+    "confirm_description": "El archivo contiene {count} entradas. Las existentes con el mismo nombre no se modifican.",
+    "import_success": "Importación finalizada",
+    "import_summary": "{created} importadas, {skipped} omitidas"
+  },
+  "editing": "En edición"
+}

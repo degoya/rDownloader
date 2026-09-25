@@ -1,0 +1,23 @@
+{
+  "name": "Dropbox",
+  "description": "Descarga archivos y enlaces compartidos de Dropbox mediante la API oficial de Dropbox.",
+  "account": {
+    "secret_label": "Inicio de sesión de Dropbox",
+    "secret_hint": "Aquí no hay que pegar nada. Dropbox se autentica en Dropbox: introduce arriba tu clave de aplicación, inicia el acceso y acepta en la ventana del navegador.",
+    "username_label": "Clave de aplicación (ID de cliente OAuth)",
+    "username_hint": "Dropbox necesita una aplicación propia: este proyecto no incluye ninguna, para que cada instalación tenga su propio límite de peticiones. En la Dropbox App Console crea una aplicación con acceso delimitado a todo Dropbox, marca en «Permissions» account_info.read, files.metadata.read, files.content.read y sharing.read, añade en «OAuth 2» http://127.0.0.1:8710/api/v1/oauth/callback como URI de redirección y pega aquí la clave de aplicación. No hace falta ningún secreto de aplicación. En el campo del secreto no se pega nada: lo rellena el inicio de sesión."
+  },
+  "codes": {
+    "dropbox.account_missing": "Falta la cuenta de Dropbox",
+    "dropbox.api_refused": "Dropbox rechazó esta petición ({reason})",
+    "dropbox.download_not_permitted": "Dropbox no entrega este archivo: es un documento Paper o de Google, está restringido, o esta cuenta no puede descargarlo",
+    "dropbox.file_not_found": "Este archivo de Dropbox no existe, el enlace fue revocado, o esta cuenta no puede verlo",
+    "dropbox.invalid_response": "Respuesta de Dropbox no válida",
+    "dropbox.is_a_folder": "Esta dirección de Dropbox es una carpeta. Añádela de nuevo para que se liste la carpeta",
+    "dropbox.link_access_denied": "Dropbox denegó el acceso a este enlace compartido. Si está protegido con contraseña, añade ?link_password=… a la dirección; si no, se compartió con otra persona",
+    "dropbox.not_a_dropbox_link": "Esta no es una dirección de archivo de Dropbox",
+    "dropbox.rate_limited": "Dropbox está limitando esta aplicación. Sus otros enlaces esperan el tiempo que Dropbox pidió",
+    "dropbox.sign_in_required": "Hay que volver a iniciar sesión en esta cuenta de Dropbox",
+    "dropbox.unavailable": "Dropbox no está disponible temporalmente"
+  }
+}

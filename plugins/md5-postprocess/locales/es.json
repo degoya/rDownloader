@@ -1,0 +1,7 @@
+{
+  "name": "MD5 checksums",
+  "description": "Verifica los archivos .md5 asociados al paquete al que pertenecen.",
+  "codes": {
+    "md5_postprocess.mismatch": "Un archivo no coincidía con su suma MD5 registrada."
+  }
+}

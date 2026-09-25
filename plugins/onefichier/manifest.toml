@@ -1,0 +1,107 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000006"
+name = "1fichier"
+# 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
+# the installed package (`sync_bundled` only installs newer ones) and never picks the free
+# flow up. Pinned jobs are unaffected: the older version stays installed.
+version = "0.7.5"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# IMPL-VERIFY (JD OneFichierCom.getContentURL(), rev 53205 lines 269-284): the account-less
+# website flow must fetch the file page on the *same* domain the link carried -- JD's own comment
+# warns that normalizing an alias such as alterupload.com to 1fichier.com turns files restricted
+# to that alias offline. Every alias therefore needs to be requestable, and each gets a wildcard
+# for the CDN host the final download URL is served from. api.1fichier.com stays for the
+# API-key path. This list is the single authority: the native build reads it from here too.
+match_domains = [
+  "1fichier.com",
+  "www.1fichier.com",
+  "alterupload.com",
+  "www.alterupload.com",
+  "cjoint.net",
+  "www.cjoint.net",
+  "desfichiers.com",
+  "www.desfichiers.com",
+  "megadl.fr",
+  "www.megadl.fr",
+  "mesfichiers.org",
+  "www.mesfichiers.org",
+  "dl4free.com",
+  "www.dl4free.com",
+  "tenvoi.com",
+  "www.tenvoi.com",
+  "piecejointe.net",
+  "www.piecejointe.net",
+  "pjointe.com",
+  "www.pjointe.com",
+]
+download_domains = [
+  "1fichier.com", "*.1fichier.com",
+  "alterupload.com", "*.alterupload.com",
+  "cjoint.net", "*.cjoint.net",
+  "desfichiers.com", "*.desfichiers.com",
+  "megadl.fr", "*.megadl.fr",
+  "mesfichiers.org", "*.mesfichiers.org",
+  "dl4free.com", "*.dl4free.com",
+  "tenvoi.com", "*.tenvoi.com",
+  "piecejointe.net", "*.piecejointe.net",
+  "pjointe.com", "*.pjointe.com",
+]
+max_concurrent_downloads = 5
+# Links without an account are served by the free website flow (file page -> download form ->
+# download button's link).
+requires_account = false
+
+[capabilities]
+secrets = ["onefichier_api_key"]
+
+[capabilities.net_http]
+domains = [
+  "api.1fichier.com",
+  "1fichier.com", "*.1fichier.com",
+  "alterupload.com", "*.alterupload.com",
+  "cjoint.net", "*.cjoint.net",
+  "desfichiers.com", "*.desfichiers.com",
+  "megadl.fr", "*.megadl.fr",
+  "mesfichiers.org", "*.mesfichiers.org",
+  "dl4free.com", "*.dl4free.com",
+  "tenvoi.com", "*.tenvoi.com",
+  "piecejointe.net", "*.piecejointe.net",
+  "pjointe.com", "*.pjointe.com",
+]
+
+[metadata]
+description = "Resolves 1fichier links with an API key."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "1fichier"
+kind = "hoster"
+credentials = "api_key"
+username_required = false
+secret_reference = "onefichier_api_key"
+secret_domains = ["api.1fichier.com"]
+host_aliases = [
+  ["alterupload.com", "1fichier.com"],
+  ["cjoint.net", "1fichier.com"],
+  ["desfichiers.com", "1fichier.com"],
+  ["megadl.fr", "1fichier.com"],
+  ["mesfichiers.org", "1fichier.com"],
+  ["dl4free.com", "1fichier.com"],
+  ["tenvoi.com", "1fichier.com"],
+  ["piecejointe.net", "1fichier.com"],
+  ["pjointe.com", "1fichier.com"],
+]
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# The account-less flow is normally captcha-free and needs no countdown, but the hoster can ask
+# for one; this budget is spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

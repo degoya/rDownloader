@@ -1,0 +1,38 @@
+[package]
+name = "rd-plugin-filejoker"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# FileJoker has no documented JSON API (see src/native/api.rs's module doc): every flow is HTML
+# page scraping over the cookie-backed premium web form, so, unlike every other plugin in this
+# batch, `serde`/`serde_json` would be unused dead weight here and are deliberately left out.
+[dependencies]
+url.workspace = true
+wit-bindgen.workspace = true
+plugin-common = { path = "../common" }
+plugin-guest = { path = "../guest" }
+xfs-common = { path = "../xfs-common" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async-trait.workspace = true
+rd-core = { path = "../../crates/rd-core" }
+rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+uuid.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:filejoker"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "resolver-plugin"
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

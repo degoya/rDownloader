@@ -1,0 +1,12 @@
+{
+  "name": "Premiumize-Ordner",
+  "description": "Listet die Dateien hinter einer Premiumize.me-Cloud-Ordner- oder -Objektadresse auf.",
+  "codes": {
+    "premiumize_crawler.api_key_required": "Premiumize hat dieses Konto für diesen Ordner nicht akzeptiert",
+    "premiumize_crawler.folder_empty": "Dieser Premiumize-Ordner enthält keine Dateien",
+    "premiumize_crawler.folder_unreachable": "Dieser Premiumize-Ordner konnte nicht gelesen werden",
+    "premiumize_crawler.invalid_response": "Ungültige Antwort von Premiumize",
+    "premiumize_crawler.not_a_folder": "Dies ist keine Premiumize-Ordner- oder -Objektadresse",
+    "premiumize_crawler.rate_limited": "Premiumize drosselt dieses Konto gerade"
+  }
+}

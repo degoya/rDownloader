@@ -1,0 +1,10 @@
+{
+  "transfer": {
+    "id": 770001,
+    "name": "Example.Release",
+    "status": "CANCELLED",
+    "percent_done": 0,
+    "file_id": null
+  },
+  "status": "OK"
+}

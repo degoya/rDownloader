@@ -1,0 +1,13 @@
+[
+  {"format_id":"399","ext":"mp4","vcodec":"av01.0.08M.08","acodec":"none","width":1920,"height":1080,"fps":30,"dynamic_range":"SDR","vbr":2500.5,"tbr":2500.5,"filesize":52428800,"protocol":"https","format_note":"1080p"},
+  {"format_id":"699","ext":"mp4","vcodec":"av01.0.08M.10","acodec":"none","width":1920,"height":1080,"fps":60,"dynamic_range":"HDR10","vbr":4100.0,"tbr":4100.0,"filesize":86000000,"protocol":"https","format_note":"1080p60 HDR"},
+  {"format_id":"137","ext":"mp4","vcodec":"avc1.640028","acodec":"none","width":1920,"height":1080,"fps":30,"dynamic_range":"SDR","vbr":4400.0,"tbr":4400.0,"filesize":92000000,"protocol":"https","format_note":"1080p"},
+  {"format_id":"248","ext":"webm","vcodec":"vp09.00.40.08","acodec":"none","width":1920,"height":1080,"fps":30,"dynamic_range":"SDR","vbr":3300.0,"tbr":3300.0,"filesize":70000000,"protocol":"https","format_note":"1080p"},
+  {"format_id":"136","ext":"mp4","vcodec":"avc1.4d401f","acodec":"none","width":1280,"height":720,"fps":30,"dynamic_range":"SDR","vbr":2200.0,"tbr":2200.0,"filesize":46000000,"protocol":"https","format_note":"720p"},
+  {"format_id":"247","ext":"webm","vcodec":"vp09.00.31.08","acodec":"none","width":1280,"height":720,"fps":30,"dynamic_range":"SDR","vbr":1700.0,"tbr":1700.0,"filesize":36000000,"protocol":"https","format_note":"720p"},
+  {"format_id":"134","ext":"mp4","vcodec":"avc1.4d401e","acodec":"none","width":640,"height":360,"fps":30,"dynamic_range":"SDR","vbr":600.0,"tbr":600.0,"filesize":13000000,"protocol":"https","format_note":"360p"},
+  {"format_id":"18","ext":"mp4","vcodec":"avc1.42001E","acodec":"mp4a.40.2","width":640,"height":360,"fps":30,"dynamic_range":"SDR","tbr":700.0,"abr":96.0,"filesize":15000000,"protocol":"https","format_note":"360p"},
+  {"format_id":"251","ext":"webm","vcodec":"none","acodec":"opus","abr":128.0,"tbr":128.0,"asr":48000,"audio_channels":2,"filesize":2700000,"protocol":"https","format_note":"medium"},
+  {"format_id":"140","ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","abr":128.0,"tbr":128.0,"asr":44100,"audio_channels":2,"filesize":2800000,"protocol":"https","format_note":"medium"},
+  {"format_id":"sb0","ext":"mhtml","vcodec":"none","acodec":"none","width":320,"height":180,"protocol":"mhtml","format_note":"storyboard"}
+]

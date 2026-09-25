@@ -1,0 +1,14 @@
+{
+  "name": "Dossiers MediaFire",
+  "description": "Liste les fichiers derrière un lien de dossier public MediaFire ou une liste de clés de fichiers.",
+  "codes": {
+    "mediafire_crawler.api_error": "API MediaFire : {message}",
+    "mediafire_crawler.folder_empty": "Ce dossier MediaFire ne contient aucun fichier téléchargeable",
+    "mediafire_crawler.folder_private": "Ce dossier MediaFire est privé et nécessite le compte du propriétaire",
+    "mediafire_crawler.folder_unreachable": "Ce dossier MediaFire n'a pas pu être lu",
+    "mediafire_crawler.http_error": "Statut HTTP MediaFire {status}",
+    "mediafire_crawler.invalid_response": "Réponse MediaFire invalide",
+    "mediafire_crawler.not_a_folder": "Ceci n'est pas une adresse de dossier MediaFire",
+    "mediafire_crawler.rate_limited": "MediaFire limite les appels à l'API depuis cette adresse"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "AllDebrid",
+  "account": {
+    "secret_label": "Clave API (alldebrid.com/apikeys)",
+    "secret_hint": "Introduce tu clave API de alldebrid.com/apikeys como secreto."
+  },
+  "codes": {
+    "alldebrid.account_missing": "Falta la cuenta de AllDebrid",
+    "alldebrid.api_error": "API de AllDebrid ({api_code}): {message}",
+    "alldebrid.api_key_missing": "Falta la clave API de AllDebrid",
+    "alldebrid.auth_invalid": "La clave API de AllDebrid no es válida o la cuenta está baneada",
+    "alldebrid.host_unsupported": "AllDebrid no admite actualmente este host",
+    "alldebrid.http_error": "Estado HTTP {status} de AllDebrid",
+    "alldebrid.invalid_response": "Respuesta de AllDebrid no válida",
+    "alldebrid.invalid_url": "URL de proveedor no válida: {error}",
+    "alldebrid.link_delayed": "AllDebrid está preparando este archivo en sus servidores",
+    "alldebrid.link_down": "El archivo de AllDebrid no está disponible",
+    "alldebrid.no_download_url": "AllDebrid no devolvió una URL de descarga",
+    "alldebrid.password_protected": "El enlace de AllDebrid está protegido con contraseña",
+    "alldebrid.premium_required": "Se requiere una cuenta premium de AllDebrid",
+    "alldebrid.rate_limited": "Se activó el límite de solicitudes de la API de AllDebrid",
+    "alldebrid.server_error": "Error del servidor de AllDebrid",
+    "alldebrid.temporarily_unavailable": "AllDebrid no está disponible temporalmente"
+  }
+}

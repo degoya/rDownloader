@@ -1,0 +1,55 @@
+{
+  "card": {
+    "eyebrow": "Unbeaufsichtigter Betrieb",
+    "title": "Quiet Hours & Abschluss",
+    "description": "Ressourcenintensive Arbeit verschieben, nach dem Leerlaufen der Queue etwas ausführen und im Akku- oder getakteten Betrieb anhalten."
+  },
+  "quiet": {
+    "label": "Quiet Hours",
+    "description": "Verschobene Arbeit wartet in diesen Fenstern. Downloads selbst laufen weiter.",
+    "from": "Von",
+    "to": "Bis",
+    "add": "Fenster hinzufügen",
+    "defer_postprocess": "Reparatur, Entpacken und Uploads verschieben",
+    "defer_notifications": "Benachrichtigungen bis zum Fensterende sammeln"
+  },
+  "action": {
+    "none": "Nichts tun",
+    "script": "Skript ausführen",
+    "standby": "Standby",
+    "shutdown": "Herunterfahren"
+  },
+  "completion": {
+    "label": "Wenn die Queue leer ist",
+    "description": "Läuft einmal je abgeschlossenem Arbeitszyklus, nachdem auch das Post-Processing fertig ist.",
+    "script_label": "Skript",
+    "script_description": "Eine Datei im Post-Processing-Skriptverzeichnis; dieselbe Sandbox und dasselbe Timeout gelten.",
+    "countdown_label": "Countdown",
+    "countdown_description": "Zeit zum Abbrechen, bevor die Aktion läuft (10–3600 s).",
+    "approval_label": "Power-Aktionen auf diesem Rechner erlauben",
+    "approval_description": "Standby und Herunterfahren laufen erst, wenn das hier eingeschaltet ist.",
+    "approval_missing": "Ohne diese Freigabe ist die Aktion konfiguriert, läuft aber nie."
+  },
+  "context": {
+    "battery_label": "Bei Akkubetrieb anhalten",
+    "metered_label": "In getakteten Netzen anhalten",
+    "unavailable": "Diese Plattform kann es nicht melden, die Regel bleibt aus.",
+    "prevent_standby_label": "Rechner wach halten",
+    "prevent_standby_description": "Solange ein Download oder das Entpacken wirklich läuft. Eine Warteschlange, die nur wartet, hält den Rechner nicht offen.",
+    "prevent_display_label": "Bildschirm ebenfalls wach halten",
+    "prevent_display_description": "Für einen Rechner, dem jemand zusieht. Ein Download selbst braucht keinen erleuchteten Bildschirm.",
+    "inhibiting": "Der Rechner wird wach gehalten."
+  },
+  "pending": {
+    "standby": "Der Rechner geht in Standby",
+    "shutdown": "Der Rechner fährt herunter",
+    "none": "Abschlussaktion steht an",
+    "script": "Das Abschlussskript läuft",
+    "countdown": "In {seconds} s — abbrechen, um den Rechner anzulassen.",
+    "cancel": "Abbrechen"
+  },
+  "paused": {
+    "battery": "Die Queue ist angehalten: der Rechner läuft im Akkubetrieb.",
+    "metered": "Die Queue ist angehalten: die Verbindung meldet sich als getaktet."
+  }
+}

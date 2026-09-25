@@ -1,0 +1,31 @@
+{
+  "name": "Turbobit",
+  "description": "Löst Turbobit-Links als Gast über Captcha und Wartezeit der Seite auf, oder mit einem Konto.",
+  "account": {
+    "secret_label": "Turbobit-Passwort",
+    "secret_hint": "Das Passwort des oben genannten Turbobit-Kontos. rDownloader meldet sich selbst an und hält die Sitzung; das Passwort erreicht ausschließlich app.turbobit.net. Ohne Konto werden Links als Gast geladen, mit Captcha und Wartezeit der Seite.",
+    "username_label": "Turbobit-E-Mail-Adresse",
+    "username_hint": "Die E-Mail-Adresse, mit der sich das Turbobit-Konto anmeldet."
+  },
+  "codes": {
+    "turbobit.account_banned": "Turbobit meldet dieses Konto als gesperrt",
+    "turbobit.account_missing": "Turbobit-Konto oder Passwort fehlt",
+    "turbobit.api_error": "Turbobit hat die Anfrage abgelehnt ({code})",
+    "turbobit.captcha_rejected": "Turbobit hat die Captcha-Antwort abgelehnt",
+    "turbobit.file_unavailable": "Die Turbobit-Datei ist nicht verfügbar",
+    "turbobit.folder_not_file": "Dieser Turbobit-Link ist ein Ordner; füge stattdessen die enthaltenen Dateien hinzu",
+    "turbobit.free_limit_reached": "Turbobit-Limit für Free-Downloads für diese IP-Adresse erreicht; ein weiterer Download ist in {wait_seconds}s möglich",
+    "turbobit.http_error": "Turbobit-HTTP-Status {status}",
+    "turbobit.invalid_link": "Ungültiger Turbobit-Link",
+    "turbobit.invalid_response": "Ungültige Turbobit-Antwort ({field})",
+    "turbobit.invalid_url": "Ungültige Provider-URL: {error}",
+    "turbobit.login_captcha": "Turbobit hat die Captcha-Antwort der Anmeldung nicht akzeptiert; sie wird später wiederholt",
+    "turbobit.login_failed": "Turbobit hat E-Mail-Adresse oder Passwort des Kontos abgelehnt",
+    "turbobit.no_direct_link": "Turbobit hat keinen Downloadlink ausgegeben",
+    "turbobit.not_signed_in": "Turbobit hat die Anfrage als nicht angemeldet abgewiesen",
+    "turbobit.premium_limit_reached": "Turbobit hat dem Premium-Konto keinen Downloadlink ausgegeben; das Tageslimit ist möglicherweise erreicht",
+    "turbobit.premium_only": "Turbobit bietet diese Datei nur Premium-Konten an",
+    "turbobit.rate_limited": "Turbobit-Ratenlimit erreicht; die Anfrage wird später wiederholt",
+    "turbobit.unsupported_link": "Kein unterstützter Turbobit-Link"
+  }
+}

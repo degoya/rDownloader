@@ -1,0 +1,12 @@
+{
+  "name": "Índice de directorio",
+  "description": "Enumera los archivos que hay detrás de un listado de directorio abierto de Apache, nginx, Caddy o lighttpd.",
+  "codes": {
+    "directory_index_crawler.directory_empty": "Este listado de directorio no contiene archivos",
+    "directory_index_crawler.directory_unreachable": "No se pudo leer este listado de directorio",
+    "directory_index_crawler.not_a_directory": "Esta dirección no apunta a un listado de directorio",
+    "directory_index_crawler.not_a_listing": "Esta página no es un listado de directorio abierto",
+    "directory_index_crawler.server_busy": "El servidor no está respondiendo a este listado en este momento",
+    "directory_index_crawler.sign_in_required": "Este directorio no es abierto: el servidor pidió iniciar sesión"
+  }
+}

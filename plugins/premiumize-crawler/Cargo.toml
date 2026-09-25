@@ -1,0 +1,25 @@
+[package]
+name = "rd-plugin-premiumize-crawler"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+premiumize-common = { path = "../premiumize-common" }
+serde.workspace = true
+serde_json.workspace = true
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:premiumize-crawler"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "crawler-plugin"
+
+[lints]
+workspace = true

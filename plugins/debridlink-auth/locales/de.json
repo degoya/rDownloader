@@ -1,0 +1,10 @@
+{
+  "name": "Debrid-Link sign-in",
+  "description": "Meldet ein Debrid-Link-Konto beim Anbieter an, ohne dass hier ein API-Schlüssel eingegeben wird.",
+  "codes": {
+    "debridlink_auth.consent_denied": "Der Anbieter hat die Anmeldung für dieses Konto abgelehnt.",
+    "debridlink_auth.sign_in_refused": "Der Anbieter hat die Anmeldung abgelehnt. Starte sie erneut.",
+    "debridlink_auth.bad_reply": "Der Anbieter hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "debridlink_auth.flow_expired": "Der Anmeldecode ist abgelaufen, bevor er bestätigt wurde."
+  }
+}

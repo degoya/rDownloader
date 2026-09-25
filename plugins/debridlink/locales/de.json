@@ -1,0 +1,24 @@
+{
+  "name": "Debrid-Link",
+  "account": {
+    "secret_label": "API-Key (debrid-link.com/webapp/apikey)",
+    "secret_hint": "Gib deinen API-Key von debrid-link.com/webapp/apikey als Secret ein."
+  },
+  "codes": {
+    "debridlink.account_missing": "Debrid-Link-Account fehlt",
+    "debridlink.api_error": "Debrid-Link-API-Fehler: {api_code}",
+    "debridlink.api_key_missing": "Debrid-Link-API-Key fehlt",
+    "debridlink.auth_invalid": "Debrid-Link-API-Key ist ungültig oder abgelaufen",
+    "debridlink.file_offline": "Debrid-Link-Datei ist nicht verfügbar",
+    "debridlink.flood": "Debrid-Link-API-Ratenlimit wurde ausgelöst",
+    "debridlink.host_unsupported": "Debrid-Link kann für diesen Hoster derzeit keinen Link erzeugen",
+    "debridlink.http_error": "Debrid-Link-HTTP-Status {status}",
+    "debridlink.invalid_response": "Ungültige Debrid-Link-Antwort",
+    "debridlink.invalid_url": "Ungültige Provider-URL: {error}",
+    "debridlink.limit_reached": "Debrid-Link-Tageslimit wurde erreicht",
+    "debridlink.no_download_url": "Debrid-Link hat keine Download-URL zurückgegeben",
+    "debridlink.rate_limited": "Debrid-Link-API-Ratenlimit wurde ausgelöst",
+    "debridlink.server_busy": "Debrid-Link-Server ist vorübergehend ausgelastet",
+    "debridlink.server_error": "Debrid-Link-Serverfehler"
+  }
+}

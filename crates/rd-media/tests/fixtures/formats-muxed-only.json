@@ -1,0 +1,4 @@
+[
+  {"format_id":"hd","ext":"mp4","vcodec":"avc1.640028","acodec":"mp4a.40.2","width":1920,"height":1080,"fps":25,"dynamic_range":"SDR","tbr":3000.0,"abr":128.0,"filesize":60000000,"protocol":"https"},
+  {"format_id":"sd","ext":"mp4","vcodec":"avc1.4d401e","acodec":"mp4a.40.2","width":854,"height":480,"fps":25,"dynamic_range":"SDR","tbr":1100.0,"abr":96.0,"filesize":22000000,"protocol":"https"}
+]

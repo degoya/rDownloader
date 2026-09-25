@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "rDownloader",
+    "loading": "Dienststatus wird gelesen",
+    "title_active": "{count} aktiv"
+  },
+  "actions": {
+    "confirm": "Bestätigen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "remove": "Entfernen",
+    "rename": "Umbenennen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "refresh": "Aktualisieren",
+    "add": "Hinzufügen",
+    "test": "Testen",
+    "start": "Starten",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "retry": "Erneut versuchen",
+    "extract": "Entpacken",
+    "select_all": "Alle auswählen",
+    "clear_selection": "Auswahl aufheben",
+    "copy": "Kopieren",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen",
+    "back": "Zurück",
+    "reveal": "In der Liste zeigen"
+  },
+  "states": {
+    "queued": "Warteschlange",
+    "resolving": "Auflösen",
+    "downloading": "Lädt",
+    "paused": "Pausiert",
+    "skipped": "Spiegel",
+    "retry_wait": "Wiederholung",
+    "verifying": "Prüfen",
+    "repairing": "Reparieren",
+    "extracting": "Entpacken",
+    "blocked": "Blockiert",
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen",
+    "completed": "Fertig",
+    "seeding": "Seedet",
+    "skipped_postponed": "Zurückgestellt"
+  },
+  "priority": {
+    "high": "Hoch",
+    "normal": "Normal",
+    "low": "Niedrig"
+  },
+  "units": {
+    "file": "keine Dateien | {count} Datei | {count} Dateien",
+    "package": "keine Pakete | {count} Paket | {count} Pakete",
+    "link": "keine Links | {count} Link | {count} Links",
+    "entry": "keine Einträge | {count} Eintrag | {count} Einträge",
+    "selected": "ausgewählt",
+    "per_second": "/s"
+  },
+  "values": {
+    "unknown": "unbekannt",
+    "none": "keine",
+    "default": "Standard",
+    "yes": "Ja",
+    "no": "Nein",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert"
+  },
+  "errors": {
+    "request_failed": "Die Anfrage konnte nicht verarbeitet werden.",
+    "unknown": "Unbekannter Fehler"
+  },
+  "data": {
+    "loading": "Wird geladen",
+    "load_failed": "Diese Daten konnten nicht geladen werden."
+  },
+  "preferences": {
+    "language": "Sprache",
+    "theme": "Darstellung",
+    "theme_system": "System",
+    "theme_light": "Hell",
+    "theme_dark": "Dunkel",
+    "language_and_theme": "Sprache und Darstellung"
+  },
+  "locales": {
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español"
+  },
+  "footer": {
+    "made_with": "Made with",
+    "by": "in Germany by {author}"
+  },
+  "chart": {
+    "title": "Durchsatz · letzte 2 Minuten",
+    "subtitle": "Gesamtrate aller laufenden Dateien",
+    "peak": "Spitze",
+    "window_start": "vor 2 Min.",
+    "window_end": "jetzt",
+    "description": "Downloadgeschwindigkeit der letzten zwei Minuten. Aktuell {current}, Spitze {peak}."
+  },
+  "shortcuts": {
+    "title": "Tastenkürzel",
+    "groups": {
+      "navigation": "Navigation",
+      "actions": "Aktionen"
+    },
+    "go_downloads": "Zu Downloads wechseln",
+    "go_linkgrabber": "Zu LinkGrabber wechseln",
+    "go_streams": "Zu Streams wechseln",
+    "go_subscriptions": "Zu Abonnements",
+    "go_remote_jobs": "Zu entfernten Aufträgen",
+    "go_automation": "Zu Automation",
+    "go_settings": "Zu Einstellungen wechseln",
+    "import_nzb": "NZB/Torrent importieren",
+    "toggle_transfers": "Alle Downloads starten oder pausieren",
+    "show_help": "Tastenkürzel anzeigen",
+    "toast": {
+      "paused": "Keine Übertragungen wurden pausiert. | {count} Übertragung wurde pausiert. | {count} Übertragungen wurden pausiert.",
+      "resumed": "Keine Übertragungen wurden gestartet. | {count} Übertragung wurde gestartet oder fortgesetzt. | {count} Übertragungen wurden gestartet oder fortgesetzt.",
+      "nothing": "Nichts zu pausieren oder fortzusetzen."
+    },
+    "toggle_sidebar": "Seitenleiste ein- oder ausklappen",
+    "go_stats": "Zu Statistik",
+    "go_logs": "Zum Protokoll",
+    "go_audit": "Zum Audit-Protokoll"
+  },
+  "a11y": {
+    "skip_to_content": "Zum Inhalt springen",
+    "main_navigation": "Hauptnavigation",
+    "queue_status": "{active} von {total} Paketen werden geladen",
+    "reorder_keys": "Pfeiltasten hoch und runter verschieben den Eintrag ohne Maus"
+  },
+  "backup": {
+    "export": "Exportieren",
+    "import": "Importieren",
+    "export_success": "Datei erstellt",
+    "invalid_file": "Diese Datei ist kein rDownloader-Bundle",
+    "confirm_title": "Bundle importieren?",
+    "confirm": "Importieren",
+    "confirm_description": "Die Datei enthält {count} Einträge. Vorhandene gleichen Namens bleiben unverändert.",
+    "import_success": "Import abgeschlossen",
+    "import_summary": "{created} übernommen, {skipped} übersprungen"
+  },
+  "editing": "Wird bearbeitet"
+}

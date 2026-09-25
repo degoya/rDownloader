@@ -1,0 +1,43 @@
+{
+  "eyebrow": "Adressgrenzen",
+  "title": "Neu verbinden",
+  "description": "Hoster, die freie Downloads begrenzen, tun das pro Adresse. Wenn Downloads an einer solchen Grenze hängen, kann ein selbst geschriebenes Skript den Router um eine neue bitten.",
+  "enabled_label": "Neu verbinden, wenn Downloads hängen",
+  "enabled_description": "Nur solange freie Downloads an einer Adressgrenze warten, nie von sich aus.",
+  "script_label": "Skript",
+  "script_description": "Eine Datei im Skriptverzeichnis der Nachbearbeitung. Sie läuft in derselben Sandbox.",
+  "interval_label": "Abstand zwischen Versuchen",
+  "interval_description": "In Schleife neu zu verbinden bringt nichts, wenn ein Hoster schlicht ablehnt.",
+  "timeout_label": "Aufgeben nach",
+  "timeout_description": "Umfasst das Skript und das Warten auf die neue Adresse.",
+  "checks_label": "Adressabfragen",
+  "checks_description": "Eine Adresse pro Zeile, der Reihe nach gefragt. Leer lassen für die eingebaute Liste. Diese Anfragen verlassen den Rechner.",
+  "checks_placeholder": "https://api.ipify.org",
+  "abort_label": "Laufende Übertragungen unterbrechen",
+  "abort_description": "Aus wartet ein Versuch, bis nichts mehr überträgt. An werden Übertragungen davor pausiert und danach fortgesetzt.",
+  "windows_label": "Erlaubte Zeiten",
+  "windows_description": "Leer lassen, um jede Zeit zu erlauben.",
+  "window_add": "Fenster hinzufügen",
+  "window_remove": "Fenster entfernen",
+  "trigger": "Jetzt neu verbinden",
+  "failed": "Neu verbinden fehlgeschlagen",
+  "never_run": "Noch nicht ausgeführt.",
+  "last_success": "Zuletzt wurde die Adresse {address} bezogen.",
+  "last_failure": "Zuletzt fehlgeschlagen: {reason}",
+  "blocked_hosts": "Hoster, die an einer Adressgrenze warten",
+  "phase": {
+    "idle": "Bereit",
+    "draining": "Übertragungen auslaufen lassen",
+    "running": "Skript läuft",
+    "waiting_for_address": "Warte auf die neue Adresse"
+  },
+  "days": {
+    "mon": "Mo",
+    "tue": "Di",
+    "wed": "Mi",
+    "thu": "Do",
+    "fri": "Fr",
+    "sat": "Sa",
+    "sun": "So"
+  }
+}

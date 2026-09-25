@@ -1,0 +1,144 @@
+{
+  "title": "Abonnements",
+  "kinds": {
+    "media": "Chaîne ou playlist",
+    "gallery": "Profil de galerie",
+    "feed": "Flux ou podcast",
+    "indexer": "Indexeur",
+    "site_rule": "Page de releases",
+    "script": "Script personnel"
+  },
+  "modes": {
+    "review": "Vérifier d'abord",
+    "auto_queue": "Mettre en file automatiquement"
+  },
+  "states": {
+    "pending": "En attente de vérification",
+    "queued": "En file",
+    "skipped": "Ignoré",
+    "dismissed": "Écarté"
+  },
+  "backlog": {
+    "from_now": "Seulement les nouveautés à partir de maintenant",
+    "review_all": "Tout collecter pour vérification"
+  },
+  "reasons": {
+    "title_not_included": "Le titre ne correspond pas à la liste d'inclusion",
+    "title_excluded": "Le titre correspond à la liste d'exclusion",
+    "too_short": "Plus court que la durée minimale",
+    "too_long": "Plus long que la durée maximale",
+    "too_old": "Publié avant la date limite",
+    "language_not_wanted": "La langue ne fait pas partie de celles souhaitées",
+    "resolution_too_low": "En dessous de la résolution minimale",
+    "backlog": "Existait déjà lors de l'activation de l'abonnement"
+  },
+  "form": {
+    "add": "Ajouter un abonnement",
+    "edit": "Modifier l'abonnement",
+    "name": "Nom",
+    "url": "Adresse",
+    "kind": "Type",
+    "mode": "Nouveaux éléments",
+    "mode_hint": "Vérifier d'abord est plus sûr ; la mise en file automatique ne s'annule pas élément par élément.",
+    "category": "Catégorie",
+    "default_category": "Automatique",
+    "interval": "Vérifier toutes les (minutes)",
+    "backlog": "À la première vérification",
+    "backlog_hint": "Une chaîne avec des années de mises en ligne ne doit pas rejoindre la file d'un coup. Avec la première option, une première interrogation qui ne trouve que des entrées plus anciennes ne signale rien.",
+    "title_contains": "Le titre doit contenir",
+    "title_excludes": "Le titre ne doit pas contenir",
+    "patterns_hint": "Séparé par des virgules. Un motif entre barres obliques — /^S0\\d/ — est une expression régulière ; le reste est comparé comme du texte.",
+    "api_key": "Clé API",
+    "api_key_hint": "Stockée chiffrée et jamais réaffichée.",
+    "api_key_keep": "Laisser vide pour conserver la clé enregistrée",
+    "add_mapping": "Ajouter une correspondance de catégorie",
+    "source_category": "ID de catégorie de l'indexeur",
+    "caps_summary": "{count} catégories, prend en charge : {types}",
+    "regex_editor": "Modifier comme expression régulière",
+    "source_categories": "Catégories à récupérer",
+    "source_categories_description": "Seules ces catégories sont demandées à l'indexeur. Sans sélection, tout est récupéré puis filtré.",
+    "source_categories_all": "Toutes les catégories",
+    "every_release": "Conserver chaque version",
+    "every_release_description": "Sans cette option, un épisode est considéré comme obtenu dès qu'il a été mis en file une fois, quels que soient le release, la qualité et la langue. Avec elle, chaque version supplémentaire entre de nouveau dans le LinkGrabber.",
+    "site_rule_description": "L'adresse est une page de liste — une page de série, de catégorie ou de tag. Ce qui est suivi, ce sont les pages de release qu'une règle y lit ; les miroirs arrivent dans le LinkGrabber en un seul groupe.",
+    "view": "Vue dans le LinkGrabber",
+    "view_description": "Comment les résultats de cet abonnement sont présentés pour décision.",
+    "views": {
+      "list": "Liste",
+      "cards": "Cartes"
+    },
+    "autoplay": "Défilement automatique",
+    "autoplay_description": "Les cartes défilent toutes les six secondes ; le pointeur, le clavier et les détails ouverts les mettent en pause.",
+    "card_ratio": "Format des cartes",
+    "card_ratio_description": "La forme de l'image de chaque carte : carrée pour les pochettes, large pour les bannières.",
+    "card_ratio_default": "{ratio} (par défaut)",
+    "script": "Script",
+    "script_description": "Un fichier du dossier des scripts du service. Chaque ligne qu'il affiche et qui est un lien est reprise ; un lien déjà vu ne l'est pas une seconde fois. Seul l'administrateur peut configurer un abonnement de script.",
+    "schedule": "Planification (cron)",
+    "schedule_description": "Cinq champs dans l'heure locale du service, p. ex. 0 6 * * * pour 06:00 chaque jour. Laissez vide pour utiliser l'intervalle ; avec une planification, l'intervalle ne fixe que le délai avant de réessayer une exécution échouée."
+  },
+  "list": {
+    "title": "Abonnements",
+    "empty": "Aucun abonnement pour l'instant.",
+    "last_run": "Dernière vérification {at}",
+    "copy_suffix": "copie"
+  },
+  "items": {
+    "title": "Éléments",
+    "empty": "Rien trouvé pour l'instant.",
+    "no_details": "L'indexeur n'a rien dit de plus sur ce résultat.",
+    "imdb": "Ouvrir sur IMDb",
+    "password_protected": "L'archive est protégée par un mot de passe",
+    "attributes": {
+      "episode": "Épisode",
+      "year": "Année",
+      "imdbscore": "IMDb",
+      "resolution": "Résolution",
+      "video": "Vidéo",
+      "audio": "Audio",
+      "size": "Taille",
+      "grabs": "Téléchargements",
+      "seeders": "Sources",
+      "genre": "Genre",
+      "language": "Langue"
+    },
+    "filter": "Afficher",
+    "filter_all": "Tous",
+    "page_limit": "Cette vérification a atteint la limite de {limit} résultats sur cinq pages de l’indexeur. Le filtre de titre s’applique ensuite ; des résultats encore plus anciens peuvent donc manquer. Des catégories plus précises ciblent mieux le résultat.",
+    "show_cover": "Afficher la jaquette en grand",
+    "hide_cover": "Fermer la jaquette agrandie"
+  },
+  "runs": {
+    "title": "Vérifications récentes",
+    "counts": "{found} trouvés, {accepted} acceptés, {skipped} ignorés"
+  },
+  "actions": {
+    "poll": "Vérifier maintenant",
+    "details": "Détails",
+    "queue": "Mettre en file",
+    "dismiss": "Écarter",
+    "test": "Tester et charger les catégories",
+    "hide_details": "Masquer les détails",
+    "enable": "Activer l'abonnement",
+    "disable": "Désactiver l'abonnement",
+    "duplicate": "Dupliquer",
+    "menu": "Actions de l'abonnement"
+  },
+  "remove": {
+    "title": "Supprimer l'abonnement ?",
+    "description": "« {name} » est supprimé avec ses filtres, son routage de catégories et l'historique de ce qu'il a déjà vu.",
+    "confirm": "Supprimer"
+  },
+  "history": {
+    "action": "Effacer l’historique terminé",
+    "title": "Effacer l’historique terminé de « {name} » ?",
+    "description": "{count} résultats terminés et {runs} journaux de vérification seront définitivement supprimés. Les résultats ouverts restent conservés. Les résultats supprimés peuvent réapparaître lors d’une vérification ultérieure.",
+    "done": "{deleted_items} résultats terminés et {deleted_runs} journaux de vérification supprimés."
+  },
+  "notices": {
+    "poll_started": "Vérification de « {name} » lancée. Le résultat apparaîtra ici dès qu’elle sera terminée.",
+    "poll_start_failed": "Impossible de lancer la vérification de « {name} » : {error}",
+    "poll_finished": "Vérification de « {name} » terminée : {found} trouvés, {accepted} acceptés, {skipped} ignorés.",
+    "poll_failed": "La vérification de « {name} » a échoué : {error}"
+  }
+}

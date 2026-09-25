@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>rDownloader</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; min-width: 360px; color: #0f172a; background: #f8fafc; }
+      @media (prefers-color-scheme: dark) { body { color: #e2e8f0; background: #0b1620; } input { background: #12222d; color: inherit; border-color: #334155; } }
+      label { display: block; margin: 12px 0 4px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; }
+      button { margin-top: 14px; margin-right: 8px; padding: 8px 14px; border: 0; border-radius: 4px; background: #14b8b0; color: #fff; font: inherit; cursor: pointer; }
+      button.secondary { background: #64748b; }
+      #status { margin-top: 12px; min-height: 1.2em; }
+      .ok { color: #0f938f; } .error { color: #cf3832; }
+      p.hint { color: #64748b; font-size: 12px; margin: 4px 0 0; }
+      label.check { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; }
+      label.check input { width: auto; }
+      #file-sites { list-style: none; padding: 0; margin: 8px 0 0; }
+      #file-sites li { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0; word-break: break-all; }
+      #file-sites li button { margin: 0; padding: 4px 10px; }
+    </style>
+  </head>
+  <body>
+    <h2 data-i18n="optionsTitle"></h2>
+    <label for="server" data-i18n="serverLabel"></label>
+    <input id="server" type="url" placeholder="http://127.0.0.1:8710" autocomplete="off" />
+    <p class="hint" data-i18n="serverHint"></p>
+    <label for="token" data-i18n="tokenLabel"></label>
+    <input id="token" type="password" autocomplete="off" />
+    <p class="hint" data-i18n="tokenHint"></p>
+    <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
+    <p class="hint" data-i18n="optionsInterceptHint"></p>
+    <h3 data-i18n="optionsFilesTitle"></h3>
+    <p class="hint" data-i18n="optionsFilesHint"></p>
+    <ul id="file-sites"></ul>
+    <p class="hint" id="file-sites-none" data-i18n="optionsFilesNone" hidden></p>
+    <button id="save" data-i18n="save"></button>
+    <button id="test" class="secondary" data-i18n="testConnection"></button>
+    <div id="status"></div>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

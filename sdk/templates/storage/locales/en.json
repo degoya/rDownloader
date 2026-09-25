@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Uploads finished packages to {{PLUGIN_NAME}}.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.upload_rejected": "The destination refused the upload."
+  }
+}

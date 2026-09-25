@@ -1,0 +1,60 @@
+{
+  "eyebrow": "Transferts",
+  "title": "Statistiques",
+  "description": "Ce que le service a transféré : par heure ou par jour, par type et par fournisseur. Les chiffres survivent aux redémarrages et sont agrégés puis supprimés après le délai configuré.",
+  "ranges": {
+    "label": "Période",
+    "day": "24 heures",
+    "week": "7 jours",
+    "month": "30 jours",
+    "year": "1 an"
+  },
+  "tiles": {
+    "completed": "Terminés",
+    "completed_hint": "transferts sur la période",
+    "failed": "Échoués",
+    "failed_hint": "définitifs ou bloqués",
+    "retries": "Nouvelles tentatives",
+    "retries_hint": "tentatives replanifiées",
+    "bytes": "Transféré",
+    "bytes_hint": "données sur la période",
+    "turnaround": "Délai de traitement",
+    "turnaround_hint": "moyenne de la création à la fin",
+    "all_time": "Depuis le début",
+    "all_time_hint": "{completed} transferts, jamais réduits",
+    "turnaround_under_second": "moins de 1 s"
+  },
+  "chart": {
+    "title": "Données transférées",
+    "subtitle_hour": "par heure",
+    "subtitle_day": "par jour",
+    "description": "Données transférées par tranche, au plus {peak}.",
+    "empty": "Rien n’a été transféré sur cette période."
+  },
+  "groups": {
+    "by_kind": "Par type",
+    "by_provider": "Par fournisseur",
+    "key": "Clé",
+    "completed": "Faits",
+    "failed": "Échoués",
+    "retries": "Retentés",
+    "bytes": "Données",
+    "direct": "sans compte"
+  },
+  "metrics": {
+    "eyebrow": "Prometheus",
+    "title": "Collecter les métriques",
+    "description": "Le service expose ses métriques d’exploitation au format texte Prometheus. Un jeton doté du domaine « Métriques » atteint cette seule route et rien d’autre.",
+    "endpoint": "Adresse",
+    "scope_hint": "Créez le jeton sous Paramètres → API et MCP avec le domaine « Métriques »."
+  },
+  "retention": {
+    "eyebrow": "Conservation",
+    "title": "Statistiques de transfert",
+    "description": "Les chiffres horaires sont additionnés en chiffres journaliers après le premier délai et supprimés après le second. Les totaux historiques derrière les métriques restent toujours.",
+    "hourly_label": "Conserver les chiffres horaires",
+    "hourly_description": "Jours avant que les chiffres horaires deviennent journaliers (1 jusqu’à la conservation).",
+    "retention_label": "Conservation",
+    "retention_description": "Jours de conservation des chiffres journaliers (7–3650)."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Carpetas de OneDrive",
+  "description": "Enumera los archivos que hay detrás de un enlace compartido de carpeta de OneDrive o SharePoint.",
+  "codes": {
+    "onedrive_crawler.access_denied": "Esta cuenta no puede acceder a esta carpeta de OneDrive. Puede que el enlace se compartiera con otra cuenta u otro inquilino",
+    "onedrive_crawler.folder_empty": "Esta carpeta de OneDrive no contiene archivos descargables",
+    "onedrive_crawler.folder_unreachable": "No se ha podido leer esta carpeta de OneDrive",
+    "onedrive_crawler.invalid_response": "Respuesta de OneDrive no válida",
+    "onedrive_crawler.not_a_folder": "Esta no es una dirección de carpeta de OneDrive o SharePoint",
+    "onedrive_crawler.rate_limited": "OneDrive está limitando la frecuencia de esta cuenta",
+    "onedrive_crawler.sign_in_required": "Microsoft no ha aceptado esta cuenta para esa carpeta"
+  }
+}

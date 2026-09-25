@@ -1,0 +1,16 @@
+[
+  {"format_id":"still","ext":"jpg","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"still-large","ext":"jpg","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"still-med-webp","ext":"webp","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"still-medium","ext":"jpg","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"thumb","ext":"png","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"thumb-med-webp","ext":"webp","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"thumb-medium","ext":"png","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"thumbrail","ext":"vtt","protocol":"https","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"stream-1094","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":270,"height":480,"fps":null,"tbr":1094.24,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"stream-2176","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":480,"height":852,"fps":null,"tbr":2176.12,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"stream-3401","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":720,"height":1280,"fps":null,"tbr":3401.296,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"mobile","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"tablet","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"},
+  {"format_id":"720p","ext":"mp4","protocol":"m3u8_native","vcodec":null,"acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":null,"abr":null,"language":null,"format_note":null,"dynamic_range":"SDR"}
+]

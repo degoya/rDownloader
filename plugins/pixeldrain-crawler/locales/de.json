@@ -1,0 +1,13 @@
+{
+  "name": "Pixeldrain-Listen",
+  "description": "Listet die Dateien hinter einer Pixeldrain-Listenadresse auf.",
+  "codes": {
+    "pixeldrain_crawler.account_required": "Pixeldrain gibt diese Liste nur an ein angemeldetes Konto heraus",
+    "pixeldrain_crawler.api_error": "Pixeldrain-API-Fehler {api_code}",
+    "pixeldrain_crawler.invalid_response": "Ungültige Pixeldrain-Antwort",
+    "pixeldrain_crawler.list_empty": "Diese Pixeldrain-Liste enthält keine Dateien",
+    "pixeldrain_crawler.list_not_found": "Diese Pixeldrain-Liste existiert nicht mehr",
+    "pixeldrain_crawler.rate_limited": "Das Anfragelimit von Pixeldrain für diese Verbindung ist erreicht. Es wird gewartet.",
+    "pixeldrain_crawler.server_error": "Pixeldrain hat nicht geantwortet: Die Liste konnte nicht gelesen werden"
+  }
+}

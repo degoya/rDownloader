@@ -1,0 +1,27 @@
+[package]
+name = "rd-plugin-mega-auth"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# The RSA private operation, and nothing else: every other stage of the sign-in happens on
+# the host, over a credential this plugin never sees (RD-120-20). What is decrypted here is
+# the session identifier MEGA encrypted to the account's own public key -- not a credential,
+# and already in the plugin's hands as ciphertext.
+num-bigint.workspace = true
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:mega-auth"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "auth-plugin"
+
+[lints]
+workspace = true

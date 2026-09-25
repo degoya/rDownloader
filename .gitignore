@@ -1,0 +1,32 @@
+/target/
+plugins/*/src/bindings.rs
+/.cache/
+/.env
+/.sqlx-tmp/
+/web/dist/
+*.tsbuildinfo
+node_modules/
+
+# The same two names again, without the trailing slash.
+#
+# A pattern ending in `/` matches a directory and nothing else, so in a feature worktree —
+# where `scripts/worktree.sh` links both of these into the main checkout — git sees a *symlink*
+# named `web/dist`, decides it is not covered, and a `git add -A` commits it. The result is a
+# link pointing at an absolute path on one machine, which then replaces the real directories
+# the next time somebody merges. That happened once; these two lines are why it cannot again.
+/web/dist
+/web/node_modules
+/data/
+/artifacts/
+*.part
+*.rdplug
+playwright-report/
+test-results/
+/dist/plugins/*.rdplug
+# The browser extension is built into /artifacts/browser-extensions, which the line above
+# already covers. `extension/dist/` was the output folder before that move and is no longer
+# written by `extension/build.mjs`; the ignore entry only kept a stale second copy of the
+# extension lying around for anyone loading it unpacked (RD-109-25). If one reappears, it is
+# meant to be seen, not hidden.
+/.claude/
+.vscode

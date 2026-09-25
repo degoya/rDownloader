@@ -1,0 +1,8 @@
+{
+  "name": "Connexion TorBox",
+  "description": "Vérifie une clé d’API TorBox auprès du compte et indique ce que vaut l’offre.",
+  "codes": {
+    "torbox_auth.key_invalid": "TorBox n’a pas accepté cette clé d’API. Copie-la à nouveau depuis tes paramètres TorBox.",
+    "torbox_auth.key_missing": "Ce compte TorBox n’a pas de clé d’API"
+  }
+}

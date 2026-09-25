@@ -1,0 +1,8 @@
+{
+  "name": "TorBox sign-in",
+  "description": "Checks a TorBox API key against the account and says what the plan is worth.",
+  "codes": {
+    "torbox_auth.key_invalid": "TorBox did not accept this API key. Copy it again from your TorBox settings.",
+    "torbox_auth.key_missing": "This TorBox account has no API key"
+  }
+}

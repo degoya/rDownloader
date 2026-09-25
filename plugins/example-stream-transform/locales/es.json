@@ -1,0 +1,7 @@
+{
+  "name": "Transformación de flujo de ejemplo",
+  "description": "Complemento de referencia que demuestra el contrato de transformación de flujo.",
+  "codes": {
+    "example_stream_transform.not_mine": "Esta dirección no pertenece al complemento de referencia de transformación de flujo."
+  }
+}

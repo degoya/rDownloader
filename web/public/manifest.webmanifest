@@ -1,0 +1,21 @@
+{
+  "name": "rDownloader",
+  "short_name": "rDownloader",
+  "description": "Local-first, cross-platform download manager",
+  "id": "/",
+  "start_url": "/downloads",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#08151d",
+  "background_color": "#08151d",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "/linkgrabber",
+    "method": "GET",
+    "params": { "title": "title", "text": "shared", "url": "shared_url" }
+  }
+}

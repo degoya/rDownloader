@@ -1,0 +1,31 @@
+[package]
+name = "rd-core"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+hex.workspace = true
+percent-encoding.workspace = true
+rd-provider-registry = { path = "../rd-provider-registry" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+url.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix. Off in every shipped build:
+# without it `failpoint!` expands to nothing, so there is no branch and no symbol to reach.
+failpoints = []
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

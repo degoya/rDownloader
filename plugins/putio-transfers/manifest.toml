@@ -1,0 +1,47 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000152"
+name = "Put.io transfers"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[capabilities]
+# The access token an `oauth` sign-in produced, the same slot the resolver sibling reads. It is
+# written by `putio-oauth` through `store-oauth-token` and read back here only as the template
+# `{{secret:putio_access_token}}`, never as a value.
+#
+# Deliberately not `putio_client_secret`: submitting a magnet has no business with the
+# application the person registered, and a grant it does not need is a grant it should not have.
+secrets = ["putio_access_token"]
+
+# The provider's own API, and nothing else. `transfers/*` and `files/*` both live here.
+[capabilities.net_http]
+domains = ["api.put.io"]
+
+[extension]
+slug = "putio_transfers"
+# The provider whose account these jobs run on. The host looks the account up; this plugin
+# never learns which one it is, and never sees its token.
+claims = ["putio"]
+
+[metadata]
+description = "Runs magnets and torrent files as transfers on a Put.io account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+# The `remote-job` world does not exist before 1.0.7; an older host could not load this.
+min_app_version = "1.0.7"
+
+[limits]
+memory_bytes = 67108864
+# Most calls here make one request. The exception is the single poll that finds a transfer
+# finished: it walks the folder Put.io produced, one request per folder, to learn the names and
+# sizes of the files before any of them is offered to anybody. `api::MAX_TREE_REQUESTS` bounds
+# that walk, and this budget is sized for it rather than for the one-request calls.
+fuel = 4000000000
+# Compute time only -- the host credits time spent waiting on the network back, so this bounds
+# the JSON a thousand-entry folder listing costs to read, not the requests.
+timeout_milliseconds = 30000
+max_response_bytes = 8388608

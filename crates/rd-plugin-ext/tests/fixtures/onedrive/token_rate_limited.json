@@ -1,0 +1,5 @@
+{
+  "error": "slow_down",
+  "error_description": "AADSTS90013: Too many requests. Retry later.",
+  "interval": 10
+}

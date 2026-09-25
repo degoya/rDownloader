@@ -1,0 +1,23 @@
+[package]
+name = "rd-plugin-example-oauth"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+plugin-common = { path = "../common" }
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:example-oauth"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "oauth-plugin"
+
+[lints]
+workspace = true

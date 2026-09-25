@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "servers": "keine Server | {count} Server | {count} Server",
+    "connections": "keine Verbindungen | {count} Verbindung | {count} Verbindungen"
+  },
+  "header": {
+    "eyebrow": "Segmenttransport",
+    "title": "NNTP-Server und Fallback",
+    "description": "Der oberste Server der Kette wird zuerst verwendet. Fehlende oder defekte Segmente wechseln zum nächsten aktiven Server; Passwörter liegen ausschließlich verschlüsselt im lokalen Vault."
+  },
+  "form": {
+    "eyebrow": "Neuer Endpunkt",
+    "title_add": "Server hinzufügen",
+    "title_edit": "Server bearbeiten",
+    "name": "Primärer Provider",
+    "server_name": "Servername",
+    "host": "Host",
+    "port": "Port",
+    "tls": "TLS aktiv",
+    "username": "Benutzer",
+    "password": "Passwort",
+    "password_keep": "Passwort unverändert lassen",
+    "proxy": "SOCKS5-Proxy",
+    "proxy_direct": "Direkte Verbindung",
+    "connections": "Provider-Verbindungen",
+    "connections_hint": "Maximale Verbindungen dieses NNTP-Providers über alle Anfragen; eine Datei nutzt sie alle, sofern die allgemeinen Einstellungen sie nicht deckeln",
+    "enabled": "Server aktiv",
+    "clear_password": "Gespeichertes Passwort löschen",
+    "save_changes": "Änderungen speichern",
+    "save_server": "NNTP-Server speichern"
+  },
+  "messages": {
+    "updated": "NNTP-Server wurde aktualisiert.",
+    "created": "NNTP-Server wurde angelegt.",
+    "reordered": "Fallback-Reihenfolge wurde aktualisiert."
+  },
+  "chain": {
+    "eyebrow": "Fallback-Reihenfolge",
+    "title": "Serverkette",
+    "description": "Die Server werden von oben nach unten versucht. Mit den Pfeilen änderst du die Fallback-Reihenfolge.",
+    "priority": "Priorität {priority}",
+    "move_up": "In der Fallback-Reihenfolge nach oben",
+    "move_down": "In der Fallback-Reihenfolge nach unten",
+    "direct": "Direkt",
+    "edit": "Server bearbeiten",
+    "delete": "Server löschen",
+    "empty": "Noch kein NNTP-Server konfiguriert."
+  },
+  "delete": {
+    "title": "Usenet-Server löschen",
+    "description": "Der NNTP-Server „{name}“ und sein verschlüsseltes Passwort werden dauerhaft gelöscht.",
+    "confirm": "Server löschen"
+  }
+}

@@ -1,0 +1,3 @@
+rd-core crates/rd-core workspace dependency tokio
+rd-notify crates/rd-notify workspace dependency tokio
+rd-plugin-alldebrid plugins/alldebrid workspace dependency tokio

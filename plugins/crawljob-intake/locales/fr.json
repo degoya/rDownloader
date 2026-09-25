@@ -1,0 +1,7 @@
+{
+  "name": "Crawljob",
+  "description": "Lit les fichiers .crawljob de JDownloader et propose les liens et noms de paquet qu'ils contiennent.",
+  "codes": {
+    "crawljob_intake.unreadable": "Ce crawljob n'a pas pu être lu."
+  }
+}

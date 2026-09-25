@@ -1,0 +1,9 @@
+{
+  "response": {
+    "action": "folder/get_info",
+    "message": "Session Token is missing",
+    "error": 104,
+    "result": "Error",
+    "current_api_version": "1.5"
+  }
+}

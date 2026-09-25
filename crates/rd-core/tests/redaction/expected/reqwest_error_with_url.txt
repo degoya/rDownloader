@@ -1,0 +1,1 @@
+error sending request for url (https://cdn.example.com/f.bin?X-Amz-Signature=%5Bredacted%5D&X-Amz-Expires=900)

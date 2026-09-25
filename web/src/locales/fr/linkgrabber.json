@@ -1,0 +1,482 @@
+{
+  "title": "LinkGrabber",
+  "actions": {
+    "add_links": "Ajouter des liens",
+    "import_files": "Importer NZB/torrent",
+    "check_links": "Vérifier les liens",
+    "enqueue_all": "Tout charger",
+    "enqueue_paused": "Ajouter en pause",
+    "enqueue_paused_hint": "Ajouter tous les liens au téléchargeur sans les démarrer",
+    "clear_all": "Tout supprimer",
+    "regroup": "Regrouper",
+    "move_to_new_package": "Vers un nouveau paquet",
+    "enqueue": "Charger",
+    "enqueue_link": "Charger ce lien",
+    "delete_link": "Supprimer le lien",
+    "delete_package": "Supprimer le paquet",
+    "delete_nzb": "Supprimer l’import NZB",
+    "details": "Détails",
+    "link_actions": "Actions du lien"
+  },
+  "sort": {
+    "label": "Tri",
+    "manual": "Manuel",
+    "name": "Nom",
+    "hoster": "Hébergeur",
+    "size": "Taille",
+    "added": "Ajouté",
+    "ascending": "Croissant",
+    "descending": "Décroissant"
+  },
+  "filter": {
+    "hoster_label": "Filtrer par hébergeur",
+    "state_label": "Filtrer par état",
+    "all_hosters": "Tous les hébergeurs",
+    "all_states": "Tous les états",
+    "clear": "Réinitialiser les filtres",
+    "count": "{visible} sur {total} liens",
+    "quality_label": "Préférer une qualité",
+    "language_label": "Préférer une langue",
+    "all_qualities": "Toute qualité",
+    "all_languages": "Toute langue",
+    "facet_hint": "S'applique à toute la liste et reste en vigueur pour le paquet suivant : là où un groupe de miroirs laisse le choix, il retient le miroir correspondant ; ailleurs, il masque ce qui ne peut pas correspondre."
+  },
+  "empty": "Le presse-papiers, Click’n’Load et les saisies manuelles arrivent d’abord ici pour vérification. Les liens sont vérifiés automatiquement et regroupés en paquets.",
+  "selection_package": "{name} (sélection)",
+  "selection_count": "{count} sélectionné(s)",
+  "select_all_hint": "Sélectionner toutes les entrées",
+  "bulk": {
+    "enqueued": "{links} liens et {nzbs} imports NZB ajoutés",
+    "free_download": "{count} lien sera téléchargé sans compte (gratuit/direct) | {count} liens seront téléchargés sans compte (gratuit/direct)",
+    "enqueue_failed": "{count} paquet n'a pas pu être mis en file | {count} paquets n'ont pas pu être mis en file"
+  },
+  "package": {
+    "select": "Sélectionner le paquet",
+    "show_links": "Afficher les liens",
+    "hide_links": "Masquer les liens",
+    "drag_hint": "Glisser pour modifier l’ordre des paquets",
+    "password_hint": "Mot de passe d’archive défini",
+    "category": "Catégorie",
+    "priority": "Priorité",
+    "default_category": "Automatique",
+    "online": "{count} en ligne",
+    "checking": "{count} en vérification",
+    "offline": "{count} hors ligne",
+    "unverified": "{count} non vérifiables",
+    "enqueue_paused_hint": "Ajouter ce paquet à la liste de téléchargements sans le démarrer"
+  },
+  "candidate": {
+    "select": "Sélectionner le lien",
+    "state": {
+      "online": "en ligne",
+      "offline": "hors ligne",
+      "duplicate": "déjà dans la liste",
+      "checking": "vérification…",
+      "error": "échec de la vérification",
+      "resolving": "en cours d’ajout",
+      "unsupported": "non vérifié",
+      "enqueued": "ajouté",
+      "unresolvable": "non résoluble"
+    },
+    "no_account": "Aucun compte – un téléchargement gratuit/direct sera tenté",
+    "request": {
+      "title": "Requête du navigateur",
+      "effective_url": "URL effective",
+      "method": "Méthode",
+      "referrer": "Référent",
+      "user_agent": "Agent utilisateur",
+      "content_disposition": "Content-Disposition",
+      "headers": "En-têtes"
+    },
+    "drag_hint": "Glisser pour modifier l’ordre au sein du paquet",
+    "duplicate_hint": "Cette adresse est déjà dans le LinkGrabber ou déjà mise en file. Elle peut être ajoutée à nouveau délibérément.",
+    "unresolvable_hint": "Cette adresse répond par une page, pas par un fichier. Elle ne peut pas être ajoutée à la liste de téléchargement.",
+    "no_resolver_hint": "Aucun résolveur n’est installé pour {host}, cette adresse ne peut donc pas être ajoutée à la liste de téléchargement. Il peut s’agir d’un hébergeur non pris en charge ici ou d’une redirection vers une autre adresse."
+  },
+  "intake": {
+    "title": "Ajouter des liens",
+    "description": "Plusieurs liens HTTP(S) ou un texte contenant des liens. Les archives multi-parties sont regroupées automatiquement en un paquet.",
+    "placeholder": "https://hoster.tld/fichier.part1.rar\nhttps://hoster.tld/fichier.part2.rar",
+    "package_name": "Nom du paquet (facultatif)",
+    "package_name_hint": "Vide = déduit des noms de fichiers",
+    "password": "Mot de passe d’archive (facultatif)",
+    "submit": "Ajouter au LinkGrabber",
+    "skipped_excluded": "Aucun lien ignoré par la liste de blocage | {count} lien ignoré par la liste de blocage | {count} liens ignorés par la liste de blocage",
+    "skipped_disabled": "Aucun lien ignoré par un service désactivé | {count} lien ignoré : son service est désactivé | {count} liens ignorés : leur service est désactivé",
+    "crawled_dropped": "Aucun lien écarté | {count} des {found} liens trouvés n'était pas un fichier et a été écarté | {count} des {found} liens trouvés n'étaient pas des fichiers et ont été écartés"
+  },
+  "nzb": {
+    "segments": "aucun segment | {count} segment | {count} segments",
+    "enqueue_paused_hint": "Ajouter ce NZB à la liste de téléchargements sans le démarrer",
+    "password_detected": "Mot de passe détecté",
+    "duplicate": "Doublon",
+    "available": "disponible",
+    "badge": "Paquet Usenet (NZB)",
+    "select": "Sélectionner l’import NZB",
+    "show_files": "Afficher les fichiers",
+    "hide_files": "Masquer les fichiers",
+    "state": {
+      "imported": "importé",
+      "enqueued": "mis en file",
+      "failed": "échoué"
+    },
+    "size_limit": "Le NZB dépasse la limite de 64 Mio.",
+    "import_failed": "L’import NZB a échoué.",
+    "toast": {
+      "imported": "NZB importé",
+      "imported_description": "« {name} » est prêt dans le LinkGrabber.",
+      "duplicate": "NZB déjà dans la liste",
+      "duplicate_description": "« {name} » a déjà été importé et attend déjà dans le LinkGrabber.",
+      "duplicate_enqueued": "NZB déjà dans la file d’attente",
+      "duplicate_enqueued_description": "« {name} » a déjà été importé et mis en file. Supprimez ce téléchargement pour importer à nouveau le fichier."
+    },
+    "modal": {
+      "title": "Importer un NZB, torrent ou DLC",
+      "description": "Les fichiers arrivent dans le LinkGrabber pour vérification ; pour les NZB, un {'{{'}motdepasse{'}}'} dans le nom est utilisé pour l’extraction.",
+      "drop_hint": "Déposez un NZB, torrent ou DLC ici, ou choisissez des fichiers",
+      "drop_hint_multi": "Déposez d’autres fichiers NZB, torrent ou DLC ici",
+      "detected_password": "Mot de passe détecté :",
+      "choose_file": "Choisir un fichier",
+      "files_selected": "aucun fichier sélectionné | {count} fichier sélectionné | {count} fichiers sélectionnés",
+      "remove_file": "Retirer le fichier",
+      "name": "Nom du paquet",
+      "name_hint": "Sans .nzb/.torrent – utilisé comme nom de paquet et de dossier",
+      "name_single_only": "Disponible uniquement lorsqu’un seul fichier est sélectionné",
+      "category": "Catégorie",
+      "priority": "Priorité",
+      "no_category": "Aucune catégorie",
+      "submit": "Importer"
+    },
+    "history": {
+      "title": "Historique NZB",
+      "description": "Tous les fichiers NZB importés. Supprimez une entrée pour pouvoir réimporter le même fichier.",
+      "empty": "Aucun fichier NZB importé pour le moment.",
+      "enqueued_hint": "Cet import est lié à un téléchargement. Supprimez d'abord le téléchargement, puis l'entrée pourra être supprimée.",
+      "hint": "Après suppression d'une entrée, le même fichier NZB peut être réimporté."
+    },
+    "drop": {
+      "title": "Déposer pour importer",
+      "hint": "Déposez des fichiers NZB, torrent et DLC n'importe où pour les ajouter au LinkGrabber.",
+      "none_matched": "Aucun fichier .nzb, .torrent ou .dlc trouvé parmi les éléments déposés."
+    },
+    "drag_hint": "Glisser pour modifier l’ordre de la liste"
+  },
+  "files": {
+    "torrent_imported": "Torrent importé",
+    "torrent_imported_description": "« {name} » est prêt comme paquet dans le LinkGrabber.",
+    "torrent_duplicate": "Torrent déjà dans le LinkGrabber",
+    "torrent_duplicate_description": "« {name} » a été marqué comme doublon et peut être chargé à nouveau volontairement.",
+    "torrent_failed": "Échec de l’import torrent",
+    "batch": "Import de fichiers terminé",
+    "batch_description": "{created} importés, {duplicates} doublons, {errors} erreurs.",
+    "container_imported": "Conteneur importé",
+    "container_imported_description": "« {name} » a ajouté {count} lien(s) au LinkGrabber.",
+    "container_failed": "Échec de l'import du conteneur"
+  },
+  "confirm": {
+    "duplicates_title": "Doublons présents",
+    "duplicates_paused": "Certains liens ont déjà été ajoutés. Ajouter quand même tous les paquets en pause ?",
+    "duplicates_enqueue": "Certains liens ont déjà été ajoutés. Charger quand même tous les paquets ?",
+    "duplicate_title": "Recharger le doublon",
+    "duplicate_description": "Ce lien a déjà été ajouté. Le charger à nouveau ?",
+    "duplicate_confirm": "Recharger",
+    "remove_selected_title": "Supprimer les liens sélectionnés",
+    "remove_selected_description": "Retirer aucune entrée du LinkGrabber ? | Retirer {count} entrée du LinkGrabber ? | Retirer {count} entrées du LinkGrabber ?",
+    "move_title": "Déplacer vers un nouveau paquet",
+    "package_name": "Nom du paquet",
+    "rename_title": "Modifier le nom du fichier",
+    "file_name": "Nom du fichier",
+    "remove_package_title": "Supprimer le paquet",
+    "remove_package_description": "Retirer « {name} » avec tous ses liens du LinkGrabber ?",
+    "remove_candidate_title": "Supprimer le lien",
+    "remove_candidate_description": "Retirer « {name} » ?",
+    "clear_all_title": "Vider la liste",
+    "clear_all_description": "Rien ne sera retiré du LinkGrabber. | {count} entrée (liens, imports NZB et torrent) sera retirée du LinkGrabber. | {count} entrées (liens, imports NZB et torrent) seront retirées du LinkGrabber.",
+    "remove_nzb_title": "Supprimer l’import NZB",
+    "remove_nzb_description": "Retirer « {name} » ainsi que ses données de segments ?",
+    "queue_all_title": "Mettre en file tous les résultats de « {name} » ?",
+    "queue_all_description": "{count} résultat sera mis en file. | {count} résultats seront mis en file.",
+    "dismiss_all_title": "Écarter tous les résultats de « {name} » ?",
+    "dismiss_all_description": "{count} résultat sera écarté et ne sera plus proposé ; rien n'est supprimé. | {count} résultats seront écartés et ne seront plus proposés ; rien n'est supprimé.",
+    "dissolve_mirror_title": "Ces liens ne sont pas le même fichier ?",
+    "dissolve_mirror_description": "Le lien reste dans la liste ; seul le regroupement disparaît. | Les {count} liens restent dans la liste ; seul le regroupement disparaît. Ils ne seront pas non plus regroupés plus tard."
+  },
+  "media": {
+    "badge": "Médias (yt-dlp)",
+    "variant": "Variante média",
+    "mp3_hint": "Passer à l'audio MP3",
+    "apply": "Utiliser ce format",
+    "matched": "{matched} format(s) sur {total} correspondent",
+    "merge_unavailable_title": "ffmpeg n'est pas disponible",
+    "merge_unavailable": "Sans ffmpeg ni ffprobe, les flux vidéo et audio séparés ne peuvent pas être fusionnés. Seuls les formats contenant déjà les deux sont proposés.",
+    "no_match_title": "Aucun format ne correspond",
+    "no_match_single": "Rien sur cette page ne satisfait : {criteria}.",
+    "no_match_combination": "Chaque filtre correspond pris isolément, mais aucun format ne les satisfait tous à la fois.",
+    "criterion_count": "{criterion} seul : {matched}",
+    "relaxed": "Assoupli pour trouver une correspondance : {criteria}",
+    "presets": {
+      "best": "Meilleur",
+      "2160p": "2160p",
+      "1440p": "1440p",
+      "1080p": "1080p",
+      "720p": "720p",
+      "480p": "480p",
+      "audio_mp3": "MP3",
+      "custom": "Personnalisé"
+    },
+    "filters": {
+      "any": "Indifférent",
+      "container": "Conteneur",
+      "video_codec": "Codec vidéo",
+      "audio_codec": "Codec audio",
+      "dynamic_range": "Plage dynamique",
+      "max_height": "Hauteur max. (px)",
+      "max_fps": "Fréquence d'images max.",
+      "max_bitrate": "Débit max. (kbit/s)",
+      "language": "Langue audio"
+    },
+    "criteria": {
+      "container": "Conteneur",
+      "video_codec": "Codec vidéo",
+      "audio_codec": "Codec audio",
+      "dynamic_range": "Plage dynamique",
+      "fps": "Fréquence d'images",
+      "bitrate": "Débit",
+      "language": "Langue",
+      "height": "Résolution"
+    },
+    "codecs": {
+      "avc": "H.264 / AVC",
+      "hevc": "H.265 / HEVC",
+      "av1": "AV1",
+      "vp9": "VP9",
+      "vp8": "VP8",
+      "aac": "AAC",
+      "opus": "Opus",
+      "vorbis": "Vorbis",
+      "mp3": "MP3",
+      "flac": "FLAC",
+      "ac3": "AC-3",
+      "eac3": "E-AC-3"
+    },
+    "ranges": {
+      "sdr": "SDR",
+      "hdr10": "HDR10",
+      "hdr10_plus": "HDR10+",
+      "hlg": "HLG",
+      "dolby_vision": "Dolby Vision"
+    },
+    "warnings": {
+      "merge_unavailable": "ffmpeg est absent, seul un format déjà multiplexé est utilisable.",
+      "codec_container_mismatch": "{codec} ne peut pas être stocké dans un fichier {container} ; il sera réencodé ou le conteneur changera.",
+      "container_unsupported": "Le conteneur choisi ne peut pas contenir cette combinaison.",
+      "inventory_truncated": "Cette page propose plus de formats que ceux affichés."
+    },
+    "loading": "Chargement des formats…",
+    "no_inventory": "Ce lien a été vérifié avant l'existence du sélecteur de format. Vérifiez-le à nouveau pour obtenir la liste complète.",
+    "tracks": {
+      "extra_audio": "Pistes audio supplémentaires",
+      "none": "Aucune",
+      "subtitles": "Sous-titres",
+      "subtitle_languages": "Langues des sous-titres",
+      "all_languages": "Toutes les disponibles",
+      "include_automatic": "Utiliser aussi les sous-titres générés automatiquement",
+      "include_automatic_hint": "Les sous-titres automatiques proviennent de la reconnaissance vocale et se trompent régulièrement sur les noms, les nombres et les négations. Désactivé par défaut, car une fois intégrés ils ressemblent exactement à une traduction rédigée.",
+      "automatic_only": "{language} (automatique uniquement)",
+      "automatic_only_hint": "Cette page ne propose que des sous-titres générés automatiquement. Activez l'option ci-dessus pour les utiliser.",
+      "convert_to": "Convertir les sous-titres en",
+      "keep_format": "Conserver le format d'origine",
+      "embed_needs_ffmpeg": "L'intégration nécessite ffmpeg",
+      "modes": {
+        "off": "Désactivé",
+        "sidecar": "Fichier séparé",
+        "embed": "Intégré",
+        "sidecar_and_embed": "Les deux"
+      },
+      "warnings": {
+        "multiple_audio_unsupported": "Un fichier {container} ne peut contenir qu'une seule piste audio ; les pistes supplémentaires sont abandonnées.",
+        "subtitle_embed_unsupported": "Un fichier {container} ne peut pas contenir de sous-titres intégrés ; ils sont écrits dans des fichiers séparés.",
+        "language_unavailable": "Cette page ne propose aucune piste {language}.",
+        "only_automatic_available": "Seule une piste {language} générée automatiquement existe. Activez les sous-titres automatiques pour l'utiliser.",
+        "tool_unavailable": "ffmpeg est nécessaire pour fusionner des pistes supplémentaires ou intégrer des sous-titres et n'est pas disponible."
+      }
+    },
+    "embed": {
+      "title": "Intégrer dans le fichier",
+      "sponsorblock": "SponsorBlock",
+      "sponsor_categories": "Catégories de segments",
+      "remove_hint": "La suppression recoupe le média. Les limites proviennent d'une base communautaire et sont parfois erronées ; les marquer comme chapitres laisse le fichier intact.",
+      "pieces": {
+        "thumbnail": "Image de couverture",
+        "chapters": "Chapitres",
+        "metadata": "Titre, auteur et date",
+        "info_json": "Description et URL source"
+      },
+      "modes": {
+        "off": "Désactivé",
+        "mark": "Marquer en chapitres",
+        "remove": "Supprimer"
+      },
+      "categories": {
+        "sponsor": "Sponsor",
+        "intro": "Intro",
+        "outro": "Outro",
+        "self_promo": "Autopromotion",
+        "preview": "Résumé/aperçu",
+        "filler": "Remplissage",
+        "interaction": "Appel à interaction",
+        "music_offtopic": "Section non musicale"
+      },
+      "warnings": {
+        "thumbnail_unsupported": "Un fichier {container} ne peut pas contenir d'image de couverture ; elle est ignorée.",
+        "chapters_unsupported": "Un fichier {container} ne peut pas contenir de chapitres ; ils sont ignorés.",
+        "source_url_withheld": "L'URL source contient une signature ou un jeton et n'est pas écrite dans le fichier.",
+        "tool_unavailable": "ffmpeg est nécessaire pour écrire les métadonnées ou couper des segments et n'est pas disponible.",
+        "sponsor_block_rewrites_media": "La suppression de segments réencode le fichier."
+      }
+    },
+    "output": {
+      "title": "Modèle de sortie",
+      "hint": "Les dossiers sont séparés par /. Vide conserve le nom de fichier simple.",
+      "placeholder": "{uploader}/{upload_year}/{title}",
+      "fields": "Champs disponibles : {fields}"
+    },
+    "cookies": {
+      "title": "Session de navigateur",
+      "hint": "Les pages privées ou soumises à une limite d'âge nécessitent la session que vous avez approuvée pour ce site.",
+      "automaticNamed": "Automatique — {profile}",
+      "automaticNone": "Automatique — aucun profil correspondant",
+      "none": "N'envoyer aucune session",
+      "empty": "Aucun profil de cookies ne couvre cette adresse. Ajoutez-en un dans Paramètres → Authentification."
+    },
+    "unresolved_title": "Cette page ne propose rien à choisir",
+    "unresolved": {
+      "formats_missing": "yt-dlp n'a signalé aucun format téléchargeable pour cette page. Vérifiez à nouveau le lien ; si la liste reste vide, le site n'est pas pris en charge.",
+      "audio_missing": "La page propose des flux vidéo, mais aucune piste audio. « Meilleur » télécharge quand même la vidéo, sans le son."
+    }
+  },
+  "replay": {
+    "title": "Autoriser ce téléchargement",
+    "description": "Ce téléchargement envoie des données envoyées par votre navigateur. Vérifiez ce qui part où avant l'enregistrement.",
+    "target": "Hôte cible",
+    "method": "Méthode",
+    "url": "Adresse",
+    "expires_at": "Valable jusqu'au",
+    "auth_profile": "Utilise le profil « {name} ».",
+    "origins": {
+      "title": "Adresses autorisées",
+      "hint": "Le téléchargement ne peut suivre des redirections que vers ces adresses. Décocher restreint l'autorisation."
+    },
+    "body": {
+      "title": "Données transmises",
+      "size": "{bytes} octets",
+      "fields": "Champs",
+      "values_hidden": "Les valeurs des champs sont chiffrées et ne sont jamais affichées."
+    },
+    "credentials": {
+      "title": "Identifiants envoyés",
+      "none": "Aucun identifiant n'est envoyé.",
+      "cookies": "Cookies de session",
+      "basic_auth": "Authentification Basic",
+      "bearer_token": "Jeton Bearer",
+      "client_certificate": "Certificat client",
+      "signed_query": "Adresse signée",
+      "form_fields": "Données de formulaire"
+    },
+    "consent": {
+      "grant": "Autoriser et ajouter",
+      "granted": "Autorisé à envoyer des identifiants",
+      "granted_at": "Autorisé le {at}",
+      "withdraw": "Retirer l'autorisation",
+      "withdraw_title": "Retirer l'autorisation ?",
+      "withdraw_description": "Le lien est conservé. Au prochain ajout, rDownloader redemandera avant d'envoyer les identifiants capturés."
+    },
+    "blocked": {
+      "title": "Non reproductible",
+      "method_unsupported": "Cette requête utilise une méthode HTTP qui ne peut pas être reproduite.",
+      "body_too_large": "Cette requête envoie plus de données qu'il n'est possible d'enregistrer.",
+      "file_upload": "Cette requête envoie un fichier et ne peut pas être reproduite.",
+      "multipart_unsupported": "Cette requête envoie un formulaire multipartie, non reproductible.",
+      "content_type_unsupported": "Cette requête envoie un type de données non reproductible.",
+      "streamed_body": "Les données de cette requête n'ont pas pu être lues.",
+      "body_missing": "Les données de cette requête ne sont plus disponibles.",
+      "expired": "L'adresse a expiré et n'a pas pu être renouvelée.",
+      "origin_not_approved": "Le téléchargement a été redirigé vers une adresse non autorisée.",
+      "refresh_unavailable": "L'adresse a expiré et rien ne peut la renouveler.",
+      "consent_revoked": "L'autorisation a été retirée.",
+      "contract_downgrade": "Cette version de rDownloader ne peut pas reproduire la requête.",
+      "post_resume_unsupported": "Le serveur ne permet pas de reprendre ce téléchargement."
+    }
+  },
+  "enrichment": {
+    "source": "{name}, consulté par un plugin le {at}"
+  },
+  "notifications": {
+    "intake_title": "Nouveaux liens",
+    "intake_body": "Aucun lien ajouté. | {count} lien dans le LinkGrabber. | {count} liens dans le LinkGrabber."
+  },
+  "indexers": {
+    "title": "Abonnements d'indexeurs",
+    "hint": "Résultats en attente de décision",
+    "empty": "Aucun résultat n'attend de décision pour le moment.",
+    "group_hits": "{count} résultat | {count} résultats",
+    "queue_all": "Tout mettre en file",
+    "dismiss_all": "Tout écarter",
+    "bulk_failed": "{count} résultat n'a pas pu être transmis. | {count} résultats n'ont pas pu être transmis.",
+    "check_all": "Tout vérifier",
+    "check_all_started": "Vérification de {count} abonnement lancée. Les nouveaux résultats apparaîtront ici une fois terminée. | Vérification de {count} abonnements lancée. Les nouveaux résultats apparaîtront ici une fois terminées.",
+    "check_all_failed": "{count} vérification n’a pas pu être lancée. | {count} vérifications n’ont pas pu être lancées.",
+    "open": "Examiner",
+    "cards": {
+      "label": "Résultats de {name}",
+      "carousel": "carrousel",
+      "slide": "carte",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "pages": "Choisir une page",
+      "page": "Page {page} sur {count}",
+      "pause": "Suspendre le défilement automatique",
+      "play": "Reprendre le défilement automatique",
+      "close_details": "Fermer les détails",
+      "details_title": "Détails"
+    }
+  },
+  "notices": {
+    "reorder_filter_active": "L’ordre ne peut être modifié que sans filtre actif : les liens masqués seraient sinon mal classés."
+  },
+  "list": {
+    "aria": "Liens collectés, {count} lignes"
+  },
+  "mirror": {
+    "mirrors": "{count} miroir | {count} miroirs",
+    "proposed": "{count} miroir possible | {count} miroirs possibles",
+    "hint_declared": "La page dont proviennent ces liens indique qu'ils sont le même fichier.",
+    "hint_name_and_size": "Ces liens concordaient sur le nom de fichier et la taille après la vérification en ligne.",
+    "hint_name": "Ces liens ne partagent qu'un nom de fichier. Rien n'a confirmé qu'ils sont le même fichier ; le regroupement peut donc être faux.",
+    "online_of": "{online} miroirs sur {total} sont encore disponibles",
+    "all_offline": "Aucun miroir disponible",
+    "all_offline_hint": "Aucun des {count} miroirs ne s'est déclaré disponible. Le groupe reste enfilable ; les hébergeurs peuvent se tromper.",
+    "expand": "Afficher les autres miroirs",
+    "collapse": "Masquer les autres miroirs",
+    "use": "Utiliser ce miroir",
+    "use_hint": "Télécharger ce miroir à la place. Le choix est conservé et la préférence ne déplace plus ce groupe.",
+    "pinned": "Choisi par vous",
+    "pinned_hint": "Vous avez choisi ce miroir vous-même ; la préférence ne déplace plus ce groupe.",
+    "release": "Annuler mon choix de miroir",
+    "dissolve": "Dissocier le groupe"
+  },
+  "cache": {
+    "label": "en cache",
+    "hint": "Le fournisseur a indiqué le {at} qu'il a ce fichier en cache. Un cache change sans prévenir : c'est le moment de la mesure, pas une promesse.",
+    "hint_by": "{provider} a signalé le {at} qu'il détient ce fichier dans son cache. Un cache change sans préavis : c'est le moment de la mesure, pas une promesse."
+  },
+  "hosters": {
+    "label": "Afficher et masquer des hébergeurs",
+    "hide": "Masquer les liens de {host}",
+    "show": "Afficher à nouveau les liens de {host}",
+    "hosters": "{count} hébergeur | {count} hébergeurs",
+    "summary": "Masqués : {links} de {hosters}",
+    "show_all": "Tout afficher",
+    "hint": "Les hébergeurs masqués restent dans le LinkGrabber et ne sont ni mis en file ni vérifiés. En tant que miroir d’un lien affiché, ils l’accompagnent comme solution de repli."
+  }
+}

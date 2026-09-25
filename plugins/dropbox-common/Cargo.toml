@@ -1,0 +1,16 @@
+[package]
+name = "dropbox-common"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true

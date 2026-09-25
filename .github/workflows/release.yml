@@ -1,0 +1,287 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Runner images are named rather than `-latest`, for the reason in ci.yml (RD-120-67): here the
+# image also sets the glibc floor of the shipped Linux binary, which must not move by itself.
+
+jobs:
+  extensions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: scripts/build-extension.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-extensions
+          path: artifacts/browser-extensions/*.zip
+          if-no-files-found: error
+
+  plugins:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      # The packager (`cargo run -p rdownloader`) builds rd-api, whose `#[derive(RustEmbed)]`
+      # refuses to compile without `web/dist`; it never serves the interface, so empty will do.
+      - run: mkdir -p web/dist
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-plugins
+      - run: cargo install cargo-component --version 0.21.1 --locked
+      - name: Collect the bundled plugins
+        id: plugins
+        shell: bash
+        run: |
+          # Every plugins/ directory with a manifest.toml is a shipped package; xfs-common
+          # has none because it is a shared library. Deriving the list means adding a plugin
+          # is one directory, not five identical loops to keep in step.
+          names=$(find plugins -mindepth 2 -maxdepth 2 -name manifest.toml -printf '%h\n' \
+            | xargs -n1 basename | sort | tr '\n' ' ')
+          echo "names=${names}" >> "$GITHUB_OUTPUT"
+          echo "building: ${names}"
+          # Building proves a plugin compiles; packaging additionally checks its
+          # `min_app_version` against this build, and a plugin written for the release being
+          # prepared cannot be packaged until the version bump. scripts/build-plugins.sh owns
+          # that rule so it lives in one place and clears itself at the bump.
+          packageable=$(scripts/build-plugins.sh --list-packageable | sort | tr '\n' ' ')
+          echo "packageable=${packageable}" >> "$GITHUB_OUTPUT"
+          echo "packaging: ${packageable}"
+      - name: Build plugin components
+        shell: bash
+        run: |
+          for plugin in ${{ steps.plugins.outputs.names }}; do
+            cargo component build --release --target wasm32-unknown-unknown -p "rd-plugin-${plugin}"
+          done
+      - name: Package and sign bundled plugins
+        env:
+          RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
+        shell: bash
+        run: |
+          mkdir -p dist/plugins
+          for plugin in ${{ steps.plugins.outputs.packageable }}; do
+            version=$(sed -n 's/^version = "\(.*\)"/\1/p' "plugins/${plugin}/manifest.toml" | head -n 1)
+            cargo run --locked --release -p rdownloader -- plugin package \
+              --manifest "plugins/${plugin}/manifest.toml" \
+              --component "target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm" \
+              --locales "plugins/${plugin}/locales" \
+              --output "dist/plugins/${plugin}-${version}.rdplug"
+            cargo run --locked --release -p rdownloader -- plugin verify "dist/plugins/${plugin}-${version}.rdplug"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: plugins
+          path: dist/plugins/*.rdplug
+          if-no-files-found: error
+      # RD-130-07: the site rules are not compiled in; every release carries them as a signed file
+      # beside the packages. CI holds only the plugin key, so the file is signed locally with the
+      # site-rules key and committed; this step proves the committed file verifies under this
+      # build's root before `publish` attaches it.
+      - name: Verify the site-rule file
+        shell: bash
+        run: |
+          mkdir -p dist/site-rules
+          cp crates/rd-siterules/resources/site-rules.json dist/site-rules/rdownloader-site-rules.json
+          cargo run --locked --release -p rdownloader -- site-rules verify dist/site-rules/rdownloader-site-rules.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site-rules
+          path: dist/site-rules/rdownloader-site-rules.json
+          if-no-files-found: error
+
+  binaries:
+    needs: plugins
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            artifact: rdownloader-linux-x86_64
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            artifact: rdownloader-windows-x86_64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: rdownloader-macos-x86_64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            artifact: rdownloader-macos-aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - run: npm ci --prefix web
+      # `npm run build` stopped type-checking in RD-120-25; named here so it still does.
+      - run: npm run typecheck:full --prefix web
+      - run: npm run build --prefix web
+      - run: cargo build --locked --release --target ${{ matrix.target }} -p rdownloader -p rd-capture
+      - uses: actions/download-artifact@v8
+        with:
+          name: plugins
+          path: stage/plugins
+      - name: Smoke-test Windows executables
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "target/${{ matrix.target }}/release/rdownloader.exe" --version
+          & "target/${{ matrix.target }}/release/rdownloader-capture.exe" --version
+      - name: Build macOS NZB helper app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          osacompile -o "stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
+          cp resources/macos/capture-helper-Info.plist "stage/rDownloader Capture.app/Contents/Info.plist"
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
+          plutil -lint "stage/rDownloader Capture.app/Contents/Info.plist"
+          codesign --force --deep --sign - "stage/rDownloader Capture.app"
+      - name: Package Unix binaries
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p stage/plugins
+          cp "target/${{ matrix.target }}/release/rdownloader" stage/
+          cp "target/${{ matrix.target }}/release/rdownloader-capture" stage/
+          cp LICENSE README.md stage/
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh stage/
+          else
+            cp scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command stage/
+          fi
+          chmod +x stage/start-rdownloader.* stage/stop-rdownloader.*
+          tar --directory stage --create --gzip --file "${{ matrix.artifact }}.tar.gz" .
+      - name: Package Windows binaries
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path stage/plugins | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/rdownloader.exe" stage/
+          Copy-Item "target/${{ matrix.target }}/release/rdownloader-capture.exe" stage/
+          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat stage/
+          Copy-Item LICENSE, README.md stage/
+          Compress-Archive -Path stage/* -DestinationPath "${{ matrix.artifact }}.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.*
+          if-no-files-found: error
+
+  publish:
+    needs: [extensions, plugins, binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: release-assets
+          format: spdx-json
+          output-file: release-assets/rdownloader.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate SHA-256 checksums
+        working-directory: release-assets
+        shell: bash
+        run: |
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print0 \
+            | sort --zero-terminated \
+            | xargs --null sha256sum > SHA256SUMS
+      - uses: sigstore/cosign-installer@v4.0.0
+      - name: Sign checksum manifest with Sigstore
+        working-directory: release-assets
+        run: cosign sign-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json --yes
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: release-assets/*
+
+  container:
+    needs: [plugins, binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: plugins
+          path: dist/plugins
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Normalize container image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "${GITHUB_OUTPUT}"
+      # The context has no .git, so the commit and build time the About page shows are worked
+      # out here by the same function VERSION.txt uses, and passed in (RD-130-12).
+      - name: Work out the build stamp
+        id: stamp
+        shell: bash
+        run: |
+          source scripts/lib/version-file.sh
+          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
+          rd_build_stamp "$version"
+          echo "commit=$RD_BUILD_COMMIT" >> "${GITHUB_OUTPUT}"
+          echo "time=$RD_BUILD_TIME" >> "${GITHUB_OUTPUT}"
+      - name: Build and publish multiarch image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          build-args: |
+            RD_BUILD_COMMIT=${{ steps.stamp.outputs.commit }}
+            RD_BUILD_TIME=${{ steps.stamp.outputs.time }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.ref_name }}
+            ${{ steps.image.outputs.name }}:latest
+          provenance: mode=max
+          sbom: true
+      - uses: sigstore/cosign-installer@v4.0.0
+      - name: Sign multiarch image with Sigstore
+        run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"

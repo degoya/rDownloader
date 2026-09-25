@@ -1,0 +1,14 @@
+{
+  "response": {
+    "action": "file/get_links",
+    "links": [
+      {
+        "quickkey": "ipnyzofjcwri357",
+        "normal_download": "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin/file",
+        "one_time_key_error_message": "No session token provided"
+      }
+    ],
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

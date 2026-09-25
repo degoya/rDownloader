@@ -1,0 +1,83 @@
+{
+  "eyebrow": "Entfernte Aufträge",
+  "title": "Aufträge, die beim Anbieter laufen",
+  "description": "Ein Magnet, der an ein Anbieterkonto übergeben wird, wird dort statt hier geholt und kommt als Adressen zurück, sobald er fertig ist. Er läuft weiter, während dieser Rechner es nicht tut, und das Konto behält ihn danach, bis ihn jemand löscht.",
+  "empty": "Beim Anbieter läuft kein Auftrag.",
+  "account": "Konto",
+  "account_unknown": "Unbekanntes Konto",
+  "content": "Inhalt",
+  "remote_id": "Dort bekannt als",
+  "started": "Begonnen",
+  "updated": "Letzte Änderung",
+  "states": {
+    "submitting": "Wird übergeben",
+    "preparing": "Der Anbieter bereitet ihn vor",
+    "awaiting_choice": "Wartet auf deine Auswahl",
+    "working": "Wird beim Anbieter geholt",
+    "ready": "Fertig",
+    "failed": "Fehlgeschlagen",
+    "discarded": "Beim Anbieter gelöscht"
+  },
+  "submit": {
+    "title": "Einen Magnet an ein Konto übergeben",
+    "description": "Der Anbieter holt ihn und übergibt die fertigen Adressen an den LinkGrabber. Derselbe Magnet zweimal ist ein Auftrag, nicht zwei.",
+    "magnet": "Magnet-Adresse",
+    "magnet_placeholder": "magnet:?xt=urn:btih:…",
+    "action": "Übergeben",
+    "started": "Der Anbieter hat den Auftrag bekommen.",
+    "already_running": "Dieses Konto führt für diesen Inhalt bereits einen Auftrag aus. Es wurde nichts ein zweites Mal gesendet.",
+    "file_action": "Oder .torrent-/.nzb-Dateien",
+    "file_clear": "Datei entfernen",
+    "file_too_large": "Die Datei überschreitet die {max_mib} MiB, die ein entfernter Auftrag tragen darf"
+  },
+  "choice": {
+    "toggle": "Einträge, die der Auftrag angeboten hat",
+    "title": "Wähle aus, was du haben willst",
+    "description": "Der Anbieter holt nur, was hier gewählt wird, und bis zur Antwort bewegt sich nichts.",
+    "preselected": "Vorgeschlagen",
+    "size_unknown": "Größe nicht angegeben",
+    "action": "Auswahl senden",
+    "sent": "Die Auswahl hat den Anbieter erreicht.",
+    "none": "Wähle mindestens einen Eintrag."
+  },
+  "discard": {
+    "action": "Beim Anbieter löschen",
+    "confirm_title": "Diesen Auftrag beim Anbieter löschen?",
+    "confirm_description": "Das löscht den Auftrag in deinem Anbieterkonto. Es geschieht außerhalb dieses Rechners und lässt sich nicht rückgängig machen. Der Eintrag bleibt danach in dieser Liste und hält fest, dass gelöscht wurde.",
+    "confirm_label": "Beim Anbieter löschen",
+    "done": "Der Auftrag wurde beim Anbieter gelöscht."
+  },
+  "forget": {
+    "action": "Aus dieser Liste entfernen",
+    "confirm_title": "Diesen Eintrag aus der Liste entfernen?",
+    "confirm_description": "Das entfernt den Eintrag hier und sonst nichts. Was der Anbieter hält, bleibt unberührt in deinem Konto.",
+    "confirm_label": "Aus der Liste entfernen",
+    "done": "Der Eintrag wurde entfernt. Beim Anbieter wurde nichts gelöscht."
+  },
+  "page": {
+    "eyebrow": "Beim Anbieter",
+    "title": "Entfernte Aufträge",
+    "description": "An ein Anbieterkonto übergebene Magnets laufen dort, nicht hier. Verfolgen Sie sie, beantworten Sie die Fragen, für die sie anhalten, und beenden Sie sie — beim Anbieter oder nur in dieser Liste."
+  },
+  "no_remote_job_accounts": "Keines deiner Konten gehört zu einem Dienst, für den ein Remote-Job-Plugin installiert ist. Installiere eines, oder lege ein Konto bei einem passenden Dienst an.",
+  "accounts_unavailable": "Die Liste der möglichen Dienste konnte nicht gelesen werden.",
+  "accounts_loading": "Ich lese, welche deiner Konten einen Auftrag annehmen können …",
+  "files": {
+    "drop_hint": "Mehrere .torrent- oder .nzb-Dateien lassen sich auf einmal wählen oder hier ablegen – jede wird ein eigener Auftrag, nacheinander übergeben.",
+    "list": "Gewählte Dateien",
+    "count": "{count} Datei | {count} Dateien",
+    "clear": "Alle Dateien entfernen",
+    "wrong_type": "Nur .torrent- und .nzb-Dateien lassen sich übergeben",
+    "unreadable": "Die Datei ließ sich nicht lesen",
+    "summary": "{done} von {total} Dateien übergeben.",
+    "summary_failed": "{failed} von {total} Dateien konnten nicht übergeben werden; jede nennt ihren Grund. Die übrigen liefen weiter.",
+    "states": {
+      "waiting": "Wartet",
+      "sending": "Wird übergeben",
+      "started": "Übergeben",
+      "already_running": "Läuft bereits",
+      "failed": "Fehlgeschlagen",
+      "refused": "Nicht gesendet"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "REDACTEDTORRENT01",
+    "filename": "Example.Release",
+    "hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+    "bytes": 31,
+    "host": "real-debrid.com",
+    "split": 2000,
+    "progress": 0,
+    "status": "magnet_conversion",
+    "added": "2026-09-16T00:00:00.000Z",
+    "links": []
+  },
+  {
+    "id": "REDACTEDTORRENT02",
+    "filename": "Other.Release",
+    "hash": "0000000000000000000000000000000000000000",
+    "bytes": 7,
+    "host": "real-debrid.com",
+    "split": 2000,
+    "progress": 100,
+    "status": "downloaded",
+    "added": "2026-09-15T00:00:00.000Z",
+    "links": ["https://real-debrid.com/d/REDACTEDLINK99"]
+  }
+]

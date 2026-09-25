@@ -1,0 +1,9 @@
+[package]
+name = "rd-postprocess"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rd-core = { path = "../rd-core" }
+tempfile.workspace = true
+tracing.workspace = true

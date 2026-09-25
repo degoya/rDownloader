@@ -1,0 +1,1 @@
+https://acct.blob.core.windows.net/c/file.bin?sv=2021-06-08&se=2024-01-01T00%3A15%3A00Z&sr=b&sp=r&sig=%5Bredacted%5D

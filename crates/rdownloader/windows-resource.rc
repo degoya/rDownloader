@@ -1,0 +1,2 @@
+1 24 "../../resources/windows-long-path.manifest"
+#include "rdownloader-version.rc2"

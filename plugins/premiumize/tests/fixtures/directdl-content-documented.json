@@ -1,0 +1,22 @@
+{
+    "status": "success",
+    "content": [
+        {
+            "path": "Folder/video1.mkv",
+            "size": 123456789,
+            "link": "https://download.example.test/video1.mkv",
+            "stream_link": "https://download.example.test/video1.mkv",
+            "transcode_status": "good_as_is"
+        },
+        {
+            "path": "Folder/video2.mkv",
+            "size": 234567890,
+            "link": "https://download.example.test/video2.mkv",
+            "stream_link": "https://download.example.test/video2.mkv",
+            "transcode_status": "good_as_is"
+        }
+    ],
+    "location": "https://download.example.test/video1.mkv",
+    "filename": "Folder/video1.mkv",
+    "filesize": 123456789
+}

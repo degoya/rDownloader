@@ -1,0 +1,20 @@
+[package]
+name = "mega-common"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# AES-128: CBC by hand over attribute blocks, ECB over folder node keys. The payload cipher is not
+# here and never will be: ADR 0011 put the byte stream on the host's write path, and a
+# plugin that decrypted bytes would be phase 1 rebuilt inside the sandbox.
+aes.workspace = true
+base64.workspace = true
+serde_json.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true

@@ -1,0 +1,25 @@
+[package]
+name = "rd-plugin-offcloud-cloud"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:offcloud-cloud"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "remote-job-plugin"
+
+[lints]
+workspace = true

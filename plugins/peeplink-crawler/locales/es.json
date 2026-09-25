@@ -1,0 +1,11 @@
+{
+  "name": "Entradas de PEEPLink",
+  "description": "Enumera los enlaces de alojamiento detrás de una página de entrada de PEEPLink o AlfaLink.",
+  "codes": {
+    "peeplink_crawler.entry_empty": "Esta entrada de PEEPLink no contiene enlaces",
+    "peeplink_crawler.entry_not_found": "Esta entrada de PEEPLink ya no existe",
+    "peeplink_crawler.password_required": "Esta entrada de PEEPLink está protegida por contraseña: añada la contraseña a la dirección después de una #",
+    "peeplink_crawler.password_wrong": "El servicio no aceptó la contraseña indicada con esta dirección de PEEPLink",
+    "peeplink_crawler.site_unreachable": "No se pudo leer esta entrada de PEEPLink: el servicio no respondió"
+  }
+}

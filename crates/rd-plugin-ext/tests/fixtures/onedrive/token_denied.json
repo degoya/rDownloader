@@ -1,0 +1,8 @@
+{
+  "error": "access_denied",
+  "error_description": "AADSTS65004: User declined to consent to access the app. Trace ID: redacted Correlation ID: redacted Timestamp: 2026-09-10 10:00:00Z",
+  "error_codes": [65004],
+  "timestamp": "2026-09-10 10:00:00Z",
+  "trace_id": "redacted",
+  "correlation_id": "redacted"
+}

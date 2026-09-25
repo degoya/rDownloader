@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Usenet download added successfully.",
+  "data": {
+    "usenetdownload_id": 4711,
+    "auth_id": "REDACTEDAUTH01",
+    "hash": "{{hash}}"
+  }
+}

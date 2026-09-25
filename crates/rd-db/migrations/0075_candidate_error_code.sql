@@ -1,0 +1,13 @@
+-- A stable code beside the candidate's message.
+--
+-- `link_candidates.error` was free English prose, printed verbatim by the interface. One
+-- sentence — "Check result missing" — stood for three unrelated situations (RD-109-43): the
+-- plugin was never asked about this URL, the plugin answered that it cannot tell, and the
+-- hoster's check needs an account the installation does not have. A reader could not act on
+-- any of them, and none of it was translated.
+--
+-- Nullable and deliberately not backfilled: a row written by an older build carries a
+-- sentence whose situation nobody can now recover, and guessing a code for it would put a
+-- wrong claim in front of the reader. Such a row keeps reaching them as its English text,
+-- exactly as every row did before, until the next check overwrites both columns together.
+ALTER TABLE link_candidates ADD COLUMN error_code TEXT;

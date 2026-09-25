@@ -1,0 +1,40 @@
+{
+  "name": "DDownload",
+  "description": "Resolves DDownload links by signing in with the account credentials, or with an API key.",
+  "account": {
+    "secret_hint": "Pick how this account signs in. Account credentials is the simple way: enter the DDownload username or e-mail and the password, and rDownloader signs in and keeps the session itself. API key is for an account that should not store a password — paste the key from Account → API; it provides account status and file metadata, and downloads then additionally need a cookie session pasted below.",
+    "secret_hint_api_key": "The key from Account → API. It provides account status and file metadata; downloads run through the cookie session below, because the DDownload API offers no direct links.",
+    "secret_hint_login": "The password of the DDownload account named above. DDownload has begun protecting its login form with a Cloudflare Turnstile captcha, so signing in only works with a configured captcha service, or if the challenge is answered by hand under Captchas. With neither, use API key mode with a pasted cookie session.",
+    "secret_label": "DDownload password or API key",
+    "secret_label_api_key": "DDownload API key",
+    "secret_label_login": "DDownload password"
+  },
+  "codes": {
+    "ddownload.account_missing": "DDownload account is missing",
+    "ddownload.api_error": "DDownload API: {message}",
+    "ddownload.api_key_required": "DDownload link check requires the API key",
+    "ddownload.captcha_rejected": "DDownload rejected the captcha answer",
+    "ddownload.cookie_session_invalid": "DDownload cookie session is not signed in - paste a fresh cookie session from a signed-in browser: {diagnosis}",
+    "ddownload.cookie_session_required": "DDownload cookie session is missing or contains no cookies for ddownload.com",
+    "ddownload.cookie_session_required_for_download": "DDownload downloads require a cookie session (browser login); the API key only provides metadata",
+    "ddownload.cookie_session_unconfirmed": "DDownload did not confirm the cookie session either way - the page was neither signed in nor a guest page; try again later: {diagnosis}",
+    "ddownload.download_session_expired": "DDownload accepted the API key, but the cookie session downloads run on has expired - sign in at ddownload.com in a browser and paste a fresh cookie session into this account: {diagnosis}",
+    "ddownload.file_unavailable": "DDownload file is not available",
+    "ddownload.free_limit_reached": "DDownload free download limit reached for this IP address",
+    "ddownload.http_error": "DDownload HTTP status {status}",
+    "ddownload.invalid_link": "Invalid DDownload link",
+    "ddownload.invalid_response": "Invalid DDownload response",
+    "ddownload.invalid_url": "Invalid provider URL: {error}",
+    "ddownload.login_blocked": "DDownload refused the sign-in from this IP address",
+    "ddownload.login_captcha": "DDownload's login form is protected by {challenge}, which rDownloader cannot answer. Switch this account to API key mode, or paste a cookie session from a signed-in browser.",
+    "ddownload.login_credentials_required": "DDownload downloads need either account credentials or an imported cookie session",
+    "ddownload.login_failed": "DDownload rejected the account's username or password",
+    "ddownload.login_form_missing": "DDownload's login page did not contain the expected sign-in form: {diagnosis}",
+    "ddownload.login_unavailable": "DDownload did not confirm the sign-in: {diagnosis}",
+    "ddownload.no_free_form": "DDownload free download form was not found: {diagnosis}",
+    "ddownload.no_free_link": "DDownload free download did not yield a file link: {diagnosis}",
+    "ddownload.no_premium_file": "DDownload cookie session did not return a premium file: {diagnosis}",
+    "ddownload.session_unconfirmed": "cookie session not confirmed - the account page was neither signed in nor a guest page",
+    "ddownload.unsupported_link": "Not a supported DDownload link"
+  }
+}

@@ -1,0 +1,70 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000007"
+name = "Keep2Share"
+# 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
+# the installed package (`sync_bundled` only installs newer ones) and never picks the free
+# flow up. Pinned jobs are unaffected: the older version stays installed.
+version = "0.7.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# IMPL-VERIFY (JD Keep2ShareCc.getInternalAPIDomain() / K2SApi.getApiUrl()): every API call
+# (login/geturl/accountinfo/getfilesinfo) targets k2s.cc specifically, regardless of which
+# mirror domain the file link used -- keep2share.cc and api.k2s.cc are never actually
+# contacted by this plugin. See crates/rd-provider-registry/src/providers.rs for the matching
+# registry correction.
+#
+# `*.k2s.cc` is required by the account-less free flow: the captcha image `/requestcaptcha`
+# points at, and the direct download URL `/geturl` hands back, are served from k2s.cc hosts that
+# may carry a subdomain. Every API call itself still targets the bare `k2s.cc`.
+match_domains = [
+  "k2s.cc",
+  "www.k2s.cc",
+  "keep2share.cc",
+  "www.keep2share.cc",
+  "k2share.cc",
+  "www.k2share.cc",
+  "keep2s.cc",
+  "www.keep2s.cc",
+]
+download_domains = ["k2s.cc", "*.k2s.cc"]
+max_concurrent_downloads = 5
+# Links without an account are served by the free flow (/geturl probe -> image captcha ->
+# countdown -> /geturl with the free_download_key).
+requires_account = false
+
+[capabilities]
+captcha = true
+secrets = ["keep2share_password"]
+
+[capabilities.net_http]
+domains = ["k2s.cc", "*.k2s.cc"]
+
+[metadata]
+description = "Resolves Keep2Share links with a premium account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "keep2share"
+kind = "hoster"
+credentials = "username_password"
+username_required = true
+secret_reference = "keep2share_password"
+secret_domains = ["k2s.cc"]
+host_aliases = [
+  ["keep2share.cc", "k2s.cc"],
+  ["k2share.cc", "k2s.cc"],
+  ["keep2s.cc", "k2s.cc"],
+]
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# A free download waits out the hoster's countdown (up to five ~30s rounds) and one image-captcha
+# round trip; this budget is spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

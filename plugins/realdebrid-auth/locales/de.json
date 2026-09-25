@@ -1,0 +1,14 @@
+{
+  "name": "Real-Debrid-Anmeldung",
+  "description": "Meldet ein Real-Debrid-Konto per Gerätecode an und hält das Token erneuert.",
+  "codes": {
+    "realdebrid_auth.consent_denied": "Die Anmeldung wurde bei Real-Debrid nicht erteilt.",
+    "realdebrid_auth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde. Starte sie erneut.",
+    "realdebrid_auth.sign_in_refused": "Real-Debrid akzeptiert diese Anmeldung nicht mehr. Melde dich erneut an.",
+    "realdebrid_auth.two_factor": "Real-Debrid hat nach einer Zwei-Faktor-Bestätigung gefragt. Bestätige sie dort und starte die Anmeldung erneut.",
+    "realdebrid_auth.client_rejected": "Real-Debrid hat diese Anwendung nicht akzeptiert. Prüfe Client-ID und Client-Secret gegen die auf real-debrid.com registrierte Anwendung; eine erneute Anmeldung hilft ohne Korrektur nicht.",
+    "realdebrid_auth.bad_reply": "Real-Debrid hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "realdebrid_auth.redirect_unsupported": "Real-Debrid meldet per Gerätecode an und hat keine Weiterleitung.",
+    "realdebrid_auth.client_not_configured": "Real-Debrid braucht eine eigene Anwendung. Registriere eine auf real-debrid.com unter Mein Konto → API und trage ihre Client-ID als Benutzernamen und ihr Client-Secret als Zugangsdaten dieses Kontos ein."
+  }
+}

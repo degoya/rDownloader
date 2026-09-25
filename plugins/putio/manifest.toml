@@ -1,0 +1,73 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000150"
+name = "Put.io"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The canonical per-file API address the remote-job sibling emits, plus the address a person
+# copies out of the Put.io web interface. Never `*`: Put.io serves its own storage, it does not
+# unrestrict anybody else's links, so this is a hoster and not a multihoster.
+match_domains = ["api.put.io", "app.put.io"]
+# Where the bytes come from. `api.put.io/v2/files/{id}/download` answers with a redirect to one
+# of Put.io's storage hosts, and the signed address it redirects to needs no credential of its
+# own -- which is why the token may be stripped on that hop without the download failing.
+download_domains = ["api.put.io", "put.io", "*.put.io"]
+# Put.io's own guidance is a handful of parallel connections per account. Three keeps a queue
+# moving without spending the account's request budget on scheduling, the same figure the other
+# API-shaped providers in this tree settled on.
+max_concurrent_downloads = 3
+
+[capabilities]
+# The access token an `oauth` sign-in produced, the same slot the remote-job sibling reads. It
+# is written by `putio-oauth` through `store-oauth-token` and read back here only as the
+# template `{{secret:putio_access_token}}`, never as a value.
+#
+# Deliberately not `putio_client_secret`: resolving a file has no business with the application
+# the person registered, and a grant it does not need is a grant it should not have.
+secrets = ["putio_access_token"]
+
+[capabilities.net_http]
+domains = ["api.put.io"]
+
+[metadata]
+description = "Resolves files in a Put.io account through the official API."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+# The provider row every Put.io plugin hangs off. Only a resolver manifest may carry one, which
+# is why this plugin exists at all: without this row there is no Put.io account, no vault
+# reference, and therefore no way for the sign-in or the remote job to reach anything.
+[provider]
+slug = "putio"
+kind = "hoster"
+credentials = "oauth"
+# The account's username field holds this installation's own Put.io OAuth client id
+# (RD-120-03). It is not a credential -- Put.io publishes it in the address the person is sent
+# to -- so it is stored in the clear and the host expands it into `{{client_id}}`. Required,
+# because a sign-in without one cannot start: this project ships no Put.io application of its
+# own, and one compiled in here would put every installation on a single shared quota.
+username_required = true
+
+# Two slots, because two credentials have to exist at once. Put.io's token endpoint is a
+# confidential-client exchange: it wants the client secret the person registered on every
+# call, and it answers with the access token the sign-in obtained. Writing the second over the
+# first would destroy the value the next sign-in needs, so each has its own slot and
+# `filled_by` says which is which.
+[[provider.secrets]]
+reference = "putio_client_secret"
+domains = ["api.put.io"]
+
+[[provider.secrets]]
+reference = "putio_access_token"
+domains = ["api.put.io"]
+filled_by = "flow"
+
+[limits]
+memory_bytes = 33554432
+fuel = 1000000000
+timeout_milliseconds = 15000
+max_response_bytes = 2097152

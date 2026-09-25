@@ -1,0 +1,26 @@
+[package]
+name = "rd-collector"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+aes.workspace = true
+anyhow.workspace = true
+base64.workspace = true
+cbc.workspace = true
+hex.workspace = true
+quick-xml.workspace = true
+rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+regex.workspace = true
+serde.workspace = true
+sha2.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+

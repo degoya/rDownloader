@@ -1,0 +1,37 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000000b"
+name = "LinkSnappy"
+version = "0.7.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["*"]
+download_domains = ["*"]
+max_concurrent_downloads = 3
+
+[capabilities]
+secrets = ["linksnappy_password"]
+
+[capabilities.net_http]
+domains = ["linksnappy.com", "*.linksnappy.com"]
+
+[metadata]
+description = "Resolves links of other hosters through a LinkSnappy account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "linksnappy"
+kind = "multihoster"
+credentials = "username_password"
+username_required = true
+secret_reference = "linksnappy_password"
+secret_domains = ["linksnappy.com"]
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

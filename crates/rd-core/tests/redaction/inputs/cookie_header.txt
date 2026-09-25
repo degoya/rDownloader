@@ -1,0 +1,1 @@
+Cookie: session=abc123; csrftoken=xyz789; theme=dark

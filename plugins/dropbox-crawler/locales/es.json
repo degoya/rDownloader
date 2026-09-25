@@ -1,0 +1,13 @@
+{
+  "name": "Carpetas de Dropbox",
+  "description": "Lista los archivos detrás de una carpeta de Dropbox o de un enlace de carpeta compartida.",
+  "codes": {
+    "dropbox_crawler.folder_empty": "Esta carpeta de Dropbox no contiene archivos descargables",
+    "dropbox_crawler.folder_unreachable": "No se pudo leer esta carpeta de Dropbox",
+    "dropbox_crawler.invalid_response": "Respuesta de Dropbox no válida",
+    "dropbox_crawler.link_access_denied": "Dropbox denegó el acceso a este enlace de carpeta compartida. Si está protegido con contraseña, añade ?link_password=… a la dirección",
+    "dropbox_crawler.not_a_folder": "Esta no es una dirección de carpeta de Dropbox",
+    "dropbox_crawler.rate_limited": "Dropbox está limitando esta aplicación",
+    "dropbox_crawler.sign_in_required": "Dropbox no aceptó esta cuenta para esa carpeta"
+  }
+}

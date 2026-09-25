@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest an idea or an improvement for rDownloader.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the idea. Support for a new hoster, protocol or destination can often be a plugin in its own repository — see [docs/plugins.md](https://github.com/degoya/rDownloader/blob/main/docs/plugins.md) and the SDK in [`sdk/`](https://github.com/degoya/rDownloader/tree/main/sdk).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How you imagine it working — in the web interface, the API, the CLI or a plugin.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, or how other tools handle it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - LinkGrabber and link intake
+        - Downloads and queue
+        - Usenet
+        - Torrents
+        - Media, streams and galleries
+        - Post-processing
+        - Plugins
+        - Browser extension or capture agent
+        - Subscriptions, automations and notifications
+        - API, CLI or MCP
+        - Web interface
+        - Installation and platforms
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, links to documentation of the service involved, anything else that helps.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for this idea.
+          required: true

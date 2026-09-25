@@ -1,0 +1,12 @@
+{
+  "name": "Inicio de sesión de Dropbox",
+  "description": "Inicia sesión en una cuenta de Dropbox mediante el propio punto de autorización de Dropbox.",
+  "codes": {
+    "dropbox_oauth.bad_reply": "Dropbox envió una respuesta que este complemento no pudo leer.",
+    "dropbox_oauth.code_expired": "El inicio de sesión caducó antes de terminar. Inícialo de nuevo.",
+    "dropbox_oauth.consent_denied": "El inicio de sesión no fue concedido en Dropbox.",
+    "dropbox_oauth.flow_unsupported": "Dropbox se autentica en el navegador, no con un código de dispositivo.",
+    "dropbox_oauth.no_entropy": "No se pudo iniciar la sesión porque la aplicación no tenía aleatoriedad para ello. Inténtalo de nuevo.",
+    "dropbox_oauth.refresh_refused": "Dropbox ya no acepta la sesión guardada. Inicia sesión de nuevo."
+  }
+}

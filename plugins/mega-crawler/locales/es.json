@@ -1,0 +1,20 @@
+{
+  "name": "Carpetas de MEGA",
+  "description": "Lista los archivos detrás de un enlace público de carpeta de MEGA o de una carpeta de la cuenta con sesión iniciada, con nombres, tamaños y estructura.",
+  "codes": {
+    "mega_crawler.api_error": "Error {status} de la API de MEGA",
+    "mega_crawler.folder_empty": "Esta carpeta de MEGA no contiene archivos descargables",
+    "mega_crawler.folder_private": "Esta carpeta de MEGA necesita la cuenta del propietario",
+    "mega_crawler.folder_unreachable": "Esta carpeta de MEGA ya no existe o nunca existió",
+    "mega_crawler.http_error": "Estado HTTP {status} de MEGA",
+    "mega_crawler.invalid_response": "Respuesta de MEGA no válida",
+    "mega_crawler.key_invalid": "Este enlace de carpeta de MEGA no lleva ninguna clave utilizable",
+    "mega_crawler.not_a_folder": "Esta no es una dirección de carpeta de MEGA",
+    "mega_crawler.not_in_account": "Esta carpeta ya no está en la cuenta de MEGA",
+    "mega_crawler.quota_exceeded": "La cuota de transferencia de MEGA para esta carpeta se ha agotado",
+    "mega_crawler.rate_limited": "MEGA está limitando las peticiones desde esta dirección",
+    "mega_crawler.session_expired": "La sesión de la cuenta de MEGA ha caducado; vuelve a iniciar sesión",
+    "mega_crawler.too_many_files": "Esta carpeta de MEGA contiene más de {limit} archivos",
+    "mega_crawler.unavailable": "MEGA no responde temporalmente para esta carpeta"
+  }
+}

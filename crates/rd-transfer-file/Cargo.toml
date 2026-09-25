@@ -1,0 +1,24 @@
+[package]
+name = "rd-transfer-file"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+rd-limits = { path = "../rd-limits" }
+rd-scheduler = { path = "../rd-scheduler" }
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,7 @@
+{
+  "name": "ntfy",
+  "description": "Stellt Benachrichtigungen an ein ntfy-Topic zu.",
+  "codes": {
+    "ntfy_notifier.rejected": "ntfy hat die Nachricht abgelehnt."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "MediaFire",
+  "description": "Löst öffentliche MediaFire-Dateilinks über die dokumentierte API und die Dateiseite auf.",
+  "codes": {
+    "mediafire.api_error": "MediaFire-API: {message}",
+    "mediafire.captcha_rejected": "MediaFire hat die Captcha-Antwort abgelehnt",
+    "mediafire.captcha_required": "MediaFire verlangt ein Captcha, das dieses Plugin nicht beantworten kann",
+    "mediafire.download_limit_reached": "MediaFire-Downloadlimit für diese Adresse erreicht; in {wait_seconds} s erneut versuchen",
+    "mediafire.error_page": "MediaFire hat mit Fehlerseite {errno} geantwortet",
+    "mediafire.file_blocked": "MediaFire hat diese Datei gesperrt: {reason}",
+    "mediafire.file_not_ready": "MediaFire verarbeitet diese Datei noch",
+    "mediafire.file_unavailable": "MediaFire-Datei ist nicht verfügbar",
+    "mediafire.folder_not_file": "Dies ist ein MediaFire-Ordner, keine Datei; Ordner werden vom MediaFire-Ordnercrawler gelistet",
+    "mediafire.http_error": "MediaFire-HTTP-Status {status}",
+    "mediafire.invalid_link": "Ungültiger MediaFire-Link",
+    "mediafire.invalid_response": "Ungültige MediaFire-Antwort",
+    "mediafire.invalid_url": "Ungültige Anbieter-URL: {error}",
+    "mediafire.malware_flagged": "MediaFire hat diese Datei als Schadsoftware markiert; sie wird nicht heruntergeladen",
+    "mediafire.no_account": "MediaFire löst öffentliche Dateien ohne Konto auf; es gibt nichts zu prüfen",
+    "mediafire.no_direct_link": "Die MediaFire-Dateiseite enthielt keinen Direktlink: {diagnosis}",
+    "mediafire.owner_limit": "MediaFire verweigert den Download wegen des Limits des Uploaders: {reason}",
+    "mediafire.password_required": "MediaFire-Datei ist passwortgeschützt; Dateipasswörter werden noch nicht unterstützt",
+    "mediafire.private_file": "MediaFire-Datei ist privat und braucht das Konto des Eigentümers",
+    "mediafire.rate_limited": "MediaFire begrenzt die API-Aufrufe von dieser Adresse",
+    "mediafire.temporarily_unavailable": "MediaFire-Download ist vorübergehend nicht verfügbar; in {wait_seconds} s erneut versuchen",
+    "mediafire.unsupported_link": "Kein unterstützter MediaFire-Link"
+  }
+}

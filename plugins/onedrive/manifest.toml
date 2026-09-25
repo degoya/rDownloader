@@ -1,0 +1,59 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000114"
+name = "OneDrive"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The sharing links a person pastes — OneDrive's short ones, the long personal ones and every
+# SharePoint tenant's — plus the canonical per-item Graph address the sibling crawler emits.
+# Never `*`: this is a hoster for one provider's drives, not a multihoster.
+match_domains = [
+  "1drv.ms",
+  "onedrive.live.com",
+  "*.sharepoint.com",
+  "graph.microsoft.com",
+]
+# Where the bytes come from. A `/content` request answers with a redirect to a pre-authenticated
+# address on OneDrive's or the tenant's own storage host; the transfer follows it and drops the
+# bearer token on the way, because the redirect leaves `graph.microsoft.com`.
+download_domains = ["graph.microsoft.com", "*.files.1drv.com", "*.sharepoint.com"]
+max_concurrent_downloads = 3
+
+[capabilities]
+secrets = ["onedrive_access_token"]
+
+[capabilities.net_http]
+domains = ["graph.microsoft.com"]
+
+[metadata]
+description = "Resolves OneDrive and SharePoint files and sharing links through Microsoft Graph."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+# The provider row every OneDrive plugin hangs off. Only a resolver manifest may carry one,
+# which is why this plugin exists even though the folder walk and the sign-in are its siblings:
+# without this row there is no account, no vault reference and therefore no way for either of
+# them to reach anything.
+[provider]
+slug = "onedrive"
+kind = "hoster"
+credentials = "oauth"
+# The account's username field holds this installation's own Microsoft Entra application
+# (client) id (RD-106-04, rule 8). It is not a credential — Microsoft publishes it in the
+# address the person is sent to — so it is stored in the clear and the host expands it into
+# `{{client_id}}`. Required, because a sign-in without one cannot start: this project ships no
+# application registration of its own, and one compiled in here would put every installation
+# on a single shared throttling budget.
+username_required = true
+secret_reference = "onedrive_access_token"
+secret_domains = ["graph.microsoft.com"]
+
+[limits]
+memory_bytes = 33554432
+fuel = 1000000000
+timeout_milliseconds = 15000
+max_response_bytes = 2097152

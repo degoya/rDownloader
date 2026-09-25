@@ -1,0 +1,17 @@
+{
+  "transfers": [
+    {
+      "id": 770002,
+      "name": "Somebody.Else",
+      "status": "DOWNLOADING",
+      "hash": "ffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "id": 770001,
+      "name": "Example.Release",
+      "status": "IN_QUEUE",
+      "hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
+    }
+  ],
+  "status": "OK"
+}

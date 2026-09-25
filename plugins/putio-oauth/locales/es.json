@@ -1,0 +1,12 @@
+{
+  "name": "Inicio de sesión de Put.io",
+  "description": "Inicia sesión en una cuenta de Put.io mediante el propio extremo de autorización de Put.io.",
+  "codes": {
+    "putio_oauth.bad_reply": "Put.io envió una respuesta que este complemento no pudo leer.",
+    "putio_oauth.code_expired": "El inicio de sesión caducó antes de completarse. Vuelve a empezarlo.",
+    "putio_oauth.consent_denied": "El inicio de sesión no se concedió en Put.io.",
+    "putio_oauth.flow_unsupported": "Put.io se inicia en el navegador, no con un código de dispositivo.",
+    "putio_oauth.no_entropy": "No se pudo iniciar la sesión porque la aplicación no disponía de aleatoriedad. Vuelve a intentarlo.",
+    "putio_oauth.refresh_refused": "Put.io ya no acepta el inicio de sesión guardado. Vuelve a iniciar sesión."
+  }
+}

@@ -1,0 +1,4 @@
+[
+  {"format_id":"v1080","ext":"mp4","vcodec":"avc1.640028","acodec":"none","width":1920,"height":1080,"fps":30,"dynamic_range":"SDR","vbr":4000.0,"tbr":4000.0,"filesize":80000000,"protocol":"https"},
+  {"format_id":"v720","ext":"mp4","vcodec":"avc1.4d401f","acodec":"none","width":1280,"height":720,"fps":30,"dynamic_range":"SDR","vbr":2000.0,"tbr":2000.0,"filesize":40000000,"protocol":"https"}
+]

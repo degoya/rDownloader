@@ -1,0 +1,12 @@
+{
+  "name": "Inicio de sesión de Google",
+  "description": "Inicia sesión en una cuenta de Google Drive mediante el propio endpoint de autorización de Google.",
+  "codes": {
+    "google_drive_oauth.bad_reply": "Google ha enviado una respuesta que este complemento no puede leer.",
+    "google_drive_oauth.code_expired": "El inicio de sesión caducó antes de completarse. Vuelve a iniciarlo.",
+    "google_drive_oauth.consent_denied": "Google no ha concedido el acceso. La administración de Workspace también puede bloquearlo.",
+    "google_drive_oauth.flow_unsupported": "Google Drive se autentica en el navegador, no con un código de dispositivo.",
+    "google_drive_oauth.no_entropy": "No se ha podido iniciar el acceso porque la aplicación no disponía de aleatoriedad. Inténtalo de nuevo.",
+    "google_drive_oauth.refresh_refused": "Google ya no acepta el acceso guardado. Vuelve a iniciar sesión."
+  }
+}

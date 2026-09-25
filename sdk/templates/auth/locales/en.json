@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Signs an account in to {{PLUGIN_NAME}} without a password ever being typed here.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.flow_expired": "The sign-in code expired before it was confirmed."
+  }
+}

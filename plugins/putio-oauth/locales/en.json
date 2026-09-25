@@ -1,0 +1,12 @@
+{
+  "name": "Put.io sign-in",
+  "description": "Signs a Put.io account in through Put.io's own authorization endpoint.",
+  "codes": {
+    "putio_oauth.bad_reply": "Put.io sent a reply this plugin could not read.",
+    "putio_oauth.code_expired": "The sign-in expired before it was finished. Start it again.",
+    "putio_oauth.consent_denied": "The sign-in was not granted at Put.io.",
+    "putio_oauth.flow_unsupported": "Put.io is signed in through the browser, not with a device code.",
+    "putio_oauth.no_entropy": "The sign-in could not be started because the application had no randomness for it. Try again.",
+    "putio_oauth.refresh_refused": "Put.io no longer accepts the stored sign-in. Sign in again."
+  }
+}

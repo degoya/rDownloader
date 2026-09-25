@@ -1,0 +1,1 @@
+{"source":"https://cdn.example.com/f.bin?token=%5Bredacted%5D","name":"f.bin"}

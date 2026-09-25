@@ -1,0 +1,26 @@
+{
+  "name": "Real-Debrid",
+  "description": "Resolves links of other hosters through a Real-Debrid account.",
+  "account": {
+    "secret_label": "Real-Debrid client secret",
+    "secret_hint": "Register an application at real-debrid.com (My account → API). Enter its client ID as the username and its client secret here, then start the sign-in: Real-Debrid shows a short code to confirm, and the token is renewed from then on."
+  },
+  "codes": {
+    "realdebrid.account_missing": "Real-Debrid account is missing",
+    "realdebrid.api_error": "Real-Debrid API error {api_code}",
+    "realdebrid.auth_invalid": "The Real-Debrid sign-in is no longer valid. Sign in again.",
+    "realdebrid.file_offline": "Real-Debrid reports this file as unavailable",
+    "realdebrid.host_unsupported": "Real-Debrid does not support this host for this account",
+    "realdebrid.http_error": "Real-Debrid HTTP status {status}",
+    "realdebrid.invalid_response": "Invalid Real-Debrid response",
+    "realdebrid.invalid_url": "Invalid provider URL: {error}",
+    "realdebrid.ip_not_allowed": "Real-Debrid does not allow this account from this address",
+    "realdebrid.limit_reached": "Real-Debrid reports the traffic or hoster limit as reached",
+    "realdebrid.no_download_url": "Real-Debrid did not return a download link",
+    "realdebrid.rate_limited": "The Real-Debrid API rate limit was reached. Waiting.",
+    "realdebrid.server_busy": "Real-Debrid or the hoster behind it is temporarily unavailable",
+    "realdebrid.server_error": "Real-Debrid server error",
+    "realdebrid.token_missing": "This Real-Debrid account is not signed in yet",
+    "realdebrid.two_factor": "Real-Debrid asked for two-factor authentication"
+  }
+}

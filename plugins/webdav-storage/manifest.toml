@@ -1,0 +1,33 @@
+manifest_version = 3
+plugin_type = "storage"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000108"
+name = "WebDAV"
+version = "0.9.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# A WebDAV server is wherever the person put theirs, so the wildcard is the honest
+# declaration: the destination is checked against the stored remote credentials instead, which
+# is where the address and the password already live and where somebody chose both.
+[capabilities.net_http]
+domains = ["*"]
+
+[extension]
+slug = "webdav_storage"
+# Empty: a destination is named in the post-processing settings, not matched against a link.
+claims = []
+
+[metadata]
+description = "Uploads finished packages to a WebDAV server, verifying each file before anything local is deleted."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 67108864
+fuel = 500000000
+# An upload is as long as the package is. Stopping and resuming is what bounds it.
+timeout_milliseconds = 600000
+max_response_bytes = 1048576

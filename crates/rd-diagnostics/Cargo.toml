@@ -1,0 +1,31 @@
+[package]
+name = "rd-diagnostics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+hex.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+# RD-110-03: the OTLP exporter posts one JSON document to one URL. See `src/otlp.rs` for why
+# that is not an OpenTelemetry SDK; `reqwest` is already in the tree for every other crate
+# that speaks HTTP.
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+utoipa.workspace = true
+zip.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

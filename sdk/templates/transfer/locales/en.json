@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Transfers files over the {{PLUGIN_NAME}} protocol.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.not_implemented": "This backend does not implement that yet."
+  }
+}

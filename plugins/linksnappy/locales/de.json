@@ -1,0 +1,29 @@
+{
+  "name": "LinkSnappy",
+  "account": {
+    "secret_label": "Kontopasswort",
+    "secret_hint": "Gib deinen Kontobenutzernamen und dein Passwort als Secret ein."
+  },
+  "codes": {
+    "linksnappy.account_expired": "Der LinkSnappy-Account ist abgelaufen",
+    "linksnappy.account_missing": "Der LinkSnappy-Account fehlt",
+    "linksnappy.api_error": "LinkSnappy-API-Fehler: {message}",
+    "linksnappy.bad_credentials": "LinkSnappy-Benutzername oder Passwort ist falsch",
+    "linksnappy.file_offline": "Die LinkSnappy-Datei ist nicht verfügbar",
+    "linksnappy.host_unavailable": "Für diesen Filehost ist bei LinkSnappy aktuell kein Server verfügbar",
+    "linksnappy.host_unsupported": "LinkSnappy unterstützt diesen Filehost nicht",
+    "linksnappy.http_error": "LinkSnappy-HTTP-Status {status}",
+    "linksnappy.invalid_link_format": "LinkSnappy erkennt das Format dieses Links nicht",
+    "linksnappy.invalid_response": "Ungültige LinkSnappy-Antwort",
+    "linksnappy.invalid_url": "Ungültige Provider-URL: {error}",
+    "linksnappy.limit_reached": "Das Traffic- oder Download-Limit von LinkSnappy wurde erreicht",
+    "linksnappy.no_download_url": "LinkSnappy hat keine Download-URL zurückgegeben",
+    "linksnappy.password_missing": "Das LinkSnappy-Passwort fehlt",
+    "linksnappy.password_protected": "Die LinkSnappy-Datei erfordert ein Download-Passwort, das dieses Plugin nicht liefern kann",
+    "linksnappy.premium_required": "Für die LinkSnappy-Download-API ist eine Elite-(Premium-)Mitgliedschaft erforderlich",
+    "linksnappy.rate_limited": "LinkSnappy-API-Ratenlimit wurde ausgelöst",
+    "linksnappy.server_error": "LinkSnappy-Serverfehler",
+    "linksnappy.too_many_requests": "LinkSnappy hat die Anfrage abgelehnt; zu viele Download-Anfragen in letzter Zeit",
+    "linksnappy.two_factor_required": "LinkSnappy verlangt eine Bestätigung dieses Logins über die an den Account gesendete E-Mail"
+  }
+}

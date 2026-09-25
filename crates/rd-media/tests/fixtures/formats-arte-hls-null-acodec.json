@@ -1,0 +1,13 @@
+[
+  {"format_id":"VOA-audio_0-Deutsch__Klare_Sprache_","ext":"mp4","protocol":"m3u8_native","vcodec":"none","acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":0,"abr":null,"language":"de","format_note":"Deutsch [DE]","dynamic_range":null},
+  {"format_id":"VOA-audio_0-Französisch","ext":"mp4","protocol":"m3u8_native","vcodec":"none","acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":0,"abr":null,"language":"fr","format_note":"Deutsch [DE]","dynamic_range":null},
+  {"format_id":"VOA-audio_0-Französisch__Klare_Sprache_","ext":"mp4","protocol":"m3u8_native","vcodec":"none","acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":0,"abr":null,"language":"fr","format_note":"Deutsch [DE]","dynamic_range":null},
+  {"format_id":"VOA-audio_0-Mehrsprachig","ext":"mp4","protocol":"m3u8_native","vcodec":"none","acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":0,"abr":null,"language":"mul","format_note":"Deutsch [DE]","dynamic_range":null},
+  {"format_id":"VOA-audio_0-Deutsch","ext":"mp4","protocol":"m3u8_native","vcodec":"none","acodec":null,"width":null,"height":null,"fps":null,"tbr":null,"vbr":0,"abr":null,"language":"de","format_note":"Deutsch [DE]","dynamic_range":null},
+  {"format_id":"VOA-748","ext":"mp4","protocol":"m3u8_native","vcodec":"avc1.4D001E","acodec":"none","width":768,"height":432,"fps":25.0,"tbr":748.536,"vbr":748.536,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"},
+  {"format_id":"VOA-611","ext":"mp4","protocol":"m3u8_native","vcodec":"hev1.1.6.L90.B0","acodec":"none","width":768,"height":432,"fps":25.0,"tbr":611.488,"vbr":611.488,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"},
+  {"format_id":"VOA-1274","ext":"mp4","protocol":"m3u8_native","vcodec":"avc1.64001F","acodec":"none","width":1280,"height":720,"fps":25.0,"tbr":1274.128,"vbr":1274.128,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"},
+  {"format_id":"VOA-1019","ext":"mp4","protocol":"m3u8_native","vcodec":"hev1.1.6.L93.B0","acodec":"none","width":1280,"height":720,"fps":25.0,"tbr":1019.936,"vbr":1019.936,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"},
+  {"format_id":"VOA-2222","ext":"mp4","protocol":"m3u8_native","vcodec":"avc1.640028","acodec":"none","width":1920,"height":1080,"fps":25.0,"tbr":2222.064,"vbr":2222.064,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"},
+  {"format_id":"VOA-1800","ext":"mp4","protocol":"m3u8_native","vcodec":"hev1.1.6.L120.B0","acodec":"none","width":1920,"height":1080,"fps":25.0,"tbr":1800.192,"vbr":1800.192,"abr":0,"language":null,"format_note":"Deutsch [DE]","dynamic_range":"SDR"}
+]

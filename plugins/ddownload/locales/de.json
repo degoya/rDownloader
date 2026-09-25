@@ -1,0 +1,39 @@
+{
+  "name": "DDownload",
+  "account": {
+    "secret_hint": "Wähle, wie sich dieses Konto anmeldet. Zugangsdaten ist der einfache Weg: DDownload-Benutzernamen oder E-Mail und Passwort eintragen, rDownloader meldet sich an und hält die Session selbst. API-Key ist für ein Konto, das kein Passwort speichern soll – den Key aus Konto → API einfügen; er liefert Kontostatus und Dateimetadaten, Downloads brauchen dann zusätzlich eine unten eingefügte Cookie-Session.",
+    "secret_hint_api_key": "Der Key aus Konto → API. Er liefert Kontostatus und Dateimetadaten; Downloads laufen über die Cookie-Session unten, weil die DDownload-API keine Direktlinks anbietet.",
+    "secret_hint_login": "Das Passwort des oben genannten DDownload-Kontos. DDownload schützt sein Anmeldeformular seit Kurzem mit einem Cloudflare-Turnstile-Captcha: Die Anmeldung gelingt daher nur mit einem eingerichteten Captcha-Dienst, oder wenn die Aufgabe unter Captchas von Hand beantwortet wird. Ist beides nicht vorhanden, nutze den API-Key-Modus mit einer eingefügten Cookie-Session.",
+    "secret_label": "DDownload-Passwort oder API-Key",
+    "secret_label_api_key": "DDownload API-Key",
+    "secret_label_login": "DDownload-Passwort"
+  },
+  "codes": {
+    "ddownload.account_missing": "DDownload-Account fehlt",
+    "ddownload.api_error": "DDownload-API: {message}",
+    "ddownload.api_key_required": "Die DDownload-Linkprüfung benötigt den API-Key",
+    "ddownload.captcha_rejected": "DDownload hat die Captcha-Antwort abgelehnt",
+    "ddownload.cookie_session_invalid": "Die DDownload-Cookie-Session ist nicht angemeldet – eine frische Cookie-Session aus einem angemeldeten Browser einfügen: {diagnosis}",
+    "ddownload.cookie_session_required": "Die DDownload-Cookie-Session fehlt oder enthält keine Cookies für ddownload.com",
+    "ddownload.cookie_session_required_for_download": "DDownload-Downloads benötigen eine Cookie-Session (Browser-Login); der API-Key liefert nur Metadaten",
+    "ddownload.cookie_session_unconfirmed": "DDownload hat die Cookie-Sitzung weder bestätigt noch abgelehnt - die Seite war weder angemeldet noch eine Gastseite; bitte später erneut versuchen: {diagnosis}",
+    "ddownload.download_session_expired": "DDownload hat den API-Key akzeptiert, aber die Cookie-Session, über die Downloads laufen, ist abgelaufen – eine frische Cookie-Session aus einem bei ddownload.com angemeldeten Browser einfügen: {diagnosis}",
+    "ddownload.file_unavailable": "Die DDownload-Datei ist nicht verfügbar",
+    "ddownload.free_limit_reached": "DDownload-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "ddownload.http_error": "DDownload-HTTP-Status {status}",
+    "ddownload.invalid_link": "Ungültiger DDownload-Link",
+    "ddownload.invalid_response": "Ungültige DDownload-Antwort",
+    "ddownload.invalid_url": "Ungültige Provider-URL: {error}",
+    "ddownload.login_blocked": "DDownload hat die Anmeldung von dieser IP-Adresse abgewiesen",
+    "ddownload.login_captcha": "Das Anmeldeformular von DDownload ist durch {challenge} geschützt; rDownloader kann diese Prüfung nicht beantworten. Stellen Sie das Konto auf API-Key um oder fügen Sie eine Cookie-Sitzung aus einem angemeldeten Browser ein.",
+    "ddownload.login_credentials_required": "DDownload-Downloads brauchen entweder Zugangsdaten oder eine importierte Cookie-Session",
+    "ddownload.login_failed": "DDownload hat Benutzernamen oder Passwort des Kontos abgelehnt",
+    "ddownload.login_form_missing": "Die Anmeldeseite von DDownload enthielt nicht das erwartete Anmeldeformular: {diagnosis}",
+    "ddownload.login_unavailable": "DDownload hat die Anmeldung nicht bestätigt: {diagnosis}",
+    "ddownload.no_free_form": "Das DDownload-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
+    "ddownload.no_free_link": "Der DDownload-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "ddownload.no_premium_file": "Die DDownload-Cookie-Session lieferte keine Premiumdatei: {diagnosis}",
+    "ddownload.session_unconfirmed": "Cookie-Sitzung nicht bestätigt – die Kontoseite war weder angemeldet noch eine Gastseite",
+    "ddownload.unsupported_link": "Kein unterstützter DDownload-Link"
+  }
+}

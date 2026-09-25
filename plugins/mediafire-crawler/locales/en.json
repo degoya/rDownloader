@@ -1,0 +1,14 @@
+{
+  "name": "MediaFire folders",
+  "description": "Lists the files behind a public MediaFire folder link or a list of file keys.",
+  "codes": {
+    "mediafire_crawler.api_error": "MediaFire API: {message}",
+    "mediafire_crawler.folder_empty": "This MediaFire folder holds no files that can be downloaded",
+    "mediafire_crawler.folder_private": "This MediaFire folder is private and needs the owner's account",
+    "mediafire_crawler.folder_unreachable": "This MediaFire folder could not be read",
+    "mediafire_crawler.http_error": "MediaFire HTTP status {status}",
+    "mediafire_crawler.invalid_response": "Invalid MediaFire response",
+    "mediafire_crawler.not_a_folder": "This is not a MediaFire folder address",
+    "mediafire_crawler.rate_limited": "MediaFire is rate limiting API calls from this address"
+  }
+}

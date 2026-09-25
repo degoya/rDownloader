@@ -1,0 +1,24 @@
+{
+  "name": "Debrid-Link",
+  "account": {
+    "secret_label": "Clé API (debrid-link.com/webapp/apikey)",
+    "secret_hint": "Saisissez votre clé API depuis debrid-link.com/webapp/apikey comme secret."
+  },
+  "codes": {
+    "debridlink.account_missing": "Le compte Debrid-Link est manquant",
+    "debridlink.api_error": "Erreur de l'API Debrid-Link : {api_code}",
+    "debridlink.api_key_missing": "La clé API Debrid-Link est manquante",
+    "debridlink.auth_invalid": "La clé API Debrid-Link est invalide ou a expiré",
+    "debridlink.file_offline": "Le fichier Debrid-Link n'est pas disponible",
+    "debridlink.flood": "La limite de requêtes de l'API Debrid-Link a été déclenchée",
+    "debridlink.host_unsupported": "Debrid-Link ne peut actuellement pas générer de lien pour cet hébergeur",
+    "debridlink.http_error": "Statut HTTP Debrid-Link {status}",
+    "debridlink.invalid_response": "Réponse Debrid-Link invalide",
+    "debridlink.invalid_url": "URL de fournisseur invalide : {error}",
+    "debridlink.limit_reached": "La limite quotidienne Debrid-Link a été atteinte",
+    "debridlink.no_download_url": "Debrid-Link n'a renvoyé aucune URL de téléchargement",
+    "debridlink.rate_limited": "La limite de requêtes de l'API Debrid-Link a été déclenchée",
+    "debridlink.server_busy": "Le serveur Debrid-Link est temporairement surchargé",
+    "debridlink.server_error": "Erreur serveur Debrid-Link"
+  }
+}

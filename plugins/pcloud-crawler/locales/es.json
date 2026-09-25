@@ -1,0 +1,13 @@
+{
+  "name": "Carpetas de pCloud",
+  "description": "Lista los archivos que hay detrás de una carpeta o un enlace público de pCloud.",
+  "codes": {
+    "pcloud_crawler.folder_empty": "Esta carpeta de pCloud no contiene archivos descargables",
+    "pcloud_crawler.folder_unreachable": "No se pudo leer esta carpeta de pCloud (resultado {result})",
+    "pcloud_crawler.invalid_response": "Respuesta de pCloud no válida",
+    "pcloud_crawler.link_unavailable": "pCloud no abre este enlace público (resultado {result}). Puede estar borrado, caducado, sin tráfico disponible o protegido con contraseña",
+    "pcloud_crawler.not_a_folder": "Esta no es una dirección de carpeta ni de enlace público de pCloud",
+    "pcloud_crawler.rate_limited": "pCloud está limitando esta aplicación",
+    "pcloud_crawler.sign_in_required": "Ninguno de los dos centros de datos de pCloud aceptó esta cuenta para esa carpeta"
+  }
+}

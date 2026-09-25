@@ -1,0 +1,32 @@
+manifest_version = 3
+plugin_type = "storage"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# Every address this plugin may reach. The host refuses anything outside the list, so keep
+# it to the hosts you actually call rather than a wildcard you might need one day.
+[capabilities.net_http]
+domains = ["storage.example.com"]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# Left empty: a destination is chosen by name in the post-processing settings.
+claims = []
+
+[metadata]
+description = "Uploads finished packages to {{PLUGIN_NAME}}."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 600000
+max_response_bytes = 1048576

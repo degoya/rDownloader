@@ -1,0 +1,22 @@
+[package]
+name = "{{PLUGIN_SLUG}}"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+# A guest needs nothing from rDownloader itself: the contract is `wit/rdownloader.wit`, which
+# ships with this scaffold, and wit-bindgen turns it into the types below. That is what makes
+# the plugin buildable without a checkout of the application.
+url = "2"
+wit-bindgen = "0.57"
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "{{PLUGIN_SLUG}}:resolver"
+
+[package.metadata.component.target]
+path = "wit"
+world = "resolver-plugin"

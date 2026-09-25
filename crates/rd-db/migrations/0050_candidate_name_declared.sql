@@ -1,0 +1,11 @@
+-- Whether a candidate's file name came from the source or from its address (RD-095-02).
+--
+-- Intake gives a link the last segment of its address when the source names none, so by the
+-- time the link reaches the queue the two are indistinguishable. That matters for mirror
+-- grouping: two unrelated files behind `/download` share a name without being the same file,
+-- while a hoster that declares `release.bin` is real evidence — even though the declared name
+-- often equals the address segment, so the two cannot be told apart by comparing them.
+--
+-- Existing rows are marked declared: their names were kept before this distinction existed,
+-- and treating them as unverified would regroup packages that are already in the queue.
+ALTER TABLE link_candidates ADD COLUMN file_name_declared INTEGER NOT NULL DEFAULT 1;

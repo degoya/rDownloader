@@ -1,0 +1,27 @@
+{
+  "name": "Torrents de Real-Debrid",
+  "description": "Ejecuta magnets y archivos torrent como trabajos en una cuenta de Real-Debrid.",
+  "codes": {
+    "realdebrid_torrents.account_missing": "Falta la cuenta de Real-Debrid",
+    "realdebrid_torrents.api_error": "Error {api_code} de la API de Real-Debrid",
+    "realdebrid_torrents.auth_invalid": "El inicio de sesión de Real-Debrid ya no es válido. Vuelve a iniciar sesión.",
+    "realdebrid_torrents.content_refused": "Real-Debrid rechaza transportar este contenido",
+    "realdebrid_torrents.empty_choice": "Una selección de archivos debe nombrar al menos un archivo",
+    "realdebrid_torrents.http_error": "Estado HTTP {status} de Real-Debrid",
+    "realdebrid_torrents.invalid_response": "Respuesta de Real-Debrid no válida",
+    "realdebrid_torrents.ip_not_allowed": "Real-Debrid no permite esta cuenta desde esta dirección",
+    "realdebrid_torrents.limit_reached": "Real-Debrid indica que se alcanzó el límite de tráfico o de torrents",
+    "realdebrid_torrents.magnet_rejected": "Real-Debrid no pudo leer esta dirección magnet",
+    "realdebrid_torrents.no_links": "Real-Debrid indica que este torrent terminó, pero no devolvió ningún enlace",
+    "realdebrid_torrents.no_torrent_id": "Real-Debrid no nombró el torrent que creó. Revisa tu cuenta de Real-Debrid antes de volver a intentarlo.",
+    "realdebrid_torrents.not_a_torrent": "Esto no es una dirección magnet ni un archivo torrent",
+    "realdebrid_torrents.not_permitted": "Real-Debrid no permite torrents en esta cuenta",
+    "realdebrid_torrents.rate_limited": "Se alcanzó el límite de peticiones de la API de Real-Debrid. Esperando.",
+    "realdebrid_torrents.server_busy": "Real-Debrid no está disponible temporalmente",
+    "realdebrid_torrents.server_error": "Error del servidor de Real-Debrid",
+    "realdebrid_torrents.token_missing": "Esta cuenta de Real-Debrid todavía no ha iniciado sesión",
+    "realdebrid_torrents.torrent_dead": "Real-Debrid no encontró pares para este torrent",
+    "realdebrid_torrents.torrent_failed": "Real-Debrid terminó este torrent con un error",
+    "realdebrid_torrents.torrent_gone": "Real-Debrid ya no conserva este torrent"
+  }
+}

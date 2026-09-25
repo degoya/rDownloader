@@ -1,0 +1,8 @@
+{
+  "type": "error",
+  "status": 429,
+  "code": "rate_limit_exceeded",
+  "help_url": "http://developers.box.com/docs/#errors",
+  "message": "Request rate limit exceeded, please try again later",
+  "request_id": "redacted-request-id-0003"
+}

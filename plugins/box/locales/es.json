@@ -1,0 +1,25 @@
+{
+  "name": "Box",
+  "description": "Resuelve archivos de Box y enlaces compartidos a través de la API de contenido oficial de Box.",
+  "account": {
+    "secret_label": "Secreto de cliente de Box",
+    "secret_hint": "El secreto de cliente de su propia aplicación de Box, de la misma página que el ID de cliente de arriba. Box lo exige en cada inicio de sesión y en cada renovación, por eso se conserva; el token de acceso que obtiene el inicio de sesión se guarda junto a él y nunca encima.",
+    "username_label": "ID de cliente (OAuth 2.0)",
+    "username_hint": "Box necesita una aplicación propia — este proyecto no incluye ninguna, para que cada instalación tenga su propio límite de Box. En la Box Developer Console cree una Custom App con User Authentication (OAuth 2.0), marque únicamente el ámbito «Read all files and folders stored in Box», añada http://127.0.0.1:8710/api/v1/oauth/callback como URI de redirección y pegue aquí el ID de cliente y abajo el secreto de cliente."
+  },
+  "codes": {
+    "box.account_missing": "Falta la cuenta de Box",
+    "box.api_refused": "Box ha rechazado esta petición ({reason})",
+    "box.download_not_permitted": "Box no entrega este archivo a esta cuenta: está restringido, bloqueado o compartido sin permiso de descarga",
+    "box.file_not_found": "Este archivo de Box no existe, está en la papelera o esta cuenta no puede verlo",
+    "box.invalid_response": "Respuesta de Box no válida",
+    "box.is_a_folder": "Esta dirección de Box es una carpeta. Añádala de nuevo para que la carpeta se enumere",
+    "box.link_access_denied": "Box ha denegado el acceso a este enlace compartido. Si está protegido con contraseña, añada ?shared_link_password=… a la dirección; si no, se compartió con otra persona",
+    "box.not_a_box_link": "Esta no es una dirección de archivo de Box",
+    "box.not_a_file": "Este elemento de Box no es un archivo y no tiene nada que descargar",
+    "box.quota_exceeded": "Esta cuenta de Box ha agotado su cuota",
+    "box.rate_limited": "Box está limitando esta cuenta. Sus demás enlaces esperan el tiempo que Box ha pedido",
+    "box.sign_in_required": "Hay que volver a iniciar sesión en esta cuenta de Box",
+    "box.unavailable": "Box no está disponible temporalmente"
+  }
+}

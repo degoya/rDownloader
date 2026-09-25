@@ -1,0 +1,67 @@
+<!--
+  DDownload's login page, fetched without a session on 2026-09-20 15:06 UTC while measuring
+  RD-109-34: GET https://ddownload.com/login.html answered 200 with 135460 bytes, no Cloudflare
+  interstitial, and the same URL is where GET /?op=my_account sends a visitor who is not signed
+  in (302 to /login.html, measured in the same minute). Trimmed to the three parts the parsers
+  read: the title, the guest header with its login link, and the sign-in form verbatim,
+  including the Turnstile widget the site has guarded it with since 2026-09-17. The page's own
+  HTML comments inside the form are kept as they were served.
+
+  Measured against this body: session_verdict = Guest, shows_signed_in = false, login_form =
+  action https://ddownload.com/ with 4 hidden fields, login_challenge = Turnstile with site key
+  0x4AAAAAABm53D0OJNkESa1O.
+
+  What the fixture proves: the login page itself was intact and unguarded at the time the
+  account check reported "did not contain the expected sign-in form", so the formless page that
+  check saw was not this one. It is also the page a cold cookie jar really gets, which is why
+  the check still signs in when the account page says there is no session.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Login - DDownload</title>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <nav class="header-nav">
+                <a class="nav-link outlined" href="/login" onclick="if(typeof LoginModal!=='undefined'){return LoginModal.show()}">
+                    Login
+                </a>
+                <a class="nav-link primary" href="/register" onclick="if(typeof RegModal!=='undefined'){return RegModal.show()}">
+                    Sign up
+                </a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <form method="POST" action="https://ddownload.com/" name="FL">
+            <input type="hidden" name="op" value="login">
+            <input type="hidden" name="token" value="e9c15b3acd804f8f66ffafba702e4542">
+            <input type="hidden" name="rand" value="gdb25rz3ollvexlzlw4btw2y4peaesjotzp7jyf3ka">
+            <input type="hidden" name="redirect" value="">
+
+            <div class="form-group">
+                <label>Username or Email</label>
+                <input type="text" name="login" value="" class="form-control" placeholder="Enter your username or email" required>
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+            </div>
+
+            <div class="form-group">
+                <label>I'm not a robot</label>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+<div class="cf-turnstile" data-sitekey="0x4AAAAAABm53D0OJNkESa1O" id="cf-turnstile-widget"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Login
+            </button>
+        </form>
+    </main>
+</body>
+</html>

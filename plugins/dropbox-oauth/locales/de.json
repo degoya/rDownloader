@@ -1,0 +1,12 @@
+{
+  "name": "Dropbox-Anmeldung",
+  "description": "Meldet ein Dropbox-Konto über Dropbox' eigenen Autorisierungsendpunkt an.",
+  "codes": {
+    "dropbox_oauth.bad_reply": "Dropbox hat eine Antwort geschickt, die dieses Plugin nicht lesen konnte.",
+    "dropbox_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen war. Starte sie erneut.",
+    "dropbox_oauth.consent_denied": "Die Anmeldung wurde bei Dropbox nicht gewährt.",
+    "dropbox_oauth.flow_unsupported": "Dropbox wird im Browser angemeldet, nicht mit einem Gerätecode.",
+    "dropbox_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil die Anwendung keinen Zufall dafür hatte. Versuche es erneut.",
+    "dropbox_oauth.refresh_refused": "Dropbox akzeptiert die gespeicherte Anmeldung nicht mehr. Melde dich erneut an."
+  }
+}

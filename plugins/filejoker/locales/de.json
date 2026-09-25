@@ -1,0 +1,26 @@
+{
+  "name": "FileJoker",
+  "account": {
+    "secret_hint": "Importiere die Cookies einer angemeldeten Premium-Session aus deinem Browser."
+  },
+  "codes": {
+    "filejoker.account_missing": "FileJoker-Account fehlt",
+    "filejoker.captcha_rejected": "FileJoker hat die Captcha-Antwort abgelehnt",
+    "filejoker.captcha_required": "FileJoker erfordert für diesen Download das Lösen eines Captchas, was nicht unterstützt wird",
+    "filejoker.cookies_missing": "Die FileJoker-Cookie-Session fehlt oder enthält keine Cookies für filejoker.net",
+    "filejoker.download_wait": "FileJoker erfordert eine Wartezeit von {wait_seconds}s, bevor diese Datei heruntergeladen werden kann",
+    "filejoker.file_offline": "Die FileJoker-Datei ist nicht verfügbar",
+    "filejoker.free_limit_reached": "FileJoker-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "filejoker.free_size_limit": "FileJoker erlaubt für eine Datei dieser Größe keinen Free-Download",
+    "filejoker.http_error": "FileJoker-HTTP-Status {status}",
+    "filejoker.invalid_link": "Ungültiger FileJoker-Link",
+    "filejoker.invalid_url": "Ungültige Provider-URL: {error}",
+    "filejoker.no_free_form": "Das FileJoker-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
+    "filejoker.no_free_link": "Der FileJoker-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "filejoker.no_premium_file": "FileJoker meldet, dass diese Datei einen Premium-Account erfordert: {diagnosis}",
+    "filejoker.page_error": "FileJoker hat eine nicht erkannte Seite zurückgegeben: {diagnosis}",
+    "filejoker.session_invalid": "Die FileJoker-Cookie-Session erfordert eine erneute Anmeldung: {diagnosis}",
+    "filejoker.session_unconfirmed": "FileJoker hat die Cookie-Sitzung weder bestätigt noch abgelehnt - die Seite war weder angemeldet noch eine Gastseite; bitte später erneut versuchen: {diagnosis}",
+    "filejoker.unsupported_link": "Kein unterstützter FileJoker-Link"
+  }
+}

@@ -1,0 +1,107 @@
+# Which rd-api integration test binaries a change needs at branch level (RD-120-58).
+#
+# Read by rd_api_test_demands in scripts/lib/scope.sh. One row per line:
+#
+#     <extended regex over a changed path>   <binaries under crates/rd-api/tests/ | all | ->
+#
+# Every row whose regex matches a changed path contributes its binaries; `all` means every
+# batch, `-` means none (the path is covered elsewhere). A row whose binaries start with `+`
+# only adds them: it does not count as a mapping, so a path that matches nothing else still
+# falls back to every binary. The rules around the table:
+#
+#   * A changed test file selects itself: crates/rd-api/tests/<name>.rs and tests/mcp/ -> mcp;
+#     crates/rd-api/tests/common/ selects every binary.
+#   * A changed path under crates/rd-api/, crates/rd-core/ or crates/rd-db/migrations/ that NO
+#     row matches selects every binary. Where the mapping is not clear, the answer is the wide
+#     one, never a guess; leaving a file out of this table is how to say "not clear".
+#   * Any other crate selects no binary, as before RD-120-58: its own tests and one level of
+#     reverse dependencies cover it at branch level, and --full runs everything.
+#
+# How a row is derived: from the routes a test binary requests (`/api/v1/<area>`) and the
+# handler, service and route modules that serve them. Areas the tests reach from everywhere —
+# settings, the router, auth, errors, DTOs, OpenAPI — select every binary. scope_matrix walks
+# every route's policy and mcp drives the handlers through every tool, so any handler or route
+# change selects both. check.sh refuses a row that names a binary which does not exist, and a
+# binary that no row names: a new test file needs its row here.
+
+# --- everything: the router, the shared types, settings -------------------------------------
+^crates/rd-api/(Cargo\.toml|build\.rs)$                                                   all
+^crates/rd-api/src/(lib|handlers|error|error_codes|dto|auth|scope_policy|client|trace_context|static_assets|event_stream)\.rs$   all
+^crates/rd-api/src/openapi/                                                               all
+^crates/rd-api/src/routes/(mod|config|system)\.rs$                                        all
+^crates/rd-api/src/(config_handlers|setup_handlers)\.rs$                                  all
+^crates/rd-core/(Cargo\.toml|build\.rs)$                                                  all
+^crates/rd-core/src/(lib|error|ids|event|settings|download)\.rs$                          all
+^crates/rd-db/migrations/                                                                 all
+
+# --- every route, every MCP tool -------------------------------------------------------------
+^crates/rd-api/src/(.*_handlers\.rs|routes/)                                              + scope_matrix mcp
+^crates/rd-api/src/mcp/                                                                   mcp
+
+# --- unit tests inside the library: `rd-api --lib` runs them ---------------------------------
+^crates/rd-api/src/.*tests\.rs$                                                           -
+
+# --- rd-api, by area -------------------------------------------------------------------------
+^crates/rd-api/src/about\.rs$                                                             api_tokens scope_matrix mcp
+^crates/rd-api/licenses/                                                                  api_tokens
+^crates/rd-api/src/api_tokens\.rs$                                                        api_tokens audit
+^crates/rd-api/src/area_backup\.rs$                                                       area_backup
+^crates/rd-api/src/(audit|audit_dto|audit_handlers|routes/audit)\.rs$                     audit data_reset api_tokens
+^crates/rd-api/src/(auth_flow_handlers|auth_flow_service|auth_profile_handlers)\.rs$      auth_profiles media_cookie_profile browser_session capture_intake
+^crates/rd-api/src/auto_remove_service\.rs$                                               auto_remove
+^crates/rd-api/src/(automation_[a-z_]+|routes/automations)\.rs$                           automations automation_triggers area_backup
+^crates/rd-api/src/bandwidth_handlers\.rs$                                                bandwidth
+^crates/rd-api/src/browser_session[a-z_]*\.rs$                                            browser_session
+^crates/rd-api/src/captcha_handlers\.rs$                                                  captcha
+^crates/rd-api/src/capture_sanitize\.rs$                                                  capture_intake captcha event_resume browser_session auth_profiles
+^crates/rd-api/src/(capture_fetch|capture_file|nzb_zip)\.rs$                               capture_file
+^crates/rd-api/src/(collector_[a-z_]+|routes/collector)\.rs$                              capture_intake containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens
+^crates/rd-api/src/compat/(mod\.rs|qbittorrent/)                                          compat_qbittorrent compat_arr
+^crates/rd-api/src/compat/(mod\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr
+^crates/rd-api/src/(container_handlers|container_upload|dlc_import)\.rs$                  containers container_json dlc capture_file
+^crates/rd-api/src/data_reset_handlers\.rs$                                               data_reset
+^crates/rd-api/src/(diagnostics_[a-z_]+|routes/diagnostics)\.rs$                          diagnostics data_reset
+^crates/rd-api/src/(download_handlers|routes/queue)\.rs$                                  api_tokens audit auto_remove category_move_and_reset compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent
+^crates/rd-api/src/hotfolder_service\.rs$                                                 hotfolder_poll
+^crates/rd-api/src/(media_dto|media_handlers|routes/media)\.rs$                           media_cookie_profile media_manifest
+^crates/rd-api/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)\.rs$   metrics data_reset
+^crates/rd-api/src/(mfa_handlers|password_handlers)\.rs$                                  mfa passkeys auth
+^crates/rd-api/src/(notify_handlers|notify_service|routes/notify)\.rs$                    notifications automations
+^crates/rd-api/src/(package_clear|package_handlers)\.rs$                                  auto_remove category_move_and_reset reorder
+^crates/rd-api/src/passkey_handlers\.rs$                                                  passkeys
+^crates/rd-api/src/(plugin_handlers|providers_handlers|routes/plugins)\.rs$               plugin_enabled plugin_versions audit
+^crates/rd-api/src/power_[a-z_]+\.rs$                                                     power
+^crates/rd-api/src/reconnect_[a-z_]+\.rs$                                                 reconnect
+^crates/rd-api/src/(replay_dto|replay_handlers)\.rs$                                      replay_consent replay_restart
+^crates/rd-api/src/routing_backup\.rs$                                                    routing_backup
+^crates/rd-api/src/routes/security\.rs$                                                   auth mfa passkeys sessions api_tokens reverse_proxy
+^crates/rd-api/src/session_handlers\.rs$                                                  sessions auth
+^crates/rd-api/src/settings_backup[a-z_]*\.rs$                                            settings_backup
+^crates/rd-api/src/(site_rules_[a-z_]+|routes/site_rules)\.rs$                            site_rules
+^crates/rd-api/src/storage_capacity\.rs$                                                  storage_capacity
+^crates/rd-api/src/stream_[a-z_]+\.rs$                                                    stream_schedules area_backup
+^crates/rd-api/src/(subscription_[a-z_]+\.rs|subscription_service/)                       subscriptions feeds indexers area_backup
+^crates/rd-api/src/tools_handlers\.rs$                                                    managed_tools data_reset
+^crates/rd-api/src/(torrent_[a-z_]+|routes/torrent)\.rs$                                  torrent compat_qbittorrent compat_arr container_json service_switches capture_file
+^crates/rd-api/src/(usenet_handlers|routes/usenet)\.rs$                                   nzb_paused container_json indexers compat_sabnzbd
+
+# --- rd-core, by domain module ----------------------------------------------------------------
+# failpoint.rs compiles to nothing without its feature; the crash matrix is its test.
+^crates/rd-core/src/failpoint\.rs$                                                        -
+^crates/rd-core/tests/                                                                    -
+^crates/rd-core/src/audit\.rs$                                                            audit data_reset api_tokens mcp
+^crates/rd-core/src/(auth_flow|auth_profile|cookie_file)\.rs$                             auth_profiles media_cookie_profile browser_session capture_intake mcp
+^crates/rd-core/src/session\.rs$                                                          sessions auth mfa passkeys browser_session
+^crates/rd-core/src/bandwidth\.rs$                                                        bandwidth mcp
+^crates/rd-core/src/capture\.rs$                                                          capture_intake captcha event_resume browser_session auth_profiles
+^crates/rd-core/src/collector\.rs$                                                        capture_intake containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens mcp
+^crates/rd-core/src/diagnostics\.rs$                                                      diagnostics data_reset mcp
+^crates/rd-core/src/hotfolder\.rs$                                                        hotfolder_poll
+^crates/rd-core/src/media/                                                                media_cookie_profile media_manifest mcp
+^crates/rd-core/src/mfa\.rs$                                                              mfa passkeys auth
+^crates/rd-core/src/(recording|stream|stream_schedule)\.rs$                               stream_schedules area_backup mcp
+^crates/rd-core/src/storage\.rs$                                                          storage_roots storage_capacity category_move_and_reset mcp
+^crates/rd-core/src/(subscription\.rs|subscription/)                                      subscriptions feeds indexers area_backup mcp
+^crates/rd-core/src/toolpath\.rs$                                                         managed_tools
+^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
+^crates/rd-core/src/usenet\.rs$                                                           nzb_paused container_json indexers compat_sabnzbd mcp

@@ -1,0 +1,12 @@
+{
+  "result": 0,
+  "sha1": "0000000000000000000000000000000000000001",
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "metadata": {
+    "name": "release.bin",
+    "isfolder": false,
+    "fileid": 5001,
+    "parentfolderid": 42,
+    "size": 1048576
+  }
+}

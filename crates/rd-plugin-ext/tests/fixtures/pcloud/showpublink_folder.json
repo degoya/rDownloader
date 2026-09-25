@@ -1,0 +1,19 @@
+{
+  "result": 0,
+  "metadata": {
+    "name": "Shared",
+    "isfolder": true,
+    "folderid": 9000,
+    "id": "d9000",
+    "isshared": false,
+    "contents": [
+      { "name": "a.bin", "isfolder": false, "fileid": 9001, "parentfolderid": 9000, "size": 11 },
+      {
+        "name": "Sub", "isfolder": true, "folderid": 9002, "parentfolderid": 9000, "id": "d9002",
+        "contents": [
+          { "name": "b.bin", "isfolder": false, "fileid": 9003, "parentfolderid": 9002, "size": 22 }
+        ]
+      }
+    ]
+  }
+}

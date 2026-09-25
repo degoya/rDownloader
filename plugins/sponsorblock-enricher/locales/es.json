@@ -1,0 +1,7 @@
+{
+  "name": "SponsorBlock",
+  "description": "Informa antes de la descarga qué parte de un vídeo de YouTube es patrocinio o introducción.",
+  "codes": {
+    "sponsorblock_enricher.lookup_failed": "No se pudieron consultar esos segmentos."
+  }
+}

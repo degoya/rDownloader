@@ -1,0 +1,7 @@
+[
+  {"format_id":"dash-video=2200000","ext":"mp4","vcodec":"avc1.4d401f","acodec":"none","width":1280,"height":720,"fps":25,"dynamic_range":"SDR","vbr":2200.0,"tbr":2200.0,"protocol":"dash"},
+  {"format_id":"dash-video=1200000","ext":"mp4","vcodec":"avc1.4d401e","acodec":"none","width":854,"height":480,"fps":25,"dynamic_range":"SDR","vbr":1200.0,"tbr":1200.0,"protocol":"dash"},
+  {"format_id":"dash-audio_fre=128000","ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","abr":128.0,"tbr":128.0,"language":"fr","protocol":"dash"},
+  {"format_id":"dash-audio_ger=128000","ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","abr":128.0,"tbr":128.0,"language":"de","protocol":"dash"},
+  {"format_id":"dash-audio_ger=64000","ext":"m4a","vcodec":"none","acodec":"mp4a.40.2","abr":64.0,"tbr":64.0,"language":"de-DE","protocol":"dash"}
+]

@@ -1,0 +1,67 @@
+[package]
+name = "rd-plugin-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+aes.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+ed25519-dalek.workspace = true
+hmac.workspace = true
+rand.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-http = { path = "../rd-http" }
+rd-files = { path = "../rd-files" }
+rd-limits = { path = "../rd-limits" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-alldebrid = { path = "../../plugins/alldebrid" }
+rd-plugin-ddownload = { path = "../../plugins/ddownload" }
+rd-plugin-debridlink = { path = "../../plugins/debridlink" }
+rd-plugin-filejoker = { path = "../../plugins/filejoker" }
+rd-plugin-hitfile = { path = "../../plugins/hitfile" }
+rd-plugin-katfile = { path = "../../plugins/katfile" }
+rd-plugin-keep2share = { path = "../../plugins/keep2share" }
+rd-plugin-krakenfiles = { path = "../../plugins/krakenfiles" }
+rd-plugin-linksnappy = { path = "../../plugins/linksnappy" }
+rd-plugin-mediafire = { path = "../../plugins/mediafire" }
+rd-plugin-nitroflare = { path = "../../plugins/nitroflare" }
+rd-plugin-onefichier = { path = "../../plugins/onefichier" }
+rd-plugin-premiumize = { path = "../../plugins/premiumize" }
+rd-plugin-rapidgator = { path = "../../plugins/rapidgator" }
+rd-plugin-turbobit = { path = "../../plugins/turbobit" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rd-secrets = { path = "../rd-secrets" }
+rd-sign = { path = "../rd-sign" }
+rd-siterules = { path = "../rd-siterules" }
+reqwest.workspace = true
+secrecy.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+rustls.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+tokio-util.workspace = true
+toml.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+wasmparser.workspace = true
+wasmtime.workspace = true
+zeroize.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+rcgen.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

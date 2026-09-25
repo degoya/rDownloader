@@ -1,0 +1,7 @@
+{
+  "name": "SHA-256 checksums",
+  "description": "Verifies .sha256 sidecar files against the package they belong to.",
+  "codes": {
+    "sha256_postprocess.mismatch": "A file did not match its recorded SHA-256."
+  }
+}

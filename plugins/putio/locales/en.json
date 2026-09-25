@@ -1,0 +1,19 @@
+{
+  "name": "Put.io",
+  "description": "Resolves files in a Put.io account through the official API.",
+  "codes": {
+    "putio.account_missing": "A Put.io account is needed for this address",
+    "putio.api_error": "Put.io API error ({reason})",
+    "putio.auth_invalid": "The Put.io sign-in is no longer valid. Sign in again.",
+    "putio.disk_free": "{bytes} bytes free",
+    "putio.file_not_found": "Put.io no longer holds this file",
+    "putio.http_error": "Put.io HTTP status {status}",
+    "putio.invalid_response": "Invalid Put.io response",
+    "putio.is_a_folder": "This Put.io address is a folder and not a file",
+    "putio.not_a_putio_link": "This is not a Put.io file address",
+    "putio.not_permitted": "Put.io does not allow this account to do that",
+    "putio.rate_limited": "The Put.io API rate limit was reached. Waiting.",
+    "putio.server_error": "Put.io is temporarily unavailable",
+    "putio.token_missing": "This Put.io account is not signed in yet"
+  }
+}

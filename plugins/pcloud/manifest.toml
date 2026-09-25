@@ -1,0 +1,74 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000160"
+name = "pCloud"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
+# emits. Never `*`: this is a hoster for its own cloud, not a multihoster. Both regions are
+# here because a pCloud address names its installation in its host.
+match_domains = [
+  "my.pcloud.com", "www.pcloud.com", "e.pcloud.com", "u.pcloud.link", "e.pcloud.link",
+]
+# Where the bytes come from. pCloud answers `getfilelink` with a list of content servers it
+# picks per request — `edef2.pcloud.com`, `evd4.pcloud.com` and their like — so the hosts
+# cannot be enumerated and the pattern is their common suffix. `Link::download_url` holds the
+# answer to exactly the same rule inside the plugin, so a host pCloud names that is not its
+# own never becomes an address at all.
+download_domains = ["*.pcloud.com"]
+max_concurrent_downloads = 3
+
+[capabilities]
+# The access token the sign-in sibling obtained. Read back only as `{{secret:…}}`, never as a
+# value. Deliberately not `pcloud_client_secret`: this plugin has no business with the
+# application the person registered, and a grant it does not need is a grant it should not have.
+secrets = ["pcloud_access_token"]
+
+# pCloud's two installations, and nothing else. Which of them a call goes to is decided per
+# address; see `src/resolver.rs`.
+[capabilities.net_http]
+domains = ["api.pcloud.com", "eapi.pcloud.com"]
+
+[metadata]
+description = "Resolves pCloud files and public links through the official pCloud API."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+# The provider row every pCloud plugin hangs off. Only a resolver manifest may carry one,
+# which is why this plugin exists even though the folder walk and the sign-in are its siblings:
+# without this row there is no account, no vault reference and therefore no way for either of
+# them to reach anything (RD-106-04, rule 1).
+[provider]
+slug = "pcloud"
+kind = "hoster"
+credentials = "oauth"
+# The account's username field holds this installation's own pCloud app key (RD-106-04,
+# rule 8). It is not a credential — pCloud publishes it in the address the person is sent to —
+# so it is stored in the clear and the host expands it into `{{client_id}}`. Required, because
+# a sign-in without one cannot start: this project ships no app of its own, and one compiled in
+# here would put every installation on a single shared pCloud rate limit.
+username_required = true
+
+# Two slots, because two credentials have to exist at once. pCloud's token endpoint is a
+# confidential client: it takes the app secret and offers no PKCE, so the secret the person
+# registered has to be kept as well as the token the sign-in obtains. Writing the second over
+# the first would destroy the value the sign-in needs, so each has its own slot and `filled_by`
+# says which is which.
+[[provider.secrets]]
+reference = "pcloud_client_secret"
+domains = ["api.pcloud.com", "eapi.pcloud.com"]
+
+[[provider.secrets]]
+reference = "pcloud_access_token"
+domains = ["api.pcloud.com", "eapi.pcloud.com"]
+filled_by = "flow"
+
+[limits]
+memory_bytes = 33554432
+fuel = 1000000000
+timeout_milliseconds = 15000
+max_response_bytes = 2097152

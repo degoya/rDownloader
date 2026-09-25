@@ -1,0 +1,12 @@
+{
+  "name": "Directory index",
+  "description": "Lists the files behind an open directory listing of Apache, nginx, Caddy or lighttpd.",
+  "codes": {
+    "directory_index_crawler.directory_empty": "This directory listing holds no files",
+    "directory_index_crawler.directory_unreachable": "This directory listing could not be read",
+    "directory_index_crawler.not_a_directory": "This address does not point at a directory listing",
+    "directory_index_crawler.not_a_listing": "This page is not an open directory listing",
+    "directory_index_crawler.server_busy": "The server is not answering this listing right now",
+    "directory_index_crawler.sign_in_required": "This directory is not open: the server asked for a sign-in"
+  }
+}

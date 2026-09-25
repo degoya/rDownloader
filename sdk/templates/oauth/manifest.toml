@@ -1,0 +1,39 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# Which ways in this plugin serves, in the order it prefers them (RD-106-01). The host calls
+# only what is named here, so delete the entrance your provider does not offer -- and delete
+# the matching function body in `src/guest.rs` with it. Leaving the field out means
+# `["redirect"]`, which is what an OAuth manifest written before this existed meant.
+oauth_flows = ["redirect", "device"]
+
+# Every address this plugin may reach. This list is also what bounds the sign-in page a person
+# is sent to: the host refuses an authorization URL outside it rather than letting a signed,
+# installed plugin put an address of its own choosing in front of somebody.
+[capabilities.net_http]
+domains = ["api.example.com"]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# The provider slugs this plugin signs in. One plugin, one provider.
+claims = ["example"]
+
+[metadata]
+description = "Signs an account in to {{PLUGIN_NAME}} through the provider, by redirect or device code."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

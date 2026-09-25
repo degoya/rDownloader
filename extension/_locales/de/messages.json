@@ -1,0 +1,406 @@
+{
+  "extName": {
+    "message": "rDownloader"
+  },
+  "extDescription": {
+    "message": "Links aus dem Kontextmenü an den rDownloader-LinkGrabber senden."
+  },
+  "menuLink": {
+    "message": "Mit rDownloader laden"
+  },
+  "menuPage": {
+    "message": "Diese Seite mit rDownloader laden"
+  },
+  "menuSelection": {
+    "message": "Markierte Links an rDownloader senden"
+  },
+  "optionsTitle": {
+    "message": "rDownloader-Verbindung"
+  },
+  "serverLabel": {
+    "message": "Server-URL"
+  },
+  "serverHint": {
+    "message": "Adresse der rDownloader-Oberfläche, z. B. http://nas.local:8710. Eingebaut sind 127.0.0.1:8710 und localhost:8710; jede andere Adresse fragt nach einer Berechtigung."
+  },
+  "tokenLabel": {
+    "message": "Capture-Token"
+  },
+  "tokenHint": {
+    "message": "Unter System → Browser-Erweiterung in der rDownloader-Oberfläche erstellen. Es wird nur einmal angezeigt."
+  },
+  "save": {
+    "message": "Speichern"
+  },
+  "testConnection": {
+    "message": "Verbindung testen"
+  },
+  "saved": {
+    "message": "Einstellungen gespeichert."
+  },
+  "testing": {
+    "message": "Prüfe…"
+  },
+  "connected": {
+    "message": "Verbunden mit rDownloader $1."
+  },
+  "permissionDenied": {
+    "message": "Die Berechtigung für diesen Server wurde nicht erteilt."
+  },
+  "permissionDeniedLoopback": {
+    "message": "Berechtigung für diese Adresse nicht erteilt. Eingebaut sind nur 127.0.0.1:8710 und localhost:8710; jeder andere Port braucht die Berechtigung."
+  },
+  "serverInvalid": {
+    "message": "Das ist keine gültige Serveradresse. Beispiel: http://127.0.0.1:8710 oder http://[::1]:8710."
+  },
+  "notConfigured": {
+    "message": "Bitte zuerst Server und Token einrichten."
+  },
+  "sentLinks": {
+    "message": "$1 Link(s) an den LinkGrabber gesendet."
+  },
+  "sendFailed": {
+    "message": "Senden fehlgeschlagen: $1"
+  },
+  "errorUnauthorized": {
+    "message": "Token abgelehnt – neues Capture-Token erstellen."
+  },
+  "popupSendPage": {
+    "message": "Aktuelle Seite senden"
+  },
+  "popupSendClipboard": {
+    "message": "Links aus der Zwischenablage senden"
+  },
+  "popupOptions": {
+    "message": "Einstellungen"
+  },
+  "sentFromPopup": {
+    "message": "An den LinkGrabber gesendet."
+  },
+  "noPageUrl": {
+    "message": "Der aktuelle Tab hat keine Webadresse."
+  },
+  "clipboardDenied": {
+    "message": "Zugriff auf die Zwischenablage wurde verweigert."
+  },
+  "clipboardNoLinks": {
+    "message": "Keine Links in der Zwischenablage gefunden."
+  },
+  "interceptSending": {
+    "message": "Download wird an rDownloader übergeben…"
+  },
+  "interceptSent": {
+    "message": "Download an rDownloader übergeben."
+  },
+  "interceptFailed": {
+    "message": "Übergabe fehlgeschlagen, der Browser lädt weiter: $1"
+  },
+  "interceptKeep": {
+    "message": "Im Browser behalten"
+  },
+  "interceptLegacyServer": {
+    "message": "Dieser rDownloader ist zu alt für Download-Details – es wurde nur die Adresse gesendet."
+  },
+  "interceptServerUnreachable": {
+    "message": "rDownloader ist nicht erreichbar. Der Browser übernimmt diesen Download."
+  },
+  "interceptPostUnsupported": {
+    "message": "Dieser Download wurde über ein Formular gestartet und kann nicht wiederholt werden. Der Browser übernimmt ihn."
+  },
+  "interceptRequestUnknown": {
+    "message": "Die Anfrage hinter diesem Download wurde nicht beobachtet und lässt sich nicht sicher wiederholen. Der Browser übernimmt ihn."
+  },
+  "optionsIntercept": {
+    "message": "Browser-Downloads übernehmen"
+  },
+  "optionsInterceptHint": {
+    "message": "Im Browser gestartete Downloads werden angehalten und an rDownloader übergeben. Erfordert ein Capture-Token."
+  },
+  "menuSession": {
+    "message": "Sitzung dieser Seite an rDownloader senden"
+  },
+  "sessionShared": {
+    "message": "Sitzung fuer $HOST$ gesendet. Zum Verwenden in rDownloader freigeben.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "sessionEmpty": {
+    "message": "Fuer diese Seite wurden keine Cookies gefunden."
+  },
+  "sessionFailed": {
+    "message": "Das Senden der Sitzung ist fehlgeschlagen: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "sessionUnconfigured": {
+    "message": "Bitte zuerst die Erweiterung mit rDownloader koppeln."
+  },
+  "captchaSection": {
+    "message": "Wartende Captchas"
+  },
+  "captchaFor": {
+    "message": "Captcha für $HOST$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaAnswer": {
+    "message": "Auf der Hosterseite beantworten"
+  },
+  "captchaDecline": {
+    "message": "Ablehnen"
+  },
+  "captchaWaiting": {
+    "message": "Ein Captcha für $HOST$ wartet. Öffnen Sie die rDownloader-Erweiterung, um es in diesem Browser zu beantworten.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaOpened": {
+    "message": "Die Hosterseite wird geöffnet. Lösen Sie das Captcha dort; rDownloader meldet anschließend, was der Server geantwortet hat."
+  },
+  "captchaPermissionDenied": {
+    "message": "Die Berechtigung für $HOST$ wurde nicht erteilt, die Seite kann nicht geöffnet werden.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaSent": {
+    "message": "rDownloader hat die Captcha-Antwort für $HOST$ angenommen.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaFailed": {
+    "message": "Die Captcha-Antwort für $HOST$ konnte nicht übergeben werden: $REASON$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "captchaSkipped": {
+    "message": "Captcha für $HOST$ abgelehnt.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaGone": {
+    "message": "Das Captcha für $HOST$ wartet nicht mehr, sein Tab wurde geschlossen. Es wurde anderswo beantwortet oder ist abgelaufen.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaSkipFailed": {
+    "message": "rDownloader hat nicht erfahren, dass das Captcha für $HOST$ abgelehnt wurde: $REASON$ Der wartende Download läuft nun in einen Timeout.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "captchaListFailed": {
+    "message": "Wartende Captchas konnten nicht geladen werden: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaNoWidget": {
+    "message": "Auf $HOST$ erschien kein Captcha – dieser Browser ist dort vermutlich schon angemeldet. Die Anmeldung in rDownloader wurde beendet: Übergib diese Sitzung mit „Aus dem Browser übernehmen“ am Konto, oder melde dich hier bei $HOST$ ab und teste das Konto erneut.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverSection": {
+    "message": "Angefragte Sitzungen"
+  },
+  "handoverFor": {
+    "message": "Sitzung bei $HOST$ für das Konto „$ACCOUNT$“",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "account": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverNote": {
+    "message": "Übergeben werden nur Cookies von $HOST$, und nur an dein rDownloader. Der Browser fragt vorher um Erlaubnis.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverAllow": {
+    "message": "Sitzung übergeben"
+  },
+  "handoverDecline": {
+    "message": "Ablehnen"
+  },
+  "handoverWaiting": {
+    "message": "rDownloader fragt nach deiner Sitzung bei $HOST$ (Konto „$ACCOUNT$“). Öffne die Erweiterung, um sie zu übergeben oder abzulehnen.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "account": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverDone": {
+    "message": "Deine Sitzung bei $HOST$ wurde an rDownloader übergeben.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverFailed": {
+    "message": "Die Sitzung bei $HOST$ konnte nicht übergeben werden: $REASON$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverEmpty": {
+    "message": "Dieser Browser hat keine Cookies für $HOST$. Melde dich dort zuerst an und übergib die Sitzung dann.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverDenied": {
+    "message": "Ohne die Erlaubnis des Browsers für $HOST$ wurde kein Cookie gelesen.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverDeclined": {
+    "message": "Abgelehnt: rDownloader weiß, dass die Sitzung bei $HOST$ nicht übergeben wird.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverListFailed": {
+    "message": "Angefragte Sitzungen konnten nicht geladen werden: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesAllow": {
+    "message": "NZB-, Torrent- und ZIP-Dateien von $HOST$ an rDownloader übergeben",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesRevoke": {
+    "message": "Dateien von $HOST$ wieder im Browser behalten",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesNote": {
+    "message": "rDownloader übernimmt dann, was der Browser von $HOST$ empfangen hat, oder ruft es einmal mit den Cookies dieser Seite ab. Die Cookies werden nie gespeichert. Der Browser fragt vorher um Erlaubnis.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesAllowed": {
+    "message": "NZB-, Torrent- und ZIP-Dateien von $HOST$ gehen jetzt an rDownloader.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesDenied": {
+    "message": "Keine Berechtigung für $HOST$ — seine Dateien bleiben im Browser.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesRevoked": {
+    "message": "Dateien von $HOST$ bleiben wieder im Browser.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "fileHandedOver": {
+    "message": "Datei an rDownloader übergeben."
+  },
+  "fileKept": {
+    "message": "Der Browser behält die Datei: $1"
+  },
+  "fileConsentIncomplete": {
+    "message": "Dateien von $HOST$ können nicht übergeben werden: Der Browser gewährt den Zugriff nicht mehr. Erlaube die Seite im Popup erneut.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "optionsFilesTitle": {
+    "message": "Seiten, die Dateien übergeben"
+  },
+  "optionsFilesHint": {
+    "message": "NZB-, Torrent- und ZIP-Downloads dieser Seiten gehen an rDownloader, statt im Browser zu bleiben. Eine Seite erlaubst du im Popup, während du auf ihr bist."
+  },
+  "optionsFilesNone": {
+    "message": "Noch keine Seite."
+  },
+  "optionsFilesRevoke": {
+    "message": "Zurücknehmen"
+  }
+}

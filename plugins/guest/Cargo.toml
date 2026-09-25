@@ -1,0 +1,16 @@
+[package]
+name = "plugin-guest"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+plugin-common = { path = "../common" }
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true

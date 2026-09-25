@@ -1,0 +1,10 @@
+{
+  "name": "Debrid-Link sign-in",
+  "description": "Signs a Debrid-Link account in through the provider, without an API key being typed here.",
+  "codes": {
+    "debridlink_auth.consent_denied": "The provider refused the sign-in for this account.",
+    "debridlink_auth.sign_in_refused": "The provider refused the sign-in. Start it again.",
+    "debridlink_auth.bad_reply": "The provider sent a reply this plugin could not read.",
+    "debridlink_auth.flow_expired": "The sign-in code expired before it was confirmed."
+  }
+}

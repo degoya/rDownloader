@@ -1,0 +1,14 @@
+{
+  "name": "pCloud-Anmeldung",
+  "description": "Meldet ein pCloud-Konto über den Autorisierungsendpunkt von pCloud an.",
+  "codes": {
+    "pcloud_oauth.bad_reply": "pCloud hat eine Antwort geschickt, die dieses Plugin nicht lesen konnte.",
+    "pcloud_oauth.client_not_configured": "Zu diesem Konto ist keine pCloud-Anwendung hinterlegt. Trage zuerst App-Key und App-Secret ein.",
+    "pcloud_oauth.code_expired": "Die Anmeldung ist abgelaufen oder wurde bereits verwendet, bevor sie fertig war. Starte sie erneut.",
+    "pcloud_oauth.consent_denied": "Die Anmeldung wurde bei pCloud nicht erteilt.",
+    "pcloud_oauth.flow_unsupported": "pCloud wird im Browser angemeldet, nicht mit einem Gerätecode.",
+    "pcloud_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil die Anwendung keinen Zufall dafür hatte. Versuche es erneut.",
+    "pcloud_oauth.renewal_unsupported": "pCloud gibt nichts aus, womit sich eine Anmeldung erneuern ließe. Wenn sie nicht mehr funktioniert, melde dich erneut an.",
+    "pcloud_oauth.sign_in_refused": "pCloud hat die Anmeldung abgelehnt."
+  }
+}

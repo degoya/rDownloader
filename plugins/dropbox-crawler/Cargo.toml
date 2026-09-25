@@ -1,0 +1,25 @@
+[package]
+name = "rd-plugin-dropbox-crawler"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+dropbox-common = { path = "../dropbox-common" }
+serde.workspace = true
+serde_json.workspace = true
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:dropbox-crawler"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "crawler-plugin"
+
+[lints]
+workspace = true

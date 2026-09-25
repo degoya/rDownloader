@@ -1,0 +1,14 @@
+{
+  "name": "Real-Debrid sign-in",
+  "description": "Signs a Real-Debrid account in with a device code, and keeps the token renewed.",
+  "codes": {
+    "realdebrid_auth.consent_denied": "The sign-in was not granted at Real-Debrid.",
+    "realdebrid_auth.code_expired": "The sign-in expired before it was finished. Start it again.",
+    "realdebrid_auth.sign_in_refused": "Real-Debrid no longer accepts this sign-in. Sign in again.",
+    "realdebrid_auth.two_factor": "Real-Debrid asked for two-factor authentication. Confirm it there and start the sign-in again.",
+    "realdebrid_auth.client_rejected": "Real-Debrid did not accept this application. Check the client ID and client secret against the one you registered at real-debrid.com; signing in again without correcting them will not help.",
+    "realdebrid_auth.bad_reply": "Real-Debrid sent a reply this plugin could not read.",
+    "realdebrid_auth.redirect_unsupported": "Real-Debrid signs in with a device code and has no redirect.",
+    "realdebrid_auth.client_not_configured": "Real-Debrid needs an application of your own. Register one at real-debrid.com under My account → API, then enter its client ID as the username and its client secret as the credential of this account."
+  }
+}

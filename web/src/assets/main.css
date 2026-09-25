@@ -1,0 +1,334 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --color-signal-50: #edfffd;
+  --color-signal-100: #c7fff9;
+  --color-signal-200: #90fff3;
+  --color-signal-300: #50f7ea;
+  --color-signal-400: #20ded4;
+  --color-signal-500: #14b8b0;
+  --color-signal-600: #0f938f;
+  --color-signal-700: #117572;
+  --color-signal-800: #135d5c;
+  --color-signal-900: #144e4d;
+  --color-signal-950: #052f30;
+
+  --color-coral-50: #fff2f1;
+  --color-coral-100: #ffe1df;
+  --color-coral-200: #ffc8c5;
+  --color-coral-300: #ffa39e;
+  --color-coral-400: #fa746d;
+  --color-coral-500: #e9524b;
+  --color-coral-600: #cf3832;
+  --color-coral-700: #ae2c27;
+  --color-coral-800: #902925;
+  --color-coral-900: #782925;
+  --color-coral-950: #41110f;
+}
+
+:root {
+  --ui-radius: 0.3rem;
+  --signal-grid: color-mix(in srgb, var(--ui-primary) 8%, transparent);
+
+  /*
+   * Contrast (WCAG 2.2, 1.4.3).
+   *
+   * Nuxt UI takes shade 500 as the accent in light mode. Against this application's light
+   * ground that is 2.36:1 for `signal` and 3.48:1 for `coral` — short of the 4.5:1 text needs,
+   * and short again as a button ground under white text. Shade 700 clears both (5.27:1 and
+   * 6.29:1) at the cost of a slightly deeper accent, which is a trade worth making: a label
+   * nobody can read is not a lighter design, it is a missing one.
+   *
+   * Dark mode keeps Nuxt UI's own choice: shade 400 is 10.98:1 there, and its buttons carry
+   * dark text on that ground.
+   */
+  --ui-primary: var(--color-signal-700);
+  --ui-error: var(--color-coral-700);
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.signal-grid {
+  background-image:
+    linear-gradient(var(--signal-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--signal-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.eyebrow {
+  color: var(--ui-primary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer-stripe {
+  background-image: repeating-linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--ui-primary) 35%, transparent) 0,
+    color-mix(in srgb, var(--ui-primary) 35%, transparent) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+}
+
+/*
+ * Table-like queue rows: package headers and file rows share one column template, and both
+ * place nine named cells into it rather than relying on source order (RD-109-30). Naming them
+ * is what lets the narrowest tier put the state on a second line instead of squeezing it into
+ * the same one — auto-placement can only ever fill the track list left to right.
+ *
+ * The breakpoints are measured, not picked off the Tailwind scale for the look of it. The row
+ * sits in `UDashboardPanel`'s body (`p-4 sm:p-6`) beside a sidebar that is a slideover below
+ * `lg` and 15% of the window from `lg` up, so the width the row actually gets is roughly
+ * `window - 50px` while the sidebar is away and `0.85 × window - 50px` once it is there. Each
+ * tier costs a fixed number of pixels; it may only switch on where what is left over still
+ * gives the name at least 200px — about 28 characters, enough to tell two releases apart:
+ *
+ *   tier          costs   so it needs a row of   which arrives at a window of   set to
+ *   two lines     180px                  380px   — (the fallback; fits 320px)        —
+ *   + state       316px                  516px   556px                           560px
+ *   + progress    420px                  620px   670px                           768px
+ *   + size, meta  756px                  956px   1184px                         1280px
+ *
+ * The last two are set above their minimum, at Tailwind's `md` and `xl`, so the name has room
+ * to spare rather than exactly enough at the moment a column appears.
+ *
+ * Until 1.0.9 the last tier started at 1024px, where the row has 820px — 120px less than the
+ * 940px it needed — so the grid overran its container by up to 142px and drew text over text
+ * at every window from 1024 to 1188px, and at a 1280px window the name was left 68px and
+ * rendered as `Lieblin…`. Measured in Chromium against these rules at every width from 320 to
+ * 2560px: the row now overflows at none of them, and the name holds 296px at 1280px and 104px
+ * at 320px, where the row is two lines.
+ *
+ * The size column is 144px since RD-120-53. Its longest automatic figure is 19 characters
+ * (`1023 MiB / 99.9 GiB`), 137px of 12px JetBrains Mono, and at 128px a plain
+ * `585 MiB / 10.5 GiB` was already cut. The open sidebar has a 240px floor since the same job,
+ * so at 1280px the row gets about 990px rather than 1038px.
+ */
+.queue-row {
+  display: grid;
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.125rem;
+  /* The fallback is two lines: the name keeps the first, the state gets the second whole. */
+  grid-template-columns: 28px 28px 28px minmax(0, 1fr) 48px;
+  grid-template-areas:
+    "handle select expand name  actions"
+    "state  state  state  state state";
+}
+
+.queue-cell-handle {
+  grid-area: handle;
+}
+
+.queue-cell-select {
+  grid-area: select;
+}
+
+.queue-cell-expand {
+  grid-area: expand;
+}
+
+.queue-cell-name {
+  grid-area: name;
+}
+
+.queue-cell-state {
+  grid-area: state;
+}
+
+.queue-cell-actions {
+  grid-area: actions;
+}
+
+.queue-cell-progress {
+  grid-area: progress;
+}
+
+.queue-cell-size {
+  grid-area: size;
+}
+
+.queue-cell-meta {
+  grid-area: meta;
+}
+
+.queue-cell-progress,
+.queue-cell-size,
+.queue-cell-meta {
+  display: none;
+}
+
+@media (min-width: 560px) {
+  .queue-row {
+    grid-template-columns: 28px 28px 28px minmax(0, 1fr) 128px 48px;
+    grid-template-areas: "handle select expand name state actions";
+  }
+}
+
+@media (min-width: 768px) {
+  .queue-row {
+    grid-template-columns: 28px 28px 28px minmax(0, 1fr) 128px 96px 48px;
+    grid-template-areas: "handle select expand name state progress actions";
+  }
+
+  .queue-cell-progress {
+    display: flex;
+  }
+}
+
+@media (min-width: 1280px) {
+  .queue-row {
+    grid-template-columns: 28px 28px 28px minmax(0, 1fr) 128px 96px 144px 176px 48px;
+    grid-template-areas: "handle select expand name state progress size meta actions";
+  }
+
+  .queue-cell-size {
+    display: block;
+  }
+
+  .queue-cell-meta {
+    display: flex;
+  }
+}
+
+/*
+ * driver.js guided tour: the library ships a light-only popover, so map its surface onto the
+ * app's semantic colour tokens to keep the tour legible in the dark theme too.
+ */
+.driver-popover.rd-tour {
+  /*
+   * driver.js hard-codes `font-family: "Helvetica Neue", Inter, ui-sans-serif, ...` on the
+   * popover, so the tour was the one surface that reached past our bundled IBM Plex Sans to
+   * whatever the machine happens to have installed — which is why it looked right here and
+   * wrong on a user's system. Pin the app font, through the library's own variable as well
+   * as directly, so neither declaration can win.
+   */
+  --driver-popover-font-family: var(--font-sans);
+  font-family: var(--font-sans);
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+  border-radius: 0;
+  box-shadow: 0 20px 40px -12px rgb(0 0 0 / 45%);
+  max-width: 22rem;
+}
+
+.driver-popover.rd-tour .driver-popover-title {
+  color: var(--ui-text-highlighted);
+  font-size: 1rem;
+}
+
+.driver-popover.rd-tour .driver-popover-description {
+  color: var(--ui-text-muted);
+  line-height: 1.6;
+}
+
+.driver-popover.rd-tour .driver-popover-progress-text {
+  color: var(--ui-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.driver-popover.rd-tour .driver-popover-navigation-btns button {
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+  border-radius: 0;
+  text-shadow: none;
+  padding: 0.25rem 0.75rem;
+}
+
+.driver-popover.rd-tour .driver-popover-navigation-btns button:hover {
+  background: var(--ui-bg-accented);
+}
+
+.driver-popover.rd-tour .driver-popover-close-btn {
+  color: var(--ui-text-dimmed);
+}
+
+.driver-popover.rd-tour .driver-popover-arrow {
+  display: none;
+}
+
+/*
+ * Reduced motion (WCAG 2.2, 2.3.3).
+ *
+ * A download manager animates a great deal by nature — spinners, pulsing connection dots,
+ * progress stripes — and for somebody with a vestibular disorder that is not decoration but a
+ * reason to stop using the application. Everything here is feedback that also exists as text
+ * or as a static state, so removing the motion costs nothing and keeps the meaning.
+ *
+ * `!important` because the animations come from utility classes and from library components,
+ * both of which win on specificity otherwise.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * The skip link (WCAG 2.2, 2.4.1).
+ *
+ * Off-screen until it has focus, rather than hidden: `display: none` would take it out of the
+ * tab order, which is the one thing it exists to be in. The first Tab on any page lands here.
+ */
+.skip-link {
+  position: absolute;
+  left: -100vw;
+  top: 0;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text-highlighted);
+  border: 1px solid var(--ui-border-accented);
+  font-size: 0.875rem;
+}
+
+.skip-link:focus-visible {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+/*
+ * Announcements for a screen reader that have no visible counterpart. Not `display: none`,
+ * which would take them out of the accessibility tree along with everything else.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

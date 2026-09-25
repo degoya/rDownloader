@@ -1,0 +1,11 @@
+{
+  "name": "Example OAuth",
+  "description": "Referenz-OAuth-Anbieter, der den Autorisierungscode- und den Gerätecode-Ablauf zeigt.",
+  "codes": {
+    "example_oauth.consent_denied": "Die Anmeldung wurde beim Anbieter nicht erteilt.",
+    "example_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde. Starte sie erneut.",
+    "example_oauth.refresh_refused": "Der Anbieter akzeptiert die gespeicherte Anmeldung nicht mehr. Melde dich erneut an.",
+    "example_oauth.bad_reply": "Der Anbieter hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "example_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil der Anwendung der Zufallswert dafür fehlte. Versuche es erneut."
+  }
+}

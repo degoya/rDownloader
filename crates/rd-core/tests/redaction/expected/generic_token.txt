@@ -1,0 +1,1 @@
+https://hoster.example/dl/12345?token=%5Bredacted%5D&filename=movie.mkv

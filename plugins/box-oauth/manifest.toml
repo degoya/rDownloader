@@ -1,0 +1,46 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000137"
+name = "Box sign-in"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Redirect and nothing else. Box's OAuth 2.0 has no device entrance, so naming `device` here
+# would only earn a refusal — and because the host reads this before it calls anything,
+# `device-begin` and `device-poll` are never asked for.
+oauth_flows = ["redirect"]
+
+[capabilities]
+# The client secret of the Box application the person registered. It is theirs, it is stored on
+# their account, and this plugin only ever names it — the host substitutes the value on the way
+# out and hands it back to nobody. Box has no public-client entrance and no PKCE, so the secret
+# is not optional the way it is at Dropbox or Google.
+secrets = ["box_client_secret"]
+
+# Box's own endpoints, and nothing else. `account.box.com` is where the person agrees;
+# `api.box.com` is where the code and the refresh material are exchanged. This list is also
+# what bounds the address the plugin may ask a person to visit: a sign-in page outside it is
+# refused by the host.
+[capabilities.net_http]
+domains = ["account.box.com", "api.box.com"]
+
+[extension]
+slug = "box_oauth"
+# One provider: the row `plugins/box/` declares. The host looks the account up and this plugin
+# never learns which one it is.
+claims = ["box"]
+
+[metadata]
+description = "Signs a Box account in through Box's own authorization endpoint, and keeps the token renewed."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

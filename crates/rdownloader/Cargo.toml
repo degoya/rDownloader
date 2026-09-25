@@ -1,0 +1,58 @@
+[package]
+name = "rdownloader"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+dunce.workspace = true
+rd-api = { path = "../rd-api" }
+rd-autostart = { path = "../rd-autostart" }
+rd-authn = { path = "../rd-authn" }
+rd-collector = { path = "../rd-collector" }
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-diagnostics = { path = "../rd-diagnostics" }
+rd-extract = { path = "../rd-extract" }
+rd-ftp = { path = "../rd-ftp" }
+rd-gallery = { path = "../rd-gallery" }
+rd-media = { path = "../rd-media" }
+rd-plugin-ext = { path = "../rd-plugin-ext" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-plugin-transfer = { path = "../rd-plugin-transfer" }
+rd-power = { path = "../rd-power" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-sftp = { path = "../rd-sftp" }
+rd-secrets = { path = "../rd-secrets" }
+rd-sign = { path = "../rd-sign" }
+rd-siterules = { path = "../rd-siterules" }
+rd-stream = { path = "../rd-stream" }
+rd-tools = { path = "../rd-tools" }
+rd-torrent = { path = "../rd-torrent" }
+rd-usenet = { path = "../rd-usenet" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+hex.workspace = true
+rd-http = { path = "../rd-http" }
+sha2.workspace = true
+tempfile.workspace = true
+
+[build-dependencies]
+chrono.workspace = true
+embed-resource.workspace = true
+
+[lints]
+workspace = true

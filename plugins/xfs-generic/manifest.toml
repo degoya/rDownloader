@@ -1,0 +1,298 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000010d"
+name = "XFileSharing (generic)"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# ---------------------------------------------------------------------------------------------
+# The domain list holds clones that were checked, and grows from there (RD-098-01).
+#
+# A claimed domain is a promise. A resolver that claims one and then fails turns a plain HTTP
+# download into a hoster error, so nothing goes in here on hearsay. Every host below cleared two
+# independent checks:
+#
+# 1. JDownloader models the site as a stock XFileSharing installation — its plugin class extends
+#    `XFileSharingProBasic`. 315 of JD's hoster plugins do, naming 682 domains through
+#    `getPluginDomains()`; JD's own `getDeadDomains()` marked 90 of those as gone and they are
+#    not here.
+# 2. The site answered `https://<host>/login.html` with the XFS login form (`<form name="FL">`
+#    carrying `op=login`), checked 2026-09-06 with ddownload.com as a positive control. 582
+#    candidates were probed and 371 failed — dead, moved, or never XFS — leaving the 140 sites
+#    and 140 domains below.
+#
+# What neither check proves is that this plugin's free flow completes on a given site, and that
+# is deliberate rather than overlooked. Measured against JD's own subclasses, ignoring the five
+# tuning overrides (chunks, resume, parallelism) that 138 of them carry: 48 sites deviate from
+# the base flow in nothing at all, 75 in at most one thing, and the remainder needed real
+# per-site work in JD. So the far end of this list is where a failure is likeliest — and it
+# fails with a named cause, which is the report a user can act on. A site nobody claims is a
+# site nobody can report.
+#
+# Hosts already served by one of this application's own resolvers are excluded, or two providers
+# would fight over the same links: ddownload and katfile, with their aliases.
+#
+# Video and image hosts are in here because XFS powers many of them. They do not take links away
+# from the media or gallery pipelines: link intake asks those first, and their host lists are
+# user-editable, so a host listed there keeps going to yt-dlp or gallery-dl.
+#
+# All four lists have to agree, and two tests in `src/lib.rs` enforce it: `match_domains` decides
+# which links this plugin is routed, the `HOSTERS` constant is what `matches()` actually consults,
+# `download_domains` bounds what a transfer may reach, and `capabilities.net_http.domains` is the
+# sandbox boundary on every request. The wildcard entries cover the delivery subdomains XFS
+# installations hand files to; a clone delivering from an unrelated CDN needs that CDN added, and
+# until then the resolved URL is refused rather than followed — an error, never a wrong download.
+#
+# Packaging additionally waits on the application version: `min_app_version` below is 0.9.8
+# because `credentials = "none"` is new in that release, while the workspace version only moves
+# in the release commit. `scripts/build-plugins.sh --list-packageable` skips this plugin until
+# then; building it is unaffected.
+# ---------------------------------------------------------------------------------------------
+match_domains = [
+  "1uploadflix.net", "1vid.xyz", "abstream.to", "anafast.org", "anonfile.de", "asfile.al",
+  "audinifer.com", "beatexs.com", "bezsms.org", "brupload.net", "btafile.com",
+  "callistanise.com", "cdn1.site", "cdnplus.org", "clickndownload.link", "clickndownload.org",
+  "clicknplay.to", "clicknupload.cc", "clicknupload.cfd", "clicknupload.click",
+  "clicknupload.co", "clicknupload.download", "clicknupload.me", "clicknupload.name",
+  "clicknupload.one", "clicknupload.org", "clicknupload.space", "clicknupload.to",
+  "clicknupload.vip", "cloubix.com", "cloud-share.in", "cloudghost.net", "cloudwish.xyz",
+  "cosmobox.org", "croea.com", "dailyuploads.im", "dailyuploads.io", "dailyuploads.net",
+  "daofile.com", "datanodes.to", "datavaults.co", "depic.me", "dhtpre.com", "dl.uploadflix.com",
+  "dosya.co", "downloadani.me", "downloadwella.com", "downup.me", "dr0pstream.com",
+  "dropload.co", "dropload.pro", "dsht.link", "dupload.net", "earnvids.com", "easybytez.org",
+  "ex-load.com", "ezvn.net", "fastbit.cc", "fastfile.cc", "fastream.to", "fastt.gg",
+  "file-me.top", "file-upload.cc", "file-upload.download", "file-upload.io", "file-upload.org",
+  "file.al", "fileaxa.com", "filedot.to", "filedot.top", "filedot.xyz", "filefox.cc",
+  "filekeeper.net", "fileq.net", "fileserve.com", "filespace.com", "filespayouts.com",
+  "filestore.me", "fileupload.pw", "filextras.com", "filezz.cloud", "filoz.net",
+  "firefiles.org", "flashbit.cc", "forafile.com", "freedl.ink", "fsvid.lol", "goodstream.one",
+  "goodstream.uno", "guccihide.store", "hanerix.com", "hd-vk.com", "hdvid.tv", "hexload.com",
+  "hglamioz.com", "hgplaycdn.com", "hgplayer.sbs", "hot4share.com", "hotlink.cc",
+  "imagenpic.com", "imageshimage.com", "imagetwist.com", "imagexport.com", "imgnova.cc",
+  "imgpv.com", "isra.cloud", "javplaya.com", "kenfiles.com", "larhu.website", "lulu0.ovh",
+  "lulustream.com", "luluvdoo.com", "luluvid.com", "media.cm", "medixiru.com", "mega4up.com",
+  "mega4up.org", "mega4upload.com", "mega4upload.net", "miravd.com", "miravid.club",
+  "modsbase.com", "moflix-stream.click", "moondl.com", "mp4plus.org", "mp4upload.com",
+  "mwdy.cc", "mwdy.org", "mycloudz.cc", "myfiles.onl", "myqloud.org", "nikaplayer.com",
+  "niramirus.com", "nowplay.to", "obligao.com", "okprime.site", "phun.imagetwist.com",
+  "playerwish.com", "playnixes.com", "playrecord.biz", "pubg-file.si", "qtyfiles.com",
+  "rapidcloud.cc", "rarlink.com", "recordplay.biz", "redirect.codes", "rutood.com",
+  "safedock.io", "sakurafile.com", "savefiles.com", "seedgrabber.com", "send.cm", "send.now",
+  "silkfile.com", "streamhg.com", "streamruby.com", "streamwish.com", "subyshare.com",
+  "supervideo.cc", "tenstream.net", "terabytez.org", "thefileslocker.com", "theuser.cloud",
+  "transfaze.com", "up-4.net", "up-4ever.com", "up-4ever.net", "up-4ever.org", "upbolt.to",
+  "upload-4ever.com", "upload.tn", "upload42.com", "uploadao.com", "uploadcloud.pro",
+  "uploadfiles.eu", "uploadflix.cc", "uploadflix.com", "uploadhive.com", "uploadhub.dad",
+  "uploadhub.ws", "uploadrar.com", "uploady.io", "uplod.ir", "upzur.com", "uqload.co",
+  "uqload.com", "uqload.cx", "uqload.io", "uqload.is", "uqload.net", "uqload.ws",
+  "usersdrive.com", "vibuxer.com", "vidhide.com", "vidhidehub.com", "vidoba.org",
+  "vidspeed.org", "vidzy.org", "vipfile.cc", "vipr.im", "vtbe.to", "vtube.network",
+  "wipfiles.net", "wishonly.site", "world-files.com", "xdisk.site", "xfilesharing.com",
+  "ximagesharing.com", "xubster.com", "xvideosharing.com", "xxembed.com"
+]
+download_domains = [
+  "1uploadflix.net", "*.1uploadflix.net", "1vid.xyz", "*.1vid.xyz", "abstream.to",
+  "*.abstream.to", "anafast.org", "*.anafast.org", "anonfile.de", "*.anonfile.de", "asfile.al",
+  "*.asfile.al", "audinifer.com", "*.audinifer.com", "beatexs.com", "*.beatexs.com",
+  "bezsms.org", "*.bezsms.org", "brupload.net", "*.brupload.net", "btafile.com",
+  "*.btafile.com", "callistanise.com", "*.callistanise.com", "cdn1.site", "*.cdn1.site",
+  "cdnplus.org", "*.cdnplus.org", "clickndownload.link", "*.clickndownload.link",
+  "clickndownload.org", "*.clickndownload.org", "clicknplay.to", "*.clicknplay.to",
+  "clicknupload.cc", "*.clicknupload.cc", "clicknupload.cfd", "*.clicknupload.cfd",
+  "clicknupload.click", "*.clicknupload.click", "clicknupload.co", "*.clicknupload.co",
+  "clicknupload.download", "*.clicknupload.download", "clicknupload.me", "*.clicknupload.me",
+  "clicknupload.name", "*.clicknupload.name", "clicknupload.one", "*.clicknupload.one",
+  "clicknupload.org", "*.clicknupload.org", "clicknupload.space", "*.clicknupload.space",
+  "clicknupload.to", "*.clicknupload.to", "clicknupload.vip", "*.clicknupload.vip",
+  "cloubix.com", "*.cloubix.com", "cloud-share.in", "*.cloud-share.in", "cloudghost.net",
+  "*.cloudghost.net", "cloudwish.xyz", "*.cloudwish.xyz", "cosmobox.org", "*.cosmobox.org",
+  "croea.com", "*.croea.com", "dailyuploads.im", "*.dailyuploads.im", "dailyuploads.io",
+  "*.dailyuploads.io", "dailyuploads.net", "*.dailyuploads.net", "daofile.com", "*.daofile.com",
+  "datanodes.to", "*.datanodes.to", "datavaults.co", "*.datavaults.co", "depic.me",
+  "*.depic.me", "dhtpre.com", "*.dhtpre.com", "dl.uploadflix.com", "*.dl.uploadflix.com",
+  "dosya.co", "*.dosya.co", "downloadani.me", "*.downloadani.me", "downloadwella.com",
+  "*.downloadwella.com", "downup.me", "*.downup.me", "dr0pstream.com", "*.dr0pstream.com",
+  "dropload.co", "*.dropload.co", "dropload.pro", "*.dropload.pro", "dsht.link", "*.dsht.link",
+  "dupload.net", "*.dupload.net", "earnvids.com", "*.earnvids.com", "easybytez.org",
+  "*.easybytez.org", "ex-load.com", "*.ex-load.com", "ezvn.net", "*.ezvn.net", "fastbit.cc",
+  "*.fastbit.cc", "fastfile.cc", "*.fastfile.cc", "fastream.to", "*.fastream.to", "fastt.gg",
+  "*.fastt.gg", "file-me.top", "*.file-me.top", "file-upload.cc", "*.file-upload.cc",
+  "file-upload.download", "*.file-upload.download", "file-upload.io", "*.file-upload.io",
+  "file-upload.org", "*.file-upload.org", "file.al", "*.file.al", "fileaxa.com",
+  "*.fileaxa.com", "filedot.to", "*.filedot.to", "filedot.top", "*.filedot.top", "filedot.xyz",
+  "*.filedot.xyz", "filefox.cc", "*.filefox.cc", "filekeeper.net", "*.filekeeper.net",
+  "fileq.net", "*.fileq.net", "fileserve.com", "*.fileserve.com", "filespace.com",
+  "*.filespace.com", "filespayouts.com", "*.filespayouts.com", "filestore.me", "*.filestore.me",
+  "fileupload.pw", "*.fileupload.pw", "filextras.com", "*.filextras.com", "filezz.cloud",
+  "*.filezz.cloud", "filoz.net", "*.filoz.net", "firefiles.org", "*.firefiles.org",
+  "flashbit.cc", "*.flashbit.cc", "forafile.com", "*.forafile.com", "freedl.ink",
+  "*.freedl.ink", "fsvid.lol", "*.fsvid.lol", "goodstream.one", "*.goodstream.one",
+  "goodstream.uno", "*.goodstream.uno", "guccihide.store", "*.guccihide.store", "hanerix.com",
+  "*.hanerix.com", "hd-vk.com", "*.hd-vk.com", "hdvid.tv", "*.hdvid.tv", "hexload.com",
+  "*.hexload.com", "hglamioz.com", "*.hglamioz.com", "hgplaycdn.com", "*.hgplaycdn.com",
+  "hgplayer.sbs", "*.hgplayer.sbs", "hot4share.com", "*.hot4share.com", "hotlink.cc",
+  "*.hotlink.cc", "imagenpic.com", "*.imagenpic.com", "imageshimage.com", "*.imageshimage.com",
+  "imagetwist.com", "*.imagetwist.com", "imagexport.com", "*.imagexport.com", "imgnova.cc",
+  "*.imgnova.cc", "imgpv.com", "*.imgpv.com", "isra.cloud", "*.isra.cloud", "javplaya.com",
+  "*.javplaya.com", "kenfiles.com", "*.kenfiles.com", "larhu.website", "*.larhu.website",
+  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com", "luluvdoo.com",
+  "*.luluvdoo.com", "luluvid.com", "*.luluvid.com", "media.cm", "*.media.cm", "medixiru.com",
+  "*.medixiru.com", "mega4up.com", "*.mega4up.com", "mega4up.org", "*.mega4up.org",
+  "mega4upload.com", "*.mega4upload.com", "mega4upload.net", "*.mega4upload.net", "miravd.com",
+  "*.miravd.com", "miravid.club", "*.miravid.club", "modsbase.com", "*.modsbase.com",
+  "moflix-stream.click", "*.moflix-stream.click", "moondl.com", "*.moondl.com", "mp4plus.org",
+  "*.mp4plus.org", "mp4upload.com", "*.mp4upload.com", "mwdy.cc", "*.mwdy.cc", "mwdy.org",
+  "*.mwdy.org", "mycloudz.cc", "*.mycloudz.cc", "myfiles.onl", "*.myfiles.onl", "myqloud.org",
+  "*.myqloud.org", "nikaplayer.com", "*.nikaplayer.com", "niramirus.com", "*.niramirus.com",
+  "nowplay.to", "*.nowplay.to", "obligao.com", "*.obligao.com", "okprime.site",
+  "*.okprime.site", "phun.imagetwist.com", "*.phun.imagetwist.com", "playerwish.com",
+  "*.playerwish.com", "playnixes.com", "*.playnixes.com", "playrecord.biz", "*.playrecord.biz",
+  "pubg-file.si", "*.pubg-file.si", "qtyfiles.com", "*.qtyfiles.com", "rapidcloud.cc",
+  "*.rapidcloud.cc", "rarlink.com", "*.rarlink.com", "recordplay.biz", "*.recordplay.biz",
+  "redirect.codes", "*.redirect.codes", "rutood.com", "*.rutood.com", "safedock.io",
+  "*.safedock.io", "sakurafile.com", "*.sakurafile.com", "savefiles.com", "*.savefiles.com",
+  "seedgrabber.com", "*.seedgrabber.com", "send.cm", "*.send.cm", "send.now", "*.send.now",
+  "silkfile.com", "*.silkfile.com", "streamhg.com", "*.streamhg.com", "streamruby.com",
+  "*.streamruby.com", "streamwish.com", "*.streamwish.com", "subyshare.com", "*.subyshare.com",
+  "supervideo.cc", "*.supervideo.cc", "tenstream.net", "*.tenstream.net", "terabytez.org",
+  "*.terabytez.org", "thefileslocker.com", "*.thefileslocker.com", "theuser.cloud",
+  "*.theuser.cloud", "transfaze.com", "*.transfaze.com", "up-4.net", "*.up-4.net",
+  "up-4ever.com", "*.up-4ever.com", "up-4ever.net", "*.up-4ever.net", "up-4ever.org",
+  "*.up-4ever.org", "upbolt.to", "*.upbolt.to", "upload-4ever.com", "*.upload-4ever.com",
+  "upload.tn", "*.upload.tn", "upload42.com", "*.upload42.com", "uploadao.com",
+  "*.uploadao.com", "uploadcloud.pro", "*.uploadcloud.pro", "uploadfiles.eu",
+  "*.uploadfiles.eu", "uploadflix.cc", "*.uploadflix.cc", "uploadflix.com", "*.uploadflix.com",
+  "uploadhive.com", "*.uploadhive.com", "uploadhub.dad", "*.uploadhub.dad", "uploadhub.ws",
+  "*.uploadhub.ws", "uploadrar.com", "*.uploadrar.com", "uploady.io", "*.uploady.io",
+  "uplod.ir", "*.uplod.ir", "upzur.com", "*.upzur.com", "uqload.co", "*.uqload.co",
+  "uqload.com", "*.uqload.com", "uqload.cx", "*.uqload.cx", "uqload.io", "*.uqload.io",
+  "uqload.is", "*.uqload.is", "uqload.net", "*.uqload.net", "uqload.ws", "*.uqload.ws",
+  "usersdrive.com", "*.usersdrive.com", "vibuxer.com", "*.vibuxer.com", "vidhide.com",
+  "*.vidhide.com", "vidhidehub.com", "*.vidhidehub.com", "vidoba.org", "*.vidoba.org",
+  "vidspeed.org", "*.vidspeed.org", "vidzy.org", "*.vidzy.org", "vipfile.cc", "*.vipfile.cc",
+  "vipr.im", "*.vipr.im", "vtbe.to", "*.vtbe.to", "vtube.network", "*.vtube.network",
+  "wipfiles.net", "*.wipfiles.net", "wishonly.site", "*.wishonly.site", "world-files.com",
+  "*.world-files.com", "xdisk.site", "*.xdisk.site", "xfilesharing.com", "*.xfilesharing.com",
+  "ximagesharing.com", "*.ximagesharing.com", "xubster.com", "*.xubster.com",
+  "xvideosharing.com", "*.xvideosharing.com", "xxembed.com", "*.xxembed.com"
+]
+max_concurrent_downloads = 1
+# The free flow is the entire purpose here. An account at one clone is not an account at another,
+# which is why this provider takes none.
+requires_account = false
+
+[capabilities]
+cookies = false
+captcha = true
+
+[capabilities.net_http]
+domains = [
+  "1uploadflix.net", "*.1uploadflix.net", "1vid.xyz", "*.1vid.xyz", "abstream.to",
+  "*.abstream.to", "anafast.org", "*.anafast.org", "anonfile.de", "*.anonfile.de", "asfile.al",
+  "*.asfile.al", "audinifer.com", "*.audinifer.com", "beatexs.com", "*.beatexs.com",
+  "bezsms.org", "*.bezsms.org", "brupload.net", "*.brupload.net", "btafile.com",
+  "*.btafile.com", "callistanise.com", "*.callistanise.com", "cdn1.site", "*.cdn1.site",
+  "cdnplus.org", "*.cdnplus.org", "clickndownload.link", "*.clickndownload.link",
+  "clickndownload.org", "*.clickndownload.org", "clicknplay.to", "*.clicknplay.to",
+  "clicknupload.cc", "*.clicknupload.cc", "clicknupload.cfd", "*.clicknupload.cfd",
+  "clicknupload.click", "*.clicknupload.click", "clicknupload.co", "*.clicknupload.co",
+  "clicknupload.download", "*.clicknupload.download", "clicknupload.me", "*.clicknupload.me",
+  "clicknupload.name", "*.clicknupload.name", "clicknupload.one", "*.clicknupload.one",
+  "clicknupload.org", "*.clicknupload.org", "clicknupload.space", "*.clicknupload.space",
+  "clicknupload.to", "*.clicknupload.to", "clicknupload.vip", "*.clicknupload.vip",
+  "cloubix.com", "*.cloubix.com", "cloud-share.in", "*.cloud-share.in", "cloudghost.net",
+  "*.cloudghost.net", "cloudwish.xyz", "*.cloudwish.xyz", "cosmobox.org", "*.cosmobox.org",
+  "croea.com", "*.croea.com", "dailyuploads.im", "*.dailyuploads.im", "dailyuploads.io",
+  "*.dailyuploads.io", "dailyuploads.net", "*.dailyuploads.net", "daofile.com", "*.daofile.com",
+  "datanodes.to", "*.datanodes.to", "datavaults.co", "*.datavaults.co", "depic.me",
+  "*.depic.me", "dhtpre.com", "*.dhtpre.com", "dl.uploadflix.com", "*.dl.uploadflix.com",
+  "dosya.co", "*.dosya.co", "downloadani.me", "*.downloadani.me", "downloadwella.com",
+  "*.downloadwella.com", "downup.me", "*.downup.me", "dr0pstream.com", "*.dr0pstream.com",
+  "dropload.co", "*.dropload.co", "dropload.pro", "*.dropload.pro", "dsht.link", "*.dsht.link",
+  "dupload.net", "*.dupload.net", "earnvids.com", "*.earnvids.com", "easybytez.org",
+  "*.easybytez.org", "ex-load.com", "*.ex-load.com", "ezvn.net", "*.ezvn.net", "fastbit.cc",
+  "*.fastbit.cc", "fastfile.cc", "*.fastfile.cc", "fastream.to", "*.fastream.to", "fastt.gg",
+  "*.fastt.gg", "file-me.top", "*.file-me.top", "file-upload.cc", "*.file-upload.cc",
+  "file-upload.download", "*.file-upload.download", "file-upload.io", "*.file-upload.io",
+  "file-upload.org", "*.file-upload.org", "file.al", "*.file.al", "fileaxa.com",
+  "*.fileaxa.com", "filedot.to", "*.filedot.to", "filedot.top", "*.filedot.top", "filedot.xyz",
+  "*.filedot.xyz", "filefox.cc", "*.filefox.cc", "filekeeper.net", "*.filekeeper.net",
+  "fileq.net", "*.fileq.net", "fileserve.com", "*.fileserve.com", "filespace.com",
+  "*.filespace.com", "filespayouts.com", "*.filespayouts.com", "filestore.me", "*.filestore.me",
+  "fileupload.pw", "*.fileupload.pw", "filextras.com", "*.filextras.com", "filezz.cloud",
+  "*.filezz.cloud", "filoz.net", "*.filoz.net", "firefiles.org", "*.firefiles.org",
+  "flashbit.cc", "*.flashbit.cc", "forafile.com", "*.forafile.com", "freedl.ink",
+  "*.freedl.ink", "fsvid.lol", "*.fsvid.lol", "goodstream.one", "*.goodstream.one",
+  "goodstream.uno", "*.goodstream.uno", "guccihide.store", "*.guccihide.store", "hanerix.com",
+  "*.hanerix.com", "hd-vk.com", "*.hd-vk.com", "hdvid.tv", "*.hdvid.tv", "hexload.com",
+  "*.hexload.com", "hglamioz.com", "*.hglamioz.com", "hgplaycdn.com", "*.hgplaycdn.com",
+  "hgplayer.sbs", "*.hgplayer.sbs", "hot4share.com", "*.hot4share.com", "hotlink.cc",
+  "*.hotlink.cc", "imagenpic.com", "*.imagenpic.com", "imageshimage.com", "*.imageshimage.com",
+  "imagetwist.com", "*.imagetwist.com", "imagexport.com", "*.imagexport.com", "imgnova.cc",
+  "*.imgnova.cc", "imgpv.com", "*.imgpv.com", "isra.cloud", "*.isra.cloud", "javplaya.com",
+  "*.javplaya.com", "kenfiles.com", "*.kenfiles.com", "larhu.website", "*.larhu.website",
+  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com", "luluvdoo.com",
+  "*.luluvdoo.com", "luluvid.com", "*.luluvid.com", "media.cm", "*.media.cm", "medixiru.com",
+  "*.medixiru.com", "mega4up.com", "*.mega4up.com", "mega4up.org", "*.mega4up.org",
+  "mega4upload.com", "*.mega4upload.com", "mega4upload.net", "*.mega4upload.net", "miravd.com",
+  "*.miravd.com", "miravid.club", "*.miravid.club", "modsbase.com", "*.modsbase.com",
+  "moflix-stream.click", "*.moflix-stream.click", "moondl.com", "*.moondl.com", "mp4plus.org",
+  "*.mp4plus.org", "mp4upload.com", "*.mp4upload.com", "mwdy.cc", "*.mwdy.cc", "mwdy.org",
+  "*.mwdy.org", "mycloudz.cc", "*.mycloudz.cc", "myfiles.onl", "*.myfiles.onl", "myqloud.org",
+  "*.myqloud.org", "nikaplayer.com", "*.nikaplayer.com", "niramirus.com", "*.niramirus.com",
+  "nowplay.to", "*.nowplay.to", "obligao.com", "*.obligao.com", "okprime.site",
+  "*.okprime.site", "phun.imagetwist.com", "*.phun.imagetwist.com", "playerwish.com",
+  "*.playerwish.com", "playnixes.com", "*.playnixes.com", "playrecord.biz", "*.playrecord.biz",
+  "pubg-file.si", "*.pubg-file.si", "qtyfiles.com", "*.qtyfiles.com", "rapidcloud.cc",
+  "*.rapidcloud.cc", "rarlink.com", "*.rarlink.com", "recordplay.biz", "*.recordplay.biz",
+  "redirect.codes", "*.redirect.codes", "rutood.com", "*.rutood.com", "safedock.io",
+  "*.safedock.io", "sakurafile.com", "*.sakurafile.com", "savefiles.com", "*.savefiles.com",
+  "seedgrabber.com", "*.seedgrabber.com", "send.cm", "*.send.cm", "send.now", "*.send.now",
+  "silkfile.com", "*.silkfile.com", "streamhg.com", "*.streamhg.com", "streamruby.com",
+  "*.streamruby.com", "streamwish.com", "*.streamwish.com", "subyshare.com", "*.subyshare.com",
+  "supervideo.cc", "*.supervideo.cc", "tenstream.net", "*.tenstream.net", "terabytez.org",
+  "*.terabytez.org", "thefileslocker.com", "*.thefileslocker.com", "theuser.cloud",
+  "*.theuser.cloud", "transfaze.com", "*.transfaze.com", "up-4.net", "*.up-4.net",
+  "up-4ever.com", "*.up-4ever.com", "up-4ever.net", "*.up-4ever.net", "up-4ever.org",
+  "*.up-4ever.org", "upbolt.to", "*.upbolt.to", "upload-4ever.com", "*.upload-4ever.com",
+  "upload.tn", "*.upload.tn", "upload42.com", "*.upload42.com", "uploadao.com",
+  "*.uploadao.com", "uploadcloud.pro", "*.uploadcloud.pro", "uploadfiles.eu",
+  "*.uploadfiles.eu", "uploadflix.cc", "*.uploadflix.cc", "uploadflix.com", "*.uploadflix.com",
+  "uploadhive.com", "*.uploadhive.com", "uploadhub.dad", "*.uploadhub.dad", "uploadhub.ws",
+  "*.uploadhub.ws", "uploadrar.com", "*.uploadrar.com", "uploady.io", "*.uploady.io",
+  "uplod.ir", "*.uplod.ir", "upzur.com", "*.upzur.com", "uqload.co", "*.uqload.co",
+  "uqload.com", "*.uqload.com", "uqload.cx", "*.uqload.cx", "uqload.io", "*.uqload.io",
+  "uqload.is", "*.uqload.is", "uqload.net", "*.uqload.net", "uqload.ws", "*.uqload.ws",
+  "usersdrive.com", "*.usersdrive.com", "vibuxer.com", "*.vibuxer.com", "vidhide.com",
+  "*.vidhide.com", "vidhidehub.com", "*.vidhidehub.com", "vidoba.org", "*.vidoba.org",
+  "vidspeed.org", "*.vidspeed.org", "vidzy.org", "*.vidzy.org", "vipfile.cc", "*.vipfile.cc",
+  "vipr.im", "*.vipr.im", "vtbe.to", "*.vtbe.to", "vtube.network", "*.vtube.network",
+  "wipfiles.net", "*.wipfiles.net", "wishonly.site", "*.wishonly.site", "world-files.com",
+  "*.world-files.com", "xdisk.site", "*.xdisk.site", "xfilesharing.com", "*.xfilesharing.com",
+  "ximagesharing.com", "*.ximagesharing.com", "xubster.com", "*.xubster.com",
+  "xvideosharing.com", "*.xvideosharing.com", "xxembed.com", "*.xxembed.com"
+]
+
+[metadata]
+description = "Resolves links on XFileSharing installations through the free flow, without an account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.8"
+
+[provider]
+slug = "xfs_generic"
+kind = "hoster"
+credentials = "none"
+username_required = false
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# A free download waits out the clone's countdown and one captcha round trip; this budget is
+# spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

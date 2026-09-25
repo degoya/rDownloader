@@ -1,0 +1,9 @@
+{
+  "name": "Example.Release",
+  "torrents": [],
+  "folders": [{ "id": 6, "name": "Subs", "size": 4 }],
+  "files": [
+    { "folder_file_id": 101, "name": "ep01.mkv", "size": 10 },
+    { "folder_file_id": 102, "name": "ep02.mkv", "size": 17 }
+  ]
+}

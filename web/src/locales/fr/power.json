@@ -1,0 +1,55 @@
+{
+  "card": {
+    "eyebrow": "Fonctionnement sans surveillance",
+    "title": "Heures calmes et fin de file",
+    "description": "Reporter les travaux lourds, exécuter quelque chose une fois la file vide, et suspendre sur batterie ou connexion limitée."
+  },
+  "quiet": {
+    "label": "Heures calmes",
+    "description": "Les travaux reportés attendent dans ces fenêtres. Les téléchargements continuent.",
+    "from": "De",
+    "to": "À",
+    "add": "Ajouter une fenêtre",
+    "defer_postprocess": "Reporter réparation, décompression et envois",
+    "defer_notifications": "Regrouper les notifications jusqu'à la fin de la fenêtre"
+  },
+  "action": {
+    "none": "Ne rien faire",
+    "script": "Exécuter un script",
+    "standby": "Veille",
+    "shutdown": "Éteindre"
+  },
+  "completion": {
+    "label": "Quand la file est vide",
+    "description": "S'exécute une fois par cycle de travail terminé, après le post-traitement.",
+    "script_label": "Script",
+    "script_description": "Un fichier du répertoire de scripts de post-traitement ; même bac à sable, même délai.",
+    "countdown_label": "Compte à rebours",
+    "countdown_description": "Délai pour annuler avant l'exécution (10–3600 s).",
+    "approval_label": "Autoriser les actions d'alimentation sur cette machine",
+    "approval_description": "La veille et l'extinction ne s'exécutent qu'une fois cette option activée ici.",
+    "approval_missing": "Sans cette autorisation, l'action est configurée mais ne s'exécute jamais."
+  },
+  "context": {
+    "battery_label": "Suspendre sur batterie",
+    "metered_label": "Suspendre sur connexion limitée",
+    "unavailable": "Cette plateforme ne peut pas le signaler ; la règle reste désactivée.",
+    "prevent_standby_label": "Garder la machine éveillée",
+    "prevent_standby_description": "Tant qu'un téléchargement ou une extraction est réellement en cours. Une file qui ne fait qu'attendre ne maintient pas la machine éveillée.",
+    "prevent_display_label": "Garder aussi l'écran allumé",
+    "prevent_display_description": "Pour une machine que quelqu'un regarde. Un téléchargement n'a pas besoin d'un écran allumé.",
+    "inhibiting": "La machine est maintenue éveillée."
+  },
+  "pending": {
+    "standby": "La machine se met en veille",
+    "shutdown": "La machine s'éteint",
+    "none": "Action de fin en attente",
+    "script": "Le script de fin s'exécute",
+    "countdown": "Dans {seconds} s — annulez pour garder la machine allumée.",
+    "cancel": "Annuler"
+  },
+  "paused": {
+    "battery": "La file est suspendue : la machine fonctionne sur batterie.",
+    "metered": "La file est suspendue : la connexion se déclare limitée."
+  }
+}

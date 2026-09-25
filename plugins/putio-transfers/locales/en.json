@@ -1,0 +1,22 @@
+{
+  "name": "Put.io transfers",
+  "description": "Runs magnets and torrent files as transfers on a Put.io account.",
+  "codes": {
+    "putio_transfers.api_error": "Put.io API error ({reason})",
+    "putio_transfers.auth_invalid": "The Put.io sign-in is no longer valid. Sign in again.",
+    "putio_transfers.disk_full": "The Put.io account has no space left for this transfer.",
+    "putio_transfers.http_error": "Put.io HTTP status {status}",
+    "putio_transfers.invalid_response": "Invalid Put.io response",
+    "putio_transfers.no_content": "Put.io reports this transfer as finished but names no files",
+    "putio_transfers.no_remote_selection": "Put.io downloads a whole torrent and offers no file selection before it does. Choose the files in the LinkGrabber.",
+    "putio_transfers.no_transfer_id": "Put.io did not name the transfer it created. Check your Put.io account before trying again.",
+    "putio_transfers.not_a_torrent": "This is not a magnet address or a torrent file",
+    "putio_transfers.not_permitted": "Put.io does not allow this account to do that",
+    "putio_transfers.rate_limited": "The Put.io API rate limit was reached. Waiting.",
+    "putio_transfers.server_error": "Put.io is temporarily unavailable",
+    "putio_transfers.too_many_files": "This Put.io transfer holds more files than rDownloader will take in one job",
+    "putio_transfers.transfer_cancelled": "This transfer was cancelled at Put.io",
+    "putio_transfers.transfer_failed": "Put.io ended this transfer with an error",
+    "putio_transfers.transfer_gone": "Put.io no longer holds this transfer"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Rapidgator",
+  "account": {
+    "secret_label": "Kontopasswort",
+    "secret_hint": "Gib deine Konto-E-Mail als Benutzer und dein Passwort als Secret ein."
+  },
+  "codes": {
+    "rapidgator.account_missing": "Rapidgator-Account fehlt",
+    "rapidgator.api_error": "Rapidgator-API ({api_status}): {message}",
+    "rapidgator.bad_credentials": "Rapidgator-Login oder Passwort ist falsch",
+    "rapidgator.captcha_rejected": "Rapidgator hat die Captcha-Antwort abgelehnt",
+    "rapidgator.download_link_not_ready": "Rapidgator hat den Countdown vor dem Download nicht abgeschlossen (Status: {state})",
+    "rapidgator.download_link_unconfirmed": "Rapidgator hat nicht bestätigt, dass die Datei offline ist; wird erneut versucht",
+    "rapidgator.file_offline": "Die Rapidgator-Datei ist nicht verfügbar",
+    "rapidgator.free_limit_reached": "Rapidgator-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "rapidgator.free_link_host_mismatch": "Rapidgator hat einen Download-Link auf einem unerwarteten Host geliefert: {host}",
+    "rapidgator.http_error": "Rapidgator-HTTP-Status {status}",
+    "rapidgator.invalid_response": "Ungültige Rapidgator-Antwort",
+    "rapidgator.invalid_url": "Ungültige Provider-URL: {error}",
+    "rapidgator.ip_confirmation_required": "Rapidgator verlangt eine Bestätigung dieses Logins über die an den Account gesendete E-Mail",
+    "rapidgator.ip_denied": "Rapidgator hat die Anfrage von dieser IP-Adresse abgelehnt",
+    "rapidgator.limit_reached": "Das Rapidgator-Traffic- oder Speicherlimit wurde erreicht",
+    "rapidgator.login_throttled": "Der Rapidgator-Login wurde gedrosselt; zu viele Login-Versuche in letzter Zeit",
+    "rapidgator.no_download_url": "Rapidgator hat keine Download-URL zurückgegeben",
+    "rapidgator.no_free_link": "Der Rapidgator-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "rapidgator.no_free_markers": "Die Rapidgator-Seite für den Free-Download wurde nicht erkannt: {diagnosis}",
+    "rapidgator.no_token": "Rapidgator hat kein Login-Token zurückgegeben",
+    "rapidgator.password_missing": "Das Rapidgator-Passwort fehlt",
+    "rapidgator.premium_required": "Für den Rapidgator-Download über die API ist ein Premium-Account erforderlich",
+    "rapidgator.rate_limited": "Rapidgator-API-Ratenlimit wurde ausgelöst",
+    "rapidgator.server_error": "Rapidgator-Serverfehler",
+    "rapidgator.session_invalid": "Rapidgator hat die Login-Sitzung als ungültig gemeldet",
+    "rapidgator.timer_not_started": "Rapidgator hat den Countdown vor dem Download nicht gestartet (Status: {state})",
+    "rapidgator.unsupported_link": "Kein unterstützter Rapidgator-Link"
+  }
+}

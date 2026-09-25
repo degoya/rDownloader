@@ -1,0 +1,29 @@
+# The base workspace every case starts from; a case overlays its old/ and new/ files on it.
+[workspace]
+resolver = "2"
+members = [
+  "crates/rd-api",
+  "crates/rd-core",
+  "crates/rd-http",
+  "crates/rd-notify",
+  "crates/rd-postprocess",
+  "plugins/alldebrid",
+]
+
+[workspace.package]
+version = "1.2.4"
+edition = "2024"
+
+[workspace.dependencies]
+rustls = { version = "0.23", default-features = false }
+serde = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["rt"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+
+[profile.release]
+lto = "thin"

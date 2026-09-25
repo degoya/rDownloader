@@ -1,0 +1,25 @@
+{
+  "name": "pCloud",
+  "description": "Resolves pCloud files and public links through the official pCloud API.",
+  "account": {
+    "secret_label": "App secret (OAuth client secret)",
+    "secret_hint": "pCloud's token endpoint is a confidential client: it asks for the secret of your own application and offers no alternative. Paste the app secret from the pCloud App Console here, put the app key in the field above, and then start the sign-in; the access token it obtains is stored separately and never overwrites this value.",
+    "username_label": "App key (OAuth client ID)",
+    "username_hint": "pCloud needs an application of your own — this project ships none, so that every installation has its own pCloud rate limit. In the pCloud App Console create an application, add http://127.0.0.1:8710/api/v1/oauth/callback as a redirect URI, and paste its app key here and its app secret below. It does not matter whether your account is in Europe or the United States: pCloud states that in the sign-in, and rDownloader finds it again from the address of every link."
+  },
+  "codes": {
+    "pcloud.account_missing": "pCloud account is missing",
+    "pcloud.account_region": "pCloud data centre: {region}",
+    "pcloud.api_refused": "pCloud refused this request (result {result})",
+    "pcloud.download_not_permitted": "pCloud does not serve this file to this account",
+    "pcloud.file_not_found": "This pCloud file does not exist in either pCloud data centre, or this account cannot see it",
+    "pcloud.invalid_download_host": "pCloud answered with a download address that is not pCloud's, so nothing was handed on",
+    "pcloud.invalid_response": "Invalid pCloud response",
+    "pcloud.is_a_folder": "This pCloud address is a folder. Add it again to let the folder be listed",
+    "pcloud.link_unavailable": "pCloud will not open this public link (result {result}). It may be deleted, expired, out of traffic, or protected by a password — pCloud's API offers no way to enter one",
+    "pcloud.not_a_pcloud_link": "This is not a pCloud file address",
+    "pcloud.rate_limited": "pCloud is rate limiting this application. Its other links wait as long as pCloud asked",
+    "pcloud.sign_in_required": "Neither pCloud data centre accepted this account's sign-in. Sign in again",
+    "pcloud.unavailable": "pCloud is temporarily unavailable"
+  }
+}

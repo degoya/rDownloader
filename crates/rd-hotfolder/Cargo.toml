@@ -1,0 +1,24 @@
+[package]
+name = "rd-hotfolder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+dunce.workspace = true
+hex.workspace = true
+notify.workspace = true
+rd-core = { path = "../rd-core" }
+sha2.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

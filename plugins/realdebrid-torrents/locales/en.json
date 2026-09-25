@@ -1,0 +1,27 @@
+{
+  "name": "Real-Debrid torrents",
+  "description": "Runs magnets and torrent files as jobs on a Real-Debrid account.",
+  "codes": {
+    "realdebrid_torrents.account_missing": "Real-Debrid account is missing",
+    "realdebrid_torrents.api_error": "Real-Debrid API error {api_code}",
+    "realdebrid_torrents.auth_invalid": "The Real-Debrid sign-in is no longer valid. Sign in again.",
+    "realdebrid_torrents.content_refused": "Real-Debrid refuses to carry this content",
+    "realdebrid_torrents.empty_choice": "A file selection has to name at least one file",
+    "realdebrid_torrents.http_error": "Real-Debrid HTTP status {status}",
+    "realdebrid_torrents.invalid_response": "Invalid Real-Debrid response",
+    "realdebrid_torrents.ip_not_allowed": "Real-Debrid does not allow this account from this address",
+    "realdebrid_torrents.limit_reached": "Real-Debrid reports the traffic or torrent limit as reached",
+    "realdebrid_torrents.magnet_rejected": "Real-Debrid could not read this magnet address",
+    "realdebrid_torrents.no_links": "Real-Debrid reports this torrent as finished but returned no links",
+    "realdebrid_torrents.no_torrent_id": "Real-Debrid did not name the torrent it created. Check your Real-Debrid account before trying again.",
+    "realdebrid_torrents.not_a_torrent": "This is not a magnet address or a torrent file",
+    "realdebrid_torrents.not_permitted": "Real-Debrid does not allow torrents on this account",
+    "realdebrid_torrents.rate_limited": "The Real-Debrid API rate limit was reached. Waiting.",
+    "realdebrid_torrents.server_busy": "Real-Debrid is temporarily unavailable",
+    "realdebrid_torrents.server_error": "Real-Debrid server error",
+    "realdebrid_torrents.token_missing": "This Real-Debrid account is not signed in yet",
+    "realdebrid_torrents.torrent_dead": "Real-Debrid found no peers for this torrent",
+    "realdebrid_torrents.torrent_failed": "Real-Debrid ended this torrent with an error",
+    "realdebrid_torrents.torrent_gone": "Real-Debrid no longer holds this torrent"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "header": {
+    "eyebrow": "Resolver registry",
+    "title": "Versioned provider components",
+    "description": "Packages are checked for signature, manifest, component format and permitted imports before the atomic installation. Unsigned packages only work when the service runs in explicit development mode."
+  },
+  "install": {
+    "label": ".rdplug package",
+    "hint": "Maximum 65 MiB; binary data is not stored as a temporary upload.",
+    "submit": "Verify & install",
+    "failed": "Installation failed ({status})",
+    "success": "Plugin installed.",
+    "network_error": "Network error during installation"
+  },
+  "installed": {
+    "eyebrow": "Installed versions",
+    "title": "Local inventory",
+    "empty": "No external plugin versions installed yet. The native v1 resolvers remain available.",
+    "filter_label": "Filter by plugin group"
+  },
+  "card": {
+    "author": "by {author}",
+    "homepage": "Homepage",
+    "support": "Support",
+    "concurrency": "parallel",
+    "concurrency_hint": "At most {count} downloads run through this plugin at the same time",
+    "api_version": "ABI {version}",
+    "capabilities": "Granted",
+    "superseded": "Not in use",
+    "superseded_hint": "A newer version of this plugin is installed and is loaded instead. It stays on disk while unfinished work is still bound to it, and can be removed otherwise.",
+    "active_version_hint": "This is the version being loaded.",
+    "superseded_versions": "Superseded versions ({count})",
+    "remove_superseded": "Remove version {version}",
+    "withdrawn_badge": "Withdrawn",
+    "withdrawn_hint": "This build is refused from the next start on; the signing key is untouched.",
+    "withdraw_version": "Withdraw version {version}"
+  },
+  "keys": {
+    "eyebrow": "Signing keys",
+    "title": "Confirmed publishers",
+    "description": "Plugins from third parties are signed with their author’s own key. A key you confirm here stays trusted until you revoke it; revoking one disables its plugins from the next restart.",
+    "first_seen": "First seen with {plugin}",
+    "revoke": "Revoke",
+    "empty": "No third-party signing keys confirmed. Only plugins signed with the release key are accepted."
+  },
+  "trust": {
+    "title": "Confirm the publisher",
+    "intro": "{name} {version} is signed with a key this installation has not seen before.",
+    "key_id": "Key id",
+    "fingerprint": "Fingerprint",
+    "warning": "Only confirm if this fingerprint matches the one published by the plugin’s author. A wrong key lets someone else ship updates for this plugin.",
+    "cancel": "Cancel",
+    "confirm": "Trust and install"
+  },
+  "type": {
+    "all": "All",
+    "auth": "Sign-in",
+    "crawler": "Folder crawler",
+    "enricher": "Metadata",
+    "intake": "Intake",
+    "notifier": "Notification",
+    "postprocess": "Post-processing",
+    "remote-job": "Remote job",
+    "resolver": "Resolver",
+    "storage": "Storage",
+    "transfer": "Transfer backend",
+    "oauth": "OAuth sign-in",
+    "stream-transform": "Stream transform"
+  },
+  "capability": {
+    "net_http": "Web requests",
+    "cookies": "Account cookies",
+    "captcha": "CAPTCHA solving",
+    "secret": "Credential: {reference}",
+    "net_stream": "Direct connections (ports {ports})"
+  },
+  "incompatible": {
+    "eyebrow": "Refused packages",
+    "title": "Installed but not runnable",
+    "description": "These packages are on disk but this version cannot run them. They are left alone until you remove them — deleting them automatically would only make a hoster disappear without explanation. A package that needs a newer build works again once its author rebuilds it.",
+    "remove": "Remove",
+    "reason": {
+      "plugin.manifest_outdated": "Built for an older plugin contract. The author has to rebuild it for this version.",
+      "plugin.capability_unknown": "Asks for a permission or plugin type this version does not know.",
+      "plugin.manifest_unreadable": "The manifest cannot be read at all; the package is damaged."
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "duration": "{ms} ms",
+    "outcome": {
+      "ok": "OK",
+      "failed": "Reported a failure",
+      "crash": "Crashed",
+      "timeout": "Timed out",
+      "fuel": "Ran out of budget",
+      "memory": "Out of memory",
+      "host_error": "Host error",
+      "denied": "Not permitted"
+    }
+  },
+  "actions": {
+    "enable": "Enable",
+    "disable": "Disable",
+    "disabled_badge": "disabled",
+    "withdraw": "Withdraw"
+  },
+  "remove": {
+    "title": "Delete plugin?",
+    "description": "“{name}” is removed from disk. Getting it back means installing it again.",
+    "superseded_title": "Remove the superseded version?",
+    "superseded_description": "Version {version} of “{name}” is removed from disk. Version {active} stays installed and keeps being loaded."
+  },
+  "withdraw": {
+    "title": "Withdraw this build?",
+    "intro": "“{name}” {version} is refused by its exact package content, not by its version number.",
+    "restart": "It keeps running until the service restarts; from the next start it is skipped.",
+    "key_untouched": "The signing key stays trusted. Every other plugin signed with it, and every other version of this one, keeps loading.",
+    "reason_label": "Reason (optional)",
+    "reason_hint": "Kept as written and shown beside the entry.",
+    "confirm": "Withdraw this build"
+  },
+  "withdrawn": {
+    "eyebrow": "Withdrawn packages",
+    "title": "Packages this machine refuses",
+    "description": "A withdrawal takes effect at the next start: a package already loaded keeps running until then and is skipped from then on. Only this one build is affected — the signing key stays trusted, and every other plugin signed with it keeps loading.",
+    "empty": "No package is withdrawn. Every installed version that verifies is loaded.",
+    "installed": "Installed here",
+    "not_installed": "This package is not installed here; its digest is all that identifies it.",
+    "unknown_package": "Unnamed package",
+    "digest": "Package digest",
+    "reason": "Reason: {reason}",
+    "since": "Withdrawn {when}",
+    "lift": "Lift withdrawal"
+  }
+}

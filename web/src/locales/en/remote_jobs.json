@@ -1,0 +1,83 @@
+{
+  "eyebrow": "Remote jobs",
+  "title": "Jobs running at a provider",
+  "description": "A magnet handed to a provider account is fetched there rather than here, and arrives as addresses once it is done. It keeps running while this machine does not, and the account keeps it afterwards until somebody deletes it.",
+  "empty": "No job is running at a provider.",
+  "account": "Account",
+  "account_unknown": "Unknown account",
+  "content": "Content",
+  "remote_id": "Known there as",
+  "started": "Started",
+  "updated": "Last change",
+  "states": {
+    "submitting": "Being handed over",
+    "preparing": "The provider is preparing it",
+    "awaiting_choice": "Waiting for your selection",
+    "working": "Fetching at the provider",
+    "ready": "Finished",
+    "failed": "Failed",
+    "discarded": "Deleted at the provider"
+  },
+  "submit": {
+    "title": "Hand a magnet to an account",
+    "description": "The provider fetches it and hands the finished addresses to the LinkGrabber. The same magnet twice is one job, not two.",
+    "magnet": "Magnet address",
+    "magnet_placeholder": "magnet:?xt=urn:btih:…",
+    "action": "Hand over",
+    "started": "The provider was given the job.",
+    "already_running": "This account is already running a job for that content. Nothing was sent a second time.",
+    "file_action": "Or .torrent/.nzb files",
+    "file_clear": "Remove the file",
+    "file_too_large": "The file exceeds the {max_mib} MiB a remote job may carry"
+  },
+  "choice": {
+    "toggle": "Entries the job offered",
+    "title": "Choose what you want",
+    "description": "The provider fetches only what is picked here, and nothing moves until it is answered.",
+    "preselected": "Suggested",
+    "size_unknown": "Size not stated",
+    "action": "Send the selection",
+    "sent": "The selection reached the provider.",
+    "none": "Pick at least one entry."
+  },
+  "discard": {
+    "action": "Delete at the provider",
+    "confirm_title": "Delete this job at the provider?",
+    "confirm_description": "This deletes the job inside your provider account. It happens outside this machine and cannot be undone. The entry stays in this list afterwards and records that it was deleted.",
+    "confirm_label": "Delete at the provider",
+    "done": "The job was deleted at the provider."
+  },
+  "forget": {
+    "action": "Remove from this list",
+    "confirm_title": "Remove this entry from the list?",
+    "confirm_description": "This removes the entry here and nothing else. Whatever the provider holds stays in your account, untouched.",
+    "confirm_label": "Remove from the list",
+    "done": "The entry was removed. Nothing was deleted at the provider."
+  },
+  "page": {
+    "eyebrow": "At the provider",
+    "title": "Remote jobs",
+    "description": "Magnets handed to a provider account run there, not here. Follow them, answer the questions they stop for, and end them — at the provider or only in this list."
+  },
+  "no_remote_job_accounts": "None of your accounts belong to a service with an installed remote-job plugin. Install one, or add an account with a service that has one.",
+  "accounts_unavailable": "The list of services that can take a job could not be read.",
+  "accounts_loading": "Reading which of your accounts can take a job…",
+  "files": {
+    "drop_hint": "Several .torrent or .nzb files can be chosen at once or dropped here – each becomes a job of its own, handed over one after another.",
+    "list": "Chosen files",
+    "count": "{count} file | {count} files",
+    "clear": "Remove all files",
+    "wrong_type": "Only .torrent and .nzb files can be handed over",
+    "unreadable": "The file could not be read",
+    "summary": "{done} of {total} files handed over.",
+    "summary_failed": "{failed} of {total} files could not be handed over; each says why. The others went ahead.",
+    "states": {
+      "waiting": "Waiting",
+      "sending": "Being handed over",
+      "started": "Handed over",
+      "already_running": "Already running",
+      "failed": "Failed",
+      "refused": "Not sent"
+    }
+  }
+}

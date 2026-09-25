@@ -1,0 +1,17 @@
+[package]
+name = "rd-plugin-api"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+rd-core = { path = "../rd-core" }
+serde.workspace = true
+toml.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true
+

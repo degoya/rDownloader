@@ -1,0 +1,136 @@
+{
+  "header": {
+    "eyebrow": "Resolver-Registry",
+    "title": "Versionierte Provider-Components",
+    "description": "Pakete werden vor der atomaren Installation auf Signatur, Manifest, Component-Format und erlaubte Imports geprüft. Unsignierte Pakete funktionieren nur bei explizitem Entwicklungsmodus des Dienstes."
+  },
+  "install": {
+    "label": ".rdplug-Paket",
+    "hint": "Maximal 65 MiB; Binärdaten werden nicht als temporärer Upload gespeichert.",
+    "submit": "Prüfen & installieren",
+    "failed": "Installation fehlgeschlagen ({status})",
+    "success": "Plugin wurde installiert.",
+    "network_error": "Netzwerkfehler bei der Installation"
+  },
+  "installed": {
+    "eyebrow": "Installierte Versionen",
+    "title": "Lokaler Bestand",
+    "empty": "Noch keine externen Pluginversionen installiert. Die nativen v1-Resolver bleiben verfügbar.",
+    "filter_label": "Nach Plugin-Gruppe filtern"
+  },
+  "card": {
+    "author": "von {author}",
+    "homepage": "Website",
+    "support": "Support",
+    "concurrency": "parallel",
+    "concurrency_hint": "Über dieses Plugin laufen höchstens {count} Downloads gleichzeitig",
+    "api_version": "ABI {version}",
+    "capabilities": "Erlaubt",
+    "superseded": "Nicht aktiv",
+    "superseded_hint": "Eine neuere Version dieses Plugins ist installiert und wird stattdessen geladen. Sie bleibt liegen, solange noch unerledigte Arbeit an ihr hängt, und lässt sich sonst entfernen.",
+    "active_version_hint": "Diese Version wird geladen.",
+    "superseded_versions": "Abgelöste Versionen ({count})",
+    "remove_superseded": "Version {version} entfernen",
+    "withdrawn_badge": "Zurückgezogen",
+    "withdrawn_hint": "Dieser Build wird ab dem nächsten Start abgelehnt; der Signaturschlüssel bleibt unberührt.",
+    "withdraw_version": "Version {version} zurückziehen"
+  },
+  "keys": {
+    "eyebrow": "Signaturschlüssel",
+    "title": "Bestätigte Herausgeber",
+    "description": "Plugins von Dritten sind mit dem eigenen Schlüssel ihres Autors signiert. Ein hier bestätigter Schlüssel bleibt vertrauenswürdig, bis du ihn widerrufst; ein Widerruf deaktiviert seine Plugins ab dem nächsten Neustart.",
+    "first_seen": "Zuerst gesehen bei {plugin}",
+    "revoke": "Widerrufen",
+    "empty": "Keine fremden Signaturschlüssel bestätigt. Es werden nur Plugins mit dem Release-Schlüssel akzeptiert."
+  },
+  "trust": {
+    "title": "Herausgeber bestätigen",
+    "intro": "{name} {version} ist mit einem Schlüssel signiert, den diese Installation noch nicht kennt.",
+    "key_id": "Schlüssel-ID",
+    "fingerprint": "Fingerabdruck",
+    "warning": "Bestätige nur, wenn dieser Fingerabdruck mit dem vom Plugin-Autor veröffentlichten übereinstimmt. Ein falscher Schlüssel erlaubt Fremden, Updates für dieses Plugin auszuliefern.",
+    "cancel": "Abbrechen",
+    "confirm": "Vertrauen und installieren"
+  },
+  "type": {
+    "all": "Alle",
+    "auth": "Anmeldung",
+    "crawler": "Ordner-Crawler",
+    "enricher": "Metadaten",
+    "intake": "Import",
+    "notifier": "Benachrichtigung",
+    "postprocess": "Nachbearbeitung",
+    "remote-job": "Anbieterauftrag",
+    "resolver": "Resolver",
+    "storage": "Speicherziel",
+    "transfer": "Transfer-Backend",
+    "oauth": "OAuth-Anmeldung",
+    "stream-transform": "Stromtransformation"
+  },
+  "capability": {
+    "net_http": "Webanfragen",
+    "cookies": "Account-Cookies",
+    "captcha": "CAPTCHA-Lösung",
+    "secret": "Zugangsdaten: {reference}",
+    "net_stream": "Direktverbindungen (Ports {ports})"
+  },
+  "incompatible": {
+    "eyebrow": "Abgelehnte Pakete",
+    "title": "Installiert, aber nicht ausführbar",
+    "description": "Diese Pakete liegen auf der Platte, diese Version kann sie aber nicht ausführen. Sie bleiben liegen, bis Sie sie entfernen — automatisch zu löschen ließe einen Hoster nur kommentarlos verschwinden. Ein Paket, das eine neuere Version braucht, läuft wieder, sobald sein Autor es neu baut.",
+    "remove": "Entfernen",
+    "reason": {
+      "plugin.manifest_outdated": "Für einen älteren Plugin-Vertrag gebaut. Der Autor muss es für diese Version neu bauen.",
+      "plugin.capability_unknown": "Fordert eine Berechtigung oder einen Plugintyp, den diese Version nicht kennt.",
+      "plugin.manifest_unreadable": "Das Manifest ist überhaupt nicht lesbar; das Paket ist beschädigt."
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnose",
+    "duration": "{ms} ms",
+    "outcome": {
+      "ok": "OK",
+      "failed": "Fehler gemeldet",
+      "crash": "Abgestürzt",
+      "timeout": "Zeitüberschreitung",
+      "fuel": "Budget aufgebraucht",
+      "memory": "Speicher erschöpft",
+      "host_error": "Hostfehler",
+      "denied": "Nicht erlaubt"
+    }
+  },
+  "actions": {
+    "enable": "Aktivieren",
+    "disable": "Deaktivieren",
+    "disabled_badge": "deaktiviert",
+    "withdraw": "Zurückziehen"
+  },
+  "remove": {
+    "title": "Plugin löschen?",
+    "description": "„{name}\" wird von der Festplatte entfernt. Zum Wiederherstellen muss es neu installiert werden.",
+    "superseded_title": "Abgelöste Version entfernen?",
+    "superseded_description": "Version {version} von „{name}“ wird von der Festplatte entfernt. Version {active} bleibt installiert und wird weiter geladen."
+  },
+  "withdraw": {
+    "title": "Diesen Build zurückziehen?",
+    "intro": "„{name}“ {version} wird anhand seines genauen Paketinhalts abgelehnt, nicht anhand der Versionsnummer.",
+    "restart": "Es läuft weiter, bis der Dienst neu startet; ab dem nächsten Start wird es übersprungen.",
+    "key_untouched": "Der Signaturschlüssel bleibt vertrauenswürdig. Alle anderen damit signierten Plugins und alle anderen Versionen dieses Plugins werden weiter geladen.",
+    "reason_label": "Grund (optional)",
+    "reason_hint": "Wird wörtlich gespeichert und neben dem Eintrag angezeigt.",
+    "confirm": "Build zurückziehen"
+  },
+  "withdrawn": {
+    "eyebrow": "Zurückgezogene Pakete",
+    "title": "Pakete, die diese Maschine ablehnt",
+    "description": "Eine Rücknahme greift beim nächsten Start: ein bereits geladenes Paket läuft bis dahin weiter und wird ab dann übersprungen. Betroffen ist nur dieser eine Build — der Signaturschlüssel bleibt vertrauenswürdig, und alle anderen damit signierten Plugins werden weiter geladen.",
+    "empty": "Kein Paket ist zurückgezogen. Jede installierte Version, die sich prüfen lässt, wird geladen.",
+    "installed": "Hier installiert",
+    "not_installed": "Dieses Paket ist hier nicht installiert; nur seine Prüfsumme identifiziert es.",
+    "unknown_package": "Unbenanntes Paket",
+    "digest": "Paketprüfsumme",
+    "reason": "Grund: {reason}",
+    "since": "Zurückgezogen {when}",
+    "lift": "Rücknahme aufheben"
+  }
+}

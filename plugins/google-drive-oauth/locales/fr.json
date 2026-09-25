@@ -1,0 +1,12 @@
+{
+  "name": "Connexion Google",
+  "description": "Connecte un compte Google Drive via le point d'autorisation de Google.",
+  "codes": {
+    "google_drive_oauth.bad_reply": "Google a envoyé une réponse que ce plugin ne peut pas lire.",
+    "google_drive_oauth.code_expired": "La connexion a expiré avant d'être terminée. Relancez-la.",
+    "google_drive_oauth.consent_denied": "La connexion n'a pas été accordée chez Google. Une administration Workspace peut aussi la bloquer.",
+    "google_drive_oauth.flow_unsupported": "Google Drive se connecte via le navigateur, pas avec un code d'appareil.",
+    "google_drive_oauth.no_entropy": "La connexion n'a pas pu démarrer : l'application ne disposait pas de l'aléa nécessaire. Réessayez.",
+    "google_drive_oauth.refresh_refused": "Google n'accepte plus la connexion enregistrée. Reconnectez-vous."
+  }
+}

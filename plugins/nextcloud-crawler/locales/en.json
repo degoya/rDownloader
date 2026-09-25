@@ -1,0 +1,14 @@
+{
+  "name": "Nextcloud shares",
+  "description": "Lists the files behind a public Nextcloud or ownCloud folder share.",
+  "codes": {
+    "nextcloud_crawler.invalid_response": "Invalid WebDAV response from this server",
+    "nextcloud_crawler.not_a_nextcloud": "This address has the shape of a share, but no Nextcloud answered it",
+    "nextcloud_crawler.not_a_share": "This is not a Nextcloud or ownCloud share address",
+    "nextcloud_crawler.password_required": "This share is password protected: add the password to the address after a # to open it",
+    "nextcloud_crawler.password_wrong": "The server did not accept the password given with this share address",
+    "nextcloud_crawler.server_busy": "The server is not answering this share right now",
+    "nextcloud_crawler.share_empty": "This share holds no files",
+    "nextcloud_crawler.share_unreachable": "This share could not be read: it may have expired or been withdrawn"
+  }
+}

@@ -1,0 +1,36 @@
+[package]
+name = "rd-plugin-onedrive"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+onedrive-common = { path = "../onedrive-common" }
+plugin-common = { path = "../common" }
+plugin-guest = { path = "../guest" }
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+wit-bindgen.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async-trait.workspace = true
+rd-core = { path = "../../crates/rd-core" }
+rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:onedrive"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "resolver-plugin"
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

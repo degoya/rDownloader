@@ -1,0 +1,83 @@
+{
+  "eyebrow": "Travaux distants",
+  "title": "Travaux qui tournent chez un fournisseur",
+  "description": "Un magnet confié à un compte de fournisseur y est récupéré plutôt qu’ici, et revient sous forme d’adresses une fois terminé. Il continue quand cette machine s’arrête, et le compte le conserve ensuite jusqu’à ce que quelqu’un le supprime.",
+  "empty": "Aucun travail ne tourne chez un fournisseur.",
+  "account": "Compte",
+  "account_unknown": "Compte inconnu",
+  "content": "Contenu",
+  "remote_id": "Connu là-bas sous",
+  "started": "Commencé",
+  "updated": "Dernière modification",
+  "states": {
+    "submitting": "En cours de transmission",
+    "preparing": "Le fournisseur le prépare",
+    "awaiting_choice": "En attente de votre sélection",
+    "working": "Récupération chez le fournisseur",
+    "ready": "Terminé",
+    "failed": "Échoué",
+    "discarded": "Supprimé chez le fournisseur"
+  },
+  "submit": {
+    "title": "Confier un magnet à un compte",
+    "description": "Le fournisseur le récupère et remet les adresses terminées au LinkGrabber. Le même magnet deux fois donne un seul travail, pas deux.",
+    "magnet": "Adresse magnet",
+    "magnet_placeholder": "magnet:?xt=urn:btih:…",
+    "action": "Confier",
+    "started": "Le fournisseur a reçu le travail.",
+    "already_running": "Ce compte exécute déjà un travail pour ce contenu. Rien n’a été envoyé une seconde fois.",
+    "file_action": "Ou des fichiers .torrent/.nzb",
+    "file_clear": "Retirer le fichier",
+    "file_too_large": "Le fichier dépasse les {max_mib} Mio qu’un travail distant peut transporter"
+  },
+  "choice": {
+    "toggle": "Entrées proposées par le travail",
+    "title": "Choisissez ce que vous voulez",
+    "description": "Le fournisseur ne récupère que ce qui est choisi ici, et rien ne bouge avant la réponse.",
+    "preselected": "Suggéré",
+    "size_unknown": "Taille non indiquée",
+    "action": "Envoyer la sélection",
+    "sent": "La sélection est parvenue au fournisseur.",
+    "none": "Choisissez au moins une entrée."
+  },
+  "discard": {
+    "action": "Supprimer chez le fournisseur",
+    "confirm_title": "Supprimer ce travail chez le fournisseur ?",
+    "confirm_description": "Cela supprime le travail dans votre compte chez le fournisseur. Cela se passe en dehors de cette machine et ne peut pas être annulé. L’entrée reste ensuite dans cette liste et garde la trace de la suppression.",
+    "confirm_label": "Supprimer chez le fournisseur",
+    "done": "Le travail a été supprimé chez le fournisseur."
+  },
+  "forget": {
+    "action": "Retirer de cette liste",
+    "confirm_title": "Retirer cette entrée de la liste ?",
+    "confirm_description": "Cela retire l’entrée ici et rien d’autre. Ce que le fournisseur détient reste intact dans votre compte.",
+    "confirm_label": "Retirer de la liste",
+    "done": "L’entrée a été retirée. Rien n’a été supprimé chez le fournisseur."
+  },
+  "page": {
+    "eyebrow": "Chez le fournisseur",
+    "title": "Travaux distants",
+    "description": "Les magnets confiés à un compte de fournisseur tournent là-bas, pas ici. Suivez-les, répondez aux questions pour lesquelles ils s'arrêtent et terminez-les — chez le fournisseur ou seulement dans cette liste."
+  },
+  "no_remote_job_accounts": "Aucun de tes comptes n’appartient à un service disposant d’un plugin de tâches distantes installé. Installe-en un ou ajoute un compte auprès d’un service compatible.",
+  "accounts_unavailable": "La liste des services pouvant accepter une tâche n’a pas pu être lue.",
+  "accounts_loading": "Je vérifie quels comptes peuvent accepter un travail…",
+  "files": {
+    "drop_hint": "Plusieurs fichiers .torrent ou .nzb peuvent être choisis d’un coup ou déposés ici – chacun devient un travail à part, confié l’un après l’autre.",
+    "list": "Fichiers choisis",
+    "count": "{count} fichier | {count} fichiers",
+    "clear": "Retirer tous les fichiers",
+    "wrong_type": "Seuls les fichiers .torrent et .nzb peuvent être confiés",
+    "unreadable": "Le fichier n’a pas pu être lu",
+    "summary": "{done} fichiers sur {total} confiés.",
+    "summary_failed": "{failed} fichiers sur {total} n’ont pas pu être confiés ; chacun en donne la raison. Les autres ont été traités.",
+    "states": {
+      "waiting": "En attente",
+      "sending": "En cours de remise",
+      "started": "Confié",
+      "already_running": "Déjà en cours",
+      "failed": "Échec",
+      "refused": "Non envoyé"
+    }
+  }
+}

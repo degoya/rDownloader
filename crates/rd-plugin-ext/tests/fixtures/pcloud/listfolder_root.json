@@ -1,0 +1,22 @@
+{
+  "result": 0,
+  "metadata": {
+    "name": "Show",
+    "isfolder": true,
+    "folderid": 42,
+    "parentfolderid": 0,
+    "id": "d42",
+    "ismine": true,
+    "contents": [
+      {
+        "name": "readme.txt", "isfolder": false, "fileid": 5000, "parentfolderid": 42,
+        "size": 12, "contenttype": "text/plain",
+        "modified": "Fri, 02 Jan 2026 03:04:06 +0000"
+      },
+      {
+        "name": "Season 1", "isfolder": true, "folderid": 43, "parentfolderid": 42, "id": "d43"
+      },
+      { "name": "no identifier", "isfolder": false, "parentfolderid": 42, "size": 7 }
+    ]
+  }
+}

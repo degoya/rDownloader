@@ -1,0 +1,26 @@
+{
+  "name": "AllDebrid",
+  "description": "Resolves links of other hosters through an AllDebrid account.",
+  "account": {
+    "secret_label": "API key (alldebrid.com/apikeys)",
+    "secret_hint": "Enter your API key from alldebrid.com/apikeys as secret."
+  },
+  "codes": {
+    "alldebrid.account_missing": "AllDebrid account is missing",
+    "alldebrid.api_error": "AllDebrid API ({api_code}): {message}",
+    "alldebrid.api_key_missing": "AllDebrid API key is missing",
+    "alldebrid.auth_invalid": "AllDebrid API key is invalid or the account is banned",
+    "alldebrid.host_unsupported": "AllDebrid does not currently support this host",
+    "alldebrid.http_error": "AllDebrid HTTP status {status}",
+    "alldebrid.invalid_response": "Invalid AllDebrid response",
+    "alldebrid.invalid_url": "Invalid provider URL: {error}",
+    "alldebrid.link_delayed": "AllDebrid is preparing this file on their servers",
+    "alldebrid.link_down": "AllDebrid file is not available",
+    "alldebrid.no_download_url": "AllDebrid did not return a download URL",
+    "alldebrid.password_protected": "AllDebrid link is password protected",
+    "alldebrid.premium_required": "AllDebrid premium account is required",
+    "alldebrid.rate_limited": "AllDebrid API rate limit was triggered",
+    "alldebrid.server_error": "AllDebrid server error",
+    "alldebrid.temporarily_unavailable": "AllDebrid is temporarily unavailable"
+  }
+}

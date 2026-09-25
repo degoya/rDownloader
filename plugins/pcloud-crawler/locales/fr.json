@@ -1,0 +1,13 @@
+{
+  "name": "Dossiers pCloud",
+  "description": "Liste les fichiers derrière un dossier ou un lien public pCloud.",
+  "codes": {
+    "pcloud_crawler.folder_empty": "Ce dossier pCloud ne contient aucun fichier téléchargeable",
+    "pcloud_crawler.folder_unreachable": "Ce dossier pCloud n'a pas pu être lu (résultat {result})",
+    "pcloud_crawler.invalid_response": "Réponse pCloud invalide",
+    "pcloud_crawler.link_unavailable": "pCloud n'ouvre pas ce lien public (résultat {result}). Il peut être supprimé, expiré, à court de trafic ou protégé par un mot de passe",
+    "pcloud_crawler.not_a_folder": "Ce n'est pas une adresse de dossier ou de lien public pCloud",
+    "pcloud_crawler.rate_limited": "pCloud limite le débit de cette application",
+    "pcloud_crawler.sign_in_required": "Aucun des deux centres de données pCloud n'a accepté ce compte pour ce dossier"
+  }
+}

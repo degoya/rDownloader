@@ -1,0 +1,10 @@
+{
+  "name": "Premiumize sign-in",
+  "description": "Inicia sesión en una cuenta de Premiumize en el proveedor, sin escribir aquí una clave de API.",
+  "codes": {
+    "premiumize_auth.consent_denied": "El proveedor rechazó el inicio de sesión de esta cuenta.",
+    "premiumize_auth.sign_in_refused": "El proveedor rechazó el inicio de sesión. Vuelve a empezarlo.",
+    "premiumize_auth.bad_reply": "El proveedor envió una respuesta que este plugin no pudo leer.",
+    "premiumize_auth.flow_expired": "El código de inicio de sesión caducó antes de confirmarse."
+  }
+}

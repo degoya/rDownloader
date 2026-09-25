@@ -1,0 +1,15 @@
+{
+  "name": "XFileSharing (genérico)",
+  "description": "Resuelve enlaces en instalaciones de XFileSharing mediante el flujo gratuito, sin cuenta.",
+  "codes": {
+    "xfs_generic.captcha_rejected": "El sitio XFileSharing rechazó la respuesta del captcha",
+    "xfs_generic.free_limit_reached": "Se alcanzó el límite de descargas gratuitas de este sitio XFileSharing para esta dirección IP",
+    "xfs_generic.http_error": "El sitio XFileSharing respondió con el estado HTTP {status}",
+    "xfs_generic.invalid_link": "Enlace de XFileSharing no válido",
+    "xfs_generic.invalid_url": "URL de proveedor no válida: {error}",
+    "xfs_generic.no_account": "Este resolutor descarga sin cuenta y no tiene ninguna que comprobar",
+    "xfs_generic.no_free_form": "No se encontró en la página el formulario de descarga gratuita de XFileSharing: {diagnosis}",
+    "xfs_generic.no_free_link": "La descarga gratuita de XFileSharing no produjo ningún enlace de archivo: {diagnosis}",
+    "xfs_generic.unsupported_link": "No es un enlace de un sitio XFileSharing que este complemento atienda"
+  }
+}

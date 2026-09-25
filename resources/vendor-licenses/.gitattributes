@@ -1,0 +1,2 @@
+# Upstream licence texts, kept byte for byte as the tools ship them (RD-130-12).
+*.txt -text -whitespace

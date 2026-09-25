@@ -1,0 +1,24 @@
+name: Free runner disk
+description: >
+  Removes preinstalled SDKs a Rust job never touches (.NET, Android, GHC, CodeQL, Boost, Swift,
+  Docker images) and logs the free space before and after. Linux and macOS; Windows has room.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # RD-120-67: the first run on GitHub filled the Ubuntu runner's disk during the test
+        # build — the runner died with `No space left on device` writing its own log. These two
+        # `df` lines put what a job starts with into its log.
+        df -h "${GITHUB_WORKSPACE}"
+        remove=()
+        if [[ -n "${ANDROID_HOME:-}" && -d "${ANDROID_HOME}" ]]; then remove+=("${ANDROID_HOME}"); fi
+        if [[ "${RUNNER_OS}" == Linux ]]; then
+          remove+=(/usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift)
+          sudo docker image prune --all --force > /dev/null
+        elif [[ "${RUNNER_OS}" == macOS ]]; then
+          remove+=("${HOME}/.dotnet" /usr/local/share/dotnet "${HOME}/Library/Android")
+        fi
+        if [[ ${#remove[@]} -gt 0 ]]; then sudo rm -rf "${remove[@]}"; fi
+        df -h "${GITHUB_WORKSPACE}"

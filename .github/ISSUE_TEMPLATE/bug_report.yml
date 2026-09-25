@@ -1,0 +1,94 @@
+name: Bug report
+description: Something in rDownloader does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a problem. **A security vulnerability does not belong here** — please report it privately, as [SECURITY.md](https://github.com/degoya/rDownloader/blob/main/SECURITY.md) describes.
+
+        This repository is an export of the development repository; [CONTRIBUTING.md](https://github.com/degoya/rDownloader/blob/main/CONTRIBUTING.md) explains what that means for issues and pull requests.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings → About rDownloader, or the output of `rdownloader --version`.
+      placeholder: "1.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - Docker
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install type
+      options:
+        - Release archive from GitHub Releases
+        - Docker image
+        - Built from source
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment details
+      description: Operating system version, browser and extension or capture agent in use, reverse proxy or base path if any.
+      placeholder: "Windows 11 24H2, Firefox 143 with the extension"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, including any error message or code shown in the interface.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows the problem. Replace real account names, tokens and private links with placeholders.
+      placeholder: |
+        1. Paste a link from ... into the LinkGrabber
+        2. Start the package
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: plugins
+    attributes:
+      label: Plugins involved
+      description: The plugin names and versions involved, if any (Settings → Plugins).
+      placeholder: "rd-plugin-example 0.3.1"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostic bundle
+      description: |
+        Relevant lines from the *Logs* page, or attach a diagnostic bundle built there.
+        **Check it for private data before you attach it** — credentials are redacted, but host names, paths and plugin names remain, and this issue is public.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for this problem.
+          required: true
+        - label: I removed passwords, tokens, cookies and private links from everything above.
+          required: true

@@ -1,0 +1,12 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Signs an account in to {{PLUGIN_NAME}} through the provider, by redirect or device code.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.consent_denied": "The sign-in was not granted at the provider.",
+    "{{PLUGIN_SLUG}}.code_expired": "The sign-in expired before it was finished. Start it again.",
+    "{{PLUGIN_SLUG}}.refresh_refused": "The provider no longer accepts the stored sign-in. Sign in again.",
+    "{{PLUGIN_SLUG}}.flow_unsupported": "This plugin does not offer that way of signing in.",
+    "{{PLUGIN_SLUG}}.bad_reply": "The provider sent a reply this plugin could not read.",
+    "{{PLUGIN_SLUG}}.no_entropy": "The sign-in could not be started because the application had no randomness for it. Try again."
+  }
+}

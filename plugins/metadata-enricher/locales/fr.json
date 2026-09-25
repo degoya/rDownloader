@@ -1,0 +1,4 @@
+{
+  "name": "Données de films et séries",
+  "description": "Reconnaît le film ou la série d'après le nom de la release et ajoute note, année, genre et durée."
+}

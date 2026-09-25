@@ -1,0 +1,10 @@
+{
+  "name": "AllDebrid sign-in",
+  "description": "Connecte un compte AllDebrid avec un code PIN, sans saisir de clé d'API ici.",
+  "codes": {
+    "alldebrid_auth.consent_denied": "Le fournisseur a refusé la connexion pour ce compte.",
+    "alldebrid_auth.sign_in_refused": "Le fournisseur a refusé la connexion. Relancez-la.",
+    "alldebrid_auth.bad_reply": "Le fournisseur a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "alldebrid_auth.flow_expired": "Le code PIN a expiré avant d'être confirmé."
+  }
+}

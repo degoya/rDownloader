@@ -1,0 +1,43 @@
+# Reference deployment. docker/README.md walks through every setting in here.
+services:
+  rdownloader:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      # A local build on a workstation: cap cargo so the compile cannot exhaust memory.
+      # args:
+      #   CARGO_BUILD_JOBS: "4"
+    image: rdownloader:local
+    restart: unless-stopped
+    ports:
+      # Loopback only. Change the left-hand side to expose it on the network, and put a reverse
+      # proxy with TLS in front of it before you do.
+      - "127.0.0.1:8710:8710"
+    volumes:
+      # State: the database, the installed plugins, and the optional vendor folder for your own
+      # helper binaries. Back this up.
+      - ./config:/config
+      # The fallback destination for a download that has no category. It is not hard-wired:
+      # storage roots are free paths, and every one of them has to be mounted here too.
+      - ./downloads:/downloads
+      # A second destination, the usual case for a media library. Add a storage root inside the
+      # application pointing at /media/movies to use it.
+      # - /srv/media/movies:/media/movies
+      # A watched folder: .nzb, .torrent or .dlc dropped in here are imported.
+      # - ./watch:/watch
+    environment:
+      # The host user that owns the mounted folders. `id -u` and `id -g` on the host.
+      PUID: "1000"
+      PGID: "1000"
+      # Schedules, quiet hours and completion actions all run on this clock.
+      TZ: "Europe/Berlin"
+      RUST_LOG: rdownloader=info,rd_=info
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8710/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    # no-new-privileges is deliberately absent: the entrypoint starts as root to adopt
+    # PUID/PGID and then drops to that user with gosu. Pin `user: "1000:1000"` instead if you
+    # would rather never run as root -- see docker/README.md, which explains what that costs.

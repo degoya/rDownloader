@@ -1,0 +1,20 @@
+{
+  "name": "MEGA folders",
+  "description": "Lists the files behind a public MEGA folder link or a folder of the signed-in account, with names, sizes and structure.",
+  "codes": {
+    "mega_crawler.api_error": "MEGA API error {status}",
+    "mega_crawler.folder_empty": "This MEGA folder holds no files that can be downloaded",
+    "mega_crawler.folder_private": "This MEGA folder needs the owner's account",
+    "mega_crawler.folder_unreachable": "This MEGA folder no longer exists or never did",
+    "mega_crawler.http_error": "MEGA HTTP status {status}",
+    "mega_crawler.invalid_response": "Invalid MEGA response",
+    "mega_crawler.key_invalid": "This MEGA folder link carries no usable key",
+    "mega_crawler.not_a_folder": "This is not a MEGA folder address",
+    "mega_crawler.not_in_account": "This folder is no longer in the MEGA account",
+    "mega_crawler.quota_exceeded": "MEGA's transfer quota for this folder is used up",
+    "mega_crawler.rate_limited": "MEGA is rate limiting requests from this address",
+    "mega_crawler.session_expired": "The MEGA account's session has run out; sign it in again",
+    "mega_crawler.too_many_files": "This MEGA folder holds more than {limit} files",
+    "mega_crawler.unavailable": "MEGA is temporarily not answering for this folder"
+  }
+}

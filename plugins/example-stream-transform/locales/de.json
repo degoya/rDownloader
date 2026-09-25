@@ -1,0 +1,7 @@
+{
+  "name": "Beispiel-Stromtransformation",
+  "description": "Referenz-Plugin, das den Stream-Transform-Vertrag vorführt.",
+  "codes": {
+    "example_stream_transform.not_mine": "Diese Adresse gehört nicht zum Referenz-Plugin für Stromtransformationen."
+  }
+}

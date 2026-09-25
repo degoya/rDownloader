@@ -1,0 +1,38 @@
+{
+  "name": "Keep2Share",
+  "description": "Resolves Keep2Share links with a premium account.",
+  "account": {
+    "secret_label": "Account password",
+    "secret_hint": "Enter your account e-mail as username and your password as secret."
+  },
+  "codes": {
+    "keep2share.account_missing": "Keep2Share account is missing",
+    "keep2share.api_error": "Keep2Share API ({api_status}): {message}",
+    "keep2share.bad_credentials": "Keep2Share login or password is wrong",
+    "keep2share.captcha_rejected": "Keep2Share rejected the captcha answer",
+    "keep2share.captcha_unavailable": "Keep2Share did not return a solvable captcha challenge",
+    "keep2share.download_limit_reached": "Keep2Share download limit was reached",
+    "keep2share.download_wait": "Keep2Share requires waiting before this file can be downloaded",
+    "keep2share.file_offline": "Keep2Share file is not available",
+    "keep2share.flood": "Keep2Share is throttling requests from this account or IP",
+    "keep2share.free_limit_reached": "Keep2Share free download limit reached for this IP address",
+    "keep2share.http_error": "Keep2Share HTTP status {status}",
+    "keep2share.invalid_response": "Invalid Keep2Share response",
+    "keep2share.invalid_url": "Invalid provider URL: {error}",
+    "keep2share.login_captcha": "Keep2Share requires solving a captcha",
+    "keep2share.network_restricted": "Keep2Share denied access from this network connection",
+    "keep2share.no_access": "Keep2Share denied access to this file",
+    "keep2share.no_download_url": "Keep2Share did not return a download URL",
+    "keep2share.no_free_link": "Keep2Share free download did not yield a file link: {diagnosis}",
+    "keep2share.no_token": "Keep2Share did not return a login token",
+    "keep2share.password_missing": "Keep2Share password is missing",
+    "keep2share.premium_required": "Keep2Share premium account is required to download this file",
+    "keep2share.private_file": "Keep2Share file can only be downloaded by its owner",
+    "keep2share.server_error": "Keep2Share server error",
+    "keep2share.session_invalid": "Keep2Share reported the auth token as invalid",
+    "keep2share.temporarily_unavailable": "Keep2Share reported the download as temporarily unavailable",
+    "keep2share.too_many_parallel": "Keep2Share does not allow more parallel downloads on this account",
+    "keep2share.traffic_exhausted": "Keep2Share traffic limit was reached",
+    "keep2share.unsupported_link": "Not a supported Keep2Share link"
+  }
+}

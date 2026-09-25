@@ -1,0 +1,89 @@
+{
+  "eyebrow": "Livestreams",
+  "title": "Stream recording",
+  "description": "Watched channels are probed on an interval and recorded automatically while live. Recordings enter the normal queue, never block other downloads, and can be stopped there at any time.",
+  "channels_title": "Watched channels",
+  "quality_default": "default",
+  "last_live": "Last live: {time}",
+  "never_live": "Never seen live",
+  "probe_error": "Last probe failed",
+  "empty": "No channels yet. Add a channel above and enable it to record automatically.",
+  "delete": {
+    "title": "Delete channel",
+    "description": "Delete \"{name}\"? Recordings already made are kept."
+  },
+  "messages": {
+    "created": "Channel added.",
+    "updated": "Channel saved.",
+    "recording_started": "Recording \"{name}\" started."
+  },
+  "form": {
+    "url_label": "Channel URL",
+    "url_description": "Page URL streamlink understands (Twitch, YouTube Live, …).",
+    "name_label": "Name",
+    "name_description": "Used as the recording file prefix.",
+    "name_placeholder": "Channel name (defaults to the host)",
+    "quality_label": "Quality",
+    "quality_description": "Quality preset for this channel; default uses the global setting.",
+    "category_label": "Category",
+    "category_description": "Destination category of recordings.",
+    "category_default": "Default category",
+    "enabled_label": "Monitor",
+    "enabled_description": "Probe this channel and record automatically while live.",
+    "add": "Add channel",
+    "record_now": "Record now"
+  },
+  "schedules": {
+    "title": "Schedules",
+    "hint": "A scheduled channel is watched only inside its window, so it does not record whatever else it happens to broadcast.",
+    "channel": "Channel",
+    "name": "Name",
+    "days": "Weekdays",
+    "start": "Starts at",
+    "timezone": "Time zone",
+    "timezone_hint": "An IANA name such as Europe/Berlin, so the time stays right across daylight saving.",
+    "window": "Length (minutes)",
+    "lead": "Start watching early (minutes)",
+    "roll_hint": "For a broadcast that starts early or overruns.",
+    "trail": "Keep watching after (minutes)",
+    "replay": "Record from the beginning",
+    "replay_hint": "Only used where the provider actually offers it.",
+    "add": "Add schedule",
+    "empty": "No schedules yet.",
+    "needs_channel": "Add a channel above first — a schedule needs one to record.",
+    "replay_used": "recorded from the beginning",
+    "weekday": {
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat",
+      "7": "Sun"
+    },
+    "states": {
+      "planned": "Planned",
+      "waiting": "Watching",
+      "recording": "Recording",
+      "completed": "Recorded",
+      "missed": "Missed",
+      "failed": "Failed"
+    }
+  },
+  "recording": {
+    "split": "Split long recordings",
+    "split_hint": "A disconnect always starts a new part; this cuts on purpose as well.",
+    "split_none": "Keep one file",
+    "split_duration": "Every N minutes",
+    "split_size": "Every N MiB",
+    "remux": "Convert when finished",
+    "remux_hint": "Parts are joined without re-encoding, as a resumable step.",
+    "remux_none": "Keep as recorded",
+    "sidecars": "Save beside the recording",
+    "sidecars_hint": "What the provider does not offer is reported rather than silently skipped.",
+    "sidecar_metadata": "Metadata",
+    "sidecar_thumbnail": "Thumbnail",
+    "reconnect": "Wait before reconnecting (seconds)",
+    "reconnect_hint": "Already-recorded parts are always kept."
+  }
+}

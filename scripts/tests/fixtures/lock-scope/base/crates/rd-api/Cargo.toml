@@ -1,0 +1,10 @@
+[package]
+name = "rd-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rd-core = { path = "../rd-core" }
+rd-http = { path = "../rd-http" }
+rd-postprocess = { path = "../rd-postprocess" }
+tracing-subscriber.workspace = true

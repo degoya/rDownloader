@@ -1,0 +1,30 @@
+{
+  "name": "1fichier",
+  "description": "Resolves 1fichier links with an API key.",
+  "account": {
+    "secret_label": "API key (from Parameters → API)",
+    "secret_hint": "Enter your API key (Parameters → API) as secret."
+  },
+  "codes": {
+    "1fichier.account.access": "Access plan",
+    "1fichier.account_missing": "1fichier account is missing",
+    "1fichier.account_required": "1fichier requires an account to download this file",
+    "1fichier.api_error": "1fichier API: {message}",
+    "1fichier.api_key_missing": "1fichier API key is missing",
+    "1fichier.bad_api_key": "1fichier API key is invalid or has expired",
+    "1fichier.file_offline": "1fichier file is not available",
+    "1fichier.flood": "1fichier API rate limit (flood protection) was triggered",
+    "1fichier.free_limit_reached": "1fichier free download limit reached for this IP address",
+    "1fichier.http_error": "1fichier HTTP status {status}",
+    "1fichier.invalid_response": "Invalid 1fichier response",
+    "1fichier.invalid_url": "Invalid provider URL: {error}",
+    "1fichier.no_download_url": "1fichier did not return a download URL",
+    "1fichier.no_free_form": "1fichier free download form was not found: {diagnosis}",
+    "1fichier.no_free_link": "1fichier free download did not yield a file link: {diagnosis}",
+    "1fichier.no_free_slots": "1fichier has no free download slot available right now",
+    "1fichier.password_required": "1fichier file is password-protected, which the account-less download does not support",
+    "1fichier.premium_required": "1fichier premium account is required to use the download API",
+    "1fichier.server_error": "1fichier server error",
+    "1fichier.unsupported_link": "Not a supported 1fichier link"
+  }
+}

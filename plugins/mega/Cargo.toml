@@ -1,0 +1,29 @@
+[package]
+name = "rd-plugin-mega"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+mega-common = { path = "../mega-common" }
+serde_json.workspace = true
+wit-bindgen.workspace = true
+
+# The tests wrap invented keys under an invented master key, which is the one thing this
+# plugin never does itself (RD-120-30). Never in the component.
+[dev-dependencies]
+aes.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:mega"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "stream-transform-plugin"
+
+[lints]
+workspace = true

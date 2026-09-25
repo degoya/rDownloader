@@ -1,0 +1,7 @@
+{
+  "name": "SponsorBlock",
+  "description": "Reports how much of a YouTube video is sponsor or intro, before it is downloaded.",
+  "codes": {
+    "sponsorblock_enricher.lookup_failed": "Those segments could not be looked up."
+  }
+}

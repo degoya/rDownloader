@@ -1,0 +1,59 @@
+{
+  "title": "Assistant de configuration",
+  "rerun": "Assistant de configuration",
+  "steps": {
+    "password": {
+      "title": "Mot de passe",
+      "description": "Sécuriser le service",
+      "lead": "Définissez le mot de passe administrateur local. Le service reste lié à l'interface loopback par défaut."
+    },
+    "pairing": {
+      "title": "Client",
+      "description": "Agent de capture et extension",
+      "lead": "Associez l'agent de capture ou l'extension de navigateur pour que les liens arrivent automatiquement dans rDownloader."
+    },
+    "storage": {
+      "title": "Stockage",
+      "description": "Destination des téléchargements",
+      "lead": "Les téléchargements ont besoin d'un répertoire cible. Ajoutez au moins un emplacement de stockage pour continuer."
+    },
+    "mcp": {
+      "title": "API & MCP",
+      "description": "Connecter des clients externes",
+      "lead": "Créez éventuellement un jeton d'API pour un client externe ou enregistrez le serveur MCP intégré auprès de votre assistant IA."
+    },
+    "services": {
+      "title": "Comptes",
+      "description": "Hébergeurs et Usenet",
+      "lead": "Ajoutez des comptes d'hébergeurs et des serveurs Usenet. Vous pouvez passer cette étape et le faire plus tard dans les paramètres."
+    }
+  },
+  "password": {
+    "rule": "au moins 10 caractères",
+    "submit": "Définir le mot de passe",
+    "configured": "Mot de passe déjà configuré",
+    "configured_hint": "Le mot de passe administrateur est défini. Vous pouvez le modifier à tout moment dans Paramètres → Général."
+  },
+  "pairing": {
+    "intro": "L'association est facultative — vous pouvez toujours ajouter des liens à la main. Un client associé envoie les liens capturés, Click'n'Load et les fichiers .nzb directement dans la file d'attente."
+  },
+  "storage": {
+    "intro": "Un emplacement de stockage est le répertoire de base où les téléchargements sont écrits. Les chemins doivent être absolus et sont créés s'ils n'existent pas encore ; dans un conteneur, seul un chemin sur un volume monté survit à une recréation.",
+    "default_category_hint": "Une catégorie par défaut nommée « Downloads » est créée pour le premier emplacement afin que la file d'attente ait une destination.",
+    "default_category_name": "Downloads",
+    "required_hint": "Ajoutez au moins un emplacement de stockage — sans lui, aucun téléchargement ne peut démarrer."
+  },
+  "services": {
+    "intro": "Facultatif : les comptes premium lèvent les limites de vitesse et de captcha, un serveur Usenet permet les téléchargements NZB.",
+    "accounts_tab": "Comptes d'hébergeurs",
+    "usenet_tab": "Usenet"
+  },
+  "actions": {
+    "back": "Retour",
+    "skip": "Passer",
+    "continue": "Continuer",
+    "finish": "Terminer",
+    "finish_with_tour": "Terminer et faire la visite",
+    "close": "Fermer l'assistant"
+  }
+}

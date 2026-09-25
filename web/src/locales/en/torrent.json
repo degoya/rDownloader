@@ -1,0 +1,88 @@
+{
+  "tree": {
+    "selected": "{count} of {total} files selected",
+    "files_badge": "{selected} of {total} files selected",
+    "toggle_folder": "Expand or collapse {name}",
+    "select_entry": "Select {name}",
+    "excluded_by_pattern": "Excluded by the pattern {pattern}",
+    "loading": "Reading the file list…",
+    "empty": "This torrent has no file list yet."
+  },
+  "errors": {
+    "metadata_failed": "The torrent metadata could not be resolved."
+  },
+  "priority": {
+    "high": "High",
+    "normal": "Normal",
+    "low": "Low",
+    "skip": "Skip",
+    "select": "Priority of {name}",
+    "emulated_hint": "Priorities are applied one tier at a time: the engine opens the next tier once the current one is complete. Sequential download is not supported by this engine."
+  },
+  "patterns": {
+    "label": "Exclusion patterns",
+    "description": "Comma-separated globs such as *.nfo or extras/*. They only affect files you have not decided yourself.",
+    "placeholder": "*.nfo, sample/*"
+  },
+  "tabs": {
+    "files": "Files",
+    "trackers": "Trackers",
+    "peers": "Peers",
+    "seeding": "Seeding"
+  },
+  "trackers": {
+    "counters_hint": "Seeders / leechers / completed",
+    "scrape": "Scrape",
+    "reannounce": "Reannounce",
+    "empty": "This torrent has no trackers.",
+    "stale": "These counters are older than 15 minutes.",
+    "stale_badge": "Stale",
+    "failed": "Failed",
+    "remove": "Remove tracker {url}",
+    "add": "Add",
+    "add_placeholder": "https://tracker.example/announce"
+  },
+  "stats": {
+    "ratio": "Ratio",
+    "uploaded": "Uploaded",
+    "peers": "Peers",
+    "offline": "Not in the session — last known values"
+  },
+  "peers": {
+    "title": "Peers",
+    "count": "{count} connected",
+    "empty": "No peers connected yet.",
+    "offline": "This torrent is not in the session, so no peers can be listed.",
+    "downloaded": "Downloaded from this peer",
+    "uploaded": "Uploaded to this peer",
+    "more": "Show more"
+  },
+  "pieces": {
+    "title": "Piece availability",
+    "count": "{count} pieces",
+    "empty": "No piece information available."
+  },
+  "web_seeds": {
+    "title": "Web seeds",
+    "unsupported": "This torrent advertises web seeds. The engine cannot use them, so they are shown for reference only."
+  },
+  "seeding": {
+    "enabled": "Seeding",
+    "ratio": "Ratio target",
+    "time": "Seed time",
+    "unlimited": "Unlimited",
+    "minutes": "{count} minutes",
+    "inherit": "Inherit",
+    "override_enabled": "Override seeding",
+    "override_ratio": "Override ratio",
+    "override_time": "Override seed time",
+    "override_unlimited": "Seed without a time limit",
+    "save": "Save",
+    "clear": "Inherit again",
+    "source": {
+      "global": "from the global settings",
+      "category": "from the category",
+      "torrent": "set here"
+    }
+  }
+}

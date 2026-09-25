@@ -1,0 +1,11 @@
+{
+  "transfer": {
+    "id": 770001,
+    "name": "Example.Release",
+    "status": "ERROR",
+    "percent_done": 0,
+    "file_id": null,
+    "error_message": "redacted provider sentence"
+  },
+  "status": "OK"
+}

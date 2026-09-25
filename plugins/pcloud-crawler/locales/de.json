@@ -1,0 +1,13 @@
+{
+  "name": "pCloud-Ordner",
+  "description": "Listet die Dateien hinter einem pCloud-Ordner oder öffentlichen Link auf.",
+  "codes": {
+    "pcloud_crawler.folder_empty": "Dieser pCloud-Ordner enthält keine herunterladbaren Dateien",
+    "pcloud_crawler.folder_unreachable": "Dieser pCloud-Ordner konnte nicht gelesen werden (Ergebnis {result})",
+    "pcloud_crawler.invalid_response": "Ungültige pCloud-Antwort",
+    "pcloud_crawler.link_unavailable": "pCloud öffnet diesen öffentlichen Link nicht (Ergebnis {result}). Er kann gelöscht, abgelaufen, am Traffic-Limit oder mit einem Passwort geschützt sein",
+    "pcloud_crawler.not_a_folder": "Das ist keine pCloud-Ordner- oder Link-Adresse",
+    "pcloud_crawler.rate_limited": "pCloud drosselt diese Anwendung",
+    "pcloud_crawler.sign_in_required": "Keines der beiden pCloud-Rechenzentren hat dieses Konto für diesen Ordner akzeptiert"
+  }
+}

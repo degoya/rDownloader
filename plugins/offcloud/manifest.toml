@@ -1,0 +1,56 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000138"
+name = "Offcloud"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["*"]
+download_domains = ["*"]
+# Offcloud states no request budget of its own. Three is the figure the other multihosters
+# settled on: enough to keep a queue moving, few enough that scheduling does not spend the
+# account's instant-link allowance on links nobody is downloading yet.
+max_concurrent_downloads = 3
+
+[capabilities]
+# The API key the person copies from https://offcloud.com/#/account. It is read back here only
+# as the template `{{secret:offcloud_api_key}}`, never as a value: the host substitutes it on
+# the way out, towards `offcloud.com` and nowhere else.
+secrets = ["offcloud_api_key"]
+
+# The provider's own API, and nothing else. The addresses it answers with live on Offcloud's
+# storage hosts, and those are fetched by the transfer engine rather than from in here, so the
+# allowlist stays at the one host this plugin actually talks to.
+[capabilities.net_http]
+domains = ["offcloud.com"]
+
+[metadata]
+description = "Resolves links of other hosters through an Offcloud account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.2.0"
+
+[provider]
+slug = "offcloud"
+kind = "multihoster"
+# One typed key and nothing else. Offcloud's published API documents a second entrance --
+# `POST /api/login` with an address and a password, which answers with a session cookie the
+# API key can then be read through -- and its own documentation calls that path obsolete and
+# recommends the key. A sign-in plugin around a flow the provider recommends against would be
+# a second place credentials live for no gain, so there is deliberately no `offcloud-auth`
+# sibling; `docs/roadmap/jobs/120-02-offcloud.md` records the decision.
+credentials = "api_key"
+username_required = false
+secret_reference = "offcloud_api_key"
+secret_domains = ["offcloud.com"]
+# Deliberately no `cookie_scope`. This is an API-shaped multihoster with no `cookies`
+# capability; a scope nothing can use would be a promise about where credentials go that
+# nothing keeps.
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

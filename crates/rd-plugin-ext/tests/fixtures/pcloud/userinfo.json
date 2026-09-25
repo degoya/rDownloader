@@ -1,0 +1,12 @@
+{
+  "result": 0,
+  "userid": 1234567,
+  "email": "someone@example.invalid",
+  "emailverified": true,
+  "premium": true,
+  "premiumexpires": "Thu, 01 Jan 2099 00:00:00 +0000",
+  "quota": 2199023255552,
+  "usedquota": 1073741824,
+  "language": "en",
+  "registered": "Mon, 02 Jan 2023 03:04:05 +0000"
+}

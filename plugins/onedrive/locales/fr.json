@@ -1,0 +1,26 @@
+{
+  "name": "OneDrive",
+  "description": "Télécharge les fichiers et liens de partage OneDrive et SharePoint via Microsoft Graph.",
+  "account": {
+    "secret_label": "Connexion Microsoft",
+    "secret_hint": "Rien à coller ici. OneDrive s'authentifie chez Microsoft : saisissez ci-dessus votre ID d'application (client), lancez la connexion et acceptez dans la fenêtre du navigateur — ou saisissez le code court affiché sur n'importe quel autre écran à l'adresse microsoft.com/devicelogin.",
+    "username_label": "ID d'application (client)",
+    "username_hint": "OneDrive exige une inscription d'application qui vous appartient : ce projet n'en fournit aucune, afin que chaque installation dispose de son propre quota de limitation Microsoft. Dans le centre d'administration Microsoft Entra (entra.microsoft.com), sous « Inscriptions d'applications », créez une inscription pour les comptes de n'importe quel annuaire organisationnel et les comptes Microsoft personnels, ajoutez la plateforme « Applications mobiles et de bureau » avec http://127.0.0.1:8710/api/v1/oauth/callback comme URI de redirection, activez « Autoriser les flux de clients publics » pour la connexion par appareil, puis collez ici l'ID d'application (client). La connexion ne demande que Files.Read.All et offline_access. Rien à coller dans le champ du secret : la connexion le remplit."
+  },
+  "codes": {
+    "onedrive.access_denied": "Ce compte ne peut pas accéder à cet élément OneDrive. Le lien a peut-être été partagé avec un autre compte ou un autre locataire",
+    "onedrive.account_missing": "Compte OneDrive manquant",
+    "onedrive.api_refused": "OneDrive a refusé cette requête ({reason})",
+    "onedrive.download_not_permitted": "Cet élément peut être consulté mais pas téléchargé : une stratégie du site SharePoint ou du locataire bloque le téléchargement",
+    "onedrive.invalid_request": "OneDrive n'a pas pu résoudre ce lien de partage. Il appartient peut-être à un locataire que ce compte ne peut pas atteindre",
+    "onedrive.invalid_response": "Réponse OneDrive invalide",
+    "onedrive.is_a_folder": "Cette adresse OneDrive est un dossier. Ajoutez-la de nouveau pour qu'il soit listé",
+    "onedrive.item_not_found": "Cet élément OneDrive n'existe pas, le lien de partage a été retiré, ou ce compte ne peut pas le voir",
+    "onedrive.malware_detected": "OneDrive a signalé ce fichier comme logiciel malveillant et ne le fournira pas",
+    "onedrive.not_a_file": "Cet élément OneDrive n'est pas un fichier téléchargeable",
+    "onedrive.not_a_onedrive_link": "Cette adresse n'est pas celle d'un fichier OneDrive ou SharePoint",
+    "onedrive.rate_limited": "OneDrive limite le débit de ce compte",
+    "onedrive.sign_in_required": "Ce compte OneDrive doit être reconnecté",
+    "onedrive.unavailable": "OneDrive est temporairement indisponible"
+  }
+}

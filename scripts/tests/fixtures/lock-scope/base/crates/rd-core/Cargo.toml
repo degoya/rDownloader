@@ -1,0 +1,8 @@
+[package]
+name = "rd-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+tokio.workspace = true

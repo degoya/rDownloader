@@ -1,0 +1,22 @@
+[package]
+name = "rd-gallery"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-tools = { path = "../rd-tools" }
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

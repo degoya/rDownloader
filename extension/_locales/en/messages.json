@@ -1,0 +1,406 @@
+{
+  "extName": {
+    "message": "rDownloader"
+  },
+  "extDescription": {
+    "message": "Send links to your rDownloader LinkGrabber from the context menu."
+  },
+  "menuLink": {
+    "message": "Download with rDownloader"
+  },
+  "menuPage": {
+    "message": "Download this page with rDownloader"
+  },
+  "menuSelection": {
+    "message": "Send selected links to rDownloader"
+  },
+  "optionsTitle": {
+    "message": "rDownloader connection"
+  },
+  "serverLabel": {
+    "message": "Server URL"
+  },
+  "serverHint": {
+    "message": "Address of the rDownloader web interface, e.g. http://nas.local:8710. 127.0.0.1:8710 and localhost:8710 are built in; any other address asks for a permission."
+  },
+  "tokenLabel": {
+    "message": "Capture token"
+  },
+  "tokenHint": {
+    "message": "Create it under System → Browser extension in the rDownloader web interface. It is shown only once."
+  },
+  "save": {
+    "message": "Save"
+  },
+  "testConnection": {
+    "message": "Test connection"
+  },
+  "saved": {
+    "message": "Settings saved."
+  },
+  "testing": {
+    "message": "Testing…"
+  },
+  "connected": {
+    "message": "Connected to rDownloader $1."
+  },
+  "permissionDenied": {
+    "message": "Permission for this server was not granted."
+  },
+  "permissionDeniedLoopback": {
+    "message": "Permission for this address was not granted. Only 127.0.0.1:8710 and localhost:8710 are built in; any other port needs the permission."
+  },
+  "serverInvalid": {
+    "message": "That is not a valid server address. For example: http://127.0.0.1:8710 or http://[::1]:8710."
+  },
+  "notConfigured": {
+    "message": "Please configure server and token first."
+  },
+  "sentLinks": {
+    "message": "$1 link(s) sent to the LinkGrabber."
+  },
+  "sendFailed": {
+    "message": "Sending failed: $1"
+  },
+  "errorUnauthorized": {
+    "message": "Token rejected — create a new capture token."
+  },
+  "popupSendPage": {
+    "message": "Send current page"
+  },
+  "popupSendClipboard": {
+    "message": "Send links from clipboard"
+  },
+  "popupOptions": {
+    "message": "Settings"
+  },
+  "sentFromPopup": {
+    "message": "Sent to the LinkGrabber."
+  },
+  "noPageUrl": {
+    "message": "The current tab has no web address."
+  },
+  "clipboardDenied": {
+    "message": "Clipboard access was denied."
+  },
+  "clipboardNoLinks": {
+    "message": "No links found in the clipboard."
+  },
+  "interceptSending": {
+    "message": "Sending download to rDownloader…"
+  },
+  "interceptSent": {
+    "message": "Download handed over to rDownloader."
+  },
+  "interceptFailed": {
+    "message": "Handover failed, the browser keeps the download: $1"
+  },
+  "interceptKeep": {
+    "message": "Keep in browser"
+  },
+  "interceptLegacyServer": {
+    "message": "This rDownloader is too old for download details — only the address was sent."
+  },
+  "interceptServerUnreachable": {
+    "message": "rDownloader cannot be reached. The browser will handle this download."
+  },
+  "interceptPostUnsupported": {
+    "message": "This download was started by a form and cannot be repeated. The browser will handle it."
+  },
+  "interceptRequestUnknown": {
+    "message": "The request behind this download was not observed and cannot be repeated safely. The browser will handle it."
+  },
+  "optionsIntercept": {
+    "message": "Take over browser downloads"
+  },
+  "optionsInterceptHint": {
+    "message": "Downloads started in the browser are paused and handed to rDownloader. Requires a capture token."
+  },
+  "menuSession": {
+    "message": "Share session for this site with rDownloader"
+  },
+  "sessionShared": {
+    "message": "Session for $HOST$ sent. Approve it in rDownloader to use it.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "sessionEmpty": {
+    "message": "No cookies found for this site."
+  },
+  "sessionFailed": {
+    "message": "Sharing the session failed: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "sessionUnconfigured": {
+    "message": "Pair the extension with rDownloader first."
+  },
+  "captchaSection": {
+    "message": "Waiting captchas"
+  },
+  "captchaFor": {
+    "message": "Captcha for $HOST$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaAnswer": {
+    "message": "Answer on the hoster's page"
+  },
+  "captchaDecline": {
+    "message": "Decline"
+  },
+  "captchaWaiting": {
+    "message": "A captcha for $HOST$ is waiting. Open the rDownloader extension to answer it in this browser.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaOpened": {
+    "message": "The hoster's page is opening. Solve the captcha there; rDownloader then reports what the server answered."
+  },
+  "captchaPermissionDenied": {
+    "message": "Permission for $HOST$ was not granted, so the page cannot be opened.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaSent": {
+    "message": "rDownloader accepted the captcha answer for $HOST$.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaFailed": {
+    "message": "The captcha answer for $HOST$ could not be handed over: $REASON$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "captchaSkipped": {
+    "message": "Captcha for $HOST$ declined.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaGone": {
+    "message": "The captcha for $HOST$ is no longer waiting and its tab was closed. It was answered elsewhere or it expired.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaSkipFailed": {
+    "message": "rDownloader was not told that the captcha for $HOST$ was declined: $REASON$ The waiting download will now run into a timeout.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "captchaListFailed": {
+    "message": "Waiting captchas could not be loaded: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "captchaNoWidget": {
+    "message": "No captcha appeared on $HOST$ – this browser is most likely signed in there already. The sign-in in rDownloader has stopped: hand this session over with “Take over from browser” at the account, or sign out of $HOST$ here and test the account again.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverSection": {
+    "message": "Requested sessions"
+  },
+  "handoverFor": {
+    "message": "$HOST$ session for the account “$ACCOUNT$”",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "account": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverNote": {
+    "message": "Only cookies of $HOST$ are sent, and only to your rDownloader. The browser asks for permission first.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverAllow": {
+    "message": "Hand over this session"
+  },
+  "handoverDecline": {
+    "message": "Decline"
+  },
+  "handoverWaiting": {
+    "message": "rDownloader asks for your $HOST$ session (account “$ACCOUNT$”). Open the extension to hand it over or decline.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "account": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverDone": {
+    "message": "Your $HOST$ session was handed over to rDownloader.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverFailed": {
+    "message": "The $HOST$ session could not be handed over: $REASON$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "reason": {
+        "content": "$2"
+      }
+    }
+  },
+  "handoverEmpty": {
+    "message": "This browser has no cookies for $HOST$. Sign in there first, then hand the session over.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverDenied": {
+    "message": "Without the browser’s permission for $HOST$, no cookie was read.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverDeclined": {
+    "message": "Declined: rDownloader knows the $HOST$ session will not be handed over.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverListFailed": {
+    "message": "Requested sessions could not be loaded: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesAllow": {
+    "message": "Hand NZB, torrent and ZIP files from $HOST$ to rDownloader",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesRevoke": {
+    "message": "Keep files from $HOST$ in the browser again",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesNote": {
+    "message": "rDownloader then takes what the browser received from $HOST$, or fetches it once with this site's cookies. The cookies are never stored. The browser asks for permission first.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesAllowed": {
+    "message": "NZB, torrent and ZIP files from $HOST$ now go to rDownloader.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesDenied": {
+    "message": "No permission for $HOST$ — its files stay in the browser.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "filesRevoked": {
+    "message": "Files from $HOST$ stay in the browser again.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "fileHandedOver": {
+    "message": "File handed over to rDownloader."
+  },
+  "fileKept": {
+    "message": "The browser keeps the file: $1"
+  },
+  "fileConsentIncomplete": {
+    "message": "Files from $HOST$ cannot be handed over: the browser no longer grants access. Allow the site again in the popup.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "optionsFilesTitle": {
+    "message": "Sites that hand files over"
+  },
+  "optionsFilesHint": {
+    "message": "NZB, torrent and ZIP downloads from these sites go to rDownloader instead of staying in the browser. Allow a site from the popup while you are on it."
+  },
+  "optionsFilesNone": {
+    "message": "No site yet."
+  },
+  "optionsFilesRevoke": {
+    "message": "Revoke"
+  }
+}

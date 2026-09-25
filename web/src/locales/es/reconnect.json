@@ -1,0 +1,43 @@
+{
+  "eyebrow": "Límites por dirección",
+  "title": "Reconectar",
+  "description": "Los hosters que limitan las descargas gratuitas lo hacen por dirección. Cuando las descargas quedan atascadas en ese límite, un script propio puede pedir al router una nueva.",
+  "enabled_label": "Reconectar cuando las descargas se atascan",
+  "enabled_description": "Solo mientras haya descargas gratuitas esperando por un límite de dirección, nunca por su cuenta.",
+  "script_label": "Script",
+  "script_description": "Un archivo en el directorio de scripts de posprocesado. Se ejecuta en el mismo entorno aislado.",
+  "interval_label": "Espera entre intentos",
+  "interval_description": "Reconectar en bucle no aporta nada si un hoster simplemente rechaza.",
+  "timeout_label": "Rendirse tras",
+  "timeout_description": "Cubre el script y la espera del cambio de dirección.",
+  "checks_label": "Comprobaciones de dirección",
+  "checks_description": "Una dirección por línea, consultadas en orden. Déjalo vacío para la lista integrada. Estas peticiones salen del equipo.",
+  "checks_placeholder": "https://api.ipify.org",
+  "abort_label": "Interrumpir transferencias en curso",
+  "abort_description": "Desactivado, el intento espera a que no haya transferencias. Activado, se pausan y se reanudan alrededor.",
+  "windows_label": "Horarios permitidos",
+  "windows_description": "Déjalo vacío para permitir cualquier hora.",
+  "window_add": "Añadir franja",
+  "window_remove": "Quitar franja",
+  "trigger": "Reconectar ahora",
+  "failed": "Error al reconectar",
+  "never_run": "Aún no se ha ejecutado.",
+  "last_success": "La última reconexión obtuvo la dirección {address}.",
+  "last_failure": "La última reconexión falló: {reason}",
+  "blocked_hosts": "Hosters esperando por un límite de dirección",
+  "phase": {
+    "idle": "Inactivo",
+    "draining": "Dejando terminar las transferencias",
+    "running": "Ejecutando el script",
+    "waiting_for_address": "Esperando el cambio de dirección"
+  },
+  "days": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mié",
+    "thu": "Jue",
+    "fri": "Vie",
+    "sat": "Sáb",
+    "sun": "Dom"
+  }
+}

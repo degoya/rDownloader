@@ -1,0 +1,12 @@
+{
+  "name": "Verzeichnisindex",
+  "description": "Listet die Dateien hinter einer offenen Verzeichnisliste von Apache, nginx, Caddy oder lighttpd auf.",
+  "codes": {
+    "directory_index_crawler.directory_empty": "Diese Verzeichnisliste enthält keine Dateien",
+    "directory_index_crawler.directory_unreachable": "Diese Verzeichnisliste konnte nicht gelesen werden",
+    "directory_index_crawler.not_a_directory": "Diese Adresse zeigt nicht auf eine Verzeichnisliste",
+    "directory_index_crawler.not_a_listing": "Diese Seite ist keine offene Verzeichnisliste",
+    "directory_index_crawler.server_busy": "Der Server beantwortet diese Verzeichnisliste gerade nicht",
+    "directory_index_crawler.sign_in_required": "Dieses Verzeichnis ist nicht offen: Der Server verlangt eine Anmeldung"
+  }
+}

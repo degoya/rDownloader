@@ -1,0 +1,7 @@
+{
+  "name": "WebDAV",
+  "description": "Lädt fertige Pakete auf einen WebDAV-Server und prüft jede Datei, bevor lokal etwas gelöscht wird.",
+  "codes": {
+    "webdav_storage.upload_rejected": "Der WebDAV-Server hat den Upload abgelehnt."
+  }
+}

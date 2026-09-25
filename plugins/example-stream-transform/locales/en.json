@@ -1,0 +1,7 @@
+{
+  "name": "Example Stream Transform",
+  "description": "Reference plugin demonstrating the stream-transform contract.",
+  "codes": {
+    "example_stream_transform.not_mine": "This address does not belong to the reference stream-transform plugin."
+  }
+}

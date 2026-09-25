@@ -1,0 +1,89 @@
+{
+  "eyebrow": "Livestreams",
+  "title": "Stream-Aufzeichnung",
+  "description": "Beobachtete Kanäle werden in einem Intervall geprüft und automatisch aufgezeichnet, solange sie live sind. Aufnahmen laufen in der normalen Warteschlange, blockieren keine anderen Downloads und lassen sich dort jederzeit stoppen.",
+  "channels_title": "Beobachtete Kanäle",
+  "quality_default": "Standard",
+  "last_live": "Zuletzt live: {time}",
+  "never_live": "Noch nie live gesehen",
+  "probe_error": "Letzte Prüfung fehlgeschlagen",
+  "empty": "Noch keine Kanäle. Oben einen Kanal hinzufügen und aktivieren, um automatisch aufzuzeichnen.",
+  "delete": {
+    "title": "Kanal löschen",
+    "description": "\"{name}\" löschen? Bereits erstellte Aufnahmen bleiben erhalten."
+  },
+  "messages": {
+    "created": "Kanal hinzugefügt.",
+    "updated": "Kanal gespeichert.",
+    "recording_started": "Aufnahme \"{name}\" gestartet."
+  },
+  "form": {
+    "url_label": "Kanal-URL",
+    "url_description": "Seiten-URL, die streamlink versteht (Twitch, YouTube Live, …).",
+    "name_label": "Name",
+    "name_description": "Wird als Dateipräfix der Aufnahmen verwendet.",
+    "name_placeholder": "Kanalname (Standard: der Host)",
+    "quality_label": "Qualität",
+    "quality_description": "Qualitätsvorgabe für diesen Kanal; Standard verwendet die globale Einstellung.",
+    "category_label": "Kategorie",
+    "category_description": "Zielkategorie der Aufnahmen.",
+    "category_default": "Standardkategorie",
+    "enabled_label": "Beobachten",
+    "enabled_description": "Kanal prüfen und automatisch aufzeichnen, solange er live ist.",
+    "add": "Kanal hinzufügen",
+    "record_now": "Jetzt aufnehmen"
+  },
+  "schedules": {
+    "title": "Zeitpläne",
+    "hint": "Ein geplanter Kanal wird nur in seinem Fenster beobachtet und nimmt so nicht auf, was sonst gerade läuft.",
+    "channel": "Kanal",
+    "name": "Name",
+    "days": "Wochentage",
+    "start": "Beginnt um",
+    "timezone": "Zeitzone",
+    "timezone_hint": "Ein IANA-Name wie Europe/Berlin, damit die Zeit über die Zeitumstellung hinweg stimmt.",
+    "window": "Dauer (Minuten)",
+    "lead": "Früher beobachten (Minuten)",
+    "roll_hint": "Für Sendungen, die früher beginnen oder überziehen.",
+    "trail": "Länger beobachten (Minuten)",
+    "replay": "Von Anfang an aufnehmen",
+    "replay_hint": "Wird nur genutzt, wenn der Anbieter es tatsächlich anbietet.",
+    "add": "Zeitplan hinzufügen",
+    "empty": "Noch keine Zeitpläne.",
+    "needs_channel": "Lege zuerst oben einen Kanal an — ein Zeitplan braucht einen, um aufzunehmen.",
+    "replay_used": "von Anfang an aufgenommen",
+    "weekday": {
+      "1": "Mo",
+      "2": "Di",
+      "3": "Mi",
+      "4": "Do",
+      "5": "Fr",
+      "6": "Sa",
+      "7": "So"
+    },
+    "states": {
+      "planned": "Geplant",
+      "waiting": "Beobachtet",
+      "recording": "Nimmt auf",
+      "completed": "Aufgenommen",
+      "missed": "Verpasst",
+      "failed": "Fehlgeschlagen"
+    }
+  },
+  "recording": {
+    "split": "Lange Aufnahmen aufteilen",
+    "split_hint": "Ein Verbindungsabbruch beginnt ohnehin einen neuen Teil; dies schneidet zusätzlich absichtlich.",
+    "split_none": "Eine Datei behalten",
+    "split_duration": "Alle N Minuten",
+    "split_size": "Alle N MiB",
+    "remux": "Nach Abschluss umwandeln",
+    "remux_hint": "Teile werden ohne Neukodierung zusammengefügt, als fortsetzbarer Schritt.",
+    "remux_none": "So lassen, wie aufgenommen",
+    "sidecars": "Neben der Aufnahme speichern",
+    "sidecars_hint": "Was der Anbieter nicht hergibt, wird gemeldet statt stillschweigend übersprungen.",
+    "sidecar_metadata": "Metadaten",
+    "sidecar_thumbnail": "Vorschaubild",
+    "reconnect": "Wartezeit vor Neuverbindung (Sekunden)",
+    "reconnect_hint": "Bereits aufgenommene Teile bleiben immer erhalten."
+  }
+}

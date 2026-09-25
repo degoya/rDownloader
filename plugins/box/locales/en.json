@@ -1,0 +1,25 @@
+{
+  "name": "Box",
+  "description": "Resolves Box files and shared links through the official Box Content API.",
+  "account": {
+    "secret_label": "Box client secret",
+    "secret_hint": "The client secret of your own Box application, from the same page as the client ID above. Box requires it for every sign-in and for every renewal, so it stays stored; the access token the sign-in obtains is kept beside it and never over it.",
+    "username_label": "Client ID (OAuth 2.0)",
+    "username_hint": "Box needs an application of your own — this project ships none, so that every installation has its own Box rate limit. In the Box Developer Console create a Custom App with User Authentication (OAuth 2.0), tick only the application scope \"Read all files and folders stored in Box\", add http://127.0.0.1:8710/api/v1/oauth/callback as a redirect URI, and paste the client ID here and the client secret below."
+  },
+  "codes": {
+    "box.account_missing": "Box account is missing",
+    "box.api_refused": "Box refused this request ({reason})",
+    "box.download_not_permitted": "Box does not serve this file to this account: it is restricted, locked, or shared without download permission",
+    "box.file_not_found": "This Box file does not exist, it is in the trash, or this account cannot see it",
+    "box.invalid_response": "Invalid Box response",
+    "box.is_a_folder": "This Box address is a folder. Add it again to let the folder be listed",
+    "box.link_access_denied": "Box denied access to this shared link. If it is password-protected, add ?shared_link_password=… to the address; otherwise it was shared with somebody else",
+    "box.not_a_box_link": "This is not a Box file address",
+    "box.not_a_file": "This Box item is not a file and has nothing to download",
+    "box.quota_exceeded": "This Box account has used up its allowance",
+    "box.rate_limited": "Box is rate limiting this account. Its other links wait as long as Box asked",
+    "box.sign_in_required": "This Box account has to be signed in again",
+    "box.unavailable": "Box is temporarily unavailable"
+  }
+}

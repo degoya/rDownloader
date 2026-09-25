@@ -1,0 +1,1 @@
+https://cdn.hoster.example/get/abc?hash=%5Bredacted%5D&md5=%5Bredacted%5D&expires=1704070800

@@ -1,0 +1,23 @@
+{
+  "name": "Dropbox",
+  "description": "Lädt Dropbox-Dateien und geteilte Links über die offizielle Dropbox-API.",
+  "account": {
+    "secret_label": "Dropbox-Anmeldung",
+    "secret_hint": "Hier ist nichts einzufügen. Dropbox wird bei Dropbox selbst angemeldet: Trage oben deinen App-Key ein, starte die Anmeldung und stimme im Browserfenster zu.",
+    "username_label": "App-Key (OAuth-Client-ID)",
+    "username_hint": "Dropbox braucht eine eigene App — dieses Projekt liefert keine mit, damit jede Installation ihr eigenes Dropbox-Ratenlimit hat. Lege in der Dropbox App Console eine App mit Scoped Access auf die ganze Dropbox an, setze unter „Permissions“ die Häkchen bei account_info.read, files.metadata.read, files.content.read und sharing.read, trage unter „OAuth 2“ http://127.0.0.1:8710/api/v1/oauth/callback als Redirect-URI ein und füge den App-Key hier ein. Ein App-Secret ist nicht nötig. Ins Secret-Feld kommt nichts: das füllt die Anmeldung."
+  },
+  "codes": {
+    "dropbox.account_missing": "Dropbox-Konto fehlt",
+    "dropbox.api_refused": "Dropbox hat diese Anfrage abgelehnt ({reason})",
+    "dropbox.download_not_permitted": "Dropbox liefert diese Datei nicht aus: Sie ist ein Paper- oder Google-Dokument, sie ist gesperrt, oder dieses Konto darf sie nicht herunterladen",
+    "dropbox.file_not_found": "Diese Dropbox-Datei existiert nicht, der Link wurde zurückgezogen, oder dieses Konto sieht sie nicht",
+    "dropbox.invalid_response": "Ungültige Dropbox-Antwort",
+    "dropbox.is_a_folder": "Diese Dropbox-Adresse ist ein Ordner. Füge sie erneut hinzu, damit der Ordner aufgelistet wird",
+    "dropbox.link_access_denied": "Dropbox verweigert den Zugriff auf diesen geteilten Link. Ist er passwortgeschützt, hänge ?link_password=… an die Adresse an; sonst wurde er für jemand anderen freigegeben",
+    "dropbox.not_a_dropbox_link": "Dies ist keine Dropbox-Dateiadresse",
+    "dropbox.rate_limited": "Dropbox drosselt diese App. Ihre anderen Links warten so lange, wie Dropbox verlangt",
+    "dropbox.sign_in_required": "Dieses Dropbox-Konto muss erneut angemeldet werden",
+    "dropbox.unavailable": "Dropbox ist vorübergehend nicht erreichbar"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Offcloud-Cloud-Downloads",
+  "description": "Führt Magnets und Webadressen als Cloud-Downloads in einem Offcloud-Konto aus.",
+  "codes": {
+    "offcloud_cloud.addon_required": "Offcloud benötigt für diesen Download ein zusätzliches Add-on ({addon})",
+    "offcloud_cloud.api_error": "Offcloud-API-Fehler {api_code}",
+    "offcloud_cloud.auth_invalid": "Der Offcloud-API-Schlüssel ist ungültig. Hinterlege ihn erneut.",
+    "offcloud_cloud.container_unsupported": "Offcloud nimmt eine Adresse entgegen, keine Torrent- oder NZB-Datei",
+    "offcloud_cloud.http_error": "Offcloud-HTTP-Status {status}",
+    "offcloud_cloud.invalid_response": "Ungültige Offcloud-Antwort",
+    "offcloud_cloud.job_canceled": "Dieser Cloud-Download wurde bei Offcloud abgebrochen",
+    "offcloud_cloud.job_failed": "Offcloud hat diesen Cloud-Download mit einem Fehler beendet",
+    "offcloud_cloud.job_gone": "Offcloud hält diesen Cloud-Download nicht mehr",
+    "offcloud_cloud.no_links": "Offcloud meldet diesen Cloud-Download als fertig, lieferte aber keine Adressen",
+    "offcloud_cloud.no_request_id": "Offcloud hat den angelegten Cloud-Download nicht benannt. Prüfe dein Offcloud-Konto, bevor du es erneut versuchst.",
+    "offcloud_cloud.no_selection": "Offcloud lädt den gesamten Auftrag und kennt keine Dateiauswahl",
+    "offcloud_cloud.not_a_cloud_source": "Offcloud nimmt eine Magnet-Adresse oder eine Webadresse entgegen; dies ist weder das eine noch das andere",
+    "offcloud_cloud.rate_limited": "Das Anfragelimit von Offcloud wurde erreicht. Es wird gewartet.",
+    "offcloud_cloud.server_error": "Offcloud-Serverfehler"
+  }
+}

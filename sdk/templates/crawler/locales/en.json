@@ -1,0 +1,9 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Lists the files behind a {{PLUGIN_NAME}} folder address.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.folder_empty": "This folder holds no files.",
+    "{{PLUGIN_SLUG}}.folder_unreachable": "This folder could not be read. It may have been removed, or it is not shared.",
+    "{{PLUGIN_SLUG}}.bad_reply": "The provider sent a reply this plugin could not read."
+  }
+}

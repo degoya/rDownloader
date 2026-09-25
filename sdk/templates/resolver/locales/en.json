@@ -1,0 +1,8 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Resolves {{PLUGIN_NAME}} links.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.no_credential": "No password is stored for this {{PLUGIN_NAME}} account.",
+    "{{PLUGIN_SLUG}}.rejected": "{{PLUGIN_NAME}} refused the request."
+  }
+}

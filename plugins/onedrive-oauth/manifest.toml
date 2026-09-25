@@ -1,0 +1,41 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000116"
+name = "Microsoft sign-in"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Both ways in, because Microsoft offers both (RD-106-01). The browser redirect is first, so it
+# is what a sign-in takes where a browser can reach this application; the device code is what
+# a headless installation falls back to — a short code typed at microsoft.com/devicelogin on
+# any other screen, renewed afterwards without anybody being asked again.
+oauth_flows = ["redirect", "device"]
+
+# Microsoft's own endpoints, and nothing else. `login.microsoftonline.com` is where the person
+# agrees, where a device code is issued and where the code and the refresh material are
+# exchanged; `microsoft.com` is where a device code is typed, and has to be listed because the
+# host refuses to put a verification address in front of somebody unless the manifest declares
+# its host.
+[capabilities.net_http]
+domains = ["login.microsoftonline.com", "microsoft.com", "www.microsoft.com"]
+
+[extension]
+slug = "onedrive_oauth"
+# One provider: the row `plugins/onedrive/` declares. The host looks the account up and this
+# plugin never learns which one it is.
+claims = ["onedrive"]
+
+[metadata]
+description = "Signs a OneDrive or SharePoint account in through Microsoft's own authorization endpoint, by browser or by device code."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

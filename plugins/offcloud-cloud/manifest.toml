@@ -1,0 +1,41 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000139"
+name = "Offcloud cloud downloads"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[capabilities]
+# The API key the person typed, the same slot the resolver sibling reads. It is read back here
+# only as the template `{{secret:offcloud_api_key}}`, never as a value.
+secrets = ["offcloud_api_key"]
+
+# The provider's own API, and nothing else. `cloud/*` lives here; the addresses a finished job
+# produces live on Offcloud's storage hosts and are fetched by the transfer engine, not here.
+[capabilities.net_http]
+domains = ["offcloud.com"]
+
+[extension]
+slug = "offcloud_cloud"
+# The provider whose account these jobs run on. The host looks the account up; this plugin
+# never learns which one it is, and never sees its key.
+claims = ["offcloud"]
+
+[metadata]
+description = "Runs magnets and web addresses as cloud downloads on an Offcloud account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.2.0"
+
+[limits]
+memory_bytes = 33554432
+# Every call here makes at most two requests and returns on the provider's next answer -- the
+# waiting belongs to the host -- so this needs far less room than a crawler walking a tree. The
+# one memory-shaped operation is reading a finished job's file tree, which `api::MAX_ENTRIES`
+# bounds before anything crosses the boundary.
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

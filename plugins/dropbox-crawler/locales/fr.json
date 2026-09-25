@@ -1,0 +1,13 @@
+{
+  "name": "Dossiers Dropbox",
+  "description": "Liste les fichiers derrière un dossier Dropbox ou un lien de dossier partagé.",
+  "codes": {
+    "dropbox_crawler.folder_empty": "Ce dossier Dropbox ne contient aucun fichier téléchargeable",
+    "dropbox_crawler.folder_unreachable": "Ce dossier Dropbox n'a pas pu être lu",
+    "dropbox_crawler.invalid_response": "Réponse Dropbox invalide",
+    "dropbox_crawler.link_access_denied": "Dropbox a refusé l'accès à ce lien de dossier partagé. S'il est protégé par mot de passe, ajoutez ?link_password=… à l'adresse",
+    "dropbox_crawler.not_a_folder": "Ceci n'est pas une adresse de dossier Dropbox",
+    "dropbox_crawler.rate_limited": "Dropbox limite cette application",
+    "dropbox_crawler.sign_in_required": "Dropbox n'a pas accepté ce compte pour ce dossier"
+  }
+}

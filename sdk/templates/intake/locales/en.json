@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Turns {{PLUGIN_NAME}} pages and lists into LinkGrabber candidates.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.unreadable": "That page could not be read."
+  }
+}

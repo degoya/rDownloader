@@ -1,0 +1,10 @@
+{
+  "name": "AllDebrid sign-in",
+  "description": "Inicia sesión en una cuenta de AllDebrid con un PIN, sin escribir aquí una clave de API.",
+  "codes": {
+    "alldebrid_auth.consent_denied": "El proveedor rechazó el inicio de sesión de esta cuenta.",
+    "alldebrid_auth.sign_in_refused": "El proveedor rechazó el inicio de sesión. Vuelve a empezarlo.",
+    "alldebrid_auth.bad_reply": "El proveedor envió una respuesta que este plugin no pudo leer.",
+    "alldebrid_auth.flow_expired": "El PIN caducó antes de confirmarse."
+  }
+}

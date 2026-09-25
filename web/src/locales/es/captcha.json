@@ -1,0 +1,75 @@
+{
+  "title": "Se requiere un captcha",
+  "description": "{host} exige resolver un captcha antes de que esta descarga pueda continuar.",
+  "unknown_host": "El hoster",
+  "expires_in": "Caduca en {time}",
+  "image_alt": "Imagen de captcha del hoster",
+  "answer_label": "Respuesta",
+  "answer_description": "Escriba los caracteres que muestra la imagen.",
+  "answer_placeholder": "Caracteres de la imagen",
+  "submit": "Enviar respuesta",
+  "skip": "Rechazar",
+  "queued": "Hay otro captcha esperando. | Hay {count} captchas más esperando.",
+  "kinds": {
+    "image": "Captcha de imagen",
+    "recaptcha_v2": "reCAPTCHA v2",
+    "h_captcha": "hCaptcha",
+    "turnstile": "Cloudflare Turnstile",
+    "click_point": "Captcha de clic",
+    "cutcaptcha": "CutCaptcha"
+  },
+  "click": {
+    "description": "Haga clic en el punto de la imagen que pide la tarea. Otro clic mueve la marca; no se envía nada hasta que pulse el botón.",
+    "marked": "Marcado en {x}, {y} de la imagen.",
+    "none": "Todavía no hay ningún punto marcado.",
+    "surface": "Imagen del captcha: haga clic o use las flechas para marcar un punto, Intro lo envía",
+    "keyboard": "Teclado: las flechas mueven la marca un píxel, con Mayús diez; Intro la envía."
+  },
+  "widget": {
+    "title": "{kind} se responde en la página del propio hoster",
+    "description": "{host} protege esta descarga con {kind}. El widget está ligado al dominio del hoster y aquí no se puede mostrar en absoluto. Respóndalo en su propio navegador: la extensión de rDownloader abre la página del hoster en una pestaña y devuelve la respuesta; un servicio resolutor lo responde sin usted.",
+    "extension_connected": "La extensión del navegador está conectada: anuncia este captcha y abre {host} en una pestaña de su navegador.",
+    "extension_missing": "No hay ninguna extensión del navegador conectada. Sin ella, solo un servicio resolutor puede responder este captcha. Instale y vincule la extensión para responderlo usted mismo, en su propio navegador.",
+    "extension_setup": "Configurar la extensión del navegador",
+    "hint": "Conecte la extensión del navegador y responda el captcha en la pestaña que abre, configure un servicio resolutor en los ajustes de red, o rechace este captcha y deje que la descarga falle. No hay otra vía: un widget está ligado al dominio del hoster y no puede mostrarse ni en esta interfaz ni en el agente de escritorio.",
+    "configure": "Ajustes de captcha"
+  },
+  "settings": {
+    "eyebrow": "Resolución de captchas",
+    "title": "Captchas",
+    "description": "Las descargas gratuitas sin cuenta suelen pedir un captcha. rDownloader puede pasarlo a un servicio resolutor o preguntárselo a usted.",
+    "state": {
+      "active": "Resolutor activo",
+      "off": "Sin resolutor"
+    },
+    "solver": {
+      "label": "Servicio resolutor",
+      "description": "Un servicio con API compatible con 2captcha responde los captchas automáticamente.",
+      "none": "Ninguno: preguntarme solo a mí",
+      "two_captcha": "API compatible con 2captcha"
+    },
+    "endpoint": {
+      "label": "Punto final de la API",
+      "description": "URL https absoluta del servicio; vacío conserva el punto final guardado."
+    },
+    "api_key": {
+      "label": "Clave de API",
+      "description": "Se guarda cifrada y la API nunca la devuelve.",
+      "stored": "Hay una clave guardada. Introduzca una nueva para reemplazarla.",
+      "clear": "Eliminar la clave de API guardada"
+    },
+    "test": {
+      "button": "Probar conexión",
+      "balance": "El servicio respondió. Saldo restante: {balance}."
+    },
+    "manual": {
+      "label": "Preguntarme en los captchas de imagen",
+      "description": "Los captchas de imagen aparecen como aviso en la interfaz web."
+    },
+    "timeout": {
+      "label": "Plazo de respuesta",
+      "description": "Cuánto espera un captcha su respuesta antes de que la descarga falle."
+    },
+    "hint": "Los captchas de widget (reCAPTCHA v2, hCaptcha, Turnstile) están ligados al dominio del hoster y no se pueden mostrar aquí. Los responde un servicio resolutor o usted mismo: en su propio navegador mediante la extensión de rDownloader, que abre la página del hoster en una pestaña. Esa extensión es la única vía por la que una persona responde uno; el agente de escritorio no los muestra. La resolución manual en esta interfaz solo cubre captchas de imagen. Los cambios se guardan con la configuración."
+  }
+}

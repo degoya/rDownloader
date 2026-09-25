@@ -1,0 +1,10 @@
+{
+  "name": "AllDebrid sign-in",
+  "description": "Meldet ein AllDebrid-Konto per PIN an, ohne dass hier ein API-Schlüssel eingegeben wird.",
+  "codes": {
+    "alldebrid_auth.consent_denied": "Der Anbieter hat die Anmeldung für dieses Konto abgelehnt.",
+    "alldebrid_auth.sign_in_refused": "Der Anbieter hat die Anmeldung abgelehnt. Starte sie erneut.",
+    "alldebrid_auth.bad_reply": "Der Anbieter hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "alldebrid_auth.flow_expired": "Die PIN ist abgelaufen, bevor sie bestätigt wurde."
+  }
+}

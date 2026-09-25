@@ -1,0 +1,77 @@
+[graph]
+all-features = true
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "aarch64-apple-darwin",
+]
+
+[advisories]
+yanked = "warn"
+ignore = [
+  # ringbuf 0.4.8 (RUSTSEC-2026-0293): `Consumer::skip`/`clear` double-drop an element whose
+  # own `Drop` panics. Reached only through librqbit-utp 0.7.0 (the latest), whose one ring
+  # buffer is `SharedRb<Heap<u8>>` (stream_tx.rs:129): `u8` has no `Drop`, so the path cannot
+  # be taken. Remove once librqbit-utp moves to ringbuf >= 0.5.2.
+  { id = "RUSTSEC-2026-0293", reason = "ringbuf only via librqbit-utp with u8 elements, which have no Drop; no patched librqbit-utp exists." },
+  { id = "RUSTSEC-2024-0436", reason = "Transitive paste dependency in utoipa-axum; advisory has no safe upgrade and no runtime security impact." },
+  # Marvin attack: a timing sidechannel in RSA *private key* operations, reached through
+  # russh's default `rsa` feature. Verifying an SSH host key is a public key operation and
+  # is unaffected. The only private key operation here is signing once per connection with a
+  # deliberately configured RSA client key, which gives an observer far too few samples to
+  # be useful. Disabling the feature removes the advisory but also drops ssh-rsa and
+  # rsa-sha2-* host keys, which are still common on default sshd installations, so the
+  # compatibility cost outweighs the exposure.
+  { id = "RUSTSEC-2023-0071", reason = "rsa via russh; Marvin targets private-key operations, which SSH host key verification does not perform. No safe upgrade is available." },
+
+  # The archived GTK3 bindings below, and proc-macro-error underneath them, are graph
+  # artifacts rather than real dependencies: nothing here ever compiles them. rd-capture
+  # gates tao/tray-icon to `cfg(any(windows, target_os = "macos"))` because Linux stays
+  # headless, and GTK is in turn a Linux-only dependency of those two — a combination no
+  # single target produces. They only surface because `graph.targets` lists three targets
+  # and cargo-deny filters the graph edge by edge instead of path by path. Confirm with
+  # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
+  # them. Drop these once tao and tray-icon move off GTK3.
+  { id = "RUSTSEC-2024-0411", reason = "gdkwayland-sys; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0412", reason = "gdk; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0413", reason = "atk; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0414", reason = "gdkx11-sys; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0415", reason = "gtk; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0416", reason = "atk-sys; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0418", reason = "gdk-sys; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0419", reason = "gtk3-macros; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0420", reason = "gtk-sys; unreachable GTK3 stack, see above." },
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros and gtk3-macros; unreachable GTK3 stack, see above." },
+]
+
+[licenses]
+confidence-threshold = 0.8
+allow = [
+  # Public-domain-equivalent, reached through quoted_printable via lettre.
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "bzip2-1.0.6",
+  "CC0-1.0",
+  # Permissive data licence covering the Mozilla CA bundle shipped by webpki-roots.
+  "CDLA-Permissive-2.0",
+  "GPL-3.0-or-later",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

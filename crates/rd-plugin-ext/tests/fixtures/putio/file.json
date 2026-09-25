@@ -1,0 +1,12 @@
+{
+  "file": {
+    "id": 900002,
+    "name": "ep01.mkv",
+    "size": 10,
+    "content_type": "video/x-matroska",
+    "file_type": "VIDEO",
+    "parent_id": 900001,
+    "crc32": "1a2b3c4d"
+  },
+  "status": "OK"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Google-Drive-Ordner",
+  "description": "Listet die Dateien hinter einer Google-Drive-Ordner- oder Shared-Drive-Adresse auf.",
+  "codes": {
+    "google_drive_crawler.folder_empty": "Dieser Google-Drive-Ordner enthält keine herunterladbaren Dateien",
+    "google_drive_crawler.folder_unreachable": "Dieser Google-Drive-Ordner konnte nicht gelesen werden",
+    "google_drive_crawler.invalid_response": "Ungültige Google-Drive-Antwort",
+    "google_drive_crawler.not_a_folder": "Dies ist keine Google-Drive-Ordneradresse",
+    "google_drive_crawler.rate_limited": "Google Drive drosselt dieses Konto",
+    "google_drive_crawler.sign_in_required": "Google hat dieses Konto für diesen Ordner nicht akzeptiert"
+  }
+}

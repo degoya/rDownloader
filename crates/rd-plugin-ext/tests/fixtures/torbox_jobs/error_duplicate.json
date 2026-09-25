@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "error": "DUPLICATE_ITEM",
+  "detail": "This item already exists on your account.",
+  "data": null
+}

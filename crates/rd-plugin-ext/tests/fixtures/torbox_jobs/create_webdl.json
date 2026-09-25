@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Web download added successfully.",
+  "data": {
+    "webdownload_id": 4711,
+    "auth_id": "REDACTEDAUTH01",
+    "hash": "{{hash}}"
+  }
+}

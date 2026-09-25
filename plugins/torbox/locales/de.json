@@ -1,0 +1,20 @@
+{
+  "name": "TorBox",
+  "description": "Erzeugt TorBox-Downloadadressen und meldet, was ein TorBox-Konto wert ist.",
+  "codes": {
+    "torbox.account_missing": "Das TorBox-Konto fehlt",
+    "torbox.api_error": "TorBox-API-Fehler {api_code}",
+    "torbox.auth_invalid": "Der TorBox-API-Schlüssel ist ungültig oder abgelaufen. Hinterlege ihn neu.",
+    "torbox.file_gone": "TorBox bietet diese Datei nicht mehr an",
+    "torbox.http_error": "TorBox-HTTP-Status {status}",
+    "torbox.invalid_response": "Ungültige TorBox-Antwort",
+    "torbox.key_missing": "Dieses TorBox-Konto hat noch keinen API-Schlüssel",
+    "torbox.limit_reached": "TorBox meldet das Limit des Tarifs als erreicht",
+    "torbox.no_download_url": "TorBox hat keine Downloadadresse zurückgegeben",
+    "torbox.not_a_ticket": "Das ist keine TorBox-Downloadadresse",
+    "torbox.not_permitted": "Der TorBox-Tarif deckt diesen Download nicht ab",
+    "torbox.rate_limited": "Das Anfragelimit der TorBox-API wurde erreicht. Es wird gewartet.",
+    "torbox.request_refused": "TorBox hat diese Anfrage abgelehnt",
+    "torbox.server_busy": "TorBox ist vorübergehend nicht erreichbar"
+  }
+}

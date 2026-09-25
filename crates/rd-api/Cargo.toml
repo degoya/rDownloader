@@ -1,0 +1,93 @@
+[package]
+name = "rd-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+# Read by the About page (RD-130-12), so the author and the address live in one place.
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64.workspace = true
+chacha20poly1305.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+dunce.workspace = true
+fs2.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+mime_guess.workspace = true
+percent-encoding = "2"
+rand.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rd-collector = { path = "../rd-collector" }
+rd-captcha = { path = "../rd-captcha" }
+rd-authn = { path = "../rd-authn" }
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-diagnostics = { path = "../rd-diagnostics" }
+rd-automation = { path = "../rd-automation" }
+rd-extract = { path = "../rd-extract" }
+rd-ftp = { path = "../rd-ftp" }
+rd-gallery = { path = "../rd-gallery" }
+rd-limits = { path = "../rd-limits" }
+rd-media = { path = "../rd-media" }
+rd-notify = { path = "../rd-notify" }
+rd-files = { path = "../rd-files" }
+rd-hotfolder = { path = "../rd-hotfolder" }
+rd-http = { path = "../rd-http" }
+rd-plugin-ext = { path = "../rd-plugin-ext" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-power = { path = "../rd-power" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-sftp = { path = "../rd-sftp" }
+rd-siterules = { path = "../rd-siterules" }
+rd-secrets = { path = "../rd-secrets" }
+rd-stream = { path = "../rd-stream" }
+rd-subscription = { path = "../rd-subscription" }
+rd-tools = { path = "../rd-tools" }
+rd-torrent = { path = "../rd-torrent" }
+rd-usenet = { path = "../rd-usenet" }
+rd-webdav = { path = "../rd-webdav" }
+rmcp.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+tower = { version = "0.5", features = ["util"] }
+webauthn-authenticator-rs.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+uuid.workspace = true
+webauthn-rs.workspace = true
+url.workspace = true
+zip.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rd-authn = { path = "../rd-authn" }
+rd-notify = { path = "../rd-notify" }
+rd-power = { path = "../rd-power" }
+http-body-util = "0.1"
+tracing-subscriber.workspace = true
+zip.workspace = true
+rd-plugin-api = { path = "../rd-plugin-api" }
+tempfile.workspace = true
+tower = { version = "0.5", features = ["util"] }

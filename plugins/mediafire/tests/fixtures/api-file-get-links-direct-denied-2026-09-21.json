@@ -1,0 +1,14 @@
+{
+  "response": {
+    "action": "file/get_links",
+    "links": [
+      {
+        "quickkey": "ipnyzofjcwri357",
+        "direct_download_error_message": "Insufficient Permissions",
+        "direct_download_error": "45"
+      }
+    ],
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

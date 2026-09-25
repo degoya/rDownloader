@@ -1,0 +1,7 @@
+{
+  "access_token": "redacted-access-token-0000",
+  "expires_in": 4245,
+  "restricted_to": [],
+  "refresh_token": "redacted-refresh-token-0000",
+  "token_type": "bearer"
+}

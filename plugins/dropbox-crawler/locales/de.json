@@ -1,0 +1,13 @@
+{
+  "name": "Dropbox-Ordner",
+  "description": "Listet die Dateien hinter einem Dropbox-Ordner oder einem geteilten Ordnerlink auf.",
+  "codes": {
+    "dropbox_crawler.folder_empty": "Dieser Dropbox-Ordner enthält keine herunterladbaren Dateien",
+    "dropbox_crawler.folder_unreachable": "Dieser Dropbox-Ordner konnte nicht gelesen werden",
+    "dropbox_crawler.invalid_response": "Ungültige Dropbox-Antwort",
+    "dropbox_crawler.link_access_denied": "Dropbox verweigert den Zugriff auf diesen geteilten Ordnerlink. Ist er passwortgeschützt, hänge ?link_password=… an die Adresse an",
+    "dropbox_crawler.not_a_folder": "Dies ist keine Dropbox-Ordneradresse",
+    "dropbox_crawler.rate_limited": "Dropbox drosselt diese App",
+    "dropbox_crawler.sign_in_required": "Dropbox hat dieses Konto für diesen Ordner nicht akzeptiert"
+  }
+}

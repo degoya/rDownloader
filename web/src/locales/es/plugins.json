@@ -1,0 +1,136 @@
+{
+  "header": {
+    "eyebrow": "Registro de resolvers",
+    "title": "Componentes de proveedor versionados",
+    "description": "Antes de la instalación atómica se comprueban la firma, el manifiesto, el formato del componente y las importaciones permitidas de cada paquete. Los paquetes sin firmar solo funcionan si el servicio está explícitamente en modo de desarrollo."
+  },
+  "install": {
+    "label": "Paquete .rdplug",
+    "hint": "Máximo 65 MiB; los datos binarios no se guardan como carga temporal.",
+    "submit": "Verificar e instalar",
+    "failed": "La instalación ha fallado ({status})",
+    "success": "El plugin se ha instalado.",
+    "network_error": "Error de red durante la instalación"
+  },
+  "installed": {
+    "eyebrow": "Versiones instaladas",
+    "title": "Inventario local",
+    "empty": "Todavía no hay versiones de plugins externos instaladas. Los resolvers nativos v1 siguen disponibles.",
+    "filter_label": "Filtrar por grupo de plugins"
+  },
+  "card": {
+    "author": "por {author}",
+    "homepage": "Sitio web",
+    "support": "Soporte",
+    "concurrency": "en paralelo",
+    "concurrency_hint": "Como máximo {count} descargas simultáneas a través de este complemento",
+    "api_version": "ABI {version}",
+    "capabilities": "Concedido",
+    "superseded": "Sin usar",
+    "superseded_hint": "Hay instalada una versión más reciente de este complemento y se carga en su lugar. Permanece en el disco mientras quede trabajo sin terminar ligado a ella; en caso contrario se puede eliminar.",
+    "active_version_hint": "Esta es la versión que se carga.",
+    "superseded_versions": "Versiones sustituidas ({count})",
+    "remove_superseded": "Eliminar la versión {version}",
+    "withdrawn_badge": "Retirado",
+    "withdrawn_hint": "Esta compilación se rechaza a partir del siguiente inicio; la clave de firma no se toca.",
+    "withdraw_version": "Retirar la versión {version}"
+  },
+  "keys": {
+    "eyebrow": "Claves de firma",
+    "title": "Editores confirmados",
+    "description": "Los complementos de terceros se firman con la clave propia de su autor. Una clave confirmada aquí sigue siendo de confianza hasta que la revoques; revocarla desactiva sus complementos desde el siguiente reinicio.",
+    "first_seen": "Vista por primera vez con {plugin}",
+    "revoke": "Revocar",
+    "empty": "No hay claves de firma de terceros confirmadas. Solo se aceptan complementos firmados con la clave de publicación."
+  },
+  "trust": {
+    "title": "Confirmar el editor",
+    "intro": "{name} {version} está firmado con una clave que esta instalación aún no conoce.",
+    "key_id": "Id de clave",
+    "fingerprint": "Huella digital",
+    "warning": "Confirma solo si esta huella coincide con la publicada por el autor del complemento. Una clave incorrecta permitiría que otra persona publique actualizaciones para él.",
+    "cancel": "Cancelar",
+    "confirm": "Confiar e instalar"
+  },
+  "type": {
+    "all": "Todos",
+    "auth": "Inicio de sesión",
+    "crawler": "Rastreador de carpetas",
+    "enricher": "Metadatos",
+    "intake": "Importación",
+    "notifier": "Notificación",
+    "postprocess": "Posprocesado",
+    "remote-job": "Trabajo remoto",
+    "resolver": "Resolutor",
+    "storage": "Almacenamiento",
+    "transfer": "Backend de transferencia",
+    "oauth": "Inicio de sesión OAuth",
+    "stream-transform": "Transformación de flujo"
+  },
+  "capability": {
+    "net_http": "Peticiones web",
+    "cookies": "Cookies de la cuenta",
+    "captcha": "Resolución de CAPTCHA",
+    "secret": "Credencial: {reference}",
+    "net_stream": "Conexiones directas (puertos {ports})"
+  },
+  "incompatible": {
+    "eyebrow": "Paquetes rechazados",
+    "title": "Instalados pero no ejecutables",
+    "description": "Estos paquetes están en el disco, pero esta versión no puede ejecutarlos. Se dejan intactos hasta que los elimines: borrarlos automáticamente solo haría desaparecer un hoster sin explicación. Un paquete que necesita una versión más reciente vuelve a funcionar en cuanto su autor lo recompile.",
+    "remove": "Eliminar",
+    "reason": {
+      "plugin.manifest_outdated": "Compilado para un contrato de plugins anterior. Su autor debe recompilarlo para esta versión.",
+      "plugin.capability_unknown": "Solicita un permiso o un tipo de plugin que esta versión no conoce.",
+      "plugin.manifest_unreadable": "El manifiesto no se puede leer en absoluto; el paquete está dañado."
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "duration": "{ms} ms",
+    "outcome": {
+      "ok": "OK",
+      "failed": "Informó un fallo",
+      "crash": "Se bloqueó",
+      "timeout": "Tiempo agotado",
+      "fuel": "Presupuesto agotado",
+      "memory": "Sin memoria",
+      "host_error": "Error del host",
+      "denied": "No permitido"
+    }
+  },
+  "actions": {
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "disabled_badge": "desactivado",
+    "withdraw": "Retirar"
+  },
+  "remove": {
+    "title": "¿Eliminar el plugin?",
+    "description": "«{name}» se elimina del disco. Para recuperarlo hay que instalarlo de nuevo.",
+    "superseded_title": "¿Eliminar la versión sustituida?",
+    "superseded_description": "La versión {version} de «{name}» se elimina del disco. La versión {active} sigue instalada y se sigue cargando."
+  },
+  "withdraw": {
+    "title": "¿Retirar esta compilación?",
+    "intro": "«{name}» {version} se rechaza por el contenido exacto del paquete, no por su número de versión.",
+    "restart": "Sigue funcionando hasta que el servicio se reinicie; a partir del siguiente inicio se omite.",
+    "key_untouched": "La clave de firma sigue siendo de confianza. Los demás complementos firmados con ella, y las demás versiones de este, se siguen cargando.",
+    "reason_label": "Motivo (opcional)",
+    "reason_hint": "Se guarda tal cual y se muestra junto a la entrada.",
+    "confirm": "Retirar la compilación"
+  },
+  "withdrawn": {
+    "eyebrow": "Paquetes retirados",
+    "title": "Paquetes que esta máquina rechaza",
+    "description": "Una retirada surte efecto en el siguiente inicio: un paquete ya cargado sigue funcionando hasta entonces y se omite a partir de ahí. Solo afecta a esta compilación concreta: la clave de firma sigue siendo de confianza y los demás complementos firmados con ella se siguen cargando.",
+    "empty": "Ningún paquete está retirado. Se carga toda versión instalada que se pueda verificar.",
+    "installed": "Instalado aquí",
+    "not_installed": "Este paquete no está instalado aquí; solo su suma de verificación lo identifica.",
+    "unknown_package": "Paquete sin nombre",
+    "digest": "Suma de verificación del paquete",
+    "reason": "Motivo: {reason}",
+    "since": "Retirado {when}",
+    "lift": "Anular la retirada"
+  }
+}

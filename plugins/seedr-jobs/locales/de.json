@@ -1,0 +1,20 @@
+{
+  "name": "Seedr-Transfers",
+  "description": "Führt Magnets und Torrent-Dateien als Transfers in einem Seedr-Konto aus.",
+  "codes": {
+    "seedr_jobs.address_unsupported": "Seedr-Transfers nehmen eine Magnet-Adresse oder eine Torrent-Datei entgegen, keine Webadresse",
+    "seedr_jobs.api_error": "Seedr-API-Fehler ({reason})",
+    "seedr_jobs.auth_invalid": "Seedr hat E-Mail-Adresse oder Passwort dieses Kontos abgelehnt. Hinterlege sie erneut.",
+    "seedr_jobs.http_error": "Seedr-HTTP-Status {status}",
+    "seedr_jobs.invalid_response": "Ungültige Seedr-Antwort",
+    "seedr_jobs.no_files": "Seedr meldet diesen Transfer als fertig, der zugehörige Ordner enthält aber keine Dateien",
+    "seedr_jobs.no_selection": "Seedr lädt den gesamten Transfer und kennt keine Dateiauswahl",
+    "seedr_jobs.no_transfer_id": "Seedr hat den angelegten Transfer nicht benannt. Prüfe dein Seedr-Konto, bevor du es erneut versuchst.",
+    "seedr_jobs.not_a_torrent": "Seedr nimmt eine Magnet-Adresse oder eine Torrent-Datei entgegen; dies ist weder das eine noch das andere",
+    "seedr_jobs.out_of_space": "Im Seedr-Konto ist kein Platz mehr für diesen Transfer. Es wird gewartet.",
+    "seedr_jobs.plan_required": "Die Seedr-REST-API setzt für dieses Konto einen Premium-Tarif voraus",
+    "seedr_jobs.rate_limited": "Das Anfragelimit von Seedr wurde erreicht. Es wird gewartet.",
+    "seedr_jobs.server_error": "Seedr-Serverfehler",
+    "seedr_jobs.transfer_gone": "Seedr hält diesen Transfer nicht mehr"
+  }
+}

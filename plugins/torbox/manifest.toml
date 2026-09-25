@@ -1,0 +1,57 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000011f"
+name = "TorBox"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# Deliberately **not** `["*"]`, although TorBox will fetch almost any address. What it does
+# with one is create a web-download job that takes minutes and answers with files, which is a
+# remote job and not a resolve; `plugins/torbox-jobs/` is where that lives. What this plugin
+# claims is the one address shape TorBox answers synchronously: the `requestdl` endpoint that
+# turns a finished job's file into a link. Claiming more would mean claiming links this plugin
+# cannot resolve, away from the hoster plugins that can.
+match_domains = ["api.torbox.app"]
+# The bytes come from TorBox's storage hosts, and which one answers is decided per request.
+download_domains = ["*"]
+# TorBox states no per-link connection guidance and counts requests per account. Three keeps a
+# queue moving without spending the account's budget on scheduling -- the same figure the other
+# account-shaped providers settled on.
+max_concurrent_downloads = 3
+
+[capabilities]
+# The API key the person pasted. Read back only as the template `{{secret:torbox_api_key}}`,
+# never as a value, and sent to `api.torbox.app` and nowhere else.
+secrets = ["torbox_api_key"]
+
+[capabilities.net_http]
+domains = ["api.torbox.app"]
+
+[metadata]
+description = "Mints TorBox download addresses and reports what a TorBox account is worth."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.7"
+
+[provider]
+slug = "torbox"
+# `hoster` and not `multihoster`: what this plugin resolves is TorBox's own address, not other
+# hosters' links on the account's behalf. TorBox *can* fetch a hoster link, but only as a
+# web-download job, which `plugins/torbox-jobs/` submits and polls.
+kind = "hoster"
+# One pasted key and nothing else. TorBox has no sign-in flow to run: the key is on the
+# person's settings page, and `plugins/torbox-auth/` checks it rather than obtaining it.
+credentials = "api_key"
+username_required = false
+secret_reference = "torbox_api_key"
+secret_domains = ["api.torbox.app"]
+# Deliberately no `cookie_scope`. This is an API-key provider with no `cookies` capability; a
+# scope nothing can use would be a promise about where credentials go that nothing keeps.
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

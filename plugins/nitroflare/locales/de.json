@@ -1,0 +1,31 @@
+{
+  "name": "Nitroflare",
+  "account": {
+    "secret_label": "Premium-Key (aus Mein Konto → API)",
+    "secret_hint": "Gib deine Konto-E-Mail als Benutzer und deinen Premium-Key (Mein Konto → API) als Secret ein."
+  },
+  "codes": {
+    "nitroflare.account_missing": "Nitroflare-Account fehlt",
+    "nitroflare.api_error": "Nitroflare-API ({api_code}): {message}",
+    "nitroflare.bad_credentials": "Der Nitroflare-Premium-Key ist ungültig oder der Login ist fehlgeschlagen",
+    "nitroflare.captcha_invalid": "Nitroflare hat eine Captcha-Antwort abgelehnt; dieses Plugin kann keine Captchas lösen",
+    "nitroflare.captcha_rejected": "Nitroflare hat die Captcha-Antwort abgelehnt",
+    "nitroflare.captcha_required": "Nitroflare verlangt zur weiteren API-Nutzung das Lösen eines Captchas",
+    "nitroflare.file_offline": "Die Nitroflare-Datei ist nicht verfügbar",
+    "nitroflare.free_limit_reached": "Nitroflare-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "nitroflare.free_link_host_mismatch": "Nitroflare hat einen Download-Link auf einem unerwarteten Host geliefert: {host}",
+    "nitroflare.http_error": "Nitroflare-HTTP-Status {status}",
+    "nitroflare.invalid_response": "Ungültige Nitroflare-Antwort",
+    "nitroflare.invalid_url": "Ungültige Provider-URL: {error}",
+    "nitroflare.no_download_url": "Nitroflare hat keine Download-URL zurückgegeben",
+    "nitroflare.no_free_link": "Der Nitroflare-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "nitroflare.no_free_markers": "Die Nitroflare-Seite für den Free-Download wurde nicht erkannt: {diagnosis}",
+    "nitroflare.premium_key_missing": "Der Nitroflare-Premium-Key fehlt",
+    "nitroflare.premium_required": "Für den Nitroflare-Download über die API ist ein Premium-Account erforderlich",
+    "nitroflare.rate_limited": "Nitroflare-API-Ratenlimit wurde ausgelöst",
+    "nitroflare.server_error": "Nitroflare-Serverfehler",
+    "nitroflare.timer_not_started": "Nitroflare hat den Countdown vor dem Download nicht gestartet (Antwort: {answer})",
+    "nitroflare.traffic_exhausted": "Das Nitroflare-Datenlimit wurde überschritten",
+    "nitroflare.unsupported_link": "Kein unterstützter Nitroflare-Link"
+  }
+}

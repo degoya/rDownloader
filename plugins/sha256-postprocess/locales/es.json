@@ -1,0 +1,7 @@
+{
+  "name": "SHA-256 checksums",
+  "description": "Verifica los archivos .sha256 asociados al paquete al que pertenecen.",
+  "codes": {
+    "sha256_postprocess.mismatch": "Un archivo no coincidía con su suma SHA-256 registrada."
+  }
+}

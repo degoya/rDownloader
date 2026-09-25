@@ -1,0 +1,72 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000170"
+name = "Pixeldrain"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The two spellings of the one host, measured 2026-09-22 (RD-120-07). No alias is claimed on
+# hearsay: the measurement reached `pixeldrain.com` and nothing else, and a domain claimed here
+# that then fails turns a plain HTTP download into a hoster error.
+match_domains = ["pixeldrain.com", "www.pixeldrain.com"]
+# `GET /api/file/{id}` is the bytes, served by the same host that answered the metadata, and it
+# is a **permanent** address rather than a signed one -- the file identifier is the whole of it.
+# The wildcard covers a delivery sub-domain the service may put in front of it later; anything
+# outside the two is refused with `pixeldrain.direct_link_foreign` rather than followed.
+download_domains = ["pixeldrain.com", "www.pixeldrain.com", "*.pixeldrain.com"]
+# Pixeldrain limits concurrent downloads per IP and answers `max_concurrent_downloads` when the
+# figure is exceeded (measured as a documented error value, not as a number). Two keeps clear of
+# it without an unmeasured guess at what the ceiling actually is.
+max_concurrent_downloads = 2
+# Public files need no credential at all: the measurement of 2026-09-22 found an API key is
+# required only for creating, changing and deleting files, which this plugin never does. An
+# account is therefore optional -- without one everything runs exactly as it did before an
+# account existed; with one its API key lifts the free tier's limits (RD-120-38).
+requires_account = false
+
+[capabilities]
+cookies = false
+captcha = false
+# The API key, read back only inside the template `{{basic:pixeldrain_api_key}}`: the host puts
+# it as the Basic password under an empty user name and sends it towards `pixeldrain.com` only.
+secrets = ["pixeldrain_api_key"]
+
+# The provider's own API and nothing else. Both the metadata and the bytes live here.
+[capabilities.net_http]
+domains = ["pixeldrain.com", "www.pixeldrain.com", "*.pixeldrain.com"]
+
+[metadata]
+description = "Resolves Pixeldrain links through the provider's public API; an optional API key lifts the free tier's limits."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.2.0"
+
+[provider]
+slug = "pixeldrain"
+kind = "hoster"
+# An API key, and optional. Pixeldrain authenticates it as an HTTP **Basic** password under an
+# empty user name -- measured 2026-09-23: `/api/user` without one answers `401
+# authentication_required`, "provide an API key in the password field of HTTP Basic Access
+# Authentication". A plugin never sees its credential, so it writes `{{basic:...}}` and the
+# host builds the pair; an empty name is allowed for exactly this row because it does not
+# require one (RD-120-38). Until then this row said `credentials = "none"`, because nothing
+# could send such a key.
+credentials = "api_key"
+username_required = false
+secret_reference = "pixeldrain_api_key"
+# Only the host the resolver builds every address on. The `*.pixeldrain.com` delivery domain in
+# `download_domains` is deliberately not here: a redirect there fetches without the key.
+secret_domains = ["pixeldrain.com"]
+# The bytes come from `pixeldrain.com/api/file/<id>?download`, fetched by the download engine,
+# and that is where the key lifts the hotlink and volume limits. So the engine attaches the same
+# Basic pair to the transfer, over TLS and to `secret_domains` only.
+transfer_auth = "basic"
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

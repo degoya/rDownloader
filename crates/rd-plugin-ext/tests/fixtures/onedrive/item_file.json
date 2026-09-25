@@ -1,0 +1,17 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#driveItem",
+  "@microsoft.graph.downloadUrl": "https://example.invalid/short-lived/release.bin?tempauth=redacted",
+  "id": "redacted-item-id-0001",
+  "name": "release.bin",
+  "size": 1048576,
+  "eTag": "\"{6FBF2E7F-2B3E-4A53-A9CB-1A2B3C4D5E6F},2\"",
+  "cTag": "\"c:{6FBF2E7F-2B3E-4A53-A9CB-1A2B3C4D5E6F},1\"",
+  "file": {
+    "mimeType": "application/octet-stream",
+    "hashes": {
+      "quickXorHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "sha1Hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
+    }
+  },
+  "parentReference": { "driveId": "redacted-drive-id-0001", "id": "redacted-folder-id-0001" }
+}

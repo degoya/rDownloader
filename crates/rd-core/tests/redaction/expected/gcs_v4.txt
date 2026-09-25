@@ -1,0 +1,1 @@
+https://storage.googleapis.com/b/o.bin?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=%5Bredacted%5D&X-Goog-Date=20240101T000000Z&X-Goog-Expires=900&X-Goog-Signature=%5Bredacted%5D

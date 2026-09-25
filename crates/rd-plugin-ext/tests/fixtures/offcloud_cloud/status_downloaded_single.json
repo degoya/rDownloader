@@ -1,0 +1,11 @@
+{
+  "status": {
+    "requestId": "REDACTEDREQUEST01",
+    "status": "downloaded",
+    "fileName": "single.bin",
+    "amount": 64,
+    "fileSize": 64,
+    "serverType": "cloud",
+    "url": "https://s1.offcloud.com/cloud/REDACTEDREQUEST01/single.bin"
+  }
+}

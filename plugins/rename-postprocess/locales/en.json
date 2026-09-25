@@ -1,0 +1,4 @@
+{
+  "name": "Tidy file names",
+  "description": "Replaces spaces with dots and collapses runs of separators."
+}

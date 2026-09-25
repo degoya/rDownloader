@@ -1,0 +1,89 @@
+{
+  "eyebrow": "Directos",
+  "title": "Grabación de streams",
+  "description": "Los canales vigilados se comprueban a intervalos y se graban automáticamente mientras están en directo. Las grabaciones entran en la cola normal, nunca bloquean otras descargas y pueden detenerse allí en cualquier momento.",
+  "channels_title": "Canales vigilados",
+  "quality_default": "predeterminada",
+  "last_live": "Último directo: {time}",
+  "never_live": "Nunca visto en directo",
+  "probe_error": "La última comprobación falló",
+  "empty": "Aún no hay canales. Añade un canal arriba y actívalo para grabar automáticamente.",
+  "delete": {
+    "title": "Eliminar canal",
+    "description": "¿Eliminar \"{name}\"? Las grabaciones ya realizadas se conservan."
+  },
+  "messages": {
+    "created": "Canal añadido.",
+    "updated": "Canal guardado.",
+    "recording_started": "Grabación \"{name}\" iniciada."
+  },
+  "form": {
+    "url_label": "URL del canal",
+    "url_description": "URL de página que streamlink entiende (Twitch, YouTube Live, …).",
+    "name_label": "Nombre",
+    "name_description": "Se usa como prefijo del archivo de grabación.",
+    "name_placeholder": "Nombre del canal (por defecto, el host)",
+    "quality_label": "Calidad",
+    "quality_description": "Calidad predefinida para este canal; la opción predeterminada usa el ajuste global.",
+    "category_label": "Categoría",
+    "category_description": "Categoría de destino de las grabaciones.",
+    "category_default": "Categoría predeterminada",
+    "enabled_label": "Vigilar",
+    "enabled_description": "Comprobar este canal y grabar automáticamente mientras esté en directo.",
+    "add": "Añadir canal",
+    "record_now": "Grabar ahora"
+  },
+  "schedules": {
+    "title": "Programaciones",
+    "hint": "Un canal programado solo se vigila dentro de su ventana, así que no graba lo que emita en otro momento.",
+    "channel": "Canal",
+    "name": "Nombre",
+    "days": "Días de la semana",
+    "start": "Empieza a las",
+    "timezone": "Zona horaria",
+    "timezone_hint": "Un nombre IANA como Europe/Madrid, para que la hora siga siendo correcta con el cambio horario.",
+    "window": "Duración (minutos)",
+    "lead": "Vigilar antes (minutos)",
+    "roll_hint": "Para una emisión que empieza antes o se alarga.",
+    "trail": "Vigilar después (minutos)",
+    "replay": "Grabar desde el principio",
+    "replay_hint": "Solo se usa si el proveedor lo ofrece de verdad.",
+    "add": "Añadir programación",
+    "empty": "Aún no hay programaciones.",
+    "needs_channel": "Añade primero un canal arriba: una programación necesita uno para grabar.",
+    "replay_used": "grabado desde el principio",
+    "weekday": {
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb",
+      "7": "Dom"
+    },
+    "states": {
+      "planned": "Programado",
+      "waiting": "Vigilando",
+      "recording": "Grabando",
+      "completed": "Grabado",
+      "missed": "Perdido",
+      "failed": "Fallido"
+    }
+  },
+  "recording": {
+    "split": "Dividir grabaciones largas",
+    "split_hint": "Un corte de conexión ya inicia una parte nueva; esto además divide a propósito.",
+    "split_none": "Mantener un solo archivo",
+    "split_duration": "Cada N minutos",
+    "split_size": "Cada N MiB",
+    "remux": "Convertir al terminar",
+    "remux_hint": "Las partes se unen sin recodificar, en un paso reanudable.",
+    "remux_none": "Dejar como se grabó",
+    "sidecars": "Guardar junto a la grabación",
+    "sidecars_hint": "Lo que el proveedor no ofrece se informa en lugar de omitirse en silencio.",
+    "sidecar_metadata": "Metadatos",
+    "sidecar_thumbnail": "Miniatura",
+    "reconnect": "Espera antes de reconectar (segundos)",
+    "reconnect_hint": "Las partes ya grabadas siempre se conservan."
+  }
+}

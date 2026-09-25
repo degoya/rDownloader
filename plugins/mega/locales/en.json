@@ -1,0 +1,21 @@
+{
+  "name": "MEGA",
+  "description": "Resolves MEGA file links and files of the signed-in account, and describes how the host decrypts their bytes.",
+  "codes": {
+    "mega.access_denied": "This MEGA file needs an account that may see it",
+    "mega.account_key_foreign": "This file reached the MEGA account through a share, which this plugin cannot open yet",
+    "mega.account_node_missing": "This file is no longer in the MEGA account",
+    "mega.api_error": "MEGA API error {status}",
+    "mega.attributes_unreadable": "This MEGA link's key does not open this file",
+    "mega.http_error": "MEGA HTTP status {status}",
+    "mega.invalid_response": "Invalid MEGA response",
+    "mega.key_invalid": "This MEGA link carries no usable decryption key",
+    "mega.node_missing": "This file is no longer in the MEGA folder it was found in",
+    "mega.not_found": "This MEGA file no longer exists or never did",
+    "mega.not_mine": "This is not a MEGA file address",
+    "mega.quota_exceeded": "MEGA's transfer quota for this address is used up",
+    "mega.rate_limited": "MEGA is rate limiting requests from this address",
+    "mega.session_required": "This MEGA file is only reachable while signed in",
+    "mega.unavailable": "MEGA is temporarily not answering for this file"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Telegram",
+  "description": "Delivers notifications to a Telegram chat through a bot.",
+  "codes": {
+    "telegram_notifier.rejected": "Telegram rejected the message."
+  }
+}

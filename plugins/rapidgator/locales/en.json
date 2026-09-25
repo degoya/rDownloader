@@ -1,0 +1,37 @@
+{
+  "name": "Rapidgator",
+  "description": "Resolves Rapidgator links with a premium account, or without one via the free flow.",
+  "account": {
+    "secret_label": "Account password",
+    "secret_hint": "Enter your account e-mail as username and your password as secret."
+  },
+  "codes": {
+    "rapidgator.account_missing": "Rapidgator account is missing",
+    "rapidgator.api_error": "Rapidgator API ({api_status}): {message}",
+    "rapidgator.bad_credentials": "Rapidgator login or password is wrong",
+    "rapidgator.captcha_rejected": "Rapidgator rejected the captcha answer",
+    "rapidgator.download_link_not_ready": "Rapidgator did not finish the pre-download countdown (state: {state})",
+    "rapidgator.download_link_unconfirmed": "Rapidgator did not confirm the file is offline; retrying",
+    "rapidgator.file_offline": "Rapidgator file is not available",
+    "rapidgator.free_limit_reached": "Rapidgator free download limit reached for this IP address",
+    "rapidgator.free_link_host_mismatch": "Rapidgator returned a download link on an unexpected host: {host}",
+    "rapidgator.http_error": "Rapidgator HTTP status {status}",
+    "rapidgator.invalid_response": "Invalid Rapidgator response",
+    "rapidgator.invalid_url": "Invalid provider URL: {error}",
+    "rapidgator.ip_confirmation_required": "Rapidgator requires confirming this login via the e-mail sent to the account",
+    "rapidgator.ip_denied": "Rapidgator denied the request from this IP address",
+    "rapidgator.limit_reached": "Rapidgator traffic or storage limit was reached",
+    "rapidgator.login_throttled": "Rapidgator login was throttled; too many recent login attempts",
+    "rapidgator.no_download_url": "Rapidgator did not return a download URL",
+    "rapidgator.no_free_link": "Rapidgator free download did not yield a file link: {diagnosis}",
+    "rapidgator.no_free_markers": "Rapidgator free download page was not recognized: {diagnosis}",
+    "rapidgator.no_token": "Rapidgator did not return a login token",
+    "rapidgator.password_missing": "Rapidgator password is missing",
+    "rapidgator.premium_required": "Rapidgator premium account is required to use the download API",
+    "rapidgator.rate_limited": "Rapidgator API rate limit was triggered",
+    "rapidgator.server_error": "Rapidgator server error",
+    "rapidgator.session_invalid": "Rapidgator reported the login session as invalid",
+    "rapidgator.timer_not_started": "Rapidgator did not start the pre-download countdown (state: {state})",
+    "rapidgator.unsupported_link": "Not a supported Rapidgator link"
+  }
+}

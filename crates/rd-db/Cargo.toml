@@ -1,0 +1,36 @@
+[package]
+name = "rd-db"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+rd-automation = { path = "../rd-automation" }
+rd-core = { path = "../rd-core" }
+rd-limits = { path = "../rd-limits" }
+rd-notify = { path = "../rd-notify" }
+rd-files = { path = "../rd-files" }
+rd-collector = { path = "../rd-collector" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rd-secrets = { path = "../rd-secrets" }
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# The key canary in `tests/transform_key.rs` searches for the key in the spelling the
+# vault would have written it in, which is base64.
+base64.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

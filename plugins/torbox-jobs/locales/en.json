@@ -1,0 +1,31 @@
+{
+  "name": "TorBox jobs",
+  "description": "Runs magnets, torrent files, NZBs and web links as jobs on a TorBox account.",
+  "codes": {
+    "torbox_jobs.account_missing": "TorBox account is missing",
+    "torbox_jobs.api_error": "TorBox API error {api_code}",
+    "torbox_jobs.auth_invalid": "The TorBox API key is invalid or expired. Enter it again.",
+    "torbox_jobs.cooldown": "TorBox is holding this account in a cooldown. Waiting.",
+    "torbox_jobs.http_error": "TorBox HTTP status {status}",
+    "torbox_jobs.invalid_response": "Invalid TorBox response",
+    "torbox_jobs.job_exists": "TorBox already holds a job for this content",
+    "torbox_jobs.job_failed": "TorBox ended this job with an error",
+    "torbox_jobs.job_gone": "TorBox no longer holds this job",
+    "torbox_jobs.job_incomplete": "TorBox could not fetch every file of this job",
+    "torbox_jobs.job_unavailable": "TorBox reports this job as unavailable",
+    "torbox_jobs.limit_reached": "TorBox reports the plan limit as reached",
+    "torbox_jobs.no_entropy": "The host could not supply the randomness this request needs",
+    "torbox_jobs.no_files": "TorBox reports this job as finished but lists no files",
+    "torbox_jobs.no_job_id": "TorBox did not name the job it created. Check your TorBox account before trying again.",
+    "torbox_jobs.no_selection": "TorBox downloads whole jobs and offers no file selection. Pick the files in the LinkGrabber.",
+    "torbox_jobs.not_a_job": "This is not a magnet, a torrent file, an NZB or a web address",
+    "torbox_jobs.not_permitted": "The TorBox plan does not cover this kind of job",
+    "torbox_jobs.rate_limited": "The TorBox API rate limit was reached. Waiting.",
+    "torbox_jobs.request_refused": "TorBox refused this request",
+    "torbox_jobs.server_busy": "TorBox is temporarily unavailable",
+    "torbox_jobs.server_error": "TorBox server error",
+    "torbox_jobs.source_gone": "TorBox could not reach the source of this job",
+    "torbox_jobs.token_missing": "This TorBox account has no API key",
+    "torbox_jobs.too_large": "TorBox refuses this job as too large"
+  }
+}

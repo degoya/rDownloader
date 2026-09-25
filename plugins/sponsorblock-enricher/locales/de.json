@@ -1,0 +1,7 @@
+{
+  "name": "SponsorBlock",
+  "description": "Meldet vor dem Download, wie viel eines YouTube-Videos Sponsoring oder Intro ist.",
+  "codes": {
+    "sponsorblock_enricher.lookup_failed": "Diese Abschnitte konnten nicht abgefragt werden."
+  }
+}

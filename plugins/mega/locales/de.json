@@ -1,0 +1,21 @@
+{
+  "name": "MEGA",
+  "description": "Löst MEGA-Dateilinks und Dateien des angemeldeten Kontos auf und beschreibt, wie der Host ihre Bytes entschlüsselt.",
+  "codes": {
+    "mega.access_denied": "Diese MEGA-Datei benötigt ein Konto, das sie sehen darf",
+    "mega.account_key_foreign": "Diese Datei ist über eine Freigabe ins MEGA-Konto gelangt, die dieses Plugin noch nicht öffnen kann",
+    "mega.account_node_missing": "Diese Datei liegt nicht mehr im MEGA-Konto",
+    "mega.api_error": "MEGA-API-Fehler {status}",
+    "mega.attributes_unreadable": "Der Schlüssel dieses MEGA-Links öffnet diese Datei nicht",
+    "mega.http_error": "MEGA-HTTP-Status {status}",
+    "mega.invalid_response": "Ungültige MEGA-Antwort",
+    "mega.key_invalid": "Dieser MEGA-Link enthält keinen nutzbaren Entschlüsselungsschlüssel",
+    "mega.node_missing": "Diese Datei liegt nicht mehr in dem MEGA-Ordner, in dem sie gefunden wurde",
+    "mega.not_found": "Diese MEGA-Datei existiert nicht mehr oder hat nie existiert",
+    "mega.not_mine": "Dies ist keine MEGA-Dateiadresse",
+    "mega.quota_exceeded": "Das MEGA-Transferkontingent für diese Adresse ist aufgebraucht",
+    "mega.rate_limited": "MEGA drosselt Anfragen von dieser Adresse",
+    "mega.session_required": "Diese MEGA-Datei ist nur im angemeldeten Zustand erreichbar",
+    "mega.unavailable": "MEGA antwortet für diese Datei vorübergehend nicht"
+  }
+}

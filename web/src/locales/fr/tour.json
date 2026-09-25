@@ -1,0 +1,42 @@
+{
+  "rerun": "Visite guidée",
+  "actions": {
+    "next": "Suivant",
+    "prev": "Retour",
+    "done": "Terminer"
+  },
+  "steps": {
+    "nav": {
+      "title": "La vue d'ensemble",
+      "description": "Téléchargements contient la file, le LinkGrabber collecte et vérifie les liens avant leur démarrage, Flux enregistre les sources en direct, Abonnements ramènent les nouveautés des flux et des indexeurs, et Automatisation y réagit. Les paramètres s'ouvrent en sous-pages distinctes."
+    },
+    "downloads_add": {
+      "title": "Ajouter un téléchargement",
+      "description": "Collez un lien ici pour le mettre en file immédiatement — catégorie, compte et proxy se choisissent par téléchargement."
+    },
+    "downloads_controls": {
+      "title": "Piloter la file",
+      "description": "Mettez tout en pause ou reprenez d'un coup, et retirez de la liste les entrées terminées ou en échec."
+    },
+    "rail": {
+      "title": "Barre d'état",
+      "description": "Débit en direct, connexions actives et limite de vitesse globale. La limite s'applique immédiatement, sans enregistrement."
+    },
+    "grabber_add": {
+      "title": "Collecter d'abord",
+      "description": "Collez des liens ou importez un conteneur — .nzb, .torrent, .dlc, .ccf, .rsdf et de simples listes .txt — puis vérifiez ce qui est encore disponible. Seul ce que vous mettez en file rejoint la file de téléchargement."
+    },
+    "grabber_body": {
+      "title": "Des paquets avant le téléchargement",
+      "description": "Les liens collectés sont regroupés ici en paquets. Quand plusieurs pointent vers le même fichier, un seul est téléchargé et les autres attendent en secours. Choisissez une catégorie ou une priorité, écartez ce dont vous ne voulez pas, puis lancez."
+    },
+    "settings": {
+      "title": "Paramètres",
+      "description": "Chaque domaine est une sous-page à part : le routage décide où atterrissent les fichiers, comptes et Usenet gardent les identifiants, le post-traitement répare et décompresse, le client de bureau et MCP relient l'extérieur, et la sauvegarde protège la configuration."
+    },
+    "done": {
+      "title": "Tout est prêt",
+      "description": "Appuyez sur ? à tout moment pour les raccourcis. Cette visite et l'assistant de configuration se relancent dans Paramètres, Système — qui indique aussi si la configuration est complète."
+    }
+  }
+}

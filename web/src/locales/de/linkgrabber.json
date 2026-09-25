@@ -1,0 +1,482 @@
+{
+  "title": "LinkGrabber",
+  "actions": {
+    "add_links": "Links hinzufügen",
+    "import_files": "NZB/Torrent importieren",
+    "check_links": "Links prüfen",
+    "enqueue_all": "Alle laden",
+    "enqueue_paused": "Pausiert übernehmen",
+    "enqueue_paused_hint": "Alle Links in den Downloader übernehmen, ohne sie zu starten",
+    "clear_all": "Alle löschen",
+    "regroup": "Neu gruppieren",
+    "move_to_new_package": "In neues Paket",
+    "enqueue": "Laden",
+    "enqueue_link": "Diesen Link laden",
+    "delete_link": "Link löschen",
+    "delete_package": "Paket löschen",
+    "delete_nzb": "NZB-Import löschen",
+    "details": "Details",
+    "link_actions": "Aktionen für den Link"
+  },
+  "sort": {
+    "label": "Sortierung",
+    "manual": "Manuell",
+    "name": "Name",
+    "hoster": "Hoster",
+    "size": "Größe",
+    "added": "Hinzugefügt",
+    "ascending": "Aufsteigend",
+    "descending": "Absteigend"
+  },
+  "filter": {
+    "hoster_label": "Nach Hoster filtern",
+    "state_label": "Nach Status filtern",
+    "all_hosters": "Alle Hoster",
+    "all_states": "Alle Status",
+    "clear": "Filter zurücksetzen",
+    "count": "{visible} von {total} Links",
+    "quality_label": "Qualität bevorzugen",
+    "language_label": "Sprache bevorzugen",
+    "all_qualities": "Jede Qualität",
+    "all_languages": "Jede Sprache",
+    "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Spiegelgruppe die Wahl lässt, wählt sie den passenden Spiegel, sonst blendet sie aus, was nicht passen kann."
+  },
+  "empty": "Zwischenablage, Click’n’Load und manuelle Eingaben landen zuerst hier zur Prüfung. Links werden automatisch geprüft und zu Paketen gruppiert.",
+  "selection_package": "{name} (Auswahl)",
+  "selection_count": "{count} ausgewählt",
+  "select_all_hint": "Alle Einträge auswählen",
+  "bulk": {
+    "enqueued": "{links} Links und {nzbs} NZB-Importe übernommen",
+    "free_download": "{count} Link wird ohne Account geladen (Free/Direkt) | {count} Links werden ohne Account geladen (Free/Direkt)",
+    "enqueue_failed": "{count} Paket konnte nicht übernommen werden | {count} Pakete konnten nicht übernommen werden"
+  },
+  "package": {
+    "select": "Paket auswählen",
+    "show_links": "Links anzeigen",
+    "hide_links": "Links ausblenden",
+    "drag_hint": "Ziehen, um die Paketreihenfolge zu ändern",
+    "password_hint": "Archiv-Passwort hinterlegt",
+    "category": "Kategorie",
+    "priority": "Priorität",
+    "default_category": "Automatisch",
+    "online": "{count} online",
+    "checking": "{count} in Prüfung",
+    "offline": "{count} offline",
+    "unverified": "{count} nicht prüfbar",
+    "enqueue_paused_hint": "Dieses Paket pausiert in die Downloadliste übernehmen"
+  },
+  "candidate": {
+    "select": "Link auswählen",
+    "state": {
+      "online": "online",
+      "offline": "offline",
+      "duplicate": "schon in der Liste",
+      "checking": "prüfe…",
+      "error": "Prüfung fehlgeschlagen",
+      "resolving": "wird übernommen",
+      "unsupported": "nicht geprüft",
+      "enqueued": "übernommen",
+      "unresolvable": "nicht auflösbar"
+    },
+    "no_account": "Kein Account – es wird ein Free-/Direktdownload versucht",
+    "request": {
+      "title": "Browser-Anfrage",
+      "effective_url": "Effektive URL",
+      "method": "Methode",
+      "referrer": "Referrer",
+      "user_agent": "User-Agent",
+      "content_disposition": "Content-Disposition",
+      "headers": "Header"
+    },
+    "drag_hint": "Ziehen, um die Reihenfolge im Paket zu ändern",
+    "duplicate_hint": "Diese Adresse ist bereits im LinkGrabber oder schon eingereiht. Sie kann bewusst noch einmal übernommen werden.",
+    "unresolvable_hint": "Diese Adresse antwortet mit einer Seite, nicht mit einer Datei. Sie lässt sich nicht in die Downloadliste übernehmen.",
+    "no_resolver_hint": "Für {host} ist kein Resolver installiert, deshalb lässt sich diese Adresse nicht in die Downloadliste übernehmen. Der Host kann ein hier nicht unterstützter Hoster sein oder auf eine andere Adresse weiterleiten."
+  },
+  "intake": {
+    "title": "Links hinzufügen",
+    "description": "Mehrere HTTP(S)-Links oder Text mit eingebetteten Links. Multipart-Archive werden automatisch zu einem Paket gruppiert.",
+    "placeholder": "https://hoster.tld/datei.part1.rar\nhttps://hoster.tld/datei.part2.rar",
+    "package_name": "Paketname (optional)",
+    "package_name_hint": "Leer = automatisch aus den Dateinamen",
+    "password": "Archiv-Passwort (optional)",
+    "submit": "In LinkGrabber übernehmen",
+    "skipped_excluded": "Keine Links durch die Sperrliste übersprungen | {count} Link durch die Sperrliste übersprungen | {count} Links durch die Sperrliste übersprungen",
+    "skipped_disabled": "Keine Links durch einen abgeschalteten Dienst übersprungen | {count} Link übersprungen: Sein Dienst ist abgeschaltet | {count} Links übersprungen: Ihr Dienst ist abgeschaltet",
+    "crawled_dropped": "Keine Links verworfen | {count} von {found} gefundenen Links war keine Datei und wurde verworfen | {count} von {found} gefundenen Links waren keine Dateien und wurden verworfen"
+  },
+  "nzb": {
+    "segments": "keine Segmente | {count} Segment | {count} Segmente",
+    "enqueue_paused_hint": "Dieses NZB pausiert in die Downloadliste übernehmen",
+    "password_detected": "Passwort erkannt",
+    "duplicate": "Duplikat",
+    "available": "verfügbar",
+    "badge": "Usenet-Paket (NZB)",
+    "select": "NZB-Import auswählen",
+    "show_files": "Dateien anzeigen",
+    "hide_files": "Dateien ausblenden",
+    "state": {
+      "imported": "importiert",
+      "enqueued": "eingereiht",
+      "failed": "fehlgeschlagen"
+    },
+    "size_limit": "NZB überschreitet das Limit von 64 MiB.",
+    "import_failed": "NZB-Import fehlgeschlagen.",
+    "toast": {
+      "imported": "NZB importiert",
+      "imported_description": "„{name}“ liegt jetzt im LinkGrabber bereit.",
+      "duplicate": "NZB bereits in der Liste",
+      "duplicate_description": "„{name}“ wurde schon einmal importiert und wartet bereits im LinkGrabber.",
+      "duplicate_enqueued": "NZB bereits in der Warteschlange",
+      "duplicate_enqueued_description": "„{name}“ wurde schon einmal importiert und bereits in die Downloads übernommen. Lösche den Download, um die Datei erneut zu importieren."
+    },
+    "modal": {
+      "title": "NZB, Torrent oder DLC importieren",
+      "description": "Die Dateien landen zur Prüfung im LinkGrabber; bei NZBs wird ein {'{{'}passwort{'}}'} im Dateinamen fürs Entpacken übernommen.",
+      "drop_hint": "NZB, Torrent oder DLC hierher ziehen oder auswählen",
+      "drop_hint_multi": "Weitere NZB-, Torrent- oder DLC-Dateien hierher ziehen",
+      "detected_password": "Erkanntes Passwort:",
+      "choose_file": "Datei auswählen",
+      "files_selected": "keine Dateien ausgewählt | {count} Datei ausgewählt | {count} Dateien ausgewählt",
+      "remove_file": "Datei entfernen",
+      "name": "Paketname",
+      "name_hint": "Ohne .nzb/.torrent – wird als Paket- und Ordnername verwendet",
+      "name_single_only": "Nur verfügbar, wenn genau eine Datei ausgewählt ist",
+      "category": "Kategorie",
+      "priority": "Priorität",
+      "no_category": "Keine Kategorie",
+      "submit": "Importieren"
+    },
+    "history": {
+      "title": "NZB-Verlauf",
+      "description": "Alle importierten NZB-Dateien. Lösche einen Eintrag, um dieselbe Datei erneut importieren zu können.",
+      "empty": "Noch keine NZB-Dateien importiert.",
+      "enqueued_hint": "Dieser Import gehört zu einem Download. Entferne zuerst den Download, dann lässt sich der Eintrag löschen.",
+      "hint": "Nach dem Löschen eines Eintrags kann dieselbe NZB-Datei erneut importiert werden."
+    },
+    "drop": {
+      "title": "Zum Importieren ablegen",
+      "hint": "NZB-, Torrent- und DLC-Dateien überall im Fenster loslassen, um sie zum LinkGrabber hinzuzufügen.",
+      "none_matched": "Keine .nzb-, .torrent- oder .dlc-Dateien in den abgelegten Elementen gefunden."
+    },
+    "drag_hint": "Ziehen, um die Reihenfolge in der Liste zu ändern"
+  },
+  "files": {
+    "torrent_imported": "Torrent importiert",
+    "torrent_imported_description": "„{name}“ liegt jetzt als Paket im LinkGrabber bereit.",
+    "torrent_duplicate": "Torrent bereits im LinkGrabber",
+    "torrent_duplicate_description": "„{name}“ wurde als Duplikat markiert und kann bewusst erneut geladen werden.",
+    "torrent_failed": "Torrent-Import fehlgeschlagen",
+    "batch": "Dateiimport abgeschlossen",
+    "batch_description": "{created} importiert, {duplicates} Duplikate, {errors} Fehler.",
+    "container_imported": "Container importiert",
+    "container_imported_description": "„{name}“ hat {count} Link(s) in den LinkGrabber gelegt.",
+    "container_failed": "Container-Import fehlgeschlagen"
+  },
+  "confirm": {
+    "duplicates_title": "Duplikate enthalten",
+    "duplicates_paused": "Einige Links wurden bereits übernommen. Trotzdem alle Pakete pausiert übernehmen?",
+    "duplicates_enqueue": "Einige Links wurden bereits übernommen. Trotzdem alle Pakete laden?",
+    "duplicate_title": "Duplikat erneut laden",
+    "duplicate_description": "Dieser Link wurde bereits übernommen. Trotzdem erneut laden?",
+    "duplicate_confirm": "Erneut laden",
+    "remove_selected_title": "Ausgewählte Links löschen",
+    "remove_selected_description": "Keine Einträge aus dem LinkGrabber entfernen? | {count} Eintrag aus dem LinkGrabber entfernen? | {count} Einträge aus dem LinkGrabber entfernen?",
+    "move_title": "In neues Paket verschieben",
+    "package_name": "Paketname",
+    "rename_title": "Dateiname ändern",
+    "file_name": "Dateiname",
+    "remove_package_title": "Paket löschen",
+    "remove_package_description": "„{name}“ mit allen Links aus dem LinkGrabber entfernen?",
+    "remove_candidate_title": "Link löschen",
+    "remove_candidate_description": "„{name}“ entfernen?",
+    "clear_all_title": "Liste leeren",
+    "clear_all_description": "Nichts wird aus dem LinkGrabber entfernt. | {count} Eintrag (Links, NZB- und Torrent-Importe) wird aus dem LinkGrabber entfernt. | {count} Einträge (Links, NZB- und Torrent-Importe) werden aus dem LinkGrabber entfernt.",
+    "remove_nzb_title": "NZB-Import löschen",
+    "remove_nzb_description": "„{name}“ samt Segmentdaten entfernen?",
+    "queue_all_title": "Alle Treffer von „{name}“ einreihen?",
+    "queue_all_description": "{count} Treffer wird eingereiht. | {count} Treffer werden eingereiht.",
+    "dismiss_all_title": "Alle Treffer von „{name}“ verwerfen?",
+    "dismiss_all_description": "{count} Treffer wird verworfen und nicht wieder vorgeschlagen; gelöscht wird nichts. | {count} Treffer werden verworfen und nicht wieder vorgeschlagen; gelöscht wird nichts.",
+    "dissolve_mirror_title": "Diese Links sind nicht dieselbe Datei?",
+    "dissolve_mirror_description": "Der Link bleibt in der Liste; nur die Gruppierung entfällt. | Die {count} Links bleiben in der Liste; nur die Gruppierung entfällt. Sie werden auch später nicht wieder zusammengefasst."
+  },
+  "media": {
+    "badge": "Medien (yt-dlp)",
+    "variant": "Medienvariante",
+    "mp3_hint": "Auf MP3-Audio umstellen",
+    "apply": "Dieses Format verwenden",
+    "matched": "{matched} von {total} Formaten passen",
+    "merge_unavailable_title": "ffmpeg ist nicht verfügbar",
+    "merge_unavailable": "Ohne ffmpeg und ffprobe lassen sich getrennte Video- und Audiospuren nicht zusammenführen. Angeboten werden nur Formate, die beides bereits enthalten.",
+    "no_match_title": "Kein Format passt",
+    "no_match_single": "Nichts auf dieser Seite erfüllt: {criteria}.",
+    "no_match_combination": "Jeder Filter passt für sich genommen, aber kein einzelnes Format erfüllt alle gleichzeitig.",
+    "criterion_count": "{criterion} allein: {matched}",
+    "relaxed": "Gelockert, um etwas zu finden: {criteria}",
+    "presets": {
+      "best": "Beste",
+      "2160p": "2160p",
+      "1440p": "1440p",
+      "1080p": "1080p",
+      "720p": "720p",
+      "480p": "480p",
+      "audio_mp3": "MP3",
+      "custom": "Eigene"
+    },
+    "filters": {
+      "any": "Beliebig",
+      "container": "Container",
+      "video_codec": "Videocodec",
+      "audio_codec": "Audiocodec",
+      "dynamic_range": "Dynamikumfang",
+      "max_height": "Max. Höhe (px)",
+      "max_fps": "Max. Bildrate",
+      "max_bitrate": "Max. Bitrate (kbit/s)",
+      "language": "Audiosprache"
+    },
+    "criteria": {
+      "container": "Container",
+      "video_codec": "Videocodec",
+      "audio_codec": "Audiocodec",
+      "dynamic_range": "Dynamikumfang",
+      "fps": "Bildrate",
+      "bitrate": "Bitrate",
+      "language": "Sprache",
+      "height": "Auflösung"
+    },
+    "codecs": {
+      "avc": "H.264 / AVC",
+      "hevc": "H.265 / HEVC",
+      "av1": "AV1",
+      "vp9": "VP9",
+      "vp8": "VP8",
+      "aac": "AAC",
+      "opus": "Opus",
+      "vorbis": "Vorbis",
+      "mp3": "MP3",
+      "flac": "FLAC",
+      "ac3": "AC-3",
+      "eac3": "E-AC-3"
+    },
+    "ranges": {
+      "sdr": "SDR",
+      "hdr10": "HDR10",
+      "hdr10_plus": "HDR10+",
+      "hlg": "HLG",
+      "dolby_vision": "Dolby Vision"
+    },
+    "warnings": {
+      "merge_unavailable": "ffmpeg fehlt, daher ist nur ein bereits gemuxtes Format nutzbar.",
+      "codec_container_mismatch": "{codec} lässt sich nicht in einer {container}-Datei speichern; es wird neu kodiert oder der Container wechselt.",
+      "container_unsupported": "Der gewählte Container kann diese Kombination nicht aufnehmen.",
+      "inventory_truncated": "Diese Seite bietet mehr Formate an, als hier gezeigt werden."
+    },
+    "loading": "Formate werden geladen…",
+    "no_inventory": "Dieser Link wurde geprüft, bevor es die Formatauswahl gab. Prüfe ihn erneut, um die vollständige Formatliste zu erhalten.",
+    "tracks": {
+      "extra_audio": "Zusätzliche Audiospuren",
+      "none": "Keine",
+      "subtitles": "Untertitel",
+      "subtitle_languages": "Untertitelsprachen",
+      "all_languages": "Alle verfügbaren",
+      "include_automatic": "Auch automatisch erzeugte Untertitel verwenden",
+      "include_automatic_hint": "Automatische Untertitel stammen aus Spracherkennung und liegen bei Namen, Zahlen und Verneinungen regelmäßig falsch. Standardmäßig aus, denn eingebettet sind sie von einer echten Übersetzung nicht mehr zu unterscheiden.",
+      "automatic_only": "{language} (nur automatisch)",
+      "automatic_only_hint": "Diese Seite bietet nur automatisch erzeugte Untertitel. Aktiviere die Option oben, um sie zu verwenden.",
+      "convert_to": "Untertitel konvertieren nach",
+      "keep_format": "Originalformat behalten",
+      "embed_needs_ffmpeg": "Einbetten benötigt ffmpeg",
+      "modes": {
+        "off": "Aus",
+        "sidecar": "Eigene Datei",
+        "embed": "Eingebettet",
+        "sidecar_and_embed": "Beides"
+      },
+      "warnings": {
+        "multiple_audio_unsupported": "Eine {container}-Datei kann nur eine Audiospur aufnehmen; die zusätzlichen Spuren entfallen.",
+        "subtitle_embed_unsupported": "Eine {container}-Datei kann keine eingebetteten Untertitel aufnehmen; sie werden stattdessen als eigene Dateien geschrieben.",
+        "language_unavailable": "Diese Seite bietet keine {language}-Spur an.",
+        "only_automatic_available": "Es existiert nur eine automatisch erzeugte {language}-Spur. Aktiviere automatische Untertitel, um sie zu verwenden.",
+        "tool_unavailable": "ffmpeg wird zum Zusammenführen zusätzlicher Spuren oder zum Einbetten von Untertiteln benötigt und ist nicht verfügbar."
+      }
+    },
+    "embed": {
+      "title": "In die Datei einbetten",
+      "sponsorblock": "SponsorBlock",
+      "sponsor_categories": "Segmentkategorien",
+      "remove_hint": "Beim Entfernen wird das Medium neu geschnitten. Die Grenzen stammen aus einer Community-Datenbank und liegen gelegentlich falsch; als Kapitel markiert bleibt die Datei unverändert.",
+      "pieces": {
+        "thumbnail": "Titelbild",
+        "chapters": "Kapitel",
+        "metadata": "Titel, Uploader und Datum",
+        "info_json": "Beschreibung und Quell-URL"
+      },
+      "modes": {
+        "off": "Aus",
+        "mark": "Als Kapitel markieren",
+        "remove": "Entfernen"
+      },
+      "categories": {
+        "sponsor": "Sponsor",
+        "intro": "Intro",
+        "outro": "Outro",
+        "self_promo": "Eigenwerbung",
+        "preview": "Rückblick/Vorschau",
+        "filler": "Füllmaterial",
+        "interaction": "Interaktionsaufruf",
+        "music_offtopic": "Nicht-Musik-Abschnitt"
+      },
+      "warnings": {
+        "thumbnail_unsupported": "Eine {container}-Datei kann kein Titelbild aufnehmen; es wird übersprungen.",
+        "chapters_unsupported": "Eine {container}-Datei kann keine Kapitelmarken aufnehmen; sie werden übersprungen.",
+        "source_url_withheld": "Die Quell-URL enthält eine Signatur oder ein Token und wird nicht in die Datei geschrieben.",
+        "tool_unavailable": "ffmpeg wird zum Schreiben von Tags oder Schneiden von Segmenten benötigt und ist nicht verfügbar.",
+        "sponsor_block_rewrites_media": "Das Entfernen von Segmenten kodiert die Datei neu."
+      }
+    },
+    "output": {
+      "title": "Ausgabetemplate",
+      "hint": "Ordner werden mit / getrennt. Leer behält den einfachen Dateinamen.",
+      "placeholder": "{uploader}/{upload_year}/{title}",
+      "fields": "Verfügbare Felder: {fields}"
+    },
+    "cookies": {
+      "title": "Browser-Sitzung",
+      "hint": "Private oder altersbeschränkte Seiten brauchen die Sitzung, die du für diese Website freigegeben hast.",
+      "automaticNamed": "Automatisch — {profile}",
+      "automaticNone": "Automatisch — kein passendes Profil",
+      "none": "Keine Sitzung senden",
+      "empty": "Kein Cookie-Profil deckt diese Adresse ab. Unter Einstellungen → Authentifizierung anlegen."
+    },
+    "unresolved_title": "Diese Seite bietet nichts zur Auswahl",
+    "unresolved": {
+      "formats_missing": "yt-dlp hat für diese Seite kein ladbares Format gemeldet. Prüfe den Link erneut; bleibt die Liste leer, wird die Seite nicht unterstützt.",
+      "audio_missing": "Die Seite bietet Videospuren, aber keine einzige Tonspur. „Beste“ lädt das Video trotzdem – ohne Ton."
+    }
+  },
+  "replay": {
+    "title": "Diesen Download freigeben",
+    "description": "Dieser Download sendet Daten, die dein Browser gesendet hat. Prüfe vor dem Speichern, was wohin geht.",
+    "target": "Zielhost",
+    "method": "Methode",
+    "url": "Adresse",
+    "expires_at": "Gültig bis",
+    "auth_profile": "Verwendet das Profil „{name}“.",
+    "origins": {
+      "title": "Freigegebene Adressen",
+      "hint": "Der Download darf Weiterleitungen nur zu diesen Adressen folgen. Abwählen schränkt die Freigabe weiter ein."
+    },
+    "body": {
+      "title": "Übertragene Daten",
+      "size": "{bytes} Bytes",
+      "fields": "Felder",
+      "values_hidden": "Feldwerte werden verschlüsselt gespeichert und nie angezeigt."
+    },
+    "credentials": {
+      "title": "Gesendete Zugangsdaten",
+      "none": "Es werden keine Zugangsdaten gesendet.",
+      "cookies": "Sitzungscookies",
+      "basic_auth": "Basic-Authentifizierung",
+      "bearer_token": "Bearer-Token",
+      "client_certificate": "Clientzertifikat",
+      "signed_query": "Signierte Adresse",
+      "form_fields": "Formulardaten"
+    },
+    "consent": {
+      "grant": "Freigeben und hinzufügen",
+      "granted": "Freigegeben: sendet Zugangsdaten",
+      "granted_at": "Freigegeben am {at}",
+      "withdraw": "Freigabe zurücknehmen",
+      "withdraw_title": "Freigabe zurücknehmen?",
+      "withdraw_description": "Der Link bleibt erhalten. Beim nächsten Hinzufügen wird wieder gefragt, bevor die mitgeschnittenen Zugangsdaten gesendet werden."
+    },
+    "blocked": {
+      "title": "Nicht reproduzierbar",
+      "method_unsupported": "Diese Anfrage nutzt eine HTTP-Methode, die nicht reproduziert werden kann.",
+      "body_too_large": "Diese Anfrage sendet mehr Daten, als gespeichert werden können.",
+      "file_upload": "Diese Anfrage lädt eine Datei hoch und kann nicht reproduziert werden.",
+      "multipart_unsupported": "Diese Anfrage sendet ein mehrteiliges Formular, das nicht reproduziert werden kann.",
+      "content_type_unsupported": "Diese Anfrage sendet einen Datentyp, der nicht reproduziert werden kann.",
+      "streamed_body": "Die Daten dieser Anfrage konnten nicht gelesen werden.",
+      "body_missing": "Die Daten dieser Anfrage sind nicht mehr verfügbar.",
+      "expired": "Die Adresse ist abgelaufen und konnte nicht erneuert werden.",
+      "origin_not_approved": "Der Download wurde auf eine nicht freigegebene Adresse umgeleitet.",
+      "refresh_unavailable": "Die Adresse ist abgelaufen und kann nicht erneuert werden.",
+      "consent_revoked": "Die Freigabe wurde zurückgezogen.",
+      "contract_downgrade": "Diese rDownloader-Version kann die Anfrage nicht reproduzieren.",
+      "post_resume_unsupported": "Der Server unterstützt das Fortsetzen dieses Downloads nicht."
+    }
+  },
+  "enrichment": {
+    "source": "{name}, von einem Plugin abgefragt am {at}"
+  },
+  "notifications": {
+    "intake_title": "Neue Links",
+    "intake_body": "Kein Link übernommen. | {count} Link im LinkGrabber. | {count} Links im LinkGrabber."
+  },
+  "indexers": {
+    "title": "Indexer-Abonnements",
+    "hint": "Treffer, über die noch entschieden werden muss",
+    "empty": "Zurzeit wartet kein Treffer auf eine Entscheidung.",
+    "group_hits": "{count} Treffer | {count} Treffer",
+    "queue_all": "Alle einreihen",
+    "dismiss_all": "Alle verwerfen",
+    "bulk_failed": "{count} Treffer konnte nicht übergeben werden. | {count} Treffer konnten nicht übergeben werden.",
+    "check_all": "Alle prüfen",
+    "check_all_started": "Prüfung für {count} Abo gestartet. Neue Treffer erscheinen hier, sobald sie da sind. | Prüfung für {count} Abos gestartet. Neue Treffer erscheinen hier, sobald sie da sind.",
+    "check_all_failed": "{count} Prüfung konnte nicht gestartet werden. | {count} Prüfungen konnten nicht gestartet werden.",
+    "open": "Ansehen",
+    "cards": {
+      "label": "Treffer von {name}",
+      "carousel": "Kartenleiste",
+      "slide": "Karte",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "pages": "Seite wählen",
+      "page": "Seite {page} von {count}",
+      "pause": "Automatisches Blättern anhalten",
+      "play": "Automatisches Blättern fortsetzen",
+      "close_details": "Details schließen",
+      "details_title": "Details"
+    }
+  },
+  "notices": {
+    "reorder_filter_active": "Die Reihenfolge lässt sich nur ohne aktiven Filter ändern – die verborgenen Links würden sonst falsch einsortiert."
+  },
+  "list": {
+    "aria": "Gesammelte Links, {count} Zeilen"
+  },
+  "mirror": {
+    "mirrors": "{count} Spiegel | {count} Spiegel",
+    "proposed": "{count} möglicher Spiegel | {count} mögliche Spiegel",
+    "hint_declared": "Die Seite, von der diese Links stammen, gibt an, dass sie dieselbe Datei sind.",
+    "hint_name_and_size": "Diese Links stimmten nach der Online-Prüfung in Dateiname und Größe überein.",
+    "hint_name": "Diese Links teilen sich nur einen Dateinamen. Nichts hat bestätigt, dass sie dieselbe Datei sind — die Gruppierung kann falsch sein.",
+    "online_of": "{online} von {total} Spiegeln sind noch verfügbar",
+    "all_offline": "Kein Spiegel verfügbar",
+    "all_offline_hint": "Keiner der {count} Spiegel hat sich als verfügbar gemeldet. Die Gruppe lässt sich trotzdem einreihen; die Hoster können sich irren.",
+    "expand": "Die übrigen Spiegel anzeigen",
+    "collapse": "Die übrigen Spiegel ausblenden",
+    "use": "Diesen Spiegel verwenden",
+    "use_hint": "Stattdessen diesen Spiegel laden. Die Wahl bleibt erhalten und die Vorgabe verschiebt diese Gruppe nicht mehr.",
+    "pinned": "Von Ihnen gewählt",
+    "pinned_hint": "Sie haben diesen Spiegel selbst gewählt, deshalb verschiebt die Vorgabe diese Gruppe nicht mehr.",
+    "release": "Meine Spiegelwahl aufheben",
+    "dissolve": "Gruppe auftrennen"
+  },
+  "cache": {
+    "label": "im Cache",
+    "hint": "Der Anbieter hat am {at} gemeldet, dass er diese Datei in seinem Cache hat. Ein Cache ändert sich ohne Ankündigung: das ist der Zeitpunkt der Messung, keine Zusage.",
+    "hint_by": "{provider} meldete am {at}, dass er diese Datei in seinem Cache hält. Ein Cache ändert sich ohne Ankündigung: Das ist der Zeitpunkt der Messung, kein Versprechen."
+  },
+  "hosters": {
+    "label": "Hoster ein- und ausblenden",
+    "hide": "Links von {host} ausblenden",
+    "show": "Links von {host} wieder zeigen",
+    "hosters": "{count} Hoster | {count} Hostern",
+    "summary": "{links} von {hosters} ausgeblendet",
+    "show_all": "Alle zeigen",
+    "hint": "Ausgeblendete Hoster bleiben im LinkGrabber und werden weder übernommen noch geprüft. Als Spiegel eines gezeigten Links gehen sie als Ausweichquelle mit."
+  }
+}

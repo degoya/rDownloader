@@ -1,0 +1,8 @@
+{
+  "status": {
+    "requestId": "REDACTEDREQUEST01",
+    "status": "error",
+    "fileName": "Example.Release",
+    "serverType": "cloud"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "result": 0,
+  "metadata": {
+    "name": "Season 1",
+    "isfolder": true,
+    "folderid": 43,
+    "parentfolderid": 42,
+    "id": "d43",
+    "contents": [
+      { "name": "e01.mkv", "isfolder": false, "fileid": 5002, "parentfolderid": 43, "size": 1024 },
+      { "name": "e02.mkv", "isfolder": false, "fileid": 5003, "parentfolderid": 43, "size": 2048 }
+    ]
+  }
+}

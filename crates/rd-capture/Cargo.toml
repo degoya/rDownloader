@@ -1,0 +1,64 @@
+[package]
+name = "rd-capture"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rdownloader-capture"
+path = "src/main.rs"
+
+[dependencies]
+aes.workspace = true
+anyhow.workspace = true
+arboard.workspace = true
+axum.workspace = true
+base64.workspace = true
+boa_engine.workspace = true
+cbc.workspace = true
+chrono.workspace = true
+clap.workspace = true
+directories.workspace = true
+hex.workspace = true
+keyring.workspace = true
+notify-rust.workspace = true
+rd-collector = { path = "../rd-collector" }
+rd-autostart = { path = "../rd-autostart" }
+rd-core = { path = "../rd-core" }
+regex.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+
+# Tray/menu-bar integration is Windows- and macOS-only; Linux stays headless and must not link
+# any window toolkit, no GTK and no WebKitGTK (see src/tray.rs and the README capture section).
+#
+# Where that line runs exactly: `arboard` above is ungated, and it pulls `x11rb` and
+# `wl-clipboard-rs` behind it, so the headless Linux agent does link X11 and Wayland *client*
+# libraries. That is deliberate. A clipboard client is not a window toolkit: it needs no GTK,
+# and where no display server is reachable it returns an error instead of taking the agent
+# down. Clipboard watching is wanted on Linux, so this is the right line — what must not cross
+# it is a windowing or rendering stack. `src/platform_gate/` holds it by reading this file.
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+image.workspace = true
+open.workspace = true
+tao.workspace = true
+tray-icon.workspace = true
+
+[dev-dependencies]
+# Read by src/platform_gate/, which judges this manifest as TOML rather than as text.
+toml.workspace = true
+
+[build-dependencies]
+embed-resource.workspace = true
+
+[lints]
+workspace = true

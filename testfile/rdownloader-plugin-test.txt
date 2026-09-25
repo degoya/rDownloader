@@ -1,0 +1,15 @@
+rDownloader downloader integration test
+=======================================
+
+This is an intentionally harmless test payload for rDownloader's hoster and
+multihoster resolver plugins. A successful test must download this exact file.
+
+Payload version: 1
+Project: https://github.com/degoya/rDownloader
+
+To the extent possible under law, the rDownloader project has waived all
+copyright and related or neighboring rights to this test payload under CC0 1.0.
+License: https://creativecommons.org/publicdomain/zero/1.0/
+
+Expected final line: RDOWNLOADER-LEGAL-TEST-PAYLOAD-1
+RDOWNLOADER-LEGAL-TEST-PAYLOAD-1

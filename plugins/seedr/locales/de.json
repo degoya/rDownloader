@@ -1,0 +1,18 @@
+{
+  "name": "Seedr",
+  "description": "Löst Dateien in einem Seedr-Konto über die offizielle REST-API auf.",
+  "codes": {
+    "seedr.account_missing": "Für diese Adresse wird ein Seedr-Konto benötigt",
+    "seedr.api_error": "Seedr-API-Fehler ({reason})",
+    "seedr.auth_invalid": "Seedr hat E-Mail-Adresse oder Passwort dieses Kontos abgelehnt. Hinterlege sie erneut.",
+    "seedr.file_not_found": "Seedr hält diese Datei nicht mehr",
+    "seedr.http_error": "Seedr-HTTP-Status {status}",
+    "seedr.invalid_response": "Ungültige Seedr-Antwort",
+    "seedr.not_a_seedr_link": "Dies ist keine Seedr-Dateiadresse",
+    "seedr.password_missing": "Für dieses Seedr-Konto ist kein Passwort hinterlegt",
+    "seedr.plan_required": "Die Seedr-REST-API setzt für dieses Konto einen Premium-Tarif voraus",
+    "seedr.rate_limited": "Das Anfragelimit von Seedr wurde erreicht. Es wird gewartet.",
+    "seedr.server_error": "Seedr ist vorübergehend nicht erreichbar",
+    "seedr.space_free": "{bytes} Bytes frei"
+  }
+}

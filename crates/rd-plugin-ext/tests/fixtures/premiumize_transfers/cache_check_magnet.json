@@ -1,0 +1,7 @@
+{
+  "status": "success",
+  "response": [true, false, false],
+  "transcoded": [false, false, false],
+  "filename": ["Example.Release.mkv", "Example.Other.mkv", null],
+  "filesize": ["1048576", "2048", null]
+}

@@ -1,0 +1,354 @@
+{
+  "cards": {
+    "http": {
+      "title": "HTTP & hosters",
+      "eyebrow": "Resolver chain",
+      "status": "Core active",
+      "description": "Direct HTTP, DDownload cookies and the Premiumize API key share the same isolated client identity; signed components stay installable."
+    },
+    "capture": {
+      "title": "Capture agent",
+      "eyebrow": "Windows bridge",
+      "paired": "Paired",
+      "ready": "Ready to pair",
+      "description": "Clipboard, Click'n'Load, NZB file association and Windows hotfolders use the native agent."
+    },
+    "usenet": {
+      "title": "Usenet",
+      "eyebrow": "NNTP pipeline",
+      "none": "No NNTP server",
+      "summary": "{servers} · {connections}",
+      "description": "Server priorities and encrypted credentials are configurable; yEnc and safe post-processing building blocks are built in."
+    }
+  },
+  "facts": {
+    "about": "About",
+    "cnl2": "CNL2",
+    "loopback_only": "Loopback only",
+    "hotfolder": "Hotfolder scan",
+    "hotfolder_note": "Events + reconciliation",
+    "nzb": "NZB intake",
+    "nzb_note": "SHA-256 deduplicated",
+    "web_ui": "Web interface",
+    "web_ui_configured": "Configured port · applied on next start",
+    "web_ui_default": "Address of this session"
+  },
+  "pairing": {
+    "eyebrow": "Capture pairing",
+    "title": "Pair native agent",
+    "description": "The bearer secret is shown only once. Only its SHA-256 digest with the {scope} scope is persisted.",
+    "submit": "Pair",
+    "copy_hint": "Copy now – it cannot be retrieved later",
+    "copy_command": "Copy command",
+    "afterwards": "Afterwards, optionally:",
+    "copied_title": "Configuration command copied",
+    "copied_description": "The full command is in your clipboard.",
+    "extension_hint": "Browser extension: use the raw token below in the extension options.",
+    "copy_token": "Copy token",
+    "extension_steps": "In the extension options set the server URL to {origin} and paste this token, then press “Test connection”. See extension/README.md for installation.",
+    "token_copied_description": "The capture token is in your clipboard."
+  },
+  "agents": {
+    "eyebrow": "Paired connections",
+    "empty": "No capture agent paired yet.",
+    "revoke": "Remove capture connection"
+  },
+  "revoke": {
+    "title": "Remove capture connection",
+    "description": "The agent “{label}” immediately loses access to LinkGrabber and NZB import.",
+    "confirm": "Remove connection",
+    "done": "Capture connection removed"
+  },
+  "backup": {
+    "export": {
+      "eyebrow": "Configuration backup",
+      "title": "Export settings",
+      "description": "Download all server-side settings, categories, accounts and integrations as a versioned JSON bundle.",
+      "include_secrets": "Include credentials",
+      "include_secrets_description": "Credentials and cookies are protected with the passphrase and never written as plaintext.",
+      "passphrase": "Passphrase",
+      "confirm_passphrase": "Confirm passphrase",
+      "passphrase_short": "Use a passphrase with at least 8 characters.",
+      "passphrase_mismatch": "The passphrases do not match.",
+      "button": "Download backup",
+      "success": "Settings backup downloaded"
+    },
+    "import": {
+      "eyebrow": "Configuration restore",
+      "title": "Import settings",
+      "description": "Restore or migrate a version 1 rDownloader settings bundle.",
+      "choose_file": "Choose JSON file",
+      "invalid_file": "The selected file is not a valid rDownloader settings bundle.",
+      "unsupported_version": "Bundle version {version} is not supported.",
+      "encrypted": "Credentials are passphrase-encrypted",
+      "without_secrets": "This backup contains no credentials",
+      "passphrase": "Backup passphrase",
+      "passphrase_required": "Enter the passphrase used to create this backup.",
+      "confirm_title": "Replace all server settings?",
+      "confirm_description": "All settings, categories, accounts, proxies, Usenet servers, hotfolders and stream channels will be replaced. Pause active downloads first. Capture-agent hotfolders imported on another installation must be paired again.",
+      "confirm": "Replace configuration",
+      "button": "Import and replace",
+      "success": "Settings restored",
+      "success_description": "Imported {count} configuration entries."
+    }
+  },
+  "mcp": {
+    "eyebrow": "External access",
+    "title": "API access & MCP",
+    "description": "API tokens authenticate REST, the CLI, SABnzbd- and qBittorrent-compatible clients, and the MCP server at {endpoint}. Selectable areas replace blanket {scope} access; only the SHA-256 digest is persisted.",
+    "label_placeholder": "e.g. Sonarr, dashboard or Claude",
+    "submit": "Create API token",
+    "copy_hint": "This API token is shown only once – store it safely in the intended client now.",
+    "mcp_hint": "Connect MCP with Claude Code:",
+    "copy_command": "Copy command",
+    "token_hint": "Raw token for clients that expect only the API key.",
+    "copy_token": "Copy token",
+    "copied_title": "Copied",
+    "command_copied": "The claude mcp add command is in your clipboard.",
+    "token_copied": "The API token is in your clipboard.",
+    "header_hint": "Clients that read the header from an environment variable (ChatGPT desktop): enter this complete value.",
+    "copy_header": "Copy header",
+    "header_copied": "The Authorization header is in your clipboard.",
+    "single_source_hint": "Configure only one source for the Authorization header. If two are sent, only the first counts — a correct token in second place is never read.",
+    "tokens_eyebrow": "Active API tokens",
+    "empty": "No API token created yet.",
+    "revoke_label": "Revoke API token",
+    "scope_full": "Full access",
+    "revoke": {
+      "title": "Revoke API token",
+      "description": "The client “{label}” immediately loses its API and MCP access.",
+      "confirm": "Revoke token",
+      "done": "API token revoked"
+    },
+    "edit": {
+      "label": "Change permissions",
+      "hint": "The token value stays the same: the client keeps working and reaches the new areas from its next request onwards. Removing everything is not possible here — revoke the token for that.",
+      "save": "Save permissions",
+      "cancel": "Cancel",
+      "done": "Permissions changed",
+      "empty": "Choose at least one area, or revoke the token."
+    },
+    "areas": {
+      "read": {
+        "name": "Read",
+        "description": "Queue, progress, packages and system status. Grants nothing that changes anything."
+      },
+      "intake": {
+        "name": "Add links",
+        "description": "Adding links, files and containers to the LinkGrabber. What a *arr instance or a browser extension needs."
+      },
+      "queue": {
+        "name": "Control the queue",
+        "description": "Start, pause, retry, reorder and delete queued work."
+      },
+      "config": {
+        "name": "Configuration",
+        "description": "Categories, rules, schedules and service settings that carry no credential."
+      },
+      "secrets": {
+        "name": "Stored credentials",
+        "description": "Hoster accounts, proxy profiles, Usenet servers and the settings export. Nothing else grants this."
+      },
+      "admin": {
+        "name": "Administration",
+        "description": "Plugins, service switches, updates and backups. Does not include stored credentials."
+      },
+      "metrics": {
+        "name": "Metrics",
+        "description": "Only the Prometheus route /api/v1/metrics. Reaches nothing else, not the queue and not MCP."
+      }
+    },
+    "scopes_label": "What this token may do",
+    "scopes_hint": "Grant only what the client actually needs. Anything that acts can also read, so reading does not have to be added separately.",
+    "scopes_empty": "Choose at least one area.",
+    "scope_operations": "{count} operations",
+    "scope_none": "No API access",
+    "sensitive": "Sensitive",
+    "sensitive_warning": "This token will be able to read stored credentials or administer the service. Nothing else grants either, so give it only to a client that genuinely needs it.",
+    "also_includes": "Also includes: {areas}",
+    "minted_areas": "This token holds: {areas}"
+  },
+  "readiness": {
+    "eyebrow": "Setup",
+    "title": "Is the setup finished?",
+    "complete": "Everything the setup asks for is in place.",
+    "outstanding": "One step is still open. | {count} steps are still open.",
+    "go": "Open",
+    "checks": {
+      "login": {
+        "label": "Administrator login",
+        "done": "Set, or deliberately switched off for a trusted network.",
+        "missing": "No password is set yet and the login is not switched off."
+      },
+      "storage": {
+        "label": "Storage destination",
+        "done": "At least one destination is configured.",
+        "missing": "Downloads have nowhere to go until a destination exists.",
+        "ephemeral": "A destination is configured, but at least one is not on persistent storage."
+      },
+      "category": {
+        "label": "Category",
+        "done": "At least one category exists.",
+        "missing": "Without a category nothing can be sorted into a folder."
+      },
+      "wizard": {
+        "label": "Setup finished",
+        "done": "The setup was completed.",
+        "missing": "The setup was never finished; run it again from the sidebar."
+      }
+    }
+  },
+  "sessions": {
+    "eyebrow": "Security",
+    "title": "Signed-in devices",
+    "description": "Every open sign-in to this installation. If something here is not yours, end it and change the password.",
+    "loading": "Loading…",
+    "current": "This device",
+    "unknown_device": "Unknown device",
+    "unknown_address": "address unknown",
+    "detail": "{address} · last used {lastUsed} · expires {expires}",
+    "sign_out": "Sign out",
+    "sign_out_here": "Sign out here",
+    "revoke": {
+      "title": "End this session?",
+      "description": "{device} is signed out immediately.",
+      "description_current": "You will be signed out on this device and will have to sign in again.",
+      "confirm": "End session",
+      "done": "Session ended"
+    },
+    "revoke_others": {
+      "action": "Sign out everywhere else ({count})",
+      "title": "Sign out everywhere else?",
+      "description": "{count} other sessions will be ended. This one stays signed in.",
+      "confirm": "End them",
+      "done": "Other sessions ended"
+    }
+  },
+  "proxy": {
+    "eyebrow": "Reachability",
+    "title": "Reverse proxy",
+    "description": "If a proxy sits in front, rDownloader has to know about it. Otherwise every request counts as coming from the proxy, and the session cookie may not match the scheme the browser is actually using.",
+    "external_url": "External URL",
+    "external_url_hint": "Scheme, host and sub-path in one setting, so they cannot disagree. Leave empty when there is no proxy.",
+    "trusted": "Trusted proxies",
+    "trusted_hint": "One address or CIDR range per line. A forwarded client address is believed only from these; everything else counts as the caller itself.",
+    "cookie_label": "Session cookie",
+    "cookie_hint": "“Automatic” follows the scheme of the external URL and is right almost always.",
+    "cookie": {
+      "auto": "Automatic",
+      "always": "Always Secure",
+      "never": "Never Secure"
+    },
+    "warning_no_proxies": "An external URL is set but no trusted proxy is. Every request will then look as though it came from the proxy: rate limiting and the session list show one address for everybody.",
+    "warning_no_url": "Trusted proxies are set but no external URL is. The cookie then cannot be marked Secure automatically."
+  },
+  "mfa": {
+    "eyebrow": "Second factor",
+    "title": "Two-factor sign-in",
+    "description": "Optional. After the password, a code from an authenticator app is also required. The recovery codes are the only other way back in — there is nobody here to prove your identity to.",
+    "enrol": {
+      "start": "Set up",
+      "once": "Visible only now. None of this can be retrieved once you leave the page.",
+      "scan": "Scan this code with your authenticator app:",
+      "copy_secret": "Copy key",
+      "copy_uri": "Copy link",
+      "recovery": "Recovery codes — keep these somewhere safe:",
+      "copy_codes": "Copy codes",
+      "confirm_label": "Code from the app",
+      "confirm": "Confirm",
+      "qr_alt": "QR code for setting up the authenticator app",
+      "manual": "Or enter the key by hand:"
+    },
+    "unconfirmed": "Not confirmed",
+    "last_used": "Last used: {moment}",
+    "never_used": "never",
+    "remaining": "{count} recovery codes left",
+    "remove": {
+      "action": "Remove",
+      "title": "Remove this second factor?",
+      "description": "“{label}” will no longer be able to answer a challenge.",
+      "confirm": "Remove"
+    },
+    "regenerate": {
+      "action": "New recovery codes",
+      "title": "Issue new codes?",
+      "description": "The recovery codes you have now will stop working.",
+      "confirm": "Issue them"
+    },
+    "disable": {
+      "label": "Password",
+      "hint": "Switching it off takes the password, not a code. A lost device must not be final.",
+      "action": "Switch off"
+    },
+    "enabled_toast": "Two-factor sign-in is on",
+    "disabled_toast": "Two-factor sign-in is off",
+    "copied": "Copied"
+  },
+  "passkeys": {
+    "eyebrow": "Passkeys",
+    "title": "Passkeys",
+    "description": "Sign in with your device instead of your password. Your authenticator checks a PIN or a fingerprint before it will sign, so one step covers both. The password keeps working — a passkey is another way in, not a replacement.",
+    "unsupported": "This browser cannot use passkeys here. They need a secure connection: either https, or reaching the service at localhost.",
+    "add": "Add a passkey",
+    "save": "Save",
+    "failed": "The passkey could not be set up.",
+    "added_toast": "Passkey added",
+    "name_label": "Name",
+    "name_hint": "So you know which device this is when you come to remove it.",
+    "default_label": "{platform} passkey",
+    "fallback_label": "Passkey",
+    "last_used": "Last used {moment}",
+    "never_used": "never",
+    "remove": {
+      "action": "Remove",
+      "title": "Remove this passkey?",
+      "description": "“{label}” will stop being able to sign in. Your password still works.",
+      "confirm": "Remove"
+    }
+  },
+  "password": {
+    "eyebrow": "Password",
+    "title": "Administrator password",
+    "description": "Replaces the password you sign in with. You need the current one for it. There is no recovery without the current password.",
+    "current_label": "Current password",
+    "new_label": "New password",
+    "confirm_label": "Repeat the new password",
+    "new_hint": "At least ten characters.",
+    "action": "Change password",
+    "mismatch": "The two new passwords do not match.",
+    "changed_toast": "Password changed",
+    "sessions_hint": "The change ends every session. This window stays signed in; every other device has to sign in again.",
+    "tokens_hint": "API tokens keep working, because they do not hang off the password. Anyone who knew the old one could have issued themselves some, though: check the token list."
+  },
+  "data_reset": {
+    "button": "Clear",
+    "stored": "{count} stored",
+    "confirm": "Clear for good",
+    "done": "{count} records removed",
+    "logs": {
+      "title": "Clear the service log?",
+      "description": "{count} log records will be removed for good. The audit log and the statistics stay, as do downloads, packages and settings."
+    },
+    "audit": {
+      "title": "Clear the audit log?",
+      "description": "{count} audit records will be removed for good. The clearing itself becomes the first entry in the emptied log. The service log and the statistics stay, as do downloads, packages and settings."
+    },
+    "stats": {
+      "title": "Clear the transfer statistics?",
+      "description": "{count} statistics rows will be removed for good, the all-time totals among them. The service log and the audit log stay, as do downloads, packages and settings."
+    },
+    "notifications": {
+      "title": "Clear the notification history?",
+      "description": "{count} finished deliveries will be removed from the history for good. Deliveries still queued or retrying stay, as do destinations, rules, the service log, the audit log and the statistics."
+    }
+  },
+  "session_limits": {
+    "eyebrow": "Security",
+    "title": "How long a sign-in lasts",
+    "description": "A sign-in ends when it has not been used for this long or reaches its maximum lifetime, whichever comes first. A shorter setting ends older sign-ins at once.",
+    "idle_label": "Without activity",
+    "idle_description": "Hours without a request before you have to sign in again. 1 to 720 (30 days).",
+    "max_label": "Maximum lifetime",
+    "max_description": "Hours from signing in after which it ends, even in the middle of work. 1 to 2160 (90 days)."
+  }
+}

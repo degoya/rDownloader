@@ -1,0 +1,37 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-0000000000e2"
+name = "Example OAuth"
+version = "0.2.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Both ways in, because this plugin exists to be driven through both by the contract tests.
+# A real provider names only what it offers, and the host then never calls the other.
+oauth_flows = ["redirect", "device"]
+
+# The reference provider ships with a host nobody can reach. It is built to be driven by the
+# contract tests, which answer for the authorization server themselves; shipping a usable one
+# would mean shipping a plugin that signs people in somewhere. The list is also what bounds the
+# sign-in page a person is sent to, so the tests can check that gate against a real manifest.
+[capabilities.net_http]
+domains = ["oauth.example.invalid"]
+
+[extension]
+slug = "example_oauth"
+# One provider. No resolver defines `example`, so nothing is ever offered this sign-in.
+claims = ["example"]
+
+[metadata]
+description = "Reference OAuth provider demonstrating the authorization-code and device-code flows."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

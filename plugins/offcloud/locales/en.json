@@ -1,0 +1,24 @@
+{
+  "name": "Offcloud",
+  "description": "Resolves links of other hosters through an Offcloud account.",
+  "account": {
+    "secret_label": "API key",
+    "secret_hint": "The API key from your account settings at offcloud.com."
+  },
+  "codes": {
+    "offcloud.account_missing": "Offcloud account is missing",
+    "offcloud.addon_required": "Offcloud needs an additional add-on for this link ({addon})",
+    "offcloud.api_error": "Offcloud API error {api_code}",
+    "offcloud.api_key_missing": "This Offcloud account has no API key yet",
+    "offcloud.auth_invalid": "The Offcloud API key is no longer valid. Enter it again.",
+    "offcloud.bad_download_url": "Offcloud returned an unusable download address",
+    "offcloud.check_unsupported": "Offcloud cannot check links without starting them",
+    "offcloud.download_blocked": "Offcloud does not allow downloads on this account",
+    "offcloud.http_error": "Offcloud HTTP status {status}",
+    "offcloud.invalid_response": "Invalid Offcloud response",
+    "offcloud.link_gone": "Offcloud no longer holds this link",
+    "offcloud.no_download_url": "Offcloud returned no download address",
+    "offcloud.rate_limited": "The Offcloud request limit was reached. Waiting.",
+    "offcloud.server_error": "Offcloud server error"
+  }
+}

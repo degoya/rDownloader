@@ -1,0 +1,26 @@
+{
+  "name": "OneDrive",
+  "description": "Resolves OneDrive and SharePoint files and sharing links through Microsoft Graph.",
+  "account": {
+    "secret_label": "Microsoft sign-in",
+    "secret_hint": "Nothing to paste here. OneDrive is signed in at Microsoft itself: enter your application (client) ID above, start the sign-in, and agree in the browser window that opens — or type the short code shown at microsoft.com/devicelogin on any other screen.",
+    "username_label": "Application (client) ID",
+    "username_hint": "OneDrive needs an application registration of your own — this project ships none, so that every installation has its own Microsoft throttling budget. In the Microsoft Entra admin center (entra.microsoft.com) under App registrations, create a registration for accounts in any organisational directory and personal Microsoft accounts, add the platform Mobile and desktop applications with http://127.0.0.1:8710/api/v1/oauth/callback as its redirect URI, switch Allow public client flows on for the device sign-in, and paste the Application (client) ID here. The sign-in asks for Files.Read.All and offline_access only. Nothing is pasted into the secret field: the sign-in fills it."
+  },
+  "codes": {
+    "onedrive.access_denied": "This account may not access this OneDrive item. The link may have been shared with another account or tenant",
+    "onedrive.account_missing": "OneDrive account is missing",
+    "onedrive.api_refused": "OneDrive refused this request ({reason})",
+    "onedrive.download_not_permitted": "This item may be viewed but not downloaded — a policy of the SharePoint site or tenant blocks the download",
+    "onedrive.invalid_request": "OneDrive could not resolve this sharing link. It may belong to a tenant this account cannot reach",
+    "onedrive.invalid_response": "Invalid OneDrive response",
+    "onedrive.is_a_folder": "This OneDrive address is a folder. Add it again to let the folder be listed",
+    "onedrive.item_not_found": "This OneDrive item does not exist, the sharing link was withdrawn, or this account cannot see it",
+    "onedrive.malware_detected": "OneDrive flagged this file as malware and will not serve it",
+    "onedrive.not_a_file": "This OneDrive item is not a file that can be downloaded",
+    "onedrive.not_a_onedrive_link": "This is not a OneDrive or SharePoint file address",
+    "onedrive.rate_limited": "OneDrive is rate limiting this account",
+    "onedrive.sign_in_required": "This OneDrive account has to be signed in again",
+    "onedrive.unavailable": "OneDrive is temporarily unavailable"
+  }
+}

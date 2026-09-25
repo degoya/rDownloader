@@ -1,0 +1,59 @@
+{
+  "title": "Einrichtungsassistent",
+  "rerun": "Einrichtungsassistent",
+  "steps": {
+    "password": {
+      "title": "Passwort",
+      "description": "Dienst absichern",
+      "lead": "Lege das lokale Administrator-Passwort fest. Der Dienst bleibt standardmäßig an das Loopback-Interface gebunden."
+    },
+    "pairing": {
+      "title": "Client",
+      "description": "Capture-Agent & Erweiterung",
+      "lead": "Verbinde den Desktop-Capture-Agenten oder die Browser-Erweiterung, damit Links automatisch in rDownloader landen."
+    },
+    "storage": {
+      "title": "Speicher",
+      "description": "Wohin Downloads gehen",
+      "lead": "Downloads brauchen ein Zielverzeichnis. Lege mindestens einen Speicherort an, um fortzufahren."
+    },
+    "mcp": {
+      "title": "API & MCP",
+      "description": "Externe Clients verbinden",
+      "lead": "Erstelle optional ein API-Token für einen externen Client oder registriere den eingebauten MCP-Server bei deinem KI-Assistenten."
+    },
+    "services": {
+      "title": "Konten",
+      "description": "Hoster & Usenet",
+      "lead": "Füge Hoster-Konten und Usenet-Server hinzu. Du kannst das überspringen und später in den Einstellungen nachholen."
+    }
+  },
+  "password": {
+    "rule": "mindestens 10 Zeichen",
+    "submit": "Passwort setzen",
+    "configured": "Passwort bereits eingerichtet",
+    "configured_hint": "Das Administrator-Passwort ist gesetzt. Du kannst es jederzeit unter Einstellungen → Allgemein ändern."
+  },
+  "pairing": {
+    "intro": "Das Pairing ist optional — Links lassen sich immer auch von Hand hinzufügen. Ein verbundener Client schickt erfasste Links, Click'n'Load und .nzb-Dateien direkt in die Warteschlange."
+  },
+  "storage": {
+    "intro": "Ein Speicherort ist das Basisverzeichnis, in das Downloads geschrieben werden. Pfade müssen absolut sein und werden angelegt, falls sie noch nicht existieren — in einem Container übersteht nur ein Pfad auf einem eingebundenen Volume das Neuerstellen.",
+    "default_category_hint": "Für den ersten Speicherort wird eine Standardkategorie „Downloads“ angelegt, damit die Warteschlange ein Ziel hat.",
+    "default_category_name": "Downloads",
+    "required_hint": "Lege mindestens einen Speicherort an — ohne ihn kann kein Download starten."
+  },
+  "services": {
+    "intro": "Optional: Premium-Hoster-Konten heben Geschwindigkeits- und Captcha-Limits auf, ein Usenet-Server ermöglicht NZB-Downloads.",
+    "accounts_tab": "Hoster-Konten",
+    "usenet_tab": "Usenet"
+  },
+  "actions": {
+    "back": "Zurück",
+    "skip": "Überspringen",
+    "continue": "Weiter",
+    "finish": "Fertig",
+    "finish_with_tour": "Fertig & Tour starten",
+    "close": "Assistent schließen"
+  }
+}

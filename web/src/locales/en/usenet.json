@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "servers": "no servers | {count} server | {count} servers",
+    "connections": "no connections | {count} connection | {count} connections"
+  },
+  "header": {
+    "eyebrow": "Segment transport",
+    "title": "NNTP servers and fallback",
+    "description": "The first server in the chain is used first. Missing or damaged segments fall over to the next active server; passwords are stored encrypted in the local vault only."
+  },
+  "form": {
+    "eyebrow": "New endpoint",
+    "title_add": "Add server",
+    "title_edit": "Edit server",
+    "name": "Primary provider",
+    "server_name": "Server name",
+    "host": "Host",
+    "port": "Port",
+    "tls": "TLS enabled",
+    "username": "Username",
+    "password": "Password",
+    "password_keep": "Leave password unchanged",
+    "proxy": "SOCKS5 proxy",
+    "proxy_direct": "Direct connection",
+    "connections": "Provider connections",
+    "connections_hint": "Maximum connections of this NNTP provider across all requests; one file uses all of them unless the general settings cap it",
+    "enabled": "Server enabled",
+    "clear_password": "Delete stored password",
+    "save_changes": "Save changes",
+    "save_server": "Save NNTP server"
+  },
+  "messages": {
+    "updated": "NNTP server updated.",
+    "created": "NNTP server created.",
+    "reordered": "Fallback order updated."
+  },
+  "chain": {
+    "eyebrow": "Fallback order",
+    "title": "Server chain",
+    "description": "Servers are tried from top to bottom. Use the arrows to change the fallback order.",
+    "priority": "Priority {priority}",
+    "move_up": "Move up in the fallback order",
+    "move_down": "Move down in the fallback order",
+    "direct": "Direct",
+    "edit": "Edit server",
+    "delete": "Delete server",
+    "empty": "No NNTP server configured yet."
+  },
+  "delete": {
+    "title": "Delete Usenet server",
+    "description": "The NNTP server “{name}” and its encrypted password will be deleted permanently.",
+    "confirm": "Delete server"
+  }
+}

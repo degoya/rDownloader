@@ -1,0 +1,12 @@
+.git
+.github
+.agents
+.codex
+target
+data
+downloads
+web/node_modules
+web/dist
+test-results
+playwright-report
+*.part

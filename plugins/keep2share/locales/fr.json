@@ -1,0 +1,37 @@
+{
+  "name": "Keep2Share",
+  "account": {
+    "secret_label": "Mot de passe du compte",
+    "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre mot de passe comme secret."
+  },
+  "codes": {
+    "keep2share.account_missing": "Le compte Keep2Share est manquant",
+    "keep2share.api_error": "API Keep2Share ({api_status}) : {message}",
+    "keep2share.bad_credentials": "L'identifiant ou le mot de passe Keep2Share est incorrect",
+    "keep2share.captcha_rejected": "Keep2Share a rejeté la réponse au captcha",
+    "keep2share.captcha_unavailable": "Keep2Share n'a renvoyé aucun captcha résoluble",
+    "keep2share.download_limit_reached": "La limite de téléchargements Keep2Share a été atteinte",
+    "keep2share.download_wait": "Keep2Share exige d'attendre avant de pouvoir télécharger ce fichier",
+    "keep2share.file_offline": "Le fichier Keep2Share n'est pas disponible",
+    "keep2share.flood": "Keep2Share limite les requêtes provenant de ce compte ou de cette IP",
+    "keep2share.free_limit_reached": "La limite de téléchargements gratuits Keep2Share est atteinte pour cette adresse IP",
+    "keep2share.http_error": "Statut HTTP Keep2Share {status}",
+    "keep2share.invalid_response": "Réponse Keep2Share invalide",
+    "keep2share.invalid_url": "URL de fournisseur invalide : {error}",
+    "keep2share.login_captcha": "Keep2Share exige de résoudre un captcha",
+    "keep2share.network_restricted": "Keep2Share a refusé l'accès depuis cette connexion réseau",
+    "keep2share.no_access": "Keep2Share a refusé l'accès à ce fichier",
+    "keep2share.no_download_url": "Keep2Share n'a renvoyé aucune URL de téléchargement",
+    "keep2share.no_free_link": "Le téléchargement gratuit Keep2Share n'a produit aucun lien de fichier : {diagnosis}",
+    "keep2share.no_token": "Keep2Share n'a renvoyé aucun jeton de connexion",
+    "keep2share.password_missing": "Le mot de passe Keep2Share est manquant",
+    "keep2share.premium_required": "Un compte premium Keep2Share est requis pour télécharger ce fichier",
+    "keep2share.private_file": "Le fichier Keep2Share ne peut être téléchargé que par son propriétaire",
+    "keep2share.server_error": "Erreur serveur Keep2Share",
+    "keep2share.session_invalid": "Keep2Share a signalé que le jeton d'authentification n'est pas valide",
+    "keep2share.temporarily_unavailable": "Keep2Share a signalé que le téléchargement est temporairement indisponible",
+    "keep2share.too_many_parallel": "Keep2Share n'autorise pas davantage de téléchargements parallèles sur ce compte",
+    "keep2share.traffic_exhausted": "La limite de trafic Keep2Share a été atteinte",
+    "keep2share.unsupported_link": "Lien Keep2Share non pris en charge"
+  }
+}

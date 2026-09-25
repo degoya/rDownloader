@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!--
+  The envelope of a very wide share, as Nextcloud answers `Depth: 1` for one. The contract
+  test fills in this collection's own href and then repeats one response element per entry,
+  in the shape the other fixtures in this directory carry, to build a listing wider than the
+  walk is allowed to read.
+-->
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>__SELF__</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>Everything</d:displayname>
+        <d:resourcetype>
+          <d:collection/>
+        </d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+    <d:propstat>
+      <d:prop>
+        <d:getcontentlength/>
+      </d:prop>
+      <d:status>HTTP/1.1 404 Not Found</d:status>
+    </d:propstat>
+  </d:response>
+__ENTRIES__
+</d:multistatus>

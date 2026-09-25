@@ -1,0 +1,16 @@
+-- A mirror somebody chose by hand (RD-110-19).
+--
+-- RD-110-18 left the choice to the grouping itself: the first member in the package's order,
+-- because nothing had been measured. RD-110-19 adds a standing preference -- a quality, a
+-- language and a hoster stored under `collector.mirror_preference` -- which moves that choice
+-- to the member that satisfies it, for every package, including the ones that arrive later.
+--
+-- This column is the way out of that preference, and it exists because the two decisions are
+-- not the same kind of thing. `mirror_selected` is derived: every regroup rewrites it in full
+-- from the grouping and the preference. `mirror_pinned` is what a person stated, so a regroup
+-- reads it and never writes it, and the preference does not move a group that carries one.
+-- Without the separate column a hand-picked mirror would be indistinguishable from one the
+-- preference happened to pick, and the next change of preference would silently take it back.
+--
+-- At most one member of a group carries it; pinning clears the siblings in the same statement.
+ALTER TABLE link_candidates ADD COLUMN mirror_pinned INTEGER NOT NULL DEFAULT 0;

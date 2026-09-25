@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "servers": "aucun serveur | {count} serveur | {count} serveurs",
+    "connections": "aucune connexion | {count} connexion | {count} connexions"
+  },
+  "header": {
+    "eyebrow": "Transport des segments",
+    "title": "Serveurs NNTP et repli",
+    "description": "Le premier serveur de la chaîne est utilisé en priorité. Les segments manquants ou endommagés basculent vers le serveur actif suivant ; les mots de passe sont stockés uniquement chiffrés dans le coffre local."
+  },
+  "form": {
+    "eyebrow": "Nouveau point de terminaison",
+    "title_add": "Ajouter un serveur",
+    "title_edit": "Modifier le serveur",
+    "name": "Fournisseur principal",
+    "server_name": "Nom du serveur",
+    "host": "Hôte",
+    "port": "Port",
+    "tls": "TLS activé",
+    "username": "Utilisateur",
+    "password": "Mot de passe",
+    "password_keep": "Conserver le mot de passe actuel",
+    "proxy": "Proxy SOCKS5",
+    "proxy_direct": "Connexion directe",
+    "connections": "Connexions du fournisseur",
+    "connections_hint": "Nombre maximal de connexions à ce fournisseur NNTP, toutes requêtes confondues ; un fichier les utilise toutes sauf si les réglages généraux le plafonnent",
+    "enabled": "Serveur actif",
+    "clear_password": "Supprimer le mot de passe enregistré",
+    "save_changes": "Enregistrer les modifications",
+    "save_server": "Enregistrer le serveur NNTP"
+  },
+  "messages": {
+    "updated": "Le serveur NNTP a été mis à jour.",
+    "created": "Le serveur NNTP a été créé.",
+    "reordered": "L'ordre de repli a été mis à jour."
+  },
+  "chain": {
+    "eyebrow": "Ordre de repli",
+    "title": "Chaîne de serveurs",
+    "description": "Les serveurs sont essayés de haut en bas. Utilisez les flèches pour modifier l'ordre de repli.",
+    "priority": "Priorité {priority}",
+    "move_up": "Monter dans l'ordre de repli",
+    "move_down": "Descendre dans l'ordre de repli",
+    "direct": "Direct",
+    "edit": "Modifier le serveur",
+    "delete": "Supprimer le serveur",
+    "empty": "Aucun serveur NNTP configuré pour le moment."
+  },
+  "delete": {
+    "title": "Supprimer le serveur Usenet",
+    "description": "Le serveur NNTP « {name} » et son mot de passe chiffré seront supprimés définitivement.",
+    "confirm": "Supprimer le serveur"
+  }
+}

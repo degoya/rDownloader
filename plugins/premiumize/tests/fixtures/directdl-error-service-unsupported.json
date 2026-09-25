@@ -1,0 +1,5 @@
+{
+    "status": "error",
+    "message": "Unsupported link for direct download.",
+    "code": "service_unsupported"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Transformation de flux d'exemple",
+  "description": "Extension de référence démontrant le contrat de transformation de flux.",
+  "codes": {
+    "example_stream_transform.not_mine": "Cette adresse n'appartient pas à l'extension de référence de transformation de flux."
+  }
+}

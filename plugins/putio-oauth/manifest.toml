@@ -1,0 +1,45 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000151"
+name = "Put.io sign-in"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Redirect only. Put.io also runs an out-of-band entrance for devices without a browser, but
+# this project could not find it stated in a published specification, and an entrance built
+# from guessed endpoints is an entrance that ends in a refusal the person cannot act on.
+# RD-106-01's device entrance stays available for a provider that documents one.
+oauth_flows = ["redirect"]
+
+[capabilities]
+# The client secret the person registered with their own Put.io application, and nothing else.
+# Put.io's token endpoint is a confidential-client exchange: it wants that value on every call
+# and answers with the access token. The token this plugin obtains goes straight into the vault
+# through `store-oauth-token` and is never read back here.
+secrets = ["putio_client_secret"]
+
+# Put.io's own API, and nothing else. Both the page the person agrees on and the exchange that
+# follows live under `api.put.io`.
+[capabilities.net_http]
+domains = ["api.put.io"]
+
+[extension]
+slug = "putio_oauth"
+# One provider: the row `plugins/putio/` declares. The host looks the account up and this
+# plugin never learns which one it is.
+claims = ["putio"]
+
+[metadata]
+description = "Signs a Put.io account in through Put.io's own authorization endpoint."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

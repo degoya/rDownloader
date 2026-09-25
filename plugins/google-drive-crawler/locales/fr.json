@@ -1,0 +1,12 @@
+{
+  "name": "Dossiers Google Drive",
+  "description": "Liste les fichiers derrière une adresse de dossier ou de Drive partagé Google.",
+  "codes": {
+    "google_drive_crawler.folder_empty": "Ce dossier Google Drive ne contient aucun fichier téléchargeable",
+    "google_drive_crawler.folder_unreachable": "Ce dossier Google Drive n'a pas pu être lu",
+    "google_drive_crawler.invalid_response": "Réponse Google Drive invalide",
+    "google_drive_crawler.not_a_folder": "Cette adresse n'est pas celle d'un dossier Google Drive",
+    "google_drive_crawler.rate_limited": "Google Drive limite le débit de ce compte",
+    "google_drive_crawler.sign_in_required": "Google n'a pas accepté ce compte pour ce dossier"
+  }
+}

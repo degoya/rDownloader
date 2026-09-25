@@ -1,0 +1,46 @@
+<!--
+  A DDownload page that carries a message instead of the download form. The header is
+  verbatim from the file page fetched on 2026-09-17 (see file-page-2026-09-17.html); the
+  message box is the XFS engine's "err" block, the shape `diagnose` reads — no such page was
+  fetched on that day, so the block follows the engine template rather than a measurement.
+  (The comment names no parser marker literally: `diagnose` would read it as the message.)
+  What the fixture proves: a page with the header's login link and no form is reported by its
+  own message, not as "the page requires a login" (RD-108-28).
+-->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DDownload</title>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <nav class="header-nav">
+                <a class="nav-link" href="/upload" onclick="if(typeof LoginModal!=='undefined'){event.preventDefault(); LoginModal.show('/upload');}">
+                    Upload
+                </a>
+                <!-- Not Logged In -->
+                <a class="nav-link outlined" href="/login" onclick="if(typeof LoginModal!=='undefined'){return LoginModal.show()}">
+                    Login
+                </a>
+                <a class="nav-link primary" href="/register" onclick="if(typeof RegModal!=='undefined'){return RegModal.show()}">
+                    Sign Up
+                </a>
+            </nav>
+        </div>
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="/login" class="mobile-nav-link" onclick="if(typeof LoginModal!=='undefined'){event.preventDefault();closeMobileMenu();LoginModal.show();}">Login</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="err">The file was removed by administrator</div>
+    </div>
+
+    <div class="rm-overlay" id="rm-overlay">
+        <div class="rm-login-link">Already have an account? <a href="/login" onclick="event.preventDefault(); LoginModal.show();">Login</a></div>
+    </div>
+    <script>var LoginModal = { show: function () {} };</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "downloads": "Downloads",
+  "linkgrabber": "LinkGrabber",
+  "settings": "Settings",
+  "connected": "Service connected",
+  "streams": "Streams",
+  "subscriptions": "Subscriptions",
+  "automation": "Automation",
+  "sign_out": "Sign out",
+  "collapse_sidebar": "Collapse sidebar",
+  "expand_sidebar": "Expand sidebar",
+  "stats": "Statistics",
+  "logs": "Logs",
+  "remote_jobs": "Remote jobs",
+  "audit": "Audit log"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "DDownload",
+  "account": {
+    "secret_hint": "Choisissez comment ce compte se connecte. Identifiants du compte est la voie simple : saisissez le nom d'utilisateur ou l'e-mail DDownload et le mot de passe, et rDownloader se connecte et conserve la session lui-même. Clé API convient à un compte qui ne doit pas stocker de mot de passe : collez la clé depuis Compte → API ; elle fournit l'état du compte et les métadonnées des fichiers, et les téléchargements nécessitent alors en plus une session cookie collée ci-dessous.",
+    "secret_hint_api_key": "La clé issue de Compte → API. Elle fournit l'état du compte et les métadonnées des fichiers ; les téléchargements passent par la session cookie ci-dessous, l'API DDownload n'offrant pas de liens directs.",
+    "secret_hint_login": "Le mot de passe du compte DDownload indiqué ci-dessus. DDownload protège désormais son formulaire de connexion par un captcha Cloudflare Turnstile : la connexion ne fonctionne donc qu'avec un service de captcha configuré, ou si le défi est résolu à la main dans Captchas. Sans l'un ni l'autre, utilisez le mode clé API avec une session de cookies collée.",
+    "secret_label": "Mot de passe ou clé API DDownload",
+    "secret_label_api_key": "Clé API DDownload",
+    "secret_label_login": "Mot de passe DDownload"
+  },
+  "codes": {
+    "ddownload.account_missing": "Compte DDownload manquant",
+    "ddownload.api_error": "API DDownload : {message}",
+    "ddownload.api_key_required": "La vérification des liens DDownload nécessite la clé API",
+    "ddownload.captcha_rejected": "DDownload a rejeté la réponse au captcha",
+    "ddownload.cookie_session_invalid": "La session de cookies DDownload n'est pas connectée – collez une nouvelle session de cookies depuis un navigateur connecté : {diagnosis}",
+    "ddownload.cookie_session_required": "La session de cookies DDownload est absente ou ne contient aucun cookie pour ddownload.com",
+    "ddownload.cookie_session_required_for_download": "Les téléchargements DDownload nécessitent une session de cookies (connexion navigateur) ; la clé API ne fournit que des métadonnées",
+    "ddownload.cookie_session_unconfirmed": "DDownload n'a ni confirmé ni rejeté la session de cookies : la page n'était ni connectée ni une page visiteur ; réessayez plus tard : {diagnosis}",
+    "ddownload.download_session_expired": "DDownload a accepté la clé d'API, mais la session de cookies utilisée pour les téléchargements a expiré : collez une nouvelle session de cookies depuis un navigateur connecté à ddownload.com : {diagnosis}",
+    "ddownload.file_unavailable": "Le fichier DDownload n'est pas disponible",
+    "ddownload.free_limit_reached": "Limite de téléchargements gratuits DDownload atteinte pour cette adresse IP",
+    "ddownload.http_error": "Statut HTTP DDownload {status}",
+    "ddownload.invalid_link": "Lien DDownload invalide",
+    "ddownload.invalid_response": "Réponse DDownload invalide",
+    "ddownload.invalid_url": "URL du fournisseur invalide : {error}",
+    "ddownload.login_blocked": "DDownload a refusé la connexion depuis cette adresse IP",
+    "ddownload.login_captcha": "Le formulaire de connexion de DDownload est protégé par {challenge}, que rDownloader ne peut pas résoudre. Basculez ce compte en mode clé API, ou collez une session de cookies depuis un navigateur connecté.",
+    "ddownload.login_credentials_required": "Les téléchargements DDownload nécessitent soit les identifiants du compte, soit une session cookie importée",
+    "ddownload.login_failed": "DDownload a refusé le nom d'utilisateur ou le mot de passe du compte",
+    "ddownload.login_form_missing": "La page de connexion de DDownload ne contenait pas le formulaire attendu : {diagnosis}",
+    "ddownload.login_unavailable": "DDownload n'a pas confirmé la connexion : {diagnosis}",
+    "ddownload.no_free_form": "Le formulaire de téléchargement gratuit DDownload n'a pas été trouvé : {diagnosis}",
+    "ddownload.no_free_link": "Le téléchargement gratuit DDownload n'a produit aucun lien de fichier : {diagnosis}",
+    "ddownload.no_premium_file": "La session de cookies DDownload n'a pas renvoyé de fichier premium : {diagnosis}",
+    "ddownload.session_unconfirmed": "session de cookies non confirmée : la page du compte n'était ni connectée ni une page invité",
+    "ddownload.unsupported_link": "Lien DDownload non pris en charge"
+  }
+}

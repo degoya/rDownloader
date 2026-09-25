@@ -1,0 +1,8 @@
+{
+  "result": 0,
+  "access_token": "redacted-access-token-0000",
+  "token_type": "bearer",
+  "uid": 1234567,
+  "locationid": 2,
+  "hostname": "eapi.pcloud.com"
+}

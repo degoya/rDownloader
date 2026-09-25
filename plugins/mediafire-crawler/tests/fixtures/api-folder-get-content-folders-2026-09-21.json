@@ -1,0 +1,58 @@
+{
+  "response": {
+    "action": "folder/get_content",
+    "asynchronous": "no",
+    "folder_content": {
+      "chunk_size": "100",
+      "content_type": "folders",
+      "chunk_number": "1",
+      "folderkey": "rww7bhhi0yc1l",
+      "folders": [
+        {
+          "folderkey": "x67lis2zygml5",
+          "name": "EmptyFolder",
+          "description": "",
+          "tags": "",
+          "privacy": "public",
+          "created": "2022-07-03 10:01:08",
+          "revision": "1142",
+          "flag": "0",
+          "permissions": {
+            "value": "1",
+            "explicit": "0",
+            "read": "1",
+            "write": "0"
+          },
+          "file_count": "0",
+          "folder_count": "0",
+          "dropbox_enabled": "no",
+          "created_utc": "2022-07-03T15:01:08Z"
+        },
+        {
+          "folderkey": "gtrp6u25m6nmb",
+          "name": "TestFolder",
+          "description": "",
+          "tags": "",
+          "privacy": "public",
+          "created": "2021-09-28 01:35:48",
+          "revision": "2996",
+          "flag": "0",
+          "permissions": {
+            "value": "1",
+            "explicit": "0",
+            "read": "1",
+            "write": "0"
+          },
+          "file_count": "2",
+          "folder_count": "1",
+          "dropbox_enabled": "no",
+          "created_utc": "2021-09-28T06:35:48Z"
+        }
+      ],
+      "more_chunks": "no",
+      "revision": "2995"
+    },
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

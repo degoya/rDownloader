@@ -1,0 +1,83 @@
+{
+  "title": "Logs",
+  "intro": "What the service recorded, redacted before it was stored: credentials, signed link parameters and authorization headers never reach this list.",
+  "filters": {
+    "level": "Minimum level",
+    "component": "Component",
+    "component_placeholder": "rd_http",
+    "code": "Code",
+    "correlation": "Correlation id",
+    "search": "Search in messages",
+    "apply": "Apply",
+    "clear": "Clear filters"
+  },
+  "levels": {
+    "all": "All levels",
+    "trace": "Trace",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Warning",
+    "error": "Error"
+  },
+  "list": {
+    "title": "Records",
+    "empty": "No records match.",
+    "shown": "{shown} of {total} records",
+    "full_page": "This is a full page: older records exist behind it.",
+    "older": "Load older",
+    "dropped": "{count} records were dropped because the store could not keep up.",
+    "expand": "Show fields",
+    "collapse": "Hide fields",
+    "retention": "Kept for {days} days or {records} records, whichever runs out first."
+  },
+  "bundle": {
+    "title": "Diagnostic bundle",
+    "eyebrow": "Support",
+    "intro": "An archive for a support request: versions, configuration metadata, system checks and the most recent errors. Nothing is uploaded; the file is written on this machine, and only after you have seen and approved its contents.",
+    "preview": "Preview contents",
+    "create": "Create bundle",
+    "directory": "Written to {directory}",
+    "entries": "Contents",
+    "items": "{count} items",
+    "redactions": "Redactions",
+    "excluded": "Never included",
+    "created": "Bundle written: {file}",
+    "download": "Download",
+    "bytes": "{bytes} bytes",
+    "select_hint": "Untick what the recipient should not get."
+  },
+  "diagnostics": {
+    "bundle": {
+      "entry": {
+        "versions": {
+          "description": "application version, platform and the installed plugins"
+        },
+        "configuration": {
+          "description": "the settings document without its credentials"
+        },
+        "system_checks": {
+          "description": "tool locations and versions, the reverse-proxy contract"
+        },
+        "doctor": {
+          "description": "the same checks as `rdownloader doctor` prints them"
+        },
+        "recent_errors": {
+          "description": "the newest warnings and errors from the log store"
+        }
+      },
+      "redaction": {
+        "configuration_credentials": "fields named like a credential are replaced by [redacted]",
+        "configuration_pem": "PEM material is replaced by [present]",
+        "configuration_text": "text values pass through the URL and header redaction",
+        "configuration_replaced": "replaced: {fields}",
+        "paths": "paths pass through the text redaction",
+        "log_records": "messages and fields were redacted when captured; nothing is re-read from the log file"
+      },
+      "exclusion": {
+        "file_contents": "file contents and file names of downloads",
+        "urls": "full URLs: query values that carry a credential or a signature are replaced",
+        "secrets": "secrets: passwords, tokens, API keys, cookies, certificates and vault references"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "rd-http"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rd-core = { path = "../rd-core" }
+rustls.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

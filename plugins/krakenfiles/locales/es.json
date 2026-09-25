@@ -1,0 +1,19 @@
+{
+  "name": "KrakenFiles",
+  "description": "Resuelve enlaces de KrakenFiles sin cuenta mediante el formulario de descarga de la página del archivo y su Cloudflare Turnstile.",
+  "codes": {
+    "krakenfiles.captcha_rejected": "KrakenFiles rechazó la respuesta del captcha",
+    "krakenfiles.direct_link_foreign": "KrakenFiles entregó un enlace de descarga en {host}, del que este plugin no puede descargar",
+    "krakenfiles.direct_link_missing": "KrakenFiles aceptó la solicitud de descarga pero no devolvió ningún enlace de descarga",
+    "krakenfiles.download_refused": "KrakenFiles rechazó la descarga: {message}",
+    "krakenfiles.file_unavailable": "El archivo de KrakenFiles fue eliminado o nunca existió",
+    "krakenfiles.http_error": "Estado HTTP de KrakenFiles {status}",
+    "krakenfiles.invalid_link": "Enlace de KrakenFiles no válido",
+    "krakenfiles.invalid_response": "Respuesta de KrakenFiles no válida",
+    "krakenfiles.invalid_url": "URL del proveedor no válida: {error}",
+    "krakenfiles.no_account": "Este resolutor descarga sin cuenta y no tiene ninguna que comprobar",
+    "krakenfiles.page_layout_changed": "La página del archivo de KrakenFiles ya no tiene el aspecto esperado: {diagnosis}",
+    "krakenfiles.rate_limited": "KrakenFiles rechazó el enlace de descarga (HTTP {status}); demasiadas conexiones, inténtelo de nuevo en una hora",
+    "krakenfiles.unsupported_link": "No es un enlace de KrakenFiles compatible"
+  }
+}

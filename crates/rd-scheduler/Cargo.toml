@@ -1,0 +1,46 @@
+[package]
+name = "rd-scheduler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# Forwards rd-core's deterministic crash points; see crates/rd-core/src/failpoint.rs.
+failpoints = ["rd-core/failpoints"]
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+rand.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+rd-http = { path = "../rd-http" }
+rd-limits = { path = "../rd-limits" }
+rd-captcha = { path = "../rd-captcha" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-secrets = { path = "../rd-secrets" }
+reqwest.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+rcgen.workspace = true
+rd-provider-registry = { path = "../rd-provider-registry" }
+rustls.workspace = true
+tempfile.workspace = true
+tokio-rustls.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

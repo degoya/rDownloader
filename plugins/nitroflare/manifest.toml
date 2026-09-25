@@ -1,0 +1,49 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000004"
+name = "Nitroflare"
+# 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
+# the installed package (`sync_bundled` only installs newer ones) and never picks the free
+# flow up. Pinned jobs are unaffected: the older version stays installed.
+version = "0.7.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["nitroflare.com", "www.nitroflare.com"]
+download_domains = ["nitroflare.com", "*.nitroflare.com"]
+max_concurrent_downloads = 5
+# Links without an account are served by the website free flow (file page ->
+# /ajax/freeDownload.php startTimer -> reCAPTCHA + wait -> fetchDownload -> download link).
+# Every host it contacts is already covered by `domains`: the file page and the ajax endpoint
+# live on nitroflare.com, the download link on a `*.nitroflare.com` subdomain.
+requires_account = false
+
+[capabilities]
+captcha = true
+secrets = ["nitroflare_premium_key"]
+
+[capabilities.net_http]
+domains = ["nitroflare.com", "*.nitroflare.com"]
+
+[metadata]
+description = "Resolves Nitroflare links with a premium key, or without one via the free flow."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[provider]
+slug = "nitroflare"
+kind = "hoster"
+credentials = "api_key"
+username_required = true
+secret_reference = "nitroflare_premium_key"
+secret_domains = ["nitroflare.com"]
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# A free download waits out the hoster's countdown and one captcha round trip; this budget is
+# spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

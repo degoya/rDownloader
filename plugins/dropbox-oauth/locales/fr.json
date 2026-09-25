@@ -1,0 +1,12 @@
+{
+  "name": "Connexion Dropbox",
+  "description": "Connecte un compte Dropbox via le point d'autorisation de Dropbox.",
+  "codes": {
+    "dropbox_oauth.bad_reply": "Dropbox a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "dropbox_oauth.code_expired": "La connexion a expiré avant d'être terminée. Relancez-la.",
+    "dropbox_oauth.consent_denied": "La connexion n'a pas été accordée chez Dropbox.",
+    "dropbox_oauth.flow_unsupported": "Dropbox se connecte dans le navigateur, pas avec un code d'appareil.",
+    "dropbox_oauth.no_entropy": "La connexion n'a pas pu démarrer car l'application n'avait pas d'aléa pour elle. Réessayez.",
+    "dropbox_oauth.refresh_refused": "Dropbox n'accepte plus la connexion enregistrée. Reconnectez-vous."
+  }
+}

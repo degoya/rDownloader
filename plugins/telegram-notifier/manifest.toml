@@ -1,0 +1,33 @@
+manifest_version = 3
+plugin_type = "notifier"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000105"
+name = "Telegram"
+version = "0.9.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The only addresses this destination may reach. The token never passes through the plugin:
+# it writes the reference-less secret marker and the host substitutes, on the way out, the one
+# secret this invocation was granted.
+[capabilities.net_http]
+domains = ["api.telegram.org"]
+
+[extension]
+slug = "telegram_notifier"
+# Empty: a destination is chosen by name when a notification target is created, not matched
+# against anything.
+claims = []
+
+[metadata]
+description = "Delivers notifications to a Telegram chat through a bot."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 262144

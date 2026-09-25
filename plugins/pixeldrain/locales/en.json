@@ -1,0 +1,23 @@
+{
+  "name": "Pixeldrain",
+  "description": "Resolves Pixeldrain links through the provider's public API; an optional API key lifts the free tier's limits.",
+  "codes": {
+    "pixeldrain.account_required": "Pixeldrain serves this file only to a signed-in account",
+    "pixeldrain.api_error": "Pixeldrain API error {api_code}",
+    "pixeldrain.api_key_invalid": "Pixeldrain rejected this account's API key. It may have been revoked or expired.",
+    "pixeldrain.api_key_missing": "This Pixeldrain account has no API key stored",
+    "pixeldrain.captcha_required": "Pixeldrain asks for a captcha for this file, which this plugin cannot answer",
+    "pixeldrain.direct_link_foreign": "Pixeldrain named a download address outside its own domains",
+    "pixeldrain.file_blocked": "Pixeldrain has blocked this file and does not serve it",
+    "pixeldrain.file_not_found": "This file does not exist on Pixeldrain any more",
+    "pixeldrain.http_error": "Pixeldrain HTTP status {status}",
+    "pixeldrain.invalid_link": "Invalid Pixeldrain address",
+    "pixeldrain.invalid_response": "Invalid Pixeldrain response",
+    "pixeldrain.ip_rate_limited": "Pixeldrain's download limit for this connection is reached. Waiting.",
+    "pixeldrain.server_error": "Pixeldrain server error",
+    "pixeldrain.server_overloaded": "Pixeldrain reports itself overloaded. Waiting.",
+    "pixeldrain.too_many_downloads": "Pixeldrain allows no further download from this connection at the moment. Waiting.",
+    "pixeldrain.transfer_limit": "Pixeldrain's transfer limit for this file is reached. A Pixeldrain premium subscription on either side lifts it.",
+    "pixeldrain.unsupported_link": "This is not a Pixeldrain file address"
+  }
+}

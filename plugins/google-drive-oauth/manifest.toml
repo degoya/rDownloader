@@ -1,0 +1,39 @@
+manifest_version = 3
+plugin_type = "oauth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000112"
+name = "Google sign-in"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# Redirect only. Google's device flow exists, but it is meant for input-constrained devices and
+# refuses the Drive scopes this plugin needs; naming it here would offer a way in that ends in
+# a refusal the person cannot act on. RD-106-01's device entrance is used by Real-Debrid
+# (RD-106-03), where the provider actually offers it.
+oauth_flows = ["redirect"]
+
+# Google's own two endpoints, and nothing else. `accounts.google.com` is where the person
+# agrees; `oauth2.googleapis.com` is where the code and the refresh material are exchanged.
+# The first is also what bounds the sign-in page a person can be sent to.
+[capabilities.net_http]
+domains = ["accounts.google.com", "oauth2.googleapis.com"]
+
+[extension]
+slug = "google_drive_oauth"
+# One provider: the row `plugins/google-drive/` declares. The host looks the account up and
+# this plugin never learns which one it is.
+claims = ["google_drive"]
+
+[metadata]
+description = "Signs a Google Drive account in through Google's own authorization endpoint."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

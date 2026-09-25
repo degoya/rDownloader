@@ -1,0 +1,37 @@
+[package]
+name = "rd-torrent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+dunce.workspace = true
+hex.workspace = true
+if-addrs.workspace = true
+# `rust-tls` rather than `default-tls`: it puts librqbit on the same rustls/aws-lc-rs stack
+# the rest of the workspace uses, and picks the `sha1-ring` info-hash backend instead of
+# `sha1-crypto-hash`, which drags in the unmaintained crypto-hash crate and all of OpenSSL.
+# `disable-upload` is what makes leech-only possible at all: the engine uploads to peers while
+# a torrent downloads, and no rate limit can express "none" — its limit type is a `NonZeroU32`,
+# so zero would read as unlimited.
+librqbit = { version = "9", default-features = false, features = ["rust-tls", "disable-upload"] }
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-secrets = { path = "../rd-secrets" }
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+utoipa.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

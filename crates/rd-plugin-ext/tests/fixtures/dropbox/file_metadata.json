@@ -1,0 +1,13 @@
+{
+  ".tag": "file",
+  "name": "release.bin",
+  "path_lower": "/show/release.bin",
+  "path_display": "/Show/release.bin",
+  "id": "id:redacted-file-id-0001",
+  "client_modified": "2026-01-02T03:04:05Z",
+  "server_modified": "2026-01-02T03:04:06Z",
+  "rev": "015f3d2a1b2c3d4e5f6a7",
+  "size": 1048576,
+  "is_downloadable": true,
+  "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

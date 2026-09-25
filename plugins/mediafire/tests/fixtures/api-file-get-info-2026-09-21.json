@@ -1,0 +1,35 @@
+{
+  "response": {
+    "action": "file/get_info",
+    "file_info": {
+      "quickkey": "ipnyzofjcwri357",
+      "filename": "test-10mb.bin",
+      "ready": "yes",
+      "created": "2021-08-11 07:52:52",
+      "description": "",
+      "size": "10485760",
+      "privacy": "public",
+      "password_protected": "no",
+      "hash": "e5b844cc57f57094ea4585e235f36c78c1cd222262bb89d53c94dcb4d6b3e55d",
+      "filetype": "archive",
+      "mimetype": "application/octet-stream",
+      "owner_name": "Redacted Owner",
+      "flag": "0",
+      "permissions": {
+        "value": "1",
+        "explicit": "0",
+        "read": "1",
+        "write": "0"
+      },
+      "revision": "11",
+      "view": "0",
+      "edit": "0",
+      "links": {
+        "normal_download": "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin/file"
+      },
+      "created_utc": "2021-08-11T12:52:52Z"
+    },
+    "result": "Success",
+    "current_api_version": "1.5"
+  }
+}

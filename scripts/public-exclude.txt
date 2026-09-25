@@ -1,0 +1,30 @@
+# What scripts/export-public.sh leaves out of the public repository (RD-130-23).
+#
+# One path per line, relative to the repository root; a trailing slash marks a directory. Blank
+# lines and lines starting with `#` are ignored. Everything else in `git archive <ref>` is public.
+# A path listed here that the exported tree does not have is reported, not an error: an older
+# tag may predate it.
+
+# The planning: the detailed roadmap and one German file per job.
+docs/roadmap/
+docs/roadmap.md
+
+# The working card for coding agents and their configuration.
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# Working material: the 1.0.8 audits, loose notes, design drafts, an early specification.
+docs/backend-audit.md
+docs/frontend-audit.md
+docs/ideas_and_infos.md
+docs/design/
+specs.md
+
+# Moved to the website repository; listed so that an export of an older tag leaves it out too.
+docs/rdownloader-marketing-website-package/
+
+# A test that only makes sense next to the planning files. scripts/mcp-coverage.sh and
+# scripts/measure-mega-login-fuel.sh stay public: the first writes the public
+# docs/mcp-coverage.md, the second is cited by ADR 0011 and docs/architecture.md.
+crates/rdownloader/tests/job_status_words.rs

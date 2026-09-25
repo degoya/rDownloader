@@ -1,0 +1,16 @@
+{
+  "name": "MEGA sign-in",
+  "description": "Signs a MEGA account in without the password ever entering the sandbox.",
+  "codes": {
+    "mega_auth.account_blocked": "MEGA has blocked this account",
+    "mega_auth.account_version_unsupported": "This MEGA account still uses the legacy key derivation",
+    "mega_auth.api_error": "MEGA API error {status}",
+    "mega_auth.bad_reply": "MEGA answered the sign-in with something that could not be read",
+    "mega_auth.credentials_rejected": "MEGA refused this address and password",
+    "mega_auth.multi_factor_required": "This MEGA account asks for a second factor, which is not supported yet",
+    "mega_auth.nothing_to_poll": "A MEGA sign-in finishes in one step; start it again",
+    "mega_auth.rate_limited": "MEGA is rate limiting sign-in attempts from this address",
+    "mega_auth.session_unreadable": "MEGA's session could not be opened with this account's key",
+    "mega_auth.unavailable": "MEGA is temporarily not answering sign-in requests"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Google Drive",
+  "description": "Télécharge les fichiers, liens partagés et exports Workspace de Google Drive via l'API Drive officielle.",
+  "account": {
+    "secret_label": "Connexion Google",
+    "secret_hint": "Rien à coller ici. Google Drive s'authentifie chez Google : saisissez ci-dessus votre identifiant client OAuth, lancez la connexion et acceptez dans la fenêtre du navigateur.",
+    "username_label": "Identifiant client OAuth",
+    "username_hint": "Google Drive exige un client OAuth qui vous appartient : ce projet n'en fournit aucun, afin que chaque installation dispose de son propre quota Google. Dans la console Google Cloud, créez un projet, activez l'API Google Drive, créez sous « Identifiants » un identifiant client OAuth de type « Application de bureau », ajoutez http://127.0.0.1:8710/api/v1/oauth/callback comme URI de redirection autorisé, puis collez ici l'identifiant client. Rien à coller dans le champ du secret : la connexion le remplit."
+  },
+  "codes": {
+    "google_drive.account_missing": "Compte Google Drive manquant",
+    "google_drive.api_refused": "Google Drive a refusé cette requête ({reason})",
+    "google_drive.download_not_permitted": "Le propriétaire a désactivé le téléchargement, ou ce compte ne peut que consulter le fichier",
+    "google_drive.export_format_unsupported": "Google Drive ne peut pas exporter ce document dans le format demandé",
+    "google_drive.export_too_large": "Ce document Google Workspace est trop volumineux pour être exporté par Drive",
+    "google_drive.export_unsupported": "Google Drive ne peut pas exporter ce type de document",
+    "google_drive.file_not_found": "Ce fichier Google Drive n'existe pas ou n'est pas visible pour ce compte",
+    "google_drive.invalid_response": "Réponse Google Drive invalide",
+    "google_drive.is_a_folder": "Cette adresse Google Drive est un dossier. Ajoutez-la de nouveau pour qu'il soit listé",
+    "google_drive.not_a_drive_link": "Cette adresse n'est pas celle d'un fichier Google Drive",
+    "google_drive.quota_exceeded": "Le quota de téléchargement de ce fichier Google Drive est épuisé. Google le réinitialise après un certain temps",
+    "google_drive.rate_limited": "Google Drive limite le débit de ce compte",
+    "google_drive.sign_in_required": "Ce compte Google Drive doit être reconnecté",
+    "google_drive.unavailable": "Google Drive est temporairement indisponible",
+    "google_drive.virus_scan_warning": "Google n'a pas pu analyser ce fichier et ne le fournira qu'après confirmation"
+  }
+}

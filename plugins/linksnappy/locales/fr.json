@@ -1,0 +1,29 @@
+{
+  "name": "LinkSnappy",
+  "account": {
+    "secret_label": "Mot de passe du compte",
+    "secret_hint": "Saisissez le nom d'utilisateur de votre compte et votre mot de passe comme secret."
+  },
+  "codes": {
+    "linksnappy.account_expired": "Le compte LinkSnappy a expiré",
+    "linksnappy.account_missing": "Le compte LinkSnappy est manquant",
+    "linksnappy.api_error": "Erreur de l'API LinkSnappy : {message}",
+    "linksnappy.bad_credentials": "L'identifiant ou le mot de passe LinkSnappy est incorrect",
+    "linksnappy.file_offline": "Le fichier LinkSnappy n'est pas disponible",
+    "linksnappy.host_unavailable": "LinkSnappy n'a actuellement aucun serveur disponible pour cet hébergeur",
+    "linksnappy.host_unsupported": "LinkSnappy ne prend pas en charge cet hébergeur",
+    "linksnappy.http_error": "Statut HTTP LinkSnappy {status}",
+    "linksnappy.invalid_link_format": "LinkSnappy ne reconnaît pas le format de ce lien",
+    "linksnappy.invalid_response": "Réponse LinkSnappy invalide",
+    "linksnappy.invalid_url": "URL de fournisseur invalide : {error}",
+    "linksnappy.limit_reached": "La limite de trafic ou de téléchargement LinkSnappy a été atteinte",
+    "linksnappy.no_download_url": "LinkSnappy n'a renvoyé aucune URL de téléchargement",
+    "linksnappy.password_missing": "Le mot de passe LinkSnappy est manquant",
+    "linksnappy.password_protected": "Le fichier LinkSnappy nécessite un mot de passe de téléchargement que ce plugin ne peut pas fournir",
+    "linksnappy.premium_required": "Un abonnement Elite (premium) LinkSnappy est requis pour utiliser l'API de téléchargement",
+    "linksnappy.rate_limited": "La limite de requêtes de l'API LinkSnappy a été déclenchée",
+    "linksnappy.server_error": "Erreur serveur LinkSnappy",
+    "linksnappy.too_many_requests": "LinkSnappy a refusé la requête ; trop de demandes de téléchargement récentes",
+    "linksnappy.two_factor_required": "LinkSnappy exige de confirmer cette connexion via l'e-mail envoyé au compte"
+  }
+}

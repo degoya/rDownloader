@@ -1,0 +1,144 @@
+{
+  "title": "Subscriptions",
+  "kinds": {
+    "media": "Channel or playlist",
+    "gallery": "Gallery profile",
+    "feed": "Feed or podcast",
+    "indexer": "Indexer",
+    "site_rule": "Release page",
+    "script": "Own script"
+  },
+  "modes": {
+    "review": "Review first",
+    "auto_queue": "Queue automatically"
+  },
+  "states": {
+    "pending": "Waiting for review",
+    "queued": "Queued",
+    "skipped": "Skipped",
+    "dismissed": "Dismissed"
+  },
+  "backlog": {
+    "from_now": "Only new items from now on",
+    "review_all": "Collect everything for review"
+  },
+  "reasons": {
+    "title_not_included": "Title does not match the include list",
+    "title_excluded": "Title matches the exclude list",
+    "too_short": "Shorter than the minimum duration",
+    "too_long": "Longer than the maximum duration",
+    "too_old": "Published before the cutoff date",
+    "language_not_wanted": "Language is not one of the wanted ones",
+    "resolution_too_low": "Below the minimum resolution",
+    "backlog": "Already existed when the subscription was switched on"
+  },
+  "form": {
+    "add": "Add subscription",
+    "edit": "Edit subscription",
+    "name": "Name",
+    "url": "Address",
+    "kind": "Type",
+    "mode": "New items",
+    "mode_hint": "Review first is safer; automatic queueing cannot be undone item by item.",
+    "category": "Category",
+    "default_category": "Automatic",
+    "interval": "Check every (minutes)",
+    "backlog": "On first check",
+    "backlog_hint": "A channel with years of uploads should not enter the queue at once. With the first option, a first poll that only finds older entries reports nothing.",
+    "title_contains": "Title must contain",
+    "title_excludes": "Title must not contain",
+    "patterns_hint": "Comma-separated. A pattern in slashes — /^S0\\d/ — is a regular expression; anything else is matched as plain text.",
+    "api_key": "API key",
+    "api_key_hint": "Stored encrypted and never shown again.",
+    "api_key_keep": "Leave empty to keep the stored key",
+    "add_mapping": "Add category mapping",
+    "source_category": "Indexer category id",
+    "caps_summary": "{count} categories, supports: {types}",
+    "regex_editor": "Edit as a regular expression",
+    "source_categories": "Categories to fetch",
+    "source_categories_description": "Only these categories are requested from the indexer. With none chosen, everything is fetched and filtered afterwards.",
+    "source_categories_all": "All categories",
+    "every_release": "Keep every release",
+    "every_release_description": "Without this, an episode counts as had once it has been queued, whatever release, quality or language it arrived in. With it, every further version enters the LinkGrabber again.",
+    "site_rule_description": "The address is a listing page — a series, category or tag page. What is followed are the release pages on it that a rule reads; mirrors arrive in the LinkGrabber as one group.",
+    "view": "View in the LinkGrabber",
+    "view_description": "How this subscription's hits are shown for a decision.",
+    "views": {
+      "list": "List",
+      "cards": "Cards"
+    },
+    "autoplay": "Autoplay",
+    "autoplay_description": "The cards turn every six seconds; the pointer, the keyboard and open details pause them.",
+    "card_ratio": "Card aspect ratio",
+    "card_ratio_description": "The shape of each card's picture: square for covers, wide for banners.",
+    "card_ratio_default": "{ratio} (default)",
+    "script": "Script",
+    "script_description": "A file in the service's scripts folder. Every line it prints that is a link is taken, and a link already seen is not taken again. Only the administrator can set up a script subscription.",
+    "schedule": "Schedule (cron)",
+    "schedule_description": "Five fields in the service's local time, e.g. 0 6 * * * for 06:00 every day. Leave empty to use the interval; with a schedule, the interval only sets how soon a failed run is retried."
+  },
+  "list": {
+    "title": "Subscriptions",
+    "empty": "No subscriptions yet.",
+    "last_run": "Last checked {at}",
+    "copy_suffix": "copy"
+  },
+  "items": {
+    "title": "Items",
+    "empty": "Nothing found yet.",
+    "no_details": "The indexer said nothing more about this hit.",
+    "imdb": "Open on IMDb",
+    "password_protected": "The archive is password protected",
+    "attributes": {
+      "episode": "Episode",
+      "year": "Year",
+      "imdbscore": "IMDb",
+      "resolution": "Resolution",
+      "video": "Video",
+      "audio": "Audio",
+      "size": "Size",
+      "grabs": "Grabs",
+      "seeders": "Seeders",
+      "genre": "Genre",
+      "language": "Language"
+    },
+    "filter": "Show",
+    "filter_all": "All",
+    "page_limit": "This check reached the {limit}-result limit across five indexer pages. The title filter runs afterwards, so still older hits may be missing. Narrower categories make the result more focused.",
+    "show_cover": "Show the cover larger",
+    "hide_cover": "Close the enlarged cover"
+  },
+  "runs": {
+    "title": "Recent checks",
+    "counts": "{found} found, {accepted} accepted, {skipped} skipped"
+  },
+  "actions": {
+    "poll": "Check now",
+    "details": "Details",
+    "queue": "Queue",
+    "dismiss": "Dismiss",
+    "test": "Test and load categories",
+    "hide_details": "Hide details",
+    "enable": "Enable subscription",
+    "disable": "Disable subscription",
+    "duplicate": "Duplicate",
+    "menu": "Subscription actions"
+  },
+  "remove": {
+    "title": "Delete subscription?",
+    "description": "\"{name}\" is removed along with its filters, its category routing and the record of what it has already seen.",
+    "confirm": "Delete"
+  },
+  "history": {
+    "action": "Clear completed history",
+    "title": "Clear completed history for “{name}”?",
+    "description": "{count} completed hits and {runs} check records will be deleted permanently. Open hits remain. Deleted hits may reappear during a later check.",
+    "done": "Deleted {deleted_items} completed hits and {deleted_runs} check records."
+  },
+  "notices": {
+    "poll_started": "Check of \"{name}\" started. The result appears here once it has finished.",
+    "poll_start_failed": "The check of \"{name}\" could not be started: {error}",
+    "poll_finished": "Check of \"{name}\" finished: {found} found, {accepted} accepted, {skipped} skipped.",
+    "poll_failed": "Check of \"{name}\" failed: {error}"
+  }
+}

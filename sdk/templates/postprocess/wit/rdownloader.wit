@@ -1,0 +1,1156 @@
+package rdownloader:plugin@0.9.0;
+
+interface types {
+  variant failure-kind {
+    transient(option<u64>),
+    permanent,
+    offline,
+    auth-required,
+    account-invalid,
+    rate-limited(option<u64>),
+    needs-captcha,
+    unsupported,
+    /// This IP may not start another free download yet; the scheduler blocks only this
+    /// hoster for the given number of seconds and keeps other hosters running.
+    ip-blocked(option<u64>),
+    /// A captcha was solved but the hoster rejected the answer.
+    captcha-failed,
+  }
+
+  record failure {
+    category: failure-kind,
+    /// English, redaction-safe text.
+    message: string,
+    /// Stable translation code such as `plugin.account_invalid`.
+    code: option<string>,
+    /// Flat parameters referenced by the translated text.
+    params: list<tuple<string, string>>,
+  }
+
+  record client-identity {
+    account-id: option<string>,
+    proxy-profile-id: option<string>,
+    tls-revision: u64,
+  }
+
+  record resolve-request {
+    url: string,
+    client: client-identity,
+  }
+
+  record resolved-header {
+    name: string,
+    value: string,
+  }
+
+  record resolved-download {
+    url: string,
+    file-name: option<string>,
+    size: option<u64>,
+    headers: list<resolved-header>,
+    checksum-algorithm: option<string>,
+    checksum-value: option<string>,
+    client: client-identity,
+  }
+
+  /// One translatable part of what stands next to a provider account.
+  ///
+  /// Translated exactly like `failure`: the interface looks `code` up in the active language,
+  /// then in English, interpolates `params`, and only when no catalogue knows the code does
+  /// it print `message`. A part without a code is refused by the host as
+  /// `plugin.account_label_invalid` -- the text is the last rung, never a second channel.
+  record label-part {
+    /// Stable translation code: `plugin.account.*` from the core catalogue, which every
+    /// installation carries in four languages, or `<provider.slug>.*` from the plugin's own.
+    code: string,
+    /// Flat parameters referenced by the translated text.
+    params: list<tuple<string, string>>,
+    /// English, redaction-safe text for a code no catalogue translates.
+    message: string,
+  }
+
+  record account-status {
+    valid: bool,
+    premium: bool,
+    /// What the interface prints next to the account, one translated part after another,
+    /// joined with a separator of its own choosing. Empty when the check has nothing to add
+    /// to `valid` and `premium`; a provider's name or the word "premium" belong to the row,
+    /// not here.
+    label: list<label-part>,
+    /// Remaining traffic **in bytes**. A provider whose API reports another unit has to
+    /// convert; the host stores this verbatim and the interface formats it as bytes.
+    traffic-left: option<u64>,
+  }
+
+  enum link-status {
+    online,
+    offline,
+    unknown,
+    /// The provider holds the file in its own cache **right now** (RD-120-36). Not the same
+    /// as `online`, which says the file exists: this says it is ready to hand over at once,
+    /// and that expires without notice. The host stamps it with the moment of the check and
+    /// shows it with that time, never as a promise. Answer it only for a file your provider
+    /// said is cached; a file it knows but has not fetched is `online`.
+    cached,
+  }
+
+  record link-check-result {
+    url: string,
+    status: link-status,
+    file-name: option<string>,
+    size: option<u64>,
+  }
+
+  record check-request {
+    urls: list<string>,
+    client: client-identity,
+  }
+}
+
+/// Always granted. Nothing here reaches the network, a credential value or the user.
+interface host {
+  use types.{failure};
+
+  log: func(level: string, message: string);
+  /// Waits out a hoster countdown. The host owns the clock, so the guest neither busy-loops
+  /// nor burns its compute budget; the wait does not count towards the execution timeout,
+  /// but it is capped by the plugin's wait budget and aborts with the download.
+  wait: func(seconds: u32) -> result<_, failure>;
+  /// Reports whether a credential exists, never its value.
+  secret-available: func(account-id: string, reference: string) -> bool;
+  /// Seconds since the Unix epoch, from the host's clock.
+  ///
+  /// Not a capability: the time of day identifies nobody and reaches nothing. A guest has no
+  /// clock of its own — there is no WASI here — so without this it cannot answer questions as
+  /// ordinary as whether an account's premium period has run out.
+  now-unix-seconds: func() -> u64;
+  /// Cryptographically strong random bytes, from the host's own operating-system source.
+  ///
+  /// Not a capability either: it hands entropy out, it reads nothing back. A guest has no
+  /// random source — there is no WASI here, and a clock plus an account id is a value anyone
+  /// can recompute — so without this a plugin cannot produce the one thing a PKCE verifier or
+  /// an OAuth `state` has to be, which is unguessable.
+  ///
+  /// The host answers with exactly `count` bytes, or with an empty list when `count` is zero
+  /// or above the host's cap of 1024. An answer shorter than what was asked for is a refusal:
+  /// a guest must fail on it rather than fall back to a value it derived itself.
+  random-bytes: func(count: u32) -> list<u8>;
+}
+
+/// Capability `net_http`: outbound HTTPS confined to the declared domains.
+interface http {
+  use types.{failure};
+
+  record request-header {
+    name: string,
+    value-template: string,
+  }
+
+  record request-query {
+    name: string,
+    value-template: string,
+  }
+
+  record http-response {
+    status: u16,
+    final-url: string,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+  }
+
+  http-request: func(method: string, url: string, query: list<request-query>, headers: list<request-header>, body: list<u8>) -> result<http-response, failure>;
+}
+
+/// Capability `cookies`: read cookies scoped to one account and URL, never the jar itself.
+interface cookies {
+  cookies-get: func(account-id: string, url: string) -> list<tuple<string, string>>;
+}
+
+/// Capability `captcha`: hand a challenge to the application, which solves it through a
+/// configured solver service or by asking the user.
+interface captcha {
+  use types.{failure};
+
+  /// Challenge served by a captcha widget, solved from its site key and page URL.
+  record widget-challenge {
+    site-key: string,
+    page-url: string,
+    invisible: bool,
+  }
+
+  /// Classic image captcha; `data` is the raw image as served by the hoster. The same record
+  /// carries a click-point captcha, where the answer is a spot in the picture rather than text.
+  record image-challenge {
+    mime: string,
+    data: list<u8>,
+    prompt: option<string>,
+  }
+
+  /// CutCaptcha widget. Its solver task needs both keys the page loads the widget with: the
+  /// widget's own identifier (`site-key`, the `data-apikey` of its script) and the page's
+  /// `CUTCAPTCHA_MISERY_KEY`. Answered by a solver service only — no browser reads its token.
+  record cutcaptcha-challenge {
+    site-key: string,
+    misery-key: string,
+    page-url: string,
+  }
+
+  /// Cases are only ever appended. The first four answer with a token through `solve-captcha`;
+  /// `click-point` answers with a coordinate and therefore only through `solve-challenge`.
+  variant captcha-challenge {
+    recaptcha-v2(widget-challenge),
+    hcaptcha(widget-challenge),
+    turnstile(widget-challenge),
+    image(image-challenge),
+    click-point(image-challenge),
+    cutcaptcha(cutcaptcha-challenge),
+  }
+
+  /// Widget token, or the typed text of an image captcha.
+  record captcha-solution {
+    token: string,
+  }
+
+  /// Where the person clicked, in pixels of the image exactly as it was served — never of the
+  /// rendering, which the application may have scaled.
+  record click-point {
+    x: u32,
+    y: u32,
+  }
+
+  /// The answer in the shape the challenge has: a token for every widget and the typed text of
+  /// an image captcha, a point for a click-point captcha.
+  variant captcha-answer {
+    token(string),
+    point(click-point),
+  }
+
+  /// Token-shaped solving. A `click-point` challenge is refused here with `captcha.answer_shape`
+  /// before anyone is asked, because this function cannot carry its answer.
+  solve-captcha: func(challenge: captcha-challenge) -> result<captcha-solution, failure>;
+
+  /// Solves any challenge and returns the answer in its own shape.
+  solve-challenge: func(challenge: captcha-challenge) -> result<captcha-answer, failure>;
+}
+
+/// Capability `net_stream`: raw TCP, optionally upgraded to TLS, to the declared hosts and
+/// ports. A transfer backend needs this because FTP and SFTP are not HTTP derivatives; with
+/// `http-request` alone the plugin type would be limited to protocols that already are.
+///
+/// A connection is an opaque number, not a resource handle. The number is meaningful only
+/// inside the invocation that received it and only to the host, which owns every socket and
+/// closes all of them when the invocation ends — so a leaked handle costs nothing and a
+/// forged one addresses nothing.
+interface net {
+  use types.{failure};
+
+  /// Opens a connection and returns its handle. `tls` starts the handshake immediately; a
+  /// protocol that negotiates encryption in-band connects plain and calls `start-tls`.
+  connect: func(host: string, port: u16, tls: bool) -> result<u32, failure>;
+  /// Reads up to `max` bytes. An empty result means the peer closed the connection.
+  read: func(connection: u32, max: u32) -> result<list<u8>, failure>;
+  write: func(connection: u32, bytes: list<u8>) -> result<u32, failure>;
+  start-tls: func(connection: u32, server-name: string) -> result<_, failure>;
+  /// Releases the handle early. Not required — every connection is closed when the
+  /// invocation ends — but it frees a slot for a protocol that opens a channel per file.
+  close: func(connection: u32);
+}
+
+/// The destination of the transfer this invocation is running.
+///
+/// There is deliberately no handle and no path here. The store already knows which download
+/// it belongs to, so the guest writes into "its" file and cannot name, reach or even refer to
+/// another one — the storage root is not guarded, it is unreachable.
+interface sink {
+  use types.{failure};
+
+  write-at: func(offset: u64, bytes: list<u8>) -> result<_, failure>;
+  /// Bytes the host has already accepted, so a resumed transfer knows where it stopped.
+  committed: func() -> u64;
+  sync: func() -> result<_, failure>;
+  /// Reports progress and, when the backend knows it, the total size.
+  progress: func(committed: u64, total: option<u64>);
+  /// Whether the download was paused or cancelled; a backend that ignores this is stopped by
+  /// its own execution budget instead.
+  should-stop: func() -> bool;
+}
+
+/// Writing back what an authentication flow produced. Imported by `auth-plugin` and
+/// `oauth-plugin`.
+///
+/// The plugin names no vault reference and reads nothing: it hands over the token it just
+/// obtained for the account this invocation is running for, and the host decides where that
+/// belongs — which reference the claimed provider owns — before storing it. There is no
+/// counterpart that reads a value back, so this interface can only ever add a secret the
+/// plugin already held in its own hands.
+interface credentials {
+  use types.{failure};
+
+  store-token: func(account-id: string, value: string) -> result<_, failure>;
+
+  /// Stores what an OAuth exchange produced: the access token, the refresh material that mints
+  /// the next one, and how long the access token is good for.
+  ///
+  /// Three values rather than one because a host that cannot tell them apart cannot renew
+  /// anything — it would have to ask the person again every time a token aged out. Both tokens
+  /// go to the vault. The expiry is the only part kept in the clear, and only because a sweep
+  /// has to be able to ask whether a flow is due without decrypting a secret to find out.
+  store-oauth-token: func(account-id: string, access-token: string, refresh-token: option<string>, expires-in-seconds: option<u64>) -> result<_, failure>;
+}
+
+/// Reading the files of a package, for the plugin types that work on finished downloads.
+///
+/// The counterpart of `sink`: a handle, never a path. A post-processing or storage plugin
+/// cannot name a file outside the package it was given, because it never names files at all.
+interface source {
+  use types.{failure};
+
+  /// Reads up to `length` bytes of one file of the package.
+  read-at: func(handle: string, file: string, offset: u64, length: u32) -> result<list<u8>, failure>;
+  /// Size of one file of the package.
+  size-of: func(handle: string, file: string) -> result<u64, failure>;
+  /// Reports progress of a long-running step.
+  progress: func(done: u64, total: option<u64>);
+  /// Whether the work was cancelled.
+  should-stop: func() -> bool;
+  /// Renames one file of the package.
+  ///
+  /// Still a handle and a name, never a path: `file` must be one of the entries the host
+  /// offered, and `new-name` is a bare file name inside the same package. The host refuses a
+  /// name carrying a separator, and refuses to overwrite an existing file. Added to `source`
+  /// rather than as a new interface so a plugin that only reads is unaffected.
+  rename: func(handle: string, file: string, new-name: string) -> result<_, failure>;
+}
+
+interface transfer {
+  use types.{failure};
+
+  record remote-file {
+    size: option<u64>,
+    /// RFC 3339, as reported by the server; compared verbatim on every continuation.
+    last-modified: option<string>,
+    /// Whether this backend can continue a partial file at all.
+    resumable: bool,
+  }
+
+  record job {
+    url: string,
+    /// Opaque reference to a stored login; the value never reaches the guest.
+    credential-ref: option<string>,
+    /// The checkpoint this backend wrote when it last stopped, if any.
+    checkpoint: option<list<u8>>,
+  }
+
+  /// How a transfer ended. The payload is the backend's own checkpoint, opaque to the host,
+  /// persisted as it arrives and handed back verbatim on the next attempt.
+  variant transfer-end {
+    complete(option<list<u8>>),
+    stopped(list<u8>),
+    failed(failure),
+  }
+
+  probe: func(url: string, credential-ref: option<string>) -> result<remote-file, failure>;
+  run: func(job: job) -> transfer-end;
+}
+
+interface resolver {
+  use types.{account-status, check-request, failure, link-check-result, resolve-request, resolved-download};
+
+  match-url: func(url: string) -> bool;
+  check-account: func(account-id: string) -> result<account-status, failure>;
+  resolve: func(request: resolve-request) -> result<resolved-download, failure>;
+  check: func(request: check-request) -> result<list<link-check-result>, failure>;
+  /// Hoster domains the account can download from (multihosters return their catalogue).
+  hosters: func(account-id: string) -> result<list<string>, failure>;
+}
+
+/// Turning raw text and URLs into LinkGrabber candidates (RD-090-12).
+///
+/// A parser proposes; it never decides. Everything it returns goes through the same review,
+/// validation and routing a pasted link does, so a plugin cannot queue anything by itself.
+interface intake {
+  use types.{failure};
+
+  record intake-candidate {
+    url: string,
+    file-name: option<string>,
+    size: option<u64>,
+    /// Groups candidates the parser considers one release. The host decides whether that
+    /// grouping survives; it is a suggestion, not a package.
+    package-hint: option<string>,
+  }
+
+  /// Whether this plugin wants to look at the given text at all.
+  claims: func(input: string) -> bool;
+  /// Extracts candidates. An empty list means "nothing here", not an error.
+  parse: func(input: string) -> result<list<intake-candidate>, failure>;
+  /// Rewrites one URL into its canonical form, or leaves it alone.
+  normalize: func(url: string) -> result<option<string>, failure>;
+}
+
+/// Turning one address into the many files behind it (RD-104-03).
+///
+/// The counterpart of `resolver`, and the reason it is not part of it: `resolve` answers with
+/// exactly one `resolved-download`, so an address pointing at a folder has no shape to come
+/// back in. Teaching `resolved-download` to be either would break every `.rdplug` already
+/// signed and in the field, and teaching `intake` to fetch a page would mean lifting the rule
+/// that a parser may not change a link's host — the rule that stops a parser redirecting
+/// somebody. So a folder gets its own interface and its own world, and every shipped resolver
+/// is left exactly as it is.
+///
+/// A crawler proposes, like a parser does. What it returns goes through the same review,
+/// validation and routing a pasted link does; a crawler queues nothing by itself, and the
+/// host bounds how many links it will take from one answer.
+interface crawler {
+  use types.{failure};
+
+  /// One file found behind the crawled address.
+  record crawled-link {
+    /// The address of the file itself. It may point at another host: unlike `normalize` in
+    /// `intake`, which rewrites *one* link and must not move it, a crawler was asked what
+    /// lies behind an address and answering that is its whole purpose.
+    url: string,
+    file-name: option<string>,
+    size: option<u64>,
+    /// Where this file sat, as a path relative to the crawled address — `Season 1` for a file
+    /// one folder down, empty or absent for one lying directly behind it. The host reads the
+    /// outermost segment as the package suggestion and keeps the rest as the file's place in
+    /// the structure; it is a suggestion, not a package.
+    package-hint: option<string>,
+  }
+
+  /// Whether this plugin claims `url`. The counterpart of the resolver's `match-url`, and
+  /// asked first so a plugin that has nothing to do with an address never fetches it.
+  claims-url: func(url: string) -> bool;
+  /// Enumerates what lies behind `url`.
+  ///
+  /// An empty list is not a result: a folder that is empty, gone or unreachable is a failure
+  /// with a stable code, so the person is told rather than handed a package with nothing in
+  /// it. Depth, count and cycles are the plugin's own to bound — one invocation runs under
+  /// one fuel and time budget, and a crawler that walks forever spends it and is stopped.
+  crawl: func(url: string) -> result<list<crawled-link>, failure>;
+}
+
+/// A job that runs at the provider, for days if it has to (RD-107-06).
+///
+/// The fifth shape of long-running work, and the first that none of the other worlds could
+/// hold. `resolve` answers with one file, `crawl` with a list in one call, `parse` with what
+/// was already in hand, and `run` carries bytes for exactly as long as one download lasts. A
+/// magnet handed to a debrid provider is none of those: it answers with an identifier, works
+/// for minutes or hours, stops half-way to ask which files are wanted, and leaves something in
+/// the account afterwards that only an explicit delete removes.
+///
+/// So the work is split. Every function here is short and returns on the provider's next
+/// answer -- nothing waits, nothing sleeps, nothing carries state of its own between calls. The
+/// waiting, the remote identifier, the clock, the person's answer and the restart all belong to
+/// the host, which writes them down. `docs/adr/0003-a-job-that-runs-at-the-provider.md` records
+/// why that line is where it is, and the four designs that were refused.
+///
+/// Two functions reach no job at all (RD-130-11). `cache-kinds` and `check-cached` ask whether
+/// the provider holds something ready *before* anybody hands it over -- the LinkGrabber's
+/// question, not the sweep's. They read and never create: nothing at the provider changes, no
+/// row is written, and `submit` is still the only call that puts anything in an account.
+interface remote-job {
+  use types.{failure};
+
+  /// What a person handed over.
+  variant job-source {
+    /// A `magnet:` address, verbatim.
+    magnet(string),
+    /// The bytes of a container the provider accepts -- a `.torrent` file, or an `.nzb`.
+    container(list<u8>),
+    /// A plain address the provider fetches for itself (RD-120-20).
+    ///
+    /// The third shape, and the one the first two could not hold. A debrid provider's
+    /// `src` takes an ordinary `http(s)` link as readily as a magnet, and answers about it
+    /// the same way -- an identifier, then minutes of work, then files. Handing that link
+    /// to the local HTTP engine instead would be a different download with a different
+    /// outcome: the provider is what makes the address fetchable at all.
+    ///
+    /// It is an address and not a download: the host checks the scheme before it ever
+    /// reaches a plugin, so a `file:` or a `data:` address is refused here rather than
+    /// somewhere further in.
+    address(string),
+  }
+
+  /// The provider's job, once it exists.
+  record remote-handle {
+    /// The provider's own identifier for it. The host writes this the moment `submit`
+    /// answers, because until it is written down a crash cannot tell "already submitted"
+    /// from "not submitted yet" -- and at a provider whose submit is not idempotent, that
+    /// difference is a duplicate in somebody's account.
+    remote-id: string,
+    /// The account the job runs on. The plugin never learns the credential behind it.
+    account-id: string,
+    /// Whatever the plugin needs on the next call, stored verbatim by the host and handed
+    /// back, because a guest is instantiated fresh for every call and remembers nothing of
+    /// its own. Not a credential and never shown, exactly as `auth`'s `flow-state`.
+    job-state: option<string>,
+  }
+
+  record submit-request {
+    source: job-source,
+    account-id: string,
+    /// What `identify` answered for this source. Passed back so a provider that can index by
+    /// it does not have to derive it a second time.
+    content-key: string,
+  }
+
+  /// One thing inside the remote job that a person may or may not want.
+  record remote-entry {
+    /// The provider's own identifier for this entry, stable for the life of the job. It is
+    /// what `choose` names, so it is the provider's numbering and not a position in the list.
+    id: u32,
+    /// Where it sits inside the job, as a relative path -- `Show/Season 1/episode.mkv`.
+    path: string,
+    size: option<u64>,
+    /// Whether the provider already considers this entry chosen. A provider that preselects
+    /// everything is showing a default, not an answer.
+    selected: bool,
+  }
+
+  /// One address the finished job produced.
+  ///
+  /// An address and not bytes: at a debrid provider the links a finished torrent carries are
+  /// still restricted ones, so what comes back here goes through the resolver that already
+  /// exists and then down the ordinary resumable queue.
+  record remote-artifact {
+    url: string,
+    file-name: option<string>,
+    size: option<u64>,
+    /// Where the file sat inside the job, as `crawled-link.package-hint` means it.
+    package-hint: option<string>,
+  }
+
+  /// How far a job that needs nobody has got.
+  record remote-work {
+    /// Thousandths, so a long job's progress is visible without floating point. Above 1000
+    /// is clamped by the host rather than believed.
+    progress-permille: option<u16>,
+    speed-bytes-per-second: option<u64>,
+    seconds-remaining: option<u64>,
+  }
+
+  /// What the host knows a source to be, beyond its shape (RD-130-11).
+  ///
+  /// Decided by the host before it asks -- from the scheme, the extension, or the content type
+  /// an indexer declared (RD-080-11) -- because an address alone cannot say it: an indexer's
+  /// NZB link and a hoster's file link are both `https`. The plugin derives its own key from
+  /// the source, exactly as `identify` does; the kind only says which of its caches to ask.
+  enum cache-kind {
+    /// BitTorrent content: a magnet. A `.torrent` the host holds arrives as the magnet of its
+    /// info hash, never as bytes.
+    torrent,
+    /// An NZB: an address that serves one, or the bytes of one as `container`.
+    usenet,
+    /// A file address that one of the installed hoster plugins resolves. Asking about it
+    /// does not change who resolves it.
+    hoster,
+  }
+
+  /// One source the host asks after.
+  record cache-query {
+    source: job-source,
+    kind: cache-kind,
+  }
+
+  /// What the provider said about one source.
+  enum cache-state {
+    /// Held ready right now and handed over at once. Expires without notice; the host shows
+    /// it with the time it was measured, as `link-status::cached` means it.
+    cached,
+    /// Known to the provider, not held. The host stores it as `online`.
+    known,
+    /// Nothing to say -- and that includes "not in my cache". There is no `offline` here on
+    /// purpose: a cache that does not hold a file has not shown the file is gone.
+    unknown,
+  }
+
+  /// The answer for one `cache-query`.
+  record cache-answer {
+    state: cache-state,
+    /// The name the provider knows the content by, when it said one. Reduced to a plain
+    /// name by the host, like every other name a provider sends.
+    file-name: option<string>,
+    size: option<u64>,
+  }
+
+  /// Where the job stands, as the provider last described it.
+  variant remote-progress {
+    /// The provider has it and is doing something that needs nobody -- converting a magnet,
+    /// compressing, uploading. The optional value is a suggested wait in seconds, which the
+    /// host treats as a suggestion: it owns the clock, because a plugin that set the poll
+    /// interval could spend the whole account's request budget.
+    preparing(option<u64>),
+    /// Nothing moves until a person has chosen. The list is what they are shown, and the
+    /// next call the host makes for this job is `choose`.
+    ///
+    /// Only for a provider that keeps the answer itself (RD-120-35). `choose` returns
+    /// nothing and the host never hands the recorded choice back, so the `poll` after it has
+    /// to read the answer from the provider -- Real-Debrid leaves `waiting_files_selection`
+    /// once `selectFiles` succeeded. A job that asks again after its answer is ended under
+    /// `remote_job.choice_not_kept`; it never goes back to waiting.
+    awaiting-choice(list<remote-entry>),
+    /// The provider is fetching. Same clock rule as `preparing`.
+    working(remote-work),
+    /// Finished, with the addresses it produced. An empty list is a failure, not a result:
+    /// a job that finished with nothing has to say why, in a language somebody reads.
+    ready(list<remote-artifact>),
+    /// The provider ended it. Terminal; the host stops polling and keeps the row so the
+    /// person can see what happened and delete it if they want to.
+    failed(failure),
+  }
+
+  /// The kinds this plugin can ask its provider's cache about. Reaches nothing, and is asked
+  /// once per load, not per check. Empty for a provider without a cache query: the host then
+  /// never calls `check-cached`. A kind listed twice counts once.
+  cache-kinds: func() -> list<cache-kind>;
+
+  /// Whether the provider holds each source ready right now (RD-130-11).
+  ///
+  /// Exactly one answer per query, in the order given. The host pairs them by position and
+  /// refuses a list of any other length as a whole -- a shifted list would put one link's
+  /// cache on another. At most 100 queries arrive per call, and only of kinds `cache-kinds`
+  /// named; a query this plugin cannot answer is `unknown`, not a failure.
+  ///
+  /// Read-only at the provider: it creates nothing and costs nothing but a request. A
+  /// provider whose only way to find out is to submit answers `unknown`. A `failure` drops
+  /// the whole call's answers and changes no link -- the check without it is what the
+  /// person would have seen anyway.
+  check-cached: func(account-id: string, queries: list<cache-query>) -> result<list<cache-answer>, failure>;
+
+  /// Whether this plugin takes the source at all. Reaches nothing: answered from the source
+  /// alone, before anything is handed to any provider.
+  claims: func(source: job-source) -> bool;
+
+  /// The content key of a source: derived locally, without a request, and the same for the
+  /// same content every time.
+  ///
+  /// This is what makes a duplicate preventable. The host writes it into the row before it
+  /// calls `submit`, and refuses a second row for the same key on the same account -- so a
+  /// magnet submitted twice cannot become two jobs, whatever happens to the process in
+  /// between. A plugin that cannot derive one refuses rather than inventing something
+  /// unstable; a key that changed between two calls would defeat the guard it exists for.
+  identify: func(source: job-source) -> result<string, failure>;
+
+  /// Hands the source to the provider and answers with the job it created.
+  ///
+  /// Assumed **not** idempotent, because at every provider this world was designed for it is
+  /// not: calling it twice creates two jobs and charges for both. Everything protecting that
+  /// is on the host's side of the line -- the key, the unique row, the two-attempt ceiling --
+  /// so a plugin here has one obligation: answer with the identifier, or fail.
+  submit: func(request: submit-request) -> result<remote-handle, failure>;
+
+  /// The job the provider already holds for `content-key`, if there is one.
+  ///
+  /// The one window the row cannot close: a crash between the request going out and the
+  /// identifier coming back. The host asks this before it would ever submit a second time,
+  /// so the answer comes from the provider's own list instead of from a guess. `none` means
+  /// the provider has nothing for that key, which is a real answer and not an error.
+  adopt: func(account-id: string, content-key: string) -> result<option<remote-handle>, failure>;
+
+  /// Where the job stands now. Called on the host's schedule and never on the plugin's.
+  poll: func(handle: remote-handle) -> result<remote-progress, failure>;
+
+  /// Answers the question `awaiting-choice` asked, with the entry ids that were chosen.
+  ///
+  /// Never called with an empty list. At one provider that is an error and at another it
+  /// silently means "all of them", and neither is an answer anybody gave.
+  choose: func(handle: remote-handle, chosen: list<u32>) -> result<_, failure>;
+
+  /// Removes the job at the provider.
+  ///
+  /// Reached from one explicit, confirmed request and from no other path -- not from removing
+  /// the local package, not from a job that failed, not from a cleanup sweep. What
+  /// rDownloader did not put in somebody's account on its own it does not take out on its own.
+  discard: func(handle: remote-handle) -> result<_, failure>;
+}
+
+/// Capability `key_derivation`: the host computes over a credential the guest never sees
+/// (RD-120-20).
+///
+/// `auth` states in its own header that a plugin never sees a credential, and the host keeps
+/// that promise by substituting `{{username}}` and `{{secret:<reference>}}` on the way *out*
+/// of the guest. A guest can therefore *send* a credential; it cannot *compute* with one.
+/// That is enough for every provider whose sign-in posts the password and for none whose
+/// sign-in posts a value derived from it -- MEGA's `us` wants the second half of
+/// PBKDF2(password, salt, 100 000), and the first half unwraps the account's master key.
+///
+/// So the host computes and the guest only names. `derive` takes a handle -- the same
+/// reference the plugin would have written into a `{{secret:<reference>}}` marker, and
+/// nothing else -- runs the named steps over the credential behind it, and answers with the
+/// last step's output. No step's input is ever returned, so the credential and every
+/// intermediate value stay on the host's side of the boundary; what comes back is the one
+/// value the provider is meant to receive.
+///
+/// Three things bound it, and all three are enforced by the host:
+///
+/// * The handle names a reference this manifest already declares under
+///   `capabilities.secrets`, so the primitive reaches no credential the plugin could not
+///   already have caused to be sent. It changes the direction of the computation, not what
+///   may be touched.
+/// * A credential a person typed must pass through `pbkdf2-hmac-sha512` first, and below the
+///   host's round floor it is refused. Without that rule this interface would be an oracle
+///   cheaper than the guest's own arithmetic, and a dictionary would run through it.
+/// * What a call costs is charged against the caller's fuel, at the price the same
+///   computation was measured to cost inside the sandbox. Computing here is therefore never
+///   a discount -- only the credential's whereabouts change.
+///
+/// `docs/adr/0020-the-host-computes-over-the-secret.md` records why the derived bytes do not
+/// reconstruct the credential, and what the host refuses in order to keep that true.
+interface key-derivation {
+  use types.{failure};
+
+  /// Which credential a computation runs over. A name, never a value.
+  record secret-handle {
+    /// One of the references this plugin's manifest declares under `capabilities.secrets`.
+    reference: string,
+  }
+
+  /// PBKDF2-HMAC-SHA512 over the running value.
+  record pbkdf2 {
+    /// The provider's salt, as the provider sent it.
+    salt: list<u8>,
+    /// Iterations. The host refuses anything below its floor.
+    rounds: u32,
+    /// How many bytes of output the next step works on. Bounded by the host.
+    length: u32,
+  }
+
+  /// A window onto the running value.
+  record span {
+    offset: u32,
+    length: u32,
+  }
+
+  /// One stage of a derivation.
+  ///
+  /// Each step's output is the next step's input; the first step's input is the credential
+  /// behind the handle, and only the last step's output is returned.
+  variant step {
+    /// PBKDF2-HMAC-SHA512 over the running value, with the provider's salt and rounds.
+    pbkdf2-hmac-sha512(pbkdf2),
+    /// AES-128-ECB, decrypting these bytes under the first sixteen bytes of the running
+    /// value. How a provider hands a wrapped key over: the running value is the key and the
+    /// wrapped bytes are what the guest already holds in the clear. The key width is not in
+    /// the name because a WIT identifier has no segment that begins with a digit; it is
+    /// sixteen bytes, always.
+    aes-ecb-decrypt(list<u8>),
+    /// Narrows the running value. The step that makes one half of a derivation sendable
+    /// while the other half stays on the host.
+    take(span),
+  }
+
+  /// Runs `steps` over the credential behind `secret` and answers with the last step's
+  /// output.
+  ///
+  /// An empty list is refused: it would be asking for the credential itself.
+  derive: func(secret: secret-handle, steps: list<step>) -> result<list<u8>, failure>;
+}
+
+/// Provider-specific authentication flows (RD-090-13).
+///
+/// The plugin never sees a credential. It is handed an opaque reference and asks the host to
+/// use it; what comes back is a state, never a token.
+interface auth {
+  use types.{failure};
+
+  variant auth-state {
+    /// Authentication succeeded; the host stores whatever the flow produced.
+    authorized,
+    /// The user has to visit a URL and confirm, then the host polls again.
+    user-action(user-prompt),
+    /// Still waiting; retry after this many seconds.
+    pending(u64),
+    failed(failure),
+  }
+
+  record user-prompt {
+    verification-url: string,
+    user-code: option<string>,
+    expires-in-seconds: option<u64>,
+    /// Whatever the plugin needs on the next poll — a device code, a PIN check value. The
+    /// host stores it verbatim and hands it back, because a guest is instantiated fresh for
+    /// every call and remembers nothing of its own. It is not a credential and is never
+    /// shown; a plugin that put one here would be storing it somewhere it does not belong.
+    flow-state: option<string>,
+  }
+
+  /// Starts a flow for one account. `credential-ref` is opaque and stays that way.
+  begin: func(account-id: string, credential-ref: option<string>) -> result<auth-state, failure>;
+  /// Continues a flow the host started earlier, with the bookkeeping `begin` handed over.
+  poll: func(account-id: string, flow-state: option<string>) -> result<auth-state, failure>;
+}
+
+/// OAuth, and the refresh that keeps it alive (RD-103-00, RD-106-01).
+///
+/// Separate from `auth` on purpose. `auth` covers the flows that ask nothing of a token after
+/// it was granted, and its `auth-state` has no way to say that one dies in an hour. Teaching
+/// `auth` the difference would mean adding an export, and every plugin already exporting `auth`
+/// would stop satisfying its world the moment the host learned to ask for it. So the renewable
+/// flows get an interface and a world of their own, and the three shipped auth plugins are
+/// left exactly as they are.
+///
+/// Two ways in, one way on (RD-106-01). `begin`/`poll` run a redirect; `device-begin`/
+/// `device-poll` run a device code, for the providers whose sign-in is a short code typed on
+/// another screen. They meet at `refresh`: whichever entrance a person came through, the
+/// renewal that follows is the same one, and that is the whole reason the device path lives
+/// here rather than in `auth`. Which entrances a plugin actually serves is stated in its
+/// manifest (`oauth_flows`), so the host never calls one that was not offered.
+///
+/// The plugin still never sees a credential. It is handed an opaque reference, and what comes
+/// back from a call is a state, never a token.
+interface oauth {
+  use types.{failure};
+
+  variant token-outcome {
+    /// The exchange succeeded and the host has stored what it produced.
+    authorized,
+    /// Not finished yet; ask again after this many seconds.
+    pending(u64),
+    failed(failure),
+  }
+
+  record authorization-request {
+    /// Where the person has to go. The host shows this; it never opens it by itself.
+    authorization-url: string,
+    /// The value the host must find in the callback before it believes a word of it.
+    state: string,
+    expires-in-seconds: option<u64>,
+    /// The plugin's own bookkeeping for the exchange — the PKCE verifier belongs here. Stored
+    /// verbatim and handed back, because a guest is instantiated fresh for every call and
+    /// remembers nothing of its own. It is never shown and never serialised out of the API.
+    flow-state: option<string>,
+  }
+
+  /// What a device flow puts in front of the person (RD-106-01).
+  ///
+  /// The counterpart of `authorization-request` for the entrance that has no redirect: there
+  /// is no callback, so there is no `state` to echo, and what takes its place is the device
+  /// code the plugin keeps in `flow-state` and polls with.
+  record device-authorization {
+    /// Where the person has to go. The host shows this and never opens it by itself, and it
+    /// is held to the same rule as an authorization address: it must be on a domain the
+    /// manifest declares, or the host refuses it.
+    verification-url: string,
+    /// The short code the person types there. Absent when the provider put the code into
+    /// `verification-url` itself and asks for nothing to be typed.
+    user-code: option<string>,
+    expires-in-seconds: option<u64>,
+    /// How long the provider asked to be left alone between polls. The host treats it as a
+    /// floor, never as permission to ask faster.
+    interval-seconds: option<u64>,
+    /// The plugin's own bookkeeping for the exchange — the device code belongs here. Stored
+    /// verbatim and handed back, because a guest is instantiated fresh for every call and
+    /// remembers nothing of its own. It is never shown and never serialised out of the API.
+    flow-state: option<string>,
+  }
+
+  /// Builds the address to send the person to, with the challenge already in it.
+  begin: func(account-id: string, credential-ref: option<string>) -> result<authorization-request, failure>;
+  /// Exchanges the code the callback carried, using the bookkeeping `begin` handed over.
+  poll: func(account-id: string, code: string, flow-state: option<string>) -> result<token-outcome, failure>;
+  /// Asks the provider for a device code and reports what the person has to be shown.
+  ///
+  /// The host only calls this on a plugin whose manifest offers `device`. A plugin that
+  /// serves the redirect alone still has to export it — the world says so — and answers with
+  /// a stable code rather than a trap.
+  device-begin: func(account-id: string, credential-ref: option<string>) -> result<device-authorization, failure>;
+  /// Asks whether the person has confirmed yet, with the bookkeeping `device-begin` handed
+  /// over. `authorization-pending` and `slow-down` are waiting, not failure: both come back
+  /// as `pending`, and only a refusal the provider actually made becomes `failed`.
+  device-poll: func(account-id: string, flow-state: option<string>) -> result<token-outcome, failure>;
+  /// Mints a new access token from the stored refresh material. Driven by the host's sweep,
+  /// never by the person — the point of it is that nobody is asked twice. The one call both
+  /// entrances share, and the reason they share an interface.
+  refresh: func(account-id: string, credential-ref: option<string>) -> result<token-outcome, failure>;
+}
+
+/// Additional metadata for a link or a queued item (RD-090-14).
+interface enricher {
+  use types.{failure};
+
+  record enrich-subject {
+    url: string,
+    file-name: option<string>,
+    /// Normalised media metadata the core already resolved, as JSON.
+    known: option<string>,
+  }
+
+  record enrich-field {
+    name: string,
+    value: string,
+  }
+
+  /// Returns additional fields only. The host never lets these overwrite a core field; a
+  /// name that collides with one is dropped and reported.
+  enrich: func(subject: enrich-subject) -> result<list<enrich-field>, failure>;
+}
+
+/// A notification destination (RD-090-15).
+interface notifier {
+  use types.{failure};
+
+  record notification {
+    title: string,
+    body: string,
+    /// Stable event name, e.g. `package.completed`.
+    event: string,
+    severity: string,
+    /// Derived key; a destination that can deduplicate should use it.
+    idempotency-key: string,
+    /// Where this destination sends: a topic, a channel, a chat id — whatever the person
+    /// configured. Never a secret; a token belongs in the vault and reaches the request as
+    /// `{{secret}}` instead.
+    destination: string,
+    /// Whether a secret is stored for this destination. Not the secret, and not a reference
+    /// to it: only whether there is one, so a plugin whose service takes an optional token
+    /// can leave the header off instead of sending an empty one.
+    has-secret: bool,
+  }
+
+  /// Delivers one notification. Retrying is the host's decision, driven by the failure kind.
+  ///
+  /// A destination's token is written as `{{secret}}` in a header, a query value or the body:
+  /// the host substitutes the one secret this invocation was granted on the way out, so the
+  /// plugin never holds it and never names which one it is.
+  deliver: func(message: notification) -> result<_, failure>;
+}
+
+/// One step in the post-processing pipeline (RD-090-16).
+interface postprocess {
+  use types.{failure};
+
+  record step-input {
+    /// Package-scoped handle. Not a path: the plugin cannot name a file of its own.
+    handle: string,
+    /// Files in the package, relative to its directory.
+    files: list<string>,
+    /// The checkpoint this step wrote when it last stopped, if any.
+    checkpoint: option<list<u8>>,
+  }
+
+  variant step-end {
+    /// Finished; the payload is an optional final checkpoint the host stores.
+    complete(option<list<u8>>),
+    /// Interrupted with a checkpoint to resume from.
+    stopped(list<u8>),
+    /// Nothing to do for this package, which is not a failure.
+    skipped,
+    failed(failure),
+  }
+
+  run: func(input: step-input) -> step-end;
+}
+
+/// An upload or storage destination (RD-090-17).
+interface storage {
+  use types.{failure};
+
+  record upload-job {
+    /// Package-scoped handle; the plugin reads through the host, never by path.
+    handle: string,
+    file-name: string,
+    size: u64,
+    /// Where this destination writes, as configured — for a WebDAV target the collection's
+    /// address. Never a secret: a password belongs in the vault and reaches the request as
+    /// `{{secret}}`, which the host substitutes on the way out.
+    destination: string,
+    /// The stored login's user name, when the destination has one. Not a secret, and shown
+    /// in the interface next to the address it belongs to.
+    username: option<string>,
+    /// Opaque handle of the stored credential, and nothing more: `some` says a password was
+    /// found for this destination and `{{secret}}` will expand, `none` says it was not.
+    credential-ref: option<string>,
+    checkpoint: option<list<u8>>,
+  }
+
+  variant upload-end {
+    /// Uploaded and verified by the plugin's own destination check.
+    complete(option<string>),
+    stopped(list<u8>),
+    failed(failure),
+  }
+
+  /// Reads the next chunk of the file being uploaded. The host owns the file.
+  put: func(job: upload-job) -> upload-end;
+  /// Confirms the destination holds the object at the expected size. The host deletes
+  /// nothing until this says so.
+  verify: func(handle: string, remote-id: string) -> result<bool, failure>;
+}
+
+/// A stream the host has to transform before it is a file (RD-110-33, ADR 0011).
+///
+/// Some providers encrypt every file on the client and keep the key out of their own reach:
+/// it rides in a link fragment, the storage server never sees it, and what a plain `GET`
+/// returns is ciphertext. `resolver` cannot carry that -- `resolved-download` is an address
+/// and headers, with no field key material could travel in, and a header would be logged and
+/// replayed on every chunk request.
+///
+/// So the key travels here, and the bytes never leave the host. A plugin answers with the
+/// address **and a declarative description of the transform**: a named primitive with its
+/// parameters. The host owns the byte stream, applies the primitive on its own write path --
+/// no second pass, no second copy on disk -- and checks the provider's integrity value before
+/// the part file is promoted. `docs/adr/0011-mega-a-stream-the-host-must-decrypt.md` records
+/// why the alternatives (a transfer backend, a post-processing step, a new field on
+/// `resolved-download`) were refused.
+///
+/// The rule that makes this safe to review: **the plugin describes, the host computes.** What
+/// crosses the boundary is parameters for primitives this repository implements, never code
+/// and never a callback per buffer. A primitive the host does not know is a refusal when the
+/// description is taken in, not a fallback -- so which ciphers exist in the product stays a
+/// decision of this repository and not of a signed blob.
+interface stream-transform {
+  use types.{failure, resolve-request, resolved-download};
+
+  /// The cipher the host applies to every byte it writes.
+  ///
+  /// `algorithm` is a name rather than a closed variant so the set can grow without a
+  /// contract change, and an older host refuses a name it does not know instead of guessing.
+  /// One name exists today: `aes-128-ctr`.
+  record stream-cipher {
+    /// `aes-128-ctr`: AES-128 in counter mode, counter block `nonce` followed by a
+    /// big-endian u64 block index. The index of the file's first plaintext byte is
+    /// `first-block` and grows by one every 16 bytes, so every 16-byte boundary decrypts on
+    /// its own, with no preceding byte -- which is what keeps ranges, resume and parallel
+    /// chunks working exactly as they do for an ordinary download.
+    algorithm: string,
+    /// The raw key. It is a secret from the moment this call returns: the host puts it in
+    /// the vault, keeps a reference, and excludes it from every surface that prints an
+    /// address or a header. It is never written into a download row and never logged.
+    key: list<u8>,
+    /// The counter prefix. Exactly 8 bytes for `aes-128-ctr`.
+    nonce: list<u8>,
+    /// Block index the first plaintext byte of the file sits at; `0` for a file encrypted
+    /// from its start.
+    first-block: u64,
+  }
+
+  /// How the host proves the plaintext it wrote is what the provider stored.
+  ///
+  /// Without this a wrong key is indistinguishable from a correct download: the length
+  /// matches, the file is named correctly, and every byte of it is rubbish.
+  record stream-integrity {
+    /// `cbc-mac-chain`: one CBC-MAC per chunk over the plaintext (zero-padded to 16 bytes,
+    /// keyed with the cipher's key, each starting from `iv`), then a second CBC-MAC over
+    /// those chunk MACs in order under the same key and a zero IV, then the 16 result bytes
+    /// folded to 8 as `m[0..4] xor m[4..8]` followed by `m[8..12] xor m[12..16]`.
+    algorithm: string,
+    /// Where one chunk ends and the next begins, as absolute plaintext offsets, strictly
+    /// ascending, the last one the file's size. The MAC is sequential *within* a chunk and
+    /// independent *between* chunks, so these are also the boundaries at which the host may
+    /// still split the download across parallel connections. The host bounds how many it
+    /// accepts.
+    boundaries: list<u64>,
+    /// The 16 bytes every chunk MAC starts from.
+    iv: list<u8>,
+    /// The expected condensed value, byte for byte. 8 bytes for `cbc-mac-chain`.
+    expected: list<u8>,
+  }
+
+  record content-transform {
+    cipher: stream-cipher,
+    /// Absent when the provider publishes nothing to check the plaintext against. The host
+    /// then downloads and transforms, and says so; it does not invent a check.
+    integrity: option<stream-integrity>,
+  }
+
+  record transformed-download {
+    /// The address, exactly as `resolver` would have answered it. Short-lived addresses are
+    /// no problem: the scheduler re-asks before it resumes, and gets a fresh description
+    /// with it.
+    download: resolved-download,
+    transform: content-transform,
+  }
+
+  /// Whether this plugin claims `url`. Asked first, so a plugin that has nothing to do with
+  /// an address never fetches it.
+  claims-url: func(url: string) -> bool;
+  /// Answers with the address and how its bytes must be treated.
+  resolve: func(request: resolve-request) -> result<transformed-download, failure>;
+}
+
+world resolver-plugin {
+  import host;
+  import http;
+  import cookies;
+  import captcha;
+  export resolver;
+}
+
+world transfer-plugin {
+  import host;
+  import net;
+  import sink;
+  import http;
+  export transfer;
+}
+
+world intake-plugin {
+  import host;
+  import http;
+  export intake;
+}
+
+world crawler-plugin {
+  import host;
+  import http;
+  import cookies;
+  import captcha;
+  import key-derivation;
+  export crawler;
+}
+
+world remote-job-plugin {
+  import host;
+  import http;
+  export remote-job;
+}
+
+world auth-plugin {
+  import host;
+  import http;
+  import credentials;
+  import key-derivation;
+  export auth;
+}
+
+world oauth-plugin {
+  import host;
+  import http;
+  import credentials;
+  export oauth;
+}
+
+world enricher-plugin {
+  import host;
+  import http;
+  export enricher;
+}
+
+world notifier-plugin {
+  import host;
+  import http;
+  export notifier;
+}
+
+world postprocess-plugin {
+  import host;
+  import source;
+  export postprocess;
+}
+
+world storage-plugin {
+  import host;
+  import http;
+  import net;
+  import source;
+  export storage;
+}
+
+world stream-transform-plugin {
+  import host;
+  import http;
+  import key-derivation;
+  export stream-transform;
+}

@@ -1,0 +1,34 @@
+[package]
+name = "rd-plugin-hitfile"
+version = "1.2.2"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+wit-bindgen.workspace = true
+plugin-common = { path = "../common" }
+plugin-guest = { path = "../guest" }
+rd-plugin-turbobit-common = { path = "../turbobit-common" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async-trait.workspace = true
+rd-core = { path = "../../crates/rd-core" }
+rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+url.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[package.metadata.component]
+package = "rdownloader:hitfile"
+
+[package.metadata.component.target]
+path = "../../crates/rd-plugin-api/wit"
+world = "resolver-plugin"
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

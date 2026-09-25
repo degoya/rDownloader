@@ -1,0 +1,12 @@
+{
+  "name": "Google-Anmeldung",
+  "description": "Meldet ein Google-Drive-Konto über Googles eigenen Autorisierungsendpunkt an.",
+  "codes": {
+    "google_drive_oauth.bad_reply": "Google hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
+    "google_drive_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde. Starte sie erneut.",
+    "google_drive_oauth.consent_denied": "Die Anmeldung wurde bei Google nicht erteilt. Auch eine Workspace-Administration kann sie sperren.",
+    "google_drive_oauth.flow_unsupported": "Google Drive wird im Browser angemeldet, nicht mit einem Gerätecode.",
+    "google_drive_oauth.no_entropy": "Die Anmeldung konnte nicht gestartet werden, weil der Anwendung der Zufallswert dafür fehlte. Versuche es erneut.",
+    "google_drive_oauth.refresh_refused": "Google akzeptiert die gespeicherte Anmeldung nicht mehr. Melde dich erneut an."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "space_max": 100,
+  "space_used": 31,
+  "torrents": [],
+  "folders": [
+    { "id": 5, "name": "Example.Release", "size": 31 },
+    { "id": 7, "name": "Somebody.Else.Release", "size": 12 }
+  ],
+  "files": []
+}

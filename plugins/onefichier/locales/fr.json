@@ -1,0 +1,29 @@
+{
+  "name": "1fichier",
+  "account": {
+    "secret_label": "Clé API (depuis Parameters → API)",
+    "secret_hint": "Saisissez votre clé API (Parameters → API) comme secret."
+  },
+  "codes": {
+    "1fichier.account.access": "Offre « Access »",
+    "1fichier.account_missing": "Compte 1fichier manquant",
+    "1fichier.account_required": "1fichier exige un compte pour télécharger ce fichier",
+    "1fichier.api_error": "API 1fichier : {message}",
+    "1fichier.api_key_missing": "La clé API 1fichier est manquante",
+    "1fichier.bad_api_key": "La clé API 1fichier est invalide ou a expiré",
+    "1fichier.file_offline": "Le fichier 1fichier n'est pas disponible",
+    "1fichier.flood": "La limite de requêtes (protection anti-flood) de l'API 1fichier a été déclenchée",
+    "1fichier.free_limit_reached": "La limite de téléchargements gratuits 1fichier est atteinte pour cette adresse IP",
+    "1fichier.http_error": "Statut HTTP 1fichier {status}",
+    "1fichier.invalid_response": "Réponse 1fichier invalide",
+    "1fichier.invalid_url": "URL du fournisseur invalide : {error}",
+    "1fichier.no_download_url": "1fichier n'a pas renvoyé d'URL de téléchargement",
+    "1fichier.no_free_form": "Le formulaire de téléchargement gratuit 1fichier n'a pas été trouvé : {diagnosis}",
+    "1fichier.no_free_link": "Le téléchargement gratuit 1fichier n'a produit aucun lien de fichier : {diagnosis}",
+    "1fichier.no_free_slots": "1fichier n'a actuellement aucun emplacement de téléchargement gratuit disponible",
+    "1fichier.password_required": "Le fichier 1fichier est protégé par mot de passe, ce que le téléchargement sans compte ne prend pas en charge",
+    "1fichier.premium_required": "Un compte premium 1fichier est requis pour utiliser l'API de téléchargement",
+    "1fichier.server_error": "Erreur serveur 1fichier",
+    "1fichier.unsupported_link": "Lien 1fichier non pris en charge"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "error_type": "TOO_MANY_REQUESTS",
+  "error_message": "redacted provider sentence",
+  "status": "ERROR",
+  "status_code": 429
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Tâches TorBox",
+  "description": "Exécute des magnets, des fichiers torrent, des NZB et des liens web comme tâches sur un compte TorBox.",
+  "codes": {
+    "torbox_jobs.account_missing": "Le compte TorBox est absent",
+    "torbox_jobs.api_error": "Erreur de l’API TorBox {api_code}",
+    "torbox_jobs.auth_invalid": "La clé d’API TorBox est invalide ou expirée. Saisis-la à nouveau.",
+    "torbox_jobs.cooldown": "TorBox impose un délai d’attente à ce compte. Patientez.",
+    "torbox_jobs.http_error": "Statut HTTP TorBox {status}",
+    "torbox_jobs.invalid_response": "Réponse TorBox invalide",
+    "torbox_jobs.job_exists": "TorBox a déjà une tâche pour ce contenu",
+    "torbox_jobs.job_failed": "TorBox a terminé cette tâche sur une erreur",
+    "torbox_jobs.job_gone": "TorBox ne détient plus cette tâche",
+    "torbox_jobs.job_incomplete": "TorBox n’a pas pu récupérer tous les fichiers de cette tâche",
+    "torbox_jobs.job_unavailable": "TorBox signale cette tâche comme indisponible",
+    "torbox_jobs.limit_reached": "TorBox signale que la limite de l’offre est atteinte",
+    "torbox_jobs.no_entropy": "L’hôte n’a pas pu fournir l’aléa requis par cette requête",
+    "torbox_jobs.no_files": "TorBox indique cette tâche comme terminée mais ne liste aucun fichier",
+    "torbox_jobs.no_job_id": "TorBox n’a pas nommé la tâche créée. Vérifie ton compte TorBox avant de réessayer.",
+    "torbox_jobs.no_selection": "TorBox télécharge les tâches entières et ne propose aucune sélection de fichiers. Choisis les fichiers dans le LinkGrabber.",
+    "torbox_jobs.not_a_job": "Ce n’est ni un magnet, ni un fichier torrent, ni un NZB, ni une adresse web",
+    "torbox_jobs.not_permitted": "L’offre TorBox ne couvre pas ce type de tâche",
+    "torbox_jobs.rate_limited": "La limite de requêtes de l’API TorBox est atteinte. Patientez.",
+    "torbox_jobs.request_refused": "TorBox a refusé cette requête",
+    "torbox_jobs.server_busy": "TorBox est temporairement indisponible",
+    "torbox_jobs.server_error": "Erreur du serveur TorBox",
+    "torbox_jobs.source_gone": "TorBox n’a pas pu atteindre la source de cette tâche",
+    "torbox_jobs.token_missing": "Ce compte TorBox n’a pas de clé d’API",
+    "torbox_jobs.too_large": "TorBox refuse cette tâche, jugée trop volumineuse"
+  }
+}

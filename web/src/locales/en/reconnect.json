@@ -1,0 +1,43 @@
+{
+  "eyebrow": "Address limits",
+  "title": "Reconnect",
+  "description": "Hosters that limit free downloads do so per address. When downloads are stuck behind such a limit, a script you write can ask the router for a new one.",
+  "enabled_label": "Reconnect when downloads are stuck",
+  "enabled_description": "Only while free downloads are waiting on an address limit, never on its own account.",
+  "script_label": "Script",
+  "script_description": "A file in the post-processing scripts directory. It runs in the same sandbox.",
+  "interval_label": "Wait between attempts",
+  "interval_description": "Reconnecting in a loop against a hoster that is simply refusing gains nothing.",
+  "timeout_label": "Give up after",
+  "timeout_description": "Covers the script and the wait for the address to change.",
+  "checks_label": "Address checks",
+  "checks_description": "One address per line, asked in order. Leave empty for the built-in list. These requests leave the machine.",
+  "checks_placeholder": "https://api.ipify.org",
+  "abort_label": "Interrupt running transfers",
+  "abort_description": "Off, a reconnect waits until nothing is transferring. On, transfers are paused and resumed around it.",
+  "windows_label": "Allowed times",
+  "windows_description": "Leave empty to allow any time.",
+  "window_add": "Add window",
+  "window_remove": "Remove window",
+  "trigger": "Reconnect now",
+  "failed": "Reconnect failed",
+  "never_run": "Not run yet.",
+  "last_success": "Last reconnect got the address {address}.",
+  "last_failure": "Last reconnect failed: {reason}",
+  "blocked_hosts": "Hosters waiting on an address limit",
+  "phase": {
+    "idle": "Idle",
+    "draining": "Letting transfers finish",
+    "running": "Running the script",
+    "waiting_for_address": "Waiting for the address to change"
+  },
+  "days": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "KatFile",
+  "account": {
+    "secret_label": "API-Key",
+    "secret_hint": "Gib deinen API-Key als Secret ein oder importiere stattdessen die Cookies einer angemeldeten Premium-Session."
+  },
+  "codes": {
+    "katfile.account_missing": "KatFile-Account fehlt",
+    "katfile.api_error": "KatFile-API: {message}",
+    "katfile.api_key_required": "Die KatFile-Linkprüfung benötigt den API-Key",
+    "katfile.captcha_rejected": "KatFile hat die Captcha-Antwort abgelehnt",
+    "katfile.captcha_required": "KatFile erfordert für diesen Download das Lösen eines Captchas, was nicht unterstützt wird",
+    "katfile.cookie_session_invalid": "Die KatFile-Cookie-Session ist nicht angemeldet – eine frische Cookie-Session aus einem angemeldeten Browser einfügen: {diagnosis}",
+    "katfile.cookie_session_required": "Die KatFile-Cookie-Session fehlt oder enthält keine Cookies für katfile.biz",
+    "katfile.cookie_session_required_for_download": "KatFile-Downloads benötigen eine Cookie-Session (Browser-Login); der API-Key liefert nur Metadaten",
+    "katfile.cookie_session_unconfirmed": "KatFile hat die Cookie-Sitzung weder bestätigt noch abgelehnt - die Seite war weder angemeldet noch eine Gastseite; bitte später erneut versuchen: {diagnosis}",
+    "katfile.download_session_expired": "KatFile hat den API-Key akzeptiert, aber die Cookie-Session, über die Downloads laufen, ist abgelaufen – eine frische Cookie-Session aus einem bei katfile.biz angemeldeten Browser einfügen: {diagnosis}",
+    "katfile.download_wait": "KatFile erfordert eine Wartezeit von {wait_seconds}s, bevor diese Datei heruntergeladen werden kann",
+    "katfile.file_unavailable": "Die KatFile-Datei ist nicht verfügbar",
+    "katfile.free_limit_reached": "KatFile-Limit für Free-Downloads für diese IP-Adresse erreicht",
+    "katfile.http_error": "KatFile-HTTP-Status {status}",
+    "katfile.invalid_link": "Ungültiger KatFile-Link",
+    "katfile.invalid_response": "Ungültige KatFile-Antwort",
+    "katfile.invalid_url": "Ungültige Provider-URL: {error}",
+    "katfile.no_free_form": "Das KatFile-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
+    "katfile.no_free_link": "Der KatFile-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "katfile.no_premium_file": "Die KatFile-Cookie-Session lieferte keine Premiumdatei: {diagnosis}",
+    "katfile.premium_only": "KatFile meldet, dass diese Datei einen Premium-Account erfordert: {reason}",
+    "katfile.session_unconfirmed": "Cookie-Sitzung nicht bestätigt – die Seite war weder angemeldet noch eine Gastseite",
+    "katfile.unsupported_link": "Kein unterstützter KatFile-Link"
+  }
+}

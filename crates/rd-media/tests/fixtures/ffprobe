@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fake ffprobe so the runner's "ffmpeg and ffprobe must both exist" check is satisfied.
+echo "ffprobe version 2026.01.01-fake"
+exit 0

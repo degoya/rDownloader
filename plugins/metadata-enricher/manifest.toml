@@ -1,0 +1,41 @@
+manifest_version = 3
+plugin_type = "enricher"
+api_version = "0.9.0"
+# A fresh id, one past the highest bundled one. Never reuse: a plugin that ships with an id
+# another plugin already claimed is simply never loaded, because the loader keeps only the
+# highest version per id and says nothing about the one it dropped (RD-098-03).
+id = "019d0000-0000-7000-8000-00000000011a"
+name = "Film and series metadata"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The one address this plugin reaches. Cinemeta is keyless by design — there is no account and
+# no token to expand here, because an enricher is instantiated without one — so what leaves the
+# machine is a title and nothing that identifies who asked.
+[capabilities.net_http]
+domains = ["v3-cinemeta.strem.io"]
+
+[extension]
+slug = "metadata_enricher"
+# Deliberately empty: an indexer hit's URL points at the indexer, so the domain says nothing
+# about what the link contains. The decision is made inside `enrich`, from the file name, and
+# the commonest answer — "this is not a film" — costs no request at all.
+claims = []
+
+[metadata]
+description = "Reads the film or series out of a release name and adds rating, year, genre and runtime."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.6"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+# Two requests at most, and a slow source must cost the online check nothing it cannot afford:
+# the row is meant to be a little richer, not a little later.
+timeout_milliseconds = 8000
+# Matched by `json::MAX_INPUT`: the reader works over a `Vec<char>`, so the body's
+# worst case in memory is four times this, well inside the 32 MiB above.
+max_response_bytes = 524288

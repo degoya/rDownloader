@@ -1,0 +1,14 @@
+{
+  "name": "Carpetas de MediaFire",
+  "description": "Lista los archivos de un enlace público de carpeta de MediaFire o de una lista de claves de archivo.",
+  "codes": {
+    "mediafire_crawler.api_error": "API de MediaFire: {message}",
+    "mediafire_crawler.folder_empty": "Esta carpeta de MediaFire no contiene archivos que se puedan descargar",
+    "mediafire_crawler.folder_private": "Esta carpeta de MediaFire es privada y necesita la cuenta del propietario",
+    "mediafire_crawler.folder_unreachable": "No se pudo leer esta carpeta de MediaFire",
+    "mediafire_crawler.http_error": "Estado HTTP de MediaFire {status}",
+    "mediafire_crawler.invalid_response": "Respuesta de MediaFire no válida",
+    "mediafire_crawler.not_a_folder": "Esto no es una dirección de carpeta de MediaFire",
+    "mediafire_crawler.rate_limited": "MediaFire está limitando las llamadas a la API desde esta dirección"
+  }
+}

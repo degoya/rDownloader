@@ -1,0 +1,21 @@
+{
+  "name": "MEGA",
+  "description": "Résout les liens de fichier MEGA et les fichiers du compte connecté, et décrit comment l'hôte déchiffre leurs octets.",
+  "codes": {
+    "mega.access_denied": "Ce fichier MEGA nécessite un compte autorisé à le voir",
+    "mega.account_key_foreign": "Ce fichier est arrivé dans le compte MEGA par un partage que ce plugin ne sait pas encore ouvrir",
+    "mega.account_node_missing": "Ce fichier n'est plus dans le compte MEGA",
+    "mega.api_error": "Erreur {status} de l'API MEGA",
+    "mega.attributes_unreadable": "La clé de ce lien MEGA n'ouvre pas ce fichier",
+    "mega.http_error": "Statut HTTP {status} de MEGA",
+    "mega.invalid_response": "Réponse MEGA invalide",
+    "mega.key_invalid": "Ce lien MEGA ne porte aucune clé de déchiffrement utilisable",
+    "mega.node_missing": "Ce fichier n'est plus dans le dossier MEGA où il a été trouvé",
+    "mega.not_found": "Ce fichier MEGA n'existe plus ou n'a jamais existé",
+    "mega.not_mine": "Ceci n'est pas une adresse de fichier MEGA",
+    "mega.quota_exceeded": "Le quota de transfert MEGA pour cette adresse est épuisé",
+    "mega.rate_limited": "MEGA limite les requêtes provenant de cette adresse",
+    "mega.session_required": "Ce fichier MEGA n'est accessible qu'une fois connecté",
+    "mega.unavailable": "MEGA ne répond temporairement pas pour ce fichier"
+  }
+}

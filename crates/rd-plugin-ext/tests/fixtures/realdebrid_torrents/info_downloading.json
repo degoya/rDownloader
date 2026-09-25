@@ -1,0 +1,21 @@
+{
+  "id": "REDACTEDTORRENT01",
+  "filename": "Example.Release",
+  "original_filename": "Example.Release",
+  "hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+  "bytes": 30,
+  "original_bytes": 31,
+  "host": "real-debrid.com",
+  "split": 2000,
+  "progress": 42.5,
+  "status": "downloading",
+  "added": "2026-09-16T00:00:00.000Z",
+  "speed": 1048576,
+  "seeders": 4,
+  "files": [
+    { "id": 1, "path": "/Example.Release/ep01.mkv", "bytes": 10, "selected": 1 },
+    { "id": 2, "path": "/Example.Release/ep02.mkv", "bytes": 20, "selected": 1 },
+    { "id": 3, "path": "/Example.Release/Sample/sample.mkv", "bytes": 1, "selected": 0 }
+  ],
+  "links": []
+}

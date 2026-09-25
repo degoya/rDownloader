@@ -1,0 +1,20 @@
+{
+  "name": "MEGA-Ordner",
+  "description": "Listet die Dateien hinter einem öffentlichen MEGA-Ordnerlink oder einem Ordner des angemeldeten Kontos samt Namen, Größen und Struktur.",
+  "codes": {
+    "mega_crawler.api_error": "MEGA-API-Fehler {status}",
+    "mega_crawler.folder_empty": "Dieser MEGA-Ordner enthält keine herunterladbaren Dateien",
+    "mega_crawler.folder_private": "Dieser MEGA-Ordner benötigt das Konto des Eigentuemers",
+    "mega_crawler.folder_unreachable": "Dieser MEGA-Ordner existiert nicht mehr oder hat nie existiert",
+    "mega_crawler.http_error": "MEGA-HTTP-Status {status}",
+    "mega_crawler.invalid_response": "Ungültige MEGA-Antwort",
+    "mega_crawler.key_invalid": "Dieser MEGA-Ordnerlink enthält keinen nutzbaren Schlüssel",
+    "mega_crawler.not_a_folder": "Dies ist keine MEGA-Ordneradresse",
+    "mega_crawler.not_in_account": "Dieser Ordner liegt nicht mehr im MEGA-Konto",
+    "mega_crawler.quota_exceeded": "Das MEGA-Transferkontingent für diesen Ordner ist aufgebraucht",
+    "mega_crawler.rate_limited": "MEGA drosselt Anfragen von dieser Adresse",
+    "mega_crawler.session_expired": "Die Sitzung des MEGA-Kontos ist abgelaufen; bitte das Konto erneut anmelden",
+    "mega_crawler.too_many_files": "Dieser MEGA-Ordner enthält mehr als {limit} Dateien",
+    "mega_crawler.unavailable": "MEGA antwortet für diesen Ordner vorübergehend nicht"
+  }
+}

@@ -1,0 +1,42 @@
+manifest_version = 3
+plugin_type = "crawler"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000011b"
+name = "Directory index"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# An open directory listing is any web server at all, so there is no domain that could stand
+# here. The grant that actually applies is narrower than this line: the host builds the store
+# for one crawl and narrows it to the host of the address that was pasted, so `*` reads as
+# "wherever the address points" and a redirect off that host is refused exactly as before
+# (RD-107-05, `extension::crawl_host`).
+[capabilities.net_http]
+domains = ["*"]
+
+[extension]
+slug = "directory_index_crawler"
+# No provider and no account: an open listing is open, and one behind a sign-in is not this
+# plugin's business.
+claims = []
+# Claimed by the shape of the address rather than by the service, so this crawler is asked
+# only after every crawler that names one.
+generic = true
+
+[metadata]
+description = "Lists the files behind an open directory listing of Apache, nginx, Caddy or lighttpd."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.7"
+
+[limits]
+memory_bytes = 33554432
+# A crawl walks a tree in one invocation, so it needs more room than a call that makes one
+# request. The walk in `src/walk.rs` bounds depth, breadth and repeats; these bound a runaway.
+fuel = 2000000000
+timeout_milliseconds = 30000
+# A listing is HTML a stranger's server generated, and a large directory produces a large
+# page. Matched to the crawlers that read JSON.
+max_response_bytes = 4194304

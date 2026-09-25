@@ -1,0 +1,1 @@
+<html><body>Link expired. Retry at https://cdn.example.com/f.bin?sig=%5Bredacted%5D&se=2024-01-01T00%3A15%3A00Z</body></html>

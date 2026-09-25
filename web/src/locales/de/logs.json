@@ -1,0 +1,83 @@
+{
+  "title": "Protokoll",
+  "intro": "Was der Dienst aufgezeichnet hat, vor dem Speichern bereinigt: Zugangsdaten, signierte Link-Parameter und Authorization-Header erreichen diese Liste nie.",
+  "filters": {
+    "level": "Mindeststufe",
+    "component": "Komponente",
+    "component_placeholder": "rd_http",
+    "code": "Code",
+    "correlation": "Korrelations-ID",
+    "search": "In Nachrichten suchen",
+    "apply": "Anwenden",
+    "clear": "Filter zurücksetzen"
+  },
+  "levels": {
+    "all": "Alle Stufen",
+    "trace": "Trace",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Warnung",
+    "error": "Fehler"
+  },
+  "list": {
+    "title": "Einträge",
+    "empty": "Keine passenden Einträge.",
+    "shown": "{shown} von {total} Einträgen",
+    "full_page": "Das ist eine volle Seite: dahinter liegen ältere Einträge.",
+    "older": "Ältere laden",
+    "dropped": "{count} Einträge wurden verworfen, weil der Speicher nicht nachkam.",
+    "expand": "Felder anzeigen",
+    "collapse": "Felder ausblenden",
+    "retention": "Aufbewahrt für {days} Tage oder {records} Einträge, je nachdem, was zuerst erreicht ist."
+  },
+  "bundle": {
+    "title": "Diagnosepaket",
+    "eyebrow": "Support",
+    "intro": "Ein Archiv für eine Supportanfrage: Versionen, Konfigurationsmetadaten, Systemprüfungen und die jüngsten Fehler. Nichts wird hochgeladen; die Datei entsteht auf diesem Rechner, und erst nachdem Sie den Inhalt gesehen und freigegeben haben.",
+    "preview": "Inhalt anzeigen",
+    "create": "Paket erzeugen",
+    "directory": "Abgelegt unter {directory}",
+    "entries": "Inhalt",
+    "items": "{count} Einträge",
+    "redactions": "Bereinigungen",
+    "excluded": "Nie enthalten",
+    "created": "Paket geschrieben: {file}",
+    "download": "Herunterladen",
+    "bytes": "{bytes} Bytes",
+    "select_hint": "Abwählen, was der Empfänger nicht bekommen soll."
+  },
+  "diagnostics": {
+    "bundle": {
+      "entry": {
+        "versions": {
+          "description": "Anwendungsversion, Plattform und die installierten Plugins"
+        },
+        "configuration": {
+          "description": "das Einstellungsdokument ohne seine Zugangsdaten"
+        },
+        "system_checks": {
+          "description": "Werkzeugpfade und -versionen, der Reverse-Proxy-Vertrag"
+        },
+        "doctor": {
+          "description": "dieselben Prüfungen, wie `rdownloader doctor` sie ausgibt"
+        },
+        "recent_errors": {
+          "description": "die neuesten Warnungen und Fehler aus dem Protokollspeicher"
+        }
+      },
+      "redaction": {
+        "configuration_credentials": "Felder, deren Name auf Zugangsdaten deutet, werden durch [redacted] ersetzt",
+        "configuration_pem": "PEM-Material wird durch [present] ersetzt",
+        "configuration_text": "Textwerte durchlaufen die URL- und Header-Bereinigung",
+        "configuration_replaced": "ersetzt: {fields}",
+        "paths": "Pfade durchlaufen die Textbereinigung",
+        "log_records": "Nachrichten und Felder wurden beim Aufzeichnen bereinigt; aus der Protokolldatei wird nichts nachgelesen"
+      },
+      "exclusion": {
+        "file_contents": "Dateiinhalte und Dateinamen von Downloads",
+        "urls": "vollständige URLs: Abfragewerte mit Zugangsdaten oder Signatur werden ersetzt",
+        "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresorverweise"
+      }
+    }
+  }
+}

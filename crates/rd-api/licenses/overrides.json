@@ -1,0 +1,10 @@
+{
+  "_comment": "Licences of packages that declare none of their own, keyed name@version so an update is checked again. Each entry names where the licence was read. Input to scripts/licenses.sh (RD-130-12); third-party.json is generated, this file is not.",
+  "rust": {},
+  "npm": {
+    "vaul-vue@0.4.1": {
+      "license": "MIT",
+      "source": "https://github.com/unovue/vaul-vue/blob/main/LICENSE"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>PEEPLink - Private Linking Service</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" type="text/css" href="/css/style.css?v=3" media="all" />
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<meta name="description" content="PeepLink is a Private Linking Service, which serves to save text-based stuff like code parts, love poems, letters, lists, messages etc.">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+  <script>window.jQuery || document.write('<script src="js/vendor/jquery-2.1.4.min.js"><\/script>')</script>
+	<!--<script src="https://hcaptcha.com/1/api.js?hl=en" async defer></script>-->
+
+	<link href='https://fonts.googleapis.com/css?family=Nunito' rel='stylesheet' type='text/css'>
+	<script src="/js/stuff.js"></script>
+
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<!--[if lt IE 9]><script src="https://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script><![endif]-->	<!-- Upgrade MSIE5.5-8 to be compatible with modern browsers -->
+	<!--[if lt IE 7 ]><script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script><script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script><![endif]-->
+</head>
+<body id="body" >
+
+	<main>
+		<div class="wrap">
+
+			<header>
+				<a href="/"><h2>private linking service</h2></a>
+				<a href="/"><h1>PEEPL<img src="/img/logo-i.gif" />NK</h1></a>
+			</header>
+
+					<!-- 	Start the Square 	-->
+			<div class="border"><div id="thin_border">
+				 
+				<article>	<h4>Error 404</h4><p>the page you trying to access does not exist.</p><br><ul class="menu_txt"><li><a href="/" title="Home Page">Take me Back</a></li></ul></article>
+			</div></div>
+
+			<footer>
+				<nav>
+					<a href="/about.html">ABOUT</a>
+					<a href="/faq.html">FAQ</a>
+					<a href="/tos.html">TOS</a>
+					<a href="#reg" class="nav_gray" name="modal">register</a> <a href="#log" class="nav_gray" name="modal">login</a>
+				</nav>
+			</footer>
+
+		</div>	<!-- wrap -->
+
+	
+
+	</main>
+</div>	<!-- centering -->
+																										<!-- PopUp Windows -->
+<div class="popups">
+
+
+
+
+<!-- Start of REG -->
+<form method="post" id="reg" class="window" style="width: 305px" action="/register.html">
+	 <fieldset>
+			<legend>Registration</legend>
+			<input name="login" type="text" value="Login" onfocus="if (this.value == 'Login')  this.value = '';" onblur="if (this.value == '') this.value = 'Login';"  placeholder="Login" required />
+			<input name="pwd" type="password" value="Password" onfocus="if (this.value == 'Password')  this.value = '';" onblur="if (this.value == '') this.value = 'Password';"  placeholder="Password" required />
+			<input name="email" type="email" value="eMail" onfocus="if (this.value == 'eMail')  this.value = '';" onblur="if (this.value == '') this.value = 'eMail';"  placeholder="eMail" required />
+			<br/><div class="g-recaptcha" data-sitekey="6LdwPTgUAAAAAArZZSzZaSbDnoKLtM88viFg-MOP"></div>
+	 </fieldset>
+
+		<ul class="random_butt">
+			<li><input name="submit" type="submit" class="bt_ok" value /></li>
+			<li><input type="button" class="close_link bt_cancel" value /></li>
+		</ul>
+</form>
+<!-- END of REG -->
+
+<!-- Start of Login Dialog -->  
+<form method="post" id="log" class="window" action="/login.html">
+	 <fieldset>
+		<legend>Login</legend>
+		<input name="login" type="text" value="Login" onfocus="if (this.value == 'Login')  this.value = '';" onblur="if (this.value == '') this.value = 'Login';"  placeholder="Login" required />
+		<input name="pwd" type="password" value="Password" onfocus="if (this.value == 'Password')  this.value = '';" onblur="if (this.value == '') this.value = 'Password';"  placeholder="Password" required />
+	 </fieldset>
+
+		<ul class="random_butt">
+			<li><input name="submit" type="submit" class="bt_ok" value /></li>
+			<li><input type="button" class="close_link bt_cancel" value /></li>
+		</ul>
+</form>
+<!-- End of Login Dialog -->
+
+
+<!-- Mask to cover the whole screen -->	  <div class="modal_overlay"></div>
+</div>
+
+<noscript><a href="http://www.enable-javascript.com/" title="Click to Become a Better Person" target="_blank" id="noscript_alert">For full functionality of this site it is necessary to enable JavaScript.<br> Here are the instructions how to enable JavaScript in your web browser.</a></noscript>
+
+</body></html>

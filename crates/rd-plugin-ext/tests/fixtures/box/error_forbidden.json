@@ -1,0 +1,8 @@
+{
+  "type": "error",
+  "status": 403,
+  "code": "forbidden",
+  "help_url": "http://developers.box.com/docs/#errors",
+  "message": "Access denied - insufficient permission",
+  "request_id": "redacted-request-id-0001"
+}

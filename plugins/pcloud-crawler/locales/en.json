@@ -1,0 +1,13 @@
+{
+  "name": "pCloud folders",
+  "description": "Lists the files behind a pCloud folder or public link.",
+  "codes": {
+    "pcloud_crawler.folder_empty": "This pCloud folder holds no files that can be downloaded",
+    "pcloud_crawler.folder_unreachable": "This pCloud folder could not be read (result {result})",
+    "pcloud_crawler.invalid_response": "Invalid pCloud response",
+    "pcloud_crawler.link_unavailable": "pCloud will not open this public link (result {result}). It may be deleted, expired, out of traffic, or protected by a password",
+    "pcloud_crawler.not_a_folder": "This is not a pCloud folder or public link address",
+    "pcloud_crawler.rate_limited": "pCloud is rate limiting this application",
+    "pcloud_crawler.sign_in_required": "Neither pCloud data centre accepted this account for that folder"
+  }
+}

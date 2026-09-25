@@ -1,0 +1,12 @@
+-- The vault reference of a content transform's key (RD-120-11, ADR 0011).
+--
+-- RD-110-33 built everything around this reference and left the column out: the host answers
+-- `key_reference: None`, `StreamTransform::new` refuses a description without one, and every
+-- transformed download therefore ended as `transform.key_missing` before a byte was fetched.
+--
+-- It is a column rather than a value recomputed per attempt because the reference is part of
+-- `ContentTransform::fingerprint`, and the fingerprint is what a continuation recognises its
+-- own chunk MACs by. A fresh reference on every attempt would make every resume start over.
+-- The key behind it is put away by `rd-secrets`; the row holds the reference and never the
+-- key, exactly as `secret_fragment_ref` does one column over.
+ALTER TABLE downloads ADD COLUMN transform_key_ref TEXT;

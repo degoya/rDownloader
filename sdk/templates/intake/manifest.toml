@@ -1,0 +1,32 @@
+manifest_version = 3
+plugin_type = "intake"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# A parser that only reads the text it is handed needs nothing granted, and asking for
+# nothing is the right default: add `[capabilities.net_http]` only if your parser has to
+# fetch something to resolve a link, and list the exact domains it may reach.
+[capabilities]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# Domain patterns this parser is offered for. Leave empty to decide per input in `claims`.
+claims = []
+
+[metadata]
+description = "Turns {{PLUGIN_NAME}} pages and lists into LinkGrabber candidates."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 5000
+max_response_bytes = 1048576

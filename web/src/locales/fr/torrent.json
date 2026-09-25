@@ -1,0 +1,88 @@
+{
+  "tree": {
+    "selected": "{count} fichiers sur {total} sélectionnés",
+    "files_badge": "{selected} fichiers sur {total} sélectionnés",
+    "toggle_folder": "Développer ou réduire {name}",
+    "select_entry": "Sélectionner {name}",
+    "excluded_by_pattern": "Exclu par le motif {pattern}",
+    "loading": "Lecture de la liste des fichiers…",
+    "empty": "Ce torrent n'a pas encore de liste de fichiers."
+  },
+  "errors": {
+    "metadata_failed": "Les métadonnées du torrent n'ont pas pu être résolues."
+  },
+  "priority": {
+    "high": "Élevée",
+    "normal": "Normale",
+    "low": "Basse",
+    "skip": "Ignorer",
+    "select": "Priorité de {name}",
+    "emulated_hint": "Les priorités sont appliquées par paliers : le moteur ouvre le palier suivant dès que l'actuel est terminé. Le téléchargement séquentiel n'est pas pris en charge par ce moteur."
+  },
+  "patterns": {
+    "label": "Motifs d'exclusion",
+    "description": "Motifs séparés par des virgules comme *.nfo ou extras/*. Ils n'affectent que les fichiers que vous n'avez pas décidés vous-même.",
+    "placeholder": "*.nfo, sample/*"
+  },
+  "tabs": {
+    "files": "Fichiers",
+    "trackers": "Trackers",
+    "peers": "Pairs",
+    "seeding": "Partage"
+  },
+  "trackers": {
+    "counters_hint": "Seeders / leechers / terminés",
+    "scrape": "Scraper",
+    "reannounce": "Réannoncer",
+    "empty": "Ce torrent n'a aucun tracker.",
+    "stale": "Ces chiffres datent de plus de 15 minutes.",
+    "stale_badge": "Obsolète",
+    "failed": "Échec",
+    "remove": "Supprimer le tracker {url}",
+    "add": "Ajouter",
+    "add_placeholder": "https://tracker.example/announce"
+  },
+  "stats": {
+    "ratio": "Ratio",
+    "uploaded": "Envoyé",
+    "peers": "Pairs",
+    "offline": "Absent de la session — dernières valeurs connues"
+  },
+  "peers": {
+    "title": "Pairs",
+    "count": "{count} connectés",
+    "empty": "Aucun pair connecté pour l'instant.",
+    "offline": "Ce torrent n'est pas dans la session, aucun pair ne peut être listé.",
+    "downloaded": "Téléchargé depuis ce pair",
+    "uploaded": "Envoyé à ce pair",
+    "more": "Afficher plus"
+  },
+  "pieces": {
+    "title": "Disponibilité des pièces",
+    "count": "{count} pièces",
+    "empty": "Aucune information sur les pièces."
+  },
+  "web_seeds": {
+    "title": "Web seeds",
+    "unsupported": "Ce torrent propose des web seeds. Le moteur ne peut pas les utiliser ; ils ne sont affichés qu'à titre indicatif."
+  },
+  "seeding": {
+    "enabled": "Partage",
+    "ratio": "Ratio cible",
+    "time": "Durée de partage",
+    "unlimited": "Illimitée",
+    "minutes": "{count} minutes",
+    "inherit": "Hériter",
+    "override_enabled": "Remplacer le partage",
+    "override_ratio": "Remplacer le ratio",
+    "override_time": "Remplacer la durée",
+    "override_unlimited": "Partager sans limite de temps",
+    "save": "Enregistrer",
+    "clear": "Hériter à nouveau",
+    "source": {
+      "global": "des réglages globaux",
+      "category": "de la catégorie",
+      "torrent": "défini ici"
+    }
+  }
+}

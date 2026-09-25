@@ -1,0 +1,55 @@
+# Nextest profiles (RD-108-16).
+#
+# The contract tests drive the bundled plugins as real WebAssembly components, and those are
+# built separately from `cargo test` — `scripts/build-plugins.sh` here, the `components` job in
+# CI. Since RD-108-16 a missing component fails the test that wanted it, because the loader
+# used to return early instead and a run of thirty contract tests could report thirty greens
+# without a single one of them ever entering a component.
+#
+# That leaves one honest way not to run them: say so. A checkout without the wasm toolchain —
+# no `wasm32-unknown-unknown` target, no `cargo-component` — uses the profile below, and the
+# summary then counts those tests as *skipped* rather than as *passed*. That is the whole
+# point of the profile existing rather than an environment variable that turns the failure off:
+# a skip somebody chose appears in the number, a skip the loader performed did not.
+
+# A test that hangs is ended after five minutes instead of holding the run until the CI job's
+# timeout: on 2026-09-25 three captcha tests blocked on a locked macOS keychain for an hour. The
+# slowest legitimate test took 124 s on a GitHub runner (turbobit_hitfile_contract).
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 5 }
+
+# Everything except the tests that need a built plugin component.
+#
+#   cargo nextest run -P no-components --workspace
+#
+# `default-filter` rather than `-E` on the command line, deliberately: tests left out by a
+# default filter are reported in the `skipped` count, tests left out by `-E` are not reported
+# at all. The selection is by binary, so a new contract test in one of these files is covered
+# without anybody remembering to add it here.
+#
+# A new test FILE that loads a component is not, and three were missed that way on the first
+# GitHub runs (2026-09-25). `crates/rdownloader/tests/no_components_profile.rs` fails for a test
+# file that calls `artifact::component`, itself or through its `support` module, and is not left
+# out below. Write entries as `binary(name)` or `binary(/suffix$/)`; that test reads no other form.
+#
+# `test(/.*/) &` looks redundant and is not: an expression that names only binaries lets
+# nextest drop those binaries without listing them, and what is never listed is never counted
+# as skipped either — the summary then reads `172 tests run: 172 passed, 1 skipped` where it
+# should read `198 tests run: 198 passed, 182 skipped`. Naming the tests forces the listing,
+# which is the whole reason for the profile: the number has to show what did not run.
+[profile.no-components]
+default-filter = """
+    not (
+        test(/.*/)
+        & (
+            binary(/_contract$/)
+            + binary(signed_resolver)
+            + binary(foreign_address_entries)
+            + binary(foreign_address_wire)
+            + binary(krakenfiles_parity)
+            + binary(notifier_wire)
+            + binary(notifier_foreign_text)
+            + test(/real_ddownload_component/)
+        )
+    )
+"""

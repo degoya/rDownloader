@@ -1,0 +1,8 @@
+{
+  "user_code": "ABCD1234",
+  "device_code": "redacted-device-code-0000",
+  "verification_uri": "https://microsoft.com/devicelogin",
+  "expires_in": 900,
+  "interval": 5,
+  "message": "To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code ABCD1234 to authenticate."
+}

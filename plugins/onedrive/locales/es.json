@@ -1,0 +1,26 @@
+{
+  "name": "OneDrive",
+  "description": "Descarga archivos y enlaces compartidos de OneDrive y SharePoint mediante Microsoft Graph.",
+  "account": {
+    "secret_label": "Inicio de sesión de Microsoft",
+    "secret_hint": "Aquí no hay que pegar nada. OneDrive se autentica en Microsoft: introduce arriba tu ID de aplicación (cliente), inicia el acceso y acepta en la ventana del navegador, o escribe el código corto que se muestra en cualquier otra pantalla en microsoft.com/devicelogin.",
+    "username_label": "ID de aplicación (cliente)",
+    "username_hint": "OneDrive necesita un registro de aplicación propio: este proyecto no incluye ninguno, para que cada instalación tenga su propio presupuesto de limitación de Microsoft. En el centro de administración de Microsoft Entra (entra.microsoft.com), en «Registros de aplicaciones», crea un registro para cuentas de cualquier directorio organizativo y cuentas personales de Microsoft, añade la plataforma «Aplicaciones móviles y de escritorio» con http://127.0.0.1:8710/api/v1/oauth/callback como URI de redirección, activa «Permitir flujos de cliente público» para el inicio de sesión por dispositivo y pega aquí el ID de aplicación (cliente). El inicio de sesión solo solicita Files.Read.All y offline_access. En el campo del secreto no se pega nada: lo rellena el inicio de sesión."
+  },
+  "codes": {
+    "onedrive.access_denied": "Esta cuenta no puede acceder a este elemento de OneDrive. Puede que el enlace se compartiera con otra cuenta u otro inquilino",
+    "onedrive.account_missing": "Falta la cuenta de OneDrive",
+    "onedrive.api_refused": "OneDrive ha rechazado esta petición ({reason})",
+    "onedrive.download_not_permitted": "Este elemento se puede ver pero no descargar: una directiva del sitio de SharePoint o del inquilino bloquea la descarga",
+    "onedrive.invalid_request": "OneDrive no ha podido resolver este enlace compartido. Puede que pertenezca a un inquilino al que esta cuenta no llega",
+    "onedrive.invalid_response": "Respuesta de OneDrive no válida",
+    "onedrive.is_a_folder": "Esta dirección de OneDrive es una carpeta. Añádela de nuevo para que se enumere",
+    "onedrive.item_not_found": "Este elemento de OneDrive no existe, el enlace compartido se retiró o esta cuenta no puede verlo",
+    "onedrive.malware_detected": "OneDrive ha marcado este archivo como malware y no lo entregará",
+    "onedrive.not_a_file": "Este elemento de OneDrive no es un archivo descargable",
+    "onedrive.not_a_onedrive_link": "Esta no es una dirección de archivo de OneDrive o SharePoint",
+    "onedrive.rate_limited": "OneDrive está limitando la frecuencia de esta cuenta",
+    "onedrive.sign_in_required": "Hay que volver a iniciar sesión en esta cuenta de OneDrive",
+    "onedrive.unavailable": "OneDrive no está disponible temporalmente"
+  }
+}

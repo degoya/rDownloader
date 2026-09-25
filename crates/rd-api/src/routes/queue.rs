@@ -1,0 +1,159 @@
+//! Download queue, packages and post-processing routes.
+
+use axum::{
+    Router,
+    routing::{delete, get, post},
+};
+use utoipa::OpenApi;
+
+use crate::{AppState, download_handlers, package_clear, package_handlers, postprocess_handlers};
+
+/// Session-authenticated routes of this area.
+pub(crate) fn routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/api/v1/downloads",
+            get(download_handlers::list_downloads).post(download_handlers::create_download),
+        )
+        .route(
+            "/api/v1/downloads/summary",
+            get(download_handlers::download_summary),
+        )
+        .route(
+            "/api/v1/downloads/rates",
+            get(download_handlers::download_rates),
+        )
+        .route(
+            "/api/v1/downloads/bulk",
+            post(download_handlers::bulk_downloads),
+        )
+        .route(
+            "/api/v1/downloads/extract",
+            post(download_handlers::extract_downloads),
+        )
+        .route(
+            "/api/v1/downloads/reorder",
+            post(package_handlers::reorder_downloads),
+        )
+        .route(
+            "/api/v1/downloads/{id}",
+            delete(download_handlers::delete_download).patch(download_handlers::rename_download),
+        )
+        .route(
+            "/api/v1/downloads/{id}/pause",
+            post(download_handlers::pause_download),
+        )
+        .route(
+            "/api/v1/downloads/{id}/resume",
+            post(download_handlers::resume_download),
+        )
+        .route(
+            "/api/v1/downloads/{id}/cancel",
+            post(download_handlers::cancel_download),
+        )
+        .route(
+            "/api/v1/downloads/{id}/reset",
+            post(download_handlers::reset_download),
+        )
+        .route(
+            "/api/v1/packages/bulk",
+            post(package_handlers::bulk_update_packages),
+        )
+        .route(
+            "/api/v1/packages/reorder",
+            post(package_handlers::reorder_packages),
+        )
+        .route(
+            "/api/v1/packages/extract",
+            post(package_handlers::extract_packages),
+        )
+        .route(
+            "/api/v1/packages/{id}/extract",
+            post(package_handlers::extract_package),
+        )
+        .route(
+            "/api/v1/packages/{id}/extract/force",
+            post(package_handlers::force_extract_package),
+        )
+        .route(
+            "/api/v1/packages/{id}/folder",
+            post(package_handlers::rename_package_folder),
+        )
+        .route(
+            "/api/v1/packages/{id}/postprocess",
+            get(package_handlers::list_package_postprocess),
+        )
+        .route(
+            "/api/v1/packages/{id}",
+            axum::routing::patch(package_handlers::update_package)
+                .delete(package_handlers::delete_package),
+        )
+        .route(
+            "/api/v1/packages/delete",
+            post(package_handlers::delete_packages),
+        )
+        .route(
+            "/api/v1/packages/clear",
+            post(package_clear::clear_packages),
+        )
+        .route(
+            "/api/v1/postprocess/queue",
+            get(postprocess_handlers::list_postprocess_queue),
+        )
+        .route(
+            "/api/v1/postprocess/scripts",
+            get(postprocess_handlers::list_postprocess_scripts),
+        )
+        .route(
+            "/api/v1/postprocess/plugin-steps",
+            get(postprocess_handlers::list_plugin_steps),
+        )
+        .route(
+            "/api/v1/postprocess/upload-destinations",
+            get(postprocess_handlers::list_upload_destinations),
+        )
+        .route(
+            "/api/v1/categories/{id}/postprocess",
+            axum::routing::patch(postprocess_handlers::update_category_postprocess),
+        )
+        .route(
+            "/api/v1/downloads/{id}/auth-profile",
+            axum::routing::put(download_handlers::set_download_auth_profile),
+        )
+}
+
+/// OpenAPI operations of this area.
+#[derive(OpenApi)]
+#[openapi(paths(
+    download_handlers::list_downloads,
+    download_handlers::download_summary,
+    download_handlers::download_rates,
+    download_handlers::create_download,
+    download_handlers::pause_download,
+    download_handlers::resume_download,
+    download_handlers::cancel_download,
+    download_handlers::reset_download,
+    download_handlers::delete_download,
+    download_handlers::rename_download,
+    download_handlers::bulk_downloads,
+    download_handlers::extract_downloads,
+    package_handlers::update_package,
+    package_handlers::bulk_update_packages,
+    package_handlers::reorder_packages,
+    package_handlers::reorder_downloads,
+    package_handlers::extract_package,
+    package_handlers::force_extract_package,
+    package_handlers::rename_package_folder,
+    package_handlers::extract_packages,
+    package_handlers::delete_package,
+    package_handlers::delete_packages,
+    package_clear::clear_packages,
+    package_handlers::list_package_postprocess,
+    postprocess_handlers::list_postprocess_queue,
+    postprocess_handlers::list_postprocess_scripts,
+    postprocess_handlers::list_plugin_steps,
+    postprocess_handlers::list_upload_destinations,
+    postprocess_handlers::update_category_postprocess,
+    download_handlers::set_download_auth_profile,
+))]
+pub(crate) struct Doc;

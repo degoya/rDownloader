@@ -1,0 +1,19 @@
+{
+  "name": "Premiumize.me",
+  "account": {
+    "secret_label": "Clave API de Premiumize",
+    "secret_hint": "Premiumize necesita la clave API en el campo secreto. Normalmente no se requiere una sesión de cookies para Premiumize."
+  },
+  "codes": {
+    "premiumize.account.fair_use": "Uso justo: {percent} % consumido",
+    "premiumize.account_missing": "Falta la cuenta de Premiumize",
+    "premiumize.api_error": "Error de la API de Premiumize: {message}",
+    "premiumize.api_key_required": "Falta la clave API de Premiumize",
+    "premiumize.http_error": "Estado HTTP de Premiumize {status}",
+    "premiumize.invalid_link": "Enlace de descarga de Premiumize no válido",
+    "premiumize.invalid_response": "Respuesta de Premiumize no válida",
+    "premiumize.invalid_response_field": "Premiumize envió un campo que no se puede leer: {field}",
+    "premiumize.invalid_url": "URL del proveedor no válida: {error}",
+    "premiumize.no_file": "Premiumize no devolvió ningún archivo"
+  }
+}

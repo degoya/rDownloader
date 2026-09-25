@@ -1,0 +1,13 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Runs magnets and torrent files as jobs on a {{PLUGIN_NAME}} account.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.not_a_job": "This is not a magnet or a torrent file this plugin can run.",
+    "{{PLUGIN_SLUG}}.no_job_id": "The provider accepted the job but did not name it. Check the account before submitting it again.",
+    "{{PLUGIN_SLUG}}.job_gone": "The provider no longer holds this job.",
+    "{{PLUGIN_SLUG}}.job_empty": "The job finished without producing anything to download.",
+    "{{PLUGIN_SLUG}}.empty_choice": "No files were chosen, so there is nothing to tell the provider.",
+    "{{PLUGIN_SLUG}}.bad_reply": "The provider sent a reply this plugin could not read.",
+    "{{PLUGIN_SLUG}}.rejected": "The provider refused this job."
+  }
+}

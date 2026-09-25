@@ -1,0 +1,6 @@
+{"status":"success","name":"Example.Release","content":[
+  {"id":"REDACTEDFILE01","name":"ep01.mkv","type":"file","size":"10","link":"https://8.premiumize.me/dl/REDACTEDFILE01/ep01.mkv"},
+  {"id":"REDACTEDFILE02","name":"ep02.mkv","type":"file","size":2048,"link":"https://8.premiumize.me/dl/REDACTEDFILE02/ep02.mkv"},
+  {"id":"REDACTEDSUB0001","name":"Sample","type":"folder"},
+  {"id":"REDACTEDFILE03","name":"broken.mkv","type":"file"}
+]}

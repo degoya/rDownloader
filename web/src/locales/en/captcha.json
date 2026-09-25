@@ -1,0 +1,75 @@
+{
+  "title": "Captcha required",
+  "description": "{host} wants a captcha solved before this download can continue.",
+  "unknown_host": "The hoster",
+  "expires_in": "Expires in {time}",
+  "image_alt": "Captcha image from the hoster",
+  "answer_label": "Answer",
+  "answer_description": "Type the characters shown in the image.",
+  "answer_placeholder": "Characters from the image",
+  "submit": "Send answer",
+  "skip": "Decline",
+  "queued": "One more captcha is waiting. | {count} more captchas are waiting.",
+  "kinds": {
+    "image": "Image captcha",
+    "recaptcha_v2": "reCAPTCHA v2",
+    "h_captcha": "hCaptcha",
+    "turnstile": "Cloudflare Turnstile",
+    "click_point": "Click captcha",
+    "cutcaptcha": "CutCaptcha"
+  },
+  "click": {
+    "description": "Click the spot in the image the prompt asks for. Clicking again moves the mark; nothing is sent until you press the button.",
+    "marked": "Marked at {x}, {y} in the image.",
+    "none": "No spot marked yet.",
+    "surface": "Captcha image: click or use the arrow keys to mark a spot, Enter sends it",
+    "keyboard": "Keyboard: the arrow keys move the mark by one pixel, with Shift by ten; Enter sends it."
+  },
+  "widget": {
+    "title": "{kind} is answered on the hoster's own page",
+    "description": "{host} protects this download with {kind}. The widget is tied to the hoster's own domain and cannot be shown here at all. Answer it in your own browser: the rDownloader browser extension opens the hoster's page in a tab and hands the answer back — a solver service answers it without you.",
+    "extension_connected": "The browser extension is connected: it announces this captcha and opens {host} in a tab of your browser.",
+    "extension_missing": "No browser extension is connected, and without one only a solver service can answer this captcha. Install and pair the extension to answer it yourself, in your own browser.",
+    "extension_setup": "Set up the browser extension",
+    "hint": "Connect the browser extension and answer the captcha in the tab it opens, set up a solver service in the network settings, or decline this captcha and let the download fail. There is no other way: a widget is bound to the hoster's own domain, so neither this interface nor the desktop agent can show it.",
+    "configure": "Captcha settings"
+  },
+  "settings": {
+    "eyebrow": "Captcha solving",
+    "title": "Captchas",
+    "description": "Free downloads without an account often require a captcha. rDownloader can pass it to a solver service, or ask you directly.",
+    "state": {
+      "active": "Solver active",
+      "off": "No solver"
+    },
+    "solver": {
+      "label": "Solver service",
+      "description": "A service with a 2captcha-compatible API answers captchas automatically.",
+      "none": "None — ask me only",
+      "two_captcha": "2captcha-compatible API"
+    },
+    "endpoint": {
+      "label": "API endpoint",
+      "description": "Absolute https URL of the service; empty keeps the stored endpoint."
+    },
+    "api_key": {
+      "label": "API key",
+      "description": "Stored encrypted and never returned by the API.",
+      "stored": "A key is stored. Enter a new one to replace it.",
+      "clear": "Remove the stored API key"
+    },
+    "test": {
+      "button": "Test connection",
+      "balance": "The service answered. Remaining balance: {balance}."
+    },
+    "manual": {
+      "label": "Ask me for image captchas",
+      "description": "Image captchas appear as a prompt in the web interface."
+    },
+    "timeout": {
+      "label": "Answer timeout",
+      "description": "How long a captcha waits for your answer before the download fails."
+    },
+    "hint": "Widget captchas (reCAPTCHA v2, hCaptcha, Turnstile) are bound to the hoster's domain and cannot be shown here. They are answered either by a solver service or by you — in your own browser through the rDownloader browser extension, which opens the hoster's page in a tab. That extension is the only way a person answers one; the desktop agent does not show them. Manual solving in this interface covers image captchas only. Changes are saved with the configuration."
+  }
+}

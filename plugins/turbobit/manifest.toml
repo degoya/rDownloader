@@ -1,0 +1,71 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000120"
+name = "Turbobit"
+# The version must rise with every change, or a running instance keeps the package it
+# already has (`sync_bundled` only installs newer ones).
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The live hosts measured on 2026-09-21 (RD-103-10, section 1): the main site, its three
+# redirecting subdomains, and the five short domains that answer a file path with a redirect to
+# the main site. Dead domains (`turbobit.online`, `.live`, `.cloud`, `.ru`, …) and the unrelated
+# `turbobit.com`/`turbobit.to` are not claimed.
+match_domains = [
+  "turbobit.net", "www.turbobit.net", "new.turbobit.net", "m.turbobit.net",
+  "turbobit.cc", "turb.cc", "turb.pw", "turbo.to", "trbt.cc",
+]
+# The direct link is `turbobit.net/download/redirect/…`, answered with a redirect to a delivery
+# host `s<nnn>.turbobit.net`.
+download_domains = ["turbobit.net", "*.turbobit.net"]
+# A guest gets one file per time window; a premium account's parallelism is not measured.
+max_concurrent_downloads = 1
+# Links without an account go the site's own guest way: `download/info` -> `free/init` ->
+# Turnstile -> `free/captcha` (countdown) -> `free/prepare` -> `free/start` -> one-shot link.
+requires_account = false
+
+[capabilities]
+cookies = false
+captcha = true
+secrets = ["turbobit_password"]
+
+# The short domains are only ever rewritten to the main site, never fetched.
+[capabilities.net_http]
+domains = ["turbobit.net", "app.turbobit.net"]
+
+[metadata]
+description = "Resolves Turbobit links as a guest through the site's captcha and countdown, or with an account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[provider]
+slug = "turbobit"
+kind = "hoster"
+credentials = "username_password"
+username_required = true
+# The password reaches exactly one host: the API's `auth/login`.
+secret_reference = "turbobit_password"
+secret_domains = ["app.turbobit.net"]
+host_aliases = [
+  ["www.turbobit.net", "turbobit.net"],
+  ["new.turbobit.net", "turbobit.net"],
+  ["m.turbobit.net", "turbobit.net"],
+  ["turbobit.cc", "turbobit.net"],
+  ["turb.cc", "turbobit.net"],
+  ["turb.pw", "turbobit.net"],
+  ["turbo.to", "turbobit.net"],
+  ["trbt.cc", "turbobit.net"],
+]
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+# The largest measured answer is `free/init` with its tariffs, under 8 KiB.
+max_response_bytes = 1048576
+# One Turnstile round plus the site's countdown (60 s after JDownloader) plus one retry after
+# a refused captcha; spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

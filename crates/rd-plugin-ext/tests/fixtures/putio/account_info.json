@@ -1,0 +1,10 @@
+{
+  "info": {
+    "username": "redacted-user",
+    "mail": "redacted-user@example.invalid",
+    "account_active": true,
+    "disk": { "avail": 1024, "size": 2048, "used": 1024 },
+    "plan_expiration_date": "2027-01-01T00:00:00"
+  },
+  "status": "OK"
+}

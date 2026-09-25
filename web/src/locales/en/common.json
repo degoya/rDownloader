@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "rDownloader",
+    "loading": "Reading service status",
+    "title_active": "{count} active"
+  },
+  "actions": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "remove": "Remove",
+    "rename": "Rename",
+    "edit": "Edit",
+    "close": "Close",
+    "refresh": "Refresh",
+    "add": "Add",
+    "test": "Test",
+    "start": "Start",
+    "pause": "Pause",
+    "resume": "Resume",
+    "retry": "Retry",
+    "extract": "Extract",
+    "select_all": "Select all",
+    "clear_selection": "Clear selection",
+    "copy": "Copy",
+    "apply": "Apply",
+    "reset": "Reset",
+    "back": "Back",
+    "reveal": "Show in list"
+  },
+  "states": {
+    "queued": "Queued",
+    "resolving": "Resolving",
+    "downloading": "Downloading",
+    "paused": "Paused",
+    "skipped": "Mirror",
+    "retry_wait": "Retrying",
+    "verifying": "Verifying",
+    "repairing": "Repairing",
+    "extracting": "Extracting",
+    "blocked": "Blocked",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "completed": "Completed",
+    "seeding": "Seeding",
+    "skipped_postponed": "Postponed"
+  },
+  "priority": {
+    "high": "High",
+    "normal": "Normal",
+    "low": "Low"
+  },
+  "units": {
+    "file": "no files | {count} file | {count} files",
+    "package": "no packages | {count} package | {count} packages",
+    "link": "no links | {count} link | {count} links",
+    "entry": "no entries | {count} entry | {count} entries",
+    "selected": "selected",
+    "per_second": "/s"
+  },
+  "values": {
+    "unknown": "unknown",
+    "none": "none",
+    "default": "Default",
+    "yes": "Yes",
+    "no": "No",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "errors": {
+    "request_failed": "The request could not be processed.",
+    "unknown": "Unknown error"
+  },
+  "data": {
+    "loading": "Loading",
+    "load_failed": "This data could not be loaded."
+  },
+  "preferences": {
+    "language": "Language",
+    "theme": "Theme",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "language_and_theme": "Language and theme"
+  },
+  "locales": {
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español"
+  },
+  "footer": {
+    "made_with": "Made with",
+    "by": "in Germany by {author}"
+  },
+  "chart": {
+    "title": "Throughput · last 2 minutes",
+    "subtitle": "Combined rate of all active files",
+    "peak": "Peak",
+    "window_start": "2 min ago",
+    "window_end": "now",
+    "description": "Download speed over the last two minutes. Currently {current}, peak {peak}."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "groups": {
+      "navigation": "Navigation",
+      "actions": "Actions"
+    },
+    "go_downloads": "Go to Downloads",
+    "go_linkgrabber": "Go to LinkGrabber",
+    "go_streams": "Go to Streams",
+    "go_subscriptions": "Go to Subscriptions",
+    "go_remote_jobs": "Go to Remote jobs",
+    "go_automation": "Go to Automation",
+    "go_settings": "Go to Settings",
+    "import_nzb": "Import NZB/torrent",
+    "toggle_transfers": "Start or pause all downloads",
+    "show_help": "Show keyboard shortcuts",
+    "toast": {
+      "paused": "No transfers were paused. | {count} transfer was paused. | {count} transfers were paused.",
+      "resumed": "No transfers were started. | {count} transfer was started or resumed. | {count} transfers were started or resumed.",
+      "nothing": "Nothing to pause or resume."
+    },
+    "toggle_sidebar": "Collapse or expand the sidebar",
+    "go_stats": "Go to Statistics",
+    "go_logs": "Go to Logs",
+    "go_audit": "Go to the audit log"
+  },
+  "a11y": {
+    "skip_to_content": "Skip to content",
+    "main_navigation": "Main navigation",
+    "queue_status": "{active} of {total} packages downloading",
+    "reorder_keys": "Arrow keys up and down move the entry without a mouse"
+  },
+  "backup": {
+    "export": "Export",
+    "import": "Import",
+    "export_success": "File created",
+    "invalid_file": "This file is not an rDownloader bundle",
+    "confirm_title": "Import bundle?",
+    "confirm": "Import",
+    "confirm_description": "The file carries {count} entries. Existing ones of the same name are left untouched.",
+    "import_success": "Import finished",
+    "import_summary": "{created} imported, {skipped} skipped"
+  },
+  "editing": "Editing"
+}

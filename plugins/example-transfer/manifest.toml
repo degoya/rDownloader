@@ -1,0 +1,36 @@
+manifest_version = 3
+plugin_type = "transfer"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-0000000000e1"
+name = "Example Transfer"
+version = "0.7.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# One transfer at a time: this backend exists to demonstrate the contract, not to move data.
+max_concurrent_downloads = 1
+
+[capabilities]
+
+# The reference backend ships with no host it may actually reach. It is built to be driven by
+# the contract tests, which supply their own allowlist along with the port their server bound
+# to; shipping a usable one would mean shipping a plugin that dials somebody's machine.
+[capabilities.net_stream]
+hosts = ["example.invalid"]
+ports = [8721]
+
+[transfer]
+slug = "example"
+schemes = ["example+tcp", "example+tls"]
+
+[metadata]
+description = "Reference transfer backend demonstrating the plugin transfer contract."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.7.0"
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

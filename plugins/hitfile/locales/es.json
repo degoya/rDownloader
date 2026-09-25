@@ -1,0 +1,31 @@
+{
+  "name": "HitFile",
+  "description": "Resuelve enlaces de HitFile como invitado mediante el captcha y la espera del sitio, o con una cuenta.",
+  "account": {
+    "secret_label": "Contraseña de HitFile",
+    "secret_hint": "La contraseña de la cuenta de HitFile indicada arriba. rDownloader inicia sesión por sí mismo y mantiene la sesión; la contraseña solo llega a app.hitfile.net. Sin cuenta, los enlaces se descargan como invitado, con el captcha y la espera del sitio.",
+    "username_label": "Correo electrónico de HitFile",
+    "username_hint": "El correo electrónico con el que inicia sesión la cuenta de HitFile."
+  },
+  "codes": {
+    "hitfile.account_banned": "HitFile informa de que esta cuenta está bloqueada",
+    "hitfile.account_missing": "Falta la cuenta o la contraseña de HitFile",
+    "hitfile.api_error": "HitFile rechazó la solicitud ({code})",
+    "hitfile.captcha_rejected": "HitFile rechazó la respuesta del captcha",
+    "hitfile.file_unavailable": "El archivo de HitFile no está disponible",
+    "hitfile.folder_not_file": "Este enlace de HitFile es una carpeta; añade en su lugar los archivos que contiene",
+    "hitfile.free_limit_reached": "Límite de descargas gratuitas de HitFile alcanzado para esta dirección IP; otra descarga será posible en {wait_seconds}s",
+    "hitfile.http_error": "Estado HTTP de HitFile {status}",
+    "hitfile.invalid_link": "Enlace de HitFile no válido",
+    "hitfile.invalid_response": "Respuesta de HitFile no válida ({field})",
+    "hitfile.invalid_url": "URL del proveedor no válida: {error}",
+    "hitfile.login_captcha": "HitFile no aceptó la respuesta del captcha del inicio de sesión; se reintentará más tarde",
+    "hitfile.login_failed": "HitFile rechazó el correo electrónico o la contraseña de la cuenta",
+    "hitfile.no_direct_link": "HitFile no entregó ningún enlace de descarga",
+    "hitfile.not_signed_in": "HitFile rechazó la solicitud por no haber iniciado sesión",
+    "hitfile.premium_limit_reached": "HitFile no entregó ningún enlace de descarga a la cuenta premium; puede que se haya alcanzado el límite diario",
+    "hitfile.premium_only": "HitFile ofrece este archivo solo a cuentas premium",
+    "hitfile.rate_limited": "Límite de solicitudes de HitFile alcanzado; la solicitud se reintentará más tarde",
+    "hitfile.unsupported_link": "Enlace de HitFile no compatible"
+  }
+}

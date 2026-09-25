@@ -1,0 +1,11 @@
+{
+  "name": "Inicio de sesión de Microsoft",
+  "description": "Inicia sesión en una cuenta de OneDrive o SharePoint mediante el propio endpoint de autorización de Microsoft, por navegador o por código de dispositivo.",
+  "codes": {
+    "onedrive_oauth.bad_reply": "Microsoft ha enviado una respuesta que este complemento no puede leer.",
+    "onedrive_oauth.code_expired": "El inicio de sesión caducó antes de completarse, o el código no fue aceptado. Vuelve a iniciarlo.",
+    "onedrive_oauth.consent_denied": "Microsoft no ha concedido el acceso. La administración del inquilino también puede exigir consentimiento o bloquearlo.",
+    "onedrive_oauth.no_entropy": "No se ha podido iniciar el acceso porque la aplicación no disponía de aleatoriedad. Inténtalo de nuevo.",
+    "onedrive_oauth.refresh_refused": "Microsoft ya no acepta el acceso guardado. Vuelve a iniciar sesión."
+  }
+}

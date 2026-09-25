@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "status": 404,
+  "code": "not_found",
+  "context_info": { "errors": [ { "reason": "invalid_parameter", "name": "item", "message": "Invalid value 'f_0'. 'item' with value 'f_0' not found" } ] },
+  "help_url": "http://developers.box.com/docs/#errors",
+  "message": "Not Found",
+  "request_id": "redacted-request-id-0000"
+}

@@ -1,0 +1,32 @@
+[package]
+name = "rd-files"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+crc32fast.workspace = true
+dunce.workspace = true
+fs2.workspace = true
+hex.workspace = true
+md-5.workspace = true
+rd-core = { path = "../rd-core" }
+regex.workspace = true
+sanitize-filename.workspace = true
+serde.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+unicode-normalization.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

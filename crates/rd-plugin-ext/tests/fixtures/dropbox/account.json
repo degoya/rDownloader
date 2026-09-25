@@ -1,0 +1,24 @@
+{
+  "account_id": "dbid:redacted-account-0000",
+  "name": {
+    "given_name": "Someone",
+    "surname": "Redacted",
+    "familiar_name": "Someone",
+    "display_name": "Someone Redacted",
+    "abbreviated_name": "SR"
+  },
+  "email": "someone@example.invalid",
+  "email_verified": true,
+  "disabled": false,
+  "locale": "en",
+  "referral_link": "https://www.dropbox.com/referrals/redacted",
+  "is_paired": false,
+  "account_type": {
+    ".tag": "basic"
+  },
+  "root_info": {
+    ".tag": "user",
+    "root_namespace_id": "0",
+    "home_namespace_id": "0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Real-Debrid",
+  "description": "Résout les liens d'autres hébergeurs via un compte Real-Debrid.",
+  "account": {
+    "secret_label": "Client secret Real-Debrid",
+    "secret_hint": "Enregistrez une application sur real-debrid.com (Mon compte → API). Saisissez son client ID comme nom d'utilisateur et son client secret ici, puis lancez la connexion : Real-Debrid affiche un code court à confirmer, et le jeton est renouvelé ensuite."
+  },
+  "codes": {
+    "realdebrid.account_missing": "Compte Real-Debrid manquant",
+    "realdebrid.api_error": "Erreur {api_code} de l'API Real-Debrid",
+    "realdebrid.auth_invalid": "La connexion Real-Debrid n'est plus valide. Reconnectez-vous.",
+    "realdebrid.file_offline": "Real-Debrid signale ce fichier comme indisponible",
+    "realdebrid.host_unsupported": "Real-Debrid ne prend pas en charge cet hébergeur pour ce compte",
+    "realdebrid.http_error": "Statut HTTP {status} de Real-Debrid",
+    "realdebrid.invalid_response": "Réponse Real-Debrid non valide",
+    "realdebrid.invalid_url": "URL du fournisseur non valide : {error}",
+    "realdebrid.ip_not_allowed": "Real-Debrid n'autorise pas ce compte depuis cette adresse",
+    "realdebrid.limit_reached": "Real-Debrid signale la limite de trafic ou d'hébergeur comme atteinte",
+    "realdebrid.no_download_url": "Real-Debrid n'a renvoyé aucun lien de téléchargement",
+    "realdebrid.rate_limited": "La limite de requêtes de l'API Real-Debrid est atteinte. Attente en cours.",
+    "realdebrid.server_busy": "Real-Debrid ou l'hébergeur derrière lui est temporairement indisponible",
+    "realdebrid.server_error": "Erreur du serveur Real-Debrid",
+    "realdebrid.token_missing": "Ce compte Real-Debrid n'est pas encore connecté",
+    "realdebrid.two_factor": "Real-Debrid a demandé une authentification à deux facteurs"
+  }
+}

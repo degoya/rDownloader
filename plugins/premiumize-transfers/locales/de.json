@@ -1,0 +1,26 @@
+{
+  "name": "Premiumize-Transfers",
+  "description": "Führt Magnets, Container und einfache Links als Transfers in einem Premiumize.me-Konto aus.",
+  "codes": {
+    "premiumize_transfers.account_missing": "Premiumize-Konto fehlt",
+    "premiumize_transfers.api_error": "Premiumize-API-Fehler {api_code}",
+    "premiumize_transfers.auth_invalid": "Die Premiumize-Anmeldung ist nicht mehr gültig. Hinterlege den API-Schlüssel erneut.",
+    "premiumize_transfers.container_unknown": "Das Format dieses Containers wurde nicht erkannt",
+    "premiumize_transfers.empty_choice": "Eine Dateiauswahl muss mindestens eine Datei nennen",
+    "premiumize_transfers.folder_too_large": "Dieser Transfer hat mehr Ordner erzeugt, als ein Abruf lesen kann",
+    "premiumize_transfers.http_error": "Premiumize-HTTP-Status {status}",
+    "premiumize_transfers.invalid_response": "Ungültige Premiumize-Antwort",
+    "premiumize_transfers.limit_reached": "Premiumize meldet das Traffic- oder Fair-Use-Limit als erreicht",
+    "premiumize_transfers.no_choice": "Premiumize-Transfers fragen nicht, welche Dateien übernommen werden sollen",
+    "premiumize_transfers.no_files": "Premiumize meldet diesen Transfer als fertig, liefert aber keine Dateien",
+    "premiumize_transfers.no_location": "Premiumize meldet diesen Transfer als fertig, nennt aber weder Datei noch Ordner",
+    "premiumize_transfers.no_transfer_id": "Premiumize hat den angelegten Transfer nicht benannt. Prüfe dein Premiumize-Konto, bevor du es erneut versuchst.",
+    "premiumize_transfers.not_a_source": "Das ist weder eine Magnet-Adresse noch ein Container noch ein brauchbarer Link",
+    "premiumize_transfers.rate_limited": "Das Premiumize-API-Limit wurde erreicht. Es wird gewartet.",
+    "premiumize_transfers.server_busy": "Premiumize ist vorübergehend nicht erreichbar",
+    "premiumize_transfers.source_unsupported": "Premiumize nimmt diese Quelle nicht an",
+    "premiumize_transfers.transfer_failed": "Premiumize hat diesen Transfer mit einem Fehler beendet",
+    "premiumize_transfers.transfer_gone": "Premiumize hält diesen Transfer nicht mehr",
+    "premiumize_transfers.transfer_unlisted": "Premiumize führt diesen Transfer nicht mehr auf"
+  }
+}

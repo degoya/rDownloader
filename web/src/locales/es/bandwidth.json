@@ -1,0 +1,103 @@
+{
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Medios",
+    "gallery": "Galerías",
+    "record": "Grabaciones"
+  },
+  "days": {
+    "0": "Lun",
+    "1": "Mar",
+    "2": "Mié",
+    "3": "Jue",
+    "4": "Vie",
+    "5": "Sáb",
+    "6": "Dom"
+  },
+  "source": {
+    "manual": "Límite manual",
+    "global": "Perfil",
+    "protocol": "Protocolo",
+    "host": "Host",
+    "account": "Cuenta",
+    "category": "Categoría"
+  },
+  "status": {
+    "eyebrow": "Activo ahora",
+    "no_profile": "Ningún perfil activo",
+    "binding": "Límite más estricto",
+    "unlimited": "Sin límite",
+    "next_switch": "Próximo cambio",
+    "no_switch": "Sin cambios programados",
+    "daily": "Hoy ({period})",
+    "monthly": "Este mes ({period})",
+    "usage": "{used} de {limit}",
+    "budget_exhausted": "El presupuesto de tráfico se agotó. Las transferencias en curso terminan; nada nuevo empieza hasta el siguiente periodo."
+  },
+  "capabilities": {
+    "title": "Lo que un límite no alcanza del todo"
+  },
+  "profile": {
+    "eyebrow": "Límites reutilizables",
+    "title": "Perfiles de ancho de banda",
+    "form_edit": "Editar perfil",
+    "description": "Un perfil agrupa una tasa global, tasas por ámbito y presupuestos de tráfico. El horario decide cuándo se aplica.",
+    "name_label": "Nombre",
+    "name_placeholder": "Noche",
+    "create": "Crear perfil",
+    "parallel_label": "Archivos en paralelo",
+    "parallel_description": "Limita la cola mientras está activo; vacío mantiene el ajuste general.",
+    "inherit": "Mantener el ajuste",
+    "download_label": "Límite de descarga",
+    "upload_label": "Límite de subida torrent",
+    "upload_description": "Solo el motor de torrent sube.",
+    "daily_label": "Presupuesto diario",
+    "monthly_label": "Presupuesto mensual",
+    "no_budget": "Sin presupuesto",
+    "empty": "Aún no hay perfiles.",
+    "delete_title": "Eliminar perfil",
+    "delete_description": "¿Eliminar el perfil «{name}»? Sus ventanas horarias se van con él.",
+    "form_new": "Nuevo perfil",
+    "summary_scopes": "{count} límite de ámbito | {count} límites de ámbito",
+    "summary_parallel": "{count} archivo en paralelo | {count} archivos en paralelo",
+    "summary_upload": "{rate} de subida",
+    "summary_daily": "{size} al día",
+    "summary_monthly": "{size} al mes"
+  },
+  "scope": {
+    "title": "Límites por ámbito",
+    "description": "El límite más estrecho siempre gana al más amplio. El que se aplica se ve arriba en el estado.",
+    "protocol": "Protocolo",
+    "host": "Host",
+    "account": "Cuenta",
+    "category": "Categoría",
+    "add": "Añadir",
+    "placeholder_protocol": "usenet",
+    "placeholder_host": "example.com",
+    "placeholder_account": "ID de cuenta",
+    "placeholder_category": "ID de categoría"
+  },
+  "schedule": {
+    "eyebrow": "Plan semanal",
+    "title": "Horario",
+    "saved": "Horario guardado",
+    "description": "Las ventanas son horas locales en la zona indicada abajo, para que un cambio de hora no salte ni repita un periodo.",
+    "timezone_label": "Zona horaria",
+    "timezone_description": "Nombre IANA, p. ej. Europe/Berlin.",
+    "default_label": "Fuera de toda ventana",
+    "default_description": "Perfil aplicado cuando ninguna ventana coincide.",
+    "no_default": "Sin límites",
+    "window_profile": "Perfil",
+    "from": "Desde",
+    "to": "Hasta",
+    "priority": "Prioridad",
+    "enabled": "Activo",
+    "add_window": "Añadir ventana",
+    "wraps": "Esta ventana cruza la medianoche hacia el día siguiente.",
+    "empty": "Aún no hay ventanas: el perfil por defecto se aplica todo el día.",
+    "needs_profile": "Cree primero un perfil.",
+    "windows_title": "Ventanas horarias"
+  }
+}

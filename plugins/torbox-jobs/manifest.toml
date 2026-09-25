@@ -1,0 +1,51 @@
+manifest_version = 3
+plugin_type = "remote-job"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000011e"
+name = "TorBox jobs"
+version = "0.2.0"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[capabilities]
+# The API key the person pasted into the TorBox account. It is read back here only as the
+# template `{{secret:torbox_api_key}}`, never as a value, and the host expands it towards
+# `api.torbox.app` and nowhere else.
+#
+# One key and one host: TorBox has a single credential, so there is nothing narrower to ask
+# for -- but the grant is still written down rather than inherited from the provider row.
+secrets = ["torbox_api_key"]
+
+# The provider's own API, and nothing else. The bytes of a finished job never come from here:
+# `requestdl` answers with an address on TorBox's storage hosts, and that address is fetched by
+# the ordinary queue after `plugins/torbox/` has renewed it.
+[capabilities.net_http]
+domains = ["api.torbox.app"]
+
+[extension]
+slug = "torbox_jobs"
+# The provider whose account these jobs run on. The host looks the account up; this plugin
+# never learns which one it is, and never sees its key.
+claims = ["torbox"]
+
+[metadata]
+description = "Runs magnets, torrent files, NZBs and web links as jobs on a TorBox account, and checks TorBox's cache for them."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+# The `remote-job` world does not exist before 1.0.7, and the `address` source shape this
+# plugin needs for web downloads arrived with the 0.7.0 contract. `cache-kinds` and
+# `check-cached` (RD-130-11) arrived with 0.9.0, which `api_version` already gates: a core
+# that predates them refuses the package by its contract, whatever this line says.
+min_app_version = "1.0.7"
+
+[limits]
+memory_bytes = 33554432
+# Every call makes at most two requests and returns on TorBox's next answer -- the waiting is
+# the host's. The one memory-shaped operation is reading a container to derive its key, which
+# `source::MAX_CONTAINER_BYTES` bounds at eight megabytes before any of this is reached; an
+# NZB for a large release is comfortably larger than a `.torrent`, which is why the bound is
+# twice what the torrent-only sibling needs.
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

@@ -1,0 +1,71 @@
+{
+  "title": "Audit log",
+  "intro": "Who did what, from where, and how it ended. Records are appended and never edited; only retention removes them, whole and oldest first. No password, token or signed link ever reaches this list.",
+  "export": "Export",
+  "filters": {
+    "action": "Action",
+    "any_action": "All actions",
+    "outcome": "Outcome",
+    "any_outcome": "Any outcome",
+    "actor_kind": "Actor",
+    "any_actor": "Any actor",
+    "target_kind": "Target type",
+    "target_placeholder": "download",
+    "target_id": "Target id",
+    "trace": "Trace id",
+    "apply": "Apply",
+    "clear": "Clear filters"
+  },
+  "outcomes": {
+    "success": "Succeeded",
+    "failure": "Refused"
+  },
+  "actors": {
+    "session": "Session",
+    "token": "Token",
+    "anonymous": "Anonymous",
+    "system": "Service"
+  },
+  "actions": {
+    "login_succeeded": "Signed in",
+    "login_failed": "Sign-in refused",
+    "logout": "Signed out",
+    "token_used": "Token used",
+    "token_created": "Token created",
+    "token_revoked": "Token revoked",
+    "token_rescoped": "Token permissions changed",
+    "settings_changed": "Settings changed",
+    "settings_reset": "Settings reset",
+    "plugin_installed": "Plugin installed",
+    "plugin_removed": "Plugin removed",
+    "plugin_key_revoked": "Signing key revoked",
+    "plugin_digest_revoked": "Package withdrawn",
+    "plugin_digest_unrevoked": "Withdrawal lifted",
+    "download_deleted": "Download deleted",
+    "package_deleted": "Package deleted",
+    "category_deleted": "Category deleted",
+    "storage_root_deleted": "Storage root deleted",
+    "backup_restored": "Backup restored",
+    "password_changed": "Password changed",
+    "logs_cleared": "Service log cleared",
+    "audit_cleared": "Audit log cleared",
+    "stats_cleared": "Statistics cleared",
+    "notifications_cleared": "Notification history cleared"
+  },
+  "list": {
+    "title": "Records",
+    "empty": "No records match.",
+    "shown": "{shown} of {total} records",
+    "full_page": "This is a full page: older records exist behind it.",
+    "older": "Load older",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "actor_id": "Actor id",
+    "retention": "Kept for {days} days or {records} records, whichever runs out first."
+  },
+  "append_only": {
+    "eyebrow": "Guarantee",
+    "title": "Append-only",
+    "description": "There is no route that edits or deletes a record, and the database refuses an update to this table outright. Deleting a download, a package, a category or a storage root leaves its record behind, and restoring a configuration backup does not touch the log. This is a record of what happened, not a protection against someone with access to the file itself."
+  }
+}

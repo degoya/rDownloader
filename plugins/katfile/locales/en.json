@@ -1,0 +1,33 @@
+{
+  "name": "KatFile",
+  "description": "Resolves KatFile links across its mirror domains.",
+  "account": {
+    "secret_label": "API key",
+    "secret_hint": "Enter your API key as secret, or leave it empty and import your browser cookies from a logged-in premium session instead."
+  },
+  "codes": {
+    "katfile.account_missing": "KatFile account is missing",
+    "katfile.api_error": "KatFile API: {message}",
+    "katfile.api_key_required": "KatFile link check requires the API key",
+    "katfile.captcha_rejected": "KatFile rejected the captcha answer",
+    "katfile.captcha_required": "KatFile requires solving a captcha for this download, which is not supported",
+    "katfile.cookie_session_invalid": "KatFile cookie session is not signed in - paste a fresh cookie session from a signed-in browser: {diagnosis}",
+    "katfile.cookie_session_required": "KatFile cookie session is missing or contains no cookies for katfile.biz",
+    "katfile.cookie_session_required_for_download": "KatFile downloads require a cookie session (browser login); the API key only provides metadata",
+    "katfile.cookie_session_unconfirmed": "KatFile did not confirm the cookie session either way - the page was neither signed in nor a guest page; try again later: {diagnosis}",
+    "katfile.download_session_expired": "KatFile accepted the API key, but the cookie session downloads run on has expired - sign in at katfile.biz in a browser and paste a fresh cookie session into this account: {diagnosis}",
+    "katfile.download_wait": "KatFile requires waiting {wait_seconds}s before this file can be downloaded",
+    "katfile.file_unavailable": "KatFile file is not available",
+    "katfile.free_limit_reached": "KatFile free download limit reached for this IP address",
+    "katfile.http_error": "KatFile HTTP status {status}",
+    "katfile.invalid_link": "Invalid KatFile link",
+    "katfile.invalid_response": "Invalid KatFile response",
+    "katfile.invalid_url": "Invalid provider URL: {error}",
+    "katfile.no_free_form": "KatFile free download form was not found: {diagnosis}",
+    "katfile.no_free_link": "KatFile free download did not yield a file link: {diagnosis}",
+    "katfile.no_premium_file": "KatFile cookie session did not return a premium file: {diagnosis}",
+    "katfile.premium_only": "KatFile reports this file requires a premium account: {reason}",
+    "katfile.session_unconfirmed": "cookie session not confirmed - the page was neither signed in nor a guest page",
+    "katfile.unsupported_link": "Not a supported KatFile link"
+  }
+}

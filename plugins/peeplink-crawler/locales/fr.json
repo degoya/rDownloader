@@ -1,0 +1,11 @@
+{
+  "name": "Entrées PEEPLink",
+  "description": "Répertorie les liens d'hébergeurs derrière une page d'entrée PEEPLink ou AlfaLink.",
+  "codes": {
+    "peeplink_crawler.entry_empty": "Cette entrée PEEPLink ne contient aucun lien",
+    "peeplink_crawler.entry_not_found": "Cette entrée PEEPLink n'existe plus",
+    "peeplink_crawler.password_required": "Cette entrée PEEPLink est protégée par mot de passe : ajoutez le mot de passe à l'adresse après un #",
+    "peeplink_crawler.password_wrong": "Le service n'a pas accepté le mot de passe fourni avec cette adresse PEEPLink",
+    "peeplink_crawler.site_unreachable": "Impossible de lire cette entrée PEEPLink : le service n'a pas répondu"
+  }
+}

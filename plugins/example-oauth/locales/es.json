@@ -1,0 +1,11 @@
+{
+  "name": "Example OAuth",
+  "description": "Proveedor OAuth de referencia que muestra los flujos de código de autorización y de código de dispositivo.",
+  "codes": {
+    "example_oauth.consent_denied": "El acceso no se concedió en el proveedor.",
+    "example_oauth.code_expired": "El acceso caducó antes de completarse. Vuelve a iniciarlo.",
+    "example_oauth.refresh_refused": "El proveedor ya no acepta el acceso guardado. Vuelve a iniciar sesión.",
+    "example_oauth.bad_reply": "El proveedor envió una respuesta que este complemento no pudo leer.",
+    "example_oauth.no_entropy": "No se pudo iniciar el acceso porque la aplicación no disponía de aleatoriedad para ello. Inténtalo de nuevo."
+  }
+}

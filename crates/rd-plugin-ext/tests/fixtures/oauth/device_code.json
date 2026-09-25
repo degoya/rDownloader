@@ -1,0 +1,7 @@
+{
+  "device_code": "redacted-device-code-0000",
+  "user_code": "WXYZ-1234",
+  "verification_uri": "https://oauth.example.invalid/device",
+  "expires_in": 900,
+  "interval": 5
+}

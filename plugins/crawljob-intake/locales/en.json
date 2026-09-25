@@ -1,0 +1,7 @@
+{
+  "name": "Crawljob",
+  "description": "Reads JDownloader .crawljob files and proposes the links and package names in them.",
+  "codes": {
+    "crawljob_intake.unreadable": "That crawljob could not be read."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Premiumize sign-in",
+  "description": "Connecte un compte Premiumize chez le fournisseur, sans saisir de clé d'API ici.",
+  "codes": {
+    "premiumize_auth.consent_denied": "Le fournisseur a refusé la connexion pour ce compte.",
+    "premiumize_auth.sign_in_refused": "Le fournisseur a refusé la connexion. Relancez-la.",
+    "premiumize_auth.bad_reply": "Le fournisseur a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "premiumize_auth.flow_expired": "Le code de connexion a expiré avant d'être confirmé."
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "tree": {
+    "selected": "{count} de {total} archivos seleccionados",
+    "files_badge": "{selected} de {total} archivos seleccionados",
+    "toggle_folder": "Expandir o contraer {name}",
+    "select_entry": "Seleccionar {name}",
+    "excluded_by_pattern": "Excluido por el patrón {pattern}",
+    "loading": "Leyendo la lista de archivos…",
+    "empty": "Este torrent aún no tiene lista de archivos."
+  },
+  "errors": {
+    "metadata_failed": "No se pudieron resolver los metadatos del torrent."
+  },
+  "priority": {
+    "high": "Alta",
+    "normal": "Normal",
+    "low": "Baja",
+    "skip": "Omitir",
+    "select": "Prioridad de {name}",
+    "emulated_hint": "Las prioridades se aplican por niveles: el motor abre el siguiente nivel cuando el actual termina. Este motor no admite la descarga secuencial."
+  },
+  "patterns": {
+    "label": "Patrones de exclusión",
+    "description": "Patrones separados por comas como *.nfo o extras/*. Solo afectan a los archivos que no hayas decidido tú.",
+    "placeholder": "*.nfo, sample/*"
+  },
+  "tabs": {
+    "files": "Archivos",
+    "trackers": "Rastreadores",
+    "peers": "Pares",
+    "seeding": "Compartir"
+  },
+  "trackers": {
+    "counters_hint": "Semillas / pares / completados",
+    "scrape": "Consultar",
+    "reannounce": "Volver a anunciar",
+    "empty": "Este torrent no tiene rastreadores.",
+    "stale": "Estas cifras tienen más de 15 minutos.",
+    "stale_badge": "Obsoleto",
+    "failed": "Fallido",
+    "remove": "Eliminar el rastreador {url}",
+    "add": "Añadir",
+    "add_placeholder": "https://tracker.example/announce"
+  },
+  "stats": {
+    "ratio": "Proporción",
+    "uploaded": "Subido",
+    "peers": "Pares",
+    "offline": "Fuera de la sesión: últimos valores conocidos"
+  },
+  "peers": {
+    "title": "Pares",
+    "count": "{count} conectados",
+    "empty": "Todavía no hay pares conectados.",
+    "offline": "Este torrent no está en la sesión, así que no se pueden listar pares.",
+    "downloaded": "Descargado de este par",
+    "uploaded": "Subido a este par",
+    "more": "Mostrar más"
+  },
+  "pieces": {
+    "title": "Disponibilidad de piezas",
+    "count": "{count} piezas",
+    "empty": "No hay información de piezas."
+  },
+  "web_seeds": {
+    "title": "Web seeds",
+    "unsupported": "Este torrent ofrece web seeds. El motor no puede usarlos, así que solo se muestran a título informativo."
+  },
+  "seeding": {
+    "enabled": "Compartir",
+    "ratio": "Proporción objetivo",
+    "time": "Tiempo de siembra",
+    "unlimited": "Sin límite",
+    "minutes": "{count} minutos",
+    "inherit": "Heredar",
+    "override_enabled": "Sobrescribir el compartir",
+    "override_ratio": "Sobrescribir la proporción",
+    "override_time": "Sobrescribir el tiempo",
+    "override_unlimited": "Compartir sin límite de tiempo",
+    "save": "Guardar",
+    "clear": "Volver a heredar",
+    "source": {
+      "global": "de los ajustes globales",
+      "category": "de la categoría",
+      "torrent": "definido aquí"
+    }
+  }
+}

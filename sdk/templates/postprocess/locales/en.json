@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "One more step after a {{PLUGIN_NAME}} package has been downloaded.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.mismatch": "A file did not match what the package said it should be."
+  }
+}

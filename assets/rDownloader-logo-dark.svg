@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="360" viewBox="0 0 1360 360" role="img" aria-labelledby="title desc">
+  <title id="title">rDownloader Logo – dark version</title>
+  <desc id="desc">A turquoise download arrow in a rounded square, followed by the word rDownloader in turquoise and white on a dark background.</desc>
+
+  <rect width="1360" height="360" rx="36" fill="#0F172A"/>
+  <g id="download-symbol">
+    <rect x="40" y="40" width="280" height="280" rx="54" fill="#111D33" stroke="#2DD4BF" stroke-width="10"/>
+    <path d="M180 92V214" fill="none" stroke="#2DD4BF" stroke-width="22" stroke-linecap="round"/>
+    <path d="M126 166L180 220L234 166" fill="none" stroke="#2DD4BF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M110 260H250" fill="none" stroke="#D8FFFA" stroke-width="20" stroke-linecap="round"/>
+  </g>
+
+  <text x="382" y="226" fill="#F8FAFC" font-family="Inter, Avenir Next, Segoe UI, Arial, sans-serif" font-size="138" font-weight="750" letter-spacing="-4">
+    <tspan fill="#2DD4BF">r</tspan><tspan>Downloader</tspan>
+  </text>
+</svg>

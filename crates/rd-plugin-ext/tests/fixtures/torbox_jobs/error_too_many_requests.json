@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "error": "TOO_MANY_REQUESTS",
+  "detail": "You are making too many requests. Slow down.",
+  "data": null
+}

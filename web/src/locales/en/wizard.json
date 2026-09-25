@@ -1,0 +1,59 @@
+{
+  "title": "Setup assistant",
+  "rerun": "Setup assistant",
+  "steps": {
+    "password": {
+      "title": "Password",
+      "description": "Secure the service",
+      "lead": "Set the local administrator password. The service stays bound to loopback by default."
+    },
+    "pairing": {
+      "title": "Client",
+      "description": "Capture agent & extension",
+      "lead": "Pair the desktop capture agent or the browser extension so links reach rDownloader automatically."
+    },
+    "storage": {
+      "title": "Storage",
+      "description": "Where downloads land",
+      "lead": "Downloads need a target directory. Add at least one storage root to continue."
+    },
+    "mcp": {
+      "title": "API & MCP",
+      "description": "Connect external clients",
+      "lead": "Optionally create an API token for an external client or register the built-in MCP server with your AI assistant."
+    },
+    "services": {
+      "title": "Accounts",
+      "description": "Hosters & Usenet",
+      "lead": "Add hoster accounts and Usenet servers. You can skip this and add them later in the settings."
+    }
+  },
+  "password": {
+    "rule": "at least 10 characters",
+    "submit": "Set password",
+    "configured": "Password already configured",
+    "configured_hint": "The administrator password is set. Change it any time under Settings → General."
+  },
+  "pairing": {
+    "intro": "Pairing is optional — you can always add links by hand. A paired client sends captured links, Click'n'Load and .nzb files straight to the queue."
+  },
+  "storage": {
+    "intro": "A storage root is the base directory downloads are written to. Paths must be absolute and are created if they do not exist yet — in a container, only a path on a mounted volume survives being recreated.",
+    "default_category_hint": "A default category named \"Downloads\" is created for the first storage root so the queue has a destination.",
+    "default_category_name": "Downloads",
+    "required_hint": "Add at least one storage root — without it no download can start."
+  },
+  "services": {
+    "intro": "Optional: premium hoster accounts lift speed and captcha limits, a Usenet server enables NZB downloads.",
+    "accounts_tab": "Hoster accounts",
+    "usenet_tab": "Usenet"
+  },
+  "actions": {
+    "back": "Back",
+    "skip": "Skip",
+    "continue": "Continue",
+    "finish": "Finish",
+    "finish_with_tour": "Finish & take the tour",
+    "close": "Close assistant"
+  }
+}

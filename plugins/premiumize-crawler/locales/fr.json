@@ -1,0 +1,12 @@
+{
+  "name": "Dossiers Premiumize",
+  "description": "Liste les fichiers derrière une adresse de dossier ou d’élément du cloud Premiumize.me.",
+  "codes": {
+    "premiumize_crawler.api_key_required": "Premiumize n’a pas accepté ce compte pour ce dossier",
+    "premiumize_crawler.folder_empty": "Ce dossier Premiumize ne contient aucun fichier",
+    "premiumize_crawler.folder_unreachable": "Ce dossier Premiumize n’a pas pu être lu",
+    "premiumize_crawler.invalid_response": "Réponse Premiumize non valide",
+    "premiumize_crawler.not_a_folder": "Cette adresse n’est pas un dossier ni un élément Premiumize",
+    "premiumize_crawler.rate_limited": "Premiumize limite actuellement ce compte"
+  }
+}

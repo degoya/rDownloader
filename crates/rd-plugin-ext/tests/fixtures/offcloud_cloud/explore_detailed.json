@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "path": "Example.Release/ep01.mkv",
+      "name": "ep01.mkv",
+      "size": 10,
+      "url": "https://s1.offcloud.com/cloud/REDACTEDREQUEST01/Example.Release/ep01.mkv"
+    },
+    {
+      "path": "Example.Release/ep02.mkv",
+      "name": "ep02.mkv",
+      "size": 20,
+      "url": "https://s1.offcloud.com/cloud/REDACTEDREQUEST01/Example.Release/ep02.mkv"
+    },
+    {
+      "path": "Example.Release/Subs/en.srt",
+      "name": "en.srt",
+      "size": 1,
+      "url": "https://s1.offcloud.com/cloud/REDACTEDREQUEST01/Example.Release/Subs/en.srt"
+    }
+  ]
+}

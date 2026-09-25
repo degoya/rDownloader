@@ -1,0 +1,80 @@
+# gitleaks configuration (RD-130-23): the default rules, plus the findings that are known not to
+# be secrets. Every entry below was checked by hand on 2026-09-25. A whole path is allowed only
+# where the file or directory is test material; elsewhere the path is paired with the exact
+# value (condition AND), so a real secret added to the same source file is still reported.
+# Those pairs name their rule in targetRules: a global allowlist with paths skips the whole file
+# and ignores the condition (measured with gitleaks 8.30.1), a rule's allowlist does not.
+#
+# gitleaks reads this file from the root of the scanned directory; CI and
+# scripts/export-public.sh both run `gitleaks dir .` from there.
+
+title = "rDownloader"
+
+[extend]
+useDefault = true
+
+# --- whole paths: test fixtures and test files ------------------------------------------------
+
+[[allowlists]]
+description = "Recorded public pages and API answers used as test fixtures"
+paths = [
+    '''(^|/)crates/rd-plugin-ext/tests/fixtures/nextcloud_crawler/''',
+    '''(^|/)plugins/(mediafire|mediafire-crawler|krakenfiles|peeplink-crawler)/tests/fixtures/''',
+]
+
+[[allowlists]]
+description = "Throw-away SSH host keys generated for the SFTP tests"
+paths = [
+    '''(^|/)crates/rd-sftp/tests/fixtures/host_key_[ab]$''',
+]
+
+[[allowlists]]
+description = "Test files whose keys, tokens and site keys are invented or public"
+paths = [
+    '''(^|/)plugins/mega-common/src/address_tests\.rs$''',
+    '''(^|/)plugins/nitroflare/src/native/free_tests\.rs$''',
+    '''(^|/)plugins/nitroflare/src/page/tests\.rs$''',
+    '''(^|/)plugins/putio-transfers/src/api/tests\.rs$''',
+    '''(^|/)plugins/mediafire/src/native/resolve_tests\.rs$''',
+    '''(^|/)web/src/composables/useRemoteCredentials\.test\.ts$''',
+]
+
+# --- path and value: sources that also carry real code ----------------------------------------
+
+[[allowlists]]
+description = "The Cutcaptcha sample misery key of the 2Captcha API documentation, in captcha tests"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+    '''(^|/)crates/rd-captcha/(src|tests)/''',
+    '''(^|/)crates/rd-api/tests/captcha\.rs$''',
+]
+regexes = ['''a1488b66da00bf332a1488993a5443c79047e''']
+
+[[allowlists]]
+description = "Public MediaFire file and folder keys in unit tests inside the source files"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)plugins/(mediafire-common|mediafire-crawler)/src/''']
+regexes = ['''ipnyzofjcwri357|x67lis2zygml5''']
+
+[[allowlists]]
+description = "A made-up passkey in a link-check test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)crates/rd-api/src/link_check_service\.rs$''']
+regexes = ['''0123456789abcdef''']
+
+[[allowlists]]
+description = "The RFC 6238 TOTP test secret"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)crates/rd-authn/src/totp\.rs$''']
+regexes = ['''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''']
+
+[[allowlists]]
+description = "A made-up token in a redaction test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)crates/rd-plugin-host/src/diagnostics\.rs$''']
+regexes = ['''^abcdef123456$''']

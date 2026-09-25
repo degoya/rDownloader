@@ -1,0 +1,14 @@
+{
+  "name": "MediaFire-Ordner",
+  "description": "Listet die Dateien hinter einem öffentlichen MediaFire-Ordnerlink oder einer Liste von Dateischlüsseln.",
+  "codes": {
+    "mediafire_crawler.api_error": "MediaFire-API: {message}",
+    "mediafire_crawler.folder_empty": "Dieser MediaFire-Ordner enthält keine Dateien, die heruntergeladen werden können",
+    "mediafire_crawler.folder_private": "Dieser MediaFire-Ordner ist privat und braucht das Konto des Eigentümers",
+    "mediafire_crawler.folder_unreachable": "Dieser MediaFire-Ordner konnte nicht gelesen werden",
+    "mediafire_crawler.http_error": "MediaFire-HTTP-Status {status}",
+    "mediafire_crawler.invalid_response": "Ungültige MediaFire-Antwort",
+    "mediafire_crawler.not_a_folder": "Dies ist keine MediaFire-Ordneradresse",
+    "mediafire_crawler.rate_limited": "MediaFire begrenzt die API-Aufrufe von dieser Adresse"
+  }
+}

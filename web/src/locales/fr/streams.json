@@ -1,0 +1,89 @@
+{
+  "eyebrow": "Directs",
+  "title": "Enregistrement de streams",
+  "description": "Les chaînes surveillées sont sondées à intervalle régulier et enregistrées automatiquement tant qu’elles sont en direct. Les enregistrements entrent dans la file normale, ne bloquent jamais les autres téléchargements et peuvent y être arrêtés à tout moment.",
+  "channels_title": "Chaînes surveillées",
+  "quality_default": "par défaut",
+  "last_live": "Dernier direct : {time}",
+  "never_live": "Jamais vu en direct",
+  "probe_error": "Le dernier sondage a échoué",
+  "empty": "Pas encore de chaînes. Ajoutez une chaîne ci-dessus et activez-la pour enregistrer automatiquement.",
+  "delete": {
+    "title": "Supprimer la chaîne",
+    "description": "Supprimer « {name} » ? Les enregistrements déjà réalisés sont conservés."
+  },
+  "messages": {
+    "created": "Chaîne ajoutée.",
+    "updated": "Chaîne enregistrée.",
+    "recording_started": "Enregistrement « {name} » démarré."
+  },
+  "form": {
+    "url_label": "URL de la chaîne",
+    "url_description": "URL de page comprise par streamlink (Twitch, YouTube Live, …).",
+    "name_label": "Nom",
+    "name_description": "Sert de préfixe au fichier d’enregistrement.",
+    "name_placeholder": "Nom de la chaîne (par défaut : l’hôte)",
+    "quality_label": "Qualité",
+    "quality_description": "Qualité prédéfinie pour cette chaîne ; la valeur par défaut utilise le réglage global.",
+    "category_label": "Catégorie",
+    "category_description": "Catégorie de destination des enregistrements.",
+    "category_default": "Catégorie par défaut",
+    "enabled_label": "Surveiller",
+    "enabled_description": "Sonder cette chaîne et enregistrer automatiquement tant qu’elle est en direct.",
+    "add": "Ajouter la chaîne",
+    "record_now": "Enregistrer maintenant"
+  },
+  "schedules": {
+    "title": "Programmations",
+    "hint": "Une chaîne programmée n'est surveillée que pendant sa fenêtre, elle n'enregistre donc pas ce qui passe par ailleurs.",
+    "channel": "Chaîne",
+    "name": "Nom",
+    "days": "Jours de la semaine",
+    "start": "Commence à",
+    "timezone": "Fuseau horaire",
+    "timezone_hint": "Un nom IANA comme Europe/Paris, pour que l'heure reste juste au changement d'heure.",
+    "window": "Durée (minutes)",
+    "lead": "Surveiller plus tôt (minutes)",
+    "roll_hint": "Pour une émission qui commence tôt ou déborde.",
+    "trail": "Surveiller après (minutes)",
+    "replay": "Enregistrer depuis le début",
+    "replay_hint": "Utilisé uniquement si le fournisseur le propose vraiment.",
+    "add": "Ajouter une programmation",
+    "empty": "Aucune programmation.",
+    "needs_channel": "Ajoutez d'abord une chaîne ci-dessus : une programmation en a besoin pour enregistrer.",
+    "replay_used": "enregistré depuis le début",
+    "weekday": {
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Jeu",
+      "5": "Ven",
+      "6": "Sam",
+      "7": "Dim"
+    },
+    "states": {
+      "planned": "Programmé",
+      "waiting": "Surveillé",
+      "recording": "Enregistrement",
+      "completed": "Enregistré",
+      "missed": "Manqué",
+      "failed": "Échec"
+    }
+  },
+  "recording": {
+    "split": "Découper les longs enregistrements",
+    "split_hint": "Une coupure démarre de toute façon une nouvelle partie ; ceci découpe en plus volontairement.",
+    "split_none": "Garder un seul fichier",
+    "split_duration": "Toutes les N minutes",
+    "split_size": "Tous les N Mio",
+    "remux": "Convertir une fois terminé",
+    "remux_hint": "Les parties sont assemblées sans réencodage, en une étape reprenable.",
+    "remux_none": "Garder tel quel",
+    "sidecars": "Enregistrer à côté",
+    "sidecars_hint": "Ce que le fournisseur n'offre pas est signalé plutôt qu'ignoré en silence.",
+    "sidecar_metadata": "Métadonnées",
+    "sidecar_thumbnail": "Vignette",
+    "reconnect": "Attente avant reconnexion (secondes)",
+    "reconnect_hint": "Les parties déjà enregistrées sont toujours conservées."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "transfer": {
+    "id": 770001,
+    "name": "Example.Release",
+    "status": "DOWNLOADING",
+    "percent_done": 42,
+    "down_speed": 1048576,
+    "estimated_time": 120,
+    "file_id": null
+  },
+  "status": "OK"
+}

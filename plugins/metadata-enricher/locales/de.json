@@ -1,0 +1,4 @@
+{
+  "name": "Film- und Seriendaten",
+  "description": "Erkennt Film oder Serie am Release-Namen und ergänzt Bewertung, Jahr, Genre und Laufzeit."
+}

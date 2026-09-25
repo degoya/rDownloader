@@ -1,0 +1,13 @@
+{
+  "name": "Box-Ordner",
+  "description": "Listet die Dateien hinter einer Box-Ordneradresse oder einem geteilten Link auf.",
+  "codes": {
+    "box_crawler.access_denied": "Dieses Konto darf diesen Box-Ordner nicht öffnen, oder der geteilte Link verlangt ein Passwort, das nicht angegeben wurde",
+    "box_crawler.folder_empty": "Dieser Box-Ordner enthält keine herunterladbaren Dateien",
+    "box_crawler.folder_unreachable": "Dieser Box-Ordner konnte nicht gelesen werden: er ist weg, der Link wurde zurückgezogen, oder Box hat abgelehnt",
+    "box_crawler.invalid_response": "Ungültige Box-Antwort",
+    "box_crawler.not_a_folder": "Das ist keine Box-Ordneradresse",
+    "box_crawler.rate_limited": "Box drosselt dieses Konto",
+    "box_crawler.sign_in_required": "Box hat dieses Konto für diesen Ordner nicht akzeptiert"
+  }
+}

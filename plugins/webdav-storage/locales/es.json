@@ -1,0 +1,7 @@
+{
+  "name": "WebDAV",
+  "description": "Sube los paquetes terminados a un servidor WebDAV y verifica cada archivo antes de borrar nada en local.",
+  "codes": {
+    "webdav_storage.upload_rejected": "El servidor WebDAV rechazó la subida."
+  }
+}

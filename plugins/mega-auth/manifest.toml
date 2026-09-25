@@ -1,0 +1,45 @@
+manifest_version = 3
+plugin_type = "auth"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000134"
+name = "MEGA sign-in"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+# The command endpoint, and nothing else. This list is also what bounds the key-derivation
+# grant below: a plugin may compute over a credential only when everything it can reach is a
+# place that credential could itself have been sent, and MEGA's password slot names exactly
+# this host.
+[capabilities.net_http]
+domains = ["g.api.mega.co.nz"]
+
+[capabilities]
+# The account's password. Named here as it would be in a `{{secret:mega_password}}` marker:
+# the derivation reaches no credential this plugin could not already have sent.
+secrets = ["mega_password"]
+# The host computes over that password and hands back only what MEGA is meant to receive
+# (RD-120-20). Without this line the interface is not linked and the component does not
+# instantiate.
+key_derivation = true
+
+[extension]
+slug = "mega_auth"
+claims = ["mega"]
+
+[metadata]
+description = "Signs a MEGA account in without the password ever entering the sandbox."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.2.0"
+
+[limits]
+memory_bytes = 33554432
+# Three derivations, each charged at the measured guest price of PBKDF2-HMAC-SHA512 with
+# MEGA's 100 000 rounds (3 338 300 549 fuel, RD-120-11), plus the RSA private operation the
+# guest performs itself (189 444 831). The manifest declares what the sign-in costs; that is
+# the intended way, and `docs/roadmap/jobs/120-11-mega.md` measured it rather than guessing.
+fuel = 12000000000
+timeout_milliseconds = 60000
+max_response_bytes = 262144

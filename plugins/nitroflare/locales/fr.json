@@ -1,0 +1,31 @@
+{
+  "name": "Nitroflare",
+  "account": {
+    "secret_label": "Clé premium (depuis Mon compte → API)",
+    "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre clé premium (Mon compte → API) comme secret."
+  },
+  "codes": {
+    "nitroflare.account_missing": "Le compte Nitroflare est manquant",
+    "nitroflare.api_error": "API Nitroflare ({api_code}) : {message}",
+    "nitroflare.bad_credentials": "La clé premium Nitroflare est invalide ou la connexion a échoué",
+    "nitroflare.captcha_invalid": "Nitroflare a rejeté une réponse de captcha ; ce plugin ne peut pas résoudre de captcha",
+    "nitroflare.captcha_rejected": "Nitroflare a rejeté la réponse au captcha",
+    "nitroflare.captcha_required": "Nitroflare exige la résolution d'un captcha pour continuer à utiliser l'API",
+    "nitroflare.file_offline": "Le fichier Nitroflare n'est pas disponible",
+    "nitroflare.free_limit_reached": "La limite de téléchargements gratuits Nitroflare est atteinte pour cette adresse IP",
+    "nitroflare.free_link_host_mismatch": "Nitroflare a renvoyé un lien de téléchargement sur un hôte inattendu : {host}",
+    "nitroflare.http_error": "Statut HTTP Nitroflare {status}",
+    "nitroflare.invalid_response": "Réponse Nitroflare invalide",
+    "nitroflare.invalid_url": "URL de fournisseur invalide : {error}",
+    "nitroflare.no_download_url": "Nitroflare n'a renvoyé aucune URL de téléchargement",
+    "nitroflare.no_free_link": "Le téléchargement gratuit Nitroflare n'a produit aucun lien de fichier : {diagnosis}",
+    "nitroflare.no_free_markers": "La page de téléchargement gratuit Nitroflare n'a pas été reconnue : {diagnosis}",
+    "nitroflare.premium_key_missing": "La clé premium Nitroflare est manquante",
+    "nitroflare.premium_required": "Un compte premium Nitroflare est requis pour utiliser l'API de téléchargement",
+    "nitroflare.rate_limited": "La limite de requêtes de l'API Nitroflare a été déclenchée",
+    "nitroflare.server_error": "Erreur serveur Nitroflare",
+    "nitroflare.timer_not_started": "Nitroflare n'a pas démarré le compte à rebours avant le téléchargement (réponse : {answer})",
+    "nitroflare.traffic_exhausted": "La limite de trafic Nitroflare a été dépassée",
+    "nitroflare.unsupported_link": "Lien Nitroflare non pris en charge"
+  }
+}

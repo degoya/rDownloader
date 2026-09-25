@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "rDownloader",
+    "loading": "Lecture de l'état du service",
+    "title_active": "{count} actifs"
+  },
+  "actions": {
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "remove": "Retirer",
+    "rename": "Renommer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "refresh": "Actualiser",
+    "add": "Ajouter",
+    "test": "Tester",
+    "start": "Démarrer",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "retry": "Réessayer",
+    "extract": "Extraire",
+    "select_all": "Tout sélectionner",
+    "clear_selection": "Effacer la sélection",
+    "copy": "Copier",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "back": "Retour",
+    "reveal": "Afficher dans la liste"
+  },
+  "states": {
+    "queued": "En attente",
+    "resolving": "Résolution",
+    "downloading": "Téléchargement",
+    "paused": "En pause",
+    "skipped": "Miroir",
+    "retry_wait": "Nouvelle tentative",
+    "verifying": "Vérification",
+    "repairing": "Réparation",
+    "extracting": "Extraction",
+    "blocked": "Bloqué",
+    "failed": "Échec",
+    "cancelled": "Annulé",
+    "completed": "Terminé",
+    "seeding": "En seed",
+    "skipped_postponed": "Différé"
+  },
+  "priority": {
+    "high": "Haute",
+    "normal": "Normale",
+    "low": "Basse"
+  },
+  "units": {
+    "file": "aucun fichier | {count} fichier | {count} fichiers",
+    "package": "aucun paquet | {count} paquet | {count} paquets",
+    "link": "aucun lien | {count} lien | {count} liens",
+    "entry": "aucune entrée | {count} entrée | {count} entrées",
+    "selected": "sélectionné(s)",
+    "per_second": "/s"
+  },
+  "values": {
+    "unknown": "inconnu",
+    "none": "aucun",
+    "default": "Par défaut",
+    "yes": "Oui",
+    "no": "Non",
+    "enabled": "Activé",
+    "disabled": "Désactivé"
+  },
+  "errors": {
+    "request_failed": "La requête n'a pas pu être traitée.",
+    "unknown": "Erreur inconnue"
+  },
+  "data": {
+    "loading": "Chargement",
+    "load_failed": "Ces données n'ont pas pu être chargées."
+  },
+  "preferences": {
+    "language": "Langue",
+    "theme": "Thème",
+    "theme_system": "Système",
+    "theme_light": "Clair",
+    "theme_dark": "Sombre",
+    "language_and_theme": "Langue et thème"
+  },
+  "locales": {
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español"
+  },
+  "footer": {
+    "made_with": "Made with",
+    "by": "in Germany by {author}"
+  },
+  "chart": {
+    "title": "Débit · 2 dernières minutes",
+    "subtitle": "Débit cumulé de tous les fichiers actifs",
+    "peak": "Pic",
+    "window_start": "il y a 2 min",
+    "window_end": "maintenant",
+    "description": "Vitesse de téléchargement des deux dernières minutes. Actuellement {current}, pic {peak}."
+  },
+  "shortcuts": {
+    "title": "Raccourcis clavier",
+    "groups": {
+      "navigation": "Navigation",
+      "actions": "Actions"
+    },
+    "go_downloads": "Aller aux téléchargements",
+    "go_linkgrabber": "Aller à LinkGrabber",
+    "go_streams": "Aller aux streams",
+    "go_subscriptions": "Aller aux abonnements",
+    "go_remote_jobs": "Aller aux travaux distants",
+    "go_automation": "Aller à l'automatisation",
+    "go_settings": "Aller aux paramètres",
+    "import_nzb": "Importer NZB/torrent",
+    "toggle_transfers": "Démarrer ou mettre en pause tous les téléchargements",
+    "show_help": "Afficher les raccourcis clavier",
+    "toast": {
+      "paused": "Aucun transfert n'a été mis en pause. | {count} transfert a été mis en pause. | {count} transferts ont été mis en pause.",
+      "resumed": "Aucun transfert n'a été démarré. | {count} transfert a été démarré ou repris. | {count} transferts ont été démarrés ou repris.",
+      "nothing": "Rien à mettre en pause ou à reprendre."
+    },
+    "toggle_sidebar": "Replier ou déplier la barre latérale",
+    "go_stats": "Aller aux statistiques",
+    "go_logs": "Aller au journal",
+    "go_audit": "Aller à l'audit"
+  },
+  "a11y": {
+    "skip_to_content": "Aller au contenu",
+    "main_navigation": "Navigation principale",
+    "queue_status": "{active} paquets sur {total} en cours de téléchargement",
+    "reorder_keys": "Les flèches haut et bas déplacent l’entrée sans souris"
+  },
+  "backup": {
+    "export": "Exporter",
+    "import": "Importer",
+    "export_success": "Fichier créé",
+    "invalid_file": "Ce fichier n'est pas un ensemble rDownloader",
+    "confirm_title": "Importer l'ensemble ?",
+    "confirm": "Importer",
+    "confirm_description": "Le fichier contient {count} entrées. Celles qui existent déjà sous le même nom ne sont pas modifiées.",
+    "import_success": "Importation terminée",
+    "import_summary": "{created} importées, {skipped} ignorées"
+  },
+  "editing": "En cours de modification"
+}

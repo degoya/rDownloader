@@ -1,0 +1,14 @@
+{
+  "name": "Inicio de sesión de pCloud",
+  "description": "Inicia sesión en una cuenta de pCloud a través del endpoint de autorización de pCloud.",
+  "codes": {
+    "pcloud_oauth.bad_reply": "pCloud envió una respuesta que este plugin no pudo leer.",
+    "pcloud_oauth.client_not_configured": "Esta cuenta no tiene ninguna aplicación de pCloud registrada. Introduce primero la clave y el secreto de la aplicación.",
+    "pcloud_oauth.code_expired": "El inicio de sesión caducó o ya se había usado antes de terminar. Vuelve a empezarlo.",
+    "pcloud_oauth.consent_denied": "El inicio de sesión no se concedió en pCloud.",
+    "pcloud_oauth.flow_unsupported": "pCloud se conecta desde el navegador, no con un código de dispositivo.",
+    "pcloud_oauth.no_entropy": "No se pudo iniciar la sesión porque la aplicación no disponía de aleatoriedad. Inténtalo de nuevo.",
+    "pcloud_oauth.renewal_unsupported": "pCloud no emite nada con lo que renovar un inicio de sesión. Si deja de funcionar, vuelve a iniciar sesión.",
+    "pcloud_oauth.sign_in_refused": "pCloud rechazó el inicio de sesión."
+  }
+}

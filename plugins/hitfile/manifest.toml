@@ -1,0 +1,67 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000121"
+name = "HitFile"
+# The version must rise with every change, or a running instance keeps the package it
+# already has (`sync_bundled` only installs newer ones).
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The live hosts measured on 2026-09-21 (RD-103-11, section 1): the main site, its two
+# redirecting subdomains, `hitfile.ru` (which serves the shell itself) and the four short
+# domains that answer a file path with a redirect to the main site. `hitfile.to` is dead.
+match_domains = [
+  "hitfile.net", "www.hitfile.net", "new.hitfile.net", "hitfile.ru",
+  "hil.to", "hitf.cc", "htfl.net", "hitf.to",
+]
+# The direct link is `hitfile.net/download/redirect/…`, answered with a redirect to a delivery
+# host `s<nnn>.hitfile.net`.
+download_domains = ["hitfile.net", "*.hitfile.net"]
+# A guest gets one file per time window; a premium account's parallelism is not measured.
+max_concurrent_downloads = 1
+# Links without an account go the site's own guest way, the same sequence as Turbobit's.
+requires_account = false
+
+[capabilities]
+cookies = false
+captcha = true
+secrets = ["hitfile_password"]
+
+# `hitfile.ru` and the short domains are only ever rewritten to the main site, never fetched.
+[capabilities.net_http]
+domains = ["hitfile.net", "app.hitfile.net"]
+
+[metadata]
+description = "Resolves HitFile links as a guest through the site's captcha and countdown, or with an account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[provider]
+slug = "hitfile"
+kind = "hoster"
+credentials = "username_password"
+username_required = true
+# The password reaches exactly one host: the API's `auth/login`.
+secret_reference = "hitfile_password"
+secret_domains = ["app.hitfile.net"]
+host_aliases = [
+  ["www.hitfile.net", "hitfile.net"],
+  ["new.hitfile.net", "hitfile.net"],
+  ["hitfile.ru", "hitfile.net"],
+  ["hil.to", "hitfile.net"],
+  ["hitf.cc", "hitfile.net"],
+  ["htfl.net", "hitfile.net"],
+  ["hitf.to", "hitfile.net"],
+]
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576
+# One Turnstile round plus the site's countdown (38 s after JDownloader) plus one retry after
+# a refused captcha; spent on waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

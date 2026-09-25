@@ -1,0 +1,354 @@
+{
+  "cards": {
+    "http": {
+      "title": "HTTP & hébergeurs",
+      "eyebrow": "Chaîne de résolveurs",
+      "status": "Noyau actif",
+      "description": "HTTP direct, cookies DDownload et clé API Premiumize partagent la même identité client isolée ; les composants signés restent installables."
+    },
+    "capture": {
+      "title": "Agent de capture",
+      "eyebrow": "Pont Windows",
+      "paired": "Appairé",
+      "ready": "Prêt à appairer",
+      "description": "Presse-papiers, Click’n’Load, association des fichiers NZB et dossiers surveillés Windows utilisent l’agent natif."
+    },
+    "usenet": {
+      "title": "Usenet",
+      "eyebrow": "Pipeline NNTP",
+      "none": "Aucun serveur NNTP",
+      "summary": "{servers} · {connections}",
+      "description": "Les priorités des serveurs et les identifiants chiffrés sont configurables ; yEnc et des briques de post-traitement sûres sont intégrés."
+    }
+  },
+  "facts": {
+    "about": "À propos",
+    "cnl2": "CNL2",
+    "loopback_only": "Loopback uniquement",
+    "hotfolder": "Analyse du dossier surveillé",
+    "hotfolder_note": "Événements + réconciliation",
+    "nzb": "Réception NZB",
+    "nzb_note": "Dédupliqué par SHA-256",
+    "web_ui": "Interface web",
+    "web_ui_configured": "Port configuré · actif au prochain démarrage",
+    "web_ui_default": "Adresse de cette session"
+  },
+  "pairing": {
+    "eyebrow": "Appairage de capture",
+    "title": "Appairer l’agent natif",
+    "description": "Le secret bearer n’est affiché qu’une seule fois. Seule son empreinte SHA-256 avec la portée {scope} est conservée.",
+    "submit": "Appairer",
+    "copy_hint": "Copiez-le maintenant – il ne pourra plus être récupéré",
+    "copy_command": "Copier la commande",
+    "afterwards": "Ensuite, en option :",
+    "copied_title": "Commande de configuration copiée",
+    "copied_description": "La commande complète se trouve dans le presse-papiers.",
+    "extension_hint": "Extension de navigateur : utilisez le jeton brut ci-dessous dans les options de l'extension.",
+    "copy_token": "Copier le jeton",
+    "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
+    "token_copied_description": "Le jeton de capture est dans le presse-papiers."
+  },
+  "agents": {
+    "eyebrow": "Connexions appairées",
+    "empty": "Aucun agent de capture appairé pour le moment.",
+    "revoke": "Supprimer la connexion de capture"
+  },
+  "revoke": {
+    "title": "Supprimer la connexion de capture",
+    "description": "L’agent « {label} » perd immédiatement l’accès au LinkGrabber et à l’import NZB.",
+    "confirm": "Supprimer la connexion",
+    "done": "Connexion de capture supprimée"
+  },
+  "backup": {
+    "export": {
+      "eyebrow": "Sauvegarde de la configuration",
+      "title": "Exporter les paramètres",
+      "description": "Téléchargez tous les paramètres côté serveur, catégories, comptes et intégrations dans un fichier JSON versionné.",
+      "include_secrets": "Inclure les identifiants",
+      "include_secrets_description": "Les identifiants et cookies sont protégés par la phrase secrète et ne sont jamais enregistrés en clair.",
+      "passphrase": "Phrase secrète",
+      "confirm_passphrase": "Confirmer la phrase secrète",
+      "passphrase_short": "Utilisez une phrase secrète d’au moins 8 caractères.",
+      "passphrase_mismatch": "Les phrases secrètes ne correspondent pas.",
+      "button": "Télécharger la sauvegarde",
+      "success": "Sauvegarde des paramètres téléchargée"
+    },
+    "import": {
+      "eyebrow": "Restauration de la configuration",
+      "title": "Importer les paramètres",
+      "description": "Restaurez ou migrez un fichier de paramètres rDownloader version 1.",
+      "choose_file": "Choisir un fichier JSON",
+      "invalid_file": "Le fichier sélectionné n’est pas une sauvegarde de paramètres rDownloader valide.",
+      "unsupported_version": "La version {version} de la sauvegarde n’est pas prise en charge.",
+      "encrypted": "Les identifiants sont chiffrés par phrase secrète",
+      "without_secrets": "Cette sauvegarde ne contient aucun identifiant",
+      "passphrase": "Phrase secrète de la sauvegarde",
+      "passphrase_required": "Saisissez la phrase secrète utilisée pour créer cette sauvegarde.",
+      "confirm_title": "Remplacer tous les paramètres du serveur ?",
+      "confirm_description": "Tous les paramètres, catégories, comptes, proxys, serveurs Usenet, dossiers surveillés et chaînes seront remplacés. Mettez d’abord les téléchargements actifs en pause. Les dossiers d’un agent de capture importés sur une autre installation doivent être réassociés.",
+      "confirm": "Remplacer la configuration",
+      "button": "Importer et remplacer",
+      "success": "Paramètres restaurés",
+      "success_description": "{count} entrées de configuration importées."
+    }
+  },
+  "mcp": {
+    "eyebrow": "Accès externe",
+    "title": "Accès API et MCP",
+    "description": "Les jetons d'API authentifient REST, la CLI, les clients compatibles SABnzbd et qBittorrent, ainsi que le serveur MCP à l'adresse {endpoint}. Les zones sélectionnables remplacent l'accès global {scope} ; seule l'empreinte SHA-256 est conservée.",
+    "label_placeholder": "p. ex. Sonarr, tableau de bord ou Claude",
+    "submit": "Créer un jeton d'API",
+    "copy_hint": "Ce jeton d'API n'est affiché qu'une fois — enregistrez-le maintenant de manière sûre dans le client prévu.",
+    "mcp_hint": "Connecter MCP avec Claude Code :",
+    "copy_command": "Copier la commande",
+    "token_hint": "Jeton brut pour les clients qui attendent uniquement la clé d'API.",
+    "copy_token": "Copier le jeton",
+    "copied_title": "Copié",
+    "command_copied": "La commande claude mcp add est dans le presse-papiers.",
+    "token_copied": "Le jeton d'API est dans le presse-papiers.",
+    "header_hint": "Clients qui lisent l'en-tête depuis une variable d'environnement (ChatGPT bureau) : saisissez cette valeur complète.",
+    "copy_header": "Copier l'en-tête",
+    "header_copied": "L'en-tête Authorization est dans le presse-papiers.",
+    "single_source_hint": "Ne configurez qu'une seule source pour l'en-tête Authorization. Si deux sont envoyés, seul le premier compte — un jeton correct en deuxième position n'est jamais lu.",
+    "tokens_eyebrow": "Jetons d'API actifs",
+    "empty": "Aucun jeton d'API créé pour l'instant.",
+    "revoke_label": "Révoquer le jeton d'API",
+    "scope_full": "Accès complet",
+    "revoke": {
+      "title": "Révoquer le jeton d'API",
+      "description": "Le client « {label} » perd immédiatement son accès à l'API et à MCP.",
+      "confirm": "Révoquer le jeton",
+      "done": "Jeton d'API révoqué"
+    },
+    "edit": {
+      "label": "Modifier les autorisations",
+      "hint": "La valeur du jeton reste la même : le client continue de fonctionner et atteint les nouvelles zones dès sa prochaine requête. Tout retirer n'est pas possible ici — révoquez le jeton pour cela.",
+      "save": "Enregistrer les autorisations",
+      "cancel": "Annuler",
+      "done": "Autorisations modifiées",
+      "empty": "Choisissez au moins une zone, ou révoquez le jeton."
+    },
+    "areas": {
+      "read": {
+        "name": "Lecture",
+        "description": "File d'attente, progression, paquets et état du système. N'autorise aucune modification."
+      },
+      "intake": {
+        "name": "Ajouter des liens",
+        "description": "Ajouter des liens, des fichiers et des conteneurs au LinkGrabber. Ce dont une instance *arr ou une extension de navigateur a besoin."
+      },
+      "queue": {
+        "name": "Contrôler la file",
+        "description": "Démarrer, mettre en pause, réessayer, réordonner et supprimer."
+      },
+      "config": {
+        "name": "Configuration",
+        "description": "Catégories, règles, planifications et réglages du service ne contenant aucun identifiant."
+      },
+      "secrets": {
+        "name": "Identifiants enregistrés",
+        "description": "Comptes d'hébergeurs, profils de proxy, serveurs Usenet et l'export des réglages. Aucune autre zone ne l'accorde."
+      },
+      "admin": {
+        "name": "Administration",
+        "description": "Plugins, interrupteurs du service, mises à jour et sauvegardes. N'inclut pas les identifiants enregistrés."
+      },
+      "metrics": {
+        "name": "Métriques",
+        "description": "Uniquement la route Prometheus /api/v1/metrics. N’atteint rien d’autre, ni la file d’attente ni MCP."
+      }
+    },
+    "scopes_label": "Ce que ce jeton peut faire",
+    "scopes_hint": "N'accordez que ce dont le client a réellement besoin. Tout ce qui agit peut aussi lire : la lecture n'a donc pas à être ajoutée séparément.",
+    "scopes_empty": "Choisissez au moins une zone.",
+    "scope_operations": "{count} opérations",
+    "scope_none": "Aucun accès à l'API",
+    "sensitive": "Sensible",
+    "sensitive_warning": "Ce jeton pourra lire les identifiants enregistrés ou administrer le service. Aucune autre zone ne l'accorde : ne le confiez qu'à un client qui en a réellement besoin.",
+    "also_includes": "Inclut également : {areas}",
+    "minted_areas": "Ce jeton comprend : {areas}"
+  },
+  "readiness": {
+    "eyebrow": "Configuration",
+    "title": "La configuration est-elle terminée ?",
+    "complete": "Tout ce que la configuration demande est en place.",
+    "outstanding": "Une étape reste ouverte. | {count} étapes restent ouvertes.",
+    "go": "Ouvrir",
+    "checks": {
+      "login": {
+        "label": "Connexion administrateur",
+        "done": "Définie, ou désactivée volontairement pour un réseau de confiance.",
+        "missing": "Aucun mot de passe n'est défini et la connexion n'est pas désactivée."
+      },
+      "storage": {
+        "label": "Destination de stockage",
+        "done": "Au moins une destination est configurée.",
+        "missing": "Les téléchargements n'ont pas de destination tant qu'il n'y en a pas.",
+        "ephemeral": "Une destination est configurée, mais au moins une n'est pas sur un stockage persistant."
+      },
+      "category": {
+        "label": "Catégorie",
+        "done": "Au moins une catégorie existe.",
+        "missing": "Sans catégorie, rien ne peut être rangé dans un dossier."
+      },
+      "wizard": {
+        "label": "Configuration terminée",
+        "done": "La configuration a été menée à son terme.",
+        "missing": "La configuration n'a jamais été terminée ; relancez-la depuis la barre latérale."
+      }
+    }
+  },
+  "sessions": {
+    "eyebrow": "Sécurité",
+    "title": "Appareils connectés",
+    "description": "Chaque connexion ouverte sur cette installation. Si quelque chose ici n'est pas à vous, terminez-la et changez le mot de passe.",
+    "loading": "Chargement…",
+    "current": "Cet appareil",
+    "unknown_device": "Appareil inconnu",
+    "unknown_address": "adresse inconnue",
+    "detail": "{address} · dernière utilisation {lastUsed} · expire {expires}",
+    "sign_out": "Déconnecter",
+    "sign_out_here": "Se déconnecter ici",
+    "revoke": {
+      "title": "Terminer cette session ?",
+      "description": "{device} sera déconnecté immédiatement.",
+      "description_current": "Vous serez déconnecté sur cet appareil et devrez vous reconnecter.",
+      "confirm": "Terminer",
+      "done": "Session terminée"
+    },
+    "revoke_others": {
+      "action": "Déconnecter partout ailleurs ({count})",
+      "title": "Déconnecter partout ailleurs ?",
+      "description": "{count} autres sessions seront terminées. Celle-ci reste connectée.",
+      "confirm": "Terminer",
+      "done": "Autres sessions terminées"
+    }
+  },
+  "proxy": {
+    "eyebrow": "Accessibilité",
+    "title": "Proxy inverse",
+    "description": "Si un proxy est placé devant, rDownloader doit le savoir. Sinon chaque requête compte comme venant du proxy, et le cookie de session peut ne pas correspondre au schéma utilisé par le navigateur.",
+    "external_url": "Adresse externe",
+    "external_url_hint": "Schéma, hôte et sous-chemin en un seul réglage, pour qu'ils ne puissent pas diverger. Laissez vide s'il n'y a pas de proxy.",
+    "trusted": "Proxys de confiance",
+    "trusted_hint": "Une adresse ou une plage CIDR par ligne. Une adresse client transmise n'est crue que depuis celles-ci ; tout le reste compte comme l'appelant lui-même.",
+    "cookie_label": "Cookie de session",
+    "cookie_hint": "« Automatique » suit le schéma de l'adresse externe et convient presque toujours.",
+    "cookie": {
+      "auto": "Automatique",
+      "always": "Toujours Secure",
+      "never": "Jamais Secure"
+    },
+    "warning_no_proxies": "Une adresse externe est définie mais aucun proxy de confiance. Chaque requête semblera alors venir du proxy : les limites et la liste des sessions afficheront une seule adresse pour tout le monde.",
+    "warning_no_url": "Des proxys de confiance sont définis mais aucune adresse externe. Le cookie ne peut alors pas être marqué Secure automatiquement."
+  },
+  "mfa": {
+    "eyebrow": "Deuxième facteur",
+    "title": "Connexion à deux facteurs",
+    "description": "Facultatif. Après le mot de passe, un code d'une application d'authentification est également demandé. Les codes de récupération sont le seul autre moyen de revenir — il n'y a personne ici à qui prouver votre identité.",
+    "enrol": {
+      "start": "Configurer",
+      "once": "Visible uniquement maintenant. Rien de tout cela ne pourra être récupéré après avoir quitté la page.",
+      "scan": "Scannez ce code avec votre application d'authentification :",
+      "copy_secret": "Copier la clé",
+      "copy_uri": "Copier le lien",
+      "recovery": "Codes de récupération — conservez-les en lieu sûr :",
+      "copy_codes": "Copier les codes",
+      "confirm_label": "Code de l'application",
+      "confirm": "Confirmer",
+      "qr_alt": "Code QR pour configurer l'application d'authentification",
+      "manual": "Ou saisissez la clé à la main :"
+    },
+    "unconfirmed": "Non confirmé",
+    "last_used": "Dernière utilisation : {moment}",
+    "never_used": "jamais",
+    "remaining": "{count} codes de récupération restants",
+    "remove": {
+      "action": "Supprimer",
+      "title": "Supprimer ce deuxième facteur ?",
+      "description": "« {label} » ne pourra plus répondre à une demande.",
+      "confirm": "Supprimer"
+    },
+    "regenerate": {
+      "action": "Nouveaux codes de récupération",
+      "title": "Générer de nouveaux codes ?",
+      "description": "Les codes de récupération actuels cesseront de fonctionner.",
+      "confirm": "Générer"
+    },
+    "disable": {
+      "label": "Mot de passe",
+      "hint": "La désactivation demande le mot de passe, pas un code. Un appareil perdu ne doit pas être définitif.",
+      "action": "Désactiver"
+    },
+    "enabled_toast": "La connexion à deux facteurs est active",
+    "disabled_toast": "La connexion à deux facteurs est désactivée",
+    "copied": "Copié"
+  },
+  "passkeys": {
+    "eyebrow": "Clés d'accès",
+    "title": "Clés d'accès",
+    "description": "Connectez-vous avec votre appareil plutôt qu'avec votre mot de passe. Votre authentificateur vérifie un code PIN ou une empreinte avant de signer : une seule étape couvre donc les deux facteurs. Le mot de passe continue de fonctionner — une clé d'accès est une entrée supplémentaire, pas un remplacement.",
+    "unsupported": "Ce navigateur ne peut pas utiliser de clés d'accès ici. Elles exigent une connexion sécurisée : https, ou l'accès au service via localhost.",
+    "add": "Ajouter une clé d'accès",
+    "save": "Enregistrer",
+    "failed": "La clé d'accès n'a pas pu être configurée.",
+    "added_toast": "Clé d'accès ajoutée",
+    "name_label": "Nom",
+    "name_hint": "Pour savoir de quel appareil il s'agit au moment de la retirer.",
+    "default_label": "Clé d'accès {platform}",
+    "fallback_label": "Clé d'accès",
+    "last_used": "Dernière utilisation {moment}",
+    "never_used": "jamais",
+    "remove": {
+      "action": "Retirer",
+      "title": "Retirer cette clé d'accès ?",
+      "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours.",
+      "confirm": "Retirer"
+    }
+  },
+  "password": {
+    "eyebrow": "Mot de passe",
+    "title": "Mot de passe administrateur",
+    "description": "Remplace le mot de passe avec lequel vous vous connectez. Le mot de passe actuel est nécessaire. Il n'existe aucune récupération sans celui-ci.",
+    "current_label": "Mot de passe actuel",
+    "new_label": "Nouveau mot de passe",
+    "confirm_label": "Répétez le nouveau mot de passe",
+    "new_hint": "Au moins dix caractères.",
+    "action": "Changer le mot de passe",
+    "mismatch": "Les deux nouveaux mots de passe ne correspondent pas.",
+    "changed_toast": "Mot de passe modifié",
+    "sessions_hint": "Le changement met fin à toutes les sessions. Cette fenêtre reste connectée, tout autre appareil doit se reconnecter.",
+    "tokens_hint": "Les jetons d'API restent valables, car ils ne dépendent pas du mot de passe. Mais quiconque connaissait l'ancien a pu s'en délivrer : vérifiez la liste des jetons."
+  },
+  "data_reset": {
+    "button": "Vider",
+    "stored": "{count} enregistrés",
+    "confirm": "Vider définitivement",
+    "done": "{count} enregistrements supprimés",
+    "logs": {
+      "title": "Vider le journal du service ?",
+      "description": "{count} entrées de journal seront supprimées définitivement. L'audit et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
+    },
+    "audit": {
+      "title": "Vider l'audit ?",
+      "description": "{count} entrées d'audit seront supprimées définitivement. Le vidage lui-même devient la première entrée du journal vidé. Le journal du service et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
+    },
+    "stats": {
+      "title": "Vider les statistiques ?",
+      "description": "{count} lignes de statistiques seront supprimées définitivement, totaux cumulés compris. Le journal du service et l'audit restent, tout comme les téléchargements, les paquets et les réglages."
+    },
+    "notifications": {
+      "title": "Vider l'historique des notifications ?",
+      "description": "{count} envois terminés seront supprimés définitivement de l'historique. Les envois encore en file d'attente ou en nouvelle tentative restent, tout comme les destinations, les règles, le journal du service, l'audit et les statistiques."
+    }
+  },
+  "session_limits": {
+    "eyebrow": "Sécurité",
+    "title": "Durée d'une connexion",
+    "description": "Une connexion prend fin lorsqu'elle n'a pas été utilisée pendant cette durée ou atteint sa durée maximale, selon ce qui arrive en premier. Une valeur plus courte met fin immédiatement aux connexions plus anciennes.",
+    "idle_label": "Sans activité",
+    "idle_description": "Heures sans requête avant de devoir se reconnecter. De 1 à 720 (30 jours).",
+    "max_label": "Durée maximale",
+    "max_description": "Heures après la connexion au bout desquelles elle prend fin, même en plein travail. De 1 à 2160 (90 jours)."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Offcloud",
+  "description": "Löst Links anderer Hoster über ein Offcloud-Konto auf.",
+  "account": {
+    "secret_label": "API-Schlüssel",
+    "secret_hint": "Der API-Schlüssel aus den Kontoeinstellungen bei offcloud.com."
+  },
+  "codes": {
+    "offcloud.account_missing": "Offcloud-Konto fehlt",
+    "offcloud.addon_required": "Offcloud benötigt für diesen Link ein zusätzliches Add-on ({addon})",
+    "offcloud.api_error": "Offcloud-API-Fehler {api_code}",
+    "offcloud.api_key_missing": "Für dieses Offcloud-Konto ist noch kein API-Schlüssel hinterlegt",
+    "offcloud.auth_invalid": "Der Offcloud-API-Schlüssel ist ungültig. Hinterlege ihn erneut.",
+    "offcloud.bad_download_url": "Offcloud lieferte eine unbrauchbare Downloadadresse",
+    "offcloud.check_unsupported": "Offcloud kann Links nicht prüfen, ohne sie zu starten",
+    "offcloud.download_blocked": "Offcloud erlaubt für dieses Konto keine Downloads",
+    "offcloud.http_error": "Offcloud-HTTP-Status {status}",
+    "offcloud.invalid_response": "Ungültige Offcloud-Antwort",
+    "offcloud.link_gone": "Offcloud hält diesen Link nicht mehr",
+    "offcloud.no_download_url": "Offcloud lieferte keine Downloadadresse",
+    "offcloud.rate_limited": "Das Anfragelimit von Offcloud wurde erreicht. Es wird gewartet.",
+    "offcloud.server_error": "Offcloud-Serverfehler"
+  }
+}

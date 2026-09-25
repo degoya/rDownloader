@@ -1,0 +1,43 @@
+{
+  "eyebrow": "Limites par adresse",
+  "title": "Reconnexion",
+  "description": "Les hébergeurs qui limitent les téléchargements gratuits le font par adresse. Quand des téléchargements butent sur cette limite, un script que vous écrivez peut demander une nouvelle adresse au routeur.",
+  "enabled_label": "Reconnecter quand les téléchargements bloquent",
+  "enabled_description": "Uniquement tant que des téléchargements gratuits attendent sur une limite d'adresse, jamais de lui-même.",
+  "script_label": "Script",
+  "script_description": "Un fichier du répertoire de scripts de post-traitement. Il s'exécute dans le même bac à sable.",
+  "interval_label": "Attente entre les tentatives",
+  "interval_description": "Reconnecter en boucle n'apporte rien face à un hébergeur qui refuse simplement.",
+  "timeout_label": "Abandonner après",
+  "timeout_description": "Couvre le script et l'attente du changement d'adresse.",
+  "checks_label": "Vérifications d'adresse",
+  "checks_description": "Une adresse par ligne, interrogées dans l'ordre. Laissez vide pour la liste intégrée. Ces requêtes quittent la machine.",
+  "checks_placeholder": "https://api.ipify.org",
+  "abort_label": "Interrompre les transferts en cours",
+  "abort_description": "Désactivé, la tentative attend qu'aucun transfert ne soit en cours. Activé, ils sont mis en pause puis repris.",
+  "windows_label": "Horaires autorisés",
+  "windows_description": "Laissez vide pour autoriser à tout moment.",
+  "window_add": "Ajouter une plage",
+  "window_remove": "Retirer la plage",
+  "trigger": "Reconnecter maintenant",
+  "failed": "Échec de la reconnexion",
+  "never_run": "Pas encore exécuté.",
+  "last_success": "La dernière reconnexion a obtenu l'adresse {address}.",
+  "last_failure": "Dernière reconnexion en échec : {reason}",
+  "blocked_hosts": "Hébergeurs en attente d'une limite d'adresse",
+  "phase": {
+    "idle": "Inactif",
+    "draining": "Laisse les transferts se terminer",
+    "running": "Exécution du script",
+    "waiting_for_address": "Attente du changement d'adresse"
+  },
+  "days": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mer",
+    "thu": "Jeu",
+    "fri": "Ven",
+    "sat": "Sam",
+    "sun": "Dim"
+  }
+}

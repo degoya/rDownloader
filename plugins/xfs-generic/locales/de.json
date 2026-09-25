@@ -1,0 +1,15 @@
+{
+  "name": "XFileSharing (generisch)",
+  "description": "Löst Links auf XFileSharing-Installationen über den freien Ablauf auf, ohne Konto.",
+  "codes": {
+    "xfs_generic.captcha_rejected": "Die XFileSharing-Seite hat die Captcha-Antwort abgelehnt",
+    "xfs_generic.free_limit_reached": "Das Limit für Free-Downloads dieser XFileSharing-Seite ist für diese IP-Adresse erreicht",
+    "xfs_generic.http_error": "Die XFileSharing-Seite hat HTTP-Status {status} geantwortet",
+    "xfs_generic.invalid_link": "Ungültiger XFileSharing-Link",
+    "xfs_generic.invalid_url": "Ungültige Provider-URL: {error}",
+    "xfs_generic.no_account": "Dieser Resolver lädt ohne Konto und hat keines zu prüfen",
+    "xfs_generic.no_free_form": "Auf der Seite wurde kein XFileSharing-Formular für den Free-Download gefunden: {diagnosis}",
+    "xfs_generic.no_free_link": "Der XFileSharing-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
+    "xfs_generic.unsupported_link": "Kein Link auf einer XFileSharing-Seite, die dieses Plugin bedient"
+  }
+}

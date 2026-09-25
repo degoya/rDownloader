@@ -1,0 +1,76 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-000000000135"
+name = "Box"
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+# The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
+# emits. `*.app.box.com` is the enterprise subdomain Box gives every enterprise, and it is
+# listed beside the bare host because a `*.` pattern does not cover the host itself. Never `*`:
+# this is a hoster for its own cloud, not a multihoster.
+match_domains = ["app.box.com", "*.app.box.com"]
+# Where the bytes come from. A `/2.0/files/<id>/content` request answers with a redirect to a
+# pre-authenticated address on `dl.boxcloud.com`; the transfer follows it and drops the bearer
+# token on the way, because the redirect leaves `api.box.com`.
+download_domains = ["api.box.com", "*.boxcloud.com"]
+max_concurrent_downloads = 3
+
+[capabilities]
+# The access token an `oauth` sign-in produced. It is written by `box-oauth` through
+# `store-oauth-token` and read back here only as the template below, never as a value.
+#
+# Deliberately not `box_client_secret`: this plugin has no business with the application the
+# person registered, and a grant it does not need is a grant it should not have.
+secrets = ["box_access_token"]
+
+# The API host the resolver itself calls. `dl.boxcloud.com` is deliberately absent: the
+# resolver never fetches bytes, and the redirect it answers with carries its own authorization.
+[capabilities.net_http]
+domains = ["api.box.com"]
+
+[metadata]
+description = "Resolves Box files and shared links through the official Box Content API."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.0.0"
+
+# The provider row every Box plugin hangs off. Only a resolver manifest may carry one, which is
+# why this plugin exists even though the folder walk and the sign-in are its siblings: without
+# this row there is no account, no vault reference and therefore no way for either of them to
+# reach anything (RD-106-04, rule 1).
+[provider]
+slug = "box"
+kind = "hoster"
+credentials = "oauth"
+# The account's username field holds this installation's own Box client id (RD-106-04, rule 8).
+# It is not a credential — Box publishes it in the address the person is sent to — so it is
+# stored in the clear and the host expands it into `{{client_id}}`. Required, because a sign-in
+# without one cannot start: this project ships no application of its own, and one compiled in
+# here would put every installation on a single shared Box rate limit.
+username_required = true
+
+# Two slots, because two credentials have to exist at once (RD-106-03). Box's token endpoint
+# requires a `client_secret` — it has no public-client entrance and no PKCE — so the secret the
+# person registered has to survive every renewal, and the access token the sign-in obtains
+# cannot be written over it. The sign-in plugin grants itself the first; this plugin grants
+# itself only the second, which is the one it spends.
+[[provider.secrets]]
+reference = "box_client_secret"
+domains = ["api.box.com"]
+
+[[provider.secrets]]
+reference = "box_access_token"
+# The exact host the token may be sent to. It is also what lets the scheduler put
+# `Authorization: Bearer` on the transfer itself, which is needed because the download starts
+# at `api.box.com` before Box redirects it to its own storage host.
+domains = ["api.box.com"]
+filled_by = "flow"
+
+[limits]
+memory_bytes = 33554432
+fuel = 1000000000
+timeout_milliseconds = 15000
+max_response_bytes = 2097152

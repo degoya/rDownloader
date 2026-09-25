@@ -1,0 +1,31 @@
+{
+  "name": "Trabajos de TorBox",
+  "description": "Ejecuta magnets, archivos torrent, NZB y enlaces web como trabajos en una cuenta de TorBox.",
+  "codes": {
+    "torbox_jobs.account_missing": "Falta la cuenta de TorBox",
+    "torbox_jobs.api_error": "Error de la API de TorBox {api_code}",
+    "torbox_jobs.auth_invalid": "La clave de API de TorBox no es válida o ha caducado. Vuelve a introducirla.",
+    "torbox_jobs.cooldown": "TorBox mantiene esta cuenta en un periodo de espera. Esperando.",
+    "torbox_jobs.http_error": "Estado HTTP de TorBox {status}",
+    "torbox_jobs.invalid_response": "Respuesta de TorBox no válida",
+    "torbox_jobs.job_exists": "TorBox ya tiene un trabajo para este contenido",
+    "torbox_jobs.job_failed": "TorBox finalizó este trabajo con un error",
+    "torbox_jobs.job_gone": "TorBox ya no tiene este trabajo",
+    "torbox_jobs.job_incomplete": "TorBox no pudo obtener todos los archivos de este trabajo",
+    "torbox_jobs.job_unavailable": "TorBox informa de que este trabajo no está disponible",
+    "torbox_jobs.limit_reached": "TorBox informa de que se ha alcanzado el límite del plan",
+    "torbox_jobs.no_entropy": "El host no pudo proporcionar la aleatoriedad que requiere esta solicitud",
+    "torbox_jobs.no_files": "TorBox informa de que este trabajo ha terminado pero no indica archivos",
+    "torbox_jobs.no_job_id": "TorBox no indicó el trabajo que creó. Revisa tu cuenta de TorBox antes de volver a intentarlo.",
+    "torbox_jobs.no_selection": "TorBox descarga trabajos completos y no ofrece selección de archivos. Elige los archivos en el LinkGrabber.",
+    "torbox_jobs.not_a_job": "Esto no es un magnet, un archivo torrent, un NZB ni una dirección web",
+    "torbox_jobs.not_permitted": "El plan de TorBox no cubre este tipo de trabajo",
+    "torbox_jobs.rate_limited": "Se alcanzó el límite de solicitudes de la API de TorBox. Esperando.",
+    "torbox_jobs.request_refused": "TorBox rechazó esta solicitud",
+    "torbox_jobs.server_busy": "TorBox no está disponible temporalmente",
+    "torbox_jobs.server_error": "Error del servidor de TorBox",
+    "torbox_jobs.source_gone": "TorBox no pudo acceder al origen de este trabajo",
+    "torbox_jobs.token_missing": "Esta cuenta de TorBox no tiene clave de API",
+    "torbox_jobs.too_large": "TorBox rechaza este trabajo por ser demasiado grande"
+  }
+}

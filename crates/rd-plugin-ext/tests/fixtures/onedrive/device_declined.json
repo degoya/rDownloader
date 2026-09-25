@@ -1,0 +1,8 @@
+{
+  "error": "authorization_declined",
+  "error_description": "AADSTS70020: The end user has denied the authorization request.",
+  "error_codes": [70020],
+  "timestamp": "2026-09-10 10:00:00Z",
+  "trace_id": "redacted",
+  "correlation_id": "redacted"
+}

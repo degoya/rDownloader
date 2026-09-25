@@ -1,0 +1,20 @@
+{
+  "name": "Transferencias de Seedr",
+  "description": "Ejecuta enlaces magnet y archivos torrent como transferencias en una cuenta de Seedr.",
+  "codes": {
+    "seedr_jobs.address_unsupported": "Las transferencias de Seedr aceptan un enlace magnet o un archivo torrent, no una dirección web",
+    "seedr_jobs.api_error": "Error de la API de Seedr ({reason})",
+    "seedr_jobs.auth_invalid": "Seedr rechazó el correo electrónico o la contraseña de esta cuenta. Vuelve a introducirlos.",
+    "seedr_jobs.http_error": "Estado HTTP de Seedr {status}",
+    "seedr_jobs.invalid_response": "Respuesta de Seedr no válida",
+    "seedr_jobs.no_files": "Seedr indica que esta transferencia ha terminado, pero su carpeta no contiene archivos",
+    "seedr_jobs.no_selection": "Seedr descarga la transferencia completa y no permite seleccionar archivos",
+    "seedr_jobs.no_transfer_id": "Seedr no nombró la transferencia que creó. Revisa tu cuenta de Seedr antes de volver a intentarlo.",
+    "seedr_jobs.not_a_torrent": "Seedr acepta un enlace magnet o un archivo torrent; esto no es ninguno de los dos",
+    "seedr_jobs.out_of_space": "La cuenta de Seedr no tiene espacio para esta transferencia. Esperando.",
+    "seedr_jobs.plan_required": "La API REST de Seedr requiere un plan premium en esta cuenta",
+    "seedr_jobs.rate_limited": "Se alcanzó el límite de solicitudes de Seedr. Esperando.",
+    "seedr_jobs.server_error": "Error del servidor de Seedr",
+    "seedr_jobs.transfer_gone": "Seedr ya no conserva esta transferencia"
+  }
+}

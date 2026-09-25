@@ -1,0 +1,28 @@
+{
+  "name": "MediaFire",
+  "description": "Résout les liens de fichiers publics MediaFire via l'API documentée et la page du fichier.",
+  "codes": {
+    "mediafire.api_error": "API MediaFire : {message}",
+    "mediafire.captcha_rejected": "MediaFire a rejeté la réponse au captcha",
+    "mediafire.captcha_required": "MediaFire demande un captcha que ce plugin ne peut pas résoudre",
+    "mediafire.download_limit_reached": "Limite de téléchargement MediaFire atteinte pour cette adresse ; réessayez dans {wait_seconds} s",
+    "mediafire.error_page": "MediaFire a répondu par la page d'erreur {errno}",
+    "mediafire.file_blocked": "MediaFire a bloqué ce fichier : {reason}",
+    "mediafire.file_not_ready": "MediaFire traite encore ce fichier",
+    "mediafire.file_unavailable": "Le fichier MediaFire n'est pas disponible",
+    "mediafire.folder_not_file": "Ceci est un dossier MediaFire, pas un fichier ; les dossiers sont listés par l'explorateur de dossiers MediaFire",
+    "mediafire.http_error": "Statut HTTP MediaFire {status}",
+    "mediafire.invalid_link": "Lien MediaFire invalide",
+    "mediafire.invalid_response": "Réponse MediaFire invalide",
+    "mediafire.invalid_url": "URL du fournisseur invalide : {error}",
+    "mediafire.malware_flagged": "MediaFire a signalé ce fichier comme logiciel malveillant ; il n'est pas téléchargé",
+    "mediafire.no_account": "MediaFire résout les fichiers publics sans compte ; il n'y a rien à vérifier",
+    "mediafire.no_direct_link": "La page du fichier MediaFire ne contenait aucun lien direct : {diagnosis}",
+    "mediafire.owner_limit": "MediaFire refuse le téléchargement à cause de la limite de l'utilisateur ayant déposé le fichier : {reason}",
+    "mediafire.password_required": "Le fichier MediaFire est protégé par mot de passe ; les mots de passe de fichier ne sont pas encore pris en charge",
+    "mediafire.private_file": "Le fichier MediaFire est privé et nécessite le compte du propriétaire",
+    "mediafire.rate_limited": "MediaFire limite les appels à l'API depuis cette adresse",
+    "mediafire.temporarily_unavailable": "Le téléchargement MediaFire est temporairement indisponible ; réessayez dans {wait_seconds} s",
+    "mediafire.unsupported_link": "Lien MediaFire non pris en charge"
+  }
+}

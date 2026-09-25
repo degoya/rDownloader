@@ -1,0 +1,4 @@
+{
+  "error": "access_denied",
+  "error_description": "The user chose not to give your app access to their Dropbox account."
+}

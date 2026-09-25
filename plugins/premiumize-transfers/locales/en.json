@@ -1,0 +1,26 @@
+{
+  "name": "Premiumize transfers",
+  "description": "Runs magnets, containers and plain addresses as transfers on a Premiumize.me account.",
+  "codes": {
+    "premiumize_transfers.account_missing": "Premiumize account is missing",
+    "premiumize_transfers.api_error": "Premiumize API error {api_code}",
+    "premiumize_transfers.auth_invalid": "The Premiumize sign-in is no longer valid. Store the API key again.",
+    "premiumize_transfers.container_unknown": "This container’s format could not be recognised",
+    "premiumize_transfers.empty_choice": "A file selection has to name at least one file",
+    "premiumize_transfers.folder_too_large": "This transfer produced more folders than one poll can read",
+    "premiumize_transfers.http_error": "Premiumize HTTP status {status}",
+    "premiumize_transfers.invalid_response": "Invalid Premiumize response",
+    "premiumize_transfers.limit_reached": "Premiumize reports the traffic or fair-use limit as reached",
+    "premiumize_transfers.no_choice": "Premiumize transfers do not ask which files to take",
+    "premiumize_transfers.no_files": "Premiumize reports this transfer as finished but returned no files",
+    "premiumize_transfers.no_location": "Premiumize reports this transfer as finished but named no file or folder",
+    "premiumize_transfers.no_transfer_id": "Premiumize did not name the transfer it created. Check your Premiumize account before trying again.",
+    "premiumize_transfers.not_a_source": "This is not a magnet address, a container or a usable link",
+    "premiumize_transfers.rate_limited": "The Premiumize API rate limit was reached. Waiting.",
+    "premiumize_transfers.server_busy": "Premiumize is temporarily unavailable",
+    "premiumize_transfers.source_unsupported": "Premiumize does not accept this source",
+    "premiumize_transfers.transfer_failed": "Premiumize ended this transfer with an error",
+    "premiumize_transfers.transfer_gone": "Premiumize no longer holds this transfer",
+    "premiumize_transfers.transfer_unlisted": "Premiumize does not list this transfer any more"
+  }
+}

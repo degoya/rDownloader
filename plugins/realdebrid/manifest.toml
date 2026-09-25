@@ -1,0 +1,64 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000000c"
+name = "Real-Debrid"
+version = "0.1.4"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["*"]
+download_domains = ["*"]
+# Real-Debrid's own guidance is two to four parallel connections per generated link, and the
+# API is capped at 250 requests a minute for everybody. Three keeps a queue moving without
+# spending the account's request budget on scheduling.
+max_concurrent_downloads = 3
+
+[capabilities]
+# The access token an `oauth` sign-in produced. It is written by `realdebrid-auth` through
+# `store-oauth-token` and read back here only as the template below, never as a value.
+#
+# Deliberately not `realdebrid_client_secret`: this plugin has no business with the application
+# the person registered, and a grant it does not need is a grant it should not have.
+secrets = ["realdebrid_access_token"]
+
+[capabilities.net_http]
+domains = ["api.real-debrid.com"]
+
+[metadata]
+description = "Resolves links of other hosters through a Real-Debrid account."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[provider]
+slug = "realdebrid"
+kind = "multihoster"
+# The person brings their own Real-Debrid application: `username` is its client id and the
+# account credential is its client secret. `plugins/realdebrid-auth/` runs the OAuth2 device
+# flow with them, and the host's renewal sweep keeps the token it obtains alive.
+#
+# Two slots, because two credentials have to exist at once. The client secret is what the
+# person registered and typed; the access token is what the sign-in obtained. Writing the
+# second over the first would destroy the value every later renewal needs, so each has its own
+# slot and `filled_by` says which is which.
+credentials = "oauth"
+username_required = true
+# Deliberately no `cookie_scope`. This is an API-shaped multihoster with no `cookies`
+# capability; a scope nothing can use would be a promise about where credentials go that
+# nothing keeps.
+
+[[provider.secrets]]
+reference = "realdebrid_client_secret"
+domains = ["api.real-debrid.com"]
+
+[[provider.secrets]]
+reference = "realdebrid_access_token"
+domains = ["api.real-debrid.com"]
+filled_by = "flow"
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608

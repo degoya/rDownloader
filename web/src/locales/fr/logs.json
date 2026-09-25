@@ -1,0 +1,83 @@
+{
+  "title": "Journal",
+  "intro": "Ce que le service a enregistré, expurgé avant l'enregistrement : identifiants, paramètres signés des liens et en-têtes d'autorisation n'atteignent jamais cette liste.",
+  "filters": {
+    "level": "Niveau minimal",
+    "component": "Composant",
+    "component_placeholder": "rd_http",
+    "code": "Code",
+    "correlation": "Id de corrélation",
+    "search": "Rechercher dans les messages",
+    "apply": "Appliquer",
+    "clear": "Effacer les filtres"
+  },
+  "levels": {
+    "all": "Tous les niveaux",
+    "trace": "Trace",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Avertissement",
+    "error": "Erreur"
+  },
+  "list": {
+    "title": "Entrées",
+    "empty": "Aucune entrée ne correspond.",
+    "shown": "{shown} entrées sur {total}",
+    "full_page": "Cette page est pleine : des entrées plus anciennes se trouvent derrière.",
+    "older": "Charger les plus anciennes",
+    "dropped": "{count} entrées ont été abandonnées parce que le stockage ne suivait pas.",
+    "expand": "Afficher les champs",
+    "collapse": "Masquer les champs",
+    "retention": "Conservé {days} jours ou {records} entrées, selon la première limite atteinte."
+  },
+  "bundle": {
+    "title": "Paquet de diagnostic",
+    "eyebrow": "Assistance",
+    "intro": "Une archive pour une demande d'assistance : versions, métadonnées de configuration, vérifications système et erreurs les plus récentes. Rien n'est envoyé ; le fichier est écrit sur cette machine, et seulement après que vous avez vu et approuvé son contenu.",
+    "preview": "Voir le contenu",
+    "create": "Créer le paquet",
+    "directory": "Écrit dans {directory}",
+    "entries": "Contenu",
+    "items": "{count} éléments",
+    "redactions": "Expurgations",
+    "excluded": "Jamais inclus",
+    "created": "Paquet écrit : {file}",
+    "download": "Télécharger",
+    "bytes": "{bytes} octets",
+    "select_hint": "Décochez ce que le destinataire ne doit pas recevoir."
+  },
+  "diagnostics": {
+    "bundle": {
+      "entry": {
+        "versions": {
+          "description": "version de l'application, plateforme et les plugins installés"
+        },
+        "configuration": {
+          "description": "le document de réglages sans ses identifiants"
+        },
+        "system_checks": {
+          "description": "emplacements et versions des outils, le contrat du proxy inverse"
+        },
+        "doctor": {
+          "description": "les mêmes vérifications, telles que `rdownloader doctor` les affiche"
+        },
+        "recent_errors": {
+          "description": "les avertissements et les erreurs les plus récents du magasin de journaux"
+        }
+      },
+      "redaction": {
+        "configuration_credentials": "les champs dont le nom évoque un identifiant sont remplacés par [redacted]",
+        "configuration_pem": "le matériel PEM est remplacé par [present]",
+        "configuration_text": "les valeurs textuelles passent par la purge des URL et des en-têtes",
+        "configuration_replaced": "remplacés : {fields}",
+        "paths": "les chemins passent par la purge du texte",
+        "log_records": "les messages et les champs ont été purgés à la capture ; rien n'est relu depuis le fichier journal"
+      },
+      "exclusion": {
+        "file_contents": "le contenu et les noms de fichier des téléchargements",
+        "urls": "URL complètes : les valeurs de requête portant un identifiant ou une signature sont remplacées",
+        "secrets": "secrets : mots de passe, jetons, clés d'API, cookies, certificats et références au coffre"
+      }
+    }
+  }
+}

@@ -1,0 +1,478 @@
+name: CI
+
+on:
+  # Branches only. A release push carries `main` and its tag, which name the same commit, and
+  # an unfiltered `push` ran this whole workflow twice for it; the tag has release.yml.
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the running one pointless; cancel it instead of paying
+# for both (the account's Actions minutes ran out on 2026-09-25).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Swatinem/rust-cache sets this too; stated here so the size of target/ does not depend on
+  # which action happens to run first. Incremental state is dead weight in a one-off build.
+  CARGO_INCREMENTAL: 0
+
+# Runner images are named, not `-latest` (RD-120-67). A `-latest` label moves under a release
+# without a commit — `ubuntu-latest` becomes Ubuntu 26.04 from 2026-10-19 — and what it moves is
+# the whole toolchain the checks run on and, in release.yml, the glibc floor of the Linux binary.
+# Moving to a newer image is then a change of its own that CI has to pass, not a surprise.
+# Actions are on their current major versions, all of them on Node 24.
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck:full
+      - run: npm run test
+      - run: npm run build
+      - run: ../scripts/build-extension.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-extensions
+          path: artifacts/browser-extensions/*.zip
+          if-no-files-found: error
+
+  rust:
+    needs: web
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    # A hang is cut off rather than billed for six hours: on 2026-09-25 a keychain call blocked the
+    # macOS tests for an hour, at ten times the Linux rate.
+    timeout-minutes: 90
+    env:
+      # mold instead of GNU ld on Linux (installed below): the test build links ~90 binaries of
+      # up to half a gigabyte each, and mold does it in a fraction of the time and memory. The
+      # variable names the Linux target only, so the other two runners never see it.
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
+    steps:
+      - uses: actions/checkout@v7
+      # A debug test build of this workspace does not fit on a hosted runner as it comes: every
+      # rd-api integration binary links the whole dependency graph at ~550 MB, and there are 55
+      # of them. The first run on GitHub (2026-09-25) filled the Ubuntu runner's disk and the
+      # runner died writing its own log (RD-120-67). The Windows image has room to spare.
+      - name: Free runner disk
+        if: runner.os != 'Windows'
+        uses: ./.github/actions/free-runner-disk
+      - name: Install mold
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - run: npm ci --prefix web
+      - run: npm run build --prefix web
+      - run: cargo fmt --all --check
+      # The capture agent stays headless on Linux. The manifest gate in
+      # crates/rd-capture/src/platform_gate/ sees only what that crate declares; this holds the
+      # resolved tree — everything a dependency, a feature or a [patch] pulls in behind an
+      # innocent name — against the list of window stacks. Resolve only, no compile.
+      - name: Check the headless Linux tree of the capture agent
+        if: runner.os == 'Linux'
+        run: scripts/check-capture-linux-tree.sh --locked
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      # -P no-components: this job has no wasm toolchain, so the plugin contract tests have
+      # no components to drive. Since RD-108-16 they fail rather than returning early, so the
+      # profile leaves them out of the selection by name — and the summary counts them as
+      # skipped rather than passed. They run for real in the `components` job below.
+      #
+      #
+      # In groups, each group's test executables deleted once it passed (RD-120-67). The first
+      # run on GitHub (2026-09-25) filled the disk under one `--workspace` run: the step log
+      # stops at "linking with cc failed: exit status 1", and the runner died with "No space
+      # left on device" writing its own diagnostics. That run keeps every test executable of
+      # the workspace at once, and the 55 rd-api integration binaries alone are ~550 MB each
+      # (measured locally with this repository's `debug = "line-tables-only"`, which the test
+      # profile inherits: 120 MB of code, 250 MB of symbol names, 3 MB of debug info) — ~30 GB.
+      # The groups keep at most eight of them, the heavy crates each alone; two build jobs and
+      # mold keep the links' memory down. The split follows scripts/check.sh, which does it for memory on a workstation.
+      # macOS is linted (clippy above), not tested: its minutes cost ten times Linux's, and the
+      # owner's decision (2026-09-25) is that the macOS half is held by clippy in CI. release.yml
+      # still builds the macOS binaries.
+      - name: Tests
+        if: runner.os != 'macOS'
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
+        run: |
+          set -euo pipefail
+          stamp="${RUNNER_TEMP}/rd-tests.stamp"
+          # Every group runs to its end, failing or not, and the step fails at the end: one
+          # 45-minute run has to show every failure, not the first (RD-120-67 took three runs).
+          failed=0
+          # One nextest selection, then the executables it linked go: nothing later needs them.
+          # No extension (or `.exe`) in target/debug/deps is a test or binary executable;
+          # libraries, proc macros and metadata all carry one and stay.
+          run_group() {
+            echo "::group::nextest $*"
+            touch "${stamp}"
+            cargo nextest run -P no-components --no-fail-fast "$@" || failed=1
+            find target/debug/deps -maxdepth 1 -type f -newer "${stamp}" \
+              \( ! -name '*.*' -o -name '*.exe' \) -print \
+              | while IFS= read -r executable; do
+                  # With it everything named after it: `.pdb` on Windows, the `.o` that
+                  # macOS keeps for its debug info, `.dwo`, `.d`.
+                  stem="${executable%.exe}"
+                  rm -f "${executable}" "${stem}".*
+                done
+            df -h . | tail -n 1
+            echo "::endgroup::"
+          }
+          run_group --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader
+          run_group -p rd-plugin-ext
+          run_group -p rdownloader
+          run_group -p rd-api --lib
+          # The 55 rd-api integration binaries, eight per group. A while-read loop rather than
+          # `mapfile`, which macOS's bash 3.2 does not have; read from fd 3 so nextest inside the
+          # loop cannot swallow the list on stdin.
+          args=()
+          count=0
+          while IFS= read -r binary <&3; do
+            args+=(--test "${binary}")
+            count=$((count + 1))
+            if [[ ${count} -eq 8 ]]; then
+              run_group -p rd-api "${args[@]}"
+              args=()
+              count=0
+            fi
+          done 3< <(for file in crates/rd-api/tests/*.rs; do basename "${file}" .rs; done | LC_ALL=C sort)
+          if [[ ${count} -gt 0 ]]; then run_group -p rd-api "${args[@]}"; fi
+          exit "${failed}"
+      # What the runner had when a step failed, if it is still alive to say so. A linker that
+      # failed prints "No space left on device" or "ld terminated with signal 9 [Killed]" just
+      # under "linking with cc failed"; these lines say which limit it was near.
+      - name: Disk and memory after a failure
+        if: failure()
+        shell: bash
+        run: |
+          df -h . || true
+          du -sh target 2> /dev/null || true
+          free -m 2> /dev/null || vm_stat 2> /dev/null || true
+      # The crash matrix (RD-140-04, axis A). Its cases only exist with the feature on, and
+      # the feature is deliberately off everywhere else so the shipped build has no crash
+      # points compiled into it at all.
+      - name: Crash and restart matrix
+        if: runner.os != 'macOS'
+        run: cargo nextest run --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet
+      - name: Check Unix launcher syntax
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            bash -n scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh
+          else
+            bash -n scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command
+          fi
+      - name: Check Windows launcher arguments
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmd /c scripts\windows\start-rdownloader.bat invalid-mode
+          if ($LASTEXITCODE -ne 2) { throw "start script accepted an invalid mode" }
+          cmd /c scripts\windows\stop-rdownloader.bat invalid-mode
+          if ($LASTEXITCODE -ne 2) { throw "stop script accepted an invalid mode" }
+      - name: Build and validate macOS NZB helper app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          helper_dir="$(mktemp -d)"
+          osacompile -o "${helper_dir}/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
+          cp resources/macos/capture-helper-Info.plist "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
+          plutil -lint "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
+      - name: Smoke-test portable Unix server launcher
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cargo build --locked -p rdownloader
+          portable_dir="$(mktemp -d)"
+          cp target/debug/rdownloader "${portable_dir}/"
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh "${portable_dir}/"
+            start_script="${portable_dir}/start-rdownloader.sh"
+            stop_script="${portable_dir}/stop-rdownloader.sh"
+          else
+            cp scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command "${portable_dir}/"
+            start_script="${portable_dir}/start-rdownloader.command"
+            stop_script="${portable_dir}/stop-rdownloader.command"
+          fi
+          "${start_script}" server
+          trap '"${stop_script}" server' EXIT
+          curl --fail --silent --show-error --retry 10 --retry-delay 1 \
+            http://127.0.0.1:8710/api/v1/health
+          "${stop_script}" server
+          trap - EXIT
+      - name: Smoke-test Windows executables
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --locked -p rdownloader -p rd-capture
+          & target/debug/rdownloader.exe --version
+          & target/debug/rdownloader-capture.exe --version
+      - name: Smoke-test portable Windows server launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $portableDir = Join-Path $env:RUNNER_TEMP "rdownloader-portable"
+          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+          Copy-Item target/debug/rdownloader.exe $portableDir
+          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat $portableDir
+          Push-Location $portableDir
+          try {
+            cmd /c start-rdownloader.bat server
+            if ($LASTEXITCODE -ne 0) { throw "portable start script failed" }
+            $healthy = $false
+            for ($attempt = 0; $attempt -lt 10; $attempt++) {
+              try {
+                Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
+                $healthy = $true
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $healthy) { throw "portable server health check failed" }
+          } finally {
+            cmd /c stop-rdownloader.bat server
+          }
+          Pop-Location
+      - name: Install SQLx CLI
+        if: runner.os == 'Linux'
+        run: cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features sqlite-unbundled
+      - name: Check SQLx offline metadata
+        if: runner.os == 'Linux'
+        env:
+          SQLX_OFFLINE: "true"
+        run: cargo sqlx prepare --check --workspace
+
+  components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      # `cargo run -p rdownloader` below builds rd-api, whose `#[derive(RustEmbed)]` refuses to
+      # compile without `web/dist`. The packager never serves the interface, so an empty
+      # folder is all it needs; building the frontend here would only cost time.
+      - run: mkdir -p web/dist
+      # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's 30 at
+      # ~175 MB each), a debug rdownloader and eleven scaffold builds in a second target dir:
+      # the same disk the `rust` job ran out of (RD-120-67).
+      - name: Free runner disk
+        uses: ./.github/actions/free-runner-disk
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-component --version 0.21.1 --locked
+      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@wasm-tools
+      - name: Collect the bundled plugins
+        id: plugins
+        shell: bash
+        run: |
+          # Every plugins/ directory with a manifest.toml is a shipped package; xfs-common
+          # has none because it is a shared library. Deriving the list means adding a plugin
+          # is one directory, not five identical loops to keep in step.
+          names=$(find plugins -mindepth 2 -maxdepth 2 -name manifest.toml -printf '%h\n' \
+            | xargs -n1 basename | sort | tr '\n' ' ')
+          echo "names=${names}" >> "$GITHUB_OUTPUT"
+          echo "building: ${names}"
+          # Building proves a plugin compiles; packaging additionally checks its
+          # `min_app_version` against this build, and a plugin written for the release being
+          # prepared cannot be packaged until the version bump. scripts/build-plugins.sh owns
+          # that rule so it lives in one place and clears itself at the bump.
+          packageable=$(scripts/build-plugins.sh --list-packageable | sort | tr '\n' ' ')
+          echo "packageable=${packageable}" >> "$GITHUB_OUTPUT"
+          echo "packaging: ${packageable}"
+      - name: Build plugin components
+        shell: bash
+        # Through the script, not a bare `cargo component build`: it stamps each component with
+        # the hash of its sources (RD-120-58), and the contract tests below refuse a component
+        # without a stamp as stale. It also runs the import check on each one.
+        run: scripts/build-plugins.sh --components-only ${{ steps.plugins.outputs.names }}
+      - name: Reject accidental WASI capabilities
+        shell: bash
+        # Reads the component's import section with wasm-tools instead of scanning the bytes.
+        # The byte scan this replaces could not tell an import from a string, so a plugin whose
+        # data section merely contained the text "wasi:" was rejected as importing it.
+        run: |
+          components=()
+          for plugin in ${{ steps.plugins.outputs.names }}; do
+            components+=("target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm")
+          done
+          scripts/check-plugin-imports.sh "${components[@]}" \
+            || { echo "::error::a plugin imports outside rdownloader:plugin"; exit 1; }
+      - name: Plugin contract tests
+        shell: bash
+        # Run here rather than in the `rust` job: they drive the bundled plugins as real
+        # components, which only exist once the step above has built them. The `rust` job
+        # leaves them out by name, with the `no-components` profile, and this is the run that
+        # makes that acceptable. rd-plugin-host is in the list because two of its tests load a
+        # component too — until RD-108-16 they skipped themselves here and passed quietly
+        # there, so they ran nowhere at all.
+        run: cargo nextest run --locked --no-fail-fast -p rd-plugin-transfer -p rd-plugin-ext -p rd-plugin-host
+      - name: Package unsigned development plugins as a smoke test
+        shell: bash
+        run: |
+          mkdir -p dist/plugins
+          for plugin in ${{ steps.plugins.outputs.packageable }}; do
+            cargo run --locked -p rdownloader -- plugin package --development \
+              --manifest "plugins/${plugin}/manifest.toml" \
+              --component "target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm" \
+              --locales "plugins/${plugin}/locales" \
+              --output "dist/plugins/${plugin}.rdplug"
+            cargo run --locked -p rdownloader -- plugin verify --development-mode "dist/plugins/${plugin}.rdplug"
+          done
+      - name: The SDK templates carry the current contract
+        shell: bash
+        run: |
+          # The templates ship their own copy so a scaffold builds without this repository.
+          # A copy that drifts hands third parties a contract this core no longer speaks.
+          for template in sdk/templates/*/wit/rdownloader.wit; do
+            diff -u crates/rd-plugin-api/wit/rdownloader.wit "${template}" \
+              || { echo "::error::${template} is out of date"; exit 1; }
+          done
+      - name: A scaffolded plugin builds outside the repository
+        shell: bash
+        run: |
+          # In /tmp on purpose: outside the workspace, with no path dependencies to fall back
+          # on, which is the only way to prove a third party can build one.
+          #
+          # Every type, not a sample. This job used to build three — `resolver` as the
+          # plainest world, `oauth` and `crawler` as the two with logic of their own — on the
+          # reasoning that the unit test in `crates/rdownloader/src/plugin_cli.rs` covers
+          # the rest. It covers that a template exists, names its type and carries the
+          # current contract; it does not compile the template's code against that contract,
+          # and the `auth` scaffold was broken by a contract change on the day it was
+          # written without anything here noticing. The scaffolds share one target directory, so the dependency
+          # graph is built once and each further world costs one crate.
+          export CARGO_TARGET_DIR=$(mktemp -d)/scaffold-target
+          for world in resolver transfer intake auth oauth crawler enricher notifier postprocess storage remote-job; do
+            out=$(mktemp -d)/scaffolded
+            cargo run --locked -p rdownloader -- plugin new --type "${world}" --out "${out}"
+            (cd "${out}" && cargo component build --release --target wasm32-unknown-unknown)
+            # The scaffold's own unit tests, on the host target: a third party runs these
+            # before touching anything, so they have to pass in a fresh scaffold.
+            if grep -rq '#\[test\]' "${out}/src"; then
+              (cd "${out}" && cargo test)
+            fi
+            cargo run --locked -p rdownloader -- plugin package \
+              --manifest "${out}/manifest.toml" \
+              --component "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm" \
+              --locales "${out}/locales" \
+              --key "${out}/plugin-signing.key" \
+              --output "${out}/scaffolded.rdplug"
+            scripts/check-plugin-imports.sh \
+              "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm"
+            cargo run --locked -p rdownloader -- plugin conformance --json \
+              --trusted-key "scaffolded-release-v1=$(sed -n 's/^public_key = "\(.*\)"/\1/p' "${out}/manifest.toml")" \
+              --no-default-plugin-key \
+              "${out}/scaffolded.rdplug"
+          done
+      - name: Conformance for every bundled plugin
+        shell: bash
+        run: |
+          for plugin in ${{ steps.plugins.outputs.names }}; do
+            cargo run --locked -p rdownloader -- plugin conformance --development-mode --json \
+              "dist/plugins/${plugin}.rdplug"
+          done
+      - name: Keep Dockerfile COPY satisfied on pull requests
+        run: mkdir -p dist/plugins && touch dist/plugins/.keep
+
+  docker:
+    needs: [web, rust, components]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Build loadable smoke-test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: rdownloader:smoke
+          cache-from: type=gha
+      - name: Smoke-test health endpoint and persistent mounts
+        shell: bash
+        run: |
+          config_volume="rdownloader-config-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          downloads_volume="rdownloader-downloads-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker volume create "${config_volume}"
+          docker volume create "${downloads_volume}"
+          container_id="$(docker run --detach --publish 127.0.0.1:8710:8710 \
+            --volume "${config_volume}:/config" \
+            --volume "${downloads_volume}:/downloads" \
+            rdownloader:smoke)"
+          trap 'docker rm --force "${container_id}"; docker volume rm "${config_volume}" "${downloads_volume}"' EXIT
+          curl --fail --silent --show-error --retry 20 --retry-delay 1 \
+            http://127.0.0.1:8710/api/v1/health
+          # The bundled Python tools run as the service user, apprise included (RD-130-14).
+          docker exec --user rdownloader "${container_id}" apprise --version
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: rdownloader:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  supply-chain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+      # The tree is public, so a secret in it is published. The known fixture findings are
+      # allowlisted in .gitleaks.toml (RD-130-23), which gitleaks reads from the scanned root.
+      - name: gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" dir . --no-banner --redact --exit-code 1

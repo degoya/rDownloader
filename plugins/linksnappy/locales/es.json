@@ -1,0 +1,29 @@
+{
+  "name": "LinkSnappy",
+  "account": {
+    "secret_label": "Contraseña de la cuenta",
+    "secret_hint": "Introduce el nombre de usuario de tu cuenta y tu contraseña como secreto."
+  },
+  "codes": {
+    "linksnappy.account_expired": "La cuenta de LinkSnappy ha expirado",
+    "linksnappy.account_missing": "Falta la cuenta de LinkSnappy",
+    "linksnappy.api_error": "Error de la API de LinkSnappy: {message}",
+    "linksnappy.bad_credentials": "El usuario o la contraseña de LinkSnappy son incorrectos",
+    "linksnappy.file_offline": "El archivo de LinkSnappy no está disponible",
+    "linksnappy.host_unavailable": "LinkSnappy no tiene ningún servidor disponible para este alojador en este momento",
+    "linksnappy.host_unsupported": "LinkSnappy no admite este alojador de archivos",
+    "linksnappy.http_error": "Estado HTTP {status} de LinkSnappy",
+    "linksnappy.invalid_link_format": "LinkSnappy no reconoce el formato de este enlace",
+    "linksnappy.invalid_response": "Respuesta de LinkSnappy no válida",
+    "linksnappy.invalid_url": "URL de proveedor no válida: {error}",
+    "linksnappy.limit_reached": "Se alcanzó el límite de tráfico o descargas de LinkSnappy",
+    "linksnappy.no_download_url": "LinkSnappy no devolvió una URL de descarga",
+    "linksnappy.password_missing": "Falta la contraseña de LinkSnappy",
+    "linksnappy.password_protected": "El archivo de LinkSnappy requiere una contraseña de descarga que este plugin no puede proporcionar",
+    "linksnappy.premium_required": "Se requiere una membresía Elite (premium) de LinkSnappy para usar la API de descarga",
+    "linksnappy.rate_limited": "Se activó el límite de solicitudes de la API de LinkSnappy",
+    "linksnappy.server_error": "Error del servidor de LinkSnappy",
+    "linksnappy.too_many_requests": "LinkSnappy rechazó la solicitud; demasiadas solicitudes de descarga recientes",
+    "linksnappy.two_factor_required": "LinkSnappy requiere confirmar este inicio de sesión mediante el correo enviado a la cuenta"
+  }
+}

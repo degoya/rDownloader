@@ -1,0 +1,88 @@
+{
+  "tree": {
+    "selected": "{count} von {total} Dateien ausgewählt",
+    "files_badge": "{selected} von {total} Dateien ausgewählt",
+    "toggle_folder": "{name} auf- oder zuklappen",
+    "select_entry": "{name} auswählen",
+    "excluded_by_pattern": "Durch das Muster {pattern} ausgeschlossen",
+    "loading": "Dateiliste wird gelesen …",
+    "empty": "Für dieses Torrent liegt noch keine Dateiliste vor."
+  },
+  "errors": {
+    "metadata_failed": "Die Torrent-Metadaten konnten nicht aufgelöst werden."
+  },
+  "priority": {
+    "high": "Hoch",
+    "normal": "Normal",
+    "low": "Niedrig",
+    "skip": "Überspringen",
+    "select": "Priorität von {name}",
+    "emulated_hint": "Prioritäten werden stufenweise angewendet: Die Engine öffnet die nächste Stufe, sobald die aktuelle fertig ist. Sequenzieller Download wird von dieser Engine nicht unterstützt."
+  },
+  "patterns": {
+    "label": "Ausschlussmuster",
+    "description": "Kommagetrennte Muster wie *.nfo oder extras/*. Sie wirken nur auf Dateien, über die du nicht selbst entschieden hast.",
+    "placeholder": "*.nfo, sample/*"
+  },
+  "tabs": {
+    "files": "Dateien",
+    "trackers": "Tracker",
+    "peers": "Peers",
+    "seeding": "Seeding"
+  },
+  "trackers": {
+    "counters_hint": "Seeder / Leecher / abgeschlossen",
+    "scrape": "Scrapen",
+    "reannounce": "Neu anmelden",
+    "empty": "Dieses Torrent hat keine Tracker.",
+    "stale": "Diese Zahlen sind älter als 15 Minuten.",
+    "stale_badge": "Veraltet",
+    "failed": "Fehlgeschlagen",
+    "remove": "Tracker {url} entfernen",
+    "add": "Hinzufügen",
+    "add_placeholder": "https://tracker.example/announce"
+  },
+  "stats": {
+    "ratio": "Verhältnis",
+    "uploaded": "Hochgeladen",
+    "peers": "Peers",
+    "offline": "Nicht in der Session – zuletzt bekannte Werte"
+  },
+  "peers": {
+    "title": "Peers",
+    "count": "{count} verbunden",
+    "empty": "Noch keine Peers verbunden.",
+    "offline": "Dieses Torrent ist nicht in der Session, daher lassen sich keine Peers auflisten.",
+    "downloaded": "Von diesem Peer geladen",
+    "uploaded": "Zu diesem Peer hochgeladen",
+    "more": "Mehr anzeigen"
+  },
+  "pieces": {
+    "title": "Piece-Verfügbarkeit",
+    "count": "{count} Pieces",
+    "empty": "Keine Piece-Informationen verfügbar."
+  },
+  "web_seeds": {
+    "title": "Web Seeds",
+    "unsupported": "Dieses Torrent bietet Web Seeds an. Die Engine kann sie nicht nutzen, sie werden daher nur zur Information angezeigt."
+  },
+  "seeding": {
+    "enabled": "Seeding",
+    "ratio": "Zielverhältnis",
+    "time": "Seed-Zeit",
+    "unlimited": "Unbegrenzt",
+    "minutes": "{count} Minuten",
+    "inherit": "Erben",
+    "override_enabled": "Seeding überschreiben",
+    "override_ratio": "Verhältnis überschreiben",
+    "override_time": "Seed-Zeit überschreiben",
+    "override_unlimited": "Ohne Zeitlimit seeden",
+    "save": "Speichern",
+    "clear": "Wieder erben",
+    "source": {
+      "global": "aus den globalen Einstellungen",
+      "category": "aus der Kategorie",
+      "torrent": "hier gesetzt"
+    }
+  }
+}

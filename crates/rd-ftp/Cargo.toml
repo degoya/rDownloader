@@ -1,0 +1,35 @@
+[package]
+name = "rd-ftp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+futures-util.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+rd-http = { path = "../rd-http" }
+rd-limits = { path = "../rd-limits" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-transfer-file = { path = "../rd-transfer-file" }
+rd-secrets = { path = "../rd-secrets" }
+rustls.workspace = true
+rustls-platform-verifier.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+suppaftp.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

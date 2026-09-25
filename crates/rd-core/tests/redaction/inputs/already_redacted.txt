@@ -1,0 +1,1 @@
+fetched vault://[redacted] using Bearer [redacted] from https://cdn.example.com/f.bin?sig=%5Bredacted%5D

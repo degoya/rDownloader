@@ -1,0 +1,56 @@
+manifest_version = 3
+plugin_type = "resolver"
+api_version = "0.9.0"
+id = "019d0000-0000-7000-8000-00000000000e"
+name = "KrakenFiles"
+# The version must rise with every change, or a running instance keeps the package it
+# already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
+# older version stays installed.
+version = "0.1.3"
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+match_domains = ["krakenfiles.com", "www.krakenfiles.com"]
+# Measured 2026-09-21 (RD-103-08): the file page, `/json/<id>` and the download form's
+# `POST /download/<hash>` all live on the apex domain; the embed player streams from
+# `hs3.krakencloud.net`, and the file page names its server as `data-file-server="hs3"`, so a
+# direct link served from a `*.krakencloud.net` or `*.krakenfiles.com` host is expected. The
+# successful download answer itself could not be measured without a solved Turnstile, so the
+# list is a claim to verify against the first real answer, not a measurement — a link served
+# from anywhere else is refused with `krakenfiles.direct_link_foreign`, never followed.
+download_domains = ["krakenfiles.com", "*.krakenfiles.com", "*.krakencloud.net"]
+# JDownloader reports HTTP 405 on the direct link when too many connections are open, and the
+# FAQ throttles a guest after 5 GB in 24 hours; two at a time keeps clear of both.
+max_concurrent_downloads = 2
+# There is no account flow yet: the site's free download is the file page's form, posted with
+# the page's own token and a Cloudflare Turnstile answer (measured 2026-09-21, no countdown,
+# no password prompt on a public file). Premium follows once an account has been measured.
+requires_account = false
+
+[capabilities]
+cookies = false
+captcha = true
+
+[capabilities.net_http]
+domains = ["krakenfiles.com", "*.krakenfiles.com", "*.krakencloud.net"]
+
+[metadata]
+description = "Resolves KrakenFiles links without an account through the file page's download form and its Cloudflare Turnstile."
+author = "rDownloader project"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.1.0"
+
+[provider]
+slug = "krakenfiles"
+kind = "hoster"
+credentials = "none"
+username_required = false
+
+[limits]
+memory_bytes = 67108864
+fuel = 2000000000
+timeout_milliseconds = 15000
+max_response_bytes = 8388608
+# One Turnstile round trip per download and no countdown to wait out; the budget is spent on
+# waiting only and does not extend the compute timeout above.
+wait_budget_milliseconds = 600000

@@ -1,0 +1,27 @@
+{
+  "name": "Google Drive",
+  "description": "Resolves Google Drive files, shared links and Workspace exports through the official Drive API.",
+  "account": {
+    "secret_label": "Google sign-in",
+    "secret_hint": "Nothing to paste here. Google Drive is signed in through Google itself: enter your OAuth client ID above, start the sign-in, and agree in the browser window that opens.",
+    "username_label": "OAuth client ID",
+    "username_hint": "Google Drive needs an OAuth client of your own — this project ships none, so that every installation has its own Google quota. In the Google Cloud Console create a project, enable the Google Drive API, then under Credentials create an OAuth client ID of type Desktop app, add http://127.0.0.1:8710/api/v1/oauth/callback as an authorised redirect URI, and paste the client ID here. Nothing is pasted into the secret field: the sign-in fills it."
+  },
+  "codes": {
+    "google_drive.account_missing": "Google Drive account is missing",
+    "google_drive.api_refused": "Google Drive refused this request ({reason})",
+    "google_drive.download_not_permitted": "The owner of this file has switched downloading off, or this account may only view it",
+    "google_drive.export_format_unsupported": "Google Drive cannot export this document in the requested format",
+    "google_drive.export_too_large": "This Google Workspace document is too large for Drive to export",
+    "google_drive.export_unsupported": "Google Drive cannot export this kind of document",
+    "google_drive.file_not_found": "This Google Drive file does not exist, or this account cannot see it",
+    "google_drive.invalid_response": "Invalid Google Drive response",
+    "google_drive.is_a_folder": "This Google Drive address is a folder. Add it again to let the folder be listed",
+    "google_drive.not_a_drive_link": "This is not a Google Drive file address",
+    "google_drive.quota_exceeded": "This Google Drive file has exceeded its download quota. Google resets it after a while",
+    "google_drive.rate_limited": "Google Drive is rate limiting this account",
+    "google_drive.sign_in_required": "This Google Drive account has to be signed in again",
+    "google_drive.unavailable": "Google Drive is temporarily unavailable",
+    "google_drive.virus_scan_warning": "Google could not scan this file for viruses and will not serve it unless that is acknowledged"
+  }
+}

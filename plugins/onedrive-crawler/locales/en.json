@@ -1,0 +1,13 @@
+{
+  "name": "OneDrive folders",
+  "description": "Lists the files behind a OneDrive or SharePoint folder sharing link.",
+  "codes": {
+    "onedrive_crawler.access_denied": "This account may not access this OneDrive folder. The link may have been shared with another account or tenant",
+    "onedrive_crawler.folder_empty": "This OneDrive folder holds no files that can be downloaded",
+    "onedrive_crawler.folder_unreachable": "This OneDrive folder could not be read",
+    "onedrive_crawler.invalid_response": "Invalid OneDrive response",
+    "onedrive_crawler.not_a_folder": "This is not a OneDrive or SharePoint folder address",
+    "onedrive_crawler.rate_limited": "OneDrive is rate limiting this account",
+    "onedrive_crawler.sign_in_required": "Microsoft did not accept this account for that folder"
+  }
+}

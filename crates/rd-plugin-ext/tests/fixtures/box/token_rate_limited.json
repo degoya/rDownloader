@@ -1,0 +1,4 @@
+{
+  "error": "rate_limit_exceeded",
+  "error_description": "Request rate limit exceeded, please try again later"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Debrid-Link sign-in",
+  "description": "Connecte un compte Debrid-Link chez le fournisseur, sans saisir de clé d'API ici.",
+  "codes": {
+    "debridlink_auth.consent_denied": "Le fournisseur a refusé la connexion pour ce compte.",
+    "debridlink_auth.sign_in_refused": "Le fournisseur a refusé la connexion. Relancez-la.",
+    "debridlink_auth.bad_reply": "Le fournisseur a envoyé une réponse que ce plugin n'a pas pu lire.",
+    "debridlink_auth.flow_expired": "Le code de connexion a expiré avant d'être confirmé."
+  }
+}

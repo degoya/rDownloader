@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "servers": "sin servidores | {count} servidor | {count} servidores",
+    "connections": "sin conexiones | {count} conexión | {count} conexiones"
+  },
+  "header": {
+    "eyebrow": "Transporte de segmentos",
+    "title": "Servidores NNTP y respaldo",
+    "description": "El primer servidor de la cadena se usa primero. Los segmentos ausentes o dañados pasan al siguiente servidor activo; las contraseñas se guardan solo cifradas en el almacén local."
+  },
+  "form": {
+    "eyebrow": "Nuevo punto de conexión",
+    "title_add": "Añadir servidor",
+    "title_edit": "Editar servidor",
+    "name": "Proveedor principal",
+    "server_name": "Nombre del servidor",
+    "host": "Host",
+    "port": "Puerto",
+    "tls": "TLS activado",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "password_keep": "Mantener la contraseña actual",
+    "proxy": "Proxy SOCKS5",
+    "proxy_direct": "Conexión directa",
+    "connections": "Conexiones del proveedor",
+    "connections_hint": "Número máximo de conexiones a este proveedor NNTP para todas las solicitudes; un archivo las usa todas salvo que los ajustes generales lo limiten",
+    "enabled": "Servidor activo",
+    "clear_password": "Borrar la contraseña guardada",
+    "save_changes": "Guardar cambios",
+    "save_server": "Guardar servidor NNTP"
+  },
+  "messages": {
+    "updated": "El servidor NNTP se ha actualizado.",
+    "created": "El servidor NNTP se ha creado.",
+    "reordered": "El orden de respaldo se ha actualizado."
+  },
+  "chain": {
+    "eyebrow": "Orden de respaldo",
+    "title": "Cadena de servidores",
+    "description": "Los servidores se prueban de arriba abajo. Usa las flechas para cambiar el orden de respaldo.",
+    "priority": "Prioridad {priority}",
+    "move_up": "Subir en el orden de respaldo",
+    "move_down": "Bajar en el orden de respaldo",
+    "direct": "Directo",
+    "edit": "Editar servidor",
+    "delete": "Eliminar servidor",
+    "empty": "Todavía no hay ningún servidor NNTP configurado."
+  },
+  "delete": {
+    "title": "Eliminar servidor Usenet",
+    "description": "El servidor NNTP «{name}» y su contraseña cifrada se eliminarán de forma permanente.",
+    "confirm": "Eliminar servidor"
+  }
+}
