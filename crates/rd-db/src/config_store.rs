@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::Utc;
 use rd_core::{
     Category, CategoryId, CategoryRule, CategoryRuleId, EventEnvelope, EventKind, HotFolderConfig,
@@ -6,7 +6,7 @@ use rd_core::{
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::{error::StoreError, parse_id, writer::insert_event};
+use crate::{enum_string, error::StoreError, parse_enum, parse_id, writer::insert_event};
 
 #[derive(Clone, Debug)]
 pub struct NewStorageRoot {
@@ -974,10 +974,6 @@ pub(crate) async fn delete_hotfolder(
     Ok(event)
 }
 
-fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
-}
-
 /// Serialises a category's plugin-step list; `None` stays NULL, which means "inherit".
 ///
 /// An empty list is *not* NULL: it is how a category switches a globally enabled step off,
@@ -987,10 +983,6 @@ fn plugin_steps_json(steps: Option<&Vec<String>>) -> Result<Option<String>> {
         .map(serde_json::to_string)
         .transpose()
         .map_err(Into::into)
-}
-
-fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
-    serde_json::from_str(&format!("\"{value}\"")).context("parse stored enum")
 }
 
 /// Sets a category's post-processing overrides (`None` = inherit the global setting).

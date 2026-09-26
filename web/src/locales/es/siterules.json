@@ -23,10 +23,7 @@
   "list": {
     "title": "Reglas",
     "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Importa el archivo de reglas firmado de una versión para empezar con las reglas del proyecto.",
-    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla.",
-    "steps": "sin pasos | {count} paso | {count} pasos",
-    "checked_at": "Comprobada por última vez el {date}",
-    "links_found": "{count} enlaces"
+    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla."
   },
   "new": "Regla nueva",
   "editor": {
@@ -112,7 +109,6 @@
     "pages": "sin solicitudes | {count} solicitud | {count} solicitudes",
     "kept": "{count} conservados",
     "refused": "{count} descartados",
-    "links": "Enlaces encontrados",
     "no_links": "La ejecución no produjo ningún enlace.",
     "mirrors": "La regla declara que estos enlaces son copias de un mismo archivo.",
     "verdicts": {
@@ -123,7 +119,6 @@
     }
   },
   "transfer": {
-    "heading": "Llevar reglas",
     "export": "Exportar reglas",
     "export_empty": "No hay ninguna regla que exportar.",
     "import": "Importar reglas",

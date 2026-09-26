@@ -44,36 +44,58 @@ fn ffmpeg_member(tool: &str) -> String {
 fn ffmpeg_archive() -> &'static [u8] {
     static ARCHIVE: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
     ARCHIVE.get_or_init(|| {
-        let mut tarball = Vec::new();
-        {
-            let mut builder = tar::Builder::new(&mut tarball);
-            for (name, body) in [
-                (ffmpeg_member("ffmpeg"), &b"fake-ffmpeg"[..]),
-                (ffmpeg_member("ffprobe"), &b"fake-ffprobe"[..]),
-                (format!("{FFMPEG_PREFIX}/README.txt"), &b"documentation"[..]),
-            ] {
-                let mut header = tar::Header::new_gnu();
-                header.set_size(body.len() as u64);
-                header.set_mode(0o755);
-                header.set_cksum();
-                builder
-                    .append_data(&mut header, &name, body)
-                    .expect("append");
-            }
-            builder.finish().expect("finish the tar");
-        }
-        let mut compressed = Vec::new();
-        let mut writer =
-            lzma_rust2::XzWriter::new(&mut compressed, lzma_rust2::XzOptions::with_preset(1))
-                .expect("xz writer");
-        std::io::Write::write_all(&mut writer, &tarball).expect("compress");
-        writer.finish().expect("finish the xz stream");
-        compressed
+        tar_xz(&[
+            (ffmpeg_member("ffmpeg"), &b"fake-ffmpeg"[..]),
+            (ffmpeg_member("ffprobe"), &b"fake-ffprobe"[..]),
+            (format!("{FFMPEG_PREFIX}/README.txt"), &b"documentation"[..]),
+        ])
     })
 }
 
-/// A local server answering `/yt-dlp/<version>` with [`PAYLOAD`] and `/ffmpeg/<version>` with
-/// the tar.xz fixture.
+/// The other platform's name for the ffmpeg binary: `ffmpeg.exe` here, `ffmpeg` on Windows.
+fn foreign_ffmpeg_member() -> String {
+    let foreign = if cfg!(windows) {
+        "ffmpeg"
+    } else {
+        "ffmpeg.exe"
+    };
+    format!("{FFMPEG_PREFIX}/bin/{foreign}")
+}
+
+/// The same archive as [`ffmpeg_archive`], except that the binary carries the other
+/// platform's name -- the shape that installed "successfully" on Windows and was never found.
+fn foreign_ffmpeg_archive() -> &'static [u8] {
+    static ARCHIVE: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    ARCHIVE.get_or_init(|| tar_xz(&[(foreign_ffmpeg_member(), &b"fake-ffmpeg"[..])]))
+}
+
+/// An xz-compressed tar of `members`.
+fn tar_xz(members: &[(String, &[u8])]) -> Vec<u8> {
+    let mut tarball = Vec::new();
+    {
+        let mut builder = tar::Builder::new(&mut tarball);
+        for (name, body) in members {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(body.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            builder
+                .append_data(&mut header, name, *body)
+                .expect("append");
+        }
+        builder.finish().expect("finish the tar");
+    }
+    let mut compressed = Vec::new();
+    let mut writer =
+        lzma_rust2::XzWriter::new(&mut compressed, lzma_rust2::XzOptions::with_preset(1))
+            .expect("xz writer");
+    std::io::Write::write_all(&mut writer, &tarball).expect("compress");
+    writer.finish().expect("finish the xz stream");
+    compressed
+}
+
+/// A local server answering `/yt-dlp/<version>` with [`PAYLOAD`], `/ffmpeg/<version>` with
+/// the tar.xz fixture and `/ffmpeg-foreign/<version>` with its wrongly named twin.
 async fn serve_releases() -> SocketAddr {
     let app = Router::new()
         .route(
@@ -83,6 +105,10 @@ async fn serve_releases() -> SocketAddr {
         .route(
             "/ffmpeg/{version}",
             get(|| async { axum::body::Bytes::from_static(ffmpeg_archive()) }),
+        )
+        .route(
+            "/ffmpeg-foreign/{version}",
+            get(|| async { axum::body::Bytes::from_static(foreign_ffmpeg_archive()) }),
         );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -737,4 +763,42 @@ async fn a_tar_xz_release_missing_its_member_is_refused() {
         "{result:?}"
     );
     assert!(!fixture.service.root().join("ffmpeg").join("9.0.1").exists());
+}
+
+/// An archive whose member carries the other platform's name (`ffmpeg.exe` on Linux, `ffmpeg`
+/// on Windows) is refused, and no version is active afterwards: the resolver looks for
+/// `executable_name`, so activating it would report an install nothing can ever run.
+#[tokio::test]
+async fn a_release_whose_binary_has_the_other_platforms_name_is_refused() {
+    let address = serve_releases().await;
+    let fixture = fixture(true).await;
+    let mut foreign = ffmpeg_entry(address, "ffmpeg");
+    foreign.url = format!("http://{address}/ffmpeg-foreign/9.0.1");
+    foreign.sha256 = digest(foreign_ffmpeg_archive());
+    foreign.size = foreign_ffmpeg_archive().len() as u64;
+    foreign.members = vec![foreign_ffmpeg_member()];
+    fixture
+        .service
+        .adopt_unverified_manifest(manifest(2, vec![foreign]));
+
+    let error = fixture
+        .service
+        .install("ffmpeg", None)
+        .await
+        .expect_err("an archive without the program under its own name is refused");
+    assert!(
+        matches!(&error, ToolError::DownloadFailed { reason, .. }
+            if reason.contains(&rd_tools::download::executable_name("ffmpeg"))),
+        "{error:?}"
+    );
+    assert_eq!(error.code(), "tools.download_failed");
+    assert!(!fixture.service.root().join("ffmpeg").join("9.0.1").exists());
+    let active = fixture
+        .service
+        .status()
+        .await
+        .into_iter()
+        .find(|tool| tool.name == "ffmpeg")
+        .and_then(|tool| tool.active_version);
+    assert_eq!(active, None);
 }

@@ -207,28 +207,6 @@ async fn a_read_only_token_reaches_the_mcp_transport() {
 
 const ADMIN_PASSWORD: &str = "correct-horse-battery";
 
-/// Sets the administrator password if this harness has none yet, then signs in.
-async fn session(harness: &common::Harness) -> String {
-    let (status, body) = common::post_json(
-        &harness.router,
-        "/api/v1/auth/setup",
-        serde_json::json!({ "password": ADMIN_PASSWORD }),
-    )
-    .await;
-    assert!(
-        status.is_success() || body["code"] == "auth.setup_completed",
-        "setup: {body}"
-    );
-    let (status, _, cookie) = common::post_json_with_headers(
-        &harness.router,
-        "/api/v1/auth/login",
-        serde_json::json!({ "password": ADMIN_PASSWORD }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "login");
-    cookie.expect("a session cookie")
-}
-
 /// Minting a scoped token and then using it, end to end.
 ///
 /// The scope matrix proves that *enforcement* matches the policy table, but it mints its
@@ -239,7 +217,7 @@ async fn session(harness: &common::Harness) -> String {
 async fn a_token_minted_for_one_area_reaches_that_area_and_no_further() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let session = session(&harness).await;
+    let session = common::sign_in(&harness.router, ADMIN_PASSWORD).await;
 
     let (status, minted) = common::post_json_with_cookie(
         &harness.router,
@@ -284,7 +262,7 @@ async fn a_token_minted_for_one_area_reaches_that_area_and_no_further() {
 async fn minting_refuses_a_scope_that_is_not_an_api_area() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let session = session(&harness).await;
+    let session = common::sign_in(&harness.router, ADMIN_PASSWORD).await;
 
     for scope in ["capture:*", "api:everything"] {
         let (status, body) = common::post_json_with_cookie(
@@ -308,7 +286,7 @@ async fn minting_refuses_a_scope_that_is_not_an_api_area() {
 async fn the_capability_preview_describes_every_area() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let session = session(&harness).await;
+    let session = common::sign_in(&harness.router, ADMIN_PASSWORD).await;
 
     let (status, areas) =
         common::get_with_cookie(&harness.router, "/api/v1/api-tokens/scopes", &session).await;

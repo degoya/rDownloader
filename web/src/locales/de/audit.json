@@ -50,7 +50,11 @@
     "logs_cleared": "Protokoll geleert",
     "audit_cleared": "Audit geleert",
     "stats_cleared": "Statistik geleert",
-    "notifications_cleared": "Benachrichtigungsverlauf geleert"
+    "notifications_cleared": "Benachrichtigungsverlauf geleert",
+    "plugin_repository_added": "Plugin-Repository hinzugefügt",
+    "plugin_repository_changed": "Plugin-Repository geändert",
+    "plugin_repository_removed": "Plugin-Repository entfernt",
+    "plugin_version_chosen": "Plugin-Version gewählt"
   },
   "list": {
     "title": "Einträge",

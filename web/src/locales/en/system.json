@@ -46,7 +46,8 @@
     "extension_hint": "Browser extension: use the raw token below in the extension options.",
     "copy_token": "Copy token",
     "extension_steps": "In the extension options set the server URL to {origin} and paste this token, then press “Test connection”. See extension/README.md for installation.",
-    "token_copied_description": "The capture token is in your clipboard."
+    "token_copied_description": "The capture token is in your clipboard.",
+    "label": "Connection name"
   },
   "agents": {
     "eyebrow": "Paired connections",

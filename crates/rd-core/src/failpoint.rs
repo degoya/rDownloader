@@ -97,6 +97,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         owner: "rd-usenet",
         invariant: "an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed",
     },
+    CrashPoint {
+        name: "usenet.before_checkpoint_batch",
+        owner: "rd-usenet",
+        invariant: "the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed",
+    },
 ];
 
 /// Looks a registered crash point up by name.

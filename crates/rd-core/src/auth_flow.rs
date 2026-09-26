@@ -4,7 +4,7 @@
 //! restart: the service sweeps whatever is due, and the interface reads a state rather than
 //! driving one. No token appears here — what a flow produces goes into the vault.
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -112,20 +112,6 @@ impl AuthFlow {
     pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
         self.expires_at.is_some_and(|expiry| now >= expiry)
     }
-
-    /// Whether the access token should be renewed now, `lead` ahead of when it actually dies.
-    ///
-    /// Renewing early is the point: a token that expires between the check and the request it
-    /// was fetched for is a failure the person sees, and the lead time is what buys the gap.
-    /// A flow with nothing to renew with, or one that is not authorised, is never due.
-    #[must_use]
-    pub fn needs_refresh(&self, now: DateTime<Utc>, lead: Duration) -> bool {
-        self.state == AuthFlowState::Authorized
-            && self.refresh_ref.is_some()
-            && self
-                .token_expires_at
-                .is_some_and(|expiry| now + lead >= expiry)
-    }
 }
 
 #[cfg(test)]
@@ -155,15 +141,6 @@ mod tests {
         }
     }
 
-    /// An authorised flow holding renewable material that dies in `expires_in`.
-    fn renewable(expires_in: Duration) -> AuthFlow {
-        let mut flow = flow(None);
-        flow.state = AuthFlowState::Authorized;
-        flow.refresh_ref = Some("vault://11111111-1111-1111-1111-111111111111".to_owned());
-        flow.token_expires_at = Some(Utc::now() + expires_in);
-        flow
-    }
-
     #[test]
     fn only_an_unfinished_flow_is_still_asked_about() {
         assert!(AuthFlowState::WaitingForUser.is_open());
@@ -182,40 +159,6 @@ mod tests {
         // A provider that names no expiry has not given us one to enforce. Inventing one
         // would end a flow the person is still in the middle of.
         assert!(!flow(None).is_expired(Utc::now() + Duration::days(7)));
-    }
-
-    #[test]
-    fn renewal_starts_before_the_token_actually_dies() {
-        let flow = renewable(Duration::minutes(10));
-        assert!(!flow.needs_refresh(Utc::now(), Duration::minutes(1)));
-        // Nine minutes on, one minute of lead reaches the expiry.
-        assert!(flow.needs_refresh(Utc::now() + Duration::minutes(9), Duration::minutes(1)));
-    }
-
-    #[test]
-    fn a_flow_with_nothing_to_renew_with_is_never_due() {
-        // The expiry alone is not enough: without refresh material the only way back is the
-        // person signing in again, and a sweep that claimed otherwise would spin forever.
-        let mut flow = renewable(Duration::minutes(-5));
-        flow.refresh_ref = None;
-        assert!(!flow.needs_refresh(Utc::now(), Duration::minutes(1)));
-    }
-
-    #[test]
-    fn only_an_authorised_flow_is_renewed() {
-        // A sign-in still in progress has no token to replace yet.
-        let mut flow = renewable(Duration::minutes(-5));
-        flow.state = AuthFlowState::WaitingForUser;
-        assert!(!flow.needs_refresh(Utc::now(), Duration::minutes(1)));
-    }
-
-    #[test]
-    fn a_token_without_an_expiry_is_left_alone() {
-        // A provider that names no expiry has not given us one to act on, exactly as with the
-        // flow window above. Renewing on a guess would burn refresh material for nothing.
-        let mut flow = renewable(Duration::minutes(10));
-        flow.token_expires_at = None;
-        assert!(!flow.needs_refresh(Utc::now() + Duration::days(7), Duration::minutes(1)));
     }
 
     #[test]

@@ -58,7 +58,8 @@
       "delivered": "Die Sitzung bei {host} ist angekommen und bei diesem Konto gespeichert; das Konto wird jetzt geprüft.",
       "declined": "In der Erweiterung abgelehnt: Die Sitzung bei {host} wurde nicht übergeben.",
       "expired": "Niemand hat die Anfrage rechtzeitig beantwortet; die Sitzung bei {host} wurde nicht übergeben."
-    }
+    },
+    "providers_loading": "Ich lade die Plugins, aus denen die Anbieter kommen – nach einem Start oder einem Plugin-Update dauert das einen Moment …"
   },
   "hosters": {
     "toggle": "Unterstützte Hoster",

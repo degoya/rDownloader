@@ -26,7 +26,8 @@
 //! `poll` knows which endpoints to use without a lookup, an `adopt` knows which list to read,
 //! and the account's unique index cannot collide an NZB's digest with a link's.
 
-use md5::Md5;
+// `md-5` implements `digest` 0.11 and `sha1` still 0.10, so each brings its own `Digest`.
+use md5::{Digest as _, Md5};
 use sha1::{Digest, Sha1};
 
 /// Longest container this plugin will read. A `.torrent` is kilobytes and an `.nzb` for a

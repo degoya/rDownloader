@@ -9,8 +9,12 @@
 # Environment (a value that is already set wins, so `JOBS=2 scripts/check.sh` keeps working):
 #   JOBS          cargo's build jobs (`-j`, CARGO_BUILD_JOBS). This bounds memory: the peak is
 #                 in rustc and the link, one of each per job. Default 4.
-#   TEST_THREADS  nextest's `--test-threads` when running tests. This bounds CPU only — building
-#                 is over by then — so it may be set higher than JOBS. Default: JOBS.
+#   TEST_THREADS  nextest's `--test-threads` when running tests. Default: twice JOBS, never more
+#                 than the machine has cores (RD-140-06). Building is over by the time a test
+#                 runs, and the memory peak this caps JOBS for is rustc and the link, not a test
+#                 process; what a test thread costs is a core. Twice the build width keeps the
+#                 cores busy while tests wait on sockets, SQLite and timers, and the core count is
+#                 the ceiling past which more threads only queue.
 #
 # Deliberately capped and not derived from nproc. This machine reports 32 cores, and letting
 # cargo use them exhausted memory and took WSL down more than once; the release profile uses
@@ -21,7 +25,17 @@
 # value the caller exported reaches every child anyway.
 
 : "${JOBS:=4}"
-: "${TEST_THREADS:=$JOBS}"
+# Derived only from a JOBS that is a number; anything else is left to the check below to report.
+if [[ -z "${TEST_THREADS:-}" && ! "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+    TEST_THREADS="$JOBS"
+elif [[ -z "${TEST_THREADS:-}" ]]; then
+    TEST_THREADS=$((JOBS * 2))
+    rd_jobs_cores="$(nproc 2> /dev/null || getconf _NPROCESSORS_ONLN 2> /dev/null || echo "$TEST_THREADS")"
+    if [[ "$rd_jobs_cores" =~ ^[1-9][0-9]*$ && "$rd_jobs_cores" -lt "$TEST_THREADS" ]]; then
+        TEST_THREADS="$rd_jobs_cores"
+    fi
+    unset rd_jobs_cores
+fi
 
 # A typo here would reach cargo as `-j` and fail late, or as 0 and mean something else.
 for rd_jobs_name in JOBS TEST_THREADS; do

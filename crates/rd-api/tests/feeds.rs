@@ -114,13 +114,10 @@ async fn poll(router: &Router, id: &str) {
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED);
-    for _ in 0..200 {
-        if run_count(router, id).await > before {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("poll never finished");
+    common::eventually(common::WAIT, "poll never finished", || async move {
+        (run_count(router, id).await > before).then_some(())
+    })
+    .await;
 }
 
 async fn run_count(router: &Router, id: &str) -> usize {
@@ -129,8 +126,12 @@ async fn run_count(router: &Router, id: &str) -> usize {
 }
 
 async fn items(router: &Router, id: &str) -> Vec<Value> {
-    let (_, items) = get_json(router, &format!("/api/v1/subscriptions/{id}/items")).await;
-    items.as_array().cloned().unwrap_or_default()
+    let (_, page) = get_json(
+        router,
+        &format!("/api/v1/subscriptions/{id}/items/page?state=all&limit=200"),
+    )
+    .await;
+    page["items"].as_array().cloned().unwrap_or_default()
 }
 
 #[tokio::test]

@@ -5,21 +5,32 @@ use rd_core::{
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::{error::StoreError, writer::insert_event};
+use crate::{enum_string, error::StoreError, parse_enum, writer::insert_event};
+
+/// One article's place in its assembled file, as a checkpoint records it.
+#[derive(Clone, Debug)]
+pub struct AssembledSegment {
+    pub segment_id: rd_core::NzbSegmentId,
+    /// 1-based and inclusive, the way yEnc's `=ypart` names it.
+    pub part_begin: u64,
+    pub part_end: u64,
+    pub crc32: u32,
+    /// Server attempts the article took, added to the segment's count; `0` adds none.
+    pub attempts: u32,
+}
 
 pub(crate) enum NzbCheckpoint {
     FileOutput {
         id: NzbFileId,
         output_path: String,
     },
-    AssemblySegment {
+    /// Articles of one file written to its `.part` file, confirmed in one transaction
+    /// (RD-130-22). One article is the batch of one the checkpoint used to be.
+    AssemblySegments {
         file_id: NzbFileId,
-        segment_id: rd_core::NzbSegmentId,
         name: String,
         declared_size: u64,
-        part_begin: u64,
-        part_end: u64,
-        crc32: u32,
+        segments: Vec<AssembledSegment>,
     },
     Postprocess {
         owner_id: String,
@@ -111,15 +122,16 @@ pub(crate) async fn apply(
                 StoreError::not_found("NZB file not found")
             );
         }
-        NzbCheckpoint::AssemblySegment {
+        NzbCheckpoint::AssemblySegments {
             file_id,
-            segment_id,
             name,
             declared_size,
-            part_begin,
-            part_end,
-            crc32,
+            segments,
         } => {
+            anyhow::ensure!(
+                !segments.is_empty(),
+                "an assembly checkpoint needs a segment"
+            );
             let file = sqlx::query(
                 "UPDATE nzb_files SET assembly_name = ?, declared_size = ? WHERE id = ?",
             )
@@ -132,22 +144,27 @@ pub(crate) async fn apply(
                 file.rows_affected() == 1,
                 StoreError::not_found("NZB file not found")
             );
-            let segment = sqlx::query(
-                "UPDATE nzb_segments SET state = 'completed', crc32 = ?, \
-                 part_begin = ?, part_end = ? WHERE id = ? AND file_id = ?",
-            )
-            .bind(i64::from(crc32))
-            .bind(i64::try_from(part_begin)?)
-            .bind(i64::try_from(part_end)?)
-            .bind(segment_id.to_string())
-            .bind(file_id.to_string())
-            .execute(&mut *tx)
-            .await?;
-            anyhow::ensure!(
-                segment.rows_affected() == 1,
-                StoreError::not_found("NZB segment not found")
-            );
-            // Unified queue: the linked download row mirrors segment progress.
+            for segment in segments {
+                let updated = sqlx::query(
+                    "UPDATE nzb_segments SET state = 'completed', crc32 = ?, \
+                     part_begin = ?, part_end = ?, server_attempts = server_attempts + ? \
+                     WHERE id = ? AND file_id = ?",
+                )
+                .bind(i64::from(segment.crc32))
+                .bind(i64::try_from(segment.part_begin)?)
+                .bind(i64::try_from(segment.part_end)?)
+                .bind(i64::from(segment.attempts))
+                .bind(segment.segment_id.to_string())
+                .bind(file_id.to_string())
+                .execute(&mut *tx)
+                .await?;
+                anyhow::ensure!(
+                    updated.rows_affected() == 1,
+                    StoreError::not_found("NZB segment not found")
+                );
+            }
+            // Unified queue: the linked download row mirrors segment progress. Once per
+            // batch, not once per article: the sum reads every segment of the file.
             sqlx::query(
                 "UPDATE downloads SET committed_bytes = (SELECT COALESCE(SUM(bytes), 0) FROM nzb_segments \
                  WHERE file_id = ? AND state = 'completed'), total_bytes = ?, updated_at = ? \
@@ -324,14 +341,6 @@ impl TryFrom<StepRow> for PostprocessStep {
             checkpoint: row.checkpoint,
         })
     }
-}
-
-fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
-}
-
-fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
-    Ok(serde_json::from_str(&format!("\"{value}\""))?)
 }
 
 /// Removes every checkpoint of one owner (package or import).

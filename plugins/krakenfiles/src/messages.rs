@@ -2,7 +2,6 @@
 //!
 //! Each `(code, message)` pair exists exactly once so both targets report identical text. The
 //! catalogue in `locales/*.json` carries the translations under the same codes.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The file page answered 404, or `/json/<id>` answered an empty array: deleted, or never there.
 pub(crate) const FILE_UNAVAILABLE: (&str, &str) = (

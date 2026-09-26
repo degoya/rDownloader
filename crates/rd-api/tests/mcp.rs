@@ -8,12 +8,11 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
+use common::{API_BEARER, CAPTURE_BEARER, Options, send_text};
 use http_body_util::BodyExt;
 use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
-const API_BEARER: &str = "test-api-bearer-token";
-const CAPTURE_BEARER: &str = "test-capture-bearer-token";
 /// Holds queue control and nothing else, so it may drive the queue tools and no others.
 const QUEUE_BEARER: &str = "test-queue-bearer-token";
 /// Holds configuration and nothing else: categories yes, accounts and plugins no.
@@ -27,100 +26,20 @@ async fn test_router(directory: &std::path::Path) -> Router {
 ///
 /// Split out rather than duplicated: a second builder would be a second set of decisions about
 /// what the test installation contains, and the canary's whole point is that it runs against
-/// the installation the other tests run against.
+/// the installation the other tests run against. The login is on, because `/mcp` is a token
+/// route and a disabled login would wave every request through before a scope is consulted.
 async fn test_parts(
     directory: &std::path::Path,
 ) -> (Router, rd_db::Database, rd_secrets::SecretStore) {
-    let database = rd_db::Database::open(directory.join("mcp-test.sqlite3"))
-        .await
-        .expect("database");
-    for (bearer, scope) in [
-        (API_BEARER, rd_core::API_SCOPE),
-        (CAPTURE_BEARER, rd_core::CAPTURE_SCOPE),
-        (QUEUE_BEARER, rd_core::API_QUEUE_SCOPE),
-        (CONFIG_BEARER, rd_core::API_CONFIG_SCOPE),
-    ] {
-        database
-            .create_capture_token(
-                rd_core::CaptureTokenId::new(),
-                scope.to_owned(),
-                hex::encode(Sha256::digest(bearer.as_bytes())),
-                vec![scope.to_owned()],
-            )
-            .await
-            .expect("token");
-    }
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
+    let harness = common::harness(
+        directory,
+        Options::default()
+            .login()
+            .token(QUEUE_BEARER, rd_core::API_QUEUE_SCOPE)
+            .token(CONFIG_BEARER, rd_core::API_CONFIG_SCOPE),
     )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let remote = rd_api::RemoteServices::new(
-        database.clone(),
-        secrets.clone(),
-        std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-        rd_http::SharedNetworkDefaults::default(),
-    );
-    let database_handle = database.clone();
-    let secrets_handle = secrets.clone();
-    let state = rd_api::AppState::new(
-        database,
-        scheduler,
-        secrets,
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        remote,
-    );
-    (rd_api::router(state), database_handle, secrets_handle)
+    .await;
+    (harness.router, harness.database, harness.secrets)
 }
 
 fn mcp_request(bearer: Option<&str>, session: Option<&str>, body: &str) -> Request<Body> {
@@ -153,28 +72,6 @@ fn extract_json(content_type: &str, body: &str) -> serde_json::Value {
     serde_json::from_str(&payload).expect("JSON-RPC payload")
 }
 
-async fn call(router: &Router, request: Request<Body>) -> (StatusCode, String, String) {
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let content_type = response
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default()
-        .to_owned();
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    (
-        status,
-        content_type,
-        String::from_utf8_lossy(&body).into_owned(),
-    )
-}
-
 const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"mcp-test","version":"0.0.0"}}}"#;
 
 #[tokio::test]
@@ -182,17 +79,18 @@ async fn mcp_endpoint_requires_a_token_with_an_api_scope() {
     let directory = tempfile::tempdir().expect("tempdir");
     let router = test_router(directory.path()).await;
 
-    let (status, _, _) = call(&router, mcp_request(None, None, INITIALIZE)).await;
+    let (status, _, _) = send_text(&router, mcp_request(None, None, INITIALIZE)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // A capture-scoped token must not unlock the MCP endpoint. It carries a scope, so a
     // check that merely counted them would let it through; the endpoint asks for an *API*
     // scope specifically.
-    let (status, _, _) = call(&router, mcp_request(Some(CAPTURE_BEARER), None, INITIALIZE)).await;
+    let (status, _, _) =
+        send_text(&router, mcp_request(Some(CAPTURE_BEARER), None, INITIALIZE)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // An invented token is rejected as well.
-    let (status, _, _) = call(&router, mcp_request(Some("nonsense"), None, INITIALIZE)).await;
+    let (status, _, _) = send_text(&router, mcp_request(Some("nonsense"), None, INITIALIZE)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
@@ -278,7 +176,8 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
 
     // The client acknowledges the handshake.
     let ack = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
-    let (status, _, _) = call(&router, mcp_request(Some(API_BEARER), Some(&session), ack)).await;
+    let (status, _, _) =
+        send_text(&router, mcp_request(Some(API_BEARER), Some(&session), ack)).await;
     assert_eq!(status, StatusCode::ACCEPTED);
 
     // tools/list advertises the download tools.
@@ -403,7 +302,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
         }),
     );
     let (status, ct, body) =
-        call(&router, mcp_request(Some(API_BEARER), Some(&session), &add)).await;
+        send_text(&router, mcp_request(Some(API_BEARER), Some(&session), &add)).await;
     assert_eq!(status, StatusCode::OK);
     let added = tool_text(&extract_json(&ct, &body));
     assert_eq!(added["created"].as_array().expect("created").len(), 1);
@@ -414,7 +313,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
         .to_owned();
 
     let list = tool_call(5, "list_downloads", serde_json::json!({}));
-    let (status, ct, body) = call(
+    let (status, ct, body) = send_text(
         &router,
         mcp_request(Some(API_BEARER), Some(&session), &list),
     )
@@ -429,7 +328,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
         "control_downloads",
         serde_json::json!({ "action": "remove", "ids": [download_id] }),
     );
-    let (status, ct, body) = call(
+    let (status, ct, body) = send_text(
         &router,
         mcp_request(Some(API_BEARER), Some(&session), &remove),
     )
@@ -438,7 +337,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
     let removed = tool_text(&extract_json(&ct, &body));
     assert_eq!(removed["affected"], 1);
 
-    let (status, ct, body) = call(
+    let (status, ct, body) = send_text(
         &router,
         mcp_request(Some(API_BEARER), Some(&session), &list),
     )
@@ -472,7 +371,7 @@ async fn a_scoped_token_reaches_only_the_tools_its_scope_covers() {
         .expect("session id")
         .to_owned();
     let ack = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
-    let (status, _, _) = call(
+    let (status, _, _) = send_text(
         &router,
         mcp_request(Some(QUEUE_BEARER), Some(&session), ack),
     )
@@ -482,7 +381,7 @@ async fn a_scoped_token_reaches_only_the_tools_its_scope_covers() {
     // Queue control confers reading, so this one goes through.
     let allowed = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call",
         "params":{"name":"list_downloads","arguments":{}}}"#;
-    let (status, content_type, body) = call(
+    let (status, content_type, body) = send_text(
         &router,
         mcp_request(Some(QUEUE_BEARER), Some(&session), allowed),
     )
@@ -497,7 +396,7 @@ async fn a_scoped_token_reaches_only_the_tools_its_scope_covers() {
     // Configuration is conferred by nothing, queue control included.
     let refused = r#"{"jsonrpc":"2.0","id":4,"method":"tools/call",
         "params":{"name":"list_configuration","arguments":{"section":"categories"}}}"#;
-    let (status, content_type, body) = call(
+    let (status, content_type, body) = send_text(
         &router,
         mcp_request(Some(QUEUE_BEARER), Some(&session), refused),
     )
@@ -521,7 +420,7 @@ async fn a_scoped_token_reaches_only_the_tools_its_scope_covers() {
     // A writing tool is refused just as a reading one is; the queue token holds no config.
     let write = r#"{"jsonrpc":"2.0","id":5,"method":"tools/call",
         "params":{"name":"delete_category","arguments":{"id":"whatever"}}}"#;
-    let (_, content_type, body) = call(
+    let (_, content_type, body) = send_text(
         &router,
         mcp_request(Some(QUEUE_BEARER), Some(&session), write),
     )
@@ -544,7 +443,7 @@ async fn a_configuration_token_reads_categories_but_not_accounts_or_plugins() {
 
     let allowed = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call",
         "params":{"name":"list_configuration","arguments":{"section":"categories"}}}"#;
-    let (_, content_type, body) = call(
+    let (_, content_type, body) = send_text(
         &router,
         mcp_request(Some(CONFIG_BEARER), Some(&session), allowed),
     )
@@ -564,7 +463,7 @@ async fn a_configuration_token_reads_categories_but_not_accounts_or_plugins() {
             r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call",
             "params":{{"name":"list_configuration","arguments":{{"section":"{section}"}}}}}}"#
         );
-        let (_, content_type, body) = call(
+        let (_, content_type, body) = send_text(
             &router,
             mcp_request(Some(CONFIG_BEARER), Some(&session), &refused),
         )
@@ -750,7 +649,7 @@ async fn a_definition_carrying_an_api_key_is_refused() {
             "params": { "name": name, "arguments": arguments }
         })
         .to_string();
-        let (_, content_type, body) = call(
+        let (_, content_type, body) = send_text(
             &router,
             mcp_request(Some(API_BEARER), Some(&session), &call_body),
         )
@@ -780,7 +679,7 @@ async fn handshake(router: &Router, bearer: &str) -> String {
         .expect("session id")
         .to_owned();
     let ack = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
-    let (status, _, _) = call(router, mcp_request(Some(bearer), Some(&session), ack)).await;
+    let (status, _, _) = send_text(router, mcp_request(Some(bearer), Some(&session), ack)).await;
     assert_eq!(status, StatusCode::ACCEPTED);
     session
 }
@@ -801,7 +700,7 @@ async fn tool_result(
     })
     .to_string();
     let (status, content_type, response) =
-        call(router, mcp_request(Some(API_BEARER), Some(session), &body)).await;
+        send_text(router, mcp_request(Some(API_BEARER), Some(session), &body)).await;
     assert_eq!(status, StatusCode::OK, "{name}");
     let answer = extract_json(&content_type, &response);
     assert!(answer["error"].is_null(), "{name} was refused: {answer}");
@@ -828,7 +727,7 @@ async fn the_new_tools_cost_what_their_routes_cost() {
 
     let allowed = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call",
         "params":{"name":"list_site_rules","arguments":{}}}"#;
-    let (_, content_type, body) = call(
+    let (_, content_type, body) = send_text(
         &router,
         mcp_request(Some(CONFIG_BEARER), Some(&session), allowed),
     )
@@ -866,7 +765,7 @@ async fn the_new_tools_cost_what_their_routes_cost() {
             r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call",
             "params":{{"name":"{tool}","arguments":{arguments}}}}}"#
         );
-        let (_, content_type, body) = call(
+        let (_, content_type, body) = send_text(
             &router,
             mcp_request(Some(CONFIG_BEARER), Some(&session), &refused),
         )
@@ -1179,7 +1078,7 @@ async fn a_container_is_handed_in_over_mcp_at_the_price_of_its_route() {
             "params": { "name": tool, "arguments": { "content": "aGVsbG8=" } }
         })
         .to_string();
-        let (_, content_type, body) = call(
+        let (_, content_type, body) = send_text(
             &router,
             mcp_request(Some(QUEUE_BEARER), Some(&session), &refused),
         )
@@ -1233,7 +1132,7 @@ async fn a_container_is_handed_in_over_mcp_at_the_price_of_its_route() {
         "params": { "name": "import_container", "arguments": { "content": "not base64!" } }
     })
     .to_string();
-    let (_, content_type, body) = call(
+    let (_, content_type, body) = send_text(
         &router,
         mcp_request(Some(API_BEARER), Some(&session), &broken),
     )
@@ -1292,7 +1191,7 @@ async fn a_card_ratio_is_set_over_mcp_and_an_unknown_one_is_refused() {
         "params": { "name": "create_subscription", "arguments": { "definition": unknown } }
     })
     .to_string();
-    let (_, content_type, body) = call(
+    let (_, content_type, body) = send_text(
         &router,
         mcp_request(Some(API_BEARER), Some(&session), &call_body),
     )
@@ -1320,7 +1219,7 @@ async fn tool_refusal(
     })
     .to_string();
     let (_, content_type, response) =
-        call(router, mcp_request(Some(API_BEARER), Some(session), &body)).await;
+        send_text(router, mcp_request(Some(API_BEARER), Some(session), &body)).await;
     let answer = extract_json(&content_type, &response);
     assert_eq!(
         answer["result"]["isError"], true,
@@ -1440,7 +1339,7 @@ async fn queued_magnet(
             serde_json::json!({ "url": format!("magnet:?xt=urn:btih:{hash}") }).to_string(),
         ))
         .expect("request");
-    let (status, _, body) = call(router, request).await;
+    let (status, _, body) = send_text(router, request).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     common::persist_torrent_session(directory, hash);
     let download = database.list_downloads().await.expect("downloads")[0].clone();
@@ -1520,7 +1419,7 @@ async fn update_settings_as(
     })
     .to_string();
     let (status, content_type, response) =
-        call(router, mcp_request(Some(bearer), Some(session), &body)).await;
+        send_text(router, mcp_request(Some(bearer), Some(session), &body)).await;
     assert_eq!(status, StatusCode::OK, "{response}");
     let answer = extract_json(&content_type, &response);
     assert!(

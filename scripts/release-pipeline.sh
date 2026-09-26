@@ -37,6 +37,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/lock.sh"
 # shellcheck source=lib/verified.sh
 source "$ROOT/scripts/lib/verified.sh"
+# shellcheck source=lib/public-ci.sh
+source "$ROOT/scripts/lib/public-ci.sh"
 cd "$ROOT"
 
 # Capped for the same reason every other script here caps it (scripts/lib/jobs.sh). Clippy over
@@ -89,11 +91,21 @@ LOG="$ROOT/artifacts/release-evidence-$VERSION.log"
 #
 # archive-jobs sits between docs-gate and commit-guard: the job files the release finished move
 # into docs/roadmap/jobs/archive/ once their status is written, and are staged with the rest.
+#
+# doc-facts sits after test on purpose (RD-140-24): it rewrites documentation lines, and test only
+# carries a pre-bump --full green over a bump that changed version lines alone.
+#
+# build-linux and build-windows are independent — two targets, two output directories, both read
+# the web/dist the web step built and the dist/plugins sign-plugins signed — so with a second lane
+# (RD_LANES > 1, scripts/lib/lock.sh) they run at once, Windows in a target directory of its own
+# (target/lanes/windows). The other steps stay in order: web must finish before either package
+# embeds it, sign-plugins before either package copies the plugins, and test and clippy share the
+# one debug target the packages do not use. Each keeps its own evidence record (run_steps_parallel).
 # ---------------------------------------------------------------------------------------------
 STEP_IDS=(
     preflight version-bump test clippy web sign-plugins build-linux build-windows
-    verify-artifacts smoke docs-gate archive-jobs commit-guard commit merge-main evidence-gate
-    public-ci tag push publish-public
+    verify-artifacts smoke doc-facts docs-gate archive-jobs commit-guard commit merge-main
+    evidence-gate public-ci tag push publish-public
 )
 
 step_command() {
@@ -108,6 +120,7 @@ step_command() {
         build-windows)    echo "step_build_windows" ;;
         verify-artifacts) echo "step_verify_artifacts" ;;
         smoke)            echo "step_smoke" ;;
+        doc-facts)        echo "step_doc_facts" ;;
         docs-gate)        echo "step_docs_gate" ;;
         archive-jobs)     echo "step_archive_jobs" ;;
         commit-guard)     echo "step_commit_guard" ;;
@@ -121,17 +134,26 @@ step_command() {
     esac
 }
 
+# The steps that run side by side when there is a second lane; each list is started at its first
+# step and the rest of it is skipped by the main loop.
+PARALLEL_STEPS=(build-linux build-windows)
+
 # Everything the evidence gate demands a clean record for. The gate itself, the public CI run, the
 # tag, the push and the public export come after it, so they are not in the list.
 GATE_REQUIRES=(
     preflight version-bump test clippy web sign-plugins build-linux build-windows
-    verify-artifacts smoke docs-gate archive-jobs commit-guard commit merge-main
+    verify-artifacts smoke doc-facts docs-gate archive-jobs commit-guard commit merge-main
 )
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
     echo "release $VERSION — $(( ${#STEP_IDS[@]} - 1 )) steps, push $([[ $DO_PUSH -eq 1 ]] && echo enabled || echo disabled)"
+    lanes="$(rd_lanes)" || exit 2
     for id in "${STEP_IDS[@]}"; do
         [[ "$id" =~ ^(push|public-ci)$ && "$DO_PUSH" -eq 0 ]] && { echo "  - $id (skipped: --push not given)"; continue; }
+        if [[ "$lanes" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then
+            echo "  - $id (in parallel with the other package, RD_LANES=$lanes)"
+            continue
+        fi
         echo "  - $id"
     done
     echo "evidence: $LOG"
@@ -161,6 +183,10 @@ step_is_green() {
     [[ "$(marker_field "$marker" bytes)" -gt 0 ]] || return 1
     return 0
 }
+
+# Decided once, after the lock: the Windows package gets a lane of its own when there is one.
+LANES="$(rd_lanes)" || exit 2
+WINDOWS_LANE="$(rd_target_dir "$ROOT")/lanes/windows"
 
 if [[ "$RESUME" -eq 1 ]]; then
     [[ -f "$LOG" ]] || { echo "--resume, but $LOG does not exist" >&2; exit 1; }
@@ -220,6 +246,73 @@ run_step() {
         echo >&2
         echo "!! [$id] exited 0 but produced no output; that is missing evidence, not a pass." >&2
         exit 1
+    fi
+}
+
+# Several steps at once, each in its own lane (RD-140-06). Every step writes a part log of its
+# own; once all have ended, the evidence log gets each part in turn under the header and the
+# marker run_step writes, with the step's own start and end, so the gate reads a parallel run
+# exactly like a serial one. The exit status is the step function's own, written by the subshell
+# that ran it — a part without that file counts as failed. Output is not shown live, since two
+# builds interleaved line by line help nobody; the part logs are named for `tail -f`.
+run_steps_parallel() {
+    local -a ids=() pids=()
+    local id part pid status started ended bytes failed=0 first_status=0
+    for id in "$@"; do
+        if [[ "$RESUME" -eq 1 ]] && step_is_green "$id"; then
+            echo "==> [$id] already green in this run — skipped"
+            continue
+        fi
+        ids+=("$id")
+    done
+    if [[ ${#ids[@]} -lt 2 ]]; then
+        for id in "${ids[@]}"; do run_step "$id" "$(step_command "$id")"; done
+        return 0
+    fi
+
+    echo
+    echo "==> [${ids[*]}] in parallel, one lane each; output while they run:"
+    for id in "${ids[@]}"; do
+        part="$LOG.$id.part"
+        rm -f "$part" "$part.status"
+        echo "    tail -f $part"
+        (
+            set +e
+            started="$(date -Is)"
+            "$(step_command "$id")" > "$part" 2>&1
+            status=$?
+            printf '%s %s %s\n' "$status" "$started" "$(date -Is)" > "$part.status"
+        ) &
+        pids+=("$!")
+    done
+    for pid in "${pids[@]}"; do wait "$pid" || true; done
+
+    for id in "${ids[@]}"; do
+        part="$LOG.$id.part"
+        status=1 started="?" ended="?"
+        read -r status started ended 2> /dev/null < "$part.status" \
+            || echo "!! [$id] left no exit status; counted as failed" >&2
+        printf '\n===== STEP %s (%s) =====\n' "$id" "$started" >> "$LOG"
+        cat "$part" >> "$LOG" 2> /dev/null || true
+        bytes="$(stat -c %s "$part" 2> /dev/null || echo 0)"
+        printf '##RD-STEP id=%s nonce=%s version=%s exit=%s bytes=%s started=%s ended=%s\n' \
+            "$id" "$NONCE" "$VERSION" "$status" "$bytes" "$started" "$ended" >> "$LOG"
+        rm -f "$part" "$part.status"
+        echo "==> [$id] exit $status, $bytes bytes of output ($started → $ended)"
+        if [[ "$status" -ne 0 ]]; then
+            echo "!! [$id] failed with exit $status" >&2
+            failed=1
+            [[ "$first_status" -ne 0 ]] || first_status="$status"
+        elif [[ "$bytes" -le 0 ]]; then
+            echo "!! [$id] exited 0 but produced no output; that is missing evidence, not a pass." >&2
+            failed=1
+            [[ "$first_status" -ne 0 ]] || first_status=1
+        fi
+    done
+    if [[ "$failed" -ne 0 ]]; then
+        echo "   the pipeline stops here; evidence so far: $LOG" >&2
+        echo "   fix it, then: scripts/release-pipeline.sh $VERSION --resume" >&2
+        exit "$first_status"
     fi
 }
 
@@ -291,7 +384,27 @@ step_version_bump() {
 # them four binaries at a time. This also covers fmt, the failpoint crash matrix and sqlx offline.
 # --full, because a branch-level run leaves out what a release must not (RD-120-58), and because
 # tag-release.sh and package-windows.sh refuse a tree without a --full green of both halves.
-step_test() { JOBS="$JOBS" scripts/check.sh --rust --full; }
+#
+# Not twice (RD-140-06): when a --full Rust green is recorded for HEAD's tree — the state before
+# the bump, which is committed only later — and the bump changed nothing but version lines, that
+# green is this step's evidence. It is named here, in the log, and carried to the bumped tree so
+# the gates of tag-release.sh and package-windows.sh find it. Anything more than the version
+# strings, and the full run happens as before.
+step_test() {
+    local green
+    green="$(rd_prebump_full_green "$ROOT")"
+    if [[ -z "$green" ]]; then
+        JOBS="$JOBS" scripts/check.sh --rust --full
+        return
+    fi
+    echo "the full Rust run is not repeated: a check.sh --full green covers the tree before the bump"
+    echo "  green:   rust half of tree $green = HEAD $(git rev-parse --short HEAD)^{tree}"
+    echo "  record:  $(rd_full_marker "$ROOT")"
+    echo "  bump:    version lines only, in:"
+    { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sed '/^$/d; s/^/           /'
+    rd_record_full "$ROOT" rust "$(rd_worktree_tree "$ROOT")"
+    echo "  carried: rust half recorded for the bumped tree $(rd_worktree_tree "$ROOT")"
+}
 
 # Deliberately the full workspace, deliberately alone, deliberately at 2 jobs. AGENTS.md calls
 # this the run that has needed a hard restart; nothing else is running beside it here.
@@ -313,14 +426,29 @@ step_sign_plugins() {
     [[ "$signed" -eq "$expected" ]] || { echo "signing is short of a plugin" >&2; return 1; }
 }
 
-step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh; }
+# --skip-web reuses the web/dist the web step just built and type-checked (check.sh --web --full);
+# web-dist-stale.sh still refuses one that is behind. Needed since RD-140-06 rather than merely
+# faster: building web/dist here while the Windows package embeds it would race.
+step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh --skip-web; }
 
 # cargo xwin, straight from WSL. Not the Docker cross-build: it is slower, and the artifact stage
 # drops the COPY'd asset directories. --skip-web reuses the web/dist the web step just built.
-step_build_windows() { JOBS="$JOBS" scripts/package-windows.sh --skip-web; }
+#
+# With a second lane it runs beside build-linux: it gives up the chain's lock (RD_LOCK_HELD) so
+# package-windows.sh takes a lane of its own, and builds in WINDOWS_LANE instead of the shared
+# target, where the Linux package is building. Its green records are still read from the shared
+# target — RD_LANE_TARGET_DIR moves the build output only.
+step_build_windows() {
+    if [[ "$LANES" -gt 1 ]]; then
+        env -u RD_LOCK_HELD -u RD_LOCK_LANE RD_LANE_TARGET_DIR="$WINDOWS_LANE" JOBS="$JOBS" \
+            scripts/package-windows.sh --skip-web
+    else
+        JOBS="$JOBS" scripts/package-windows.sh --skip-web
+    fi
+}
 
 step_verify_artifacts() {
-    local missing=0 path
+    local absent=0 path
     for path in artifacts/linux/rdownloader artifacts/linux/rdownloader-capture \
                 artifacts/windows/rdownloader.exe artifacts/windows/rdownloader-capture.exe \
                 artifacts/rdownloader-windows-x86_64.zip \
@@ -328,7 +456,7 @@ step_verify_artifacts() {
         if [[ -s "$path" ]]; then
             echo "ok   $path ($(stat -c %s "$path") bytes)"
         else
-            echo "MISS $path" >&2; missing=1
+            echo "MISS $path" >&2; absent=1
         fi
     done
     # The packaged plugins must be the signed ones, and every package must carry the full set.
@@ -337,18 +465,25 @@ step_verify_artifacts() {
     linux_plugins="$(ls -1 artifacts/linux/plugins/*.rdplug 2>/dev/null | wc -l)"
     windows_plugins="$(ls -1 artifacts/windows/plugins/*.rdplug 2>/dev/null | wc -l)"
     echo "plugins: linux $linux_plugins, windows $windows_plugins, expected $expected"
-    [[ "$linux_plugins" -eq "$expected" && "$windows_plugins" -eq "$expected" ]] || missing=1
+    [[ "$linux_plugins" -eq "$expected" && "$windows_plugins" -eq "$expected" ]] || absent=1
 
     local built; built="$(artifacts/linux/rdownloader --version 2>&1 || true)"
     echo "built binary reports: $built"
     grep -q "$VERSION" <<< "$built" || {
-        echo "the built binary does not report $VERSION" >&2; missing=1; }
+        echo "the built binary does not report $VERSION" >&2; absent=1; }
 
-    [[ "$missing" -eq 0 ]]
+    [[ "$absent" -eq 0 ]]
 }
 
 # Launches the binary that was just built and talks to it over real HTTP, then drives the real UI.
 step_smoke() { scripts/release-smoke.sh "$VERSION"; }
+
+# The facts the documentation repeats and a release moves — the version and its date in the
+# feature list, the plugin count, the contract `rdownloader:plugin@X.Y.Z` — are mechanics, not
+# judgement, so they are written from their sources here rather than remembered by hand
+# (RD-140-24). commit-guard's `git add -A` takes the result into the release commit. The user wiki
+# is another repository and stays the wiki pass's to write; docs-gate only checks it.
+step_doc_facts() { scripts/doc-facts.sh; }
 
 # Not a generator — a gate. A changelog entry is judgement, and a pipeline that writes its own
 # release notes is a pipeline that certifies its own work. This only refuses to continue when
@@ -410,6 +545,17 @@ step_docs_gate() {
         echo "docs/roadmap.md mentions $VERSION"
     else
         echo "docs/roadmap.md never mentions $VERSION" >&2; failed=1
+    fi
+
+    # doc-facts wrote them; this proves nothing edited them back, and holds the user wiki to the
+    # same facts. The wiki is updated at the tag from this release's section, before the chain
+    # publishes it (publish-public), so a stale contract or count there stops the release here.
+    local wiki="${RD_WIKI_SRC:-$HOME/projects/rdownloader.wiki}"
+    if [[ -d "$wiki" ]]; then
+        scripts/doc-facts.sh --check --wiki "$wiki" || failed=1
+    else
+        echo "no user wiki at $wiki; the facts are checked in this repository only"
+        scripts/doc-facts.sh --check || failed=1
     fi
 
     [[ "$failed" -eq 0 ]]
@@ -551,64 +697,18 @@ step_push() {
 # it is a release. On green the branch is deleted at once. On red it stays, so the failed run
 # can be read next to its tree, and the next run removes it — the same version's branch is
 # replaced by the force push, any other ci/* branch is deleted before the new one is watched.
-# Outward, so only with --push, like `push` itself.
-PUBLIC_DIR="${RD_PUBLIC_DIR:-$HOME/projects/rDownloader-public}"
-PUBLIC_REPO="${RD_PUBLIC_REPO:-degoya/rDownloader}"
-PUBLIC_CI_TIMEOUT="${RD_PUBLIC_CI_TIMEOUT:-5400}"
-PUBLIC_CI_POLL="${RD_PUBLIC_CI_POLL:-60}"
-
+# The export, the wait and the deletion are scripts/lib/public-ci.sh, which scripts/public-ci.sh
+# shares for integration branches (RD-140-22). Outward, so only with --push, like `push` itself.
 step_public_ci() {
-    local branch="ci/$VERSION" sha stale runs failed deadline
-    command -v gh > /dev/null || { echo "gh is required to watch the public CI" >&2; return 1; }
-    gh auth status --hostname github.com > /dev/null 2>&1 \
-        || { echo "gh is not signed in to github.com (gh auth login)" >&2; return 1; }
-
+    local branch="ci/$VERSION" sha
+    rd_public_ci_gh_ready || return 1
     scripts/export-public.sh "$VERSION" --ref HEAD --branch "$branch" || return 1
     # run_step calls a step without errexit, so every command that matters is checked here.
     sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$branch")" || return 1
-
-    while read -r stale; do
-        [[ -n "$stale" && "$stale" != "$branch" ]] || continue
-        echo "deleting $stale, left from an earlier run"
-        git -C "$PUBLIC_DIR" push origin --delete "$stale" || echo "could not delete $stale" >&2
-    done < <(git -C "$PUBLIC_DIR" ls-remote --heads origin 'refs/heads/ci/*' \
-        | awk '{ sub("^refs/heads/", "", $2); print $2 }')
-
-    echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (at most ${PUBLIC_CI_TIMEOUT}s)"
-    deadline=$(( SECONDS + PUBLIC_CI_TIMEOUT ))
-    while :; do
-        # A failed query is a network hiccup until the deadline says otherwise.
-        runs="$(gh run list --repo "$PUBLIC_REPO" --branch "$branch" --commit "$sha" \
-            --json status,conclusion,name,url \
-            --jq '.[] | "\(.status) \(.conclusion) \(.name) \(.url)"' 2> /dev/null)" || runs=""
-        if [[ -n "$runs" ]] && ! grep -qv '^completed ' <<< "$runs"; then
-            break
-        fi
-        if (( SECONDS >= deadline )); then
-            echo "the public CI did not finish within ${PUBLIC_CI_TIMEOUT}s; $branch is kept" >&2
-            [[ -z "$runs" ]] || echo "$runs" >&2
-            return 1
-        fi
-        if [[ -z "$runs" ]]; then
-            echo "  $(date +%H:%M:%S) no run for ${sha:0:12} yet"
-        else
-            echo "  $(date +%H:%M:%S) $(wc -l <<< "$runs") run(s), $(grep -vc '^completed ' <<< "$runs") not finished"
-        fi
-        sleep "$PUBLIC_CI_POLL"
-    done
-
-    echo "$runs"
-    failed="$(grep -vE '^completed (success|skipped|neutral) ' <<< "$runs" || true)"
-    if [[ -n "$failed" ]]; then
-        echo "the public CI is red; $branch is kept for inspection and the tag is not made:" >&2
-        echo "$failed" >&2
-        return 1
-    fi
-    git -C "$PUBLIC_DIR" push origin --delete "$branch" || return 1
-    # Before the first release the clone has no main to return to and still stands on the
-    # branch; its local ref then simply stays until the next export.
-    git -C "$PUBLIC_DIR" branch -D "$branch" > /dev/null 2>&1 || true
-    echo "the public CI is green on ${sha:0:12}; $branch deleted"
+    rd_public_ci_prune_stale "$branch"
+    rd_public_ci_wait "$branch" "$sha" \
+        || { echo "the tag is not made while the public CI is not green" >&2; return 1; }
+    rd_public_ci_delete "$branch"
 }
 
 # The public repository gets the tag as one fresh commit (RD-130-23). It runs after `push` so
@@ -648,6 +748,10 @@ for id in "${STEP_IDS[@]}"; do
         echo
         echo "==> [push] not requested — nothing is pushed."
         echo "    publish with: git push origin $MAIN_BRANCH $RELEASE_BRANCH v$VERSION"
+        continue
+    fi
+    if [[ "$LANES" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then
+        [[ "$id" == "${PARALLEL_STEPS[0]}" ]] && run_steps_parallel "${PARALLEL_STEPS[@]}"
         continue
     fi
     run_step "$id" "$(step_command "$id")"

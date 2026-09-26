@@ -233,23 +233,6 @@ impl MediaFormatCriteria {
         Ok(self)
     }
 
-    /// Whether any filter at all is set. Used to tell "no opinion" apart from "everything
-    /// was filtered away", which are very different things to report to a user.
-    #[must_use]
-    pub fn is_unfiltered(&self) -> bool {
-        self.containers.is_empty()
-            && self.video_codecs.is_empty()
-            && self.audio_codecs.is_empty()
-            && self.dynamic_range.is_empty()
-            && self.min_height.is_none()
-            && self.max_height.is_none()
-            && self.min_fps.is_none()
-            && self.max_fps.is_none()
-            && self.max_total_bitrate_kbps.is_none()
-            && self.min_audio_bitrate_kbps.is_none()
-            && self.audio_languages.is_empty()
-    }
-
     /// The container the finished file will have, when the output pins one.
     #[must_use]
     pub fn output_container(&self) -> Option<&str> {
@@ -405,20 +388,5 @@ mod tests {
             ..MediaFormatCriteria::default()
         };
         assert!(criteria.sanitized().is_err());
-    }
-
-    #[test]
-    fn an_empty_criteria_set_is_unfiltered() {
-        assert!(MediaFormatCriteria::default().is_unfiltered());
-        assert!(
-            MediaFormatCriteria::preset("best")
-                .expect("best")
-                .is_unfiltered()
-        );
-        assert!(
-            !MediaFormatCriteria::preset("1080p")
-                .expect("1080p")
-                .is_unfiltered()
-        );
     }
 }

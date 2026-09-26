@@ -292,7 +292,12 @@ mod tests {
         assert_eq!(inventory.formats[2].kind, MediaFormatKind::Audio);
         assert_eq!(inventory.formats[2].language.as_deref(), Some("de"));
         assert!(!inventory.truncated);
-        assert!(inventory.has_muxed());
+        assert!(
+            inventory
+                .formats
+                .iter()
+                .any(|format| format.kind == MediaFormatKind::Muxed)
+        );
     }
 
     #[test]

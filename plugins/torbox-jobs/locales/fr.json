@@ -2,7 +2,6 @@
   "name": "Tâches TorBox",
   "description": "Exécute des magnets, des fichiers torrent, des NZB et des liens web comme tâches sur un compte TorBox.",
   "codes": {
-    "torbox_jobs.account_missing": "Le compte TorBox est absent",
     "torbox_jobs.api_error": "Erreur de l’API TorBox {api_code}",
     "torbox_jobs.auth_invalid": "La clé d’API TorBox est invalide ou expirée. Saisis-la à nouveau.",
     "torbox_jobs.cooldown": "TorBox impose un délai d’attente à ce compte. Patientez.",
@@ -25,7 +24,6 @@
     "torbox_jobs.server_busy": "TorBox est temporairement indisponible",
     "torbox_jobs.server_error": "Erreur du serveur TorBox",
     "torbox_jobs.source_gone": "TorBox n’a pas pu atteindre la source de cette tâche",
-    "torbox_jobs.token_missing": "Ce compte TorBox n’a pas de clé d’API",
     "torbox_jobs.too_large": "TorBox refuse cette tâche, jugée trop volumineuse"
   }
 }

@@ -10,7 +10,6 @@
 //! the plugin does not know which clone it is talking to. Where a clone deviates from the
 //! standard flow, [`NO_FREE_FORM`] and [`NO_FREE_LINK`] carry a `diagnosis` taken from the page
 //! itself, so the failure names a cause instead of being an empty answer.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The URL is not on a domain this plugin claims. While the domain list is empty this is the
 /// answer for every link, which is exactly what an inert plugin should say.
@@ -18,11 +17,6 @@ pub(crate) const UNSUPPORTED_LINK: (&str, &str) = (
     "xfs_generic.unsupported_link",
     "Not a link on an XFileSharing site this plugin serves",
 );
-
-/// The URL could not be parsed (guest adapter only; the native host already hands over a parsed
-/// `Url`).
-pub(crate) const INVALID_LINK: (&str, &str) =
-    ("xfs_generic.invalid_link", "Invalid XFileSharing link");
 
 /// This provider takes no account, so there is never one to check. Reported rather than silently
 /// succeeding: an account that appears valid but does nothing is worse than a clear refusal.

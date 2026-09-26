@@ -30,7 +30,7 @@ pub struct StreamChannel {
     pub last_live_at: Option<DateTime<Utc>>,
     /// Last probe error, cleared on a successful probe.
     pub last_error: Option<String>,
-    /// Splitting, remux, sidecars and VOD fallback for this channel's recordings
+    /// Splitting, remux, sidecars and reconnect delay for this channel's recordings
     /// (RD-080-09).
     #[serde(default)]
     pub recording: crate::RecordingPolicy,

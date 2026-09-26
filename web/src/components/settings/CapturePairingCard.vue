@@ -106,7 +106,7 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
         <template #scope><span class="font-mono">capture:*</span></template>
       </i18n-t>
       <form class="mt-4 flex gap-2" @submit.prevent="pair">
-        <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor" class="flex-1" />
+        <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor" class="flex-1" :aria-label="t('system.pairing.label')" />
         <UButton type="submit" icon="i-lucide-link" :label="t('system.pairing.submit')" :loading="pairing" />
       </form>
       <UAlert v-if="pairError" class="mt-3" color="error" variant="subtle" :description="pairError" />

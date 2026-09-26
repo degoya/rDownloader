@@ -1,123 +1,15 @@
 //! REST contract for auth profiles, with the leak checks the acceptance criteria demand:
 //! no credential value and no `vault://` reference may leave through the API.
 
-use axum::{
-    Router,
-    body::Body,
-    http::{Request, StatusCode, header},
-};
-use http_body_util::BodyExt;
-use sha2::{Digest, Sha256};
-use tower::ServiceExt;
+mod common;
 
-/// Capture intake is token-gated; the cookie tests speak through a real capture token.
-const CAPTURE_BEARER: &str = "test-capture-bearer-token";
+use axum::{Router, http::StatusCode};
+use common::{CAPTURE_BEARER, post_with_bearer, request, test_harness};
 
 /// Credential values seeded by the tests; none of them may ever appear in a response.
 const COOKIE_VALUE: &str = "session=super-secret-session-value";
 const TOKEN_VALUE: &str = "bearer-token-must-never-be-returned";
 const BASIC_PASSWORD: &str = "basic-password-must-never-be-returned";
-
-struct Harness {
-    router: Router,
-    database: rd_db::Database,
-}
-
-async fn test_harness(directory: &std::path::Path) -> Harness {
-    let database = rd_db::Database::open(directory.join("auth-profiles.sqlite3"))
-        .await
-        .expect("database");
-    database
-        .create_capture_token(
-            rd_core::CaptureTokenId::new(),
-            rd_core::CAPTURE_SCOPE.to_owned(),
-            hex::encode(Sha256::digest(CAPTURE_BEARER.as_bytes())),
-            vec![rd_core::CAPTURE_SCOPE.to_owned()],
-        )
-        .await
-        .expect("capture token");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let state = rd_api::AppState::new(
-        database.clone(),
-        scheduler,
-        secrets.clone(),
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        rd_api::RemoteServices::new(
-            database.clone(),
-            secrets.clone(),
-            std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-            rd_http::SharedNetworkDefaults::default(),
-        ),
-    );
-    state.auth.set_disabled(true);
-    Harness {
-        router: rd_api::router(state),
-        database,
-    }
-}
-
-async fn request(
-    router: &Router,
-    method: &str,
-    path: &str,
-    body: Option<serde_json::Value>,
-) -> (StatusCode, serde_json::Value) {
-    send(router, method, path, body, false).await
-}
 
 /// Same as `request`, but authenticated with a capture token instead of a session.
 async fn capture_request(
@@ -125,41 +17,7 @@ async fn capture_request(
     path: &str,
     body: serde_json::Value,
 ) -> (StatusCode, serde_json::Value) {
-    send(router, "POST", path, Some(body), true).await
-}
-
-async fn send(
-    router: &Router,
-    method: &str,
-    path: &str,
-    body: Option<serde_json::Value>,
-    capture_token: bool,
-) -> (StatusCode, serde_json::Value) {
-    let mut builder = Request::builder().method(method).uri(path);
-    if capture_token {
-        builder = builder.header(header::AUTHORIZATION, format!("Bearer {CAPTURE_BEARER}"));
-    }
-    let request = match &body {
-        Some(value) => builder
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(value.to_string())),
-        None => builder.body(Body::empty()),
-    }
-    .expect("request");
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let json = if bytes.is_empty() {
-        serde_json::Value::Null
-    } else {
-        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null)
-    };
-    (status, json)
+    post_with_bearer(router, path, CAPTURE_BEARER, body).await
 }
 
 fn bearer_profile(name: &str, scope: &str) -> serde_json::Value {

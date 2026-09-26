@@ -16,6 +16,8 @@ mod host;
 mod references;
 mod signin;
 mod transfer_auth;
+#[cfg(test)]
+mod versions_tests;
 
 pub use expand::{
     CLIENT_ID_MARKER, client_not_configured, provider_cookie_scope, provider_download_bearer,
@@ -30,6 +32,10 @@ pub use transfer_auth::{provider_download_authorization, provider_download_carri
 pub struct ResolverService {
     database: rd_db::Database,
     resolvers: Arc<Vec<Arc<dyn Resolver>>>,
+    /// `(plugin id, version)` of every loaded resolver that is not its plugin's default:
+    /// retained versions and a staged one (RD-140-02). They serve a download pinned to them
+    /// and are skipped by every unpinned lookup, so new work only ever meets the default.
+    pin_only: Arc<std::collections::HashSet<(rd_core::PluginId, String)>>,
     host: Arc<dyn ResolverHost>,
 }
 
@@ -102,6 +108,7 @@ impl ResolverService {
         Self {
             database,
             resolvers: Arc::new(resolvers),
+            pin_only: Arc::default(),
             host,
         }
     }
@@ -116,41 +123,61 @@ impl ResolverService {
         Arc::clone(&self.host)
     }
 
-    /// Re-verifies and loads installed Components, with each resolver pinning one exact version.
+    /// Loads the installed Components from a registry the adapters share, with each resolver
+    /// pinning one exact version.
     ///
     /// Once the final resolver chain is known, jobs pinned to a version that is no longer in
     /// it are released. Anything else leaves those jobs failing with
     /// `plugin.pinned_version_missing` on every retry for the rest of their life.
-    pub async fn load_installed_components(
-        &mut self,
-        installer: &crate::PluginInstaller,
-    ) -> anyhow::Result<usize> {
-        let registry = crate::PluginTypeRegistry::load(installer).await?;
-        self.load_components_from_registry(&registry).await
-    }
-
-    /// The same, from a registry the adapters share.
     ///
-    /// Building a registry re-verifies and compiles *every* installed package — an Ed25519
-    /// check, a wasmparser validation, a `SandboxEngine` with its epoch-ticker thread and a
-    /// compile each — so the one `load_installed_components` builds for itself is only worth it
-    /// for a caller that loads nothing else. The resolvers were the last holder of such a
-    /// private pass after the ten extension adapters moved onto the shared registry; a service
-    /// that starts them all now pays for one.
+    /// Building a registry re-verifies *every* installed package — an Ed25519 check and a
+    /// wasmparser validation each, and a compile or a compile-cache read for any content the
+    /// process has not compiled yet — so the resolvers take the shared one rather than a
+    /// private pass; a service that starts them all pays for one.
     pub async fn load_components_from_registry(
         &mut self,
         registry: &crate::PluginTypeRegistry,
     ) -> anyhow::Result<usize> {
-        let mut loaded = compatible_components(
+        let components = compatible_components(
             registry,
             Arc::clone(&self.host),
             crate::ExecutionLog::new(self.database.clone()),
         );
-        let count = loaded.len();
+        let count = components.len();
+        let mut pin_only = std::collections::HashSet::new();
+        let mut loaded = Vec::with_capacity(count + self.resolvers.len());
+        for (resolver, role) in components {
+            if role != crate::VersionRole::Default {
+                let metadata = resolver.metadata();
+                pin_only.insert((metadata.plugin_id, metadata.version.clone()));
+            }
+            loaded.push(resolver);
+        }
         loaded.extend(self.resolvers.iter().cloned());
         self.resolvers = Arc::new(loaded);
+        self.pin_only = Arc::new(pin_only);
         self.release_unsatisfiable_pins().await;
         Ok(count)
+    }
+
+    /// Whether an unpinned lookup may pick this resolver: only its plugin's default version.
+    fn selectable(&self, resolver: &Arc<dyn Resolver>) -> bool {
+        let metadata = resolver.metadata();
+        !self
+            .pin_only
+            .contains(&(metadata.plugin_id, metadata.version.clone()))
+    }
+
+    /// Whether `resolver` is the one a job with `pin` may use: exactly the pinned version, or
+    /// without a pin the plugin's default.
+    fn admits(&self, resolver: &Arc<dyn Resolver>, pin: Option<&ResolverPin>) -> bool {
+        match pin {
+            Some(pin) => {
+                let metadata = resolver.metadata();
+                metadata.plugin_id == pin.plugin_id && metadata.version == pin.version
+            }
+            None => self.selectable(resolver),
+        }
     }
 
     /// Frees jobs whose pinned resolver version this build cannot provide any more.
@@ -198,11 +225,9 @@ impl ResolverService {
         }
         let Some(account_id) = account_id else {
             let resolver = self.resolvers.iter().find(|resolver| {
-                let metadata = resolver.metadata();
-                let pin_matches = pin.is_none_or(|pin| {
-                    metadata.plugin_id == pin.plugin_id && metadata.version == pin.version
-                });
-                !metadata.requires_account && pin_matches && resolver.matches(&url)
+                !resolver.metadata().requires_account
+                    && self.admits(resolver, pin)
+                    && resolver.matches(&url)
             });
             let Some(resolver) = resolver else {
                 // A hoster link with no free path must fail visibly. Falling through to
@@ -259,7 +284,11 @@ impl ResolverService {
     pub fn free_resolver_plugin(&self, url: &Url) -> Option<rd_core::PluginId> {
         self.resolvers
             .iter()
-            .find(|resolver| !resolver.metadata().requires_account && resolver.matches(url))
+            .find(|resolver| {
+                !resolver.metadata().requires_account
+                    && self.selectable(resolver)
+                    && resolver.matches(url)
+            })
             .map(|resolver| resolver.metadata().plugin_id)
     }
 
@@ -279,7 +308,9 @@ impl ResolverService {
     /// type, and a HEAD against a hoster's landing page would answer `text/html` anyway.
     #[must_use]
     pub fn has_resolver(&self, url: &Url) -> bool {
-        self.resolvers.iter().any(|resolver| resolver.matches(url))
+        self.resolvers
+            .iter()
+            .any(|resolver| self.selectable(resolver) && resolver.matches(url))
     }
 
     /// Runs the provider resolver's redaction-safe account check.
@@ -375,12 +406,11 @@ impl ResolverService {
         pin: Option<&ResolverPin>,
     ) -> Result<Option<&Arc<dyn Resolver>>, Failure> {
         let resolver = self.resolvers.iter().find(|resolver| {
-            let metadata = resolver.metadata();
-            let provider_matches = metadata.provider_slug.eq_ignore_ascii_case(provider.trim());
-            let pin_matches = pin.is_none_or(|pin| {
-                metadata.plugin_id == pin.plugin_id && metadata.version == pin.version
-            });
-            provider_matches && pin_matches
+            let provider_matches = resolver
+                .metadata()
+                .provider_slug
+                .eq_ignore_ascii_case(provider.trim());
+            provider_matches && self.admits(resolver, pin)
         });
         if pin.is_some() && resolver.is_none() {
             return Err(Failure::coded(
@@ -455,8 +485,8 @@ fn compatible_components(
     registry: &crate::PluginTypeRegistry,
     host: Arc<dyn ResolverHost>,
     log: Arc<crate::ExecutionLog>,
-) -> Vec<Arc<dyn Resolver>> {
-    registry.instantiate(&crate::PluginType::Resolver, |package| {
+) -> Vec<(Arc<dyn Resolver>, crate::VersionRole)> {
+    registry.instantiate_with_roles(&crate::PluginType::Resolver, |package| {
         let resolver = crate::ComponentResolver::new(
             package.manifest.clone(),
             &package.component,

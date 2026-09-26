@@ -2,7 +2,6 @@
   "name": "Premiumize transfers",
   "description": "Runs magnets, containers and plain addresses as transfers on a Premiumize.me account.",
   "codes": {
-    "premiumize_transfers.account_missing": "Premiumize account is missing",
     "premiumize_transfers.api_error": "Premiumize API error {api_code}",
     "premiumize_transfers.auth_invalid": "The Premiumize sign-in is no longer valid. Store the API key again.",
     "premiumize_transfers.container_unknown": "This container’s format could not be recognised",

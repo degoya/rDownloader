@@ -140,7 +140,8 @@ impl<'a> Executor<'a> {
         self
     }
 
-    /// Replaces the limits.
+    /// Replaces the limits, for the tests that run into them.
+    #[cfg(test)]
     #[must_use]
     pub fn with_limits(mut self, limits: Limits) -> Self {
         self.limits = limits;

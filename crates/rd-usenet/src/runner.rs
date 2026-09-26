@@ -1,6 +1,9 @@
 //! Usenet transport as a scheduler runner: one NZB file per queue entry.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -17,27 +20,24 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     NntpPool,
-    worker::{FileOutcome, download_file, recovered_file_path},
+    parallel::{FileLoad, MAX_PARALLEL_FILES},
+    worker::{FileOutcome, download_file_counted, recovered_file_path},
 };
 
 /// Limits applied per NZB file.
+///
+/// How many files run at once is not in here: it is the operator's setting, which reaches
+/// the runner through the scheduler with every dispatch pass, and automatic by default
+/// (RD-130-22, see `src/parallel.rs`).
 #[derive(Clone, Debug)]
 pub struct UsenetRunnerConfig {
     pub max_file_bytes: u64,
-    /// NZB files this runner downloads at the same time.
-    ///
-    /// Two, not one, since the pool outlives the file (RD-108-26): the tail of a file and the
-    /// head of the next one overlap, so no connection waits for the last article of a file to
-    /// arrive before the next file is allowed to start. It does not raise the number of
-    /// connections - the shared pool still caps those per server.
-    pub parallel_files: usize,
 }
 
 impl Default for UsenetRunnerConfig {
     fn default() -> Self {
         Self {
             max_file_bytes: 128 * 1024 * 1024 * 1024,
-            parallel_files: 2,
         }
     }
 }
@@ -56,6 +56,9 @@ pub struct UsenetRunner {
     /// change cost a TCP connection, a TLS handshake and an `AUTHINFO` per connection - ten
     /// of each on the instance this was measured on, at every one of a release's fifty files.
     pool: Mutex<Option<CachedPool>>,
+    /// What the running files still have to fetch, which is what automatic mode sizes the
+    /// number of files by (RD-130-22).
+    load: Arc<FileLoad>,
 }
 
 /// A pool and what it was built from; it is replaced when either changes.
@@ -74,6 +77,7 @@ impl UsenetRunner {
             config,
             network: SharedNetworkDefaults::default(),
             pool: Mutex::new(None),
+            load: Arc::new(FileLoad::default()),
         }
     }
 
@@ -123,8 +127,22 @@ impl ExternalRunner for UsenetRunner {
         DownloadKind::Usenet
     }
 
+    /// The most files the runner ever works on at once; how many it takes right now is
+    /// [`Self::dispatch_capacity`].
     fn slot_capacity(&self) -> usize {
-        self.config.parallel_files.max(1)
+        MAX_PARALLEL_FILES
+    }
+
+    fn dispatch_capacity(&self, requested_files: usize) -> usize {
+        self.load.capacity(requested_files)
+    }
+
+    /// Every file goes through the one connection pool, so together they are one transfer:
+    /// three running NZB files are the same ten connections as one (RD-130-22). Counting
+    /// each of them against `max_active_files` would let the global limit decide how well
+    /// the connections are used, which is the pool's business.
+    fn shares_one_global_slot(&self) -> bool {
+        true
     }
 
     async fn run(
@@ -148,6 +166,14 @@ impl ExternalRunner for UsenetRunner {
                 "NZB file no longer exists",
             )));
         };
+        // On the books from here to the end of the attempt, whichever way it ends.
+        let open = self.load.start(
+            nzb_file
+                .segments
+                .iter()
+                .filter(|segment| segment.state != rd_core::NzbSegmentState::Completed)
+                .count(),
+        );
         if nzb_file.total_bytes.get() > self.config.max_file_bytes {
             return Ok(RunOutcome::Failed(
                 Failure::coded(
@@ -179,7 +205,8 @@ impl ExternalRunner for UsenetRunner {
         // `0` is "as many as the servers allow" (RD-108-25); anything else caps one file.
         let cap = (limits.max_parallel_requests > 0).then_some(limits.max_parallel_requests);
         let pool = self.pool(cap).await?;
-        let outcome = match download_file(
+        self.load.set_window(pool.max_parallel_requests());
+        let outcome = download_file_counted(
             &self.database,
             &pool,
             &cancellation,
@@ -187,9 +214,19 @@ impl ExternalRunner for UsenetRunner {
             &staging,
             &destination,
             &limits,
+            &open,
         )
-        .await
-        {
+        .await;
+        drop(open);
+        let (waited, batches, confirmed) = self.load.writer_totals();
+        tracing::debug!(
+            download_id = %file.id,
+            writer_wait_ms = waited / 1_000_000,
+            batches,
+            confirmed,
+            "usenet assembly checkpoints since start"
+        );
+        let outcome = match outcome {
             Ok(outcome) => outcome,
             // Coded failures describe the file (not the runner) and belong in the queue.
             Err(error) => {

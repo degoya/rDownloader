@@ -6,6 +6,8 @@ import { createI18n } from 'vue-i18n'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/streams.json'
 import { useStreamsStore } from '@/stores/streams'
+import { axeViolations } from '@/test/axe'
+import { uiStubs } from '@/test/mount'
 
 import StreamsView from './StreamsView.vue'
 
@@ -48,7 +50,7 @@ function mount() {
           template: '<div><slot name="header" /><slot name="body" /></div>'
         },
         UDashboardSidebarCollapse: true,
-        UFormField: passthrough,
+        UFormField: uiStubs.UFormField,
         UIcon: true,
         UInput: { props: ['modelValue'], template: '<input v-bind="$attrs" :value="modelValue" />' },
         USelect: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs" />' },
@@ -91,4 +93,11 @@ describe('StreamsView schedules', () => {
     await waitFor(() => expect(screen.getByTestId('schedule-name')).toBeTruthy())
     expect(screen.queryByText(en.schedules.needs_channel)).toBeNull()
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(en.schedules.needs_channel)).toBeTruthy())
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

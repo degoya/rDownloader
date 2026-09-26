@@ -1,0 +1,5 @@
+# Read by shellcheck for every script under scripts/ (scripts/check.sh runs it).
+# `# shellcheck source=lib/x.sh` directives name paths relative to the script, not to the
+# directory shellcheck was started in.
+source-path=SCRIPTDIR
+external-sources=true

@@ -8,7 +8,6 @@
 //! one day carry something it should not; the number is the part that is stable enough to
 //! translate. So the number travels as the `api_code` parameter and the sentence is dropped —
 //! the same rule `sanitize_error` applies in `realdebrid-auth`, arrived at from the other side.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The account holds no Real-Debrid access token: it has never been signed in, or the sign-in
 /// was revoked and the renewal sweep could not replace it.

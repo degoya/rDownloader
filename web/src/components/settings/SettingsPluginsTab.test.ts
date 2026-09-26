@@ -182,11 +182,17 @@ function serveInventory(installed: ReturnType<typeof plugin>[], revocations: Rev
   })
 }
 
+/**
+ * The repository list and the updates are tested on their own (RD-140-01); rendered here they
+ * would only add their own requests, inputs and alerts to every query this file makes.
+ */
+const CHILD_STUBS = { PluginUpdatesList: true, SettingsPluginRepositories: true }
+
 function mount(
   messages: Record<string, unknown> = { plugins: pluginsCatalogue },
   stubs: Record<string, unknown> = {}
 ) {
-  return mountComponent(SettingsPluginsTab, { messages, stubs })
+  return mountComponent(SettingsPluginsTab, { messages, stubs: { ...CHILD_STUBS, ...stubs } })
 }
 
 /** The plain `fetch` the trusted-key list and every removal go out over. */

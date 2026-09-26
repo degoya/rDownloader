@@ -15,10 +15,8 @@ anyhow.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
 chrono.workspace = true
-cookie_store.workspace = true
 ctr.workspace = true
 futures-util.workspace = true
-httpdate.workspace = true
 psl.workspace = true
 rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
@@ -26,7 +24,6 @@ rd-limits = { path = "../rd-limits" }
 reqwest.workspace = true
 rustls.workspace = true
 rustls-platform-verifier.workspace = true
-serde.workspace = true
 secrecy.workspace = true
 subtle.workspace = true
 thiserror.workspace = true

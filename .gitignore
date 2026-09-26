@@ -20,13 +20,23 @@ node_modules/
 /artifacts/
 *.part
 *.rdplug
+# A package signed by an earlier release, kept as a test fixture (RD-140-12).
+!/crates/rd-plugin-host/tests/fixtures/dalek2/*.rdplug
 playwright-report/
 test-results/
 /dist/plugins/*.rdplug
+# The prebuilt Linux binaries the container image copies (docker/Dockerfile, target `prebuilt`).
+/dist/docker/
 # The browser extension is built into /artifacts/browser-extensions, which the line above
 # already covers. `extension/dist/` was the output folder before that move and is no longer
 # written by `extension/build.mjs`; the ignore entry only kept a stale second copy of the
 # extension lying around for anyone loading it unpacked (RD-109-25). If one reappears, it is
 # meant to be seen, not hidden.
-/.claude/
+# Local Claude Code state stays out; the project skills (RD-140-20) are shared with every
+# checkout. The public export leaves all of .claude/ out (scripts/public-exclude.txt).
+/.claude/*
+!/.claude/skills/
+!/.claude/settings.json
+!/.claude/hooks/
+!/.claude/agents/
 .vscode

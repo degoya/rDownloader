@@ -24,6 +24,16 @@ fn body(name: &str) -> Value {
     })
 }
 
+/// Every stored item of one subscription, newest first, through the paged archive route.
+async fn item_list(router: &axum::Router, id: &str) -> Value {
+    let (_, page) = get_json(
+        router,
+        &format!("/api/v1/subscriptions/{id}/items/page?state=all&limit=200"),
+    )
+    .await;
+    page["items"].clone()
+}
+
 async fn create(router: &axum::Router, name: &str) -> Value {
     let (status, created) = post_json(router, "/api/v1/subscriptions", body(name)).await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
@@ -200,8 +210,13 @@ async fn deleting_one_removes_it_and_its_items_and_runs() {
 
     let (_, listed) = get_json(&router, "/api/v1/subscriptions").await;
     assert!(listed.as_array().expect("array").is_empty());
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
-    assert!(items.as_array().expect("array").is_empty());
+    // Its item archive goes with it: the route no longer knows the subscription.
+    let (status, _) = get_json(
+        &router,
+        &format!("/api/v1/subscriptions/{id}/items/page?state=all"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -285,12 +300,13 @@ async fn item_details_and_the_password_survive_a_restart() {
     }
 
     let harness = test_harness(directory.path()).await;
-    let (status, items) = get_json(
+    let (status, page) = get_json(
         &harness.router,
-        &format!("/api/v1/subscriptions/{subscription_id}/items"),
+        &format!("/api/v1/subscriptions/{subscription_id}/items/page?state=all"),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{items}");
+    assert_eq!(status, StatusCode::OK, "{page}");
+    let items = &page["items"];
     assert_eq!(
         items.as_array().expect("array")[0]["attributes"]["imdbscore"],
         "7.8"
@@ -301,9 +317,10 @@ async fn item_details_and_the_password_survive_a_restart() {
     // without it.
     let stored = harness
         .database
-        .subscription_items(subscription_id, 10)
+        .subscription_item_page(subscription_id, None, 10, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     assert_eq!(stored[0].password.as_deref(), Some("hunter2"));
 }
 
@@ -375,12 +392,13 @@ async fn item_details_and_the_archive_password_are_served() {
         .await
         .expect("record");
 
-    let (status, items) = get_json(
+    let (status, page) = get_json(
         &harness.router,
-        &format!("/api/v1/subscriptions/{subscription_id}/items"),
+        &format!("/api/v1/subscriptions/{subscription_id}/items/page?state=all"),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{items}");
+    assert_eq!(status, StatusCode::OK, "{page}");
+    let items = &page["items"];
     let item = &items.as_array().expect("array")[0];
 
     assert_eq!(item["attributes"]["coverurl"], "https://indexer.test/c.jpg");
@@ -859,21 +877,42 @@ async fn an_enrichment_that_arrives_after_the_promotion_still_reaches_package_an
 
 /// The counterpart: only a batch a subscription submitted is promoted. A pasted batch stays in
 /// the LinkGrabber for review, which is the whole point of the review list.
+///
+/// "Nothing was promoted" is only worth asserting once the watcher has read the pasted batch.
+/// It reads finished checks one at a time and in order, so a subscription batch checked after
+/// the pasted one is the witness: once its package is in the queue, the pasted batch has been
+/// seen and turned down.
 #[tokio::test]
 async fn a_manually_pasted_batch_is_never_promoted() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
+    let mut request = body("Indexer");
+    request["mode"] = json!("auto_queue");
+    let (status, created) = post_json(&harness.router, "/api/v1/subscriptions", request).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
 
     let batch = submit_batch(&harness, rd_core::IngressSource::Manual, None).await;
     harness.link_check.check_batch(batch).await;
+    let witness = submit_batch_of(
+        &harness,
+        rd_core::IngressSource::Subscription,
+        Some("Indexer"),
+        "https://example.test/witness.bin",
+    )
+    .await;
+    harness.link_check.check_batch(witness).await;
 
-    // Give the watcher the same room the positive test gives it before concluding "nothing".
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    let (_, packages) = get_json(&harness.router, "/api/v1/packages").await;
+    let packages = await_packages(&harness.router).await;
+    let downloads = await_downloads(&harness.router).await;
     assert_eq!(
         packages.as_array().map(Vec::len),
-        Some(0),
+        Some(1),
         "a pasted batch must stay in the LinkGrabber: {packages}"
+    );
+    assert_eq!(
+        downloads.as_array().map(Vec::len),
+        Some(1),
+        "only the witness's link reached the queue: {downloads}"
     );
 }
 
@@ -884,6 +923,16 @@ async fn submit_batch(
     harness: &common::Harness,
     source: rd_core::IngressSource,
     label: Option<&str>,
+) -> rd_core::BatchId {
+    submit_batch_of(harness, source, label, "https://example.test/release.bin").await
+}
+
+/// The same, for a link at `url`.
+async fn submit_batch_of(
+    harness: &common::Harness,
+    source: rd_core::IngressSource,
+    label: Option<&str>,
+    url: &str,
 ) -> rd_core::BatchId {
     let (batch, _, _) = harness
         .database
@@ -902,7 +951,7 @@ async fn submit_batch(
             sizes: vec![None],
             requests: vec![None],
             body_refs: vec![None],
-            urls: vec!["https://example.test/release.bin".parse().expect("url")],
+            urls: vec![url.parse().expect("url")],
             auto_check: false,
             source_attributes: Vec::new(),
         })
@@ -933,15 +982,16 @@ async fn await_downloads(router: &axum::Router) -> Value {
 /// somebody read, which is how a missing enrichment and a missing promotion came to look the
 /// same (RD-108-15).
 async fn await_rows(router: &axum::Router, uri: &str, count: usize) -> Value {
-    for _ in 0..200 {
+    let what = format!("{uri} never listed {count} rows");
+    common::eventually_ok(common::WAIT, &what, || async move {
         let (_, rows) = get_json(router, uri).await;
         if rows.as_array().is_some_and(|list| list.len() >= count) {
-            return rows;
+            Ok(rows)
+        } else {
+            Err(rows)
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    let (_, rows) = get_json(router, uri).await;
-    panic!("{uri} never listed {count} rows; it has {rows}");
+    })
+    .await
 }
 
 /// RD-120-37: a subscription picks how the LinkGrabber draws its hits, and whether the card
@@ -1140,7 +1190,7 @@ async fn a_script_subscription_takes_each_address_once_with_its_category() {
         (runs[0]["found"].as_u64(), runs[0]["accepted"].as_u64()),
         (Some(2), Some(2))
     );
-    let (_, items) = get_json(router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(router, &id).await;
     let items = items.as_array().expect("items").clone();
     assert_eq!(items.len(), 2, "{items:?}");
     assert!(
@@ -1162,7 +1212,7 @@ async fn a_script_subscription_takes_each_address_once_with_its_category() {
     std::fs::write(directory.path().join("scripts").join("more"), "").expect("marker");
     let runs = run_script_now(router, &id, 3).await;
     assert_eq!(runs[0]["accepted"].as_u64(), Some(1), "{runs}");
-    let (_, items) = get_json(router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(router, &id).await;
     let third = items
         .as_array()
         .expect("items")
@@ -1174,22 +1224,23 @@ async fn a_script_subscription_takes_each_address_once_with_its_category() {
 
     // Handed on with the subscription's category: a LinkGrabber package while the check
     // runs, a download package once it is promoted -- either carries it.
-    let mut carried = false;
-    for _ in 0..200 {
-        let (_, waiting) = get_json(router, "/api/v1/collector/packages").await;
-        let (_, queued) = get_json(router, "/api/v1/packages").await;
-        carried = [waiting, queued].iter().any(|rows| {
-            rows.as_array().is_some_and(|rows| {
-                rows.iter()
-                    .any(|row| row["category_id"] == category.as_str())
-            })
-        });
-        if carried {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    assert!(carried, "no package carries the subscription's category");
+    let category = category.as_str();
+    common::eventually(
+        common::WAIT,
+        "no package carries the subscription's category",
+        || async move {
+            let (_, waiting) = get_json(router, "/api/v1/collector/packages").await;
+            let (_, queued) = get_json(router, "/api/v1/packages").await;
+            [waiting, queued]
+                .iter()
+                .any(|rows| {
+                    rows.as_array()
+                        .is_some_and(|rows| rows.iter().any(|row| row["category_id"] == category))
+                })
+                .then_some(())
+        },
+    )
+    .await;
 }
 
 /// A failed run stands in the history with its reason, and archives nothing it printed.
@@ -1218,7 +1269,7 @@ async fn a_failed_script_run_is_in_the_history_with_its_reason() {
         error.contains("status 3") && error.contains("login refused"),
         "{runs}"
     );
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     assert_eq!(items.as_array().map(Vec::len), Some(0), "{items}");
     let (_, listed) = get_json(&router, "/api/v1/subscriptions").await;
     assert!(
@@ -1253,7 +1304,7 @@ async fn a_batch_file_subscription_takes_its_links() {
 
     let runs = run_script_now(&router, &id, 1).await;
     assert_eq!(runs[0]["error"], Value::Null, "{runs}");
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let urls: Vec<&str> = items
         .as_array()
         .expect("items")

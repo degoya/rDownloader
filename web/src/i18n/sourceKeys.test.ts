@@ -34,9 +34,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { i18n } from '@/i18n'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const apiSources = join(repositoryRoot, 'crates/rd-api/src')
@@ -87,7 +90,6 @@ const UNTRANSLATED_CODES: readonly string[] = [
   'nzb.no_change',
   'plugin.disabled',
   'plugin.enabled',
-  'plugin.not_installed',
   'plugin.remove_failed',
   'plugin.removed',
   'reconnect.already_running',

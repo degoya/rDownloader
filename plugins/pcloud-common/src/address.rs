@@ -45,15 +45,6 @@ pub enum Region {
 }
 
 impl Region {
-    /// The API host every call of this region goes to.
-    #[must_use]
-    pub const fn api_host(self) -> &'static str {
-        match self {
-            Self::Us => "api.pcloud.com",
-            Self::Eu => "eapi.pcloud.com",
-        }
-    }
-
     /// The API root every call of this region goes to.
     #[must_use]
     pub const fn api(self) -> &'static str {
@@ -78,25 +69,6 @@ impl Region {
         match self {
             Self::Us => "u.pcloud.link",
             Self::Eu => "e.pcloud.link",
-        }
-    }
-
-    /// pCloud's own `locationid`, as the authorization redirect states it.
-    #[must_use]
-    pub const fn location_id(self) -> u8 {
-        match self {
-            Self::Us => 1,
-            Self::Eu => 2,
-        }
-    }
-
-    /// The region a `locationid` names, or `None` for a value pCloud has not published.
-    #[must_use]
-    pub const fn from_location_id(value: u64) -> Option<Self> {
-        match value {
-            1 => Some(Self::Us),
-            2 => Some(Self::Eu),
-            _ => None,
         }
     }
 
@@ -358,15 +330,6 @@ pub fn parse(url: &str) -> Option<Address> {
     None
 }
 
-/// The canonical address of one folder in the account's own drive.
-#[must_use]
-pub fn folder_address(region: Region, folder_id: u64) -> String {
-    format!(
-        "https://{}/#/filemanager?folder={folder_id}",
-        region.web_host()
-    )
-}
-
 /// The canonical address of one file in the account's own drive, and the one the crawler hands
 /// the resolver.
 ///
@@ -379,12 +342,6 @@ pub fn file_address(region: Region, folder_id: u64, file_id: u64) -> String {
         "https://{}/#/filemanager?folder={folder_id}&fileid={file_id}",
         region.web_host()
     )
-}
-
-/// The canonical address of one public link.
-#[must_use]
-pub fn public_link_address(region: Region, code: &str) -> String {
-    format!("https://{}/publink/show?code={code}", region.link_host())
 }
 
 /// The canonical address of one file behind a public link, and the one the crawler hands the
@@ -400,9 +357,9 @@ pub fn public_file_address(region: Region, code: &str, file_id: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Address, Region, file_address, folder_address, parameter, parse, pcloud_host,
-        public_file_address, public_link_address, region_is_certain, route_and_parameters, split,
-        valid_code, valid_digest, valid_id, valid_name,
+        Address, Region, file_address, parameter, parse, pcloud_host, public_file_address,
+        region_is_certain, route_and_parameters, split, valid_code, valid_digest, valid_id,
+        valid_name,
     };
 
     #[test]
@@ -432,12 +389,6 @@ mod tests {
         assert_eq!(Region::Us.other(), Region::Eu);
         assert_eq!(Region::Eu.other(), Region::Us);
         assert_eq!(Region::Us.both_from(), [Region::Us, Region::Eu]);
-        assert_eq!(Region::Eu.api_host(), "eapi.pcloud.com");
-        assert_eq!(Region::Us.api_host(), "api.pcloud.com");
-        assert_eq!(Region::from_location_id(2), Some(Region::Eu));
-        assert_eq!(Region::from_location_id(1), Some(Region::Us));
-        assert_eq!(Region::from_location_id(3), None);
-        assert_eq!(Region::Eu.location_id(), 2);
     }
 
     #[test]
@@ -591,9 +542,8 @@ mod tests {
                 region_certain: true,
             })
         );
-        let folder = folder_address(Region::Us, 0);
-        assert_eq!(folder, "https://my.pcloud.com/#/filemanager?folder=0");
-        assert_eq!(parse(&folder).and_then(|a| a.file_id()), None);
+        let folder = "https://my.pcloud.com/#/filemanager?folder=0";
+        assert_eq!(parse(folder).and_then(|a| a.file_id()), None);
 
         let shared = public_file_address(Region::Eu, "XZabc", 42);
         assert_eq!(
@@ -608,10 +558,6 @@ mod tests {
                 region: Region::Eu,
                 region_certain: true,
             })
-        );
-        assert_eq!(
-            public_link_address(Region::Us, "XZabc"),
-            "https://u.pcloud.link/publink/show?code=XZabc"
         );
     }
 }

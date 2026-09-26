@@ -5,7 +5,6 @@
 //! `error_summary` and a `user_message` written for people, and repeating either would put a
 //! provider's prose — and whatever it happened to quote — into a log line and into the
 //! interface.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The request carried no account identity, so there is nothing to sign the call with.
 pub(crate) const ACCOUNT_MISSING: (&str, &str) =

@@ -5,7 +5,7 @@ import { api, responseError } from '@/api/client'
 import type { BundleCreated, BundlePreview, LogLevel, LogRecord, LogRecordsPage } from '@/api/types'
 
 /** Records one read asks for; the server caps a page at 500. */
-export const LOG_PAGE_SIZE = 200
+const LOG_PAGE_SIZE = 200
 
 export interface LogFilters {
   /** This level and the more severe ones; empty means every level. */

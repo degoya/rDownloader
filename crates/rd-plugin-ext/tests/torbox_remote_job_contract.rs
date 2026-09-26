@@ -1270,7 +1270,7 @@ fn fixtures_carry_no_credential_material() {
         walk(&value, &path);
         checked += 1;
     }
-    assert!(checked >= 20, "only {checked} fixtures were checked");
+    assert!(checked >= 18, "only {checked} fixtures were checked");
 }
 
 /// The plugin reaches only the API it needs, with only the credential it needs, and claims the

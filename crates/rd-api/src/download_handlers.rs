@@ -77,8 +77,8 @@ pub(crate) async fn summarize_downloads(
     for root in state.database.list_storage_roots().await? {
         let path = root.path.clone();
         let space = tokio::task::spawn_blocking(move || {
-            let free = fs2::available_space(&path).ok();
-            let total = fs2::total_space(&path).ok();
+            let free = fs4::available_space(&path).ok();
+            let total = fs4::total_space(&path).ok();
             (free, total)
         })
         .await

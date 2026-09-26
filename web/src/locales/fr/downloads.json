@@ -147,7 +147,8 @@
     "show_details": "Afficher les détails",
     "stop_recording": "Arrêter l'enregistrement",
     "stop_seeding": "Arrêter le seed",
-    "drag_title": "Glisser pour modifier l’ordre au sein du paquet"
+    "drag_title": "Glisser pour modifier l’ordre au sein du paquet",
+    "trial_staged": "Tester avec {name} v{version}"
   },
   "summary": {
     "eyebrow": "État de la file",

@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import type { LinkCandidate } from '@/api/types'
 import { SUPPORTED_LOCALES, i18n } from '@/i18n'
 import { SORT_OPTIONS, hosterOf, sortCandidates, sortCollectorEntries } from './collectorSort'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 function candidate(id: string, url: string, position: number, size?: string): LinkCandidate {
   return { id, batch_id: 'b', url, state: 'online', position, size: size ?? null } as LinkCandidate

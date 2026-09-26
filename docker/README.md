@@ -5,7 +5,14 @@ transport. It does not contain the desktop capture agent — for Click'n'Load an
 capture on a headless setup, use the [browser extension](../extension/README.md) instead.
 
 Images are published for `linux/amd64` and `linux/arm64`, signed with cosign, and carry an SBOM
-and build provenance.
+and build provenance. Each holds the same `rdownloader` binary as that release's Linux tarball
+for its architecture, on `debian:trixie-slim`.
+
+**The image is the way to run rDownloader on an older Linux.** The native Linux binaries
+(`rdownloader-linux-x86_64.tar.gz`, `rdownloader-linux-aarch64.tar.gz`) are built on Ubuntu 24.04
+and need glibc 2.39 or newer: Ubuntu 24.04+, Debian 13, current Fedora and Arch. On Debian 12 and
+Raspberry Pi OS bookworm (glibc 2.36) they do not start (`GLIBC_2.39 not found`); the image
+carries its own glibc and runs there, on a Raspberry Pi with a 64-bit OS as well (`linux/arm64`).
 
 ## Quick start
 
@@ -123,19 +130,27 @@ environment:
 The image ships the helper binaries the service shells out to, so media downloads, streams,
 galleries, unpacking, PAR2 repair and Apprise notifications work out of the box:
 
-| Tool | Source | Used for |
-| --- | --- | --- |
-| `ffmpeg`, `ffprobe` | Debian | Merging and converting media, probing formats |
-| `yt-dlp` | pip, pinned | Media downloads |
-| `streamlink` | pip, pinned | Live streams |
-| `gallery-dl` | pip, pinned | Galleries |
-| `apprise` | pip, pinned | Notifications to Telegram, Discord, Matrix, ntfy and the like |
-| `7z` (7-Zip `7zz`) | Debian | Unpacking, including RAR5 |
-| `par2` | Debian | Usenet PAR2 verification and repair |
+| Tool | Source | Licence | Used for |
+| --- | --- | --- | --- |
+| `ffmpeg`, `ffprobe` | Debian | GPL-2.0-or-later (Debian's build) | Merging and converting media, probing formats |
+| `yt-dlp` | pip, pinned | Unlicense | Media downloads |
+| `streamlink` | pip, pinned | BSD-2-Clause | Live streams |
+| `gallery-dl` | pip, pinned | GPL-2.0-only | Galleries |
+| `apprise` | pip, pinned | BSD-2-Clause | Notifications to Telegram, Discord, Matrix, ntfy and the like |
+| `7z` (7-Zip) | Debian `7zip` | LGPL-2.1-or-later, parts BSD-3-Clause | Unpacking |
+| RAR codec for `7z` | Debian non-free `7zip-rar` | unRAR licence | Extracting RAR, RAR5 included |
+| `par2` | Debian | GPL-2.0-or-later | Usenet PAR2 verification and repair |
 
-`unrar` is deliberately absent: it is non-free, and Debian's `unrar-free` cannot read RAR5.
-`7zz` covers RAR extraction, and the image symlinks it to the name `7z` that the service looks
-for.
+The full licence texts are in the image: `/usr/share/doc/<package>/copyright` for the Debian
+packages, the `*.dist-info` folders under `/opt/venv/lib/` for the pip ones.
+
+**RAR is extract only.** Debian builds 7-Zip without the RAR codec, because the codec is under
+the unRAR licence, which allows extracting RAR archives but forbids using the code to create
+them or to re-create the RAR compression algorithm. The image therefore enables Debian's
+`non-free` component for exactly one package, `7zip-rar`, which plugs that codec into `7z`; the
+image build fails if `7z` does not list the RAR5 codec afterwards. Nothing in the image can
+create a RAR archive. `unrar` itself is not included — `7z` covers RAR5, and Debian's
+`unrar-free` cannot read it.
 
 The pinned versions are visible under *Settings → Tools*, together with where each
 binary was found. **yt-dlp ages fast** — sites break and a fix lands within days. To run a newer
@@ -251,8 +266,8 @@ Three things that bite:
   `scripts/docker.sh` passes `--build-arg RD_BUILD_JOBS=4`; with a plain `docker build`, pass
   it yourself.
 - **Name the build.** The context carries no `.git`, so the image cannot work out its own
-  commit and build time for *Settings → About rDownloader*. `scripts/docker.sh` and the release
-  workflow pass `--build-arg RD_BUILD_COMMIT=… --build-arg RD_BUILD_TIME=…`, worked out by
+  commit and build time for *Settings → About rDownloader*. `scripts/docker.sh` passes
+  `--build-arg RD_BUILD_COMMIT=… --build-arg RD_BUILD_TIME=…`, worked out by
   `rd_build_stamp` in `scripts/lib/version-file.sh`; a plain `docker build` without them shows
   both as "unknown".
 - **Docker Desktop on WSL.** It writes `credsStore: desktop.exe` into `~/.docker/config.json`,
@@ -266,6 +281,41 @@ For a multi-arch image:
 ```bash
 docker buildx build --file docker/Dockerfile \
   --platform linux/amd64,linux/arm64 --tag rdownloader:local .
+```
+
+### Two targets: compiled here, or copied from a release build
+
+`docker/Dockerfile` ends in two targets that share every runtime layer — tools, user, volumes,
+entrypoint, health check:
+
+| Target | Binary | Used by |
+| --- | --- | --- |
+| `runtime` (default) | compiled in the image's own Rust stage | `scripts/docker.sh build`, a plain `docker build` |
+| `prebuilt` | copied from `dist/docker/linux-<arch>/rdownloader` in the build context | CI and the release workflow |
+
+The release does not compile rDownloader a second time for the image: its `container` job takes
+the `rdownloader-linux-x86_64` and `rdownloader-linux-aarch64` tarballs the `binaries` job built
+(the latter on GitHub's native arm runner), unpacks them to `dist/docker/linux-amd64/` and
+`dist/docker/linux-arm64/`, builds `--target prebuilt` for both platforms, smoke-tests the amd64
+image (`scripts/docker-smoke.sh`) and only then pushes. `:latest` moves only for the newest
+`vX.Y.Z` tag. CI builds the amd64 release binary on the runner and smoke-tests the same target;
+arm64 is built only at a release.
+
+**glibc floor.** A prebuilt binary runs only on a glibc at least as new as the one it was linked
+against. The release binaries are built on `ubuntu-24.04` / `ubuntu-24.04-arm` (glibc 2.39); the
+runtime base is `debian:trixie-slim` (glibc 2.41). Moving the release runners to a newer Ubuntu
+means checking the base first. The `prebuilt` target runs `rdownloader --version` as its last
+step, so a binary that is missing, for the wrong architecture or linked against a newer glibc
+fails the image build rather than the first start.
+
+To use the `prebuilt` target yourself, put a Linux binary built on a system with glibc 2.41 or
+older where it expects one:
+
+```bash
+mkdir -p dist/docker/linux-amd64
+cp target/release/rdownloader dist/docker/linux-amd64/
+docker build --file docker/Dockerfile --target prebuilt --tag rdownloader:local .
+scripts/docker-smoke.sh rdownloader:local
 ```
 
 ## Troubleshooting

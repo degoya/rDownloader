@@ -57,6 +57,7 @@ FORBIDDEN=(
     muda             # menu bar, half of the tray integration
     open             # launches a desktop application; nothing headless opens one
     pango            # GTK's text layout
+    png              # decodes the tray icon; tray-icon and muda pull it too
     skia-safe        # 2D renderer
     slint            # GUI framework
     softbuffer       # framebuffer for a window

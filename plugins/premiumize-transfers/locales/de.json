@@ -2,7 +2,6 @@
   "name": "Premiumize-Transfers",
   "description": "Führt Magnets, Container und einfache Links als Transfers in einem Premiumize.me-Konto aus.",
   "codes": {
-    "premiumize_transfers.account_missing": "Premiumize-Konto fehlt",
     "premiumize_transfers.api_error": "Premiumize-API-Fehler {api_code}",
     "premiumize_transfers.auth_invalid": "Die Premiumize-Anmeldung ist nicht mehr gültig. Hinterlege den API-Schlüssel erneut.",
     "premiumize_transfers.container_unknown": "Das Format dieses Containers wurde nicht erkannt",

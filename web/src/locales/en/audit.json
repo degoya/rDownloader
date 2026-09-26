@@ -50,7 +50,11 @@
     "logs_cleared": "Service log cleared",
     "audit_cleared": "Audit log cleared",
     "stats_cleared": "Statistics cleared",
-    "notifications_cleared": "Notification history cleared"
+    "notifications_cleared": "Notification history cleared",
+    "plugin_repository_added": "Plugin repository added",
+    "plugin_repository_changed": "Plugin repository changed",
+    "plugin_repository_removed": "Plugin repository removed",
+    "plugin_version_chosen": "Plugin version chosen"
   },
   "list": {
     "title": "Records",

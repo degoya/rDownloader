@@ -19,8 +19,6 @@ pub const PBKDF2_ROUNDS: u32 = 100_000;
 pub const DERIVED_BYTES: u32 = 32;
 /// Bytes of the decrypted `csid` that make up a session identifier.
 pub const SESSION_BYTES: usize = 43;
-/// Longest e-mail address this plugin will put in a request.
-pub const MAX_USER_BYTES: usize = 320;
 
 /// What `us0` answered: the account's salt and which derivation it wants.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -13,15 +13,17 @@
 #
 # Idempotent: with nothing due it writes nothing and exits 0. It refuses (exit 2) to run over
 # uncommitted changes under docs/roadmap/jobs/, so it never mixes into someone's work. It stages
-# the moves only; the rewritten files are left for the commit that takes them.
+# the moves only; the rewritten files are left for the commit that takes them. With nothing due
+# it still recounts a Job Inventory that disagrees with the catalogs (RD-140-24).
 #
 # The release pipeline runs it as its `archive-jobs` step, between docs-gate and commit-guard,
 # so the jobs a release finished move within the release commit.
 #
 # Usage:
 #   scripts/archive-jobs.sh                   # move what is due
-#   scripts/archive-jobs.sh --check           # name what is due, and any open job lying in
-#                                             # archive/; exit 1 if there is either (check.sh)
+#   scripts/archive-jobs.sh --check           # name what is due, any open job lying in archive/
+#                                             # and any miscounted Job Inventory row; exit 1 if
+#                                             # there is any of them (check.sh)
 #   scripts/archive-jobs.sh --release 1.4.0   # also treat 1.4.0 as tagged (the pipeline's form)
 #
 set -euo pipefail

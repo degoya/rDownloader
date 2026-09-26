@@ -53,3 +53,26 @@ default-filter = """
         )
     )
 """
+
+# The CI run (RD-140-21): the selection above, plus what a green check alone does not say.
+#
+#   cargo nextest run -P ci …
+#
+# * JUnit, written to target/nextest/ci/junit.xml. The `rust` job runs nextest once per group
+#   of test executables, so it copies the file away after every group and uploads the lot as
+#   the `junit-<os>` artefact, pass or fail.
+# * One retry. A test that fails and then passes is reported as FLAKY in the summary and keeps
+#   its failed attempt in the JUnit file, so it is visible rather than hidden — and it is a
+#   finding to fix, not a pass to shrug at.
+# * The final summary lists slow and flaky tests, not only failures: a test drifting towards
+#   the default profile's 60 s `slow-timeout` shows up there runs before it is terminated.
+[profile.ci]
+inherits = "no-components"
+retries = 1
+fail-fast = false
+final-status-level = "slow"
+
+[profile.ci.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true

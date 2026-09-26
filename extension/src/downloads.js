@@ -5,7 +5,7 @@
 // hand. Nothing else would help — the work it belonged to is gone with the worker.
 //
 // What does have to survive a teardown is the little that is meant to happen *once*: the capture
-// version negotiated with the server, and the two one-off notices. As closure variables they
+// version negotiated with the server, and the one-off notice. As closure variables they
 // were thrown away roughly every thirty idle seconds, which turned a single hint into a message
 // on every download and put an extra `/capture/ping` in front of each one (RD-109-19). They live
 // in `storage.session` now, each with an expiry, so a stale entry is never worse than none.
@@ -14,7 +14,6 @@ import { normalizeServer } from './api.js'
 import {
   CONTRACT_VERSION,
   buildIntakePayload,
-  buildLegacyPayload,
   correlateRequest,
   originMatchPattern,
   shouldIntercept,
@@ -29,7 +28,6 @@ export const CAPABILITY_TTL_MS = 5 * 60 * 1000
 export const NOTICE_TTL_MS = 24 * 60 * 60 * 1000
 
 const CAPABILITY_KEY = 'captureCapability'
-const LEGACY_NOTICE_KEY = 'interceptLegacyNotice'
 const UNCONFIGURED_NOTICE_KEY = 'interceptUnconfiguredNotice'
 
 /**
@@ -289,7 +287,7 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     if (entry.state !== 'paused') return
     entry.state = 'submitting'
 
-    const { version, reachable } = await captureVersion(config)
+    const { reachable } = await captureVersion(config)
     if (!reachable) {
       // Nothing answered on that address. Submitting would fail anyway, and calling a service
       // that is simply not running "too old" sends the person after a version problem that
@@ -298,23 +296,16 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
       await finishKept(item.id, entry, message('interceptServerUnreachable'))
       return
     }
-    let body
-    if (version >= 1) {
-      // `null` used to be indistinguishable from an observed GET, which is how a POST whose
-      // buffered entry had been evicted was handed over with `method: "GET"` and no body: the
-      // browser's own copy was cancelled and erased, and rDownloader fetched whatever a GET to
-      // that address answers — stored under the right file name (RD-109-18).
-      if (!captured && (await couldObserve(item.url))) {
-        entry.state = 'paused'
-        await finishKept(item.id, entry, message('interceptRequestUnknown'))
-        return
-      }
-      body = buildIntakePayload({ item, captured, userAgent })
-    } else {
-      body = buildLegacyPayload(item)
-      await once(LEGACY_NOTICE_KEY, () => notify(message('interceptLegacyServer')))
+    // `null` used to be indistinguishable from an observed GET, which is how a POST whose
+    // buffered entry had been evicted was handed over with `method: "GET"` and no body: the
+    // browser's own copy was cancelled and erased, and rDownloader fetched whatever a GET to
+    // that address answers — stored under the right file name (RD-109-18).
+    if (!captured && (await couldObserve(item.url))) {
+      entry.state = 'paused'
+      await finishKept(item.id, entry, message('interceptRequestUnknown'))
+      return
     }
-    const result = await submit(config, body)
+    const result = await submit(config, buildIntakePayload({ item, captured, userAgent }))
     await finish(item.id, entry, result)
   }
 

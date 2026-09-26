@@ -19,6 +19,8 @@
 #   scripts/export-public.sh 1.3.0 --ref <commit>     # export another ref than v1.3.0
 #   scripts/export-public.sh 1.3.0 --branch ci-check  # an unreleased export (default ref: HEAD),
 #                                                     # committed to that branch and pushed there
+#   scripts/export-public.sh 1.3.0 --branch ci-check --skip-push-ci
+#                                                     # ... with no CI started by the push itself
 #
 # The user handbook is not part of this tree; it goes to the repository's GitHub wiki through
 # scripts/export-wiki.sh.
@@ -28,6 +30,11 @@
 # starts the branch afresh from the clone's main each time, commits without a tag, and
 # force-pushes the branch, because a re-export replaces the previous one. It pushes by itself —
 # naming a branch is the explicit request — and it never touches main or a tag.
+#
+# --skip-push-ci puts `[skip ci]` into that commit's message, which GitHub honours for push
+# events only. scripts/public-ci.sh uses it when it starts ci.yml by hand for fewer platforms: the
+# push would otherwise start a second run on all three, and the workflow's concurrency group
+# cancels one of the two, which then reads as a red run (2026-09-26, ci/1.3.1, three times).
 #
 # Environment:
 #   RD_PUBLIC_DIR     the local clone (default: ~/projects/rDownloader-public)
@@ -51,13 +58,15 @@ VERSION=""
 REF=""
 BRANCH=""
 DO_PUSH=0
+SKIP_PUSH_CI=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --push) DO_PUSH=1; shift ;;
         --ref) REF="${2:?--ref needs a ref}"; shift 2 ;;
         --branch) BRANCH="${2:?--branch needs a branch name}"; shift 2 ;;
-        -h|--help) sed -n '2,37p' "$0"; exit 0 ;;
+        --skip-push-ci) SKIP_PUSH_CI=1; shift ;;
+        -h|--help) sed -n '2,43p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
@@ -66,11 +75,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$VERSION" ]]; then
-    echo "usage: scripts/export-public.sh <version> [--push] [--ref <ref>] [--branch <name>]" >&2
+    echo "usage: scripts/export-public.sh <version> [--push] [--ref <ref>] [--branch <name> [--skip-push-ci]]" >&2
     exit 2
 fi
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "not a release version: $VERSION" >&2
+    exit 2
+fi
+if [[ "$SKIP_PUSH_CI" -eq 1 && -z "$BRANCH" ]]; then
+    echo "--skip-push-ci goes with --branch" >&2
     exit 2
 fi
 if [[ -n "$BRANCH" ]]; then
@@ -157,7 +170,9 @@ commit_as() {
 }
 
 if [[ -n "$BRANCH" ]]; then
-    commit_as commit --quiet --allow-empty -m "Unreleased export of ${COMMIT:0:12} (towards $VERSION)"
+    message="Unreleased export of ${COMMIT:0:12} (towards $VERSION)"
+    [[ "$SKIP_PUSH_CI" -eq 0 ]] || message+=" [skip ci]"
+    commit_as commit --quiet --allow-empty -m "$message"
     echo "==> committed $(pub rev-parse --short HEAD) on $BRANCH; pushing it"
     pub push --force origin "$BRANCH"
     pub checkout --quiet "$PUBLIC_MAIN" 2> /dev/null || true

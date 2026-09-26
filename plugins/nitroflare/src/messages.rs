@@ -1,13 +1,6 @@
 //! User-facing texts and stable failure codes shared by the native and WebAssembly adapters.
 //!
 //! Each `(code, message)` pair exists exactly once so both targets report identical text.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
-
-/// The request carried no account identity.
-pub(crate) const ACCOUNT_MISSING: (&str, &str) = (
-    "nitroflare.account_missing",
-    "Nitroflare account is missing",
-);
 
 /// The account has no Nitroflare premium key configured.
 pub(crate) const PREMIUM_KEY_MISSING: (&str, &str) = (

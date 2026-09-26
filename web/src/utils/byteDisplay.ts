@@ -30,7 +30,7 @@ export type ByteUnit = 'auto' | 'byte' | 'kilo' | 'mega' | 'giga' | 'tera' | 'pe
 /** The pinnable magnitudes in ladder order; the index is the power the divisor is raised to. */
 export const BYTE_UNIT_STEPS: readonly ByteUnit[] = ['byte', 'kilo', 'mega', 'giga', 'tera', 'peta']
 
-export const byteUnit = ref<ByteUnit>('auto')
+const byteUnit = ref<ByteUnit>('auto')
 
 export function setByteUnit(value: string | null | undefined): void {
   byteUnit.value = BYTE_UNIT_STEPS.includes(value as ByteUnit) ? (value as ByteUnit) : 'auto'

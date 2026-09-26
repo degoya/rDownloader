@@ -8,7 +8,7 @@ use rd_provider_registry::CredentialMode;
 use sqlx::{Connection, FromRow, Row, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::{error::StoreError, parse_id, writer::insert_event};
+use crate::{enum_string, error::StoreError, parse_enum, parse_id, writer::insert_event};
 
 #[derive(Clone, Debug)]
 pub struct NewAccount {
@@ -528,12 +528,4 @@ impl TryFrom<ProxyRow> for ProxyProfile {
 
 fn network_event<T: serde::Serialize>(kind: EventKind, resource: &str, id: T) -> EventEnvelope {
     EventEnvelope::new(kind, serde_json::json!({ "resource": resource, "id": id }))
-}
-
-pub(crate) fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
-}
-
-pub(crate) fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
-    serde_json::from_str(&format!("\"{value}\"")).context("parse stored enum")
 }

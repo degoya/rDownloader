@@ -324,19 +324,20 @@ async fn the_bulk_endpoint_resets_several_files_at_once() {
 
 /// Waits until `id` reads `state`, and says what it does read when it never gets there.
 async fn await_download_state(router: &axum::Router, id: &str, state: &str) {
-    for _ in 0..200 {
+    let what = format!("the download never reached {state}");
+    common::eventually_ok(common::WAIT, &what, || async move {
         let (_, downloads) = common::get_json(router, "/api/v1/downloads").await;
         let current = downloads
             .as_array()
             .and_then(|list| list.iter().find(|row| row["id"] == id))
             .map(|row| row["state"].clone());
         if current.as_ref().and_then(serde_json::Value::as_str) == Some(state) {
-            return;
+            Ok(())
+        } else {
+            Err(downloads)
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    let (_, downloads) = common::get_json(router, "/api/v1/downloads").await;
-    panic!("the download never reached {state}: {downloads}");
+    })
+    .await;
 }
 
 /// Parks the package in `category_id`, puts a finished payload in its folder, and completes it.
@@ -378,20 +379,24 @@ async fn finished_package_in(
 
 /// Waits until package `id` is out of post-processing, and says what it reads when it never is.
 async fn await_package_settled(router: &axum::Router, id: &str) {
-    let mut last = serde_json::Value::Null;
-    for _ in 0..200 {
-        let (_, packages) = common::get_json(router, "/api/v1/packages").await;
-        last = packages
-            .as_array()
-            .and_then(|list| list.iter().find(|row| row["id"] == id))
-            .map(|row| row["state"].clone())
-            .unwrap_or_default();
-        if last.as_str() != Some("postprocessing") {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    panic!("the package never left post-processing, last read {last}");
+    common::eventually_ok(
+        common::WAIT,
+        "the package never left post-processing",
+        || async move {
+            let (_, packages) = common::get_json(router, "/api/v1/packages").await;
+            let state = packages
+                .as_array()
+                .and_then(|list| list.iter().find(|row| row["id"] == id))
+                .map(|row| row["state"].clone())
+                .unwrap_or_default();
+            if state.as_str() == Some("postprocessing") {
+                Err(state)
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .await;
 }
 
 /// The gap this endpoint closes (RD-106-13): `PATCH /packages/{id}` renames the label and

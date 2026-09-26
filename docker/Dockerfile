@@ -1,3 +1,14 @@
+# Two ways to the same image (RD-140-25):
+#
+#   runtime   (the default, last stage) compiles rDownloader in the `builder` stage. For a local
+#             build without a Linux binary at hand: scripts/docker.sh build.
+#   prebuilt  copies the binary the release workflow already built, from
+#             dist/docker/linux-$TARGETARCH/rdownloader in the build context, and compiles nothing.
+#             CI and the release take this one: `--target prebuilt`.
+#
+# Both finish on `runtime-base`, so tools, users, volumes and health check cannot drift apart.
+# BuildKit builds only the stages the chosen target needs: `prebuilt` never touches node or rust.
+
 FROM node:24-bookworm-slim AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
@@ -29,16 +40,27 @@ ARG RD_BUILD_COMMIT=
 ARG RD_BUILD_TIME=
 RUN cargo build --locked --release ${RD_BUILD_JOBS:+-j ${RD_BUILD_JOBS}} -p rdownloader
 
-FROM debian:bookworm-slim AS runtime
+# Debian 13, glibc 2.41. The base sets the glibc floor for the prebuilt binary: the release builds
+# it on ubuntu-24.04 (glibc 2.39), and a binary linked against a newer glibc than the image has
+# does not start ("GLIBC_2.xx not found"). Moving the release runners to a newer Ubuntu therefore
+# means checking this line first; the `--version` guard below fails the build if it was not.
+FROM debian:trixie-slim AS runtime-base
 # Pinned so the image is reproducible. yt-dlp in particular ages fast; the running versions are
 # visible under Settings -> External tools, and a newer one can be dropped into /config/vendor.
 ARG YT_DLP_VERSION=2026.8.19
 ARG STREAMLINK_VERSION=8.5.0
 ARG GALLERY_DL_VERSION=1.32.11
 ARG APPRISE_VERSION=1.13.1
-RUN apt-get update \
+# RAR extraction (owner, 2026-09-26): Debian builds 7-Zip without the RAR codec, which lives in
+# `7zip-rar` in the non-free component, under the unRAR licence (extract only). The component is
+# switched on for that one package; the sed is checked, since a changed sources file would
+# otherwise just leave the package unfound.
+RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
+    && grep -q '^Components: main non-free$' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install --no-install-recommends -y \
         7zip \
+        7zip-rar \
         ca-certificates \
         curl \
         ffmpeg \
@@ -55,14 +77,16 @@ RUN apt-get update \
         "apprise==${APPRISE_VERSION}" \
     && ln -s /opt/venv/bin/yt-dlp /opt/venv/bin/streamlink /opt/venv/bin/gallery-dl \
         /opt/venv/bin/apprise /usr/local/bin/ \
-    # Post-processing and the tool status look up a binary called `7z`; Debian's 7zip package
-    # installs it as `7zz`. unrar stays out on purpose: it is non-free, and unrar-free cannot
-    # read RAR5, which 7zz can.
-    && ln -s /usr/bin/7zz /usr/local/bin/7z \
+    # Post-processing and the tool status look up a binary called `7z`. Debian 13's 7zip package
+    # installs it under that name (Debian 12's had only `7zz`, which needed a link). Checked here,
+    # together with the RAR5 codec from 7zip-rar (codec id 40305), because either missing would
+    # otherwise surface only as a failed unpack. The codec line, not the format line: the format
+    # can be listed without a codec to decode it.
+    && { 7z i | grep -Eq '(^|[[:space:]])40305[[:space:]]+Rar5([[:space:]]|$)' \
+        || { 7z i | sed -n '/^Codecs:/,$p'; echo "7z has no RAR5 codec" >&2; exit 1; }; } \
     && useradd --create-home --uid 10001 rdownloader \
     && mkdir -p /config /downloads \
     && chown -R rdownloader:rdownloader /config /downloads
-COPY --from=builder /src/target/release/rdownloader /usr/local/bin/rdownloader
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Signed plugin packages produced by the release workflow. A local build without
 # scripts/build-plugins.sh copies an empty directory, and the service says so at startup.
@@ -85,3 +109,15 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
 # `user:` in compose skips all of it.
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]
+
+FROM runtime-base AS prebuilt
+# Set by buildx per platform: amd64 or arm64. The workflows unpack the release tarballs there.
+ARG TARGETARCH
+COPY --chmod=0755 dist/docker/linux-${TARGETARCH}/rdownloader /usr/local/bin/rdownloader
+# The guard: a binary that is missing fails the COPY above, one that cannot run here — the wrong
+# architecture, a glibc newer than the base's — fails this line, not the first start of a user.
+RUN rdownloader --version
+
+FROM runtime-base AS runtime
+COPY --from=builder /src/target/release/rdownloader /usr/local/bin/rdownloader
+RUN rdownloader --version

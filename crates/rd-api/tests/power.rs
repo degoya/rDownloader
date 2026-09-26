@@ -70,15 +70,16 @@ async fn quiet_hours_are_reported_once_a_window_covers_the_current_time() {
         .await
         .expect("settings");
 
-    for _ in 0..60 {
-        let (_, power) = common::get_json(&harness.router, "/api/v1/power/status").await;
-        if power["quiet"] == true {
-            // A window covering every minute of the week never ends, so there is no end to
-            // report — the field stays empty rather than inventing one.
-            assert!(power["quiet_until"].is_null(), "{power}");
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    }
-    panic!("quiet hours were never reported");
+    let router = &harness.router;
+    // The quiet-hours state is re-evaluated on a timer; the budget is the twelve seconds the
+    // hand-written loop gave it.
+    let within = std::time::Duration::from_secs(12);
+    let power = common::eventually(within, "quiet hours were never reported", || async move {
+        let (_, power) = common::get_json(router, "/api/v1/power/status").await;
+        (power["quiet"] == true).then_some(power)
+    })
+    .await;
+    // A window covering every minute of the week never ends, so there is no end to report —
+    // the field stays empty rather than inventing one.
+    assert!(power["quiet_until"].is_null(), "{power}");
 }

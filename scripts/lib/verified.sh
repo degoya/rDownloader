@@ -16,11 +16,10 @@
 # checkout root, in a directory beside the stamp, keeps the record per checkout as intended and
 # still out of the source tree, where git would have to ignore it.
 
-# The target directory of the checkout rooted at $1, by the same derivation check.sh,
-# build-plugins.sh and the packaging scripts use.
-rd_target_dir() {
-    printf '%s\n' "${CARGO_TARGET_DIR:-$1/target}"
-}
+# The target directory of the checkout rooted at $1 — rd_target_dir — is derived in lanes.sh, by
+# the same rule check.sh, build-plugins.sh and the packaging scripts use.
+# shellcheck source=lanes.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lanes.sh"
 
 # The marker file for the checkout rooted at $1.
 rd_verified_marker() {
@@ -145,4 +144,54 @@ rd_full_gate() {
     echo "   missing for tree ${tree:0:12}: ${missing[*]}" >&2
     echo "   A branch green is scoped and does not count; run scripts/check.sh --full here." >&2
     return 1
+}
+
+# --- a release that does not test a tested tree twice (RD-140-06) -----------------------------
+#
+# The release chain bumps the version and then ran the whole Rust suite again, ~20 minutes, on a
+# tree that differs from one a `check.sh --full` had just passed only in the version strings.
+# The version files are what scripts/set-version.sh writes; a bump counts as version-only when
+# every line it changed in them is a `version` line, so an edit that rode along in Cargo.toml or
+# Cargo.lock still gets its full run.
+RD_VERSION_FILES=(Cargo.toml Cargo.lock web/package.json extension/manifest.base.json)
+
+# The workspace version in the Cargo.toml text on stdin, as scripts/set-version.sh reads it.
+rd_workspace_version() {
+    sed -n '/^\[workspace\.package\]/,/^\[/p' | sed -n 's/^version = "\(.*\)"/\1/p' | head -1
+}
+
+# Whether the working tree of checkout $1 differs from $2 (default HEAD) only by a version bump:
+# nothing untracked, no path but the version files, and in them no line but one that carried
+# the old workspace version and now carries the new one. A dependency's `version` line in
+# Cargo.lock looks the same and is exactly what must not pass, so the versions are compared, not
+# just the key.
+rd_version_bump_only() {
+    local root="$1" base="${2:-HEAD}" changed lines old new path file allowed
+    changed="$({ git -C "$root" diff --name-only "$base"; git -C "$root" ls-files --others --exclude-standard; } | sed '/^$/d' | sort -u)"
+    [[ -n "$changed" ]] || return 1
+    while read -r path; do
+        allowed=0
+        for file in "${RD_VERSION_FILES[@]}"; do [[ "$path" == "$file" ]] && allowed=1; done
+        [[ "$allowed" -eq 1 ]] || return 1
+    done <<< "$changed"
+    old="$(git -C "$root" show "$base:Cargo.toml" 2> /dev/null | rd_workspace_version)"
+    new="$(rd_workspace_version < "$root/Cargo.toml")"
+    [[ -n "$old" && -n "$new" && "$old" != "$new" ]] || return 1
+    old="${old//./\\.}"
+    new="${new//./\\.}"
+    lines="$(git -C "$root" diff -U0 "$base" -- "${RD_VERSION_FILES[@]}" | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
+    ! grep -vE "^-[[:space:]]*(\"version\": \"$old\",?|version = \"$old\")\$" <<< "$lines" \
+        | grep -qvE "^\+[[:space:]]*(\"version\": \"$new\",?|version = \"$new\")\$"
+}
+
+# The tree a `--full` Rust green was recorded for in checkout $1 when that tree is HEAD's own and
+# the working tree differs from HEAD only by a version bump; prints nothing otherwise. HEAD is
+# the state before the bump, because the release chain commits the bump only later.
+rd_prebump_full_green() {
+    local root="$1" before recorded
+    before="$(git -C "$root" rev-parse 'HEAD^{tree}')"
+    recorded="$(sed -n 's/^rust //p' "$(rd_full_marker "$root")" 2> /dev/null || true)"
+    [[ -n "$recorded" && "$recorded" == "$before" ]] || return 0
+    rd_version_bump_only "$root" HEAD || return 0
+    printf '%s\n' "$recorded"
 }

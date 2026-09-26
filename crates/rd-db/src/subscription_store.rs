@@ -184,24 +184,6 @@ pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Sub
     .collect()
 }
 
-pub(crate) async fn items(
-    pool: &SqlitePool,
-    id: SubscriptionId,
-    limit: i64,
-) -> Result<Vec<SubscriptionItem>> {
-    sqlx::query_as::<_, ItemRow>(&format!(
-        "SELECT {ITEM_COLUMNS} FROM subscription_items WHERE subscription_id = ? \
-         ORDER BY discovered_at DESC, id DESC LIMIT ?"
-    ))
-    .bind(id.to_string())
-    .bind(limit)
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(TryInto::try_into)
-    .collect()
-}
-
 /// One state-filtered archive page plus totals calculated across the complete subscription.
 pub(crate) async fn item_page(
     pool: &SqlitePool,

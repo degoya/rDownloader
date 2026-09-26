@@ -11,10 +11,8 @@
     "premiumize.api_error": "Premiumize API error: {message}",
     "premiumize.api_key_required": "Premiumize API key is missing",
     "premiumize.http_error": "Premiumize HTTP status {status}",
-    "premiumize.invalid_link": "Invalid Premiumize download link",
     "premiumize.invalid_response": "Invalid Premiumize response",
     "premiumize.invalid_response_field": "Premiumize sent a field this plugin cannot read: {field}",
-    "premiumize.invalid_url": "Invalid provider URL: {error}",
     "premiumize.no_file": "Premiumize did not return a file"
   }
 }

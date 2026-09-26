@@ -1,5 +1,6 @@
 #!/bin/sh
-# Fake yt-dlp for tests. Modes via FAKE_YTDLP_MODE: ok (default) | fail | slow.
+# Fake yt-dlp for tests. Modes via FAKE_YTDLP_MODE: ok (default) | fail | slow | unmerged |
+# unmerged-quiet.
 mode="${FAKE_YTDLP_MODE:-ok}"
 if [ "$1" = "--version" ]; then echo "2026.01.01-fake"; exit 0; fi
 # This fixture doubles as the fake ffmpeg, which is asked with a single dash. Answering
@@ -60,6 +61,18 @@ printf '%s\n' "$*" > "$(dirname "$target")/ytdlp-args.txt"
 # what was handed over by copying it here while the process still holds it.
 if [ -n "$cookies" ] && [ -f "$cookies" ]; then
   cp "$cookies" "$(dirname "$target")/ytdlp-cookies.txt"
+fi
+# yt-dlp that could not run ffmpeg for a merge: the two streams stay separate files and the
+# reported target is never written. `unmerged` says so on stderr as yt-dlp does;
+# `unmerged-quiet` leaves only the files behind.
+if [ "$merged" = "1" ] && { [ "$mode" = "unmerged" ] || [ "$mode" = "unmerged-quiet" ]; }; then
+  if [ "$mode" = "unmerged" ]; then
+    echo "WARNING: You have requested merging of multiple formats but ffmpeg is not installed. The formats won't be merged" >&2
+  fi
+  head -c 204800 /dev/zero > "${target%.*}.f137.mp4"
+  head -c 102400 /dev/zero > "${target%.*}.f251.webm"
+  print_final_path "$target"
+  exit 0
 fi
 # Real yt-dlp turns quiet on for --print and then emits no progress unless --progress is
 # also given. Mirroring that here keeps the runner honest about passing both.

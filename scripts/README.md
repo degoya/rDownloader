@@ -7,7 +7,10 @@ and taken WSL down more than once.
 | Script | Purpose |
 | --- | --- |
 | `dev.sh` | Run the service locally (`--fresh`, `--unsigned`, `PORT=`) |
-| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`) |
+| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`); `--windows` alone is the Windows lint, `cargo xwin clippy` over every crate with all targets and features (RD-140-23) |
+| `integrate.sh` | Integrate a wave: integration worktree from `--base`, each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the generators once, unbumped components refused and stale ones built, then `check.sh --full` and `--windows` detached with logs, PID and status under `/tmp/claude-<uid>/<branch>/`; `--merge-only`, `--no-check`, `--no-windows`; a re-run skips what is merged (RD-140-22) |
+| `public-ci.sh` | Run the public GitHub CI on a branch before its merge: export as `ci/<branch>`, `--platforms linux,windows` starts `ci.yml` for exactly those (the push itself carries `[skip ci]`), wait, delete the public branch on green, keep it and fail on red; shares `lib/public-ci.sh` with the release's `public-ci` step (RD-140-22, RD-140-23) |
+| `ci-log.sh` | Read a failed GitHub run: name the failed jobs, store each log without ANSI codes and timestamps under `/tmp/claude-<uid>/ci/`, print only the `FAIL`, `error[E…]`/`error:`, `panicked`, `failures` and `##[error]` lines with their line numbers; a run id, run or job URL, or `--job <id>` (RD-140-22) |
 | `package-linux.sh` | Linux release build → `artifacts/linux` + tarball, with `VERSION.txt` (version, commit, build time; in `release-pipeline.sh` `Release-Build X.Y.Z (Basis <sha>)` instead of `<sha>-dirty`); verifies the committed site-rule file with the new binary and puts it beside the tarball as `artifacts/rdownloader-site-rules.json` (RD-130-07) |
 | `package-windows.sh` | Windows cross-build from WSL → `artifacts/windows` + zip, with `VERSION.txt`; refuses a tree without a `--full` green |
 | `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned |
@@ -15,32 +18,45 @@ and taken WSL down more than once.
 | `check-capture-linux-tree.sh` | Hold the resolved Linux dependency tree of `rd-capture` against the window stacks |
 | `web-dist-stale.sh` | Is `web/dist` current? Exit 0 yes, 1 missing or behind a source |
 | `docker.sh` | Build and run the container image (`build`, `run --port N`, `stop`) |
+| `docker-smoke.sh` | Start an image on fresh volumes and check `--version`, `/api/v1/health` and apprise as the service user; CI and the release run it before any push (RD-140-25) |
 | `set-version.sh` | Read or set the release version (`Cargo.toml`, `web/package.json`, `extension/manifest.base.json`, lock) |
 | `tag-release.sh` | Annotated `vX.Y.Z` tag for the current commit; refuses a tree without a `--full` green; never pushes |
 | `release.sh` | The whole chain in order: version, checks, packages |
 | `release-pipeline.sh` | The same chain run to the tag, with an evidence log that gates it |
+| `release-start.sh` | Start web build → `check.sh --full` → `release-pipeline.sh <version> [--push]` detached (`setsid nohup`); log, PID and exit code under `/tmp/claude-<uid>/release-<version>/` (RD-140-06) |
+| `prune-target.sh` | Keep `target/` small: per `deps` directory keep the newest hash variant per stem (`--keep N`), drop stale unhashed split debug info and every `incremental/`; never `target/wasm32-unknown-unknown/`; `--dry-run` says what would go, lock-free; the lanes under `target/lanes/` each under their own lock, and with `--all` every worktree's own target (RD-140-06) |
 | `release-smoke.sh` | Start the built binary and check the real API and UI |
-| `export-public.sh` | Export a release tag to the public repository as one fresh commit, minus `public-exclude.txt` (all of `docs/` among it), refusing a link from what stays into what is left out, after a gitleaks scan; pushes only with `--push` (`--branch <name>` for an unreleased export) |
+| `export-public.sh` | Export a release tag to the public repository as one fresh commit, minus `public-exclude.txt` (all of `docs/` among it), refusing a link from what stays into what is left out, after a gitleaks scan; pushes only with `--push` (`--branch <name>` for an unreleased export, `--skip-push-ci` to keep its push from starting CI) |
 | `export-wiki.sh` | Convert the private user wiki to GitHub-wiki form and commit it as "Handbook for <version>" into the public wiki's clone; pushes only with `--push`. Leaves out a page whose first line is `<!-- private page -->` (and its sidebar entry) and every section between `<!-- private -->` and `<!-- /private -->` lines; refuses a public link to either, a link into a path `public-exclude.txt` names, an unbalanced marker and marker text anywhere else |
 | `update-website.sh` | Set the website's `app/data/release.json` (`~/projects/rdownloader-website`) to a release — version, today's date; tag, asset, image and wiki links derive from it — check its wiki links against the public wiki clone, run its tests and `pnpm run generate`, commit "Release <version>" on its `main`; pushes only with `--push`. Never deploys: the last line names the built `.output/public/`, which the owner uploads by hand |
 | `api-contract.sh` | Regenerate `web/openapi.json` and the TS types (`--check` to verify) |
 | `build-extension.sh` | Test, build and verify Chrome/Firefox → `artifacts/browser-extensions` (`--skip-tests`, `--test-only`) |
-| `worktree.sh` | Create, check and finish a feature worktree without the symlink traps |
+| `worktree.sh` | Create, check and finish a feature worktree without the symlink traps; `new --own-target` gives it a check lane of its own (RD-140-06) |
 | `i18n-key.sh` | Add one translation key to all four catalogues at once |
 | `migration-pin.sh` | Pin a new migration's checksum in `crates/rd-db/migrations.sha384` (appends only) |
 | `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
 | `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/package-lock.json` changed (`--check` to verify) |
-| `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); a no-op when nothing is due; `--check` names what is due, and any open job lying in `archive/`, and exits 1 — `check.sh` runs it on every change; refuses uncommitted changes under `docs/roadmap/jobs/` |
+| `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); with nothing due it only recounts a Job Inventory the catalogs contradict; `--check` names what is due, any open job lying in `archive/` and any miscounted inventory row, and exits 1 — `check.sh` runs it on every change (RD-140-24); refuses uncommitted changes under `docs/roadmap/jobs/` |
+| `doc-facts.sh` | Write the release facts the documentation repeats — feature-list date and version, bundled-plugin count, `rdownloader:plugin@X.Y.Z` — from their sources; `--check` writes nothing and exits 1 on a stale value, 2 on a reworded anchor; `--wiki DIR` includes the user wiki; the pipeline's `doc-facts` step and `docs-gate` run it (RD-140-24) |
+| `session-state.sh` | Print the repository's state for a new session: worktrees ahead/behind `development` and dirty, the last greens, running chains under `/tmp/claude-<uid>/*/pid`, tags against `origin`, open GitHub runs; `--brief` for the session-start hook, `--no-network` skips the remote parts (RD-140-26) |
 | `measure-mega-login-fuel.sh` | Price a MEGA account sign-in in guest fuel (RD-120-11); a measurement, not a gate |
 
 The Cargo-heavy scripts take their parallelism from `scripts/lib/jobs.sh` (RD-130-17), the one
 place the defaults live. `JOBS=<n>` sets cargo's build jobs — memory, since each job is a
 `rustc` or a link; the default is 4. `TEST_THREADS=<n>` sets nextest's `--test-threads` in
-`check.sh` — CPU only, since building is over by then — and defaults to `JOBS`. Both must be
-positive whole numbers; anything else stops the script before cargo sees it.
+`check.sh` — CPU only, since building is over by then — and defaults to twice `JOBS`, capped at
+the machine's core count (RD-140-06). Both must be positive whole numbers; anything else stops the
+script before cargo sees it.
+
+**sccache, where it is installed.** Every script that takes the lock puts `sccache` in front of
+rustc (`RUSTC_WRAPPER`) when `command -v sccache` finds it, with `CARGO_INCREMENTAL=0` — sccache
+does not cache incremental output — and `SCCACHE_CACHE_SIZE` (default `40G`) as its ceiling. The
+checkout stamp keeps its job: it makes cargo ask rustc again for this checkout's crates, and sccache
+answers an unchanged file from the cache. A `RUSTC_WRAPPER` you set yourself is left alone;
+`RD_NO_SCCACHE=1` switches it off. Nothing installs sccache.
 
 **The heavy scripts serialise themselves.** `check.sh`, `build-plugins.sh`, `package-linux.sh`,
-`package-windows.sh`, `release.sh`, `release-pipeline.sh` and `api-contract.sh` re-run themselves
+`package-windows.sh`, `release.sh`, `release-pipeline.sh`, `api-contract.sh` and `prune-target.sh` re-run themselves
 under `flock` on `/tmp/rd-build.lock` through `scripts/lib/lock.sh`, so "check whether another
 build is running" is no longer anybody's job. A chain such as `release.sh` holds exactly one lock;
 the nested calls see `RD_LOCK_HELD=1` and pass straight through. `RD_LOCK_FILE` picks another
@@ -52,15 +68,33 @@ apart, the gate holds a run back against load from anywhere else. And `RD_NO_LOC
 stamp in `check.sh` your own responsibility, because that marker only stamps on a checkout change
 and it is the lock that stops two checkouts interleaving. Deliberately lock-free: the pure
 queries `build-plugins.sh --list-stale`, `--list-missing`, `--list-unbumped`,
-`--list-packageable` and `--source-hash`, `set-version.sh`, `worktree.sh check`, `release-pipeline.sh --plan`, and
+`--list-packageable` and `--source-hash`, `set-version.sh`, `worktree.sh check`, `release-pipeline.sh --plan`, `prune-target.sh --dry-run`, and
 `check.sh --defer`, which runs no cargo.
+
+**Lanes (RD-140-06).** A run takes two locks: first the one of the target directory it builds
+in — `/tmp/rd-build.lock` for the main checkout's shared `target/`, so a checkout still on the
+single-lock scripts of 1.3 waits for it too, and `/tmp/rd-build.lock.target-<checksum>` for any
+other — then the first free of `RD_LANES` lanes (default 2, `/tmp/rd-build.lock.lane<i>`,
+looked for every `RD_LANE_POLL` seconds). Everything that shares `target/` therefore still runs
+one at a time, as the checkout stamp needs; a second lane is a target directory of its own:
+a worktree made with `scripts/worktree.sh new --own-target <branch>` (`<worktree>/target`, its
+`wasm32-unknown-unknown/` a link to the shared components, the flag in its git directory so it
+goes with the worktree) or the release chain's Windows package (`target/lanes/windows`). A fresh
+target is claimed without stamping. Two, because each lane builds with `JOBS=4` and eight
+parallel rustc jobs is what 43 GB carry; `RD_MIN_FREE_MB` is checked per lane when it starts.
+Opt-in, because one lane's debug working set is ~52 GiB and a wave has up to ten worktrees
+whose agents do not compile (measurement: the job file of RD-140-06). A linked worktree finds its
+target without `CARGO_TARGET_DIR` now (`scripts/lib/lanes.sh`); a value that is set still wins.
+Every lock is held with `flock -o`, so nothing a run starts — the sccache server above all —
+inherits the lock and holds it after the run. `RD_LOCK_NO_SLOT=1` takes the target's lock only,
+for `prune-target.sh`, which compiles nothing.
 
 **Do not wrap a locking script in `flock` yourself — it deadlocks.** `rd_take_lock` re-executes
 the script under `flock`, so `flock /tmp/rd-build.lock bash -c '… scripts/build-plugins.sh …'`
 leaves the inner call waiting for a lock its own parent holds, up to `RD_LOCK_WAIT` (7200 s).
 `RD_LOCK_HELD` prevents nesting *within* the family; it cannot see a wrapper that set no such
 variable. The symptom is indistinguishable from a hung job — the lock is held and nothing is
-compiling — so the diagnosis is worth writing down: `fuser -v /tmp/rd-build.lock` names the
+compiling — so the diagnosis is worth writing down: `fuser -v /tmp/rd-build.lock /tmp/rd-build.lock.*` names the
 holders, and **two `flock` processes on the same file** is the signature. Wrap only bare `cargo`
 and `npm` commands; the scripts need no help.
 
@@ -83,9 +117,21 @@ and every `rd-api` batch. A change to the root `Cargo.toml` or `Cargo.lock` does
 `lib/lock-scope.py` cannot narrow it (a profile, a member, `[patch]`, anything outside
 `[workspace.dependencies]`); otherwise the members whose resolved tree changed count as touched,
 and the run names them with the reason (RD-130-17). `tests/lock-scope.sh` holds those rules
-against fixtures and runs when `scripts/lib/` or `scripts/tests/` change, and under `--full`;
-`tests/public-links.sh`, the export's link guard, and `tests/archive-jobs.sh`, the job archive on
-a fixture repository, run beside it.
+against fixtures.
+
+**The scripts check themselves** (RD-140-22). When anything under `scripts/` but its
+documentation changes, and under `--full`, `check.sh` runs `bash -n` and `shellcheck
+--severity=warning` over every tracked shell script (settings in `scripts/.shellcheckrc`; without
+`shellcheck` installed it says so and skips it — `uv tool install shellcheck-py` provides one),
+then every `scripts/tests/*.sh`. They need no build and take seconds together: the Cargo.lock
+scope rules, the exports' link guard, the job archive, the scope boundary, and `worktree.sh`,
+`i18n-key.sh`, `migration-pin.sh`, `set-version.sh`, the release pipeline's evidence gate and
+`run_step`, `export-wiki.sh`'s private markers, `integrate.sh`'s merge half, `public-ci.sh` and
+`ci-log.sh` against scratch repositories and a stub `gh`, the documentation's release facts
+(`doc-facts.sh`) on a fixture tree, the session summary (`session-state.sh`) on a scratch
+repository, and the scope boundary with the release's pre-bump green. A new test is a new
+`scripts/tests/<name>.sh`, sharing the assertions in `scripts/tests/lib/expect.sh`; the loop
+finds it by itself.
 `cargo fmt`, the capture-tree check, the map check and the component checks always run: they
 are seconds.
 
@@ -109,6 +155,12 @@ is measured against the last recorded green, so the postponed commits come along
 and `worktree.sh finish` and the release preflight refuse a branch whose HEAD no green run has
 seen. The record is one file per checkout under `<target>/.rd-verified/`, not one file for the
 directory, because `target/` is shared between checkouts.
+
+**A follow-up round checks the delta** (RD-140-06). The boundary is normally the older of the
+branch point and the last green; when the last green is a commit of this branch — past the branch
+point and an ancestor of `HEAD` — it is the boundary itself, so a second round on an integration
+branch checks what came after its green rather than everything since `development`. A green
+`HEAD` does not contain (a rebase rewrote it) is ignored.
 
 `RD_BASE=<branch>` compares against another base. `RD_NO_LOCK=1`, `RD_LOCK_WAIT` and
 `RD_LOCK_FILE` are described above — and switching the lock off makes the `target/` stamp yours,
@@ -184,6 +236,13 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
 
 ## What the scripts deliberately do not do
 
+- **No script builds the plugin repository index.** `release-pipeline.sh` signs the plugins
+  locally, but the packages a release publishes are the ones the release workflow builds and
+  signs, and the index names each by the digest of those bytes — an index built here would
+  describe components that were never published. `.github/workflows/release.yml` builds, verifies
+  and attaches `rdownloader-plugin-index.json` in its `plugins` job instead (RD-140-01); by hand
+  it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>`, see
+  `docs/plugins.md#plugin-repository-index`.
 - **`check.sh` does not run `cargo clippy --workspace --all-targets --all-features` by default.**
   That single command has taken the machine into swap and required a hard restart. Branch level
   lints the touched crates by itself (`rd-api` only as far as its binaries are selected);
@@ -262,13 +321,20 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
 ## Order for a release
 
 ```bash
-scripts/release.sh 0.9.3             # version, check.sh --full, both packages
-# write CHANGELOG.md, docs/roadmap.md and the job files, then commit (documentation only,
-# so the --full green still covers the tree; anything else needs another --full run)
-scripts/tag-release.sh               # annotated tag on that commit
-git push origin v0.9.3               # every release, not only some
-# then the wiki: ~/projects/rdownloader.wiki, up to this release, from its CHANGELOG section
+# 1. by hand, committed on development in the main checkout (preflight refuses a dirty tree):
+#    CHANGELOG.md's `## [1.4.0] - <date>` section, docs/roadmap.md naming 1.4.0, README.md and
+#    docs/feature-list.md where features moved, the job files' status and checkboxes
+# 2. the wiki pass in ~/projects/rdownloader.wiki from that CHANGELOG section, committed there —
+#    publish-public exports it, and docs-gate holds its contract and plugin count to the sources
+scripts/release-start.sh 1.4.0              # detached: web build, check.sh --full unless one
+                                            # covers HEAD, then release-pipeline.sh 1.4.0
+scripts/release-pipeline.sh 1.4.0 --resume  # after fixing the step that failed
+scripts/release-start.sh 1.4.0 --push       # the same, plus the public CI run and the pushes
 ```
+
+The chain writes the version (`set-version.sh`), the mechanical facts of the documentation
+(`doc-facts.sh`), the job archive (`archive-jobs.sh`), the release commit, the merge into `main`
+and the tag; it pushes nothing without `--push`. The steps are below.
 
 **The wiki is part of the tag, not of "later".** `~/projects/rdownloader.wiki` is the user
 handbook — a separate GitLab repository, English, for people who use and operate rDownloader
@@ -288,24 +354,23 @@ The releases before that are **deliberately left untagged** and are not to be fi
 `0.6.1, 0.7.0, 0.8.0, 0.9.0, 0.9.1, 0.9.3` … `0.9.8` have no tag, and picking a commit for each of
 them now would be guesswork written down as fact. `CHANGELOG.md` remains the record for those.
 
-`release.sh` runs the individual scripts in order; each still works on its own. It always writes
-the browser-extension builds below `artifacts/browser-extensions`. Add `--plugins` when a plugin
-changed — signing needs the release key, and re-packaging an unchanged plugin only produces a new
-file. `--no-checks` skips the test run.
+`release.sh` is the older, manual chain — version, `check.sh --full`, both packages, no commit
+and no tag — and still builds a package set on its own; `--plugins` signs the plugins as well,
+`--no-checks` skips the test run. A release is cut with the pipeline.
 
-Three things stay by hand on purpose. The changelog, the roadmap and the job files are judgement
-rather than mechanics. Committing is yours to review. And pushing a tag is the one action here
-other people see, so it is never a side effect of building.
+The changelog, the roadmap and the job files stay by hand on purpose: they are judgement rather
+than mechanics. What is mechanical — a version, a date, a count, a contract — is written by a
+script, so it cannot be forgotten.
 
-### The same release, unattended
+### The pipeline
 
-`release-pipeline.sh` is `release.sh` carried through to the tag, for when nobody is watching the
-output scroll past. It adds the part that matters when nobody is: proof.
+`release-pipeline.sh` runs the release to the tag for when nobody is watching the output scroll
+past, and adds the part that matters when nobody is: proof.
 
 ```bash
-scripts/release-pipeline.sh 0.9.3            # everything up to the tag
-scripts/release-pipeline.sh 0.9.3 --resume   # continue after fixing a failed step
-scripts/release-pipeline.sh 0.9.3 --plan     # print the steps and stop
+scripts/release-pipeline.sh 1.4.0            # everything up to the tag
+scripts/release-pipeline.sh 1.4.0 --resume   # continue after fixing a failed step
+scripts/release-pipeline.sh 1.4.0 --plan     # print the steps and stop
 ```
 
 Every step's raw output appends to `artifacts/release-evidence-<version>.log`, together with a
@@ -318,6 +383,22 @@ tag, `evidence-gate` reads that log back and refuses unless every earlier step h
 - a green read out of a log left behind by an earlier attempt — markers from another nonce do not
   count;
 - a step that exited zero silently — no output is treated as missing evidence, not as a pass.
+
+With two lanes (`RD_LANES`, default 2) `build-linux` and `build-windows` run at once, Windows in
+`target/lanes/windows` under a lane of its own, both with `--skip-web` on the `web/dist` the
+`web` step built. Each writes a part log (`<evidence log>.<step>.part`, named at the start for
+`tail -f`); when both have ended the evidence log gets each in turn with the same header and
+marker a serial step gets, so the gate cannot tell the difference. `RD_LANES=1` runs them one
+after the other as before. The first parallel release cross-builds Windows from scratch in the
+new directory; `target/x86_64-pc-windows-msvc/release/` in the shared target is then no longer
+used by the chain.
+
+`test` does not repeat a full Rust run the tree already had (RD-140-06): when a `check.sh --full`
+green of the Rust half is recorded for `HEAD`'s tree — the state before the bump, which is
+committed later — and the bump changed nothing but lines carrying the old workspace version in
+the version files, the step names that green in the log and carries it to the bumped tree. Any
+other change, and `check.sh --rust --full` runs as before. `release-start.sh` runs that `--full`
+green first, detached, and skips it when one already covers `HEAD` and its tree.
 
 `public-ci` runs between `evidence-gate` and `tag`, and only with `--push`: it exports the merged
 candidate to the branch `ci/<version>` of the public repository, waits up to 90 minutes
@@ -366,6 +447,15 @@ rule would let through.
 the real API — including the check that a protected route still refuses an anonymous caller — and
 then the real UI in Chromium, driven by the Playwright in the npx cache against the browsers in
 `~/.cache/ms-playwright`.
+
+`doc-facts` runs `doc-facts.sh` before `docs-gate` (RD-140-24): the feature list's date and
+source version, the bundled-plugin count and the plugin contract `rdownloader:plugin@X.Y.Z` in
+`README.md`, `docs/` and `sdk/README.md` are written from `Cargo.toml`, `plugins/*/manifest.toml`
+and the WIT package line. It comes after `test` because `test` carries a pre-bump green only over
+a bump of version lines alone. `docs-gate` then runs `doc-facts.sh --check`, with the user wiki
+(`RD_WIKI_SRC`, default `~/projects/rdownloader.wiki`) when it exists — the wiki is another
+repository and is written in the wiki pass, not by the chain. Each fact sits behind an anchor, the
+sentence around it; a reworded sentence is a refusal naming the file, never a silent pass.
 
 `archive-jobs` runs `archive-jobs.sh --release <version>` right after `docs-gate` and before
 `commit-guard`: the jobs this release finished move into `docs/roadmap/jobs/archive/`, with their

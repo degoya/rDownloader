@@ -1,7 +1,8 @@
 //! User-facing texts and stable failure codes.
 //!
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
+// Only the guest reports a crawl's failures; the native build compiles these for nothing.
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 /// The entry is gone: `404`, or the service redirected the identifier to its own front page.
 ///

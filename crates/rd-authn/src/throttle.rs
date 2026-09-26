@@ -191,8 +191,9 @@ impl LoginThrottle {
         }
     }
 
-    /// How many addresses are currently remembered. For diagnostics and for the tests that
-    /// prove the map does not grow without bound.
+    /// How many addresses are currently remembered, for the tests that prove the map does not
+    /// grow without bound.
+    #[cfg(test)]
     #[must_use]
     pub fn tracked_addresses(&self) -> usize {
         self.by_address.len()

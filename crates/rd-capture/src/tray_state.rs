@@ -2,7 +2,7 @@
 //!
 //! Which mark the icon carries, whether "Open rDownloader" can be chosen, what the status item
 //! and the tooltip say: all of that is decided here, from the service state, the transfer poll
-//! and the agent's notices about itself. Nothing in this module names a type from `image`, `tao`
+//! and the agent's notices about itself. Nothing in this module names a type from `png`, `tao`
 //! or `tray-icon` -- those crates are Windows- and macOS-only, and the Linux agent must link
 //! none of them -- so the rules compile and are tested on every host. `tray.rs` holds the
 //! handles and applies what this module decides; `icon.rs` and `status.rs` are the same cut,

@@ -1026,11 +1026,12 @@ pub(crate) fn validate_settings(
     if settings.max_active_files == 0
         || settings.max_chunks_per_file == 0
         || settings.nntp_connections_per_file > 32
+        || settings.nntp_parallel_files as usize > rd_scheduler::MAX_EXTERNAL_PARALLEL_FILES
         || settings.max_connections_per_host as usize > rd_http::MAX_CONNECTIONS_PER_HOST
     {
         return Err(ApiError::bad_request(
             "settings.concurrency_invalid",
-            "Concurrency values must be valid; NNTP connections per file must be between 0 and 32",
+            "Concurrency values must be valid; NNTP connections per file must be between 0 and 32, NZB files at once between 0 and 8",
         ));
     }
     settings.validate_postprocess()?;
@@ -1091,6 +1092,7 @@ pub(crate) fn validate_settings(
         max_chunks_per_file: settings.max_chunks_per_file as usize,
         max_connections_per_host: settings.max_connections_per_host as usize,
         external_connections_per_file: settings.nntp_connections_per_file as usize,
+        external_parallel_files: settings.nntp_parallel_files as usize,
         speed_limit_bytes_per_second: settings
             .speed_limit_bytes_per_second
             .map(rd_core::ByteCount::get),

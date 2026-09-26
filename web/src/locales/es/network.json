@@ -58,7 +58,8 @@
       "delivered": "La sesión de {host} llegó y está guardada en esta cuenta; ahora se comprueba la cuenta.",
       "declined": "Rechazado en la extensión: la sesión de {host} no se entregó.",
       "expired": "Nadie respondió a la solicitud a tiempo; la sesión de {host} no se entregó."
-    }
+    },
+    "providers_loading": "Cargando los plugins de los que salen los proveedores; tras un inicio o una actualización de plugins tarda un momento…"
   },
   "hosters": {
     "toggle": "Hosters compatibles",

@@ -13,8 +13,10 @@ use tracing_subscriber::EnvFilter;
 
 mod doctor_site_rules;
 mod plugin_cli;
+mod plugin_index_cli;
 mod remote;
 mod site_rules_cli;
+mod startup;
 mod tools_cli;
 mod trusted_keys;
 
@@ -177,31 +179,11 @@ fn autostart(args: IntegrationArgs) -> Result<()> {
 }
 
 async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
-    ensure_paths(&args.paths).await?;
-    let data_directory = args
-        .paths
-        .database
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."))
-        .to_path_buf();
-    rd_core::set_data_directory(&data_directory);
-    let database = Database::open(&args.paths.database).await?;
-    // The log sink starts as soon as there is a store to write to; the records from the
-    // lines above are waiting in its channel.
-    rd_diagnostics::sink::spawn(telemetry.logs, database.clone());
-    // The trace exporter reads the settings on every batch, so switching the export on or
-    // pointing it elsewhere takes effect without a restart. Nothing is sent until it does.
-    rd_diagnostics::otlp::spawn(
-        telemetry.spans,
-        database.clone(),
-        env!("CARGO_PKG_VERSION").to_owned(),
-    );
-    let secrets =
-        rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await?;
-    // A link fragment that is key material goes into this vault at intake instead of being
-    // dropped (RD-110-38). Installed rather than passed to `Database::open`, because the
-    // store has to exist before the vault's master key is fetched from the keyring.
-    database.install_secret_vault(secrets.clone());
+    let startup::Store {
+        data_directory,
+        database,
+        secrets,
+    } = startup::open_store(&args.paths, telemetry).await?;
     let stored = load_stored_settings(&database).await?;
     let runtime = runtime_settings(&stored)?;
     // The stored port only applies when neither --listen nor RDOWNLOADER_LISTEN is given, so
@@ -219,114 +201,36 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     // Raised while quiet hours defer the resource-intensive post-processing steps.
     let quiet_hold = rd_core::PostprocessHold::new();
     let power = rd_power::PowerService::default();
-    let mut scheduler_config = SchedulerConfig::for_directory(args.paths.downloads);
+    let mut scheduler_config = SchedulerConfig::for_directory(args.paths.downloads.clone());
     scheduler_config.postprocess_hold = postprocess_hold.clone();
     scheduler_config.bandwidth = bandwidth.clone();
     scheduler_config.max_active_files = runtime.max_active_files;
     scheduler_config.max_chunks_per_file = runtime.max_chunks_per_file;
     scheduler_config.max_connections_per_host = runtime.max_connections_per_host;
+    scheduler_config.external_parallel_files = runtime.external_parallel_files;
     scheduler_config.speed_limit_bytes_per_second = runtime.speed_limit_bytes_per_second;
-    let plugin_verifier = plugin_cli::build_plugin_verifier(
-        args.plugin_development_mode,
-        &args.trusted_plugin_keys,
-        !args.no_default_plugin_key,
-    )?;
-    // Keys the user confirmed on first use must be trusted before anything is verified.
-    load_trusted_plugin_keys(&database, &plugin_verifier).await;
-    load_withdrawn_plugin_digests(&database, &plugin_verifier).await;
-    let plugins = rd_plugin_host::PluginInstaller::new(args.plugin_root, plugin_verifier);
-    // Applied before anything loads plugins: a switched-off plugin must not be compiled or
-    // executed, while still being listed by the API so it can be switched back on.
-    plugins.set_disabled(stored.disabled_plugins.iter().cloned());
-    sync_bundled_plugins(&plugins, args.bundled_plugins.clone()).await;
-    // Installed manifests contribute their provider rows before the scheduler builds
-    // resolvers, so account creation and the HTTP sandbox know about them from the start.
-    plugins.refresh_providers().await;
-    let usenet_runner: std::sync::Arc<dyn rd_scheduler::ExternalRunner> = std::sync::Arc::new(
-        rd_usenet::UsenetRunner::new(
-            database.clone(),
-            secrets.clone(),
-            rd_usenet::UsenetRunnerConfig::default(),
-        )
-        // Without this the operator's custom CA reaches HTTP and FTPS but not their news
-        // server, which is the inconsistency `rd_http::tls_client_config` exists to stop.
-        .with_network_defaults(scheduler_config.network_defaults.clone()),
-    );
-    let media_settings = rd_media::shared_settings(&database).await?;
-    let (media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database).await?;
-    let gallery_runner = rd_gallery::build(database.clone(), gallery_settings.clone());
-    let stream_settings = rd_stream::shared_settings(&database).await?;
-    let stream_runner = rd_stream::build_with_network_defaults(
-        database.clone(),
-        stream_settings.clone(),
-        scheduler_config.network_defaults.clone(),
-    );
-    let torrent_settings = rd_torrent::shared_settings(&database).await?;
-    let torrent_service = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        data_directory.clone(),
-        scheduler_config.downloads_directory.clone(),
-    )
-    // Needed to resolve the password of a configured SOCKS5 peer proxy.
-    .with_secrets(secrets.clone())
-    .with_bandwidth(bandwidth.clone());
-    let torrent_runner = rd_torrent::build(torrent_service.clone());
-    let remote_settings = rd_ftp::shared_settings(&database).await?;
-    // Built before the scheduler because their runners are registered with it at start.
-    let remote = rd_api::RemoteServices::new(
-        database.clone(),
-        secrets.clone(),
-        remote_settings,
-        scheduler_config.network_defaults.clone(),
-    );
-    // Transfer backends are compiled before the scheduler starts, for the same reason the
-    // native runners are built here: the registry is fixed once the queue is running.
-    // Its own flag, not development mode: relaxing the target check lets *every* installed
-    // backend reach the loopback interface and the private ranges around this host, which has
-    // nothing to do with accepting an unsigned package and must be asked for separately.
-    // Verified once, here, and handed to every adapter below. Each of them used to call
-    // `load_verified` for itself, and that is an Ed25519 check plus a full wasmparser
-    // validation plus a fresh `SandboxEngine` — epoch-ticker thread and all — plus a compile,
-    // for *every* installed package rather than the type being asked for. Five adapters times
-    // thirty plugins is three hundred of those on every start.
-    let plugin_registry = rd_plugin_host::PluginTypeRegistry::load(&plugins).await?;
-    let transfer_backends = rd_plugin_transfer::TransferBackends::from_registry(
-        &plugin_registry,
+    let plugins = startup::open_plugins(&args, &database, &stored).await?;
+    let startup::NativeRunners {
+        runners,
+        media_settings,
+        media_probe,
+        gallery_settings,
+        stream_settings,
+        torrent_service,
+        torrent_settings,
+        remote,
+        plugin_transfer_schemes,
+        plugin_registry,
+    } = startup::native_runners(
+        &database,
+        &secrets,
+        &scheduler_config,
+        &bandwidth,
+        &data_directory,
+        &plugins,
         args.plugin_allow_local_targets,
-    );
-    let plugin_transfer_schemes = transfer_backends.schemes();
-    if !plugin_transfer_schemes.is_empty() {
-        tracing::info!(
-            schemes = %plugin_transfer_schemes.join(", "),
-            "installed transfer backends"
-        );
-    }
-    let mut runners = vec![
-        usenet_runner,
-        media_runner,
-        gallery_runner,
-        stream_runner,
-        torrent_runner,
-        rd_ftp::build(remote.ftp.clone()),
-        rd_sftp::build(remote.sftp.clone()),
-    ];
-    // Registered only when something is installed, so an unused kind cannot occupy a queue
-    // slot or answer for a scheme nothing serves.
-    if !transfer_backends.is_empty() {
-        runners.push(rd_plugin_transfer::build(
-            transfer_backends,
-            database.clone(),
-            scheduler_config
-                .network_defaults
-                .read()
-                .await
-                .custom_ca_pem
-                .clone(),
-        ));
-    }
+    )
+    .await?;
     let scheduler = SchedulerHandle::start(
         database.clone(),
         scheduler_config,
@@ -343,53 +247,21 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         signal.cancel();
     });
 
-    // Loaded before the pipeline that uses them. A step that fails to compile costs its own
-    // feature and nothing else: post-processing still runs, the failure is logged, and a
-    // package whose category names that step is planned without it rather than left waiting.
-    let plugin_steps = std::sync::Arc::new(rd_plugin_ext::PluginSteps::from_registry(
+    let startup::PluginServices {
+        plugin_steps,
+        storage_destinations,
+        extraction,
+        intake_parsers,
+        crawlers,
+        auth_providers,
+        oauth_providers,
+    } = startup::plugin_services(
         &plugin_registry,
-        Some(scheduler.plugin_host()),
-    ));
-    let step_runner: Option<std::sync::Arc<dyn rd_extract::PluginStepRunner>> =
-        (!plugin_steps.is_empty()).then(|| {
-            std::sync::Arc::clone(&plugin_steps) as std::sync::Arc<dyn rd_extract::PluginStepRunner>
-        });
-    let storage_destinations =
-        std::sync::Arc::new(rd_plugin_ext::StorageDestinations::from_registry(
-            &plugin_registry,
-            Some(scheduler.plugin_host()),
-        ));
-    let uploader: Option<std::sync::Arc<dyn rd_extract::StorageUploader>> =
-        (!storage_destinations.is_empty()).then(|| {
-            std::sync::Arc::clone(&storage_destinations)
-                as std::sync::Arc<dyn rd_extract::StorageUploader>
-        });
-    let extraction = rd_extract::ExtractionService::start_with_plugins(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: data_directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(30 * 60),
-            default_scripts_directory: data_directory.join("scripts"),
-            hold: postprocess_hold,
-            quiet_hold: quiet_hold.clone(),
-        },
-        step_runner,
-        uploader,
-    );
-    // Built before the state so a parser that fails to compile costs its own feature and
-    // nothing else: intake still works, the failure is logged, the service starts.
-    let intake_parsers = std::sync::Arc::new(rd_plugin_ext::IntakeParsers::from_registry(
-        &plugin_registry,
-        Some(scheduler.plugin_host()),
-    ));
-    if !intake_parsers.is_empty() {
-        tracing::info!("intake parser plugins loaded");
-    }
-    // Same rule for the folder crawlers (RD-104-03): one that fails to compile costs its own
-    // feature, and the LinkGrabber goes on doing exactly what it did before there were any.
-    let crawlers = rd_plugin_ext::FolderCrawlers::from_registry(
-        &plugin_registry,
-        Some(scheduler.plugin_host()),
+        &scheduler,
+        &database,
+        &data_directory,
+        postprocess_hold,
+        quiet_hold.clone(),
     );
     // The registry holds every installed component's bytes; nothing below needs them, and a
     // local in `serve` would otherwise keep them for the life of the process.
@@ -402,20 +274,7 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     // from the database -- the signed release file is imported, not compiled in -- so a fresh
     // installation starts with none; the adapters the rules run on live in `rd-plugin-host`,
     // where the proxies and the captcha broker already are.
-    let rule_runner = rd_plugin_ext::HostRuleRunner::new(rd_plugin_host::RuleNetwork::new(
-        database.clone(),
-        secrets.clone(),
-        scheduler.network_defaults(),
-    ))
-    .with_captcha(std::sync::Arc::new(scheduler.captcha()));
-    let site_rules = std::sync::Arc::new(rd_plugin_ext::SiteRules::new(
-        site_rules_cli::load_catalogue(&database).await,
-        std::sync::Arc::new(rule_runner),
-    ));
-    // A rule the last self-test found dead is not asked again (RD-110-09). It stays in the
-    // catalogue and a later run revives it; what it does not do is cost a request per paste.
-    site_rules.set_dead(doctor_site_rules::dead_rules(&database).await);
-    let crawlers = std::sync::Arc::new(crawlers.with_rules(site_rules));
+    let crawlers = startup::with_site_rules(crawlers, &database, &secrets, &scheduler).await;
     if let Err(error) = extraction.recover().await {
         tracing::warn!(%error, "could not resume interrupted extractions");
     }
@@ -443,20 +302,13 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     .with_crawlers(crawlers)
     .with_plugin_steps(plugin_steps)
     .with_storage_destinations(storage_destinations)
+    .with_auth_providers(auth_providers, oauth_providers)
     // Compiled in by build.rs from the values VERSION.txt carries (RD-130-12).
     .with_build_info(rd_api::BuildInfo::new(
         env!("RD_BUILD_COMMIT"),
         env!("RD_BUILD_TIME"),
     ));
-    // Managed external tools (RD-102-02) before anything can resolve a tool: the store reads
-    // its pointers and clears an interrupted install's staging directories, and only then is
-    // it registered as the managed stage of `rd_core::locate_tool`.
-    // Falls back to defaults rather than refusing, as it did before: a bad tool setting must
-    // not keep the service from starting, and the accessor now reports what it rejected.
-    let managed_tools: rd_core::ManagedToolSettings =
-        state.database.service_settings_or_default().await?;
-    state.prepare_managed_tools(managed_tools).await;
-    state.hotfolders.start_existing().await?;
+    startup::prepare_state(&state).await?;
     let hotfolders = state.hotfolders.clone();
     let state_link_check = state.link_check.clone();
     let remote_jobs = state.remote_jobs.clone();
@@ -485,6 +337,8 @@ struct StoredSettings {
     max_connections_per_host: u32,
     /// NNTP connections one file may hold; `0` is as many as the servers allow (RD-108-25).
     nntp_connections_per_file: u32,
+    /// NZB files at once; `0` is automatic (RD-130-22). Absent in older blobs, hence zero.
+    nntp_parallel_files: u32,
     speed_limit_bytes_per_second: Option<rd_core::ByteCount>,
     generate_sha256: bool,
     global_proxy_profile_id: Option<rd_core::ProxyProfileId>,
@@ -535,6 +389,7 @@ impl Default for StoredSettings {
             max_chunks_per_file: 4,
             max_connections_per_host: default_connections_per_host(),
             nntp_connections_per_file: 0,
+            nntp_parallel_files: 0,
             speed_limit_bytes_per_second: None,
             generate_sha256: true,
             global_proxy_profile_id: None,
@@ -580,6 +435,7 @@ fn runtime_settings(stored: &StoredSettings) -> Result<rd_scheduler::RuntimeSett
         max_chunks_per_file: stored.max_chunks_per_file as usize,
         max_connections_per_host: stored.max_connections_per_host as usize,
         external_connections_per_file: stored.nntp_connections_per_file as usize,
+        external_parallel_files: stored.nntp_parallel_files as usize,
         speed_limit_bytes_per_second: stored
             .speed_limit_bytes_per_second
             .map(rd_core::ByteCount::get),
@@ -661,9 +517,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
     if cfg!(target_os = "linux")
         && (!command_available("clang-cl") || !command_available("lld-link"))
     {
-        println!(
-            "  Note: the WSL Windows build requires clang-cl and lld-link; docker/Dockerfile.xwin is available as an alternative."
-        );
+        println!("  Note: the WSL Windows build (cargo xwin) requires clang-cl and lld-link.");
     }
     Ok(())
 }
@@ -806,6 +660,35 @@ async fn load_trusted_plugin_keys(database: &Database, verifier: &rd_plugin_host
     }
 }
 
+/// Seeds the plugin installer with the stored version choices (RD-140-02).
+///
+/// A choice that cannot be read costs the choice, not the start: every plugin then runs its
+/// newest version, which is what it did before choices existed, and the failure is said out
+/// loud.
+async fn load_plugin_version_choices(
+    database: &Database,
+    plugins: &rd_plugin_host::PluginInstaller,
+) {
+    match database.list_plugin_version_choices().await {
+        Ok(rows) => plugins.set_version_choices(
+            rows.into_iter()
+                .map(|row| {
+                    (
+                        row.plugin_id,
+                        rd_plugin_host::VersionChoice {
+                            active: row.active_version,
+                            staged: row.staged_version,
+                        },
+                    )
+                })
+                .collect(),
+        ),
+        Err(error) => {
+            tracing::warn!(error = %error, "could not read the plugin version choices");
+        }
+    }
+}
+
 /// Restores the package digests an operator has withdrawn.
 ///
 /// Read before anything loads a plugin: the whole point of a withdrawal is that the package is
@@ -838,6 +721,28 @@ async fn load_withdrawn_plugin_digests(
     // One call: it replaces the set rather than adding to it.
     if let Err(error) = verifier.set_revoked_package_digests(digests) {
         tracing::warn!(error = %error, "could not apply the withdrawn plugin packages");
+    }
+}
+
+/// Restores the plugin signing keys a repository index withdrew (RD-140-01).
+///
+/// Read before anything loads a plugin, for the same reason as the withdrawn digests; a key
+/// withdrawn once stays withdrawn even when a later index no longer names it.
+async fn load_withdrawn_plugin_keys(
+    database: &Database,
+    verifier: &rd_plugin_host::PluginVerifier,
+) {
+    match database.list_plugin_withdrawn_keys().await {
+        Ok(keys) => {
+            if let Err(error) =
+                verifier.set_withdrawn_keys(keys.into_iter().map(|key| key.fingerprint))
+            {
+                tracing::warn!(error = %error, "could not apply the withdrawn plugin signing keys");
+            }
+        }
+        Err(error) => {
+            tracing::warn!(error = %error, "could not read withdrawn plugin signing keys");
+        }
     }
 }
 

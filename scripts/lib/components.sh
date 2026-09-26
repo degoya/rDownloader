@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
+# shellcheck disable=SC2154  # `changed` and `full` are check.sh's, which sources this file
 #
 # The three plugin component gates of scripts/check.sh, kept here so check.sh stays readable.
 # They run before anything expensive: each is a stat, a hash or an archive read, and each stops

@@ -93,12 +93,12 @@ start_process() {
 
 open_browser_if_unconfigured() {
     # First run: once the server answers, open the browser so the setup wizard shows up.
-    local addr="${RDOWNLOADER_LISTEN:-127.0.0.1:8710}" base response attempt fetch
+    local addr="${RDOWNLOADER_LISTEN:-127.0.0.1:8710}" base response fetch
     if command -v curl >/dev/null 2>&1; then fetch="curl -fsS --max-time 2"
     elif command -v wget >/dev/null 2>&1; then fetch="wget -qO- --timeout=2"
     else return 0; fi
     base="http://${addr/#0.0.0.0/127.0.0.1}"
-    for attempt in $(seq 1 30); do
+    for _ in $(seq 1 30); do
         response="$(${fetch} "${base}/api/v1/auth/status" 2>/dev/null)" || { sleep 0.5; continue; }
         if [[ "${response//[[:space:]]/}" == *'"setup_required":true'* ]]; then
             open "${base}" >/dev/null 2>&1 || true

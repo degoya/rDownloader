@@ -132,7 +132,9 @@ async fn an_approved_post_download_survives_a_restart_with_its_template() {
 #[tokio::test]
 async fn a_failure_carrying_a_signed_url_is_redacted_before_it_is_stored_or_broadcast() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    // The failure is recorded by hand; a live scheduler would try the download itself and put
+    // a failure event of its own on the bus ahead of the one this test reads.
+    let harness = common::parked_harness(directory.path()).await;
     let (_, payload) = common::post_capture(
         &harness.router,
         serde_json::json!({

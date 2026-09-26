@@ -26,15 +26,9 @@ die aktuelle Datei erneut von der oben verlinkten SABnzbd-URL laden. Die NZB lä
 Alle Hoster-Zeilen sollen auf **denselben Inhalt** aus `rdownloader-plugin-test.txt` zeigen.
 So lässt sich nach dem Download nicht nur „Erfolg“, sondern auch der SHA-256-Wert prüfen.
 
-Der derzeitige eigene Test-Upload ist:
-
-```text
-https://1fichier.com/?jz57m2dq0b0liimcmimg
-```
-
-Er wurde am 2026-09-03 als anonymer 1fichier-Upload angelegt und ist dort höchstens 15 Tage
-gespeichert, also spätestens am **2026-09-18 zu ersetzen**. Der Link wurde mit Dateiname
-`rdownloader-plugin-test.txt` und Größe 605 B verifiziert.
+Derzeit ist kein eigener Test-Upload eingetragen: der anonyme 1fichier-Upload vom 2026-09-03
+ist abgelaufen (1fichier speichert solche Uploads höchstens 15 Tage). Wer einen braucht, lädt
+`rdownloader-plugin-test.txt` neu hoch und trägt den Link unten ein.
 
 ### Einzelhoster
 
@@ -45,10 +39,10 @@ gespeichert, also spätestens am **2026-09-18 zu ersetzen**. Der Link wurde mit 
 | KatFile | Ohne Account; Countdown/Captcha erwarten | API-Key oder Cookies einer Premium-Sitzung | Eigener Upload erforderlich |
 | Keep2Share | Ohne Account; Countdown/Bild-Captcha erwarten | E-Mail und Account-Passwort | Eigener Upload erforderlich |
 | Nitroflare | Ohne Account; Countdown/reCAPTCHA erwarten | E-Mail und Premium-Key | Eigener Upload erforderlich |
-| 1fichier | Obigen Link ohne Account starten | Obigen Link mit dem 1fichier-API-Key starten | `https://1fichier.com/?jz57m2dq0b0liimcmimg` |
+| 1fichier | Eigenen Upload ohne Account starten | Eigenen Upload mit dem 1fichier-API-Key starten | Eigener Upload erforderlich |
 | Rapidgator | Ohne Account; Countdown/reCAPTCHA erwarten | E-Mail und Account-Passwort | Eigener Upload erforderlich |
 
-Die sechs als „Eigener Upload erforderlich“ markierten Anbieter veröffentlichen keine
+Die als „Eigener Upload erforderlich“ markierten Anbieter veröffentlichen keine
 dauerhaften neutralen Roh-Testlinks. Uploads benötigen dort nach aktueller Prüfung ein
 Konto beziehungsweise einen API-Key. Keine beliebigen Links aus Suchmaschinen eintragen:
 Dateirechte, Inhalt und Lebensdauer wären nicht überprüfbar. Stattdessen
@@ -58,7 +52,7 @@ Premium; nur die in rDownloader gewählte Account-Route unterscheidet sich.
 
 ### Multihoster
 
-Für alle Multihoster kann derselbe legale 1fichier-Link verwendet werden. 1fichier war am
+Für alle Multihoster kann derselbe eigene 1fichier-Upload verwendet werden. 1fichier war am
 Prüfdatum bei [AllDebrid](https://api.alldebrid.com/v4.1/hosts),
 [Debrid-Link](https://debrid-link.com/infos/downloader),
 [LinkSnappy](https://linksnappy.com/landing) und
@@ -67,10 +61,10 @@ bleibt dynamisch und ist direkt vor dem Test in der Account-Hosterliste zu kontr
 
 | Plugin | Testmodus | Testlink |
 |---|---|---|
-| AllDebrid | AllDebrid-Account/API-Key explizit auswählen | `https://1fichier.com/?jz57m2dq0b0liimcmimg` |
-| Debrid-Link | Debrid-Link-Account/API-Key explizit auswählen | `https://1fichier.com/?jz57m2dq0b0liimcmimg` |
-| LinkSnappy | LinkSnappy-Account explizit auswählen | `https://1fichier.com/?jz57m2dq0b0liimcmimg` |
-| Premiumize.me | Premiumize-Account/API-Key explizit auswählen | `https://1fichier.com/?jz57m2dq0b0liimcmimg` |
+| AllDebrid | AllDebrid-Account/API-Key explizit auswählen | Eigener 1fichier-Upload |
+| Debrid-Link | Debrid-Link-Account/API-Key explizit auswählen | Eigener 1fichier-Upload |
+| LinkSnappy | LinkSnappy-Account explizit auswählen | Eigener 1fichier-Upload |
+| Premiumize.me | Premiumize-Account/API-Key explizit auswählen | Eigener 1fichier-Upload |
 
 Die „Test Download“-URLs auf der LinkSnappy-Statusseite sind bereits erzeugte
 `dlserv*.linksnappy.com`-Direktlinks. Sie sind keine ursprünglichen Hoster-Links und eignen

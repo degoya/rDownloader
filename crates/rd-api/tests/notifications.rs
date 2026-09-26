@@ -252,17 +252,13 @@ async fn a_used_up_traffic_budget_reaches_a_rule_that_asks_for_it() {
     }
 
     // The hub sweeps its queue every five seconds; the call lands within one sweep.
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(20);
-    let body = loop {
-        if let Some((_, _, body)) = calls.lock().expect("calls").first().cloned() {
-            break body;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "no budget_exhausted delivery arrived"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    };
+    let received = &calls;
+    let (_, _, body) = common::eventually(
+        std::time::Duration::from_secs(20),
+        "no budget_exhausted delivery arrived",
+        || async move { received.lock().expect("calls").first().cloned() },
+    )
+    .await;
     let body: serde_json::Value = serde_json::from_str(&body).expect("json body");
     assert_eq!(body["event"], "budget_exhausted", "{body}");
     assert!(

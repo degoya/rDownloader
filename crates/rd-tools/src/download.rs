@@ -132,14 +132,14 @@ async fn unpack(entry: &ToolEntry, payload: Vec<u8>, staging: &Path) -> Result<(
         }
         ArchiveFormat::Zip | ArchiveFormat::TarXz => {
             let format = entry.archive;
-            let staging = staging.to_path_buf();
+            let target = staging.to_path_buf();
             let members = entry.members.clone();
             let name = entry.name.clone();
             let written = tokio::task::spawn_blocking(move || {
                 if format == ArchiveFormat::Zip {
-                    extract_zip(&payload, &members, &staging)
+                    extract_zip(&payload, &members, &target)
                 } else {
-                    extract_tar_xz(&payload, &members, &staging)
+                    extract_tar_xz(&payload, &members, &target)
                 }
             })
             .await
@@ -156,6 +156,21 @@ async fn unpack(entry: &ToolEntry, payload: Vec<u8>, staging: &Path) -> Result<(
             }
             for path in written {
                 make_executable(&path).await;
+            }
+            // The resolver looks for `<version>/<executable_name>` and nothing else, so an
+            // archive whose member carries another platform's name (`ffmpeg` where Windows
+            // wants `ffmpeg.exe`) would activate a version that is never found. Each manifest
+            // entry is one managed tool: ffmpeg and ffprobe are two entries naming their own
+            // member, so the one program this entry must deliver is the one it is named after.
+            let expected = executable_name(&entry.name);
+            let delivered = tokio::fs::symlink_metadata(staging.join(&expected))
+                .await
+                .is_ok_and(|metadata| metadata.is_file());
+            if !delivered {
+                return Err(ToolError::DownloadFailed {
+                    name,
+                    reason: format!("the archive did not deliver {expected}"),
+                });
             }
             Ok(())
         }
@@ -385,21 +400,22 @@ mod tests {
     #[tokio::test]
     async fn a_tar_xz_member_lands_flat_under_its_base_name() {
         let directory = tempfile::tempdir().expect("tempdir");
+        let member = format!(
+            "ffmpeg-n9.0.1-linux64-gpl/bin/{}",
+            executable_name("ffmpeg")
+        );
         let payload = tar_xz(&[
-            ("ffmpeg-n9.0.1-linux64-gpl/bin/ffmpeg", b"ffmpeg-binary"),
+            (member.as_str(), b"ffmpeg-binary"),
             ("ffmpeg-n9.0.1-linux64-gpl/bin/ffprobe", b"ffprobe-binary"),
             ("ffmpeg-n9.0.1-linux64-gpl/README.txt", b"not wanted"),
         ]);
-        let mut wanted = entry(
-            ArchiveFormat::TarXz,
-            vec!["ffmpeg-n9.0.1-linux64-gpl/bin/ffmpeg".to_owned()],
-        );
+        let mut wanted = entry(ArchiveFormat::TarXz, vec![member.clone()]);
         wanted.name = "ffmpeg".to_owned();
         unpack(&wanted, payload, directory.path())
             .await
             .expect("unpack");
 
-        let written = directory.path().join("ffmpeg");
+        let written = directory.path().join(executable_name("ffmpeg"));
         assert_eq!(
             tokio::fs::read(&written).await.expect("read"),
             b"ffmpeg-binary".to_vec()
@@ -414,6 +430,29 @@ mod tests {
                 .permissions()
                 .mode();
             assert_eq!(mode & 0o111, 0o111, "the binary has to be executable");
+        }
+    }
+
+    /// An archive that delivers the program under another platform's name is refused: the
+    /// resolver would never find it, so activating it would report an install that is not one.
+    #[tokio::test]
+    async fn an_archive_member_under_the_other_platforms_name_is_refused() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let foreign = if cfg!(windows) {
+            "ffmpeg"
+        } else {
+            "ffmpeg.exe"
+        };
+        let member = format!("ffmpeg-n9.0.1-linux64-gpl/bin/{foreign}");
+        let payload = tar_xz(&[(member.as_str(), b"ffmpeg-binary")]);
+        let mut wanted = entry(ArchiveFormat::TarXz, vec![member.clone()]);
+        wanted.name = "ffmpeg".to_owned();
+        let result = unpack(&wanted, payload, directory.path()).await;
+        match result {
+            Err(ToolError::DownloadFailed { reason, .. }) => {
+                assert!(reason.contains(&executable_name("ffmpeg")), "{reason}");
+            }
+            other => panic!("expected a refused download, got {other:?}"),
         }
     }
 

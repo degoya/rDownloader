@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import automation from '@/locales/en/automation.json'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
 vi.mock('@/api/client', () => ({
@@ -115,4 +116,11 @@ describe('AutomationView', () => {
     expect(heading.nextElementSibling?.className).toContain('bg-default')
     expect(heading.nextElementSibling?.className).not.toContain('border-dashed')
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/targets'))
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

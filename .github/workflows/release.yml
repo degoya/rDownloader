@@ -5,10 +5,10 @@ on:
     tags:
       - "v*.*.*"
 
+# Read-only by default; the two jobs that publish name what they write (RD-140-25): `publish`
+# the release and its keyless checksum signature, `container` the image and its signature.
 permissions:
-  contents: write
-  id-token: write
-  packages: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -92,6 +92,31 @@ jobs:
           name: plugins
           path: dist/plugins/*.rdplug
           if-no-files-found: error
+      # RD-140-01: the signed plugin repository index, over exactly the packages above. It names
+      # each package by the digest of these bytes, so it can be built nowhere else. `verify`
+      # checks it against the root this build embeds, which also catches a secret that is not
+      # the repository key. Until the secret exists the release carries no index.
+      - name: Build and sign the plugin index
+        env:
+          RDOWNLOADER_REPOSITORY_SIGNING_KEY: ${{ secrets.RDOWNLOADER_REPOSITORY_SIGNING_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "${RDOWNLOADER_REPOSITORY_SIGNING_KEY}" ]]; then
+            echo "::warning::RDOWNLOADER_REPOSITORY_SIGNING_KEY is not set; this release publishes no plugin index"
+            exit 0
+          fi
+          mkdir -p dist/plugin-index
+          cargo run --locked --release -p rdownloader -- plugin index build dist/plugins \
+            --out dist/plugin-index/rdownloader-plugin-index.json \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
+            --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json
+          cargo run --locked --release -p rdownloader -- plugin index verify \
+            dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
+      - uses: actions/upload-artifact@v7
+        with:
+          name: plugin-index
+          path: dist/plugin-index/rdownloader-plugin-index.json
+          if-no-files-found: ignore
       # RD-130-07: the site rules are not compiled in; every release carries them as a signed file
       # beside the packages. CI holds only the plugin key, so the file is signed locally with the
       # site-rules key and committed; this step proves the committed file verifies under this
@@ -117,6 +142,12 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             artifact: rdownloader-linux-x86_64
+          # Native arm runner, no emulation and no cross toolchain: the arm64 container image
+          # copies this binary (RD-140-25), and the tarball ships like the x86_64 one. Same
+          # Ubuntu release as above, so both Linux binaries share the glibc floor (2.39).
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact: rdownloader-linux-aarch64
           - os: windows-2025
             target: x86_64-pc-windows-msvc
             artifact: rdownloader-windows-x86_64
@@ -203,6 +234,9 @@ jobs:
     needs: [extensions, plugins, binaries]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -234,52 +268,96 @@ jobs:
           generate_release_notes: true
           files: release-assets/*
 
+  # The image is built from the binaries above, not compiled again (owner, 2026-09-26): the arm64
+  # half runs only apt, pip and the `--version` guard under QEMU. Nothing is pushed before the
+  # amd64 image has passed the same smoke test as CI.
   container:
     needs: [plugins, binaries]
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    # A re-run of a tag waits for the running one instead of racing it to the registry. Across
+    # tags, `:latest` is held by the check below.
+    concurrency:
+      group: release-container-${{ github.ref_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: plugins
           path: dist/plugins
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: rdownloader-linux-*
+          path: release-binaries
+          merge-multiple: true
+      # docker/Dockerfile's `prebuilt` target reads dist/docker/linux-$TARGETARCH/rdownloader.
+      # From the tarballs rather than loose files: upload-artifact drops the executable bit, tar
+      # keeps it, and the image then carries exactly the binary the release ships.
+      - name: Lay out the Linux binaries for the build context
+        shell: bash
+        run: |
+          for pair in x86_64:amd64 aarch64:arm64; do
+            arch="${pair%%:*}"
+            docker_arch="${pair##*:}"
+            mkdir -p "dist/docker/linux-${docker_arch}"
+            tar --extract --gzip --file "release-binaries/rdownloader-linux-${arch}.tar.gz" \
+              --directory "dist/docker/linux-${docker_arch}" ./rdownloader
+            file "dist/docker/linux-${docker_arch}/rdownloader"
+          done
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
+      - name: Build the amd64 image for the smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: prebuilt
+          platforms: linux/amd64
+          load: true
+          tags: rdownloader:smoke
+      - name: Smoke-test the image before anything is pushed
+        run: scripts/docker-smoke.sh rdownloader:smoke
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Normalize container image name
+      # `:latest` only from the newest release tag, so a re-run of an old one cannot move it back.
+      # Only plain vX.Y.Z tags count, and sort -V orders v1.10.0 after v1.9.0.
+      - name: Work out the image tags
         id: image
         shell: bash
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "${GITHUB_OUTPUT}"
-      # The context has no .git, so the commit and build time the About page shows are worked
-      # out here by the same function VERSION.txt uses, and passed in (RD-130-12).
-      - name: Work out the build stamp
-        id: stamp
-        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          source scripts/lib/version-file.sh
-          version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
-          rd_build_stamp "$version"
-          echo "commit=$RD_BUILD_COMMIT" >> "${GITHUB_OUTPUT}"
-          echo "time=$RD_BUILD_TIME" >> "${GITHUB_OUTPUT}"
+          name="ghcr.io/${GITHUB_REPOSITORY,,}"
+          newest="$(git ls-remote --tags --refs origin 'refs/tags/v*' \
+            | sed 's#.*refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
+            | sort -V | tail -n 1)"
+          tags="${name}:${REF_NAME}"
+          if [[ "${REF_NAME}" == "${newest}" ]]; then
+            tags+=$'\n'"${name}:latest"
+          else
+            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); :latest stays where it is"
+          fi
+          echo "name=${name}" >> "${GITHUB_OUTPUT}"
+          printf 'tags<<EOF\n%s\nEOF\n' "${tags}" >> "${GITHUB_OUTPUT}"
+          printf 'pushing:\n%s\n' "${tags}"
       - name: Build and publish multiarch image
         id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
-          build-args: |
-            RD_BUILD_COMMIT=${{ steps.stamp.outputs.commit }}
-            RD_BUILD_TIME=${{ steps.stamp.outputs.time }}
+          target: prebuilt
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ github.ref_name }}
-            ${{ steps.image.outputs.name }}:latest
+          tags: ${{ steps.image.outputs.tags }}
           provenance: mode=max
           sbom: true
       - uses: sigstore/cosign-installer@v4.0.0

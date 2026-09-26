@@ -8,7 +8,6 @@
 //! was asked about. Only the one stable word the provider's own clients branch on (`NOAUTH`)
 //! and the closed set of `not_available` reasons travel, and they travel as parameters of a
 //! code rather than as text. The same rule the resolver sibling follows.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The source is neither a magnet naming a BitTorrent info hash nor an http(s) address.
 pub const NOT_A_CLOUD_SOURCE: (&str, &str) = (

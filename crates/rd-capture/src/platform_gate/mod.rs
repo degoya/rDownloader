@@ -63,7 +63,6 @@ const LINUX_LINKED: &[(&str, &str)] = &[
         "sandboxed JavaScript for container decryption",
     ),
     ("cbc", "block cipher mode"),
-    ("chrono", "time"),
     ("clap", "command line"),
     ("directories", "per-user paths"),
     ("hex", "encoding"),
@@ -106,7 +105,7 @@ const LINUX_TOOLING: &[(&str, &str)] = &[
 /// The reason list above already refuses them — they are not on it. This names them anyway,
 /// so the failure says *why* rather than only that something is unaccounted for, and so that
 /// deleting the target table cannot pass unnoticed.
-const WINDOW_STACK: &[&str] = &["image", "open", "tao", "tray-icon"];
+const WINDOW_STACK: &[&str] = &["open", "png", "tao", "tray-icon"];
 
 /// Modules whose code needs those crates, and which therefore may never be compiled on Linux.
 const GATED_MODULES: &[&str] = &["tray"];

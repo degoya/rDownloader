@@ -13,12 +13,19 @@
 # scoped run. That is what `--full` is for, and that is why the merge and the release chain run
 # it rather than trusting a scoped green.
 
-# The commit a scoped run diffs against: the OLDER of the branch point and the last green run.
+# The commit a scoped run diffs against.
 #
-# The branch point alone is empty on `development` itself, where every commit is already in the
-# base — a run there would see only uncommitted work. The last green run alone would narrow the
-# scope of a feature branch to whatever happened since. Taking the older of the two can only
-# widen the change set, never narrow it, which is the direction a verification tool should err.
+# Normally the OLDER of the branch point and the last green run. The branch point alone is empty
+# on `development` itself, where every commit is already in the base — a run there would see only
+# uncommitted work. Taking the older of the two can only widen the change set, never narrow it,
+# which is the direction a verification tool should err.
+#
+# One exception (RD-140-06): when the last green run is itself a commit of this branch — past the
+# branch point and an ancestor of HEAD — it is the boundary. That green already covered
+# everything up to it, so a follow-up round on an integration branch checks what came after it
+# instead of every commit since `development`, which had re-run the whole suite twice in the 1.3
+# wave. A green that HEAD does not contain (a rebase rewrote it, the checkout switched branches)
+# proves nothing about this history and is ignored.
 #
 #   $1  the base branch (usually development)
 #   $2  the checkout root, for the .rd-verified marker
@@ -32,6 +39,9 @@ rd_scope_boundary() {
         # Older wins. If the two are unrelated, `--is-ancestor` says no and the branch point
         # stands, which is the wider answer.
         if git merge-base --is-ancestor "$verified" "$boundary" 2> /dev/null; then
+            boundary="$verified"
+        elif git merge-base --is-ancestor "$boundary" "$verified" 2> /dev/null \
+            && git merge-base --is-ancestor "$verified" HEAD 2> /dev/null; then
             boundary="$verified"
         fi
     fi
@@ -177,7 +187,7 @@ rd_script_ranges() {
 # Conservative by construction: a file that cannot be read on the old side (a new file, a
 # rename) counts as touched, because "I could not tell" must never read as "safe to defer".
 rd_vue_script_touched() {
-    local boundary="$1" path="$2" old new ranges hunk start count first last
+    local boundary="$1" path="$2" old new hunk start count first last
     new="$(mktemp)"; old="$(mktemp)"
     # shellcheck disable=SC2064
     trap "rm -f '$new' '$old'" RETURN

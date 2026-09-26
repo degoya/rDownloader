@@ -9,7 +9,10 @@
 use axum::Router;
 use sha2::{Digest, Sha256};
 
-use super::{API_BEARER, CONFIG_BEARER, QUEUE_BEARER, call, extract_json, handshake, mcp_request};
+use super::{
+    API_BEARER, CONFIG_BEARER, QUEUE_BEARER, extract_json, handshake, mcp_request,
+    send_text as call,
+};
 
 pub(super) const READ_BEARER: &str = "test-read-bearer-token";
 /// Holds credentials and nothing else: `api:secrets` confers no reading, so every tool RD-120-32
@@ -35,8 +38,8 @@ pub(super) async fn installation(directory: &std::path::Path) -> Router {
 /// The same, with the database handle a test seeds rows through.
 pub(super) async fn installation_parts(directory: &std::path::Path) -> (Router, rd_db::Database) {
     let (router, database, secrets) = super::test_parts(directory).await;
+    // READ_BEARER comes with the shared harness (common::READ_BEARER, api:read).
     for (bearer, scopes) in [
-        (READ_BEARER, &[rd_core::API_READ_SCOPE][..]),
         (SECRETS_BEARER, &[rd_core::API_SECRETS_SCOPE][..]),
         (ADMIN_BEARER, &[rd_core::API_ADMIN_SCOPE][..]),
         (INTAKE_BEARER, &[rd_core::API_INTAKE_SCOPE][..]),

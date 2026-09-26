@@ -7,7 +7,6 @@
 //! `{"error_type": "<word>", "error_message": "<sentence>"}`; the word is stable and
 //! documented and travels as the `reason` parameter, the sentence is not and is dropped.
 //! `putio_common::reason` is where that rule is enforced.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The address is not a Put.io file address.
 pub const NOT_A_PUTIO_LINK: (&str, &str) = (

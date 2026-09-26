@@ -8,7 +8,6 @@
 //! quote the address it was asked about. What travels is the one stable word the provider's
 //! own clients branch on (`NOAUTH`), the closed set of `not_available` reasons, and the HTTP
 //! status; everything else is dropped. The same rule the other multihoster plugins arrived at.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The account holds no Offcloud API key.
 pub const API_KEY_MISSING: (&str, &str) = (

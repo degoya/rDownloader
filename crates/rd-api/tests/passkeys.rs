@@ -17,9 +17,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
-use common::auth_harness;
-use http_body_util::BodyExt;
-use tower::ServiceExt;
+use common::{auth_harness, send_with_cookie, sign_in};
 use webauthn_authenticator_rs::{AuthenticatorBackend, softtoken::SoftToken};
 
 const PASSWORD: &str = "correct-horse-battery";
@@ -27,34 +25,6 @@ const PASSWORD: &str = "correct-horse-battery";
 /// Where the harness's requests come from. Loopback, so it is usable without an external URL
 /// being configured — which is the state a fresh install is in, and the one most people stay in.
 const ORIGIN: &str = "http://localhost:8710";
-
-/// One request, decoded, with the `Set-Cookie` kept: a sign-in is only proven by the session.
-async fn send(
-    router: &Router,
-    request: Request<Body>,
-) -> (StatusCode, serde_json::Value, Option<String>) {
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let cookie = response
-        .headers()
-        .get(header::SET_COOKIE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("rd_session="))
-        .and_then(|value| value.split(';').next())
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned);
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
-        cookie,
-    )
-}
 
 /// A POST carrying the browser's `Origin`, which is what binds a ceremony to this service.
 fn from_origin(uri: &str, token: Option<&str>, body: &serde_json::Value) -> Request<Body> {
@@ -70,38 +40,11 @@ fn from_origin(uri: &str, token: Option<&str>, body: &serde_json::Value) -> Requ
     request.body(Body::from(body.to_string())).expect("request")
 }
 
-async fn sign_in(router: &Router) -> String {
-    let (status, body, _) = send(
-        router,
-        from_origin(
-            "/api/v1/auth/setup",
-            None,
-            &serde_json::json!({ "password": PASSWORD }),
-        ),
-    )
-    .await;
-    assert!(
-        status.is_success() || body["code"] == "auth.setup_completed",
-        "setup: {body}"
-    );
-    let (status, body, token) = send(
-        router,
-        from_origin(
-            "/api/v1/auth/login",
-            None,
-            &serde_json::json!({ "password": PASSWORD }),
-        ),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    token.expect("a session")
-}
-
 /// Runs the whole enrolment ceremony, returning the authenticator that now holds the key —
 /// a passkey is only useful to the device that made it.
 async fn enrol(router: &Router, token: &str, label: &str) -> SoftToken {
     let (mut authenticator, _) = SoftToken::new(true).expect("a software authenticator");
-    let (status, challenge, _) = send(
+    let (status, challenge, _) = send_with_cookie(
         router,
         from_origin("/api/v1/mfa/passkey", Some(token), &serde_json::json!({})),
     )
@@ -114,7 +57,7 @@ async fn enrol(router: &Router, token: &str, label: &str) -> SoftToken {
         .perform_register(ORIGIN.parse().expect("origin"), options, 10_000)
         .expect("the authenticator produced a credential");
 
-    let (status, body, _) = send(
+    let (status, body, _) = send_with_cookie(
         router,
         from_origin(
             "/api/v1/mfa/passkey/confirm",
@@ -142,7 +85,7 @@ async fn passkey_sign_in(
     router: &Router,
     authenticator: &mut SoftToken,
 ) -> Result<String, (StatusCode, serde_json::Value)> {
-    let (status, challenge, _) = send(
+    let (status, challenge, _) = send_with_cookie(
         router,
         from_origin(
             "/api/v1/auth/passkey/challenge",
@@ -159,7 +102,7 @@ async fn passkey_sign_in(
     let assertion = authenticator
         .perform_auth(ORIGIN.parse().expect("origin"), options, 10_000)
         .expect("the authenticator signed the challenge");
-    let (status, body, cookie) = send(
+    let (status, body, cookie) = send_with_cookie(
         router,
         from_origin(
             "/api/v1/auth/passkey/login",
@@ -181,7 +124,7 @@ async fn passkey_sign_in(
 async fn a_passkey_signs_in_without_the_password() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let mut authenticator = enrol(&harness.router, &token, "Laptop").await;
 
     let session = passkey_sign_in(&harness.router, &mut authenticator)
@@ -199,10 +142,10 @@ async fn a_passkey_signs_in_without_the_password() {
 async fn enrolling_a_passkey_does_not_turn_on_the_code_prompt() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     enrol(&harness.router, &token, "Laptop").await;
 
-    let (status, body, cookie) = send(
+    let (status, body, cookie) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/auth/login",
@@ -231,10 +174,10 @@ async fn enrolling_a_passkey_does_not_turn_on_the_code_prompt() {
 async fn an_assertion_cannot_be_replayed() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let mut authenticator = enrol(&harness.router, &token, "Laptop").await;
 
-    let (status, challenge, _) = send(
+    let (status, challenge, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/auth/passkey/challenge",
@@ -254,13 +197,13 @@ async fn an_assertion_cannot_be_replayed() {
         "credential": serde_json::to_value(assertion).expect("assertion"),
     });
 
-    let (first, body, _) = send(
+    let (first, body, _) = send_with_cookie(
         &harness.router,
         from_origin("/api/v1/auth/passkey/login", None, &payload),
     )
     .await;
     assert_eq!(first, StatusCode::OK, "{body}");
-    let (second, body, cookie) = send(
+    let (second, body, cookie) = send_with_cookie(
         &harness.router,
         from_origin("/api/v1/auth/passkey/login", None, &payload),
     )
@@ -274,7 +217,7 @@ async fn an_assertion_cannot_be_replayed() {
 async fn a_revoked_passkey_stops_working() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let mut authenticator = enrol(&harness.router, &token, "Laptop").await;
 
     let (_, listing) = common::get_with_cookie(&harness.router, "/api/v1/mfa", &token).await;
@@ -289,7 +232,7 @@ async fn a_revoked_passkey_stops_working() {
         .header(header::COOKIE, format!("rd_session={token}"))
         .body(Body::empty())
         .expect("request");
-    let (status, body, _) = send(&harness.router, request).await;
+    let (status, body, _) = send_with_cookie(&harness.router, request).await;
     assert_eq!(status, StatusCode::OK, "{body}");
 
     let error = passkey_sign_in(&harness.router, &mut authenticator)
@@ -304,10 +247,10 @@ async fn a_revoked_passkey_stops_working() {
 async fn turning_off_the_code_prompt_leaves_the_passkeys_alone() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let mut authenticator = enrol(&harness.router, &token, "Laptop").await;
 
-    let (status, body, _) = send(
+    let (status, body, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/mfa/disable",
@@ -332,7 +275,7 @@ async fn turning_off_the_code_prompt_leaves_the_passkeys_alone() {
 async fn without_a_passkey_the_sign_in_screen_is_not_offered_one() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let (status, body, _) = send(
+    let (status, body, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/auth/passkey/challenge",
@@ -355,7 +298,7 @@ async fn without_a_passkey_the_sign_in_screen_is_not_offered_one() {
 async fn an_unusable_origin_is_refused_with_an_explanation() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let request = Request::builder()
         .method("POST")
         .uri("/api/v1/mfa/passkey")
@@ -365,7 +308,7 @@ async fn an_unusable_origin_is_refused_with_an_explanation() {
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from("{}"))
         .expect("request");
-    let (status, body, _) = send(&harness.router, request).await;
+    let (status, body, _) = send_with_cookie(&harness.router, request).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["code"], "mfa.passkey_origin_unknown");
 }
@@ -378,7 +321,7 @@ async fn an_unusable_origin_is_refused_with_an_explanation() {
 async fn a_settings_export_does_not_carry_a_passkey() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     enrol(&harness.router, &token, "Laptop").await;
 
     let (_, listing) = common::get_with_cookie(&harness.router, "/api/v1/mfa", &token).await;
@@ -386,7 +329,7 @@ async fn a_settings_export_does_not_carry_a_passkey() {
         .as_str()
         .expect("a label");
 
-    let (status, bundle, _) = send(
+    let (status, bundle, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/settings/export",
@@ -416,11 +359,11 @@ async fn a_settings_export_does_not_carry_a_passkey() {
 async fn the_challenge_endpoint_is_refused_to_a_locked_out_address() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness.router).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     enrol(&harness.router, &token, "Laptop").await;
 
     // A working challenge first, so what the loop changes is the throttle and not the setup.
-    let (status, body, _) = send(
+    let (status, body, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/auth/passkey/challenge",
@@ -433,7 +376,7 @@ async fn the_challenge_endpoint_is_refused_to_a_locked_out_address() {
 
     let mut locked = false;
     for _ in 0..12 {
-        let (status, _, _) = send(
+        let (status, _, _) = send_with_cookie(
             &harness.router,
             from_origin(
                 "/api/v1/auth/login",
@@ -449,7 +392,7 @@ async fn the_challenge_endpoint_is_refused_to_a_locked_out_address() {
     }
     assert!(locked, "the password login was never throttled");
 
-    let (status, body, _) = send(
+    let (status, body, _) = send_with_cookie(
         &harness.router,
         from_origin(
             "/api/v1/auth/passkey/challenge",

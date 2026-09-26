@@ -2,7 +2,6 @@
   "name": "Real-Debrid torrents",
   "description": "Runs magnets and torrent files as jobs on a Real-Debrid account.",
   "codes": {
-    "realdebrid_torrents.account_missing": "Real-Debrid account is missing",
     "realdebrid_torrents.api_error": "Real-Debrid API error {api_code}",
     "realdebrid_torrents.auth_invalid": "The Real-Debrid sign-in is no longer valid. Sign in again.",
     "realdebrid_torrents.content_refused": "Real-Debrid refuses to carry this content",
@@ -19,7 +18,6 @@
     "realdebrid_torrents.rate_limited": "The Real-Debrid API rate limit was reached. Waiting.",
     "realdebrid_torrents.server_busy": "Real-Debrid is temporarily unavailable",
     "realdebrid_torrents.server_error": "Real-Debrid server error",
-    "realdebrid_torrents.token_missing": "This Real-Debrid account is not signed in yet",
     "realdebrid_torrents.torrent_dead": "Real-Debrid found no peers for this torrent",
     "realdebrid_torrents.torrent_failed": "Real-Debrid ended this torrent with an error",
     "realdebrid_torrents.torrent_gone": "Real-Debrid no longer holds this torrent"

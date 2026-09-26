@@ -7,7 +7,7 @@ use rd_core::{
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::{error::StoreError, parse_id, writer::insert_event};
+use crate::{enum_string, error::StoreError, parse_id, writer::insert_event};
 
 /// Validated NZB data ready for serialized persistence.
 pub struct NewNzbImport {
@@ -704,8 +704,4 @@ impl TryFrom<NzbImportRow> for NzbImport {
             created_at: row.created_at,
         })
     }
-}
-
-fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
 }

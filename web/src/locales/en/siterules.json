@@ -23,10 +23,7 @@
   "list": {
     "title": "Rules",
     "empty": "No rule is installed, so no release page is recognised by rule. Import the signed rule file of a release to start from the project's rules.",
-    "group_off": "The group is switched off, so this rule is not consulted.",
-    "steps": "no steps | {count} step | {count} steps",
-    "checked_at": "Last checked {date}",
-    "links_found": "{count} links"
+    "group_off": "The group is switched off, so this rule is not consulted."
   },
   "new": "New rule",
   "editor": {
@@ -112,7 +109,6 @@
     "pages": "no requests | {count} request | {count} requests",
     "kept": "{count} kept",
     "refused": "{count} dropped",
-    "links": "Links found",
     "no_links": "The run produced no link.",
     "mirrors": "The rule declares these links to be copies of one file.",
     "verdicts": {
@@ -123,7 +119,6 @@
     }
   },
   "transfer": {
-    "heading": "Carry rules",
     "export": "Export rules",
     "export_empty": "There is no rule to export.",
     "import": "Import rules",

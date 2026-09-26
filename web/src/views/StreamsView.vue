@@ -102,7 +102,6 @@ function recordingPolicy() {
       subtitles: false,
       chat: false
     },
-    vod_fallback: { mode: 'off' },
     reconnect_delay_seconds: form.reconnectDelay
   }
 }

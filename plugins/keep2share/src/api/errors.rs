@@ -18,7 +18,8 @@ pub(crate) struct ApiFailure {
     pub(crate) params: Vec<(&'static str, String)>,
 }
 
-/// Mirrors `rd_core::FailureKind` / the WIT `failure-kind` variant, without depending on either.
+/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
+/// on either.
 #[derive(Debug)]
 pub(crate) enum ErrorKind {
     Transient(Option<u64>),
@@ -28,8 +29,6 @@ pub(crate) enum ErrorKind {
     AccountInvalid,
     RateLimited(Option<u64>),
     NeedsCaptcha,
-    #[allow(dead_code)] // `matches()` filters unsupported links before any call is made.
-    Unsupported,
     /// This IP may not start another free download yet — only the account-less flow reaches
     /// this (see [`crate::api::free`]); the scheduler blocks the hoster rather than the link.
     IpBlocked(Option<u64>),

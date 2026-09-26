@@ -17,7 +17,6 @@ axum.workspace = true
 base64.workspace = true
 boa_engine.workspace = true
 cbc.workspace = true
-chrono.workspace = true
 clap.workspace = true
 directories.workspace = true
 hex.workspace = true
@@ -48,8 +47,8 @@ url.workspace = true
 # down. Clipboard watching is wanted on Linux, so this is the right line — what must not cross
 # it is a windowing or rendering stack. `src/platform_gate/` holds it by reading this file.
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
-image.workspace = true
 open.workspace = true
+png.workspace = true
 tao.workspace = true
 tray-icon.workspace = true
 

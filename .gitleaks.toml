@@ -29,6 +29,12 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Ed25519 test keys from fixed seeds, for the PKCS#8 reading test (RD-140-12)"
+paths = [
+    '''(^|/)crates/rd-plugin-host/tests/fixtures/dalek2/test-key-pkcs8-v[12]\.pem$''',
+]
+
+[[allowlists]]
 description = "Test files whose keys, tokens and site keys are invented or public"
 paths = [
     '''(^|/)plugins/mega-common/src/address_tests\.rs$''',
@@ -62,7 +68,7 @@ regexes = ['''ipnyzofjcwri357|x67lis2zygml5''']
 description = "A made-up passkey in a link-check test"
 targetRules = ["generic-api-key"]
 condition = "AND"
-paths = ['''(^|/)crates/rd-api/src/link_check_service\.rs$''']
+paths = ['''(^|/)crates/rd-api/src/link_check_service(_tests)?\.rs$''']
 regexes = ['''0123456789abcdef''']
 
 [[allowlists]]

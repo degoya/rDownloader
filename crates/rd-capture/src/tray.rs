@@ -406,17 +406,41 @@ fn spawn_health_poll(
     });
 }
 
-fn decode_image() -> Result<image::RgbaImage> {
-    Ok(
-        image::load_from_memory_with_format(ICON_PNG, image::ImageFormat::Png)
-            .context("decode the tray icon")?
-            .into_rgba8(),
-    )
+/// The decoded icon: 8-bit RGBA, row by row, as [`Icon::from_rgba`] takes it.
+#[derive(Clone)]
+struct Pixels {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
 }
 
-fn to_icon(image: image::RgbaImage) -> Result<Icon> {
-    let (width, height) = image.dimensions();
-    Icon::from_rgba(image.into_raw(), width, height).context("build the tray icon")
+/// Decodes with `png` directly: the one asset is an 8-bit RGBA PNG, and `image` would add a
+/// decoder framework on top of the `png` crate it uses for exactly this (RD-140-13).
+fn decode_image() -> Result<Pixels> {
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(ICON_PNG));
+    decoder.set_transformations(png::Transformations::normalize_to_color8());
+    let mut reader = decoder.read_info().context("read the tray icon header")?;
+    let size = reader
+        .output_buffer_size()
+        .context("the tray icon does not fit in memory")?;
+    let mut rgba = vec![0; size];
+    let frame = reader
+        .next_frame(&mut rgba)
+        .context("decode the tray icon")?;
+    anyhow::ensure!(
+        frame.color_type == png::ColorType::Rgba && frame.bit_depth == png::BitDepth::Eight,
+        "the tray icon is not 8-bit RGBA"
+    );
+    rgba.truncate(frame.buffer_size());
+    Ok(Pixels {
+        rgba,
+        width: frame.width,
+        height: frame.height,
+    })
+}
+
+fn to_icon(image: Pixels) -> Result<Icon> {
+    Icon::from_rgba(image.rgba, image.width, image.height).context("build the tray icon")
 }
 
 /// The idle mark with a filled corner badge, for "something is transferring".
@@ -425,11 +449,10 @@ fn to_icon(image: image::RgbaImage) -> Result<Icon> {
 /// the other, and `web/public/favicon.svg` stays the single source every icon is generated from.
 ///
 /// Where the badge sits and which pixels it covers is [`crate::icon`], which knows nothing about
-/// `image` or `tray-icon` and is measured on Linux. What is left here is the pair of conversions
+/// `png` or `tray-icon` and is measured on Linux. What is left here is the pair of conversions
 /// those two crates own.
-fn busy_icon(base: &image::RgbaImage) -> Result<Icon> {
-    let (width, height) = base.dimensions();
-    let mut pixels = base.clone().into_raw();
-    badge::paint_badge(&mut pixels, width, height);
-    Icon::from_rgba(pixels, width, height).context("build the busy tray icon")
+fn busy_icon(base: &Pixels) -> Result<Icon> {
+    let mut pixels = base.rgba.clone();
+    badge::paint_badge(&mut pixels, base.width, base.height);
+    Icon::from_rgba(pixels, base.width, base.height).context("build the busy tray icon")
 }

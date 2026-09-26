@@ -109,14 +109,6 @@ pub struct MediaResolution {
     pub candidate_total: usize,
 }
 
-impl MediaResolution {
-    /// Whether the result honours everything that was asked for.
-    #[must_use]
-    pub fn is_exact(&self) -> bool {
-        self.relaxations.is_empty()
-    }
-}
-
 /// Why no format could be chosen.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema, thiserror::Error)]
 #[serde(rename_all = "snake_case", tag = "reason")]

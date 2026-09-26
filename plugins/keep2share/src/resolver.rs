@@ -260,7 +260,6 @@ pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {
         api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
         api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
         api::ErrorKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
         api::ErrorKind::IpBlocked(seconds) => FailureKind::IpBlocked(seconds),
         api::ErrorKind::CaptchaFailed => FailureKind::CaptchaFailed,
     };

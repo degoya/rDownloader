@@ -15,8 +15,8 @@ use plugin_common::{
     CaptchaAnswer, CaptchaChallenge, CaptchaSolution, Failure, FailureKind, HttpRequest,
     HttpResponse, PluginHost,
 };
+use xfs_common::session_trace::unconfirmed_page_line;
 
-use super::unconfirmed_page_line;
 use crate::resolver;
 
 const CANARY: &str = "c4n4ry7f3a";

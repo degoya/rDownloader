@@ -170,6 +170,9 @@ impl Writer {
                     self.clear_unsatisfiable_resolver_pins(&available).await,
                 );
             }
+            WriterCommand::PinDownloadResolver { id, pin, reply } => {
+                send(reply, self.pin_download_resolver(id, pin).await);
+            }
             // `Writer::run` routes every variant to exactly one handler, and its match is
             // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
             // command instead of panicking: a mis-routed command must not take down the one

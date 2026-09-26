@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{get_json, parked_harness, post_json, test_harness};
+use common::{WAIT, eventually, get_json, parked_harness, post_json, test_harness};
 use rd_core::{EventEnvelope, EventKind};
 use serde_json::json;
 
@@ -28,20 +28,36 @@ async fn automation_for(router: &axum::Router, trigger: &str) -> String {
     created["id"].as_str().expect("id").to_owned()
 }
 
+/// How many runs the given automation has.
+async fn run_count(router: &axum::Router, automation_id: &str) -> usize {
+    let (_, runs) = get_json(
+        router,
+        &format!("/api/v1/automations/runs?automation_id={automation_id}"),
+    )
+    .await;
+    runs.as_array().map(Vec::len).unwrap_or_default()
+}
+
+/// Waits until the given automation has at least `count` runs.
+async fn wait_for_runs_of(router: &axum::Router, automation_id: &str, count: usize, what: &str) {
+    eventually(WAIT, what, || async move {
+        (run_count(router, automation_id).await >= count).then_some(())
+    })
+    .await;
+}
+
 /// Waits until a run exists for the given automation.
-async fn fired(router: &axum::Router, automation_id: &str) -> bool {
-    for _ in 0..40 {
-        let (_, runs) = get_json(
-            router,
-            &format!("/api/v1/automations/runs?automation_id={automation_id}"),
-        )
-        .await;
-        if runs.as_array().is_some_and(|items| !items.is_empty()) {
-            return true;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    false
+async fn assert_fired(router: &axum::Router, automation_id: &str, trigger: &str) {
+    let what = format!("{trigger} did not fire");
+    wait_for_runs_of(router, automation_id, 1, &what).await;
+}
+
+/// An event the `intake_received` automation fires on.
+fn intake(batch: &str) -> EventEnvelope {
+    EventEnvelope::new(
+        EventKind::CollectorIntake,
+        json!({ "batch_id": batch, "candidate_count": 1, "source": "api" }),
+    )
 }
 
 #[tokio::test]
@@ -92,7 +108,7 @@ async fn the_download_lifecycle_triggers_fire_on_a_real_job() {
         (&completed, "download_completed"),
         (&package_completed, "package_completed"),
     ] {
-        assert!(fired(&harness.router, id).await, "{name} did not fire");
+        assert_fired(&harness.router, id, name).await;
     }
 }
 
@@ -134,10 +150,7 @@ async fn a_failed_download_fires_the_failure_triggers() {
             .expect("transition");
     }
 
-    assert!(
-        fired(&harness.router, &failed).await,
-        "download_failed did not fire"
-    );
+    assert_fired(&harness.router, &failed, "download_failed").await;
 
     // A failed download does not fail its package: `package_failed` means post-processing
     // failed, which is a different moment and deliberately not implied by a dead link. It is
@@ -147,10 +160,7 @@ async fn a_failed_download_fires_the_failure_triggers() {
         .set_package_state(package.id, rd_core::PackageState::Failed, None, None, None)
         .await
         .expect("package state");
-    assert!(
-        fired(&harness.router, &package_failed).await,
-        "package_failed did not fire"
-    );
+    assert_fired(&harness.router, &package_failed, "package_failed").await;
 }
 
 #[tokio::test]
@@ -204,10 +214,14 @@ async fn the_remaining_triggers_fire_on_their_own_event() {
             .broadcast(EventEnvelope::new(kind.clone(), payload.clone()));
     }
     for ((trigger, _, _), id) in cases.iter().zip(&ids) {
-        assert!(fired(&harness.router, id).await, "{trigger} did not fire");
+        assert_fired(&harness.router, id, trigger).await;
     }
 }
 
+/// "Nothing fired" is only worth asserting once the engine has read the events. It handles
+/// them one at a time and in order, so an intake before them and another after them bracket
+/// them: once the `intake_received` automation has run twice, the engine was listening before
+/// the first non-moment and has read past the last.
 #[tokio::test]
 async fn an_event_that_is_not_a_moment_fires_nothing() {
     let directory = tempfile::tempdir().expect("tempdir");
@@ -224,6 +238,15 @@ async fn an_event_that_is_not_a_moment_fires_nothing() {
     ] {
         ids.push(automation_for(&harness.router, trigger).await);
     }
+    let witness = ids[0].clone();
+    harness.database.broadcast(intake("before"));
+    wait_for_runs_of(
+        &harness.router,
+        &witness,
+        1,
+        "the engine never read the first intake",
+    )
+    .await;
 
     // The bus carries far more than automations should hang off. A configuration change or
     // a progress tick must not be a moment anything fires on.
@@ -250,14 +273,28 @@ async fn an_event_that_is_not_a_moment_fires_nothing() {
             .broadcast(EventEnvelope::new(kind, payload));
     }
 
-    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    harness.database.broadcast(intake("after"));
+    wait_for_runs_of(
+        &harness.router,
+        &witness,
+        2,
+        "the engine never read the second intake",
+    )
+    .await;
+
     let (_, runs) = get_json(&harness.router, "/api/v1/automations/runs").await;
     assert_eq!(
         runs.as_array().map(Vec::len),
-        Some(0),
+        Some(2),
         "an event that is not a lifecycle moment started a run: {runs}"
     );
-    let _ = ids;
+    assert!(
+        runs.as_array()
+            .expect("runs")
+            .iter()
+            .all(|run| run["automation_id"] == witness.as_str()),
+        "only the witness ran: {runs}"
+    );
 }
 
 fn common_download(package_id: rd_core::PackageId, file_name: &str) -> rd_db::NewDownload {

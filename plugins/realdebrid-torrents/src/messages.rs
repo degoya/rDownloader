@@ -7,7 +7,6 @@
 //! `{"error": "<sentence>", "error_code": <number>}`; the number is stable and documented and
 //! travels as the `api_code` parameter, the sentence is not and is dropped. The same rule the
 //! resolver sibling arrived at in `plugins/realdebrid/src/messages.rs`.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The source is neither a magnet naming a BitTorrent info hash nor a readable container.
 pub const NOT_A_TORRENT: (&str, &str) = (
@@ -49,18 +48,6 @@ pub const TORRENT_GONE: (&str, &str) = (
 pub const AUTH_INVALID: (&str, &str) = (
     "realdebrid_torrents.auth_invalid",
     "Real-Debrid sign-in is invalid or expired",
-);
-
-/// The account holds no Real-Debrid access token.
-pub const TOKEN_MISSING: (&str, &str) = (
-    "realdebrid_torrents.token_missing",
-    "Real-Debrid account is not signed in",
-);
-
-/// The call carried no account identity, so there is no credential it could run as.
-pub const ACCOUNT_MISSING: (&str, &str) = (
-    "realdebrid_torrents.account_missing",
-    "Real-Debrid account is missing",
 );
 
 /// `error_code` 16/20: this account's plan does not cover torrents.

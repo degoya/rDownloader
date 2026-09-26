@@ -254,7 +254,7 @@ pub(crate) fn evaluate_capacity(
 
 async fn available_space(path: &Path) -> Result<u64> {
     let path = path.to_path_buf();
-    Ok(tokio::task::spawn_blocking(move || fs2::available_space(&path)).await??)
+    Ok(tokio::task::spawn_blocking(move || fs4::available_space(&path)).await??)
 }
 
 #[cfg(test)]

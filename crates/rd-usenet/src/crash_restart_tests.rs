@@ -1,11 +1,13 @@
-//! Crash and restart for NZB assembly - Axis A of the RD-140-04 recovery matrix, for the one
-//! Usenet point registered in `rd_core::failpoint::CRASH_POINTS`.
+//! Crash and restart for NZB assembly - Axis A of the RD-140-04 recovery matrix, for the
+//! Usenet points registered in `rd_core::failpoint::CRASH_POINTS`.
 //!
-//! The instant is the one the removed per-article `sync_data()` sat next to (RD-108-25): an
-//! article's bytes are appended to the `.part` file and the database has not recorded them.
-//! A restart must not count them. The four invariants of `crates/rd-core/recovery-matrix.md`
-//! are asserted the way `rd-http`'s cases assert them: no confirmed byte invented, no confirmed
-//! byte overwritten, the same bytes as an uninterrupted run, nothing left behind.
+//! The first instant is the one the removed per-article `sync_data()` sat next to
+//! (RD-108-25): an article's bytes are in the `.part` file and the database has not recorded
+//! them. The second is its batched form (RD-130-22): several such articles wait for one
+//! transaction, and the process stops before it commits. A restart must count none of them.
+//! The four invariants of `crates/rd-core/recovery-matrix.md` are asserted the way `rd-http`'s
+//! cases assert them: no confirmed byte invented, no confirmed byte overwritten, the same bytes
+//! as an uninterrupted run, nothing left behind.
 
 #![cfg(feature = "failpoints")]
 
@@ -18,8 +20,8 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     NntpPool, NntpServerConfig,
     test_support::{
-        FixtureTiming, import_single_file, multipart_article, payload, reload, run_limits,
-        spawn_fixture,
+        FixtureBehaviour, FixtureTiming, Gate, import_single_file, multipart_article, payload,
+        reload, run_limits, spawn_fixture, spawn_fixture_with,
     },
     worker::{FileOutcome, download_file},
 };
@@ -144,6 +146,179 @@ async fn an_article_written_but_not_checkpointed_is_fetched_again_after_the_cras
             .count(),
         2,
         "the unrecorded article was fetched again"
+    );
+    let written = tokio::fs::read(&path).await.expect("assembled file");
+    assert_eq!(
+        written,
+        parts.concat(),
+        "invariant 3: the resumed file has the bytes of an uninterrupted run"
+    );
+    assert!(
+        !part_path.exists(),
+        "invariant 4: the part file was left behind"
+    );
+    let finished = reload(&database, &file).await;
+    assert!(
+        finished
+            .segments
+            .iter()
+            .all(|segment| segment.state == NzbSegmentState::Completed)
+    );
+}
+
+/// RD-130-22: the checkpoints of written articles wait for one transaction, and the process
+/// stops before it commits. The batch confirmed before stays confirmed; every article of the
+/// lost batch is on disk, unconfirmed, and fetched again.
+///
+/// Made deterministic with a gate on the second article: the first one arrives alone, so the
+/// assembly confirms it in a batch of its own before it waits; the test sees that commit and
+/// only then lets the rest through, into the batch that is lost.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_batch_of_checkpoints_lost_in_a_crash_is_fetched_again_and_the_one_before_is_kept() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database = Database::open(directory.path().join("batch.sqlite"))
+        .await
+        .expect("database");
+    let parts: Vec<Vec<u8>> = (0..3)
+        .map(|index| payload(SEGMENT_BYTES, index * 19))
+        .collect();
+    let total = (3 * SEGMENT_BYTES) as u64;
+    let mut articles = HashMap::new();
+    let mut segments = Vec::new();
+    for (index, part) in parts.iter().enumerate() {
+        let message_id = format!("part-{}@example.test", index + 1);
+        articles.insert(
+            message_id.clone(),
+            Some(multipart_article(
+                "file.bin",
+                (index + 1) as u64,
+                total,
+                (index * SEGMENT_BYTES) as u64 + 1,
+                part,
+            )),
+        );
+        segments.push((message_id, SEGMENT_BYTES as u64));
+    }
+    let file = import_single_file(&database, "file.bin", &segments).await;
+    let staging = directory.path().join("staging");
+    let destination = directory.path().join("destination");
+    tokio::fs::create_dir_all(&staging).await.expect("staging");
+    tokio::fs::create_dir_all(&destination)
+        .await
+        .expect("destination");
+    let gate = Gate::on("part-2@example.test");
+    let (address, log) = spawn_fixture_with(
+        Arc::new(articles),
+        FixtureTiming::default(),
+        FixtureBehaviour {
+            gate: Some(gate.clone()),
+            ..FixtureBehaviour::default()
+        },
+    )
+    .await;
+    let server = NntpServerConfig {
+        host: address.ip().to_string(),
+        port: address.port(),
+        tls: false,
+        custom_ca_pem: Vec::new(),
+        username: None,
+        password: None,
+        proxy: None,
+        max_article_bytes: 64 * 1024,
+        max_connections: 1,
+    };
+    let pool = NntpPool::new(vec![server.clone()]).expect("pool");
+    let part_path = staging.join(format!("{}.part", file.id));
+
+    // The crash: the first batch commits, the second does not.
+    let guard = FailpointGuard::after("usenet.before_checkpoint_batch", 1);
+    let crashed_run = tokio::spawn({
+        let (database, pool, file) = (database.clone(), pool.clone(), file.clone());
+        let (staging, destination) = (staging.clone(), destination.clone());
+        async move {
+            download_file(
+                &database,
+                &pool,
+                &CancellationToken::new(),
+                &file,
+                &staging,
+                &destination,
+                &run_limits(),
+            )
+            .await
+        }
+    });
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        while reload(&database, &file).await.segments[0].state != NzbSegmentState::Completed {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the first article was confirmed on its own");
+    gate.open();
+    let error = match crashed_run.await.expect("download task") {
+        Ok(_) => panic!("the crash point did not stop the download"),
+        Err(error) => error,
+    };
+    assert!(guard.fired(), "the crash point was never reached: {error}");
+    drop(guard);
+    let on_disk = tokio::fs::metadata(&part_path)
+        .await
+        .expect("part file")
+        .len();
+    assert!(
+        on_disk >= (2 * SEGMENT_BYTES) as u64,
+        "the second article reached the disk before the crash"
+    );
+    let crashed = reload(&database, &file).await;
+    assert_eq!(
+        crashed.segments[0].state,
+        NzbSegmentState::Completed,
+        "the batch committed before the crash stays confirmed"
+    );
+    for segment in &crashed.segments[1..] {
+        assert_ne!(
+            segment.state,
+            NzbSegmentState::Completed,
+            "invariant 1: an article of the lost batch is not counted as confirmed"
+        );
+    }
+
+    // The restart: a new process, so a new pool; the crashed one's connection went with it.
+    // The gate lets an article through once, and the restart asks for part 2 again.
+    gate.open();
+    let pool = NntpPool::new(vec![server]).expect("pool after the restart");
+    let outcome = download_file(
+        &database,
+        &pool,
+        &CancellationToken::new(),
+        &crashed,
+        &staging,
+        &destination,
+        &run_limits(),
+    )
+    .await
+    .expect("resumed download");
+    let FileOutcome::Completed { path, missing } = outcome else {
+        panic!("download was cancelled");
+    };
+    assert_eq!(missing, 0);
+    let requested = log.requests();
+    let asked = |id: &str| requested.iter().filter(|seen| seen.as_str() == id).count();
+    assert_eq!(
+        asked("part-1@example.test"),
+        1,
+        "invariant 2: the confirmed article was neither fetched nor written again"
+    );
+    assert_eq!(
+        asked("part-2@example.test"),
+        2,
+        "the lost batch was fetched again"
+    );
+    assert_eq!(
+        asked("part-3@example.test"),
+        2,
+        "the lost batch was fetched again"
     );
     let written = tokio::fs::read(&path).await.expect("assembled file");
     assert_eq!(

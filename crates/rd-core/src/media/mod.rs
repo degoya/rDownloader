@@ -288,12 +288,6 @@ impl MediaSelection {
             .or_else(|| MediaFormatCriteria::preset(&self.variant_id))
     }
 
-    /// Whether the row predates the format selector.
-    #[must_use]
-    pub const fn is_legacy(&self) -> bool {
-        self.contract_version == 0
-    }
-
     /// Whether the blob was written by a newer version of rDownloader.
     #[must_use]
     pub const fn is_future_contract(&self) -> bool {
@@ -451,7 +445,6 @@ mod tests {
         let selection: MediaSelection =
             serde_json::from_str(LEGACY_SELECTION).expect("legacy blob still deserialises");
         assert_eq!(selection.contract_version, 0);
-        assert!(selection.is_legacy());
         assert!(!selection.is_future_contract());
         assert_eq!(selection.criteria, None);
         assert_eq!(selection.resolved, None);

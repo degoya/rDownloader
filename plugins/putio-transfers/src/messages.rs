@@ -7,7 +7,6 @@
 //! `{"error_type": "<WORD>", "error_message": "<sentence>"}`; the word is stable and
 //! documented and travels as the `reason` parameter, the sentence is not and is dropped. The
 //! same rule the resolver sibling follows, enforced in one place by `putio_common::reason`.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The source is neither a magnet naming a BitTorrent info hash nor a readable container.
 pub const NOT_A_TORRENT: (&str, &str) = (

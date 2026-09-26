@@ -1,4 +1,4 @@
-//! `rdownloader plugin …` subcommands: keygen, package, verify, install, keys.
+//! `rdownloader plugin …` subcommands: keygen, package, verify, install, keys, index.
 
 use std::path::PathBuf;
 
@@ -30,6 +30,8 @@ enum PluginCommand {
     Conformance(ConformanceArgs),
     /// Scaffolds a new plugin from the SDK templates.
     New(NewPluginArgs),
+    /// Builds and verifies the signed plugin repository index (RD-140-01).
+    Index(crate::plugin_index_cli::IndexArgs),
 }
 
 #[derive(Args)]
@@ -161,7 +163,7 @@ impl KeyRole {
             Self::Plugin => RELEASE_KEY_ID,
             Self::Release => "rdownloader-update-v1",
             Self::ToolManifest => "rdownloader-tools-v1",
-            Self::Repository => "rdownloader-repository-v1",
+            Self::Repository => rd_sign::REPOSITORY_KEY_ID,
             Self::SiteRules => rd_sign::SITE_RULES_KEY_ID,
         }
     }
@@ -262,6 +264,7 @@ pub async fn run(args: PluginArgs) -> Result<()> {
         PluginCommand::Keys(args) => keys(args).await,
         PluginCommand::Conformance(args) => conformance(&args).await,
         PluginCommand::New(args) => scaffold(&args),
+        PluginCommand::Index(args) => crate::plugin_index_cli::run(args).await,
     }
 }
 
@@ -381,6 +384,12 @@ async fn keygen(args: &KeygenArgs) -> Result<()> {
         println!(
             "trust flag:  --trusted-plugin-key {RELEASE_KEY_ID}={}",
             generated.public_base64
+        );
+    }
+    if matches!(args.role, KeyRole::Repository) {
+        println!(
+            "CI secret:   RDOWNLOADER_REPOSITORY_SIGNING_KEY = the contents of {}",
+            private_path.display()
         );
     }
     println!(

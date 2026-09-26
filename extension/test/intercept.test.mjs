@@ -3,7 +3,6 @@ import { test } from 'node:test'
 
 import {
   buildIntakePayload,
-  buildLegacyPayload,
   correlateRequest,
   BROWSER_ONLY_EXTENSIONS,
   BROWSER_ONLY_TYPES,
@@ -171,19 +170,5 @@ test('buildIntakePayload omits unknown fields and effective_url when the url did
         request: { method: 'GET', user_agent: 'Mozilla/5.0 (Firefox) Gecko Firefox/128.0' }
       }
     ]
-  })
-})
-
-test('buildLegacyPayload sends text only', () => {
-  assert.deepStrictEqual(buildLegacyPayload({ url: 'https://x.test/a.zip', filename: 'C:\\Users\\d\\a.zip' }), {
-    text: 'https://x.test/a.zip',
-    source: 'browser_extension',
-    source_label: 'Browser',
-    package_name: 'a.zip'
-  })
-  assert.deepStrictEqual(buildLegacyPayload({ url: 'https://x.test/a.zip' }), {
-    text: 'https://x.test/a.zip',
-    source: 'browser_extension',
-    source_label: 'Browser'
   })
 })

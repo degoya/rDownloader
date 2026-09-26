@@ -1,5 +1,6 @@
 //! Persistent queue scheduler.
 
+mod active;
 mod bandwidth;
 mod block;
 mod capacity;
@@ -44,6 +45,7 @@ use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
+use active::ActiveState;
 pub use bandwidth::{BandwidthService, BandwidthStatus};
 pub use block::BlockReason;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
@@ -60,6 +62,10 @@ pub struct SchedulerConfig {
     pub max_chunks_per_file: usize,
     /// Simultaneous connections one host may see from every transfer together.
     pub max_connections_per_host: usize,
+    /// Files an external runner works on at once until the runtime settings say otherwise;
+    /// `0` is the runner's own choice (RD-130-22). Here as well as there because the first
+    /// dispatch pass runs the moment the scheduler starts.
+    pub external_parallel_files: usize,
     pub speed_limit_bytes_per_second: Option<u64>,
     /// Free-space policy shared with every runner and the REST layer.
     pub capacity: rd_files::CapacityService,
@@ -92,6 +98,9 @@ pub struct RuntimeSettings {
     /// Connections one external file runner may hold (NNTP); `0` leaves it to the
     /// transport's own server limits (RD-108-25).
     pub external_connections_per_file: usize,
+    /// Files an external runner works on at once (NNTP); `0` lets the runner size it by
+    /// its own load (RD-130-22), at most [`MAX_EXTERNAL_PARALLEL_FILES`].
+    pub external_parallel_files: usize,
     pub speed_limit_bytes_per_second: Option<u64>,
     pub generate_sha256: bool,
     pub global_proxy_profile_id: Option<ProxyProfileId>,
@@ -107,6 +116,9 @@ pub struct RuntimeSettings {
 
 /// Default retries per file.
 pub const DEFAULT_MAX_RETRIES: u32 = 8;
+/// The most files an external runner may be told to work on at once. Why eight is the
+/// runner's to say: `rd_usenet::parallel::MAX_PARALLEL_FILES` carries the reasoning.
+pub const MAX_EXTERNAL_PARALLEL_FILES: usize = 8;
 /// The per-host connection bounds, re-exported for the callers that configure them. The binary
 /// wires the service through this crate and does not link `rd-http` itself.
 pub use rd_http::{DEFAULT_CONNECTIONS_PER_HOST, MAX_CONNECTIONS_PER_HOST};
@@ -120,6 +132,7 @@ impl Default for RuntimeSettings {
             max_chunks_per_file: 4,
             max_connections_per_host: rd_http::DEFAULT_CONNECTIONS_PER_HOST,
             external_connections_per_file: 0,
+            external_parallel_files: 0,
             speed_limit_bytes_per_second: None,
             generate_sha256: true,
             global_proxy_profile_id: None,
@@ -139,6 +152,7 @@ impl SchedulerConfig {
             max_active_files: 3,
             max_chunks_per_file: 4,
             max_connections_per_host: rd_http::DEFAULT_CONNECTIONS_PER_HOST,
+            external_parallel_files: 0,
             speed_limit_bytes_per_second: None,
             capacity: rd_files::CapacityService::new(),
             bandwidth: bandwidth::BandwidthService::new(),
@@ -157,14 +171,6 @@ enum StopReason {
     Blocked(BlockReason),
 }
 
-#[derive(Default)]
-struct ActiveState {
-    tokens: HashMap<DownloadId, CancellationToken>,
-    reasons: HashMap<DownloadId, StopReason>,
-    /// Running files whose runner does not count against `max_active_files`.
-    exempt: std::collections::HashSet<DownloadId>,
-}
-
 /// Cloneable queue control surface used by REST handlers.
 #[derive(Clone)]
 pub struct SchedulerHandle {
@@ -181,6 +187,7 @@ pub struct SchedulerHandle {
     max_active_files: Arc<AtomicUsize>,
     max_chunks_per_file: Arc<AtomicUsize>,
     external_connections_per_file: Arc<AtomicUsize>,
+    external_parallel_files: Arc<AtomicUsize>,
     max_retries: Arc<AtomicU32>,
     generate_sha256: Arc<AtomicBool>,
     pause_during_postprocess: Arc<AtomicBool>,
@@ -287,6 +294,7 @@ impl SchedulerHandle {
             max_retries: Arc::new(AtomicU32::new(DEFAULT_MAX_RETRIES)),
             max_chunks_per_file: Arc::new(AtomicUsize::new(config.max_chunks_per_file)),
             external_connections_per_file: Arc::new(AtomicUsize::new(0)),
+            external_parallel_files: Arc::new(AtomicUsize::new(config.external_parallel_files)),
             generate_sha256: Arc::new(AtomicBool::new(true)),
             pause_during_postprocess: Arc::new(AtomicBool::new(true)),
             disabled_kinds: Arc::new(Mutex::new(Vec::new())),
@@ -421,6 +429,10 @@ impl SchedulerHandle {
             "external_connections_per_file must be between 0 and 32"
         );
         anyhow::ensure!(
+            settings.external_parallel_files <= MAX_EXTERNAL_PARALLEL_FILES,
+            "external_parallel_files must be between 0 and {MAX_EXTERNAL_PARALLEL_FILES}"
+        );
+        anyhow::ensure!(
             settings.max_connections_per_host <= rd_http::MAX_CONNECTIONS_PER_HOST,
             "max_connections_per_host must not exceed {}",
             rd_http::MAX_CONNECTIONS_PER_HOST
@@ -455,6 +467,8 @@ impl SchedulerHandle {
             .store(settings.max_chunks_per_file, Ordering::Release);
         self.external_connections_per_file
             .store(settings.external_connections_per_file, Ordering::Release);
+        self.external_parallel_files
+            .store(settings.external_parallel_files, Ordering::Release);
         self.host_limits
             .set_limit(settings.max_connections_per_host);
         self.max_retries
@@ -891,7 +905,8 @@ impl SchedulerHandle {
                     let Some(runner) = self.runners.get(kind) else {
                         continue;
                     };
-                    let Some(permit) = self.runners.try_slot(kind).await else {
+                    let requested = self.external_parallel_files.load(Ordering::Acquire);
+                    let Some(permit) = self.runners.try_slot(kind, requested).await else {
                         continue;
                     };
                     Some((runner, permit))
@@ -912,20 +927,26 @@ impl SchedulerHandle {
             let exempt = external
                 .as_ref()
                 .is_some_and(|(runner, _)| !runner.counts_against_global_limit());
+            let pooled = external
+                .as_ref()
+                .is_some_and(|(runner, _)| runner.shares_one_global_slot());
             let cancellation = CancellationToken::new();
             {
                 let mut active = self.active.lock().await;
                 if active.tokens.contains_key(&file.id) || active.reasons.contains_key(&file.id) {
                     continue;
                 }
-                // Exempt kinds (recordings) start regardless of the global cap, so keep
-                // scanning instead of breaking when the cap is reached.
-                if !exempt && active.tokens.len() - active.exempt.len() >= active_limit {
+                // Exempt kinds (recordings) start regardless of the global cap, and so does
+                // another file of a pooled kind that is running already, so keep scanning
+                // instead of breaking when the cap is reached.
+                if !active.admits(file.kind, exempt, pooled, active_limit) {
                     continue;
                 }
                 active.tokens.insert(file.id, cancellation.clone());
                 if exempt {
                     active.exempt.insert(file.id);
+                } else if pooled {
+                    active.pooled.insert(file.id, file.kind);
                 }
             }
             let scheduler = self.clone();
@@ -1011,6 +1032,7 @@ impl SchedulerHandle {
             active.tokens.remove(&file.id);
             active.reasons.remove(&file.id);
             active.exempt.remove(&file.id);
+            active.pooled.remove(&file.id);
         }
         // A category change that had to leave this file behind can carry on now that it is no
         // longer running; the last file of the package sweeps the former directory. Cheap and

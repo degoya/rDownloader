@@ -389,6 +389,12 @@ pub(crate) enum WriterCommand {
         available: Vec<(String, String)>,
         reply: Reply<u64>,
     },
+    /// Points a download that is not running at one exact resolver version (RD-140-02).
+    PinDownloadResolver {
+        id: DownloadId,
+        pin: rd_core::ResolverPin,
+        reply: Reply<()>,
+    },
     RecoverInterrupted {
         reply: Reply<u64>,
     },
@@ -413,6 +419,11 @@ pub(crate) enum WriterCommand {
     UnrevokePluginDigest {
         digest: String,
         reply: Reply<bool>,
+    },
+    /// Replaces one plugin's version choice (RD-140-02).
+    SavePluginVersionChoice {
+        input: crate::NewPluginVersionChoice,
+        reply: Reply<crate::PluginVersionChoice>,
     },
     RecordManagedTool {
         input: crate::NewManagedTool,
@@ -1037,5 +1048,35 @@ pub(crate) enum WriterCommand {
     /// Empties both statistics tables and reports how many rows went.
     ClearTransferStats {
         reply: Reply<u64>,
+    },
+    /// Records a third-party plugin repository whose key was approved (RD-140-01).
+    AddPluginRepository {
+        input: crate::NewPluginRepository,
+        reply: Reply<crate::PluginRepository>,
+    },
+    UpdatePluginRepository {
+        id: String,
+        enabled: Option<bool>,
+        name: Option<String>,
+        reply: Reply<bool>,
+    },
+    DeletePluginRepository {
+        id: String,
+        reply: Reply<bool>,
+    },
+    /// Raises a repository's replay floor after an index verified, or records why it did not.
+    RecordPluginRepositoryCheck {
+        id: String,
+        check: crate::RepositoryCheck,
+        reply: Reply<()>,
+    },
+    /// Records a plugin signing key a repository index withdrew.
+    WithdrawPluginKey {
+        input: crate::PluginWithdrawnKey,
+        reply: Reply<bool>,
+    },
+    RecordPluginRepositoryInstall {
+        input: crate::PluginRepositoryInstall,
+        reply: Reply<crate::PluginRepositoryInstall>,
     },
 }

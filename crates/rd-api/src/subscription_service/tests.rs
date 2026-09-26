@@ -215,9 +215,10 @@ async fn a_daily_script_runs_at_six_by_the_service_s_own_clock_and_run_now_runs_
     // A script has no backlog: its first run is taken, not recorded as the past.
     let items = fixture
         .database
-        .subscription_items(created.id, 10)
+        .subscription_item_page(created.id, None, 10, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].state, SubscriptionItemState::Pending);
 

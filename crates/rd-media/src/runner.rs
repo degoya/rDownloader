@@ -23,6 +23,7 @@ use crate::{
     SharedMediaSettings,
     args::{DownloadPlan, FINAL_PATH_MARKER, output_mode},
     cookies::{CookieError, CookieFile},
+    merge,
     probe::map_tool_error,
     progress::parse_progress_line,
     select::{MediaCapabilities, resolve},
@@ -508,6 +509,10 @@ impl ExternalRunner for MediaRunner {
                 "yt-dlp reported warnings"
             );
         }
+        // Streams yt-dlp could not merge are not a finished download, whatever the exit code.
+        if merge::merge_skipped(&stderr_text) {
+            return Ok(RunOutcome::Failed(merge::merge_failure()));
+        }
         let Some(path) = final_path.map(PathBuf::from) else {
             return Ok(RunOutcome::Failed(Failure::coded(
                 FailureKind::Transient {
@@ -517,6 +522,9 @@ impl ExternalRunner for MediaRunner {
                 "yt-dlp finished without reporting the output file",
             )));
         };
+        if merge::left_unmerged(&path).await {
+            return Ok(RunOutcome::Failed(merge::merge_failure()));
+        }
         let final_name = path
             .file_name()
             .and_then(|name| name.to_str())

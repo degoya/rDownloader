@@ -9,7 +9,7 @@ use rd_core::{
 use sqlx::{Connection, SqliteConnection};
 use url::Url;
 
-use crate::writer::insert_event;
+use crate::{enum_string, writer::insert_event};
 
 #[derive(Clone, Debug)]
 pub struct ReplacementAccount {
@@ -57,7 +57,7 @@ pub struct ReplacementStreamChannel {
     pub quality: Option<String>,
     pub category_id: Option<rd_core::CategoryId>,
     pub enabled: bool,
-    /// Splitting, remux, sidecars and VOD fallback (RD-080-09).
+    /// Splitting, remux, sidecars and reconnect delay (RD-080-09).
     pub recording: rd_core::RecordingPolicy,
 }
 
@@ -456,8 +456,4 @@ fn replacement_events() -> Vec<EventEnvelope> {
         )
     })
     .collect()
-}
-
-fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
 }

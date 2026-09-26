@@ -272,8 +272,6 @@ pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {
         api::ErrorKind::AuthRequired => FailureKind::AuthRequired,
         api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
         api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
     };
     let mut built = Failure::coded(kind, failure.code, failure.message);
     for (name, value) in failure.params {

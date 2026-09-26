@@ -172,7 +172,7 @@ impl ResolverHost for MockPCloud {
         }
         // The other installation knows nothing of this account, and says so the way pCloud
         // does: `2094` for a token it will not accept, `7001` for a link code it never issued.
-        if host != self.home.api_host() {
+        if host != self.home.api().trim_start_matches("https://") {
             let result = if method.contains("publink") {
                 7001
             } else {

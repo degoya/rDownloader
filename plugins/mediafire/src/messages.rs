@@ -3,7 +3,6 @@
 //! Each `(code, message)` pair exists exactly once so both targets report identical text, and
 //! `locales/` translates exactly these codes. Nothing MediaFire wrote appears verbatim in any
 //! of them: a provider message travels as a sanitised `message` parameter.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The URL is not a MediaFire file link.
 pub(crate) const UNSUPPORTED_LINK: (&str, &str) = (

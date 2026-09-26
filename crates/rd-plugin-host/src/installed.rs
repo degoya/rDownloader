@@ -7,7 +7,8 @@ use anyhow::{Result, bail};
 use crate::{
     MAX_COMPONENT_BYTES, MAX_LOCALE_BYTES, MAX_MANIFEST_BYTES, MAX_SIGNATURE_BYTES, ManifestHeader,
     ManifestRejection, PluginInstaller, PluginManifest, PluginVerifier, VerifiedPackage,
-    locales::parse_locale, manifest::validate_manifest, valid_language,
+    VersionChoices, VersionRole, locales::parse_locale, manifest::validate_manifest,
+    valid_language, versions::roles_by_id,
 };
 
 /// An installed package this build refuses, kept listable so it can be recognised and removed.
@@ -138,6 +139,20 @@ impl PluginInstaller {
     /// with a warning rather than aborting startup, so revoking trust disables one plugin
     /// instead of preventing the application from booting.
     pub async fn load_verified(&self) -> Result<Vec<VerifiedPackage>> {
+        Ok(self
+            .load_verified_with_roles()
+            .await?
+            .into_iter()
+            .map(|(package, _)| package)
+            .collect())
+    }
+
+    /// The same packages, each with its role under this start's version choice (RD-140-02).
+    ///
+    /// By id, then default, retained and staged, each group newest first — so a consumer that
+    /// keeps the first entry per id keeps the default version, and one that wants a pinned
+    /// version still finds it further down.
+    pub async fn load_verified_with_roles(&self) -> Result<Vec<(VerifiedPackage, VersionRole)>> {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
         let disabled = self
@@ -145,7 +160,36 @@ impl PluginInstaller {
             .read()
             .map(|set| set.clone())
             .unwrap_or_default();
-        tokio::task::spawn_blocking(move || load_verified_sync(&root, &verifier, &disabled)).await?
+        let choices = self.version_choices();
+        tokio::task::spawn_blocking(move || {
+            load_verified_sync(&root, &verifier, &disabled, &choices)
+        })
+        .await?
+    }
+
+    /// Verifies one installed version in full, as the next start would load it (RD-140-02).
+    ///
+    /// The health check before a version is made active or put under test: signature, content
+    /// withdrawal, manifest, locales and the component's validation all have to pass, so a
+    /// choice can never point at a package the next start would refuse. `None` when that
+    /// version is not installed.
+    pub async fn verify_installed_version(
+        &self,
+        id: &str,
+        version: &str,
+    ) -> Result<Option<PluginManifest>> {
+        let path = self
+            .root
+            .join(crate::manifest::safe_segment(id)?)
+            .join(crate::manifest::safe_segment(version)?);
+        if !path.is_dir() {
+            return Ok(None);
+        }
+        let verifier = self.verifier.clone();
+        tokio::task::spawn_blocking(move || {
+            load_one(&path, &verifier).map(|package| Some(package.manifest))
+        })
+        .await?
     }
 
     /// The manifest of every enabled installed package whose signature still covers what is on
@@ -179,17 +223,23 @@ impl PluginInstaller {
     async fn verified_contents(&self) -> Result<Vec<VerifiedContents>> {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
-        tokio::task::spawn_blocking(move || verified_contents_sync(&root, &verifier)).await?
+        let choices = self.version_choices();
+        tokio::task::spawn_blocking(move || verified_contents_sync(&root, &verifier, &choices))
+            .await?
     }
 
-    /// Merged vue-i18n message tree for `language`, across the newest version of each plugin.
+    /// Merged vue-i18n message tree for `language`, across the default version of each plugin.
     ///
     /// Falls back to the manifest's own name and description when a plugin ships no
     /// translation for the requested language.
     pub async fn locale_bundle(&self, language: String) -> Result<serde_json::Value> {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
-        tokio::task::spawn_blocking(move || locale_bundle_sync(&root, &verifier, &language)).await?
+        let choices = self.version_choices();
+        tokio::task::spawn_blocking(move || {
+            locale_bundle_sync(&root, &verifier, &choices, &language)
+        })
+        .await?
     }
 }
 
@@ -200,28 +250,32 @@ struct VerifiedContents {
     /// `(language, raw JSON)` exactly as signed, so no caller has to re-read the file and
     /// trust whatever it finds there.
     locales: Vec<(String, Vec<u8>)>,
+    /// Where this version stands under the start's version choice.
+    role: VersionRole,
 }
 
-/// Newest installed version of each plugin id, keyed by id.
-fn newest_versions(packages: Vec<VerifiedContents>) -> BTreeMap<String, VerifiedContents> {
-    let mut newest: BTreeMap<String, VerifiedContents> = BTreeMap::new();
+/// The default version of each plugin id, keyed by id.
+///
+/// `packages` comes from `verified_contents_sync`, which orders the default version of an id
+/// before its others, so the first entry per id is the one to keep. A plugin whose only loaded
+/// version is under test has no default and contributes nothing.
+fn default_versions(packages: Vec<VerifiedContents>) -> BTreeMap<String, VerifiedContents> {
+    let mut defaults: BTreeMap<String, VerifiedContents> = BTreeMap::new();
     for package in packages {
-        let id = package.manifest.id.to_string();
-        match newest.get(&id) {
-            Some(existing)
-                if version_cmp_desc(&existing.manifest.version, &package.manifest.version)
-                    != std::cmp::Ordering::Greater => {}
-            _ => {
-                newest.insert(id, package);
-            }
+        if package.role != VersionRole::Default {
+            continue;
         }
+        defaults
+            .entry(package.manifest.id.to_string())
+            .or_insert(package);
     }
-    newest
+    defaults
 }
 
 fn locale_bundle_sync(
     root: &Path,
     verifier: &PluginVerifier,
+    choices: &VersionChoices,
     language: &str,
 ) -> Result<serde_json::Value> {
     if !valid_language(language) {
@@ -229,7 +283,8 @@ fn locale_bundle_sync(
     }
     let mut codes = serde_json::Map::new();
     let mut providers = serde_json::Map::new();
-    for package in newest_versions(verified_contents_sync(root, verifier)?).into_values() {
+    for package in default_versions(verified_contents_sync(root, verifier, choices)?).into_values()
+    {
         let manifest = &package.manifest;
         let slug = manifest.message_slug().to_owned();
         let mut entry = serde_json::Map::new();
@@ -382,7 +437,9 @@ fn load_verified_sync(
     root: &Path,
     verifier: &PluginVerifier,
     disabled: &std::collections::HashSet<String>,
-) -> Result<Vec<VerifiedPackage>> {
+    choices: &VersionChoices,
+) -> Result<Vec<(VerifiedPackage, VersionRole)>> {
+    let _batch = crate::unsigned_notice::UnsignedBatch::open();
     let mut packages = Vec::new();
     for version in version_directories(root)? {
         match load_one(&version, verifier) {
@@ -397,16 +454,44 @@ fn load_verified_sync(
             ),
         }
     }
-    // By id, then newest version first — the order this result is actually consumed in.
-    // Every adapter in `rd-plugin-ext` and the transfer registry deduplicate by `id` and keep
-    // the first entry they see, so ordering by display name left a plugin *renamed* between
-    // versions with its two versions apart, and "first wins" then picked whichever name
-    // sorted first instead of the newest version. Nothing displays this list: the Plugins
-    // view is built from `list_installed`, which keeps its by-name display order.
-    packages.sort_by(|left, right| {
+    // Roles are decided over what actually loaded: a withdrawn or tampered version never
+    // got this far, so it can be neither the default nor the one under test.
+    let roles = roles_by_id(
+        &packages
+            .iter()
+            .map(|package| {
+                (
+                    package.manifest.id.to_string(),
+                    package.manifest.version.clone(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        choices,
+    );
+    let mut packages: Vec<(VerifiedPackage, VersionRole)> = packages
+        .into_iter()
+        .map(|package| {
+            let role = roles
+                .get(&(
+                    package.manifest.id.to_string(),
+                    package.manifest.version.clone(),
+                ))
+                .copied()
+                .unwrap_or(VersionRole::Retained);
+            (package, role)
+        })
+        .collect();
+    // By id, then role, then newest version first — the order this result is actually
+    // consumed in. Every adapter in `rd-plugin-ext` and the transfer registry deduplicate by
+    // `id` and keep the first entry they see, so ordering by display name left a plugin
+    // *renamed* between versions with its two versions apart, and "first wins" then picked
+    // whichever name sorted first instead of the default version. Nothing displays this list:
+    // the Plugins view is built from `list_installed`, which keeps its by-name display order.
+    packages.sort_by(|(left, left_role), (right, right_role)| {
         left.manifest
             .id
             .cmp(&right.manifest.id)
+            .then_with(|| left_role.cmp(right_role))
             .then_with(|| version_cmp_desc(&left.manifest.version, &right.manifest.version))
     });
     Ok(packages)
@@ -418,7 +503,12 @@ fn load_verified_sync(
 /// manifest, the component and the locale files together, so the signature cannot be checked
 /// without it. It is dropped again with the rest of the package, because keeping one per
 /// installed plugin would hold up to `MAX_COMPONENT_BYTES` each just to list manifests.
-fn verified_contents_sync(root: &Path, verifier: &PluginVerifier) -> Result<Vec<VerifiedContents>> {
+fn verified_contents_sync(
+    root: &Path,
+    verifier: &PluginVerifier,
+    choices: &VersionChoices,
+) -> Result<Vec<VerifiedContents>> {
+    let _batch = crate::unsigned_notice::UnsignedBatch::open();
     let mut packages = Vec::new();
     for version in version_directories(root)? {
         match load_one_contents(&version, verifier) {
@@ -430,13 +520,35 @@ fn verified_contents_sync(root: &Path, verifier: &PluginVerifier) -> Result<Vec<
             ),
         }
     }
-    // The same display order `list_installed` uses, so which of two installed versions wins a
-    // provider slug does not depend on which of the two lists it was built from.
+    let roles = roles_by_id(
+        &packages
+            .iter()
+            .map(|package| {
+                (
+                    package.manifest.id.to_string(),
+                    package.manifest.version.clone(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        choices,
+    );
+    for package in &mut packages {
+        if let Some(role) = roles.get(&(
+            package.manifest.id.to_string(),
+            package.manifest.version.clone(),
+        )) {
+            package.role = *role;
+        }
+    }
+    // The same display order `list_installed` uses, with the default version of an id ahead of
+    // its other versions of the same name: the provider registry keeps the first row per id,
+    // so this is what makes the provider row the one of the version that runs.
     packages.sort_by(|left, right| {
         left.manifest
             .name
             .to_lowercase()
             .cmp(&right.manifest.name.to_lowercase())
+            .then_with(|| left.role.cmp(&right.role))
             .then_with(|| version_cmp_desc(&left.manifest.version, &right.manifest.version))
     });
     Ok(packages)
@@ -455,6 +567,8 @@ fn load_one_contents(version: &Path, verifier: &PluginVerifier) -> Result<Verifi
     Ok(VerifiedContents {
         manifest: package.manifest,
         locales: package.locales,
+        // Decided once the whole list is known; see `verified_contents_sync`.
+        role: VersionRole::Retained,
     })
 }
 
@@ -876,5 +990,126 @@ mod tests {
             "the newest version must come first whatever it is called"
         );
         assert_eq!(loaded[1].manifest.version, "1.0.0");
+    }
+
+    /// The version choice of RD-140-02 as the adapters see it: the default version first, a
+    /// staged one never among the versions an adapter picks from, and a withdrawn version
+    /// neither the default nor under test.
+    #[tokio::test]
+    async fn the_version_choice_decides_the_order_the_adapters_pick_from() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let signing = SigningKey::from_bytes(&[23_u8; 32]);
+        let installer = installer_with(&signing, directory.path());
+        let mut manifests = std::collections::HashMap::new();
+        for version in ["1.0.0", "2.0.0", "3.0.0"] {
+            let (archive, manifest) = signed_archive_named(&signing, "Fixture", version, &[]);
+            installer.install_bytes(archive).await.expect("install");
+            manifests.insert(version, manifest);
+        }
+        let id = installer.load_verified().await.expect("load")[0]
+            .manifest
+            .id
+            .to_string();
+        let order = |loaded: Vec<(VerifiedPackage, VersionRole)>| -> Vec<(String, VersionRole)> {
+            loaded
+                .into_iter()
+                .map(|(package, role)| (package.manifest.version, role))
+                .collect()
+        };
+
+        // Rolled back to 1.0.0, 3.0.0 under test.
+        installer.set_version_choices(
+            [(
+                id.clone(),
+                crate::VersionChoice {
+                    active: Some("1.0.0".to_owned()),
+                    staged: Some("3.0.0".to_owned()),
+                },
+            )]
+            .into(),
+        );
+        assert_eq!(
+            order(installer.load_verified_with_roles().await.expect("load")),
+            vec![
+                ("1.0.0".to_owned(), VersionRole::Default),
+                ("2.0.0".to_owned(), VersionRole::Retained),
+                ("3.0.0".to_owned(), VersionRole::Staged),
+            ]
+        );
+        let registry = crate::PluginTypeRegistry::load(&installer)
+            .await
+            .expect("registry");
+        let offered: Vec<&str> = registry
+            .of_type(&crate::PluginType::Resolver)
+            .map(|package| package.manifest.version.as_str())
+            .collect();
+        assert_eq!(
+            offered,
+            ["1.0.0", "2.0.0"],
+            "the version under test is reached through a pin, never through `of_type`"
+        );
+
+        // Withdrawing the chosen version: it does not load, so the newest version that is not
+        // under test takes over, and the choice needs no repair to stay safe.
+        installer
+            .verifier()
+            .revoke_package_digest(package_digest(&manifests["1.0.0"], EMPTY_COMPONENT, &[]))
+            .expect("withdraw");
+        assert_eq!(
+            order(installer.load_verified_with_roles().await.expect("load")),
+            vec![
+                ("2.0.0".to_owned(), VersionRole::Default),
+                ("3.0.0".to_owned(), VersionRole::Staged),
+            ]
+        );
+
+        // And withdrawing the staged one leaves nothing under test.
+        installer
+            .verifier()
+            .revoke_package_digest(package_digest(&manifests["3.0.0"], EMPTY_COMPONENT, &[]))
+            .expect("withdraw");
+        assert_eq!(
+            order(installer.load_verified_with_roles().await.expect("load")),
+            vec![("2.0.0".to_owned(), VersionRole::Default)]
+        );
+    }
+
+    /// The health check before a choice: a withdrawn version fails it like the next start would.
+    #[tokio::test]
+    async fn a_withdrawn_version_does_not_pass_the_check_before_activation() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let signing = SigningKey::from_bytes(&[24_u8; 32]);
+        let installer = installer_with(&signing, directory.path());
+        let (archive, manifest) = signed_archive_named(&signing, "Fixture", "1.0.0", &[]);
+        installer.install_bytes(archive).await.expect("install");
+        let id = installer.load_verified().await.expect("load")[0]
+            .manifest
+            .id
+            .to_string();
+
+        assert!(
+            installer
+                .verify_installed_version(&id, "1.0.0")
+                .await
+                .expect("check")
+                .is_some()
+        );
+        assert!(
+            installer
+                .verify_installed_version(&id, "9.9.9")
+                .await
+                .expect("a missing version is not an error")
+                .is_none()
+        );
+        installer
+            .verifier()
+            .revoke_package_digest(package_digest(&manifest, EMPTY_COMPONENT, &[]))
+            .expect("withdraw");
+        assert!(
+            installer
+                .verify_installed_version(&id, "1.0.0")
+                .await
+                .is_err()
+        );
     }
 }

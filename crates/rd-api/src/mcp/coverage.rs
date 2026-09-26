@@ -535,6 +535,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/plugins/install"),
             any("/api/v1/plugins/keys"),
             any("/api/v1/plugins/revocations"),
+            // Which installed build runs is the same decision as installing it (RD-140-02).
+            any("/api/v1/plugins/{id}/lifecycle"),
+            // Previewing, adding a repository (which approves its key), refreshing (which can
+            // install updates set to automatic) and installing from a repository (RD-140-01).
+            any("/api/v1/plugins/preview"),
+            any("/api/v1/plugins/repositories"),
         ],
         OWNER_LINE,
     ),
@@ -642,6 +648,11 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Plugin execution history",
         "Settings > Plugins",
         &[any("/api/v1/plugins/{id}/executions")],
+    ),
+    covered(
+        "Plugin updates and repository offers",
+        "Settings > Plugins",
+        &[any("/api/v1/plugins/updates")],
     ),
     covered(
         "Plugin message catalogues",

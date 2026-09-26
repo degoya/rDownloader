@@ -3,7 +3,8 @@
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! Nothing pCloud wrote appears in any of them; what travels instead is `result`, pCloud's own
 //! decimal refusal number.
-#![allow(dead_code)] // The tests and the guest use different subsets.
+// Only the guest reports a crawl's failures; the native build compiles these for nothing.
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 /// The address is not a pCloud folder or public link address.
 pub(crate) const NOT_A_FOLDER: (&str, &str) = (

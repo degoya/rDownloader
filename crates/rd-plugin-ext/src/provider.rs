@@ -39,6 +39,7 @@ pub type ProviderResult<T> = Result<T, ProviderError>;
 
 impl ProviderError {
     /// Whether nothing installed claims the provider, as opposed to a call that failed.
+    #[cfg(test)]
     #[must_use]
     pub const fn is_missing_plugin(&self) -> bool {
         matches!(self, Self::NoPlugin { .. })

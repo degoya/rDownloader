@@ -57,14 +57,17 @@ source "$ROOT/scripts/lib/jobs.sh"
 # too (RD-120-40). Without it both --list queries looked into the worktree's own, empty target/
 # and named every plugin as missing -- the same trap that made worktree.sh's merge gate report a
 # green branch as never verified on 2026-09-22, fixed there the same way. Exported, so a build
-# from here writes where the queries read. A CARGO_TARGET_DIR that is set still wins.
-common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2> /dev/null || true)"
-MAIN_ROOT="$ROOT"
-[[ -n "$common" && "$common" != "$ROOT/.git" ]] && MAIN_ROOT="$(dirname "$common")"
-if [[ -z "${CARGO_TARGET_DIR:-}" && "$MAIN_ROOT" != "$ROOT" ]]; then
-    export CARGO_TARGET_DIR="$MAIN_ROOT/target"
+# from here writes where the queries read. A CARGO_TARGET_DIR that is set still wins. A worktree
+# with a target of its own (RD-140-06) builds there; `worktree.sh new --own-target` links its
+# wasm32-unknown-unknown/ to the main checkout's, so the components stay the shared ones.
+# shellcheck source=lib/lanes.sh
+source "$ROOT/scripts/lib/lanes.sh"
+MAIN_ROOT="$(rd_main_root "$ROOT")"
+if [[ -z "${CARGO_TARGET_DIR:-}" ]]; then
+    CARGO_TARGET_DIR="$(rd_target_dir "$ROOT")"
+    export CARGO_TARGET_DIR
 fi
-TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
+TARGET_DIR="$CARGO_TARGET_DIR"
 # The signed packages a plugin's content is compared against (RD-120-47): the ones in the main
 # checkout, where the coordinator signs and the packaging scripts collect — a feature worktree's
 # own dist/ is empty. RD_PLUGIN_PACKAGES points elsewhere, which the tests use. A directory that

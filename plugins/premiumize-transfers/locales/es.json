@@ -2,7 +2,6 @@
   "name": "Transferencias de Premiumize",
   "description": "Ejecuta magnets, contenedores y enlaces simples como transferencias en una cuenta de Premiumize.me.",
   "codes": {
-    "premiumize_transfers.account_missing": "Falta la cuenta de Premiumize",
     "premiumize_transfers.api_error": "Error de la API de Premiumize {api_code}",
     "premiumize_transfers.auth_invalid": "El inicio de sesión de Premiumize ya no es válido. Vuelve a guardar la clave de API.",
     "premiumize_transfers.container_unknown": "No se ha reconocido el formato de este contenedor",

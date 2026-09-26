@@ -50,7 +50,11 @@
     "logs_cleared": "Registro del servicio vaciado",
     "audit_cleared": "Auditoría vaciada",
     "stats_cleared": "Estadísticas vaciadas",
-    "notifications_cleared": "Historial de notificaciones vaciado"
+    "notifications_cleared": "Historial de notificaciones vaciado",
+    "plugin_repository_added": "Repositorio de plugins añadido",
+    "plugin_repository_changed": "Repositorio de plugins modificado",
+    "plugin_repository_removed": "Repositorio de plugins quitado",
+    "plugin_version_chosen": "Versión de plugin elegida"
   },
   "list": {
     "title": "Registros",

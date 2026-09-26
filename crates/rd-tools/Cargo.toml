@@ -23,7 +23,6 @@ tar.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-url.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
 zip.workspace = true
@@ -33,7 +32,6 @@ axum.workspace = true
 # Encoder only for the fixtures: the tests build their own tar.xz rather than committing one.
 lzma-rust2 = { workspace = true, features = ["encoder"] }
 tempfile.workspace = true
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

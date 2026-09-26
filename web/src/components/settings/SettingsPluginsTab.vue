@@ -3,49 +3,44 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError, resultMessage } from '@/api/client'
-import type { IncompatiblePlugin, InstalledPlugin, PluginExecution, PluginRevocation } from '@/api/types'
-import { currentLocale } from '@/i18n'
-import { loadPluginMessages, providerText, resetPluginMessages } from '@/i18n/plugins'
+import { listOffers, releaseNotesByPlugin, type PreviewSource, type ReleaseNote } from '@/api/pluginRepositories'
+import type { IncompatiblePlugin, InstalledPlugin, PluginLifecycle } from '@/api/types'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
+import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { withBase } from '@/basePath'
-import { formatMoment } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
-
-/** A signing key the user has not confirmed yet, as reported by a 409 install response. */
-interface PendingKey {
-  keyId: string
-  fingerprint: string
-  name: string
-  version: string
-}
-
-/**
- * One build the operator is about to withdraw, as the dialog names it.
- *
- * The identity the service stores is the package digest, but nobody recognises a plugin by 64
- * hex characters — so the request goes out as the id and the version the card already shows,
- * and the service resolves which exact package that was.
- */
-interface PendingWithdrawal {
-  id: string
-  version: string
-  name: string
-}
-
-interface TrustedKey {
-  key_id: string
-  fingerprint: string
-  plugin_name: string | null
-  confirmed_at: string
-}
+import PluginCard from './PluginCard.vue'
+import PluginInstallPreviewModal from './PluginInstallPreviewModal.vue'
+import PluginTrustedKeys from './PluginTrustedKeys.vue'
+import PluginUpdatesList from './PluginUpdatesList.vue'
+import PluginWithdrawDialog from './PluginWithdrawDialog.vue'
+import PluginWithdrawnList from './PluginWithdrawnList.vue'
+import SettingsPluginRepositories from './SettingsPluginRepositories.vue'
+import { displayName, type TrustedKey } from './pluginDisplay'
 
 const { t } = useI18n()
 const plugins = ref<InstalledPlugin[]>([])
 const incompatible = ref<IncompatiblePlugin[]>([])
+/** Per plugin id: which version runs, which is under test, how updates arrive (RD-140-02). */
+const lifecycles = ref<PluginLifecycle[]>([])
+/** Per plugin id: the release notes the repository indexes delivered, newest first. */
+const releaseNotes = ref<Map<string, ReleaseNote[]>>(new Map())
+
+function lifecycleOf(id: string): PluginLifecycle | undefined {
+  return lifecycles.value.find(entry => entry.plugin_id === id)
+}
+
+/** Shows what a version action answered and re-reads the inventory it changed. */
+async function versionActionDone(outcome: { message: string | null, error: string | null }): Promise<void> {
+  message.value = outcome.message
+  error.value = outcome.error
+  await refresh()
+}
 
 /**
  * Twenty-four plugins of eight kinds in one flat grid made finding a particular one a scan.
@@ -110,43 +105,23 @@ const openSuperseded = ref<string | null>(null)
 function toggleSuperseded(id: string): void {
   openSuperseded.value = openSuperseded.value === id ? null : id
 }
-/** Loaded on demand per plugin: diagnostics nobody opened cost nothing. */
-const executions = ref<Record<string, PluginExecution[]>>({})
-const openDiagnostics = ref<string | null>(null)
-/**
- * The plugin whose entries are in flight, so the open panel says "loading" rather than looking
- * like a plugin that recorded nothing. It is never both: a fetch that fails clears this and
- * raises `error`, which the card already shows in an alert of its own.
- */
-const diagnosticsLoading = ref<string | null>(null)
 const trustedKeys = ref<TrustedKey[]>([])
 const packageFile = ref<File | null>(null)
-const pending = ref(false)
+/** The package the install preview shows; the upload installs only from there (RD-140-01). */
+const previewSource = ref<PreviewSource | null>(null)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
-const pendingKey = ref<PendingKey | null>(null)
 const confirm = useConfirm()
 /** Ids the user switched off; read from the settings document, which is where they are stored. */
 const disabledIds = ref<string[]>([])
 const isDisabled = (plugin: InstalledPlugin): boolean => disabledIds.value.includes(plugin.id)
-/**
- * Whether this plugin has anything behind its diagnostics accordion (RD-120-28).
- *
- * The inventory carries the number of recorded invocations, never the invocations themselves,
- * so the card can decide whether to offer the control at all without fetching a single entry.
- * That is what lets the rule in `design.md` — a control that opens onto nothing is not
- * rendered — hold without undoing the decision to load the entries on demand.
- */
-const hasDiagnostics = (plugin: InstalledPlugin): boolean => (plugin.execution_count ?? 0) > 0
 /** The inventory, the trust store and the withdrawals are three fetches, so three states. */
 const inventoryState = useFetchState()
 const keyState = useFetchState()
 const revocationState = useFetchState()
-/** Withdrawn packages, newest first as the service lists them. */
-const revocations = ref<PluginRevocation[]>([])
-const pendingWithdrawal = ref<PendingWithdrawal | null>(null)
-const withdrawalReason = ref('')
-const withdrawing = ref(false)
+const { revocations, pendingWithdrawal, withdrawalReason, withdrawing, isWithdrawn, refreshRevocations, askWithdraw, withdraw, liftWithdrawal } =
+  usePluginWithdrawals({ message, error })
+const { executions, openDiagnostics, diagnosticsLoading, toggleDiagnostics } = usePluginDiagnostics(error)
 
 /** The live subscription and the timer that coalesces a burst of plugin events into one reload. */
 let releaseEvents: (() => void) | null = null
@@ -233,117 +208,6 @@ async function reloadFromEvent(): Promise<void> {
   if (failure) error.value = failure
 }
 
-/**
- * The withdrawals that name an installed version, as `<id>@<version>`.
- *
- * A withdrawal is stored by digest, and a digest says nothing to a reader — so the card that
- * carries the name and the version is where it has to be visible. An entry whose package is
- * not installed here matches nothing and is named in the list below instead, where its digest
- * is the only honest answer.
- */
-const withdrawnVersions = computed(() => new Set(
-  revocations.value
-    .filter(entry => entry.plugin_id && entry.version)
-    .map(entry => `${entry.plugin_id}@${entry.version}`)
-))
-
-function isWithdrawn(plugin: { id: string, version: string }): boolean {
-  return withdrawnVersions.value.has(`${plugin.id}@${plugin.version}`)
-}
-
-/** Whether a withdrawn package is one of the versions this machine actually has on disk. */
-function isInstalledHere(entry: PluginRevocation): boolean {
-  return plugins.value.some(plugin => plugin.id === entry.plugin_id && plugin.version === entry.version)
-}
-
-/**
- * What to call a withdrawal: its plugin's name, failing that its id, and failing both a stated
- * "unnamed package" — a digest entered by hand carries no context, and an empty line in its
- * place would read as a row that failed to load.
- */
-function revocationName(entry: PluginRevocation): string {
-  return entry.plugin_name ?? entry.plugin_id ?? t('plugins.withdrawn.unknown_package')
-}
-
-async function refreshRevocations(): Promise<string | null> {
-  const response = await api.GET('/api/v1/plugins/revocations')
-  if (!response.data) return responseError(response)
-  revocations.value = response.data
-  return null
-}
-
-const withdrawalOpen = computed({
-  get: () => pendingWithdrawal.value !== null,
-  set: (value: boolean) => {
-    if (!value) pendingWithdrawal.value = null
-  }
-})
-
-/** Opens the dialog for one exact build; the reason starts empty for every one of them. */
-function askWithdraw(name: string, id: string, version: string): void {
-  withdrawalReason.value = ''
-  pendingWithdrawal.value = { id, version, name }
-}
-
-/**
- * Withdraws the build the dialog names.
- *
- * The list is fetched again rather than patched: the service answers with the digest it
- * resolved, the context columns and the moment, and guessing any of those here would be a
- * second source for what the service already states.
- */
-async function withdraw(): Promise<void> {
-  const target = pendingWithdrawal.value
-  if (!target) return
-  pendingWithdrawal.value = null
-  error.value = null
-  message.value = null
-  withdrawing.value = true
-  const reason = withdrawalReason.value.trim()
-  const response = await api.POST('/api/v1/plugins/revocations', {
-    body: { plugin_id: target.id, version: target.version, ...(reason ? { reason } : {}) }
-  })
-  if (response.data) message.value = resultMessage(response.data)
-  else error.value = responseError(response)
-  const failure = await refreshRevocations()
-  if (failure) error.value = failure
-  withdrawing.value = false
-}
-
-/** Takes a withdrawal back. Reversible in both directions, which is why neither asks twice. */
-async function liftWithdrawal(digest: string): Promise<void> {
-  error.value = null
-  message.value = null
-  const response = await api.DELETE('/api/v1/plugins/revocations/{digest}', {
-    params: { path: { digest } }
-  })
-  if (response.data) message.value = resultMessage(response.data)
-  else error.value = responseError(response)
-  const failure = await refreshRevocations()
-  if (failure) error.value = failure
-}
-
-/** Splits a hex fingerprint into 8-character blocks so it can be compared by eye. */
-function groupFingerprint(fingerprint: string): string {
-  return (fingerprint.match(/.{1,8}/g) ?? [fingerprint]).join(' ')
-}
-
-/** Localised plugin name, falling back to the manifest's own value. */
-function displayName(plugin: InstalledPlugin): string {
-  return providerText(plugin.provider_slug, 'name') ?? plugin.name
-}
-
-function description(plugin: InstalledPlugin): string {
-  return providerText(plugin.provider_slug, 'description') ?? plugin.description
-}
-
-const modalOpen = computed({
-  get: () => pendingKey.value !== null,
-  set: (value: boolean) => {
-    if (!value) pendingKey.value = null
-  }
-})
-
 async function refresh(): Promise<string | null> {
   const [inventory, settings] = await Promise.all([
     api.GET('/api/v1/plugins'),
@@ -352,39 +216,17 @@ async function refresh(): Promise<string | null> {
   if (inventory.data) {
     plugins.value = inventory.data.installed
     incompatible.value = inventory.data.incompatible
+    lifecycles.value = inventory.data.lifecycle ?? []
   } else error.value = responseError(inventory)
+  // Release notes come from the repository indexes; without a loaded index there are none,
+  // and the version panel shows no notes section rather than an empty one.
+  void listOffers().then((answer) => {
+    releaseNotes.value = answer.ok ? releaseNotesByPlugin(answer.data) : new Map()
+  })
   // The switched-off set lives in the settings document; the inventory lists every installed
   // plugin regardless, so that a disabled one can be switched back on.
   if (settings.data) disabledIds.value = settings.data.disabled_plugins ?? []
   return inventory.data ? null : responseError(inventory)
-}
-
-/**
- * A grant as the manifest declares it. Two of them carry a detail worth showing in full:
- * `secrets:<reference>` names the one credential the plugin may expand, and
- * `net_stream:<ports>` the ports it may dial. The rest are fixed capability names.
- */
-function capabilityLabel(capability: string): string {
-  const [name, detail] = capability.split(/:(.*)/s)
-  if (name === 'secrets') return t('plugins.capability.secret', { reference: detail })
-  if (name === 'net_stream') return t('plugins.capability.net_stream', { ports: detail })
-  return t(`plugins.capability.${name}`)
-}
-
-/** Shows or hides one plugin's recorded invocations, fetching them the first time. */
-async function toggleDiagnostics(plugin: InstalledPlugin): Promise<void> {
-  if (openDiagnostics.value === plugin.id) {
-    openDiagnostics.value = null
-    return
-  }
-  openDiagnostics.value = plugin.id
-  diagnosticsLoading.value = plugin.id
-  const response = await api.GET('/api/v1/plugins/{id}/executions', { params: { path: { id: plugin.id } } })
-  if (response.data) executions.value = { ...executions.value, [plugin.id]: response.data }
-  else error.value = responseError(response)
-  // Only if nothing else moved on in the meantime: closing the panel, or opening another
-  // plugin's, takes the flag from that moment, and a late answer must not clear it for them.
-  if (diagnosticsLoading.value === plugin.id) diagnosticsLoading.value = null
 }
 
 /** Removes a package this build refuses, once the user asks for it. */
@@ -483,59 +325,23 @@ function selectPackage(event: Event): void {
 }
 
 /**
- * Uploads the package. An unknown signing key comes back as 409 with its fingerprint; the
- * user confirms it, and the same bytes are sent again with that fingerprint attached.
+ * Opens the install preview for the picked package. Nothing is installed until the person has
+ * seen its publisher and permissions there and confirmed — for a trusted key as much as for an
+ * unknown one, which the preview confirms in the same step.
  */
-async function install(trustFingerprint?: string): Promise<void> {
+function previewUpload(): void {
   if (!packageFile.value) return
-  pending.value = true
   message.value = null
   error.value = null
-  try {
-    const query = trustFingerprint ? `?trust_fingerprint=${encodeURIComponent(trustFingerprint)}` : ''
-    const response = await fetch(withBase(`/api/v1/plugins/install${query}`), {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: packageFile.value
-    })
-    const payload: unknown = await response.json()
-    const serverMessage = serverMessageFrom(payload)
-    if (response.status === 409 && serverMessage?.code === 'plugin.key_untrusted') {
-      const params = serverMessage.params ?? {}
-      pendingKey.value = {
-        keyId: params.key_id ?? '',
-        fingerprint: params.fingerprint ?? '',
-        name: params.name ?? '',
-        version: params.version ?? ''
-      }
-      return
-    }
-    if (!response.ok) {
-      error.value = serverMessage
-        ? translateServerMessage(serverMessage)
-        : t('plugins.install.failed', { status: response.status })
-      return
-    }
-    message.value = serverMessage ? translateServerMessage(serverMessage) : t('plugins.install.success')
-    packageFile.value = null
-    pendingKey.value = null
-    // A new plugin brings its own translations along.
-    resetPluginMessages()
-    await loadPluginMessages(currentLocale())
-    await Promise.all([refresh(), refreshKeys()])
-  } catch (reason: unknown) {
-    error.value = reason instanceof Error ? reason.message : t('plugins.install.network_error')
-  } finally {
-    pending.value = false
-  }
+  previewSource.value = { kind: 'upload', file: packageFile.value }
 }
 
-async function confirmKey(): Promise<void> {
-  const fingerprint = pendingKey.value?.fingerprint
-  if (!fingerprint) return
-  pendingKey.value = null
-  await install(fingerprint)
+/** After an install from the preview, an update or a repository offer. */
+async function onInstalled(text: string): Promise<void> {
+  previewSource.value = null
+  packageFile.value = null
+  message.value = text
+  await Promise.all([refresh(), refreshKeys()])
 }
 
 async function revokeKey(keyId: string): Promise<void> {
@@ -568,15 +374,17 @@ async function revokeKey(keyId: string): Promise<void> {
     </header>
 
     <section class="border border-muted bg-default p-5">
-      <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="install()">
+      <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
         <UFormField class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
           <input class="mt-2 block w-full border border-muted bg-elevated px-3 py-2 text-sm text-toned file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-primary" type="file" accept=".rdplug,application/octet-stream" @change="selectPackage">
         </UFormField>
-        <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" :loading="pending" />
+        <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
       </form>
       <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" />
       <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
     </section>
+
+    <PluginUpdatesList @installed="onInstalled" />
 
     <section class="border border-muted bg-default p-5">
       <div class="mb-4 flex items-center justify-between">
@@ -604,152 +412,27 @@ async function revokeKey(keyId: string): Promise<void> {
         </UButton>
       </div>
       <div class="grid gap-3 md:grid-cols-2">
-        <article v-for="{ plugin, superseded } in visibleGroups" :key="plugin.id" class="border border-muted p-4">
-          <div class="flex items-start gap-3">
-            <span class="grid size-9 place-items-center bg-primary/10 text-primary"><UIcon name="i-lucide-box" /></span>
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-2"><h4 class="font-medium text-highlighted">{{ displayName(plugin) }}</h4><UBadge :color="plugin.active ? 'primary' : 'neutral'" variant="subtle" :title="plugin.active ? t('plugins.card.active_version_hint') : t('plugins.card.superseded_hint')">v{{ plugin.version }}</UBadge><UBadge v-if="isDisabled(plugin)" color="warning" variant="subtle">{{ t('plugins.actions.disabled_badge') }}</UBadge><UBadge v-if="isWithdrawn(plugin)" color="error" variant="subtle" :title="t('plugins.card.withdrawn_hint')">{{ t('plugins.card.withdrawn_badge') }}</UBadge></div>
-              <p class="mt-1 text-sm leading-5 text-toned">{{ description(plugin) }}</p>
-              <p class="mt-1 text-xs text-muted">
-                {{ t('plugins.card.author', { author: plugin.author }) }}
-                <span v-if="plugin.license"> · {{ plugin.license }}</span>
-              </p>
-              <p class="mt-1 flex flex-wrap gap-3 text-xs">
-                <a v-if="plugin.homepage" class="text-primary hover:underline" :href="plugin.homepage" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</a>
-                <a v-if="plugin.support_url" class="text-primary hover:underline" :href="plugin.support_url" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</a>
-              </p>
-              <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ plugin.id }}</p>
-            </div>
-            <UTooltip :text="t('plugins.card.concurrency_hint', { count: plugin.max_concurrent_downloads })">
-              <div class="shrink-0 text-right">
-                <p class="font-mono text-sm leading-none text-toned">{{ plugin.max_concurrent_downloads }}</p>
-                <p class="mt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.card.concurrency') }}</p>
-              </div>
-            </UTooltip>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-1">
-            <UBadge color="primary" variant="subtle">{{ plugin.provider_slug }}</UBadge>
-            <UBadge color="neutral" variant="subtle">{{ t(`plugins.type.${plugin.plugin_type}`) }}</UBadge>
-            <UBadge color="neutral" variant="subtle">{{ t('plugins.card.api_version', { version: plugin.api_version }) }}</UBadge>
-          </div>
-          <div class="mt-2">
-            <p class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.card.capabilities') }}</p>
-            <div class="mt-1 flex flex-wrap gap-1">
-              <UBadge v-for="capability in plugin.capabilities" :key="capability" color="warning" variant="outline">{{ capabilityLabel(capability) }}</UBadge>
-            </div>
-          </div>
-          <div class="mt-2 flex flex-wrap gap-1">
-            <UBadge v-for="domain in plugin.domains" :key="domain" color="neutral" variant="outline">{{ domain }}</UBadge>
-          </div>
-          <div v-if="superseded.length" class="mt-3 border-t border-muted pt-2">
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :icon="openSuperseded === plugin.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-              :aria-expanded="openSuperseded === plugin.id"
-              :label="t('plugins.card.superseded_versions', { count: superseded.length })"
-              @click="toggleSuperseded(plugin.id)"
-            />
-            <div v-if="openSuperseded === plugin.id" class="mt-2 space-y-1">
-              <p class="text-xs leading-5 text-muted">{{ t('plugins.card.superseded_hint') }}</p>
-              <div
-                v-for="old in superseded"
-                :key="old.version"
-                class="flex items-center justify-between gap-3 border border-muted px-2 py-1 text-xs"
-              >
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="font-mono text-toned">v{{ old.version }}</span>
-                  <UBadge size="xs" color="warning" variant="subtle">{{ t('plugins.card.superseded') }}</UBadge>
-                  <UBadge v-if="isWithdrawn(old)" size="xs" color="error" variant="subtle" :title="t('plugins.card.withdrawn_hint')">{{ t('plugins.card.withdrawn_badge') }}</UBadge>
-                </div>
-                <div class="flex shrink-0 items-center gap-1">
-                  <UButton
-                    v-if="!isWithdrawn(old)"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-shield-off"
-                    :aria-label="t('plugins.card.withdraw_version', { version: old.version })"
-                    :title="t('plugins.card.withdraw_version', { version: old.version })"
-                    @click="askWithdraw(displayName(plugin), old.id, old.version)"
-                  />
-                  <UButton
-                    size="xs"
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    :aria-label="t('plugins.card.remove_superseded', { version: old.version })"
-                    :title="t('plugins.card.remove_superseded', { version: old.version })"
-                    @click="confirmRemoveSuperseded(plugin, old)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-muted pt-2">
-            <UButton
-              v-if="hasDiagnostics(plugin)"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :icon="openDiagnostics === plugin.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-              :label="t('plugins.diagnostics.title')"
-              @click="toggleDiagnostics(plugin)"
-            />
-            <div class="ml-auto flex items-center gap-1">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                :icon="isDisabled(plugin) ? 'i-lucide-play' : 'i-lucide-power-off'"
-                :label="isDisabled(plugin) ? t('plugins.actions.enable') : t('plugins.actions.disable')"
-                @click="setEnabled(plugin, isDisabled(plugin))"
-              />
-              <UButton
-                v-if="!isWithdrawn(plugin)"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-shield-off"
-                :label="t('plugins.actions.withdraw')"
-                @click="askWithdraw(displayName(plugin), plugin.id, plugin.version)"
-              />
-              <UButton
-                size="xs"
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                :label="t('common.actions.delete')"
-                @click="confirmRemove(plugin)"
-              />
-            </div>
-            <div v-if="hasDiagnostics(plugin) && openDiagnostics === plugin.id" class="mt-2 space-y-1">
-              <p v-if="diagnosticsLoading === plugin.id" class="text-xs text-muted">{{ t('common.data.loading') }}</p>
-              <div
-                v-for="entry in executions[plugin.id] ?? []"
-                :key="entry.correlation_id"
-                class="flex items-start justify-between gap-3 border border-muted px-2 py-1 text-xs"
-              >
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <UBadge size="xs" :color="entry.outcome === 'ok' ? 'success' : entry.outcome === 'failed' ? 'warning' : 'error'" variant="subtle">
-                      {{ t(`plugins.diagnostics.outcome.${entry.outcome}`) }}
-                    </UBadge>
-                    <span class="font-mono text-toned">{{ entry.operation }}</span>
-                    <span class="text-muted">v{{ entry.plugin_version }}</span>
-                  </div>
-                  <p v-if="entry.message" class="mt-1 break-words text-muted">{{ entry.message }}</p>
-                  <p class="mt-1 font-mono text-[10px] text-muted">{{ entry.correlation_id }}</p>
-                </div>
-                <div class="shrink-0 text-right text-muted">
-                  <p>{{ formatMoment(entry.started_at) }}</p>
-                  <p>{{ t('plugins.diagnostics.duration', { ms: entry.duration_ms }) }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
+        <PluginCard
+          v-for="{ plugin, superseded } in visibleGroups"
+          :key="plugin.id"
+          :plugin="plugin"
+          :superseded="superseded"
+          :disabled="isDisabled(plugin)"
+          :is-withdrawn="isWithdrawn"
+          :lifecycle="lifecycleOf(plugin.id)"
+          :release-notes="releaseNotes.get(String(plugin.id)) ?? []"
+          :superseded-open="openSuperseded === plugin.id"
+          :diagnostics-open="openDiagnostics === plugin.id"
+          :diagnostics-loading="diagnosticsLoading === plugin.id"
+          :executions="executions[plugin.id] ?? []"
+          @toggle-superseded="toggleSuperseded(plugin.id)"
+          @toggle-diagnostics="toggleDiagnostics(plugin)"
+          @set-enabled="enabled => setEnabled(plugin, enabled)"
+          @withdraw="build => askWithdraw(displayName(plugin), build.id, build.version)"
+          @remove="confirmRemove(plugin)"
+          @remove-superseded="old => confirmRemoveSuperseded(plugin, old)"
+          @version-done="versionActionDone"
+        />
         <DataState :loading="inventoryState.loading.value" :error="inventoryState.loadError.value" :empty="!visibleGroups.length" class="md:col-span-2">
           <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.installed.empty') }}</p>
         </DataState>
@@ -777,106 +460,31 @@ async function revokeKey(keyId: string): Promise<void> {
       </div>
     </section>
 
-    <section class="border border-muted bg-default p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <SectionHeader :eyebrow="t('plugins.withdrawn.eyebrow')" :title="t('plugins.withdrawn.title')" level="sub" />
-        <UBadge color="neutral" variant="outline">{{ revocations.length }}</UBadge>
-      </div>
-      <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.withdrawn.description') }}</p>
-      <div class="space-y-2">
-        <div v-for="entry in revocations" :key="entry.digest" class="flex items-start justify-between gap-4 border border-muted p-3">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium text-highlighted">{{ revocationName(entry) }}</p>
-              <UBadge v-if="entry.version" color="neutral" variant="subtle">v{{ entry.version }}</UBadge>
-              <UBadge v-if="isInstalledHere(entry)" color="warning" variant="subtle">{{ t('plugins.withdrawn.installed') }}</UBadge>
-            </div>
-            <!-- The digest stands where it is the only honest answer: a build this machine no
-                 longer has cannot be pointed at by name and version alone. -->
-            <template v-if="!isInstalledHere(entry)">
-              <p class="mt-1 text-xs leading-5 text-muted">{{ t('plugins.withdrawn.not_installed') }}</p>
-              <p class="mt-2 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.withdrawn.digest') }}</p>
-              <p class="break-all font-mono text-[11px] text-muted">{{ groupFingerprint(entry.digest) }}</p>
-            </template>
-            <p v-if="entry.reason" class="mt-1 text-xs leading-5 text-toned">{{ t('plugins.withdrawn.reason', { reason: entry.reason }) }}</p>
-            <p class="mt-1 text-xs text-muted">{{ t('plugins.withdrawn.since', { when: formatMoment(entry.revoked_at) }) }}</p>
-          </div>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-undo-2"
-            :label="t('plugins.withdrawn.lift')"
-            @click="liftWithdrawal(entry.digest)"
-          />
-        </div>
-        <DataState :loading="revocationState.loading.value" :error="revocationState.loadError.value" :empty="!revocations.length">
-          <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.withdrawn.empty') }}</p>
-        </DataState>
-      </div>
-    </section>
+    <PluginWithdrawnList
+      :revocations="revocations"
+      :installed="plugins"
+      :loading="revocationState.loading.value"
+      :load-error="revocationState.loadError.value"
+      @lift="liftWithdrawal"
+    />
 
-    <section class="border border-muted bg-default p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <SectionHeader :eyebrow="t('plugins.keys.eyebrow')" :title="t('plugins.keys.title')" level="sub" />
-        <UBadge color="neutral" variant="outline">{{ trustedKeys.length }}</UBadge>
-      </div>
-      <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.keys.description') }}</p>
-      <div class="space-y-2">
-        <div v-for="key in trustedKeys" :key="key.key_id" class="flex items-start justify-between gap-4 border border-muted p-3">
-          <div class="min-w-0">
-            <p class="font-medium text-highlighted">{{ key.key_id }}</p>
-            <p class="mt-1 break-all font-mono text-[11px] text-muted">{{ groupFingerprint(key.fingerprint) }}</p>
-            <p v-if="key.plugin_name" class="mt-1 text-xs text-muted">{{ t('plugins.keys.first_seen', { plugin: key.plugin_name }) }}</p>
-          </div>
-          <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.keys.revoke')" @click="revokeKey(key.key_id)" />
-        </div>
-        <DataState :loading="keyState.loading.value" :error="keyState.loadError.value" :empty="!trustedKeys.length">
-          <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.keys.empty') }}</p>
-        </DataState>
-      </div>
-    </section>
+    <SettingsPluginRepositories />
 
-    <UModal v-model:open="modalOpen" :title="t('plugins.trust.title')">
-      <template #body>
-        <div v-if="pendingKey" class="space-y-4">
-          <p class="text-sm leading-6 text-toned">{{ t('plugins.trust.intro', { name: pendingKey.name, version: pendingKey.version }) }}</p>
-          <div class="border border-muted bg-elevated p-3">
-            <p class="text-xs text-muted">{{ t('plugins.trust.key_id') }}</p>
-            <p class="font-mono text-sm text-highlighted">{{ pendingKey.keyId }}</p>
-            <p class="mt-3 text-xs text-muted">{{ t('plugins.trust.fingerprint') }}</p>
-            <p class="break-all font-mono text-sm text-highlighted">{{ groupFingerprint(pendingKey.fingerprint) }}</p>
-          </div>
-          <UAlert color="warning" variant="subtle" :description="t('plugins.trust.warning')" />
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('plugins.trust.cancel')" @click="pendingKey = null" />
-          <UButton color="primary" icon="i-lucide-shield-check" :label="t('plugins.trust.confirm')" :loading="pending" @click="confirmKey" />
-        </div>
-      </template>
-    </UModal>
+    <PluginTrustedKeys
+      :keys="trustedKeys"
+      :loading="keyState.loading.value"
+      :load-error="keyState.loadError.value"
+      @revoke="revokeKey"
+    />
 
-    <UModal v-model:open="withdrawalOpen" :title="t('plugins.withdraw.title')">
-      <template #body>
-        <div v-if="pendingWithdrawal" class="space-y-4">
-          <p class="text-sm leading-6 text-toned">{{ t('plugins.withdraw.intro', { name: pendingWithdrawal.name, version: pendingWithdrawal.version }) }}</p>
-          <!-- The one sentence somebody has to read before they conclude the feature is broken:
-               the package they just withdrew keeps running until the service restarts. -->
-          <UAlert color="warning" variant="subtle" :description="t('plugins.withdraw.restart')" />
-          <p class="text-sm leading-6 text-toned">{{ t('plugins.withdraw.key_untouched') }}</p>
-          <UFormField :label="t('plugins.withdraw.reason_label')" :description="t('plugins.withdraw.reason_hint')">
-            <UInput v-model="withdrawalReason" class="mt-2 w-full" :maxlength="200" />
-          </UFormField>
-        </div>
-      </template>
-      <template #footer>
-        <div v-if="pendingWithdrawal" class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.actions.cancel')" @click="pendingWithdrawal = null" />
-          <UButton color="error" icon="i-lucide-shield-off" :label="t('plugins.withdraw.confirm')" :loading="withdrawing" @click="withdraw" />
-        </div>
-      </template>
-    </UModal>
+    <PluginInstallPreviewModal :source="previewSource" @close="previewSource = null" @installed="onInstalled" />
+
+    <PluginWithdrawDialog
+      v-model:reason="withdrawalReason"
+      :pending="pendingWithdrawal"
+      :withdrawing="withdrawing"
+      @cancel="pendingWithdrawal = null"
+      @confirm="withdraw"
+    />
   </div>
 </template>

@@ -2,7 +2,8 @@
 //!
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! Nothing MEGA answered with appears verbatim in any of them.
-#![allow(dead_code)] // The host-side tests and the guest use different subsets.
+// Only the guest reports a crawl's failures; the native build compiles these for nothing.
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 /// Not a MEGA folder address. Reported as `unsupported`, which hands the address on.
 pub(crate) const NOT_A_FOLDER: (&str, &str) = (

@@ -4,8 +4,9 @@
 # one finished and one open job of milestone 1.4 that link each other, the working file of a
 # tagged 1.3.0 and of an untagged 1.4.0, a document and a source comment naming the finished
 # job, and a plugin comment that must stay as it is. The run is made twice; the second has to
-# be a no-op, and every relative link in the tree has to resolve after the first. Last, --check
-# has to refuse a job that is open again but still lies in the archive.
+# be a no-op, and every relative link in the tree has to resolve after the first. Then --check has
+# to refuse a miscounted Job Inventory row that a plain run recounts (RD-140-24), and last a job
+# that is open again but still lies in the archive.
 #
 # Pure python3, bash and git: it runs in a second. check.sh runs it when scripts/lib/ or
 # scripts/tests/ change, and under --full.
@@ -25,6 +26,7 @@ passed=0
 ok() { echo "ok   $1"; passed=$((passed + 1)); }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 run() { python3 "$SCRIPT" "$TREE" "$@" > "$SCRATCH/out" 2>&1 && status=0 || status=$?; }
 has() { grep -qF -- "$2" "$1"; }
 
@@ -141,6 +143,16 @@ run --check
 expect "check after the run exits 0" '[[ $status -eq 0 ]]'
 run --check --release 1.4.0
 expect "the release being cut counts as tagged" '[[ $status -eq 1 ]] && has "$SCRATCH/out" 140-00-release'
+
+sed -i 's/^| Milestone 1.4 — Plugin Distribution | 2 | 1 | 3 |$/| Milestone 1.4 — Plugin Distribution | 3 | 1 | 4 |/' "$JOBS/README.md"
+git -C "$TREE" -c user.name=t -c user.email=t@t commit -qam miscounted
+run --check
+expect "check refuses a miscounted inventory row" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "miscounted:" && has "$SCRATCH/out" "| Milestone 1.4 — Plugin Distribution | 2 | 1 | 3 |"'
+run
+expect "a run with nothing due recounts the inventory" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "recounted" && has "$JOBS/README.md" "| Milestone 1.4 — Plugin Distribution | 2 | 1 | 3 |" && has "$JOBS/README.md" "Nothing here moves."'
+run --check
+expect "check after the recount exits 0" '[[ $status -eq 0 ]]'
+git -C "$TREE" -c user.name=t -c user.email=t@t commit -qam recounted
 
 sed -i 's/^- \*\*Status:\*\* Implemented.*/- **Status:** Partial (reopened)/' "$JOBS/archive/140-01-done.md"
 run --check

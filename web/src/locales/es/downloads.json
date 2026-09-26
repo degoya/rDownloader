@@ -147,7 +147,8 @@
     "show_details": "Mostrar detalles",
     "stop_recording": "Detener grabación",
     "stop_seeding": "Detener siembra",
-    "drag_title": "Arrastra para cambiar el orden dentro del paquete"
+    "drag_title": "Arrastra para cambiar el orden dentro del paquete",
+    "trial_staged": "Probar con {name} v{version}"
   },
   "summary": {
     "eyebrow": "Estado de la cola",

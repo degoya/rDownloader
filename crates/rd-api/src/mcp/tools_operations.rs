@@ -111,6 +111,17 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "List plugin updates and what the enabled plugin repositories offer: per update the installed and the offered version, its publisher key, the permissions it asks for, its release notes and whether it is set to install automatically. Installing stays in the interface, where the person sees the preview and confirms it."
+    )]
+    pub async fn list_plugin_updates(&self) -> McpToolResult {
+        respond(
+            crate::plugin_repository_handlers::list_plugin_updates(State(self.state.clone()))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
         description = "Read the installed plugins' own message catalogue for one language: the text behind the stable codes a plugin answers with (its settings labels, its error codes)."
     )]
     pub async fn get_plugin_messages(

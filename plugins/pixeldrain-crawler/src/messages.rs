@@ -3,7 +3,6 @@
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! Pixeldrain's own `message` field is prose and never travels; only its `value` token does,
 //! and only as the `api_code` parameter.
-#![allow(dead_code)] // The tests and the guest use different subsets.
 
 /// `list_not_found`, a 404 or a 410: the list was deleted or never existed.
 pub const LIST_NOT_FOUND: (&str, &str) = (

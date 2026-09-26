@@ -2,7 +2,6 @@
   "name": "TorBox-Aufträge",
   "description": "Führt Magnets, Torrent-Dateien, NZBs und Weblinks als Aufträge auf einem TorBox-Konto aus.",
   "codes": {
-    "torbox_jobs.account_missing": "Das TorBox-Konto fehlt",
     "torbox_jobs.api_error": "TorBox-API-Fehler {api_code}",
     "torbox_jobs.auth_invalid": "Der TorBox-API-Schlüssel ist ungültig oder abgelaufen. Hinterlege ihn neu.",
     "torbox_jobs.cooldown": "TorBox hält dieses Konto in einer Abkühlphase. Es wird gewartet.",
@@ -25,7 +24,6 @@
     "torbox_jobs.server_busy": "TorBox ist vorübergehend nicht erreichbar",
     "torbox_jobs.server_error": "TorBox-Serverfehler",
     "torbox_jobs.source_gone": "TorBox konnte die Quelle dieses Auftrags nicht erreichen",
-    "torbox_jobs.token_missing": "Dieses TorBox-Konto hat noch keinen API-Schlüssel",
     "torbox_jobs.too_large": "TorBox lehnt diesen Auftrag als zu groß ab"
   }
 }

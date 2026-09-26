@@ -18,11 +18,11 @@ chacha20poly1305.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
 dunce.workspace = true
-fs2.workspace = true
+fs4.workspace = true
 futures-util.workspace = true
 hex.workspace = true
 mime_guess.workspace = true
-percent-encoding = "2"
+percent-encoding.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -68,11 +68,9 @@ tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
 tower = { version = "0.5", features = ["util"] }
-webauthn-authenticator-rs.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 utoipa.workspace = true
-utoipa-axum.workspace = true
 uuid.workspace = true
 webauthn-rs.workspace = true
 url.workspace = true
@@ -82,12 +80,7 @@ zip.workspace = true
 workspace = true
 
 [dev-dependencies]
-rd-authn = { path = "../rd-authn" }
-rd-notify = { path = "../rd-notify" }
-rd-power = { path = "../rd-power" }
 http-body-util = "0.1"
 tracing-subscriber.workspace = true
-zip.workspace = true
-rd-plugin-api = { path = "../rd-plugin-api" }
 tempfile.workspace = true
-tower = { version = "0.5", features = ["util"] }
+webauthn-authenticator-rs.workspace = true

@@ -131,6 +131,7 @@ pub(super) const TOOL_POLICY: &[ToolPolicy] = &[
     tool("list_nzb_imports", "/api/v1/nzb/imports", Method::GET),
     tool("list_packages", "/api/v1/packages", Method::GET),
     tool("list_plugin_executions", "/api/v1/plugins/{id}/executions", Method::GET),
+    tool("list_plugin_updates", "/api/v1/plugins/updates", Method::GET),
     tool("list_postprocess_options", "/api/v1/postprocess/scripts", Method::GET),
     tool("list_postprocess_queue", "/api/v1/postprocess/queue", Method::GET),
     tool("list_remote_job_providers", "/api/v1/remote-jobs/providers", Method::GET),

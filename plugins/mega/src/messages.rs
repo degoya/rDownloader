@@ -3,7 +3,6 @@
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! No value MEGA answered with is ever put in one of them: an attribute block, a storage
 //! address and above all a key are none of a message's business.
-#![allow(dead_code)] // The host-side tests and the guest use different subsets.
 
 /// Not a MEGA file address. Reported as `unsupported`, which hands the link on.
 pub const NOT_MINE: (&str, &str) = ("mega.not_mine", "This is not a MEGA file address");

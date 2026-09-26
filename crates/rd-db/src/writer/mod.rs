@@ -25,6 +25,7 @@ mod network;
 mod notify;
 mod nzb;
 mod packages;
+mod plugin_repositories;
 mod plugins;
 mod sessions;
 mod streams;
@@ -82,7 +83,8 @@ impl Writer {
                 | WriterCommand::ResetTransfer { .. }
                 | WriterCommand::SetCandidateReplayConsent { .. }
                 | WriterCommand::ClaimResolverPin { .. }
-                | WriterCommand::ClearUnsatisfiableResolverPins { .. }) => {
+                | WriterCommand::ClearUnsatisfiableResolverPins { .. }
+                | WriterCommand::PinDownloadResolver { .. }) => {
                     self.handle_downloads(command).await
                 }
                 command @ (WriterCommand::CarryEnrichment { .. }
@@ -203,12 +205,21 @@ impl Writer {
                 | WriterCommand::RevokePluginKey { .. }
                 | WriterCommand::RevokePluginDigest { .. }
                 | WriterCommand::UnrevokePluginDigest { .. }
+                | WriterCommand::SavePluginVersionChoice { .. }
                 | WriterCommand::ClaimRemoteJob { .. }
                 | WriterCommand::AdvanceRemoteJob { .. }
                 | WriterCommand::DeleteRemoteJob { .. }
                 | WriterCommand::RecordManagedTool { .. }
                 | WriterCommand::ForgetManagedTool { .. }
                 | WriterCommand::AcceptToolManifest { .. }) => self.handle_plugins(command).await,
+                command @ (WriterCommand::AddPluginRepository { .. }
+                | WriterCommand::UpdatePluginRepository { .. }
+                | WriterCommand::DeletePluginRepository { .. }
+                | WriterCommand::RecordPluginRepositoryCheck { .. }
+                | WriterCommand::WithdrawPluginKey { .. }
+                | WriterCommand::RecordPluginRepositoryInstall { .. }) => {
+                    self.handle_plugin_repositories(command).await
+                }
                 command @ (WriterCommand::SetDownloadRecordingState { .. }
                 | WriterCommand::CreateStreamSchedule { .. }
                 | WriterCommand::UpdateStreamSchedule { .. }

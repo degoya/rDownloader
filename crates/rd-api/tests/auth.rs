@@ -15,27 +15,12 @@ mod common;
 use axum::http::StatusCode;
 use common::{
     auth_harness, get_with_cookie, post_json, post_json_with_cookie,
-    post_json_with_cookie_and_headers, post_json_with_headers,
+    post_json_with_cookie_and_headers, post_json_with_headers, sign_in,
 };
 
 const PASSWORD: &str = "correct-horse-battery";
 const REPLACEMENT: &str = "a-quite-different-passphrase";
 const WRONG: &str = "not-the-password-at-all";
-
-/// Completes setup and signs in, returning the session token.
-async fn sign_in(harness: &common::Harness) -> String {
-    let (status, body) = post_json(
-        &harness.router,
-        "/api/v1/auth/setup",
-        serde_json::json!({ "password": PASSWORD }),
-    )
-    .await;
-    assert!(
-        status.is_success() || body["code"] == "auth.setup_completed",
-        "setup: {body}"
-    );
-    log_in(harness, PASSWORD).await.expect("a session")
-}
 
 /// Signs in with `password`, returning the session token if it was accepted.
 async fn log_in(harness: &common::Harness, password: &str) -> Option<String> {
@@ -68,7 +53,7 @@ async fn change(
 async fn the_password_can_be_changed_with_the_current_one() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body, _) = change(&harness, &token, PASSWORD, REPLACEMENT).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -93,7 +78,7 @@ async fn the_password_can_be_changed_with_the_current_one() {
 async fn a_wrong_current_password_is_refused_exactly_like_a_wrong_sign_in() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (change_status, change_body, _) = change(&harness, &token, WRONG, REPLACEMENT).await;
     let (login_status, login_body) = post_json(
@@ -125,7 +110,7 @@ async fn a_wrong_current_password_is_refused_exactly_like_a_wrong_sign_in() {
 async fn the_policy_refusal_does_not_say_whether_the_current_password_was_right() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (right_status, right_body, _) = change(&harness, &token, PASSWORD, "short").await;
     let (wrong_status, wrong_body, _) = change(&harness, &token, WRONG, "short").await;
@@ -149,7 +134,7 @@ async fn the_policy_refusal_does_not_say_whether_the_current_password_was_right(
 async fn the_replacement_is_held_to_the_password_policy() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     for attempt in ["", "x", "123456789"] {
         let (status, body, _) = change(&harness, &token, PASSWORD, attempt).await;
@@ -168,7 +153,7 @@ async fn the_replacement_is_held_to_the_password_policy() {
 async fn the_replacement_must_differ_from_the_current_password() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body, _) = change(&harness, &token, PASSWORD, PASSWORD).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
@@ -184,7 +169,7 @@ async fn the_replacement_must_differ_from_the_current_password() {
 async fn the_change_ends_every_session_and_hands_the_caller_a_fresh_one() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let here = sign_in(&harness).await;
+    let here = sign_in(&harness.router, PASSWORD).await;
     let elsewhere = log_in(&harness, PASSWORD).await.expect("a second session");
 
     let (status, body, fresh) = change(&harness, &here, PASSWORD, REPLACEMENT).await;
@@ -223,7 +208,7 @@ async fn the_change_ends_every_session_and_hands_the_caller_a_fresh_one() {
 async fn repeated_wrong_current_passwords_are_locked_out_like_repeated_wrong_sign_ins() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let mut locked = None;
     for _ in 0..8 {
@@ -262,7 +247,7 @@ async fn repeated_wrong_current_passwords_are_locked_out_like_repeated_wrong_sig
 async fn the_change_is_recorded_without_either_password() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body, _) = change(&harness, &token, WRONG, REPLACEMENT).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
@@ -310,7 +295,7 @@ async fn the_change_is_recorded_without_either_password() {
 async fn setup_still_refuses_its_second_call_after_a_change() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (status, body, _) = change(&harness, &token, PASSWORD, REPLACEMENT).await;
     assert_eq!(status, StatusCode::OK, "{body}");
 
@@ -367,7 +352,7 @@ fn current_code(secret_base32: &str) -> String {
 async fn a_configured_second_factor_is_not_demanded_again_and_survives_the_change() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body) = post_json_with_cookie(
         &harness.router,

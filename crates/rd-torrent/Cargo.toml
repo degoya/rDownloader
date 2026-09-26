@@ -11,7 +11,7 @@ async-trait.workspace = true
 chrono.workspace = true
 dunce.workspace = true
 hex.workspace = true
-if-addrs.workspace = true
+network-interface.workspace = true
 # `rust-tls` rather than `default-tls`: it puts librqbit on the same rustls/aws-lc-rs stack
 # the rest of the workspace uses, and picks the `sha1-ring` info-hash backend instead of
 # `sha1-crypto-hash`, which drags in the unmaintained crypto-hash crate and all of OpenSSL.

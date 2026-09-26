@@ -12,21 +12,15 @@
     "remove": "Entfernen",
     "rename": "Umbenennen",
     "edit": "Bearbeiten",
-    "close": "Schließen",
     "refresh": "Aktualisieren",
-    "add": "Hinzufügen",
     "test": "Testen",
     "start": "Starten",
     "pause": "Pausieren",
-    "resume": "Fortsetzen",
     "retry": "Erneut versuchen",
     "extract": "Entpacken",
     "select_all": "Alle auswählen",
     "clear_selection": "Auswahl aufheben",
-    "copy": "Kopieren",
     "apply": "Anwenden",
-    "reset": "Zurücksetzen",
-    "back": "Zurück",
     "reveal": "In der Liste zeigen"
   },
   "states": {
@@ -55,22 +49,16 @@
     "file": "keine Dateien | {count} Datei | {count} Dateien",
     "package": "keine Pakete | {count} Paket | {count} Pakete",
     "link": "keine Links | {count} Link | {count} Links",
-    "entry": "keine Einträge | {count} Eintrag | {count} Einträge",
-    "selected": "ausgewählt",
-    "per_second": "/s"
+    "selected": "ausgewählt"
   },
   "values": {
     "unknown": "unbekannt",
-    "none": "keine",
     "default": "Standard",
     "yes": "Ja",
-    "no": "Nein",
-    "enabled": "Aktiviert",
-    "disabled": "Deaktiviert"
+    "no": "Nein"
   },
   "errors": {
-    "request_failed": "Die Anfrage konnte nicht verarbeitet werden.",
-    "unknown": "Unbekannter Fehler"
+    "request_failed": "Die Anfrage konnte nicht verarbeitet werden."
   },
   "data": {
     "loading": "Wird geladen",

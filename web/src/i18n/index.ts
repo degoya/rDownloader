@@ -13,21 +13,50 @@ const STORAGE_KEY = 'rd.locale'
 
 type MessageTree = Record<string, unknown>
 
-/** Every `src/locales/<locale>/<domain>.json` file becomes the `<domain>` namespace. */
-function loadMessages(): Record<AppLocale, MessageTree> {
-  const files = import.meta.glob<{ default: MessageTree }>('../locales/*/*.json', { eager: true })
-  const messages = Object.fromEntries(SUPPORTED_LOCALES.map(locale => [locale, {}])) as Record<AppLocale, MessageTree>
-  for (const [path, module] of Object.entries(files)) {
+/**
+ * Every `src/locales/<locale>/<domain>.json` file becomes the `<domain>` namespace.
+ *
+ * Only English — the fallback every other language leans on — is bundled into the main chunk;
+ * the other three are separate chunks fetched the first time they are needed (RD-140-27). All
+ * four in the main chunk were 1.3 MB of JSON nobody but one language's reader ever used.
+ */
+const englishFiles = import.meta.glob<{ default: MessageTree }>('../locales/en/*.json', { eager: true })
+const lazyFiles = import.meta.glob<{ default: MessageTree }>(['../locales/*/*.json', '!../locales/en/*.json'])
+
+function collect(entries: [string, MessageTree][]): Partial<Record<AppLocale, MessageTree>> {
+  const messages: Partial<Record<AppLocale, MessageTree>> = {}
+  for (const [path, tree] of entries) {
     const match = /\/locales\/([a-z]{2})\/([a-z_]+)\.json$/.exec(path)
     if (!match) continue
     const [, locale, domain] = match
     if (!locale || !domain || !isSupported(locale)) continue
-    messages[locale][domain] = module.default
+    ;(messages[locale] ??= {})[domain] = tree
   }
   return messages
 }
 
-export function isSupported(value: string): value is AppLocale {
+/** Locales whose bundled catalogues are in vue-i18n; English is there from the start. */
+const loadedLocales = new Set<AppLocale>(['en'])
+
+/**
+ * Brings `locale`'s bundled catalogues into vue-i18n, fetching its chunks on first use.
+ *
+ * Merged rather than set, so plugin translations that arrived first are not overwritten.
+ */
+export async function loadLocaleMessages(locale: AppLocale): Promise<void> {
+  if (loadedLocales.has(locale)) return
+  const prefix = `../locales/${locale}/`
+  const entries = await Promise.all(
+    Object.entries(lazyFiles)
+      .filter(([path]) => path.startsWith(prefix))
+      .map(async ([path, load]) => [path, (await load()).default] as [string, MessageTree])
+  )
+  const tree = collect(entries)[locale] ?? {}
+  i18n.global.mergeLocaleMessage(locale, tree as Record<string, unknown>)
+  loadedLocales.add(locale)
+}
+
+function isSupported(value: string): value is AppLocale {
   return (SUPPORTED_LOCALES as readonly string[]).includes(value)
 }
 
@@ -54,9 +83,10 @@ function perLocale<T>(value: T): Record<AppLocale, T> {
 export const i18n = createI18n<false>({
   legacy: false,
   globalInjection: true,
-  locale: detectLocale(),
+  // English until `setLocale(detectLocale())` has the detected language's chunk (see main.ts).
+  locale: 'en',
   fallbackLocale: 'en',
-  messages: loadMessages() as Record<AppLocale, LocaleMessages>,
+  messages: { en: (collect(Object.entries(englishFiles).map(([path, module]) => [path, module.default])).en ?? {}) as LocaleMessages },
   messageResolver,
   numberFormats: perLocale(NUMBER_FORMATS),
   datetimeFormats: perLocale(DATETIME_FORMATS),
@@ -64,14 +94,10 @@ export const i18n = createI18n<false>({
   fallbackWarn: false
 })
 
-/**
- * Switches the UI language, persists it and updates `<html lang>`.
- *
- * Installed plugins ship their own translations, so the new language's plugin catalogue is
- * merged in the background; until it arrives, plugin strings fall back to English. Without a
- * session that merge is skipped rather than refused — the endpoint requires one.
- */
-export function setLocale(locale: AppLocale): void {
+/** The language asked for last, so a slow chunk cannot overturn a later choice. */
+let requestedLocale: AppLocale | null = null
+
+function applyLocale(locale: AppLocale): void {
   i18n.global.locale.value = locale
   try {
     localStorage.setItem(STORAGE_KEY, locale)
@@ -80,6 +106,31 @@ export function setLocale(locale: AppLocale): void {
   }
   if (typeof document !== 'undefined') document.documentElement.lang = locale
   void loadPluginMessages(locale)
+}
+
+/**
+ * Switches the UI language, persists it and updates `<html lang>`.
+ *
+ * A language whose catalogues are not loaded yet is switched to once its chunk has arrived, so
+ * the page never shows English for a moment in between; one already loaded switches at once.
+ * A chunk that cannot be fetched leaves the current language in place.
+ *
+ * Installed plugins ship their own translations, so the new language's plugin catalogue is
+ * merged in the background; until it arrives, plugin strings fall back to English. Without a
+ * session that merge is skipped rather than refused — the endpoint requires one.
+ */
+export async function setLocale(locale: AppLocale): Promise<void> {
+  requestedLocale = locale
+  if (!loadedLocales.has(locale)) {
+    try {
+      await loadLocaleMessages(locale)
+    } catch {
+      // Offline or a stale deployment without that chunk: stay in the current language.
+      return
+    }
+    if (requestedLocale !== locale) return
+  }
+  applyLocale(locale)
 }
 
 export function currentLocale(): AppLocale {

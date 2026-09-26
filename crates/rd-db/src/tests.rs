@@ -2036,6 +2036,108 @@ async fn nzb_segment_attempt_and_crc_are_persistent() {
     assert_eq!(segment.crc32.as_deref(), Some("1234abcd"));
 }
 
+/// RD-130-22: a batch of assembly checkpoints is one transaction - every article in it is
+/// confirmed, with its attempts, or none is.
+#[tokio::test]
+async fn nzb_assembly_batch_confirms_every_segment_or_none() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(directory.path().join("batch.sqlite"))
+        .await
+        .expect("database");
+    let import = database
+        .add_nzb_import(NewNzbImport {
+            name: "batch.nzb".to_owned(),
+            sha256: "ce".repeat(32),
+            category_id: None,
+            source: IngressSource::Manual,
+            priority: None,
+            import_mode: ImportMode::Enqueue,
+            source_path: None,
+            password: None,
+            announce_arrival: true,
+            files: vec![NewNzbFile {
+                subject: "file.bin".to_owned(),
+                poster: "poster".to_owned(),
+                groups: vec!["alt.binaries.test".to_owned()],
+                segments: (1..=3)
+                    .map(|number| NewNzbSegment {
+                        number,
+                        bytes: 100,
+                        message_id: format!("part-{number}@example.test"),
+                    })
+                    .collect(),
+            }],
+        })
+        .await
+        .expect("import");
+    let file = database.list_nzb_files(import.id).await.expect("files")[0].clone();
+    let mut segments = file.segments.clone();
+    segments.sort_by_key(|segment| segment.number);
+    let ids: Vec<_> = segments.iter().map(|segment| segment.id).collect();
+    let range = |segment_id, number: u64, attempts| crate::AssembledSegment {
+        segment_id,
+        part_begin: (number - 1) * 100 + 1,
+        part_end: number * 100,
+        crc32: 0x0000_1000 + u32::try_from(number).expect("small"),
+        attempts,
+    };
+
+    // One segment the file does not have spoils the whole batch.
+    let refused = database
+        .checkpoint_nzb_assembly_segments(
+            file.id,
+            "file.bin".to_owned(),
+            300,
+            vec![
+                range(ids[0], 1, 1),
+                range(rd_core::NzbSegmentId::new(), 2, 1),
+            ],
+        )
+        .await;
+    assert!(
+        refused.is_err(),
+        "a batch naming a foreign segment is refused"
+    );
+    let untouched = database.list_nzb_files(import.id).await.expect("files");
+    assert!(
+        untouched[0]
+            .segments
+            .iter()
+            .all(|segment| segment.state != NzbSegmentState::Completed),
+        "a refused batch confirms nothing"
+    );
+
+    database
+        .checkpoint_nzb_assembly_segments(
+            file.id,
+            "file.bin".to_owned(),
+            300,
+            vec![range(ids[0], 1, 1), range(ids[2], 3, 2)],
+        )
+        .await
+        .expect("batch");
+    let files = database.list_nzb_files(import.id).await.expect("files");
+    let by_number = |number| {
+        files[0]
+            .segments
+            .iter()
+            .find(|segment| segment.number == number)
+            .expect("segment")
+    };
+    assert_eq!(by_number(1).state, NzbSegmentState::Completed);
+    assert_eq!(by_number(1).server_attempts, 1);
+    assert_eq!(by_number(1).part_begin.map(|value| value.get()), Some(1));
+    assert_eq!(by_number(2).state, NzbSegmentState::Queued);
+    assert_eq!(by_number(3).state, NzbSegmentState::Completed);
+    assert_eq!(
+        by_number(3).server_attempts,
+        2,
+        "a backup attempt is counted"
+    );
+    assert_eq!(by_number(3).crc32.as_deref(), Some("00001003"));
+    assert_eq!(files[0].assembly_name.as_deref(), Some("file.bin"));
+}
+
 #[tokio::test]
 async fn usenet_file_and_postprocess_checkpoints_survive_recovery() {
     let directory = tempfile::tempdir().expect("tempdir");
@@ -2798,7 +2900,7 @@ async fn media_rows_written_before_the_format_selector_still_load() {
         .media
         .expect("media selection");
     assert_eq!(reloaded, legacy, "the stored blob round-trips unchanged");
-    assert!(reloaded.is_legacy());
+    assert_eq!(reloaded.contract_version, 0);
     assert_eq!(
         reloaded
             .effective_criteria()
@@ -2921,9 +3023,10 @@ async fn an_item_is_archived_once_however_often_a_poll_repeats_it() {
     assert_eq!(second[0].item_key, "c");
 
     let archived = database
-        .subscription_items(subscription.id, 100)
+        .subscription_item_page(subscription.id, None, 100, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     assert_eq!(archived.len(), 3);
 }
 
@@ -2959,9 +3062,10 @@ async fn an_items_attributes_and_password_are_stored_and_read_back() {
     assert_eq!(created.len(), 1);
 
     let archived = database
-        .subscription_items(subscription.id, 100)
+        .subscription_item_page(subscription.id, None, 100, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     let stored = archived.first().expect("one item");
     assert_eq!(
         stored.attributes.get("coverurl").map(String::as_str),
@@ -3207,9 +3311,10 @@ async fn a_repoll_without_attributes_keeps_the_ones_already_stored() {
         .expect("second poll");
 
     let archived = database
-        .subscription_items(subscription.id, 100)
+        .subscription_item_page(subscription.id, None, 100, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     let stored = archived.first().expect("one item");
     assert_eq!(
         stored.attributes.get("imdbscore").map(String::as_str),
@@ -3438,9 +3543,10 @@ async fn deleting_a_subscription_takes_its_archive_with_it() {
     );
     assert!(
         database
-            .subscription_items(subscription.id, 100)
+            .subscription_item_page(subscription.id, None, 100, 0)
             .await
             .expect("items")
+            .items
             .is_empty()
     );
 }
@@ -3951,9 +4057,10 @@ async fn a_repeat_poll_refreshes_undecided_items_only() {
         "a refreshed item is not a discovery: {second:?}"
     );
     let archived = database
-        .subscription_items(subscription.id, 100)
+        .subscription_item_page(subscription.id, None, 100, 0)
         .await
-        .expect("items");
+        .expect("items")
+        .items;
     let item = |key: &str| {
         archived
             .iter()

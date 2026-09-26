@@ -197,7 +197,7 @@ pub(crate) async fn assign(
             .bind(
                 group
                     .as_ref()
-                    .map(|entry| crate::collector_store::enum_string(entry.source))
+                    .map(|entry| crate::enum_string(entry.source))
                     .transpose()?,
             )
             .bind(i64::from(
@@ -325,7 +325,7 @@ pub(crate) async fn store_dissolve(
         tx.rollback().await?;
         return Ok((MirrorDissolve::NotGrouped, None));
     };
-    if source.as_deref() != Some(&crate::collector_store::enum_string(MirrorSource::Name)?) {
+    if source.as_deref() != Some(&crate::enum_string(MirrorSource::Name)?) {
         tx.rollback().await?;
         return Ok((MirrorDissolve::NotProposed, None));
     }

@@ -495,24 +495,32 @@ impl Worker {
             // dangerous window in the whole engine: a resume that trusts the file length here
             // would count bytes nothing ever confirmed.
             rd_core::failpoint!("http.after_chunk_write", || {
-                HttpDownloadError::Failure(Failure::new(
-                    FailureKind::Transient {
-                        retry_after_seconds: None,
-                    },
-                    "crash point: http.after_chunk_write".to_owned(),
-                ))
+                HttpDownloadError::Failure(
+                    Failure::coded(
+                        FailureKind::Transient {
+                            retry_after_seconds: None,
+                        },
+                        "download.crash_point",
+                        "crash point: http.after_chunk_write",
+                    )
+                    .with_param("point", "http.after_chunk_write"),
+                )
             });
             for (index, mac) in finished {
                 // Computed but not yet written down. A restart that trusted the byte
                 // checkpoint alone here would skip the chunk and never account for it,
                 // which is why the resume plan rewinds to the last *recorded* MAC.
                 rd_core::failpoint!("http.after_chunk_mac", || {
-                    HttpDownloadError::Failure(Failure::new(
-                        FailureKind::Transient {
-                            retry_after_seconds: None,
-                        },
-                        "crash point: http.after_chunk_mac".to_owned(),
-                    ))
+                    HttpDownloadError::Failure(
+                        Failure::coded(
+                            FailureKind::Transient {
+                                retry_after_seconds: None,
+                            },
+                            "download.crash_point",
+                            "crash point: http.after_chunk_mac",
+                        )
+                        .with_param("point", "http.after_chunk_mac"),
+                    )
                 });
                 self.checkpoints
                     .commit_chunk_mac(index as u64, mac)
@@ -535,12 +543,17 @@ impl Worker {
         if let Some(end) = chunk.end
             && position != end
         {
-            return Err(HttpDownloadError::Failure(Failure::new(
-                FailureKind::Transient {
-                    retry_after_seconds: None,
-                },
-                format!("response ended at byte {position}, expected {end}"),
-            )));
+            return Err(HttpDownloadError::Failure(
+                Failure::coded(
+                    FailureKind::Transient {
+                        retry_after_seconds: None,
+                    },
+                    "download.response_truncated",
+                    format!("response ended at byte {position}, expected {end}"),
+                )
+                .with_param("position", position)
+                .with_param("expected", end),
+            ));
         }
         self.flush(chunk.id, position).await?;
         Ok(DownloadOutcome::Complete)
@@ -626,22 +639,30 @@ impl Worker {
         // Durable on disk, not yet recorded. A restart here must resume from the *older*
         // checkpoint and rewrite the tail — never assume the sync implies the commit.
         rd_core::failpoint!("http.after_part_sync", || {
-            HttpDownloadError::Failure(Failure::new(
-                FailureKind::Transient {
-                    retry_after_seconds: None,
-                },
-                "crash point: http.after_part_sync".to_owned(),
-            ))
+            HttpDownloadError::Failure(
+                Failure::coded(
+                    FailureKind::Transient {
+                        retry_after_seconds: None,
+                    },
+                    "download.crash_point",
+                    "crash point: http.after_part_sync",
+                )
+                .with_param("point", "http.after_part_sync"),
+            )
         });
         self.checkpoints.commit(chunk_id, position).await?;
         // Recorded. A restart must resume at exactly this offset, re-fetching nothing.
         rd_core::failpoint!("http.after_db_checkpoint", || {
-            HttpDownloadError::Failure(Failure::new(
-                FailureKind::Transient {
-                    retry_after_seconds: None,
-                },
-                "crash point: http.after_db_checkpoint".to_owned(),
-            ))
+            HttpDownloadError::Failure(
+                Failure::coded(
+                    FailureKind::Transient {
+                        retry_after_seconds: None,
+                    },
+                    "download.crash_point",
+                    "crash point: http.after_db_checkpoint",
+                )
+                .with_param("point", "http.after_db_checkpoint"),
+            )
         });
         Ok(())
     }
@@ -686,7 +707,9 @@ pub(crate) fn network_failure(error: reqwest::Error) -> HttpDownloadError {
     // is persisted in `downloads.last_error_json` and broadcast on SSE, so strip the URL and
     // redact whatever the remaining text still quotes.
     let message = rd_core::redact_text(&error.without_url().to_string());
-    Failure::new(category, message).into()
+    Failure::coded(category, "download.network_failed", message.clone())
+        .with_param("detail", message)
+        .into()
 }
 
 pub(crate) fn status_failure(status: StatusCode, headers: &header::HeaderMap) -> HttpDownloadError {
@@ -706,7 +729,9 @@ pub(crate) fn status_failure(status: StatusCode, headers: &header::HeaderMap) ->
         },
         _ => FailureKind::Permanent,
     };
-    Failure::new(category, format!("HTTP {status}")).into()
+    Failure::coded(category, "download.http_status", format!("HTTP {status}"))
+        .with_param("status", status)
+        .into()
 }
 
 #[cfg(test)]
@@ -1145,5 +1170,20 @@ mod tests {
             panic!("expected classified failure");
         };
         assert_eq!(auth.category, FailureKind::AuthRequired);
+    }
+
+    #[test]
+    fn status_failure_carries_a_translatable_code() {
+        let HttpDownloadError::Failure(failure) =
+            status_failure(StatusCode::NOT_FOUND, &header::HeaderMap::new())
+        else {
+            panic!("expected classified failure");
+        };
+        assert_eq!(failure.code.as_deref(), Some("download.http_status"));
+        assert_eq!(
+            failure.params.get("status").map(String::as_str),
+            Some("404 Not Found")
+        );
+        assert_eq!(failure.message, "HTTP 404 Not Found");
     }
 }

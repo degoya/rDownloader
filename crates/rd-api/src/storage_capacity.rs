@@ -62,8 +62,8 @@ pub async fn storage_capacity(
         let probe = path.clone();
         let (free, total) = tokio::task::spawn_blocking(move || {
             (
-                fs2::available_space(&probe).ok(),
-                fs2::total_space(&probe).ok(),
+                fs4::available_space(&probe).ok(),
+                fs4::total_space(&probe).ok(),
             )
         })
         .await

@@ -16,3 +16,4 @@ pub mod api;
 pub mod free;
 pub mod login;
 pub mod page;
+pub mod session_trace;

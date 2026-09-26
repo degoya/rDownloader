@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n } from '@/i18n'
 import {
@@ -8,6 +8,9 @@ import {
   setPluginMessagesAvailable
 } from '@/i18n/plugins'
 import { translateAccountLabel, translateServerMessage } from '@/i18n/server'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 /** Response bodies keyed by locale, as `/api/v1/plugins/i18n/{locale}` would return them. */
 const BUNDLES: Record<string, unknown> = {

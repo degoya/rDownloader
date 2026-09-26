@@ -1,9 +1,11 @@
 //! NZB segment transport, yEnc decoding and server fallback.
 
 mod assembly_resume;
+mod checkpoints;
 mod config;
 mod error;
 mod nntp;
+mod parallel;
 mod pool;
 mod runner;
 mod segments;
@@ -16,6 +18,8 @@ mod assembly_resume_tests;
 mod crash_restart_tests;
 #[cfg(test)]
 mod out_of_order_tests;
+#[cfg(test)]
+mod parallel_tests;
 #[cfg(test)]
 mod pipelining_tests;
 #[cfg(test)]

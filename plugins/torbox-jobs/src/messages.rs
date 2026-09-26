@@ -8,7 +8,6 @@
 //! documented and travels as the `api_code` parameter, the sentence is not and is dropped.
 //! The same rule the Real-Debrid siblings arrived at, for the same reason: `detail` has echoed
 //! a submitted link back, and a message nobody has read cannot be promised not to.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The source is none of TorBox's three: not a magnet naming an info hash, not a readable
 /// `.torrent` or `.nzb`, not an `http(s)` address.
@@ -56,16 +55,6 @@ pub const AUTH_INVALID: (&str, &str) = (
     "torbox_jobs.auth_invalid",
     "The TorBox API key is invalid or expired",
 );
-
-/// The account holds no TorBox API key at all.
-pub const TOKEN_MISSING: (&str, &str) = (
-    "torbox_jobs.token_missing",
-    "This TorBox account has no API key",
-);
-
-/// The call carried no account identity, so there is no credential it could run as.
-pub const ACCOUNT_MISSING: (&str, &str) =
-    ("torbox_jobs.account_missing", "TorBox account is missing");
 
 /// `PLAN_RESTRICTED_FEATURE`: this plan does not cover this kind of job.
 pub const NOT_PERMITTED: (&str, &str) = (

@@ -3,8 +3,11 @@ name: CI
 on:
   # Branches only. A release push carries `main` and its tag, which name the same commit, and
   # an unfiltered `push` ran this whole workflow twice for it; the tag has release.yml.
+  #
+  # Not Dependabot's branches: its pull request runs the workflow already, and a push run of the
+  # same commit would bill every job twice (.github/dependabot.yml, RD-140-25).
   push:
-    branches: ["**"]
+    branches: ["**", "!dependabot/**"]
   pull_request:
   # A re-check of one fix need not wait an hour for platforms it cannot affect: dispatched by
   # hand, the `rust` matrix takes only the runners named here (`docker` still runs, since it
@@ -17,8 +20,9 @@ on:
         required: false
         default: '["ubuntu-24.04","windows-2025","macos-15"]'
 
-permissions:
-  contents: read
+# Nothing by default; every job names what it needs, which today is reading the tree. A job that
+# needs more says so where it is written, not by widening the whole workflow (RD-140-25).
+permissions: {}
 
 # A newer push to the same branch makes the running one pointless; cancel it instead of paying
 # for both (the account's Actions minutes ran out on 2026-09-25).
@@ -40,6 +44,8 @@ env:
 jobs:
   web:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     timeout-minutes: 30
     defaults:
       run:
@@ -55,6 +61,15 @@ jobs:
       - run: npm run typecheck:full
       - run: npm run test
       - run: npm run build
+      # For the `rust` jobs on all three systems and the `docker` job, which embed it and would
+      # otherwise each build the frontend again (RD-140-25).
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          # Long enough to re-run a failed `rust` job the next day without the whole workflow.
+          retention-days: 3
       - run: ../scripts/build-extension.sh
       - uses: actions/upload-artifact@v7
         with:
@@ -69,6 +84,8 @@ jobs:
       matrix:
         os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]') }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     # A hang is cut off rather than billed for six hours: on 2026-09-25 a keychain call blocked the
     # macOS tests for an hour, at ten times the Linux rate.
     timeout-minutes: 90
@@ -89,19 +106,17 @@ jobs:
       - name: Install mold
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
-      - uses: actions/setup-node@v7
+      # rust-embed compiles web/dist into rd-api; the `web` job built it once for every system.
+      - uses: actions/download-artifact@v8
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          name: web-dist
+          path: web/dist
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.98.0
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
-      - run: npm ci --prefix web
-      - run: npm run build --prefix web
       - run: cargo fmt --all --check
       # The capture agent stays headless on Linux. The manifest gate in
       # crates/rd-capture/src/platform_gate/ sees only what that crate declares; this holds the
@@ -111,10 +126,12 @@ jobs:
         if: runner.os == 'Linux'
         run: scripts/check-capture-linux-tree.sh --locked
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      # -P no-components: this job has no wasm toolchain, so the plugin contract tests have
-      # no components to drive. Since RD-108-16 they fail rather than returning early, so the
-      # profile leaves them out of the selection by name — and the summary counts them as
-      # skipped rather than passed. They run for real in the `components` job below.
+      # -P ci: the `no-components` selection — this job has no wasm toolchain, so the plugin
+      # contract tests have no components to drive. Since RD-108-16 they fail rather than
+      # returning early, so the profile leaves them out of the selection by name — and the
+      # summary counts them as skipped rather than passed. They run for real in the
+      # `components` job below. On top of it the profile writes JUnit, retries a failure once
+      # and lists slow and flaky tests at the end (RD-140-21, .config/nextest.toml).
       #
       #
       # In groups, each group's test executables deleted once it passed (RD-120-67). The first
@@ -137,6 +154,10 @@ jobs:
         run: |
           set -euo pipefail
           stamp="${RUNNER_TEMP}/rd-tests.stamp"
+          # Each group overwrites target/nextest/ci/junit.xml, so every report is copied out.
+          reports="${RUNNER_TEMP}/junit"
+          mkdir -p "${reports}"
+          group=0
           # Every group runs to its end, failing or not, and the step fails at the end: one
           # 45-minute run has to show every failure, not the first (RD-120-67 took three runs).
           failed=0
@@ -146,7 +167,11 @@ jobs:
           run_group() {
             echo "::group::nextest $*"
             touch "${stamp}"
-            cargo nextest run -P no-components --no-fail-fast "$@" || failed=1
+            group=$((group + 1))
+            cargo nextest run -P ci --no-fail-fast "$@" || failed=1
+            if [[ -f target/nextest/ci/junit.xml ]]; then
+              mv target/nextest/ci/junit.xml "${reports}/group-${group}.xml"
+            fi
             find target/debug/deps -maxdepth 1 -type f -newer "${stamp}" \
               \( ! -name '*.*' -o -name '*.exe' \) -print \
               | while IFS= read -r executable; do
@@ -178,6 +203,16 @@ jobs:
           done 3< <(for file in crates/rd-api/tests/*.rs; do basename "${file}" .rs; done | LC_ALL=C sort)
           if [[ ${count} -gt 0 ]]; then run_group -p rd-api "${args[@]}"; fi
           exit "${failed}"
+      # The JUnit reports of every group, failing or not: the slow and flaky tests of a green
+      # run are in there too.
+      - name: Upload test reports
+        if: always() && runner.os != 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-${{ runner.os }}
+          path: ${{ runner.temp }}/junit/*.xml
+          if-no-files-found: warn
+          retention-days: 14
       # What the runner had when a step failed, if it is still alive to say so. A linker that
       # failed prints "No space left on device" or "ld terminated with signal 9 [Killed]" just
       # under "linking with cc failed"; these lines say which limit it was near.
@@ -284,9 +319,15 @@ jobs:
             cmd /c stop-rdownloader.bat server
           }
           Pop-Location
+      # A prebuilt binary instead of a source build in every run. install-action has no manifest
+      # of its own for sqlx-cli or cargo-component and hands both to cargo-binstall, which takes
+      # the signed build from cargo-quickinstall (default features: a superset of the
+      # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
-        run: cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features sqlite-unbundled
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli@0.8.6
       - name: Check SQLx offline metadata
         if: runner.os == 'Linux'
         env:
@@ -295,6 +336,8 @@ jobs:
 
   components:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
@@ -312,7 +355,10 @@ jobs:
           toolchain: 1.98.0
           targets: wasm32-unknown-unknown,wasm32-wasip1
       - uses: Swatinem/rust-cache@v2
-      - run: cargo install cargo-component --version 0.21.1 --locked
+      # Prebuilt, through cargo-binstall like sqlx-cli above.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-component@0.21.1
       - uses: taiki-e/install-action@nextest
       - uses: taiki-e/install-action@wasm-tools
       - name: Collect the bundled plugins
@@ -428,58 +474,51 @@ jobs:
       - name: Keep Dockerfile COPY satisfied on pull requests
         run: mkdir -p dist/plugins && touch dist/plugins/.keep
 
+  # The image the release publishes, minus arm64 and the push: the release binary built here
+  # with the cache, copied into docker/Dockerfile's `prebuilt` target and smoke-tested (owner,
+  # 2026-09-26). Nothing compiles inside Docker, and arm64 is built only by release.yml, from
+  # its native arm runner's binary.
   docker:
     needs: [web, rust, components]
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    permissions:
+      contents: read
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the release binary
+        run: cargo build --locked --release -p rdownloader
+      - name: Lay out the binary for the build context
+        run: |
+          mkdir -p dist/docker/linux-amd64
+          cp target/release/rdownloader dist/docker/linux-amd64/rdownloader
       - uses: docker/setup-buildx-action@v4
       - name: Build loadable smoke-test image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
+          target: prebuilt
           platforms: linux/amd64
           load: true
           tags: rdownloader:smoke
           cache-from: type=gha
-      - name: Smoke-test health endpoint and persistent mounts
-        shell: bash
-        run: |
-          config_volume="rdownloader-config-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          downloads_volume="rdownloader-downloads-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          docker volume create "${config_volume}"
-          docker volume create "${downloads_volume}"
-          container_id="$(docker run --detach --publish 127.0.0.1:8710:8710 \
-            --volume "${config_volume}:/config" \
-            --volume "${downloads_volume}:/downloads" \
-            rdownloader:smoke)"
-          trap 'docker rm --force "${container_id}"; docker volume rm "${config_volume}" "${downloads_volume}"' EXIT
-          # The service loads its plugins before it listens, and until then Docker's port proxy
-          # answers with a reset — an error curl's plain --retry does not repeat. Retry all
-          # errors for up to two minutes, and show the container's log when it never answers.
-          if ! curl --fail --silent --show-error --retry 60 --retry-delay 2 --retry-all-errors \
-            http://127.0.0.1:8710/api/v1/health; then
-            docker ps --all --filter "id=${container_id}"
-            docker logs "${container_id}" 2>&1 | tail -n 80
-            exit 1
-          fi
-          # The bundled Python tools run as the service user, apprise included (RD-130-14).
-          docker exec --user rdownloader "${container_id}" apprise --version
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: docker/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: false
-          tags: rdownloader:ci
-          cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Smoke-test health endpoint and persistent mounts
+        run: scripts/docker-smoke.sh rdownloader:smoke
 
   supply-chain:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7

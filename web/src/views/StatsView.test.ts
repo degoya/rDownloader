@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import stats from '@/locales/en/stats.json'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
 vi.mock('@/api/client', () => ({
@@ -108,4 +109,13 @@ describe('StatsView', () => {
     const turnaround = await screen.findByText(stats.tiles.turnaround)
     expect(turnaround.nextElementSibling?.textContent).toBe(stats.tiles.turnaround_under_second)
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(get).toHaveBeenCalled())
+    await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
+    await screen.findByText('rapidgator')
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

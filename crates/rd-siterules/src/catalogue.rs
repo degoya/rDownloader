@@ -57,13 +57,6 @@ impl Catalogue {
         Ok(())
     }
 
-    /// Removes a user rule; returns whether one was there. Shipped rules cannot be removed.
-    pub fn remove_user_rule(&mut self, id: &str) -> bool {
-        let before = self.user.len();
-        self.user.retain(|rule| rule.id != id);
-        self.user.len() != before
-    }
-
     /// The rules the pack delivered.
     #[must_use]
     pub fn shipped(&self) -> &[Rule] {
@@ -126,10 +119,5 @@ mod tests {
         catalogue.add_user_rule(user("mine")).expect("admitted");
         let refused = catalogue.add_user_rule(user("mine")).expect_err("refused");
         assert_eq!(refused.code(), "site_rules.duplicate_id");
-        assert!(catalogue.remove_user_rule("mine"));
-        assert!(!catalogue.remove_user_rule("mine"));
-        catalogue
-            .add_user_rule(user("mine"))
-            .expect("admitted again");
     }
 }

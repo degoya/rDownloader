@@ -4,7 +4,6 @@
 //! The English text here is a redaction-safe fallback for a backend that has no catalogue; what
 //! a person reads is the translation. Pixeldrain's own `message` field is prose and never
 //! travels -- only its `value` token does, and only as the `api_code` parameter.
-#![allow(dead_code)] // The guest and the native tests use different subsets.
 
 /// The address is on Pixeldrain and in no shape this plugin serves.
 pub const UNSUPPORTED_LINK: (&str, &str) = (

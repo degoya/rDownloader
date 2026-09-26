@@ -62,7 +62,7 @@ The server is written in Rust and carries its responsive, installable Vue web in
 | Video/audio | format filters, audio and subtitles, metadata, SponsorBlock, templates, subscriptions | `yt-dlp`; `ffmpeg`/`ffprobe` for the full workflow |
 | Feeds and indexers | RSS/Atom, podcasts, Newznab/Torznab, filters, persistent history, your own scripts that print links | Reachable feeds and configured indexers |
 | Galleries | one gallery per queue job, retries that skip what is already there | `gallery-dl` |
-| Livestreams | record now or on a schedule, sidecars, split/remux, reconnect, VOD fallback | `streamlink`; what works depends on the source |
+| Livestreams | record now or on a schedule, sidecars, split/remux, reconnect | `streamlink`; what works depends on the source |
 
 Hosters, providers and upstream tools change. Most provider integrations were built against their documented APIs and tested against recorded answers rather than live accounts; the handbook's [Hosters and accounts](https://github.com/degoya/rDownloader/wiki/hosters-and-accounts) and [Remote jobs](https://github.com/degoya/rDownloader/wiki/remote-jobs) pages say where a run against a real account is still missing.
 
@@ -85,7 +85,7 @@ PAR2 applies to Usenet packages; SFV verification works for any package. Which s
 
 ## Quick start
 
-1. Download the archive for your platform from [Releases](https://github.com/degoya/rDownloader/releases) and extract it.
+1. Download the archive for your platform from [Releases](https://github.com/degoya/rDownloader/releases) and extract it. Linux comes as `rdownloader-linux-x86_64.tar.gz` and `rdownloader-linux-aarch64.tar.gz`.
 2. Run `start-rdownloader.bat` (Windows), `./start-rdownloader.sh` (Linux) or `./start-rdownloader.command` (macOS).
 3. Open <http://127.0.0.1:8710> and follow the setup wizard: administrator password, pairing the capture agent or browser extension, a storage destination, and optionally MCP access and provider or Usenet settings.
 
@@ -99,8 +99,10 @@ For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, vo
 | --- | --- | --- | --- |
 | Windows x86-64 | Native | Tray app | Portable binaries, `.nzb` association |
 | macOS Intel and Apple Silicon | Native | Menu-bar app | LaunchAgent autostart; built and linted in CI, tests run on Linux and Windows |
-| Linux x86-64 | Native | Headless | systemd user-service autostart |
+| Linux x86-64 and arm64 | Native | Headless | systemd user-service autostart; needs glibc 2.39 or newer (below) |
 | Docker `amd64`/`arm64` | Container | Not included | Use the browser extension or a desktop agent elsewhere |
+
+**Linux needs glibc 2.39 or newer.** Both Linux binaries are built on Ubuntu 24.04 and linked against its glibc 2.39, so they run on Ubuntu 24.04 and newer, Debian 13 and current Fedora and Arch — but not on Debian 12 or Raspberry Pi OS based on it (bookworm, glibc 2.36), where the binary refuses to start with `GLIBC_2.39 not found`. Use the Docker image there; it brings its own glibc and runs on `amd64` and `arm64`, a Raspberry Pi with a 64-bit OS included. `ldd --version` shows what a system has.
 
 The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)).
 
@@ -124,7 +126,7 @@ The SABnzbd and qBittorrent adapters implement documented subsets for Sonarr, Ra
 
 Hosters, cloud drives, multihosters and many other extensions are signed `.rdplug` packages built against the versioned contract `rdownloader:plugin@0.9.0`, for every extension point: resolver, transfer, intake parser, authentication, OAuth, folder crawler, metadata enricher, notification destination, post-processing step, storage destination, remote job and stream transform. Plugins run without WASI inside a resource-limited sandbox, and their manifests declare the network, secret, resource, filesystem and process capabilities they need.
 
-A package signed by a third-party key is installed only after that key is explicitly approved; the approval shows the key id, its fingerprint and the package's name and version, but not yet the permissions the package declares. Version pinning for running jobs, switching a plugin off without removing it, key and per-package revocation, execution history, scaffolding, conformance checks and a reusable CI template support its lifecycle. There is no plugin repository and no staged update or rollback. See the [plugin overview](https://github.com/degoya/rDownloader/wiki/overview), the [plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) and [`sdk/README.md`](sdk/README.md).
+Every package, uploaded or from a repository, is shown before it is installed: name, version, publisher with key id and fingerprint, the permissions it declares and, from a repository, its release notes. A package signed by a third-party key is installed only after that key is explicitly approved in the same preview. Signed plugin repositories bring hoster fixes without a full release: the official repository is built in, a third-party one is usable only after its key is approved, updates are shown and installed on a click, offline only an index that still verifies is used, and switching a repository off keeps what was installed from it. A repository only delivers; every package still needs a plugin key you trust. Version pinning for running jobs, switching a plugin off without removing it, key and per-package revocation, execution history, scaffolding, conformance checks and a reusable CI template support its lifecycle. Per plugin, a version can be made active, tried on a single download before it is activated, and rolled back; each choice applies from the next start. See the [plugin overview](https://github.com/degoya/rDownloader/wiki/overview), the [plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) and [`sdk/README.md`](sdk/README.md).
 
 ## Subscriptions, automations and notifications
 

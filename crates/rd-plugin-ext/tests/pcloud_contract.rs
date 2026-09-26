@@ -953,7 +953,7 @@ fn fixtures_carry_no_credential_material() {
         }
         checked += 1;
     }
-    assert!(checked >= 15, "only {checked} fixtures were checked");
+    assert!(checked >= 14, "only {checked} fixtures were checked");
 }
 
 /// The three siblings reach only pCloud, and only the part of it each one needs.

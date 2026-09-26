@@ -1,6 +1,6 @@
 //! The geometry of the tray icon's activity badge.
 //!
-//! Plain arithmetic on an RGBA buffer: no `image` type and no `tray-icon` type crosses into this
+//! Plain arithmetic on an RGBA buffer: no `png` type and no `tray-icon` type crosses into this
 //! module, because both crates are Windows- and macOS-only and the Linux agent must link neither.
 //! What is left is a rule — where the badge sits, how big it is, which pixels it covers — and a
 //! rule compiles and is tested on every host while the tray that draws it does not.
@@ -9,8 +9,8 @@
 //! plus `test`, so the tests run here while a Linux release build compiles no unreachable code.
 //!
 //! Decoding the shipped PNG and handing the finished buffer to `Icon::from_rgba` stay in
-//! `tray.rs`: `image` and `tray-icon` are both in the Linux build's forbidden list, so the
-//! boundary is the raw RGBA buffer, not an `RgbaImage`.
+//! `tray.rs`: `png` and `tray-icon` are both in the Linux build's forbidden list, so the
+//! boundary is the raw RGBA buffer, not a decoder's type.
 
 /// Bytes per pixel in the buffers this module paints on.
 const CHANNELS: usize = 4;

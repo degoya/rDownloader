@@ -1,7 +1,6 @@
 //! User-facing texts and stable failure codes shared by the native and WebAssembly adapters.
 //!
 //! Each `(code, message)` pair exists exactly once so both targets report identical text.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The account has no API key stored.
 pub(crate) const API_KEY_REQUIRED: (&str, &str) = (
@@ -35,20 +34,11 @@ pub(crate) const INVALID_RESPONSE_FIELD: (&str, &str) = (
     "Premiumize sent a field this plugin cannot read",
 );
 
-/// The direct download link could not be parsed.
-pub(crate) const INVALID_LINK: (&str, &str) = (
-    "premiumize.invalid_link",
-    "Invalid Premiumize download link",
-);
-
 /// The API reported `status != success`; the provider message (if any) is passed through.
 pub(crate) const API_ERROR: (&str, &str) = ("premiumize.api_error", "Premiumize API error");
 
 /// Unexpected HTTP status; carries a `status` parameter.
 pub(crate) const HTTP_ERROR: &str = "premiumize.http_error";
-
-/// A provider URL failed to parse; carries the parser `error`.
-pub(crate) const INVALID_URL: &str = "premiumize.invalid_url";
 
 pub(crate) fn invalid_response_field(field: &str) -> String {
     format!("Premiumize sent a field this plugin cannot read: {field}")
@@ -56,8 +46,4 @@ pub(crate) fn invalid_response_field(field: &str) -> String {
 
 pub(crate) fn http_error(status: u16) -> String {
     format!("Premiumize HTTP status {status}")
-}
-
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
 }

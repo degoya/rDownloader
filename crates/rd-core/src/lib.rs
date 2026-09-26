@@ -114,7 +114,7 @@ pub use postprocess::{
 pub use recording::{
     MAX_RECONNECTS, MAX_SEGMENTS, MAX_SPLIT_MINUTES, MIN_SPLIT_MEGABYTES, MIN_SPLIT_MINUTES,
     RecordingPolicy, RecordingSegment, RecordingState, RemuxTarget, SegmentEnd, SidecarOutcome,
-    SidecarPolicy, SidecarStatus, SplitPolicy, VodFallback, segment_name,
+    SidecarPolicy, SidecarStatus, SplitPolicy, segment_name,
 };
 pub use redact::{
     REDACTION_PLACEHOLDER, Redacted, SIGNED_QUERY_MARKERS, SIGNED_QUERY_SECRETS,

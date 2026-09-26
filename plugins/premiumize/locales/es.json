@@ -10,10 +10,8 @@
     "premiumize.api_error": "Error de la API de Premiumize: {message}",
     "premiumize.api_key_required": "Falta la clave API de Premiumize",
     "premiumize.http_error": "Estado HTTP de Premiumize {status}",
-    "premiumize.invalid_link": "Enlace de descarga de Premiumize no válido",
     "premiumize.invalid_response": "Respuesta de Premiumize no válida",
     "premiumize.invalid_response_field": "Premiumize envió un campo que no se puede leer: {field}",
-    "premiumize.invalid_url": "URL del proveedor no válida: {error}",
     "premiumize.no_file": "Premiumize no devolvió ningún archivo"
   }
 }

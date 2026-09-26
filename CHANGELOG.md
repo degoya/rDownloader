@@ -6,6 +6,315 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-26
+
+### Added
+
+- **A signed plugin repository index (RD-140-01, format and publishing).** One JSON document,
+  signed under the repository root (`rdownloader-repository-v1`), lists each package with its
+  plugin id, version, type, contract version, minimum core, `package_digest`, size, URL,
+  publisher (key id, key fingerprint, author), permissions and plain-text release notes, and
+  carries the withdrawn package digests and plugin keys. It is refused whole on a tampered byte,
+  another key or document kind, an older sequence, an expired window, an unknown schema version or
+  field, more than 4 MiB, or content it contradicts itself on. `rdownloader plugin index build`
+  and `verify` write and check it; the release workflow attaches it to every release beside the
+  packages once the `RDOWNLOADER_REPOSITORY_SIGNING_KEY` secret exists. A repository delivers
+  only — every package still needs a trusted plugin key.
+- **Plugin versions: activate, test, roll back (RD-140-02).** Settings → Plugins shows per plugin
+  the version that runs, the one the next start runs, and a version under test. A version can be
+  made active, put under test next to the active one, or rolled back to the one before, each
+  after a full load check, and each from the next start. A version under test runs only for a
+  download started with it on purpose (`POST /api/v1/plugins/{id}/lifecycle/trial`), never for
+  new work. Per plugin, updates from a repository are either installed on a click or
+  automatically (still only under an already trusted key). An installed update becomes active at
+  the next start with the version it replaces as the rollback target, unless the plugin is held
+  on an older version on purpose; then it waits beside it. A download pinned to a withdrawn version is no longer
+  moved to another version without a word: it is held and says `plugin.pinned_version_withdrawn`
+  until it is resumed. Unpinned work only ever runs the active version, where an older installed
+  version used to step in for an address the newest one did not claim.
+- **Plugin repositories, updates and an install preview (RD-140-01).** Settings → Plugins lists
+  the repositories: the official one (the newest release's `rdownloader-plugin-index.json`) is
+  built in and can be switched off but not removed; a third-party one is added with its address
+  and public key and used only after its key is approved by the fingerprint shown. Indexes are
+  checked shortly after start, every 24 hours (1–168, configurable) and on request; the replay
+  floor is kept per repository, and offline only a cached index that still verifies is used.
+  Updates — newer than every installed version and signed with the same key — are shown and
+  installed on a click after a preview of publisher, key standing, permissions and release notes;
+  a downloaded package must match the index's size and digest before it is installed. Every
+  upload now opens the same preview, trusted key or not. Withdrawals in the official index reach
+  the revocation store (digests) and a new withdrawn-key list that refuses a key outright; a
+  third-party repository withdraws only versions installed from it. `list_plugin_updates` joins
+  the MCP toolbox; adding repositories and installing stay in the interface.
+- **Plugin versions from the download and the release notes (RD-140-02).** A download whose
+  hoster plugin has a loaded version under test offers *Test with {name} v{version}* in its row
+  menu, which starts it on that version (`…/lifecycle/trial`). The version panel shows the
+  release notes the repository indexes carry for each version, as plain text, newest first;
+  `GET /api/v1/plugins/updates` returns them for installed plugins in a new `installed` list.
+  Every version choice — activate, stage, end a test, roll back, trial, update policy — is
+  audited as `plugin_version_chosen`.
+- **The plugin-trust threat model (RD-140-01, the plugin part of RD-170-06).**
+  `docs/security/plugin-trust.md` names the assets, actors and trust boundaries from repository
+  index to compile cache, each threat with its mitigation and the test that proves it, and the
+  residual risks; malicious-repository fixtures cover a lying index entry, a replay without the
+  cache, a key the person never approved, withdrawals across repositories, automatic updates
+  under an untrusted key, oversize bodies and plain-http redirects.
+- **Scripts for the steps typed by hand, and a Windows gate before the merge (RD-140-22,
+  RD-140-23).** `scripts/integrate.sh` integrates a wave: merges with a duplicate check of
+  migration numbers and plugin ids after each, generated-only conflicts resolved, the generators
+  once, components checked and built, then `check.sh --full` and `check.sh --windows` detached.
+  `scripts/check.sh --windows` is the Windows lint (`cargo xwin clippy` over every crate, all
+  targets and features). `scripts/public-ci.sh <branch> --platforms linux,windows` runs the
+  public GitHub CI on a branch and deletes it on green; the release's `public-ci` step shares its
+  code, and the export's `--skip-push-ci` keeps the push from starting a second, cancelled run.
+  `scripts/ci-log.sh <run>` prints the failures of a GitHub run from ANSI-free stored logs.
+  `check.sh` runs `bash -n`, `shellcheck` and every script test whenever anything under
+  `scripts/` changes; new tests cover `worktree.sh`, `i18n-key.sh`, `migration-pin.sh`,
+  `set-version.sh`, the release evidence gate, the wiki export's private markers and the new
+  scripts, and the existing shellcheck findings are fixed.
+- **Session state from a script, the handoff from a skill (RD-140-26).**
+  `scripts/session-state.sh` prints what a new session has to know from the repository itself:
+  every worktree ahead of or behind `development` and its uncommitted paths, the last branch and
+  `--full` greens against HEAD, detached runs under `/tmp/claude-<uid>/*/pid` (alive, ended with
+  their exit, or gone without one), the build lock, tags `origin` lacks and open GitHub runs;
+  without the network or `gh` those parts say so and are skipped. `--brief` is five lines in well
+  under a second. The project skill `handoff` writes only decisions and next steps to
+  `/var/tmp/rdownloader-session/HANDOFF.md` and points to the script for the facts.
+
+### Changed
+
+- **Release facts in the documentation are written, not remembered (RD-140-24).** The release
+  chain has a `doc-facts` step before `docs-gate`: `scripts/doc-facts.sh` writes the feature
+  list's date and source version, the bundled-plugin count and the plugin contract
+  `rdownloader:plugin@X.Y.Z` in `README.md`, `docs/` and `sdk/README.md` from `Cargo.toml`,
+  `plugins/*/manifest.toml` and the WIT package line, and `docs-gate` checks them again, the user
+  wiki included; a reworded sentence is a refusal, never a silent pass.
+  `scripts/archive-jobs.sh --check` now also recounts the Job Inventory and fails on a wrong
+  number, and a plain run with nothing to archive corrects it. `scripts/README.md` describes the
+  release as it runs today — `release-start.sh` and `release-pipeline.sh` — instead of the 0.9.3
+  order, and the feature list no longer calls itself 1.2.0.
+
+- **The web interface loads only the language it shows (RD-140-27).** English, the fallback,
+  stays in the main chunk; German, French and Spanish are one chunk each, fetched the first time
+  that language is chosen, and the interface switches once it has arrived. The main chunk went
+  from 2,032 kB (594 kB gzip) to 1,303 kB (366 kB gzip). Every one of the eleven views now has an
+  axe test — Settings once per page — which found two unnamed inputs, now named: the connection
+  name when pairing a capture agent and the per-scope limit of a bandwidth profile.
+  `SubscriptionsView.vue`, `SettingsPluginsTab.vue` and `stores/transfers.ts` are split below
+  500 lines into components, composables and store modules, and so are `stores/collector.ts`
+  (candidate settings and mirror groups in their own modules) and `stores/subscriptions.ts`
+  (the hit lists and review counts in their own module), with no change in behaviour.
+
+- **Usenet keeps every connection busy across file boundaries (RD-130-22).** The number of NZB
+  files downloaded at once is a setting now, *Usenet files at once* in Settings → General,
+  automatic by default: another file starts while the running ones hold fewer unanswered
+  articles than two request windows (primary server connections × pipeline depth 2), at least
+  two, at most eight — two for files larger than that, more for releases of small ones. A fixed
+  1 to 8 is still possible. All running Usenet files together take one slot of *Parallel
+  files*, since they share one connection pool. Article checkpoints go to the database in
+  batches of up to sixteen while articles queue up behind the writer, and the `Downloading`
+  mark before every request is gone, so a fast line no longer costs two writer transactions per
+  article; a crash costs at most the articles of the unconfirmed batch, which are fetched again
+  (new crash point `usenet.before_checkpoint_batch`). `throughput_bench` gained
+  `parallel_files_sweep`, which measures 1, 2, 3, 4 and automatic side by side.
+
+- **The container image carries the release binary instead of compiling it again
+  (RD-140-25, owner's decision 2026-09-26).** The release builds Linux `aarch64` natively on
+  GitHub's `ubuntu-24.04-arm` runner — a new release asset, `rdownloader-linux-aarch64.tar.gz`,
+  in `SHA256SUMS` and the SBOM like the others — and the `container` job copies the two Linux
+  binaries into the new `prebuilt` target of `docker/Dockerfile`; QEMU runs only the arm64 apt
+  and pip layer. The amd64 image passes the smoke test (`scripts/docker-smoke.sh`, new) before
+  anything is pushed, `:latest` moves only for the newest `vX.Y.Z` tag, a re-run of a tag waits
+  for the running one (`concurrency`), and write permissions are granted per job instead of to
+  the whole workflow. CI no longer compiles inside Docker nor builds arm64 on every push: it
+  builds the release binary on the runner with the Rust cache, takes `web/dist` from the `web`
+  job, and smoke-tests the amd64 `prebuilt` image. The runtime base moves to
+  `debian:trixie-slim` (glibc 2.41, at or above the release runners' 2.39); its 7-Zip installs
+  `7z` itself, so the link from `7zz` is gone. `scripts/docker.sh build` still compiles in the
+  image (default target `runtime`).
+
+- **CI builds less and asks for less (RD-140-25).** The `rust` jobs take `web/dist` from the `web`
+  job instead of building the frontend on every system; `sqlx-cli` 0.8.6 and `cargo-component`
+  0.21.1 arrive as prebuilt binaries through `taiki-e/install-action` instead of a source build
+  per run; every job of `ci.yml` names its own permissions (reading the tree) under an empty
+  workflow default. A weekly workflow (`advisories.yml`) runs `cargo deny check advisories` on
+  `main`, and `.github/dependabot.yml` proposes grouped updates — actions weekly, Cargo and npm
+  monthly — which, like every pull request on the public repository, are applied by hand. In
+  development mode the plugin host names each unsigned plugin version once per process, and a
+  loading pass names all of its new ones in one warning with their count, instead of one warning
+  per plugin on every verification.
+
+- **An automatic plugin update never grants a new permission unseen (RD-140-01).** An update
+  that asks for a capability, domain or stream host the installed version lacks is marked *New
+  permissions* in the updates list (`adds_permissions`) and waits for a click, whatever the
+  plugin's update policy.
+
+- **Fewer Rust dependencies (RD-140-09).** 32 declarations no crate used are gone, among them
+  `utoipa-axum` (with `paste` and its advisory exception in `deny.toml`), `sanitize-filename` and
+  `cookie_store`; six that only tests use moved to `[dev-dependencies]`, so the passkey soft
+  authenticator is no longer in the release build; 15 redundant dev entries and the unused
+  features `tracing-subscriber/json`, `quick-xml/serialize`, `tower-http/fs`+`request-id`,
+  `tokio-util/io`+`rt` and `ed25519-dalek/rand_core` are dropped.
+- **One `wasmparser` fewer (RD-140-11).** The plugin host's pre-validation uses 0.254, the version
+  Wasmtime 48 brings, instead of a separate 0.240.
+- **Maintained replacements (RD-140-13).** Free and total disk space come from `fs4` instead of
+  the unmaintained `fs2`; torrent interface binding enumerates interfaces with
+  `network-interface`, which librqbit already links, instead of `if-addrs` — same names, same
+  addresses; the capture agent's tray icon is decoded with `png` directly instead of `image`.
+- **`ed25519-dalek` 3 (RD-140-12).** Plugin packages, the site-rule file and the tool manifest are
+  signed and verified with the same generation russh uses. Keys stay Ed25519 PKCS#8 PEM in both
+  layouts in use; a package, a site-rule file and a tool manifest signed with version 2 are kept
+  as test fixtures and still verify.
+- **Plugin dependencies (RD-140-10).** Nine `serde`/`serde_json` declarations no plugin used are
+  gone (pCloud, pCloud and Premiumize crawlers, Dropbox, Dropbox crawler, Seedr jobs),
+  `xfs-common` takes `serde_json` for its tests only, and the 27 resolver plugins built on the
+  shared guest adapter no longer declare `wit-bindgen`, which only that adapter uses.
+  `md-5` in the MD5 post-processor and TorBox jobs is marked as a cargo-machete false positive.
+- **`toml` 1 and `md-5` 0.11 (RD-140-11).** The workspace takes the `toml` and `md-5` versions
+  the rest of the dependency tree already brings; MD5 digests go through `digest` 0.11's trait,
+  SHA-1 and SHA-256 stay on 0.10.
+
+- **Faster, smaller builds in the scripts.** Every locked script puts `sccache` in front of rustc
+  where it is installed (`CARGO_INCREMENTAL=0`, a 40G ceiling, `RD_NO_SCCACHE=1` to opt out);
+  nextest's `TEST_THREADS` defaults to twice `JOBS`, capped at the core count. A second
+  `check.sh` round on a branch whose last green is its own commit checks only what came after it,
+  and the release chain skips its full Rust run when a `--full` green covers the tree before the
+  version bump and the bump changed only version lines, naming that green in the evidence log.
+  New: `scripts/prune-target.sh` removes old hash variants, stale split debug info and
+  `incremental/` from `target/` (`--dry-run`; never the plugin components), and
+  `scripts/release-start.sh <version> [--push]` starts web build, `check.sh --full` and the
+  pipeline detached, with log, PID and exit code in one directory. `AGENTS.md` says the macOS
+  half is checked only in CI.
+- **Parallel check lanes (RD-140-06, part B).** The build lock is one lock per target directory
+  plus `RD_LANES` lanes (default 2, `/tmp/rd-build.lock.lane<i>`): checkouts sharing the main
+  `target/` still run one at a time, while a worktree made with `scripts/worktree.sh new
+  --own-target` builds in its own `target/` beside them (opt-in: ~52 GiB per lane; its
+  `wasm32-unknown-unknown/` links the shared components). A linked worktree finds its target
+  without an exported `CARGO_TARGET_DIR`, a fresh target is never stamped, and the lock is held
+  with `flock -o`, so a daemon a run starts (the sccache server) no longer inherits it. With two
+  lanes the release chain builds the Linux and Windows packages at once, Windows in
+  `target/lanes/windows`, each with its own evidence record; `prune-target.sh` prunes the lanes
+  and, with `--all`, every own target.
+- **Leftovers from 1.3.** A test pins that a plugin request redirected to another host arrives
+  there without the `Authorization` header it carried (reqwest drops it on a change of host; the
+  plugin host does not strip it itself). `LinkGrabberView.vue` is back under the 500-line rule
+  (690 → 378): its filters, displayed rows and row actions moved into `useGrabberFacets`,
+  `useGrabberRows` and `useGrabberActions`.
+- **Plugins start without compiling again (RD-130-06).** One Wasmtime engine and one epoch
+  thread serve every plugin instead of one each; a component is compiled once per content per
+  process instead of once to verify it and again for every adapter that runs it; and the
+  compiled code is kept in `plugin-cache/` in the data directory, keyed by the component's bytes,
+  the engine configuration and the Wasmtime version. Every entry is checked against a SHA-256
+  record the service wrote itself before the engine can read it: a damaged, copied-in or
+  unrecorded entry is deleted and compiled again, never run. Signature and digest checks of
+  the package still come first on every load. A cache miss compiles on all cores. The provider
+  catalogue (`GET /api/v1/providers`) answers from the authentication and OAuth plugins the
+  start built, instead of loading and compiling every package on the accounts page's first open;
+  that page shows its accounts at once and says why the provider picker is still waiting.
+- **The `rd-api` integration tests share one harness and wait for conditions (RD-140-21).**
+  The seven copied service builders are `common::harness` with `Options` (login on, parked
+  scheduler, extra scoped tokens); `send`, `sign_in`, the multipart `import` and the body
+  reading exist once in `tests/common/`. Every hand-written poll loop and fixed sleep is
+  `common::eventually`, which fails with what it last saw. A test that asserts an absence —
+  no automation run, no promotion, a storage block that survives, an abandoned enqueue at
+  rest — first waits for a witness showing the triggering step was processed. Tests that set
+  a download's state by hand (`plugin_versions`, `auto_remove`, the torrent auto-remove,
+  the signed-URL redaction) run on the parked scheduler. CI runs the new nextest `ci`
+  profile: JUnit per test group as the `junit-<os>` artefact, one retry with flaky tests
+  reported, slow and flaky tests listed in the summary. Test count unchanged: 469 in 57
+  binaries.
+
+- **Smaller Rust files and functions, one copy of each helper (RD-140-28).** The download
+  worker's `run` is split into resolve, plan, destination, transform and finish phases, and the
+  service's `serve` into its start stages (`crates/rdownloader/src/startup.rs`); the settings DTO
+  and its validation live in `rd-api`'s `dto/` beside the other DTOs, re-exported under the same
+  paths; the plugin manifest's and the link check's tests sit in their own files. `rd-db` has one
+  `enum_string`/`parse_enum` instead of six and four copies, and the component staleness check
+  uses `rd_sign::digest::hex_sha256`. No behaviour changes.
+
+### Removed
+
+- **The livestream VOD fallback setting.** Nothing ever acted on it — no source hands out a VOD
+  address to fetch — and the interface always sent *off*; `RecordingPolicy.vod_fallback` and the
+  never-set `RecordingState.vod_fetched` are gone. A channel stored with them still loads.
+
+- **Compatibility paths for installations and clients that do not exist.** The settings
+  `auto_extract` and `delete_archives_after_extract` are gone — `default_level` alone decides,
+  unset meaning *unpack*; the browser extension no longer carries a text-only body for servers
+  older than the capture contract, nor its notice; the Linux autostart no longer removes the
+  `.desktop` file of early versions; `GET /api/v1/subscriptions/{id}/items` is gone in favour of
+  `/items/page`; and minting an API token no longer reads the `read_only` flag — a request that
+  names no area gets `api:read`. `api:*` stays: it is the spelling of every area at once, and
+  the SABnzbd and qBittorrent compatibility APIs authenticate with it.
+- **Dead code in the crates.** Public helpers nothing in the product called are deleted
+  (`RemoteJob::needs_a_person`, `AuthFlow::needs_refresh`, `Subscription::is_due`,
+  `ClientPool::invalidate`, `ResolverService::load_installed_components`, the provider
+  registry's `unregister_dynamic`, `Database::subscription_items` and a handful of one-line
+  predicates), and those only unit tests use stand behind `#[cfg(test)]`. Helpers that
+  integration tests of another crate need, the failpoint hooks and the revocation helpers
+  RD-140-02 builds on stay public.
+- **Unused plugin codes (RD-140-16, plugin part).** Twelve failure codes no plugin raised are gone
+  with their 48 catalogue lines, and so are 13 `ErrorKind` variants no provider API produced.
+  `messages.rs` no longer switches the dead-code lint off module-wide: resolver plugins keep it
+  on, and the crawlers, whose failures only the guest reports, turn it off for the native build
+  alone.
+- **Dead code in the plugins (RD-140-17, plugin part).** `MAX_USER_BYTES` (MEGA sign-in),
+  `STORAGE_SUFFIX` (MEGA addresses) and five pCloud address helpers only tests used are deleted;
+  the session trace DDownload, KatFile and FileJoker carried as three identical copies lives once
+  in `xfs-common`.
+- **Unused web dependencies (RD-140-14).** `@pinia/colada` and `vitest-axe` were never imported
+  and are gone; `@iconify/vue` (the offline icon stand-in) and `@nuxt/icon` (the icon-bundle
+  test) are declared instead of living off Nuxt UI's hoisting, and the MFA card test takes
+  `fireEvent` from `@testing-library/vue` rather than the undeclared `@testing-library/dom`.
+- **Dead web code and translation keys (RD-140-16, web part).** 21 interface keys no screen reads
+  are gone from all four languages, `matchedFacets` from the mirror-group helpers and 53 unused
+  aliases from `src/api/types.ts`; ten names only their own module used are no longer exported,
+  so `npx knip` reports only its documented false positives.
+- **Repository ballast (RD-140-15).** The unreferenced logo package under `assets/`, a duplicate
+  of the SABnzbd test NZB, an orphaned DLC, nine plugin fixtures only the credential scan read,
+  and `docker/Dockerfile.xwin`, which no job or script used (Windows builds are native
+  `cargo xwin` in WSL; `rdownloader doctor` no longer points at it). `testfile/README.md` drops
+  the expired 1fichier test link; a new upload goes there when one is needed.
+- **Stale developer documents (RD-140-19).** `specs.md` (a 0.4.0 snapshot) and the finished
+  1.0.8 audits `docs/backend-audit.md` and `docs/frontend-audit.md` are gone. The finished
+  milestones 0.5 to 1.3 moved verbatim from `docs/roadmap.md` to `docs/roadmap-archive.md`; the
+  roadmap keeps the open milestones and lists, per job, what the finished ones left open.
+
+### Fixed
+
+- **The container image unpacks RAR archives (owner's decision 2026-09-26).** It never did,
+  although `docker/README.md` said so: Debian builds its 7-Zip without the RAR codec, so the
+  image's `7z` refused every RAR and RAR5 archive. The image now installs `7zip-rar` from
+  Debian's `non-free` component (enabled for that package only), and its build fails if `7z`
+  does not list the RAR5 codec. Extract only, under the unRAR licence; `docker/README.md` lists
+  the licence of every bundled tool.
+
+- **A plugin repository's index entry is held to the package it names (RD-140-01, security).**
+  Only the digest used to be checked, so an index could claim another publisher — a third party
+  whose plugin key the person had confirmed once could have its own package taken for an update
+  of a plugin signed by somebody else, and installed automatically — or fewer permissions than the
+  package asks for. The download now refuses a package whose id, name, version, type, contract,
+  signing key, author or permissions differ from its entry, or that is unsigned, even on a
+  development-mode installation (`plugin_repository.package_mismatch`, translated).
+
+- **A tool install from an archive checks that the program is there.** An FFmpeg or ffprobe
+  archive whose binary carries another platform's name (`ffmpeg` where Windows looks for
+  `ffmpeg.exe`) used to install, activate and then never be found; it is now refused with
+  `tools.download_failed`, naming the missing file, and nothing is activated. The error is
+  translated in all four languages. The shipped manifest's Windows entries all name their `.exe`,
+  and a test keeps it that way.
+
+- **A video whose streams yt-dlp did not merge no longer counts as completed.** When yt-dlp
+  cannot reach ffmpeg it warns "The formats won't be merged", leaves the video and the audio as
+  separate `<name>.f<format>.<ext>` files and still exits successfully; the download was then
+  marked completed. Now it fails with `media.merge_ffmpeg_unreachable`, which says that ffmpeg
+  was not reachable — recognised from the warning (or the same error), and from the separate
+  stream files beside a target that was never written. Translated in all four languages.
+- **HTTP download errors carry stable codes (RD-140-28).** A response that ends before its
+  range, an HTTP error status, a network failure and a test crash point now report
+  `download.response_truncated`, `download.http_status`, `download.network_failed` and
+  `download.crash_point` with their parameters, so the interface shows them in its language
+  instead of English prose. Translated in all four languages.
+
 ## [1.3.1] - 2026-09-26
 
 ### Changed

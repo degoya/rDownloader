@@ -5,10 +5,8 @@
   "empty": "No hay ningún trabajo en marcha en un proveedor.",
   "account": "Cuenta",
   "account_unknown": "Cuenta desconocida",
-  "content": "Contenido",
   "remote_id": "Allí se llama",
   "started": "Iniciado",
-  "updated": "Último cambio",
   "states": {
     "submitting": "Entregándose",
     "preparing": "El proveedor lo está preparando",
@@ -19,7 +17,6 @@
     "discarded": "Eliminado en el proveedor"
   },
   "submit": {
-    "title": "Entregar un magnet a una cuenta",
     "description": "El proveedor lo descarga y entrega las direcciones terminadas al LinkGrabber. El mismo magnet dos veces es un trabajo, no dos.",
     "magnet": "Dirección magnet",
     "magnet_placeholder": "magnet:?xt=urn:btih:…",

@@ -147,7 +147,8 @@
     "show_details": "Show details",
     "stop_recording": "Stop recording",
     "stop_seeding": "Stop seeding",
-    "drag_title": "Drag to change the order inside the package"
+    "drag_title": "Drag to change the order inside the package",
+    "trial_staged": "Test with {name} v{version}"
   },
   "summary": {
     "eyebrow": "Queue status",

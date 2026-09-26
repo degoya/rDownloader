@@ -25,7 +25,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
-use common::{Harness, test_harness};
+use common::{Harness, WAIT, eventually, send, test_harness};
 use tower::ServiceExt;
 
 /// Two links, both already online, both carrying an enricher field.
@@ -119,27 +119,41 @@ async fn abandon_after(router: &Router, request: Request<Body>, turns: usize) ->
     false
 }
 
-/// Waits until nothing is holding the enqueue claim any more.
+/// Brings the abandoned enqueue to rest, and knows that it has.
 ///
-/// The claim is taken first and released last, so its absence is the whole operation being
-/// over — including the detached part that outlives the abandoned request. The fixed wait in
-/// front of it is there because "not claimed yet" looks exactly like "claimed and released".
-async fn settle(harness: &Harness) {
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    for _ in 0..500 {
-        let claimed = harness
-            .database
-            .list_candidates()
-            .await
-            .expect("candidates")
-            .into_iter()
-            .any(|candidate| candidate.state == rd_core::LinkCandidateState::Resolving);
-        if !claimed {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+/// The claim is taken first and released last, so its absence would be the whole operation
+/// being over — except that "not claimed yet" looks exactly like "claimed and released", and a
+/// wait on the rows alone can conclude "over" before the operation has started. A second
+/// enqueue of the same package tells the two apart, because the claim is atomic:
+///
+/// * it succeeds: the abandoned run never claimed and never will, so it wrote nothing, and
+///   what the database holds now is the second run's package, whole or not;
+/// * it is refused as busy: the abandoned run holds the claim, and its release is awaited;
+/// * it is refused because nothing is left to enqueue: the abandoned run already finished.
+async fn settle(harness: &Harness, id: rd_core::CollectorPackageId) {
+    let (status, body) = send(&harness.router, enqueue_request(id)).await;
+    if status == StatusCode::CREATED {
+        return;
     }
-    panic!("the enqueue never released its claim on the links");
+    assert!(
+        matches!(status, StatusCode::CONFLICT | StatusCode::NOT_FOUND),
+        "the second enqueue was refused for another reason: {status} {body}"
+    );
+    let database = &harness.database;
+    eventually(
+        WAIT,
+        "the enqueue never released its claim on the links",
+        || async move {
+            let claimed = database
+                .list_candidates()
+                .await
+                .expect("candidates")
+                .into_iter()
+                .any(|candidate| candidate.state == rd_core::LinkCandidateState::Resolving);
+            (!claimed).then_some(())
+        },
+    )
+    .await;
 }
 
 /// The two properties, asserted against whatever the database ended up holding.
@@ -212,7 +226,7 @@ async fn an_abandoned_request_never_leaves_half_a_package() {
         let id = submit(&harness).await;
 
         abandon_after(&harness.router, enqueue_request(id), turns).await;
-        settle(&harness).await;
+        settle(&harness, id).await;
 
         assert_all_or_nothing(&harness, &format!("abandoned after {turns} turns")).await;
     }

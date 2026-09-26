@@ -9,10 +9,6 @@ use crate::{ByteCount, PostprocessLevel};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct PostprocessSettings {
-    /// Deprecated: superseded by `default_level` (kept so old blobs still map).
-    pub auto_extract: bool,
-    /// Deprecated: superseded by `default_level`.
-    pub delete_archives_after_extract: bool,
     /// Post-processing level for packages without an explicit/category level.
     pub default_level: Option<PostprocessLevel>,
     /// Keep NZB import entries and stored `.torrent` files after the download finishes.
@@ -75,16 +71,10 @@ pub struct PostprocessSettings {
 }
 
 impl PostprocessSettings {
-    /// Effective global level: the explicit `default_level`, else derived from the
-    /// deprecated switches of older settings blobs.
+    /// Effective global level: the explicit `default_level`, else unpacking.
     #[must_use]
     pub fn effective_default_level(&self) -> PostprocessLevel {
-        self.default_level
-            .unwrap_or(if self.delete_archives_after_extract {
-                PostprocessLevel::Delete
-            } else {
-                PostprocessLevel::Unpack
-            })
+        self.default_level.unwrap_or(PostprocessLevel::Unpack)
     }
 
     /// Default cleanup list: index/checksum leftovers nobody keeps.
@@ -100,8 +90,6 @@ impl PostprocessSettings {
 impl Default for PostprocessSettings {
     fn default() -> Self {
         Self {
-            auto_extract: false,
-            delete_archives_after_extract: false,
             default_level: None,
             keep_import_history: true,
             pause_during_postprocess: true,
@@ -192,18 +180,12 @@ mod tests {
     use super::{PostprocessLevel, PostprocessSettings, ServiceSwitches};
 
     #[test]
-    fn legacy_switches_map_to_a_level() {
-        let legacy: PostprocessSettings =
-            serde_json::from_str(r#"{"auto_extract":true,"delete_archives_after_extract":true}"#)
-                .expect("legacy blob");
-        assert_eq!(legacy.effective_default_level(), PostprocessLevel::Delete);
+    fn an_unset_level_means_unpacking() {
         let none: PostprocessSettings =
             serde_json::from_str(r#"{"default_level":null}"#).expect("explicit null");
         assert_eq!(none.effective_default_level(), PostprocessLevel::Unpack);
-        let explicit: PostprocessSettings = serde_json::from_str(
-            r#"{"default_level":"none","delete_archives_after_extract":true}"#,
-        )
-        .expect("explicit level");
+        let explicit: PostprocessSettings =
+            serde_json::from_str(r#"{"default_level":"none"}"#).expect("explicit level");
         assert_eq!(explicit.effective_default_level(), PostprocessLevel::None);
         assert_eq!(
             PostprocessSettings::default().effective_default_level(),

@@ -1,0 +1,26 @@
+name: Advisories
+
+# The RustSec database moves between pushes: a dependency nobody touched can gain an advisory any
+# day, and ci.yml's `supply-chain` job only sees it at the next push. This asks once a week on
+# the default branch, which in the public repository is `main`, the last release (RD-140-25).
+# Advisories only: licences, bans and sources change with the tree, and ci.yml checks those on
+# every push. A finding here is fixed or waived in deny.toml in the development repository and
+# arrives with the next export.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories

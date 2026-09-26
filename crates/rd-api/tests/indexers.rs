@@ -16,7 +16,7 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use common::{get_json, post_json, put_json, test_router};
+use common::{WAIT, eventually, get_json, post_json, put_json, test_router};
 use serde_json::{Value, json};
 
 const API_KEY: &str = "super-secret-indexer-key";
@@ -175,6 +175,16 @@ fn body(url: &str) -> Value {
     })
 }
 
+/// Every stored item of one subscription, newest first, through the paged archive route.
+async fn item_list(router: &Router, id: &str) -> Value {
+    let (_, page) = get_json(
+        router,
+        &format!("/api/v1/subscriptions/{id}/items/page?state=all&limit=200"),
+    )
+    .await;
+    page["items"].clone()
+}
+
 async fn create_and_poll(router: &Router, url: &str) -> String {
     create_and_poll_with(router, body(url)).await
 }
@@ -191,14 +201,48 @@ async fn create_and_poll_with(router: &Router, request: Value) -> String {
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED);
-    for _ in 0..200 {
-        let (_, runs) = get_json(router, &format!("/api/v1/subscriptions/{id}/runs")).await;
-        if !runs.as_array().map(Vec::is_empty).unwrap_or(true) {
-            return id;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("poll never finished");
+    wait_for_run(router, &id).await;
+    id
+}
+
+/// Waits until the subscription has recorded a finished poll.
+async fn wait_for_run(router: &Router, id: &str) {
+    let uri = format!("/api/v1/subscriptions/{id}/runs");
+    let uri = uri.as_str();
+    eventually(WAIT, "poll never finished", || async move {
+        let (_, runs) = get_json(router, uri).await;
+        runs.as_array()
+            .is_some_and(|runs| !runs.is_empty())
+            .then_some(())
+    })
+    .await;
+}
+
+/// The first LinkGrabber candidate once there is one — and once its online check has settled,
+/// when `settled` asks for that.
+async fn first_candidate(router: &Router, settled: bool) -> Value {
+    eventually(WAIT, "nothing reached the collector", || async move {
+        let (_, candidates) = get_json(router, "/api/v1/collector/candidates").await;
+        candidates
+            .as_array()
+            .and_then(|items| items.first())
+            .filter(|item| {
+                !settled || (item["state"] != "checking" && item["state"] != "resolving")
+            })
+            .cloned()
+    })
+    .await
+}
+
+/// The first recorded query that asked the indexer to search, once one has arrived.
+fn recorded_search(state: &IndexerState) -> Option<RecordedQuery> {
+    state
+        .queries
+        .lock()
+        .expect("lock")
+        .iter()
+        .find(|query| query.iter().any(|(k, v)| k == "t" && v == "search"))
+        .cloned()
 }
 
 #[tokio::test]
@@ -208,7 +252,7 @@ async fn results_become_review_items_and_download_the_nzb() {
     let (url, state) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let items = items.as_array().expect("array");
     assert_eq!(items.len(), 1, "{items:?}");
     assert_eq!(items[0]["title"], "Example.Release.1080p");
@@ -249,7 +293,7 @@ async fn the_api_key_is_never_returned_by_the_api() {
 
     let (_, listed) = get_json(&router, "/api/v1/subscriptions").await;
     let (_, runs) = get_json(&router, &format!("/api/v1/subscriptions/{id}/runs")).await;
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     for payload in [&listed, &runs, &items] {
         let text = payload.to_string();
         assert!(!text.contains(API_KEY), "API key leaked: {text}");
@@ -335,19 +379,9 @@ async fn an_indexer_nzb_link_is_imported_rather_than_saved_to_disk() {
     assert!(status.is_success());
 
     // Wait for the check to settle and re-route the link.
-    let mut provider = String::new();
-    for _ in 0..200 {
-        let (_, candidates) = get_json(&router, "/api/v1/collector/candidates").await;
-        if let Some(item) = candidates.as_array().and_then(|items| items.first()) {
-            provider = item["provider"].as_str().unwrap_or_default().to_owned();
-            if item["state"] != "checking" && item["state"] != "resolving" {
-                break;
-            }
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
+    let settled = first_candidate(&router, true).await;
     assert_eq!(
-        provider, "nzb",
+        settled["provider"], "nzb",
         "a link served as application/x-nzb must reach the import path"
     );
 
@@ -507,32 +541,28 @@ async fn a_mapped_indexer_category_decides_where_a_release_lands() {
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED);
-    for _ in 0..200 {
-        let (_, runs) = get_json(&router, &format!("/api/v1/subscriptions/{id}/runs")).await;
-        if !runs.as_array().map(Vec::is_empty).unwrap_or(true) {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
+    wait_for_run(&router, &id).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let items = items.as_array().expect("items");
     assert_eq!(items[0]["source_category"], "5030");
 
     // The queued package landed in the mapped category, not the subscription's default.
-    for _ in 0..200 {
-        let (_, packages) = get_json(&router, "/api/v1/collector/packages").await;
-        if let Some(package) = packages.as_array().and_then(|list| list.first()) {
-            assert_eq!(
-                package["category_id"],
-                tv_id.as_str(),
-                "release should have gone to the mapped category, not the default: {package}"
-            );
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("nothing reached the collector");
+    let package = first_package(&router).await;
+    assert_eq!(
+        package["category_id"],
+        tv_id.as_str(),
+        "release should have gone to the mapped category, not the default: {package}"
+    );
+}
+
+/// The first LinkGrabber package, once there is one.
+async fn first_package(router: &Router) -> Value {
+    eventually(WAIT, "nothing reached the collector", || async move {
+        let (_, packages) = get_json(router, "/api/v1/collector/packages").await;
+        packages.as_array().and_then(|list| list.first()).cloned()
+    })
+    .await
 }
 
 /// Queueing a reviewed item puts it in the LinkGrabber.
@@ -547,7 +577,7 @@ async fn queueing_a_reviewed_item_hands_it_to_the_collector() {
     let (url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let item_id = items[0]["id"].as_str().expect("item id").to_owned();
     assert_eq!(items[0]["state"], "pending");
 
@@ -559,16 +589,9 @@ async fn queueing_a_reviewed_item_hands_it_to_the_collector() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
 
-    for _ in 0..200 {
-        let (_, packages) = get_json(&router, "/api/v1/collector/packages").await;
-        if packages.as_array().is_some_and(|list| !list.is_empty()) {
-            let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
-            assert_eq!(items[0]["state"], "queued", "{items}");
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("the queued item never reached the collector");
+    first_package(&router).await;
+    let items = item_list(&router, &id).await;
+    assert_eq!(items[0]["state"], "queued", "{items}");
 }
 
 /// An indexer hit is imported as an NZB, not fetched as a file.
@@ -584,7 +607,7 @@ async fn a_queued_indexer_hit_is_routed_by_what_the_feed_declared() {
     let (url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let item_id = items[0]["id"].as_str().expect("item id").to_owned();
     let (status, body) = put_json(
         &router,
@@ -594,18 +617,11 @@ async fn a_queued_indexer_hit_is_routed_by_what_the_feed_declared() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
 
-    for _ in 0..200 {
-        let (_, candidates) = get_json(&router, "/api/v1/collector/candidates").await;
-        if let Some(candidate) = candidates.as_array().and_then(|list| list.first()) {
-            assert_eq!(
-                candidate["provider"], "nzb",
-                "the link is imported into the Usenet queue, not downloaded: {candidate}"
-            );
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("the queued item never reached the collector");
+    let candidate = first_candidate(&router, false).await;
+    assert_eq!(
+        candidate["provider"], "nzb",
+        "the link is imported into the Usenet queue, not downloaded: {candidate}"
+    );
 }
 
 /// A container is recognised from the document when the server does not say what it is.
@@ -634,21 +650,11 @@ async fn an_nzb_is_recognised_even_when_the_server_does_not_say_so() {
     .await;
     assert!(status.is_success());
 
-    for _ in 0..200 {
-        let (_, candidates) = get_json(&router, "/api/v1/collector/candidates").await;
-        if let Some(item) = candidates.as_array().and_then(|list| list.first())
-            && item["state"] != "checking"
-            && item["state"] != "resolving"
-        {
-            assert_eq!(
-                item["provider"], "nzb",
-                "recognised from the document itself: {item}"
-            );
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("the check never settled");
+    let item = first_candidate(&router, true).await;
+    assert_eq!(
+        item["provider"], "nzb",
+        "recognised from the document itself: {item}"
+    );
 }
 
 /// A hit keeps the name the feed gave it, all the way into the queue.
@@ -664,7 +670,7 @@ async fn a_queued_indexer_hit_keeps_the_release_name() {
     let (url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{id}/items")).await;
+    let items = item_list(&router, &id).await;
     let item_id = items[0]["id"].as_str().expect("item id").to_owned();
     let (status, body) = put_json(
         &router,
@@ -674,23 +680,16 @@ async fn a_queued_indexer_hit_keeps_the_release_name() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
 
-    for _ in 0..200 {
-        let (_, candidates) = get_json(&router, "/api/v1/collector/candidates").await;
-        if let Some(candidate) = candidates.as_array().and_then(|list| list.first()) {
-            assert_eq!(
-                candidate["file_name"], "Example.Release.1080p",
-                "the link is named after the release, not the API endpoint: {candidate}"
-            );
-            let (_, packages) = get_json(&router, "/api/v1/collector/packages").await;
-            assert_eq!(
-                packages[0]["name"], "Example.Release.1080p",
-                "and so is its package: {packages}"
-            );
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("the queued item never reached the collector");
+    let candidate = first_candidate(&router, false).await;
+    assert_eq!(
+        candidate["file_name"], "Example.Release.1080p",
+        "the link is named after the release, not the API endpoint: {candidate}"
+    );
+    let (_, packages) = get_json(&router, "/api/v1/collector/packages").await;
+    assert_eq!(
+        packages[0]["name"], "Example.Release.1080p",
+        "and so is its package: {packages}"
+    );
 }
 
 /// Without a feed to name it, the import takes the name the indexer answers with.
@@ -781,26 +780,22 @@ async fn a_refusal_dressed_up_as_success_is_reported_as_one() {
 /// Waits for the online check of the one submitted link to settle, and answers with the
 /// package it ended up in — which the check itself can still move once it learns the name.
 async fn settle(router: &Router) -> String {
-    for _ in 0..200 {
+    eventually(WAIT, "the check never settled", || async move {
         let (_, candidates) = get_json(router, "/api/v1/collector/candidates").await;
-        if let Some(item) = candidates.as_array().and_then(|list| list.first())
-            && item["state"] != "checking"
-            && item["state"] != "resolving"
-            && let Some(package_id) = item["package_id"].as_str()
-        {
-            // The regrouping that follows the check runs after the candidate is recorded,
-            // so read the package back until it holds the link.
-            let (_, packages) = get_json(router, "/api/v1/collector/packages").await;
-            if packages
-                .as_array()
-                .is_some_and(|list| list.iter().any(|package| package["id"] == package_id))
-            {
-                return package_id.to_owned();
-            }
+        let item = candidates.as_array().and_then(|list| list.first())?;
+        if item["state"] == "checking" || item["state"] == "resolving" {
+            return None;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    panic!("the check never settled");
+        let package_id = item["package_id"].as_str()?;
+        // The regrouping that follows the check runs after the candidate is recorded,
+        // so read the package back until it holds the link.
+        let (_, packages) = get_json(router, "/api/v1/collector/packages").await;
+        packages
+            .as_array()
+            .is_some_and(|list| list.iter().any(|package| package["id"] == package_id))
+            .then(|| package_id.to_owned())
+    })
+    .await
 }
 
 /// Categories can be asked for before there is a subscription to ask for.
@@ -878,13 +873,11 @@ async fn a_subscription_asks_only_for_the_categories_it_wants() {
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED);
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-
-    let queries = state.queries.lock().expect("lock");
-    let search = queries
-        .iter()
-        .find(|query| query.iter().any(|(k, v)| k == "t" && v == "search"))
-        .expect("a search query");
+    let state = &state;
+    let search = eventually(WAIT, "the poll never searched the indexer", || async move {
+        recorded_search(state)
+    })
+    .await;
     assert!(
         search.iter().any(|(k, v)| k == "cat" && v == "5000,5040"),
         "the poll asked for everything: {search:?}"
@@ -928,13 +921,11 @@ async fn an_address_that_already_names_categories_is_left_alone() {
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED);
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-
-    let queries = state.queries.lock().expect("lock");
-    let search = queries
-        .iter()
-        .find(|query| query.iter().any(|(k, v)| k == "t" && v == "search"))
-        .expect("a search query");
+    let state = &state;
+    let search = eventually(WAIT, "the poll never searched the indexer", || async move {
+        recorded_search(state)
+    })
+    .await;
     let cats: Vec<&str> = search
         .iter()
         .filter(|(k, _)| k == "cat")
@@ -971,12 +962,12 @@ async fn a_title_filter_applies_on_the_indexer_path_and_keeps_its_reason() {
     unwanted["filters"] = json!({ "title_contains": ["german"] });
     let rejecting = create_and_poll_with(&router, unwanted).await;
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{matching}/items")).await;
+    let items = item_list(&router, &matching).await;
     let items = items.as_array().expect("array");
     assert_eq!(items.len(), 1, "{items:?}");
     assert_eq!(items[0]["state"], "pending", "{items:?}");
 
-    let (_, items) = get_json(&router, &format!("/api/v1/subscriptions/{rejecting}/items")).await;
+    let items = item_list(&router, &rejecting).await;
     let items = items.as_array().expect("array");
     // Stored rather than dropped: an unwritten hit would be rediscovered on every poll, and
     // the reason is what makes an over-strict filter visible instead of an empty channel.

@@ -10,7 +10,6 @@ license.workspace = true
 # batch, `serde`/`serde_json` would be unused dead weight here and are deliberately left out.
 [dependencies]
 url.workspace = true
-wit-bindgen.workspace = true
 plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
 xfs-common = { path = "../xfs-common" }

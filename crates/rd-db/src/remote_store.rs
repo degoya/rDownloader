@@ -13,11 +13,7 @@ use rd_core::{
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::{
-    error::StoreError,
-    network_store::{enum_string, parse_enum},
-    writer::insert_event,
-};
+use crate::{enum_string, error::StoreError, parse_enum, writer::insert_event};
 
 /// Editable credential fields; `create` assigns the id and timestamps.
 #[derive(Clone, Debug)]

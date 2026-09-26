@@ -30,10 +30,10 @@ export type StepKind = typeof STEP_KINDS[number]
 
 /** What `decode` understands. */
 export const ENCODINGS = ['base64', 'hex', 'rot13', 'url', 'js-string'] as const
-export type Encoding = typeof ENCODINGS[number]
+type Encoding = typeof ENCODINGS[number]
 
 export const PACKAGE_SOURCES = ['title', 'regex', 'variable'] as const
-export type PackageSource = typeof PACKAGE_SOURCES[number]
+type PackageSource = typeof PACKAGE_SOURCES[number]
 
 /** One step as the form holds it: every field of every kind, only some of them shown. */
 export interface StepDraft {

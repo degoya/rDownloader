@@ -58,7 +58,8 @@
       "delivered": "La session {host} est arrivée et est enregistrée avec ce compte ; le compte est en cours de vérification.",
       "declined": "Refusé dans l'extension : la session {host} n'a pas été transmise.",
       "expired": "Personne n'a répondu à la demande à temps ; la session {host} n'a pas été transmise."
-    }
+    },
+    "providers_loading": "Je charge les plugins dont viennent les fournisseurs – après un démarrage ou une mise à jour de plugin, cela prend un moment…"
   },
   "hosters": {
     "toggle": "Hébergeurs pris en charge",

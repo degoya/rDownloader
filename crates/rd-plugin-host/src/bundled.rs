@@ -43,6 +43,7 @@ pub async fn sync_bundled(
     // recognised after the loop.
     let mut bundled_types: std::collections::HashMap<PluginId, PluginType> =
         std::collections::HashMap::new();
+    let _batch = crate::unsigned_notice::UnsignedBatch::open();
     for path in entries {
         let name = path
             .file_name()

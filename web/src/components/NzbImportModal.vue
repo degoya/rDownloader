@@ -96,7 +96,7 @@ function submit(): void {
     <template #body>
       <div class="space-y-3">
         <div class="grid min-h-40 place-items-center border border-dashed border-muted p-6 text-center" @dragover.prevent @drop="drop">
-          <input ref="fileInput" class="hidden" type="file" multiple accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,application/x-nzb,application/x-bittorrent,application/x-dlc,application/xml,text/xml,text/plain" @change="pick">
+          <input ref="fileInput" hidden type="file" multiple accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,application/x-nzb,application/x-bittorrent,application/x-dlc,application/xml,text/xml,text/plain" @change="pick">
           <div v-if="!files.length">
             <UIcon name="i-lucide-file-archive" class="mx-auto mb-3 size-8 text-primary" />
             <p class="text-sm text-muted">{{ t('linkgrabber.nzb.modal.drop_hint') }}</p>

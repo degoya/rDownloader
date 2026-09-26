@@ -9,12 +9,17 @@
  */
 import { render } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { i18n, SUPPORTED_LOCALES } from '@/i18n'
 import { SETTINGS_SECTIONS } from '@/settingsSections'
+import { axeViolations } from '@/test/axe'
+import { loadEveryLocale } from '@/test/locales'
 import { uiStubs } from '@/test/mount'
+
+// The navbar test below switches through all four languages.
+beforeAll(loadEveryLocale)
 
 vi.mock('@/api/client', () => ({
   api: {
@@ -91,5 +96,11 @@ describe('the settings page headers', () => {
       }
     }
     i18n.global.locale.value = 'en'
+  })
+
+  it.each(SETTINGS_SECTIONS.map(section => section.value))('%s renders without an axe violation', async (section) => {
+    const container = await mountPage(section)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(await axeViolations(container)).toBe('')
   })
 })

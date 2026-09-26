@@ -63,6 +63,10 @@ mod package_handlers;
 mod passkey_handlers;
 mod password_handlers;
 mod plugin_handlers;
+mod plugin_lifecycle;
+mod plugin_repository_dto;
+mod plugin_repository_handlers;
+mod plugin_update_policy;
 mod postprocess_handlers;
 mod power_handlers;
 mod power_service;
@@ -129,6 +133,7 @@ pub use error::ApiError;
 pub use handlers::service_switches;
 pub use hotfolder_service::HotFolderService;
 pub use link_check_service::LinkCheckService;
+pub use plugin_update_policy::VersionChoicePolicy;
 pub use remote_job_service::{
     ChoiceOutcome as RemoteJobChoiceOutcome, DiscardOutcome as RemoteJobDiscardOutcome,
     RemoteJobRefused, RemoteJobService, SubmitOutcome as RemoteJobSubmitOutcome,
@@ -156,6 +161,8 @@ pub struct AppState {
     /// Managed external tools (RD-102-02): the signed manifest, the installed versions and
     /// which one the tool lookup answers with.
     pub tools: rd_tools::ManagedToolService,
+    /// Signed plugin repositories (RD-140-01): their verified indexes, offers and updates.
+    pub plugin_repositories: rd_plugin_host::repository::PluginRepositoryService,
     /// Background monitor that starts recordings when watched channels go live.
     pub stream_monitor: stream_monitor::StreamMonitorService,
     pub subscriptions: subscription_service::SubscriptionService,
@@ -388,6 +395,13 @@ impl AppState {
             ),
             rd_core::ManagedToolSettings::default(),
         );
+        let plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::new(
+            database.clone(),
+            rd_core::data_directory()
+                .unwrap_or_else(|| std::path::Path::new("data"))
+                .join("plugin-repositories"),
+            plugins.clone(),
+        );
         let power_supervisor = power_service::PowerSupervisor::start(
             database.clone(),
             scheduler.clone(),
@@ -413,6 +427,7 @@ impl AppState {
             stream_settings,
             stream_monitor,
             tools,
+            plugin_repositories,
             subscriptions,
             torrent,
             torrent_settings,
@@ -452,6 +467,38 @@ impl AppState {
         rd_core::set_managed_tool_resolver(std::sync::Arc::new(self.tools.clone()));
     }
 
+    /// Loads the cached plugin indexes that still verify and starts the refresh loop
+    /// (RD-140-01).
+    ///
+    /// Separate from the constructor for the reason [`Self::prepare_managed_tools`] is: it reads
+    /// files and starts a task. The first refresh waits
+    /// [`STARTUP_DELAY`](rd_plugin_host::repository::STARTUP_DELAY), so fetching an index never
+    /// delays the start, and a failed refresh never stops anything else.
+    pub async fn prepare_plugin_repositories(&self) {
+        self.plugin_repositories.load().await;
+        let state = self.clone();
+        tokio::spawn(async move {
+            use rd_plugin_host::repository::STARTUP_DELAY;
+            // Checked every ten minutes rather than slept for the whole interval, so a shorter
+            // interval set in the meantime applies without a restart.
+            const TICK: std::time::Duration = std::time::Duration::from_secs(600);
+            tokio::time::sleep(STARTUP_DELAY).await;
+            let mut last = None::<std::time::Instant>;
+            loop {
+                let hours = u64::from(state.plugin_repositories.refresh_hours().await);
+                let due = last.is_none_or(|last| {
+                    last.elapsed() >= std::time::Duration::from_secs(hours * 3600)
+                });
+                if due {
+                    plugin_repository_handlers::refresh_and_update(&state, audit::Actor::system())
+                        .await;
+                    last = Some(std::time::Instant::now());
+                }
+                tokio::time::sleep(TICK).await;
+            }
+        });
+    }
+
     /// Records the installed post-processing step plugins.
     #[must_use]
     pub fn with_plugin_steps(mut self, steps: std::sync::Arc<rd_plugin_ext::PluginSteps>) -> Self {
@@ -466,6 +513,18 @@ impl AppState {
         destinations: std::sync::Arc<rd_plugin_ext::StorageDestinations>,
     ) -> Self {
         self.storage_destinations = destinations;
+        self
+    }
+
+    /// Records the authentication and OAuth providers the start built (RD-130-06), so the
+    /// provider catalogue does not load and compile every installed plugin a second time.
+    #[must_use]
+    pub fn with_auth_providers(
+        self,
+        providers: rd_plugin_ext::AuthProviders,
+        oauth: rd_plugin_ext::OAuthProviders,
+    ) -> Self {
+        self.auth_flows.preload(providers, oauth);
         self
     }
 

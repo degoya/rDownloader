@@ -35,6 +35,12 @@ const { t } = useI18n()
 const accounts = ref<Account[]>([])
 const proxies = ref<ProxyProfile[]>([])
 const providers = ref<Provider[]>([])
+/**
+ * The provider catalogue's first read, apart from the account list's (RD-130-06). It is
+ * answered from the installed plugins, and while the service is still loading those the answer
+ * can take far longer than the accounts — which it used to hold back with it.
+ */
+const providersLoading = ref(true)
 const pending = ref(false)
 /** The three parallel fetches below, as the list has to show them (RD-104-07). */
 const { loading, loadError, load } = useFetchState()
@@ -337,6 +343,7 @@ let releaseEvents: (() => void) | null = null
 let providerTimer: number | null = null
 
 onMounted(() => {
+  void refreshProviders().finally(() => { providersLoading.value = false })
   void load(refresh).then(() => {
     // A flow may have been running when the page was last closed; picking it up is what
     // makes closing the browser mid-sign-in cost nothing.
@@ -386,20 +393,18 @@ async function refreshProviders(): Promise<void> {
 }
 
 /**
- * Fetches the tab's three lists, returning the failure rather than swallowing it.
+ * Fetches the accounts and proxy profiles, returning the failure rather than swallowing it.
  *
- * Opening the tab used to read "no accounts" for the whole duration of these three requests,
- * and again for good if any of them failed. The returned message is what tells the list which
- * of the two it is looking at.
+ * Opening the tab used to read "no accounts" for the whole duration of these requests, and
+ * again for good if any of them failed. The returned message is what tells the list which of
+ * the two it is looking at. The provider catalogue is read on its own (`providersLoading`).
  */
 async function refresh(): Promise<string | null> {
-  const [accountResponse, proxyResponse, providerResponse] = await Promise.all([
+  const [accountResponse, proxyResponse] = await Promise.all([
     api.GET('/api/v1/accounts'),
-    api.GET('/api/v1/proxy-profiles'),
-    api.GET('/api/v1/providers')
+    api.GET('/api/v1/proxy-profiles')
   ])
   if (proxyResponse.data) proxies.value = proxyResponse.data
-  if (providerResponse.data) providers.value = providerResponse.data
   if (!accountResponse.data) return responseError(accountResponse)
   accounts.value = accountResponse.data
   return null
@@ -606,8 +611,17 @@ function proxyName(id: string | null | undefined): string {
             :title="editingAccountId ? t('network.account.edit_title') : t('network.account.new_title')"
           />
           <form ref="formElement" class="mt-4 grid gap-3" @submit.prevent="createAccount">
+            <!-- A picker whose options are on their way is not drawn (design.md). -->
             <UFormField :label="t('network.account.provider_label')">
-              <USelect v-model="accountForm.provider" :items="providerItems" class="w-full" />
+              <DataState
+                v-if="providersLoading"
+                loading
+                variant="inline"
+                :rows="1"
+                :label="t('network.account.providers_loading')"
+                data-testid="account-providers-loading"
+              />
+              <USelect v-else v-model="accountForm.provider" :items="providerItems" class="w-full" />
             </UFormField>
             <!--
               The sign-in method stands directly under the provider, because it decides what the

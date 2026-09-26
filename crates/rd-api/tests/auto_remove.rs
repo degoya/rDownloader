@@ -28,7 +28,9 @@ async fn queued_package(router: &axum::Router) -> String {
 #[tokio::test]
 async fn a_package_records_when_it_finished_and_forgets_it_when_restarted() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    // The package's state is set by hand below, which a live scheduler working the queued
+    // download would race.
+    let harness = common::parked_harness(directory.path()).await;
     let package_id = queued_package(&harness.router).await;
     let package_id: rd_core::PackageId = package_id.parse().expect("package id");
 

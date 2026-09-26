@@ -21,6 +21,7 @@ mod facade_audit;
 mod facade_collector;
 mod facade_ext;
 mod facade_logs;
+mod facade_plugin_repositories;
 mod facade_site_rule_checks;
 mod facade_site_rule_switches;
 mod facade_site_rules;
@@ -36,8 +37,10 @@ mod nzb_store;
 mod package_store;
 mod plugin_execution_store;
 mod plugin_keys_store;
+mod plugin_repositories_store;
 mod plugin_revocations_store;
 mod plugin_transfer_store;
+mod plugin_versions_store;
 mod postprocess_store;
 mod remote_job_store;
 mod replay_store;
@@ -54,6 +57,7 @@ mod torrent_store;
 mod usenet_store;
 mod writer;
 mod writer_jobs;
+mod writer_pins;
 
 #[cfg(test)]
 mod stats_tests;
@@ -106,8 +110,14 @@ pub use nzb_store::{FailedNzbImport, NewNzbFile, NewNzbImport, NewNzbSegment, Nz
 pub use package_store::{CategoryAssignment, PackageChange};
 pub use plugin_execution_store::{MAX_EXECUTIONS_PER_PLUGIN, NewPluginExecution, PluginExecution};
 pub use plugin_keys_store::{NewPluginTrustedKey, PluginTrustedKey};
+pub use plugin_repositories_store::{
+    NewPluginRepository, OFFICIAL_REPOSITORY_ID, PluginRepository, PluginRepositoryInstall,
+    PluginWithdrawnKey, RepositoryCheck,
+};
 pub use plugin_revocations_store::{NewPluginDigestRevocation, PluginDigestRevocation};
 pub use plugin_transfer_store::PluginTransfer;
+pub use plugin_versions_store::{NewPluginVersionChoice, PluginVersionChoice};
+pub use postprocess_store::AssembledSegment;
 pub use remote_job_store::{AdvanceRemoteJob, ClaimRemoteJob};
 pub use remote_store::{HostKeyVerdict, NewRemoteCredential, UpdateRemoteCredential};
 pub use replay_store::{REFRESH_WINDOW_HOURS, REPLAY_REFRESH_MAX};
@@ -812,10 +822,29 @@ impl Database {
             .collect())
     }
 
+    /// Points a download that is not running at one exact resolver version (RD-140-02).
+    ///
+    /// Unlike [`Self::claim_resolver_pin`] this replaces a pin the download already has: it is
+    /// how a download is started "with the version under test". Refused while the download is
+    /// running, because a pin is what keeps a running job on one version.
+    pub async fn pin_download_resolver(
+        &self,
+        id: DownloadId,
+        pin: rd_core::ResolverPin,
+    ) -> Result<()> {
+        writer::request(&self.writer, |reply| WriterCommand::PinDownloadResolver {
+            id,
+            pin,
+            reply,
+        })
+        .await
+    }
+
     /// Drops resolver pins that name a version this build can no longer provide.
     ///
     /// Returns how many jobs were freed. See the writer implementation for why an
-    /// unsatisfiable pin is worse than no pin at all.
+    /// unsatisfiable pin is worse than no pin at all, and what happens to a download whose
+    /// pinned version was withdrawn.
     pub async fn clear_unsatisfiable_resolver_pins(
         &self,
         available: Vec<(String, String)>,
@@ -1204,6 +1233,30 @@ impl Database {
         .await
     }
 
+    /// Every plugin's version choice (RD-140-02), read once at start and by the inventory.
+    pub async fn list_plugin_version_choices(&self) -> Result<Vec<PluginVersionChoice>> {
+        plugin_versions_store::list_plugin_version_choices(&self.readers).await
+    }
+
+    /// One plugin's version choice, if it has one.
+    pub async fn plugin_version_choice(
+        &self,
+        plugin_id: &str,
+    ) -> Result<Option<PluginVersionChoice>> {
+        plugin_versions_store::plugin_version_choice(&self.readers, plugin_id).await
+    }
+
+    /// Replaces one plugin's version choice; it takes effect at the next start.
+    pub async fn save_plugin_version_choice(
+        &self,
+        input: NewPluginVersionChoice,
+    ) -> Result<PluginVersionChoice> {
+        writer::request(&self.writer, |reply| {
+            WriterCommand::SavePluginVersionChoice { input, reply }
+        })
+        .await
+    }
+
     /// Creates a proxy profile with an optional opaque credential reference.
     pub async fn create_proxy_profile(
         &self,
@@ -1356,4 +1409,14 @@ where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
     value.parse::<T>().context("parse stored identifier")
+}
+
+/// Stores a serde enum as the bare string its JSON form quotes (`"queued"` -> `queued`).
+pub(crate) fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
+    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
+}
+
+/// Reads back a value [`enum_string`] stored.
+pub(crate) fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
+    serde_json::from_str(&format!("\"{value}\"")).context("parse stored enum")
 }

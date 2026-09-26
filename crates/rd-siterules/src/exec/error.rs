@@ -86,6 +86,7 @@ impl RunError {
 
     /// Whether this refusal is a limit rather than a finding about the service. A run that
     /// hit a limit says nothing about whether the rule still fits its site.
+    #[cfg(test)]
     #[must_use]
     pub fn is_limit(&self) -> bool {
         matches!(

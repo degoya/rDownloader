@@ -819,5 +819,9 @@
       "column_license": "Lizenz",
       "column_file": "Lizenztext"
     }
+  },
+  "nntp_parallel_files": {
+    "label": "Usenet-Dateien gleichzeitig",
+    "description": "0 = automatisch: so viele, dass jede Verbindung beschäftigt bleibt (2 bis 8). Zusammen belegen sie einen einzigen Platz der parallelen Dateien."
   }
 }

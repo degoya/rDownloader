@@ -24,8 +24,6 @@ url.workspace = true
 workspace = true
 
 [dev-dependencies]
-rd-core = { path = "../rd-core" }
-rd-db = { path = "../rd-db" }
 rd-limits = { path = "../rd-limits" }
 tempfile.workspace = true
 toml.workspace = true

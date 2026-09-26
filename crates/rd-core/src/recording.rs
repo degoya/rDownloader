@@ -139,40 +139,6 @@ pub struct SidecarOutcome {
     pub file_name: Option<String>,
 }
 
-/// When an incomplete live recording may be replaced by the published VOD.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case", tag = "mode", content = "value")]
-pub enum VodFallback {
-    /// Never. The default, because fetching a VOD doubles the traffic and the recording is
-    /// usually fine.
-    #[default]
-    Off,
-    /// Fetch the VOD when the live recording covered less than this percentage of the
-    /// scheduled window.
-    BelowCoverage(u8),
-}
-
-impl VodFallback {
-    /// Whether a recording covering `recorded_seconds` of a `window_seconds` window is
-    /// incomplete enough to warrant the VOD.
-    ///
-    /// A window of zero — an unscheduled recording — never triggers it: without an expected
-    /// length there is nothing to be short of, and guessing would re-download every stream.
-    #[must_use]
-    pub fn should_fetch(self, recorded_seconds: u64, window_seconds: u64) -> bool {
-        match self {
-            Self::Off => false,
-            Self::BelowCoverage(percent) => {
-                if window_seconds == 0 {
-                    return false;
-                }
-                let covered = recorded_seconds.saturating_mul(100) / window_seconds;
-                covered < u64::from(percent)
-            }
-        }
-    }
-}
-
 /// Everything RD-080-09 adds to one recording.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 #[serde(default)]
@@ -180,7 +146,6 @@ pub struct RecordingPolicy {
     pub split: SplitPolicy,
     pub remux: RemuxTarget,
     pub sidecars: SidecarPolicy,
-    pub vod_fallback: VodFallback,
     /// Seconds to wait before reconnecting after an unexpected end.
     pub reconnect_delay_seconds: u32,
 }
@@ -240,8 +205,6 @@ pub struct RecordingState {
     pub sidecars: Vec<SidecarOutcome>,
     /// How many times the stream had to be reconnected.
     pub reconnects: u32,
-    /// Whether a VOD was fetched to fill in for an incomplete recording.
-    pub vod_fetched: bool,
 }
 
 impl RecordingState {
@@ -249,14 +212,6 @@ impl RecordingState {
     #[must_use]
     pub fn total_bytes(&self) -> u64 {
         self.segments.iter().map(|segment| segment.bytes).sum()
-    }
-
-    /// Whether any segment boundary left a gap.
-    #[must_use]
-    pub fn has_gaps(&self) -> bool {
-        self.segments
-            .iter()
-            .any(|segment| segment.reason.leaves_gap())
     }
 
     /// Seconds actually covered, summed over the segments that have ended.
@@ -286,7 +241,7 @@ pub fn segment_name(stem: &str, index: u32, extension: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        RecordingSegment, RecordingState, RemuxTarget, SegmentEnd, SplitPolicy, VodFallback,
+        RecordingPolicy, RecordingSegment, RecordingState, RemuxTarget, SegmentEnd, SplitPolicy,
         segment_name,
     };
     use chrono::{Duration, Utc};
@@ -356,7 +311,7 @@ mod tests {
             ],
             ..RecordingState::default()
         };
-        assert!(!split.has_gaps());
+        assert!(!split.segments.iter().any(|s| s.reason.leaves_gap()));
 
         let dropped = RecordingState {
             segments: vec![
@@ -365,7 +320,7 @@ mod tests {
             ],
             ..RecordingState::default()
         };
-        assert!(dropped.has_gaps());
+        assert!(dropped.segments.iter().any(|s| s.reason.leaves_gap()));
     }
 
     #[test]
@@ -401,22 +356,30 @@ mod tests {
         assert_eq!(state.recorded_seconds(), 0);
     }
 
+    /// The VOD fallback was a setting nothing acted on, and is gone in 1.4, with the
+    /// `vod_fetched` flag no code ever set. A policy or a recording state stored while they
+    /// existed still reads: the field is ignored, not refused, so a channel saved with it
+    /// neither fails to load nor loses its other choices.
     #[test]
-    fn the_vod_fallback_is_off_unless_the_recording_fell_short() {
-        let policy = VodFallback::BelowCoverage(90);
-        // Two hours scheduled, one recorded: half, well under the threshold.
-        assert!(policy.should_fetch(3_600, 7_200));
-        // Nearly all of it: not worth doubling the traffic.
-        assert!(!policy.should_fetch(7_000, 7_200));
-        assert!(!policy.should_fetch(7_200, 7_200));
-    }
-
-    #[test]
-    fn an_unscheduled_recording_never_triggers_the_vod_fallback() {
-        // Without an expected length there is nothing to fall short of, and guessing would
-        // re-download every stream that was ever recorded.
-        assert!(!VodFallback::BelowCoverage(90).should_fetch(10, 0));
-        assert!(!VodFallback::Off.should_fetch(0, 7_200));
+    fn a_policy_stored_with_the_former_vod_fallback_still_reads() {
+        let stored = serde_json::json!({
+            "split": { "mode": "none" },
+            "remux": "mkv",
+            "vod_fallback": { "mode": "below_coverage", "value": 90 },
+            "reconnect_delay_seconds": 30
+        });
+        let policy: RecordingPolicy = serde_json::from_value(stored).expect("policy");
+        assert_eq!(policy.remux, RemuxTarget::Mkv);
+        assert_eq!(policy.reconnect_delay_seconds, 30);
+        assert!(
+            !serde_json::to_string(&policy)
+                .expect("serialize")
+                .contains("vod_fallback")
+        );
+        let state: RecordingState =
+            serde_json::from_value(serde_json::json!({ "reconnects": 2, "vod_fetched": false }))
+                .expect("state");
+        assert_eq!(state.reconnects, 2);
     }
 
     #[test]

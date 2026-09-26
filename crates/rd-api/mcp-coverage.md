@@ -14,7 +14,7 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**71 capabilities, 53 covered by a tool, 18 deliberately out (12 of them on the owner's line of 2026-09-23).** 320 REST operations, 164 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**72 capabilities, 54 covered by a tool, 18 deliberately out (12 of them on the owner's line of 2026-09-23).** 335 REST operations, 165 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -62,11 +62,12 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Which providers can take a remote job | Remote jobs | 1 | `list_remote_job_providers` |
 | Power actions | Settings > Power | 2 | `cancel_power_action`, `get_power_status` |
 | Plugin execution history | Settings > Plugins | 1 | `list_plugin_executions` |
+| Plugin updates and repository offers | Settings > Plugins | 1 | `list_plugin_updates` |
 | Plugin message catalogues | the interface itself | 1 | `get_plugin_messages` |
 | Automation history, vocabulary and dry run | Automation | 4 | `dry_run_automations`, `get_automation_vocabulary`, `list_automation_runs`, `list_automation_versions` |
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |
 | Clearing the notification history | Settings > Notifications | 1 | `clear_notification_deliveries` |
-| Subscription items, runs and forced polls | Subscriptions | 10 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
+| Subscription items, runs and forced polls | Subscriptions | 9 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
 | Stream schedules, runs and recording now | Streams | 6 | `create_stream_schedule`, `delete_stream_schedule`, `list_stream_runs`, `list_stream_schedules`, `record_stream_now`, `update_stream_schedule` |
 | The diagnostic bundle: preview | Logs | 1 | `preview_diagnostic_bundle` |
 | Metrics | - | 1 | `get_metrics` |
@@ -86,7 +87,7 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Solving captchas | captcha dialog | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Consent to replay a paid link | LinkGrabber | 3 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Import and export of a whole area | Settings > Backup | 14 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
-| Plugin trust and installation | Settings > Plugins | 6 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Plugin trust and installation | Settings > Plugins | 21 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Probing an indexer's capabilities | Subscriptions | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Approving and fetching a diagnostic bundle | Logs | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |

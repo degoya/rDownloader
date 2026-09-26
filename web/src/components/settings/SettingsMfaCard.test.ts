@@ -1,5 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/vue'
-import { fireEvent } from '@testing-library/dom'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 

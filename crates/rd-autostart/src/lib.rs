@@ -320,8 +320,7 @@ mod platform {
         systemctl(
             &["enable", unit_name(registration.target)],
             "enable systemd user unit",
-        )?;
-        remove_legacy_desktop(registration.target)
+        )
     }
 
     pub(super) fn remove(target: Target) -> Result<()> {
@@ -338,7 +337,6 @@ mod platform {
                 .join(unit_name(target)),
         )?;
         remove_file_if_present(&path)?;
-        remove_legacy_desktop(target)?;
         let _ = Command::new("systemctl")
             .args(["--user", "daemon-reload"])
             .stdout(std::process::Stdio::null())
@@ -358,20 +356,6 @@ mod platform {
             Target::Server => "rdownloader.service",
             Target::Capture => "rdownloader-capture.service",
         }
-    }
-
-    fn remove_legacy_desktop(target: Target) -> Result<()> {
-        if target != Target::Capture {
-            return Ok(());
-        }
-        let path = BaseDirs::new()
-            .map(|paths| {
-                paths
-                    .config_dir()
-                    .join("autostart/rdownloader-capture.desktop")
-            })
-            .context("locate legacy autostart directory")?;
-        remove_file_if_present(&path)
     }
 
     fn remove_file_if_present(path: &Path) -> Result<()> {

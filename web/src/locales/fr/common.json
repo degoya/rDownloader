@@ -12,21 +12,15 @@
     "remove": "Retirer",
     "rename": "Renommer",
     "edit": "Modifier",
-    "close": "Fermer",
     "refresh": "Actualiser",
-    "add": "Ajouter",
     "test": "Tester",
     "start": "Démarrer",
     "pause": "Mettre en pause",
-    "resume": "Reprendre",
     "retry": "Réessayer",
     "extract": "Extraire",
     "select_all": "Tout sélectionner",
     "clear_selection": "Effacer la sélection",
-    "copy": "Copier",
     "apply": "Appliquer",
-    "reset": "Réinitialiser",
-    "back": "Retour",
     "reveal": "Afficher dans la liste"
   },
   "states": {
@@ -55,22 +49,16 @@
     "file": "aucun fichier | {count} fichier | {count} fichiers",
     "package": "aucun paquet | {count} paquet | {count} paquets",
     "link": "aucun lien | {count} lien | {count} liens",
-    "entry": "aucune entrée | {count} entrée | {count} entrées",
-    "selected": "sélectionné(s)",
-    "per_second": "/s"
+    "selected": "sélectionné(s)"
   },
   "values": {
     "unknown": "inconnu",
-    "none": "aucun",
     "default": "Par défaut",
     "yes": "Oui",
-    "no": "Non",
-    "enabled": "Activé",
-    "disabled": "Désactivé"
+    "no": "Non"
   },
   "errors": {
-    "request_failed": "La requête n'a pas pu être traitée.",
-    "unknown": "Erreur inconnue"
+    "request_failed": "La requête n'a pas pu être traitée."
   },
   "data": {
     "loading": "Chargement",

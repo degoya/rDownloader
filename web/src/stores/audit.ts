@@ -6,7 +6,7 @@ import { BASE_PATH } from '@/basePath'
 import type { AuditAction, AuditActorKind, AuditOutcome, AuditRecord, AuditRecordsPage } from '@/api/types'
 
 /** Records one read asks for; the server caps a page at 500. */
-export const AUDIT_PAGE_SIZE = 200
+const AUDIT_PAGE_SIZE = 200
 
 export interface AuditFilters {
   action: AuditAction | ''

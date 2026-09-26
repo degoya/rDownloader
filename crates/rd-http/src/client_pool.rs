@@ -109,11 +109,6 @@ impl ClientPool {
             .clone())
     }
 
-    /// Removes one client after a profile or account changed.
-    pub async fn invalidate(&self, key: &ClientKey) {
-        self.clients.write().await.remove(key);
-    }
-
     /// Drops every cached connection, for example after global TLS changes.
     pub async fn clear(&self) {
         self.clients.write().await.clear();

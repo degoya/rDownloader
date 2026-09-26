@@ -9,7 +9,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/vue'
 import axe from 'axe-core'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/client', () => ({
   api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
@@ -19,6 +19,9 @@ vi.mock('@/api/client', () => ({
 import PreferencesFooter from './PreferencesFooter.vue'
 import { useTheme } from '@/composables/useTheme'
 import { i18n, SUPPORTED_LOCALES } from '@/i18n'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 const stubs = {
   UButton: { template: '<button type="button" v-bind="$attrs" />' },

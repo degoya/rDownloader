@@ -46,7 +46,8 @@
     "extension_hint": "Browser-Erweiterung: nutze das rohe Token unten in den Erweiterungsoptionen.",
     "copy_token": "Token kopieren",
     "extension_steps": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge dieses Token ein und drücke „Verbindung testen“. Installation siehe extension/README.md.",
-    "token_copied_description": "Das Capture-Token liegt in der Zwischenablage."
+    "token_copied_description": "Das Capture-Token liegt in der Zwischenablage.",
+    "label": "Name der Verbindung"
   },
   "agents": {
     "eyebrow": "Gekoppelte Verbindungen",

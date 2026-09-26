@@ -9,10 +9,8 @@ license.workspace = true
 dropbox-common = { path = "../dropbox-common" }
 plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
-serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
-wit-bindgen.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-trait.workspace = true

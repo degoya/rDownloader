@@ -12,9 +12,8 @@ use axum::{
 use rd_core::{
     BacklogPolicy, DownloadPriority, MAX_FILTER_PATTERNS, MAX_POLL_INTERVAL_SECONDS, Subscription,
     SubscriptionBulkStateResponse, SubscriptionFilters, SubscriptionHistoryClearResponse,
-    SubscriptionId, SubscriptionItem, SubscriptionItemId, SubscriptionItemPage,
-    SubscriptionItemState, SubscriptionKind, SubscriptionMode, SubscriptionReviewSummary,
-    SubscriptionRun,
+    SubscriptionId, SubscriptionItemId, SubscriptionItemPage, SubscriptionItemState,
+    SubscriptionKind, SubscriptionMode, SubscriptionReviewSummary, SubscriptionRun,
 };
 use rd_db::NewSubscription;
 use serde::{Deserialize, Serialize};
@@ -629,24 +628,7 @@ pub async fn delete_subscription(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/subscriptions/{id}/items",
-    tag = "subscriptions",
-    params(("id" = SubscriptionId, Path), PageQuery),
-    responses((status = 200, body = Vec<SubscriptionItem>))
-)]
-pub async fn list_subscription_items(
-    State(state): State<AppState>,
-    Path(id): Path<SubscriptionId>,
-    Query(page): Query<PageQuery>,
-) -> Result<Json<Vec<SubscriptionItem>>, ApiError> {
-    Ok(Json(
-        state.database.subscription_items(id, page.limit()).await?,
-    ))
-}
-
-/// Lists one state-filtered page without changing the legacy array-shaped item endpoint.
+/// Lists one state-filtered page of a subscription's items.
 #[utoipa::path(
     get,
     path = "/api/v1/subscriptions/{id}/items/page",

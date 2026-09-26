@@ -1,6 +1,7 @@
 //! Installed artefacts and what they are trusted to do: the writer half of
 //! `plugin_transfer_store`, `plugin_execution_store`, `plugin_keys_store`,
-//! `plugin_revocations_store`, `remote_job_store` and `managed_tools_store`.
+//! `plugin_revocations_store`, `plugin_versions_store`, `remote_job_store` and
+//! `managed_tools_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
 use crate::commands::WriterCommand;
@@ -73,6 +74,14 @@ impl Writer {
                 let result = crate::plugin_revocations_store::delete_plugin_digest_revocation(
                     &mut self.connection,
                     &digest,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
+            WriterCommand::SavePluginVersionChoice { input, reply } => {
+                let result = crate::plugin_versions_store::save_plugin_version_choice(
+                    &mut self.connection,
+                    input,
                 )
                 .await;
                 publish_config(reply, result, &self.events);

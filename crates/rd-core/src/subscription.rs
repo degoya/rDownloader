@@ -357,12 +357,6 @@ impl Subscription {
         Some(self.url.path()).filter(|name| !name.is_empty())
     }
 
-    /// Whether this subscription should be polled at `now`.
-    #[must_use]
-    pub fn is_due(&self, now: DateTime<Utc>) -> bool {
-        self.enabled && self.next_run_at.is_none_or(|next| next <= now)
-    }
-
     /// The interval, clamped to the range this subscription's kind permits.
     ///
     /// The floor is the kind's, not the global one (RD-110-21): a subscription stored with
@@ -409,7 +403,7 @@ mod tests {
         DEFAULT_POLL_INTERVAL_SECONDS, MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS,
         SITE_RULE_MIN_POLL_INTERVAL_SECONDS, Subscription, SubscriptionKind, SubscriptionMode,
     };
-    use chrono::{Duration, Utc};
+    use chrono::Utc;
 
     fn subscription(interval: u32) -> Subscription {
         Subscription {
@@ -491,27 +485,6 @@ mod tests {
             assert_eq!(kind.min_interval_seconds(), MIN_POLL_INTERVAL_SECONDS);
         }
         const { assert!(SITE_RULE_MIN_POLL_INTERVAL_SECONDS > MIN_POLL_INTERVAL_SECONDS) };
-    }
-
-    #[test]
-    fn a_subscription_with_no_next_run_is_due_immediately() {
-        assert!(subscription(600).is_due(Utc::now()));
-    }
-
-    #[test]
-    fn a_disabled_subscription_is_never_due() {
-        let mut disabled = subscription(600);
-        disabled.enabled = false;
-        assert!(!disabled.is_due(Utc::now()));
-    }
-
-    #[test]
-    fn a_future_next_run_is_respected() {
-        let now = Utc::now();
-        let mut later = subscription(600);
-        later.next_run_at = Some(now + Duration::minutes(5));
-        assert!(!later.is_due(now));
-        assert!(later.is_due(now + Duration::minutes(6)));
     }
 
     #[test]

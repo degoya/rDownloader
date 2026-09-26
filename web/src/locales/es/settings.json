@@ -819,5 +819,9 @@
       "column_license": "Licencia",
       "column_file": "Texto de licencia"
     }
+  },
+  "nntp_parallel_files": {
+    "label": "Archivos Usenet a la vez",
+    "description": "0 = automático: tantos como mantengan ocupada cada conexión (de 2 a 8). Juntos ocupan una sola plaza de archivos en paralelo."
   }
 }

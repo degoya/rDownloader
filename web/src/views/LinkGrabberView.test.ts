@@ -21,6 +21,7 @@ import linkgrabber from '@/locales/en/linkgrabber.json'
 import torrent from '@/locales/en/torrent.json'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
+import { axeViolations } from '@/test/axe'
 
 import LinkGrabberView from './LinkGrabberView.vue'
 
@@ -442,6 +443,14 @@ describe('LinkGrabberView', () => {
 
     expect(rows).toBeLessThan(100)
   })
+
+  it('renders without an axe violation', async () => {
+    seedCollector(2, 3)
+    const { container } = mountView()
+    await settle()
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })
 
 describe('LinkGrabberView and mirror groups (RD-110-19)', () => {

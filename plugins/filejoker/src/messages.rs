@@ -7,7 +7,6 @@
 //! this plugin's task brief calls for explicitly (a distinct login-wall code, a page-marker-based
 //! offline code, and a catch-all unknown-page code), and [`CAPTCHA_REQUIRED`], mirroring
 //! `plugins/katfile/src/messages.rs`'s addition of the same.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The account has no cookie session at all (the only credential this provider uses). Checked
 /// before any authenticated request on both `check_account` and `resolve`.
@@ -16,19 +15,11 @@ pub(crate) const COOKIES_MISSING: (&str, &str) = (
     "FileJoker cookie session is missing or contains no cookies for filejoker.net",
 );
 
-/// The request carried no account identity.
-pub(crate) const ACCOUNT_MISSING: (&str, &str) =
-    ("filejoker.account_missing", "FileJoker account is missing");
-
 /// The URL is not a FileJoker file link.
 pub(crate) const UNSUPPORTED_LINK: (&str, &str) = (
     "filejoker.unsupported_link",
     "Not a supported FileJoker link",
 );
-
-/// The URL could not be parsed (guest adapter only; the native host already hands over a parsed
-/// `Url`).
-pub(crate) const INVALID_LINK: (&str, &str) = ("filejoker.invalid_link", "Invalid FileJoker link");
 
 /// Unexpected HTTP status; carries a `status` parameter.
 pub(crate) const HTTP_ERROR: &str = "filejoker.http_error";

@@ -98,9 +98,6 @@
   "interceptKeep": {
     "message": "Mantener en el navegador"
   },
-  "interceptLegacyServer": {
-    "message": "Este rDownloader es demasiado antiguo para los detalles de la descarga: solo se envió la dirección."
-  },
   "interceptServerUnreachable": {
     "message": "No se puede acceder a rDownloader. El navegador se encargará de esta descarga."
   },

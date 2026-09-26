@@ -279,10 +279,32 @@ async fn a_completed_download_queues_a_run_for_a_matching_automation() {
     );
 }
 
+/// "No run" is only worth asserting once the engine has read the completion. It handles events
+/// one at a time and in order, so an enabled witness that fires on a download completed before
+/// the ignored one and on another completed after it brackets it: once the witness has run
+/// twice, the engine was listening before the ignored completion and has read past it.
 #[tokio::test]
 async fn a_disabled_automation_starts_no_runs() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
+
+    let (status, witness) = post_json(
+        &harness.router,
+        "/api/v1/automations",
+        json!({
+            "name": "Witness",
+            "enabled": true,
+            "trigger": "download_completed",
+            "condition": { "type": "predicate", "predicate": {
+                "field": "name", "operator": "contains", "value": "Witness" } },
+            "actions": [{ "kind": "pause_package" }]
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{witness}");
+    let witness_id = witness["id"].as_str().expect("id").to_owned();
+    complete_download(&harness, directory.path(), "Witness.Before").await;
+    wait_for_runs(&harness.router, 1).await;
 
     let (_, created) = post_json(
         &harness.router,
@@ -299,12 +321,27 @@ async fn a_disabled_automation_starts_no_runs() {
     .await;
     assert_eq!(status, StatusCode::OK);
 
+    complete_download(&harness, directory.path(), "Ignored.Release").await;
+    complete_download(&harness, directory.path(), "Witness.After").await;
+
+    let runs = wait_for_runs(&harness.router, 2).await;
+    assert_eq!(runs.len(), 2, "{runs:?}");
+    assert!(
+        runs.iter()
+            .all(|run| run["automation_id"] == witness_id.as_str()),
+        "only the witness ran; the disabled automation started one: {runs:?}"
+    );
+}
+
+/// Walks a fresh download named after `name` the real path a job walks — queued, resolving,
+/// downloading, verifying, completed — in a package of the same name.
+async fn complete_download(harness: &common::Harness, directory: &std::path::Path, name: &str) {
     let package = harness
         .database
         .create_package(rd_db::NewPackage {
             id: rd_core::PackageId::new(),
-            name: "Ignored.Release".to_owned(),
-            destination: directory.path().join("out").to_string_lossy().into_owned(),
+            name: name.to_owned(),
+            destination: directory.join("out").to_string_lossy().into_owned(),
             category_id: None,
             priority: rd_core::DownloadPriority::Normal,
             postprocess_level: None,
@@ -315,10 +352,9 @@ async fn a_disabled_automation_starts_no_runs() {
         .expect("package");
     let download = harness
         .database
-        .create_download(download_for(package.id, "Ignored.Release.mkv"))
+        .create_download(download_for(package.id, &format!("{name}.mkv")))
         .await
         .expect("download");
-    // The real path a job walks: queued, resolving, downloading, verifying, completed.
     for next in [
         rd_core::DownloadState::Resolving,
         rd_core::DownloadState::Downloading,
@@ -331,10 +367,6 @@ async fn a_disabled_automation_starts_no_runs() {
             .await
             .expect("transition");
     }
-
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    let (_, runs) = get_json(&harness.router, "/api/v1/automations/runs").await;
-    assert_eq!(runs.as_array().map(Vec::len), Some(0), "{runs}");
 }
 
 #[tokio::test]
@@ -379,16 +411,13 @@ async fn the_editor_vocabulary_matches_what_the_engine_accepts() {
 
 /// Polls the run history until it holds `expected` entries.
 async fn wait_for_runs(router: &axum::Router, expected: usize) -> Vec<serde_json::Value> {
-    for _ in 0..40 {
+    common::eventually(common::WAIT, "no automation run appeared", || async move {
         let (_, runs) = get_json(router, "/api/v1/automations/runs").await;
-        if let Some(items) = runs.as_array()
-            && items.len() >= expected
-        {
-            return items.clone();
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    panic!("no automation run appeared within two seconds");
+        runs.as_array()
+            .filter(|items| items.len() >= expected)
+            .cloned()
+    })
+    .await
 }
 
 fn download_for(package_id: rd_core::PackageId, file_name: &str) -> rd_db::NewDownload {

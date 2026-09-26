@@ -9,7 +9,6 @@
 //! and is dropped. That is stricter than the resolver sibling, which still forwards `message`
 //! as a parameter -- RD-120-23 asked for a stable code and a translation instead, and this is
 //! where that begins.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The source is none of the three shapes this plugin takes.
 pub const NOT_A_SOURCE: (&str, &str) = (
@@ -22,12 +21,6 @@ pub const NOT_A_SOURCE: (&str, &str) = (
 pub const CONTAINER_UNKNOWN: (&str, &str) = (
     "premiumize_transfers.container_unknown",
     "This container's format could not be recognised",
-);
-
-/// The call carried no account identity, so there is no credential it could run as.
-pub const ACCOUNT_MISSING: (&str, &str) = (
-    "premiumize_transfers.account_missing",
-    "Premiumize account is missing",
 );
 
 /// The sign-in is gone: `authentication_failed`, or an HTTP 401/403 with no envelope.

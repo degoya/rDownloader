@@ -9,7 +9,7 @@ use rd_core::{
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::{error::StoreError, parse_id};
+use crate::{enum_string, error::StoreError, parse_enum, parse_id};
 
 /// Intake of one submission: links are grouped into packages (JDownloader-style), duplicates
 /// are flagged, and – when `auto_check` – every fresh link starts in `checking`.
@@ -794,14 +794,6 @@ pub(crate) const GET_CANDIDATE: &str = "SELECT id, batch_id, url, state, file_na
 fn provider_for(url: &Url) -> String {
     rd_provider_registry::provider_for_url(url)
         .map_or_else(|| "direct_http".to_owned(), |spec| spec.slug)
-}
-
-pub(crate) fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
-    Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
-}
-
-fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
-    serde_json::from_str(&format!("\"{value}\"")).context("parse stored enum")
 }
 
 pub(crate) async fn insert_event(

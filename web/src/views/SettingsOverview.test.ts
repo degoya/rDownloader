@@ -13,6 +13,7 @@ import siterules from '@/locales/en/siterules.json'
 import usenet from '@/locales/en/usenet.json'
 import { SETTINGS_SECTION_GROUPS, SETTINGS_SECTIONS } from '@/settingsSections'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 import SettingsOverview from './SettingsOverview.vue'
 
@@ -80,4 +81,10 @@ describe('SettingsOverview', () => {
     expect(headings[0]?.textContent?.trim()).toBe(settings.overview.title)
     expect(screen.getByText(settings.overview.description)).toBeTruthy()
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

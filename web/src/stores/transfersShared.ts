@@ -1,0 +1,88 @@
+/**
+ * The vocabulary the transfers store and its modules share: which states count as what, the
+ * shapes of a package change and a clear, and the translation shorthand (RD-140-27).
+ */
+import type { DownloadPriority, PackageUpdateRequest, PostprocessLevel } from '@/api/types'
+import { i18n } from '@/i18n'
+
+export interface DownloadSelection {
+  categoryId?: string | undefined
+  accountId?: string | undefined
+  proxyProfileId?: string | undefined
+  priority?: DownloadPriority | undefined
+}
+
+export type ClearScope = 'completed' | 'failed' | 'all'
+
+/** A package the server refused to clear, with the stable code saying why. */
+export interface ClearSkip {
+  package_id: string
+  name: string
+  code: string
+}
+
+export interface ClearResult {
+  removed: number
+  skipped: ClearSkip[]
+}
+
+export interface PackageChange {
+  categoryId?: string | null
+  priority?: DownloadPriority
+  name?: string
+  /** null clears the stored password */
+  password?: string | null
+  /** null clears the package level (inherit category/global default) */
+  postprocessLevel?: PostprocessLevel | null
+  /** null clears the package script (inherit category/global default) */
+  script?: string | null
+}
+
+export const ACTIVE_STATES = ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'] as const
+
+/** States a pause acts on. Overlaps `RESUMABLE_STATES`, so pause always wins in the UI toggle. */
+export const PAUSABLE_STATES: readonly string[] = ['queued', 'retry_wait', ...ACTIVE_STATES]
+/** States a resume acts on. `queued` is left out – a queued transfer is already on its way. */
+// `skipped` belongs here: a waiting mirror is started by resuming it, which stands its
+// siblings down. Without it there is no way to choose a different link by hand.
+export const RESUMABLE_STATES: readonly string[] = ['retry_wait', 'paused', 'failed', 'blocked', 'cancelled', 'skipped']
+/**
+ * States a reset acts on: everything that is not moving right now. A finished or seeding job is
+ * included on purpose — starting over is exactly what a reset is for.
+ */
+export const RESETTABLE_STATES: readonly string[] = ['queued', 'retry_wait', 'paused', 'failed', 'blocked', 'cancelled', 'completed', 'seeding']
+/** A transfer that stopped and needs attention. */
+export const FAILED_STATES: readonly string[] = ['failed', 'blocked']
+/** States whose files still count towards the outstanding queue volume. */
+export const PENDING_STATES: readonly string[] = [...PAUSABLE_STATES, 'paused']
+/**
+ * States whose bytes are still going to come down the wire — the same line the server draws
+ * for its estimate (`is_transferring` in `download_handlers.rs`). Paused, blocked, verifying,
+ * repairing, extracting and seeding are all outstanding in some sense, but none of them is
+ * being fetched, so none of them belongs in "how long at the current speed".
+ */
+export const TRANSFERRING_STATES: readonly string[] = ['queued', 'retry_wait', 'resolving', 'downloading']
+
+export const t = (key: string, named: Record<string, unknown> = {}, plural?: number): string =>
+  plural === undefined ? i18n.global.t(key, named) : i18n.global.t(key, named, plural)
+
+export function changeBody(change: PackageChange): PackageUpdateRequest {
+  return {
+    ...(change.categoryId ? { category_id: change.categoryId } : {}),
+    ...(change.categoryId === null ? { clear_category: true } : {}),
+    ...(change.priority ? { priority: change.priority } : {}),
+    ...(change.name ? { name: change.name } : {}),
+    ...(change.password ? { password: change.password } : {}),
+    ...(change.password === null ? { clear_password: true } : {}),
+    ...(change.postprocessLevel ? { postprocess_level: change.postprocessLevel } : {}),
+    ...(change.postprocessLevel === null ? { clear_postprocess_level: true } : {}),
+    ...(change.script ? { script: change.script } : {}),
+    ...(change.script === null ? { clear_script: true } : {})
+  }
+}
+
+export function payloadError(value: unknown): string {
+  return typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+    ? value.error
+    : t('downloads.notices.remove_failed')
+}

@@ -82,14 +82,13 @@ test('keep in browser resumes and blocks a late success from cancelling', async 
   assert.ok(!names.includes('erase'))
 })
 
-test('a server without capture support receives the legacy body', async () => {
+test('a server that announces no capture version still receives the intake body', async () => {
   const calls = []
   const { interceptor, bodies } = setup({ calls, captureVersion: 0 })
   await interceptor.onDownloadCreated(ITEM)
-  assert.deepStrictEqual(bodies, [
-    { text: ITEM.url, source: 'browser_extension', source_label: 'Browser', package_name: 'report.pdf' }
-  ])
-  assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'interceptLegacyServer'))
+  assert.equal(bodies.length, 1)
+  assert.equal(bodies[0].source, 'browser_download')
+  assert.equal(bodies[0].links[0].url, ITEM.url)
 })
 
 test('downloads from the rDownloader web interface are ignored entirely', async () => {
@@ -319,7 +318,6 @@ test('a service that does not answer is not called too old', async () => {
   assert.ok(names.includes('resume'), 'the browser keeps its own download')
   assert.ok(!names.includes('cancel'))
   assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'interceptServerUnreachable'))
-  assert.ok(!calls.some(([name, body]) => name === 'notify' && body === 'interceptLegacyServer'))
 })
 
 test('a throwing cancel does not swallow the rest of the handoff', async () => {

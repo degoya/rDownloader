@@ -189,14 +189,6 @@ impl MediaFormatInventory {
             .filter(move |format| format.kind == kind)
     }
 
-    /// Whether anything here can be downloaded without merging two streams.
-    #[must_use]
-    pub fn has_muxed(&self) -> bool {
-        self.formats
-            .iter()
-            .any(|format| format.kind == MediaFormatKind::Muxed)
-    }
-
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.formats.is_empty()

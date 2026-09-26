@@ -8,7 +8,7 @@
 
 export type RegexConditionKind = 'contains' | 'starts_with' | 'ends_with' | 'equals'
 
-export interface RegexCondition {
+interface RegexCondition {
   kind: RegexConditionKind
   value: string
 }

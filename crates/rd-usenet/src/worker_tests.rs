@@ -10,12 +10,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use crate::{UsenetRunner, UsenetRunnerConfig};
 
 async fn start_scheduler(directory: &std::path::Path, database: &Database) -> SchedulerHandle {
-    start_scheduler_with(
-        directory,
-        database,
-        UsenetRunnerConfig::default().parallel_files,
-    )
-    .await
+    // `0` is the default: automatic (RD-130-22).
+    start_scheduler_with(directory, database, 0).await
 }
 
 /// The same, with the number of NZB files the runner may work on at once fixed.
@@ -35,18 +31,15 @@ async fn start_scheduler_with(
         secrets.clone(),
         UsenetRunnerConfig {
             max_file_bytes: 1024 * 1024,
-            parallel_files,
         },
     ));
-    SchedulerHandle::start(
-        database.clone(),
-        SchedulerConfig::for_directory(directory.join("fallback")),
-        secrets,
-        None,
-        vec![runner],
-    )
-    .await
-    .expect("scheduler")
+    // The setting reaches the runner the way the service passes it: through the scheduler,
+    // in its start-up configuration, so the very first dispatch pass already obeys it.
+    let mut config = SchedulerConfig::for_directory(directory.join("fallback"));
+    config.external_parallel_files = parallel_files;
+    SchedulerHandle::start(database.clone(), config, secrets, None, vec![runner])
+        .await
+        .expect("scheduler")
 }
 
 /// Waits until every file of the package reached one of `states`.
@@ -130,7 +123,7 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
     database
         .set_setting(
             "service.settings".to_owned(),
-            serde_json::json!({ "auto_extract": true }),
+            serde_json::json!({ "default_level": "unpack" }),
         )
         .await
         .expect("enable auto extraction for the fixture");

@@ -8,89 +8,14 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
-use http_body_util::BodyExt;
-use tower::ServiceExt;
+use common::{Upload, send, test_router};
 
-async fn test_router(directory: &std::path::Path) -> Router {
-    rd_api::router(test_state(directory).await)
-}
-
-/// The application state behind [`test_router`], for a test that builds the router itself.
-async fn test_state(directory: &std::path::Path) -> rd_api::AppState {
-    let database = rd_db::Database::open(directory.join("torrent-test.sqlite3"))
-        .await
-        .expect("database");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let remote = rd_api::RemoteServices::new(
-        database.clone(),
-        secrets.clone(),
-        std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-        rd_http::SharedNetworkDefaults::default(),
-    );
-    let state = rd_api::AppState::new(
-        database,
-        scheduler,
-        secrets,
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        remote,
-    );
-    state.auth.set_disabled(true);
-    state
-}
+/// Where the fixture goes: the `.torrent` import.
+const TORRENT: Upload<'static> = Upload {
+    uri: "/api/v1/torrents/import",
+    file_name: "test.torrent",
+    part_type: "application/x-bittorrent",
+};
 
 /// Bencoded byte string.
 fn bstr(value: &str) -> Vec<u8> {
@@ -138,46 +63,9 @@ fn multi_file_torrent() -> Vec<u8> {
     bytes
 }
 
-/// Multipart body carrying one `.torrent` file.
-fn multipart(boundary: &str, content: &[u8]) -> Vec<u8> {
-    let mut body = Vec::new();
-    body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-    body.extend_from_slice(
-        b"Content-Disposition: form-data; name=\"file\"; filename=\"test.torrent\"\r\n",
-    );
-    body.extend_from_slice(b"Content-Type: application/x-bittorrent\r\n\r\n");
-    body.extend_from_slice(content);
-    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
-    body
-}
-
-async fn send(router: &Router, request: Request<Body>) -> (StatusCode, serde_json::Value) {
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let value = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
-    (status, value)
-}
-
 /// Imports the fixture and returns the created candidate id.
-async fn import(router: &Router) -> String {
-    let boundary = "rdtestboundary";
-    let (status, body) = send(
-        router,
-        Request::post("/api/v1/torrents/import")
-            .header(
-                header::CONTENT_TYPE,
-                format!("multipart/form-data; boundary={boundary}"),
-            )
-            .body(Body::from(multipart(boundary, &multi_file_torrent())))
-            .expect("request"),
-    )
-    .await;
+async fn import_fixture(router: &Router) -> String {
+    let (status, body) = common::import(router, TORRENT, &multi_file_torrent()).await;
     assert_eq!(status, StatusCode::CREATED, "import failed: {body}");
     body["candidates"][0]["id"]
         .as_str()
@@ -189,7 +77,7 @@ async fn import(router: &Router) -> String {
 async fn an_imported_torrent_exposes_its_file_tree() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -219,7 +107,7 @@ async fn an_imported_torrent_exposes_its_file_tree() {
 async fn a_selection_is_stored_and_survives_a_reload() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -250,7 +138,7 @@ async fn a_selection_is_stored_and_survives_a_reload() {
 async fn the_candidate_list_carries_a_bounded_torrent_summary() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
     send(
         &router,
         Request::put(format!("/api/v1/collector/candidates/{id}/torrent/plan"))
@@ -286,7 +174,7 @@ async fn the_candidate_list_carries_a_bounded_torrent_summary() {
 async fn an_unknown_file_index_is_rejected() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -304,7 +192,7 @@ async fn an_unknown_file_index_is_rejected() {
 async fn deselecting_every_file_is_rejected() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -322,7 +210,7 @@ async fn deselecting_every_file_is_rejected() {
 async fn a_file_cannot_be_included_and_excluded_at_once() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -358,7 +246,7 @@ async fn the_engine_capabilities_are_served() {
 async fn an_exclusion_pattern_drops_only_untouched_files() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -380,7 +268,7 @@ async fn an_exclusion_pattern_drops_only_untouched_files() {
 async fn an_explicit_decision_beats_a_matching_pattern() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -410,7 +298,7 @@ async fn an_explicit_decision_beats_a_matching_pattern() {
 async fn saving_a_pattern_reports_which_files_it_dropped() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -444,7 +332,7 @@ async fn saving_a_pattern_reports_which_files_it_dropped() {
 async fn a_priority_is_stored_per_file() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -469,7 +357,7 @@ async fn a_priority_is_stored_per_file() {
 async fn sequential_mode_is_refused_by_the_engine_capability() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     for (mode, capability) in [
         ("sequential", "sequential_download"),
@@ -493,7 +381,7 @@ async fn sequential_mode_is_refused_by_the_engine_capability() {
 async fn an_empty_or_overlong_pattern_is_rejected() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let id = import(&router).await;
+    let id = import_fixture(&router).await;
 
     let (status, body) = send(
         &router,
@@ -509,7 +397,7 @@ async fn an_empty_or_overlong_pattern_is_rejected() {
 
 /// Imports the fixture, enqueues it and returns the created download id.
 async fn enqueue(router: &Router) -> String {
-    let candidate = import(router).await;
+    let candidate = import_fixture(router).await;
     let (status, packages) = send(
         router,
         Request::get("/api/v1/collector/packages")
@@ -797,7 +685,6 @@ async fn an_unknown_interface_and_a_bad_blocklist_are_rejected() {
 async fn web_seeds_are_reported_as_diagnostics_the_engine_cannot_use() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let boundary = "rdtestboundary";
     // A torrent whose `url-list` carries a web seed with a credential in the URL.
     let mut bytes = vec![b'd'];
     bytes.extend(bstr("announce"));
@@ -818,17 +705,7 @@ async fn web_seeds_are_reported_as_diagnostics_the_engine_cannot_use() {
     bytes.extend(bstr("https://user:secret@seed.example/files/"));
     bytes.push(b'e');
 
-    let (status, body) = send(
-        &router,
-        Request::post("/api/v1/torrents/import")
-            .header(
-                header::CONTENT_TYPE,
-                format!("multipart/form-data; boundary={boundary}"),
-            )
-            .body(Body::from(multipart(boundary, &bytes)))
-            .expect("request"),
-    )
-    .await;
+    let (status, body) = common::import(&router, TORRENT, &bytes).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let id = body["candidates"][0]["id"].as_str().expect("candidate id");
 
@@ -1208,11 +1085,15 @@ async fn deleting_one_package_takes_its_torrent_out_of_the_session() {
 /// Auto-remove passes through the same removal. Its pass runs once when the router is
 /// built and then every minute, so the finished package is prepared first and a second
 /// router over the same state triggers the pass.
+///
+/// The download is marked completed by hand, so the scheduler is parked: a live one claims
+/// the queued row and races the test for its state.
 #[tokio::test]
 async fn auto_remove_takes_the_torrent_out_of_the_session() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
-    let state = test_state(directory.path()).await;
-    let router = rd_api::router(state.clone());
+    let harness = common::parked_harness(directory.path()).await;
+    let state = harness.state.clone();
+    let router = harness.router.clone();
     let (_, package) = queued_in_session(&router, directory.path()).await;
 
     let (status, mut settings) = send(
@@ -1230,12 +1111,9 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
     // Saving the settings re-reads the login switch, which this harness keeps off by hand.
     state.auth.set_disabled(true);
     // Finished two hours ago: no API writes a past finish time, so the row is aged directly.
-    let pool = sqlx::SqlitePool::connect(&format!(
-        "sqlite://{}",
-        directory.path().join("torrent-test.sqlite3").display()
-    ))
-    .await
-    .expect("pool");
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", harness.database_path.display()))
+        .await
+        .expect("pool");
     sqlx::query("UPDATE downloads SET state = 'completed'")
         .execute(&pool)
         .await
@@ -1251,17 +1129,20 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
     // Only the pass matters here, so the second router is never asked anything.
     let database = state.database.clone();
     let _second = rd_api::router(state);
-    for _ in 0..200 {
-        if database
-            .list_downloads()
-            .await
-            .expect("downloads")
-            .is_empty()
-        {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    let database = &database;
+    common::eventually(
+        common::WAIT,
+        "the auto-remove pass never removed the finished download",
+        || async move {
+            database
+                .list_downloads()
+                .await
+                .expect("downloads")
+                .is_empty()
+                .then_some(())
+        },
+    )
+    .await;
     assert_forgotten(&router, directory.path()).await;
 }
 
@@ -1316,22 +1197,26 @@ async fn add_rerouted(router: &Router, link: &str) -> serde_json::Value {
     )
     .await;
     assert!(status.is_success(), "intake failed: {body}");
-    let mut packages = serde_json::Value::Null;
-    for _ in 0..200 {
-        common::wait_for_candidates_ready(router).await;
-        (_, packages) = send(
-            router,
-            Request::get("/api/v1/collector/packages")
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await;
-        if packages[0]["name"] == "release" {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    packages
+    common::eventually_ok(
+        common::WAIT,
+        "the check never named the package after the torrent",
+        || async move {
+            common::wait_for_candidates_ready(router).await;
+            let (_, packages) = send(
+                router,
+                Request::get("/api/v1/collector/packages")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await;
+            if packages[0]["name"] == "release" {
+                Ok(packages)
+            } else {
+                Err(packages)
+            }
+        },
+    )
+    .await
 }
 
 /// The owner's link: an address ending in an opaque token that answers with a `.torrent`.

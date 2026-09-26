@@ -49,6 +49,16 @@ pub enum AuditAction {
     PluginDigestRevoked,
     /// A digest revocation was lifted.
     PluginDigestUnrevoked,
+    /// A third-party plugin repository was added, which approves its key (RD-140-01).
+    PluginRepositoryAdded,
+    /// A plugin repository was switched on or off, or renamed.
+    PluginRepositoryChanged,
+    /// A third-party plugin repository was removed.
+    PluginRepositoryRemoved,
+    /// A choice about which plugin version runs (RD-140-02): activated, staged, test ended,
+    /// rolled back, tried on one download, or the plugin's update policy set. The `choice`
+    /// detail names which.
+    PluginVersionChosen,
     /// A download was deleted from the queue.
     DownloadDeleted,
     /// A package was deleted.
@@ -76,7 +86,7 @@ pub enum AuditAction {
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 28] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -91,6 +101,10 @@ impl AuditAction {
         Self::PluginKeyRevoked,
         Self::PluginDigestRevoked,
         Self::PluginDigestUnrevoked,
+        Self::PluginRepositoryAdded,
+        Self::PluginRepositoryChanged,
+        Self::PluginRepositoryRemoved,
+        Self::PluginVersionChosen,
         Self::DownloadDeleted,
         Self::PackageDeleted,
         Self::CategoryDeleted,
@@ -121,6 +135,10 @@ impl AuditAction {
             Self::PluginKeyRevoked => "plugin_key_revoked",
             Self::PluginDigestRevoked => "plugin_digest_revoked",
             Self::PluginDigestUnrevoked => "plugin_digest_unrevoked",
+            Self::PluginRepositoryAdded => "plugin_repository_added",
+            Self::PluginRepositoryChanged => "plugin_repository_changed",
+            Self::PluginRepositoryRemoved => "plugin_repository_removed",
+            Self::PluginVersionChosen => "plugin_version_chosen",
             Self::DownloadDeleted => "download_deleted",
             Self::PackageDeleted => "package_deleted",
             Self::CategoryDeleted => "category_deleted",

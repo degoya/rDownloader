@@ -71,6 +71,7 @@ row for a point that does not exist.
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
+| `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
 
 `scheduler.before_promote` is the other two-phase step in the scheduler: a finished `.part`
 is renamed into the package folder and the row is only then marked complete. A stop in that
@@ -79,6 +80,15 @@ unfinished, and `recover_interrupted` puts the row back into the queue — where
 file gone, the ordinary resume has nothing to resume from. Its case therefore asserts the one
 thing that matters here: the next pass recognises the file that is already there, finishes it,
 and does not fetch a second full copy to file beside the first as `name (1).ext`.
+
+`usenet.before_checkpoint_batch` is the batched form of `usenet.after_article_write`
+(RD-130-22). The assembly no longer confirms each article in a transaction of its own: while
+articles arrive faster than the writer confirms them, their checkpoints wait - at most
+sixteen - and go into the database together, and whatever waits is confirmed before the
+assembly waits for the network. A stop before that commit leaves several articles on disk
+that nothing vouches for. Its case asserts that the resume fetches every one of them again
+and none of the batch committed before it: the batch widens what a crash costs from one
+article to sixteen, and changes nothing about what the resume trusts.
 
 `scheduler.after_package_row` is the enqueue path's own two-phase step, and the only one of
 the three where the order cannot be chosen: a download row needs a package to belong to, so
@@ -136,8 +146,8 @@ Recorded here rather than left implicit, because a matrix that only lists what p
 as completeness it does not have:
 
 - Post-processing, automation runs, torrent seeding and the plugin transfer runner have
-  recovery paths in the code but no crash points registered yet. Usenet assembly has one
-  (RD-108-25); the resume itself, which CRC-checks every checkpointed range against the disk
+  recovery paths in the code but no crash points registered yet. Usenet assembly has two
+  (RD-108-25, RD-130-22); the resume itself, which CRC-checks every checkpointed range against the disk
   rather than trusting the database, is covered by `assembly_resume_tests` and
   `resume_after_crash_tests` without a crash point.
 - Axis B has no cases yet.

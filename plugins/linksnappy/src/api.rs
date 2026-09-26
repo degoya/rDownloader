@@ -286,21 +286,15 @@ pub(crate) struct ApiFailure {
     pub(crate) params: Vec<(&'static str, String)>,
 }
 
-/// Mirrors `rd_core::FailureKind` / the WIT `failure-kind` variant, without depending on either.
+/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
+/// on either.
 #[derive(Debug)]
 pub(crate) enum ErrorKind {
     Transient(Option<u64>),
     Permanent,
     Offline,
-    #[allow(dead_code)] // Raised directly by the adapters' `require_secret` gate, bypassing
-    // `classify_message` entirely — no JD-known message maps to this variant.
-    AuthRequired,
     AccountInvalid,
     RateLimited(Option<u64>),
-    #[allow(dead_code)] // LinkSnappy's JSON API never challenges with a captcha.
-    NeedsCaptcha,
-    #[allow(dead_code)] // `HOST_UNSUPPORTED` uses `Unsupported`, but `matches()` accepts every
-    // http(s) URL, so nothing in this plugin's own request-building rejects a link up front.
     Unsupported,
 }
 

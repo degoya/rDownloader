@@ -3,7 +3,6 @@
 //! Each `(code, message)` pair exists exactly once so both targets report identical text. Mirrors
 //! `plugins/ddownload/src/messages.rs`'s taxonomy (`katfile.*` in place of `ddownload.*`), plus
 //! [`CAPTCHA_REQUIRED`] — ddownload has no equivalent, see `native/api.rs`'s module doc.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// `file/info` reported a status other than 200 for the file.
 pub(crate) const FILE_UNAVAILABLE: (&str, &str) =

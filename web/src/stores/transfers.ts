@@ -2,96 +2,34 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
-import type { Download, DownloadBulkAction, DownloadPackage, DownloadPriority, DownloadRates, PackageUpdateRequest, PostprocessLevel, PostprocessStage, PostprocessStep, TorrentAggregateStats } from '@/api/types'
+import type { Download, DownloadBulkAction, DownloadPackage, DownloadRates } from '@/api/types'
 import { subscribeEvents } from '@/composables/useEventStream'
-import { useNotifications } from '@/composables/useNotifications'
-import { i18n } from '@/i18n'
 import { translateServerMessage } from '@/i18n/server'
-import { usePostprocessStore } from '@/stores/postprocess'
-import { useTorrentsStore } from '@/stores/torrents'
-import { MIB, isRecoveryVolume } from '@/utils/format'
+import { MIB } from '@/utils/format'
 import {
   appendTransferRateHistory,
   type TransferRateHistoryPoint
 } from '@/utils/transferRates'
 import { withBase } from '@/basePath'
 
-interface DownloadSelection {
-  categoryId?: string | undefined
-  accountId?: string | undefined
-  proxyProfileId?: string | undefined
-  priority?: DownloadPriority | undefined
-}
+import { applyPostprocessProgress, applyTorrentStats, createQueueAnnouncer } from './transfersEvents'
+import { useTransferFigures } from './transfersFigures'
+import { usePackageActions } from './transfersPackages'
+import {
+  PAUSABLE_STATES,
+  RESUMABLE_STATES,
+  payloadError,
+  t,
+  type ClearResult,
+  type ClearScope,
+  type ClearSkip,
+  type DownloadSelection
+} from './transfersShared'
 
-export type ClearScope = 'completed' | 'failed' | 'all'
-
-/** A package the server refused to clear, with the stable code saying why. */
-interface ClearSkip {
-  package_id: string
-  name: string
-  code: string
-}
-
-interface ClearResult {
-  removed: number
-  skipped: ClearSkip[]
-}
-
-export interface PackageChange {
-  categoryId?: string | null
-  priority?: DownloadPriority
-  name?: string
-  /** null clears the stored password */
-  password?: string | null
-  /** null clears the package level (inherit category/global default) */
-  postprocessLevel?: PostprocessLevel | null
-  /** null clears the package script (inherit category/global default) */
-  script?: string | null
-}
-
-interface PostprocessProgressPayload {
-  owner_id?: string
-  stage?: PostprocessStage | null
-  percent?: number | null
-  current?: string | null
-}
-
-/**
- * Server events arrive as the whole envelope, with the event's own data nested under
- * `payload`. Reading the fields from the top level found nothing, so live post-processing
- * progress never reached the UI — it only appeared after the next full refresh.
- */
-interface EventEnvelope<T> {
-  payload?: T
-}
-
-const ACTIVE_STATES = ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'] as const
-
-/** States a pause acts on. Overlaps `RESUMABLE_STATES`, so pause always wins in the UI toggle. */
-export const PAUSABLE_STATES: readonly string[] = ['queued', 'retry_wait', ...ACTIVE_STATES]
-/** States a resume acts on. `queued` is left out – a queued transfer is already on its way. */
-// `skipped` belongs here: a waiting mirror is started by resuming it, which stands its
-// siblings down. Without it there is no way to choose a different link by hand.
-export const RESUMABLE_STATES: readonly string[] = ['retry_wait', 'paused', 'failed', 'blocked', 'cancelled', 'skipped']
-/**
- * States a reset acts on: everything that is not moving right now. A finished or seeding job is
- * included on purpose — starting over is exactly what a reset is for.
- */
-export const RESETTABLE_STATES: readonly string[] = ['queued', 'retry_wait', 'paused', 'failed', 'blocked', 'cancelled', 'completed', 'seeding']
-/** A transfer that stopped and needs attention. */
-const FAILED_STATES: readonly string[] = ['failed', 'blocked']
-/** States whose files still count towards the outstanding queue volume. */
-const PENDING_STATES: readonly string[] = [...PAUSABLE_STATES, 'paused']
-/**
- * States whose bytes are still going to come down the wire — the same line the server draws
- * for its estimate (`is_transferring` in `download_handlers.rs`). Paused, blocked, verifying,
- * repairing, extracting and seeding are all outstanding in some sense, but none of them is
- * being fetched, so none of them belongs in "how long at the current speed".
- */
-const TRANSFERRING_STATES: readonly string[] = ['queued', 'retry_wait', 'resolving', 'downloading']
-
-const t =(key: string, named: Record<string, unknown> = {}, plural?: number): string =>
-  plural === undefined ? i18n.global.t(key, named) : i18n.global.t(key, named, plural)
+// The store is split over `transfersShared`, `transfersFigures`, `transfersEvents` and
+// `transfersPackages` (RD-140-27); these stay importable from here, where callers look for them.
+export { PAUSABLE_STATES, RESETTABLE_STATES, RESUMABLE_STATES } from './transfersShared'
+export type { ClearScope, PackageChange } from './transfersShared'
 
 export const useTransfersStore = defineStore('transfers', () => {
   const downloads = ref<Download[]>([])
@@ -120,86 +58,9 @@ export const useTransfersStore = defineStore('transfers', () => {
   /** True while a refresh is awaiting the network; event bursts wait rather than pile up. */
   let refreshing = false
 
-  const active = computed(() => downloads.value.filter((item) =>
-    ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'].includes(item.state)))
-  const queued = computed(() => downloads.value.filter((item) => item.state === 'queued'))
-  const totalCommitted = computed(() => downloads.value.reduce(
-    (sum, item) => sum + BigInt(item.committed_bytes), 0n))
-  /** Bytes still to fetch for queued/running/paused files whose size is known. */
-  const totalRemaining = computed(() => downloads.value.reduce((sum, item) => {
-    if (!item.total_bytes || !PENDING_STATES.includes(item.state)) return sum
-    const remaining = BigInt(item.total_bytes) - BigInt(item.committed_bytes)
-    return remaining > 0n ? sum + remaining : sum
-  }, 0n))
-  /** One toggle instead of two buttons: pause wins while anything can still be paused. */
-  const globalControl = computed<'pause' | 'resume' | null>(() => {
-    if (downloads.value.some(download => PAUSABLE_STATES.includes(download.state))) return 'pause'
-    if (downloads.value.some(download => RESUMABLE_STATES.includes(download.state))) return 'resume'
-    return null
-  })
-
-  const filesByPackage = computed(() => {
-    const map = new Map<string, Download[]>()
-    for (const download of downloads.value) {
-      const files = map.get(download.package_id)
-      if (files) files.push(download)
-      else map.set(download.package_id, [download])
-    }
-    return map
-  })
-
-  /** Packages holding at least one active file; the nav badge counts packages, not files. */
-  const activePackages = computed(() => packages.value.filter(pkg =>
-    (filesByPackage.value.get(pkg.id) ?? []).some(file =>
-      ACTIVE_STATES.includes(file.state as typeof ACTIVE_STATES[number]))).length)
-
-  /**
-   * Packages whose files are all finished.
-   *
-   * `refresh_package_state` never sets `Completed` server-side (only post-processing does),
-   * so the all-files check is the reliable predicate; the package state is honoured as well.
-   */
-  const packageComplete = computed<Record<string, boolean>>(() => {
-    const result: Record<string, boolean> = {}
-    for (const pkg of packages.value) {
-      const files = filesByPackage.value.get(pkg.id) ?? []
-      result[pkg.id] = pkg.state === 'completed'
-        || (files.length > 0 && files.every(file => file.state === 'completed'))
-    }
-    return result
-  })
-
-  /** Combined live rate of every file in a package, in bytes per second. */
-  const packageRates = computed<Record<string, number>>(() => {
-    const result: Record<string, number> = {}
-    for (const pkg of packages.value) {
-      result[pkg.id] = (filesByPackage.value.get(pkg.id) ?? [])
-        .reduce((sum, file) => sum + (downloadRates.value[file.id] ?? 0), 0)
-    }
-    return result
-  })
-
-  /**
-   * Seconds left per package at its own current rate.
-   *
-   * `null` wherever the estimate would be invented: the package is not moving, or one of the
-   * files still to be fetched has no known size, which would turn the sum into a lower bound.
-   */
-  const packageEtas = computed<Record<string, number | null>>(() => {
-    const result: Record<string, number | null> = {}
-    for (const pkg of packages.value) {
-      const rate = packageRates.value[pkg.id] ?? 0
-      const files = (filesByPackage.value.get(pkg.id) ?? [])
-        .filter(file => TRANSFERRING_STATES.includes(file.state))
-      const remaining = files.reduce<bigint | null>((sum, file) => {
-        if (sum === null || !file.total_bytes) return null
-        const left = BigInt(file.total_bytes) - BigInt(file.committed_bytes)
-        return sum + (left > 0n ? left : 0n)
-      }, 0n)
-      result[pkg.id] = rate > 0 && remaining !== null ? Math.ceil(Number(remaining) / rate) : null
-    }
-    return result
-  })
+  const { active, queued, totalCommitted, totalRemaining, globalControl, activePackages, packageComplete, packageRates, packageEtas } =
+    useTransferFigures(downloads, packages, downloadRates)
+  const announce = createQueueAnnouncer()
 
   /**
    * Takes the rates the server measured. A refusal or a shape we do not recognise leaves the
@@ -392,21 +253,6 @@ export const useTransfersStore = defineStore('transfers', () => {
     }, names.length))
   }
 
-  function changeBody(change: PackageChange): PackageUpdateRequest {
-    return {
-      ...(change.categoryId ? { category_id: change.categoryId } : {}),
-      ...(change.categoryId === null ? { clear_category: true } : {}),
-      ...(change.priority ? { priority: change.priority } : {}),
-      ...(change.name ? { name: change.name } : {}),
-      ...(change.password ? { password: change.password } : {}),
-      ...(change.password === null ? { clear_password: true } : {}),
-      ...(change.postprocessLevel ? { postprocess_level: change.postprocessLevel } : {}),
-      ...(change.postprocessLevel === null ? { clear_postprocess_level: true } : {}),
-      ...(change.script ? { script: change.script } : {}),
-      ...(change.script === null ? { clear_script: true } : {})
-    }
-  }
-
   /** Applies one action to many files server-side; returns the number of affected files. */
   async function bulk(ids: string[], action: DownloadBulkAction): Promise<number> {
     if (!ids.length) return 0
@@ -460,41 +306,6 @@ export const useTransfersStore = defineStore('transfers', () => {
     return true
   }
 
-  async function extractPackages(ids: string[]): Promise<boolean> {
-    if (!ids.length) return false
-    const response = await api.POST('/api/v1/packages/extract', { body: { ids } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    notice.value = resultMessage(response.data)
-    error.value = null
-    return true
-  }
-
-  /**
-   * Post-processes one package although its verification failed (RD-104-04).
-   *
-   * The one-off counterpart to the `safe_postproc` setting: a broken recovery set beside
-   * intact archives is a real case, and the answer to it should not be a global switch
-   * somebody then has to remember to put back.
-   */
-  async function forceExtractPackage(id: string): Promise<boolean> {
-    const response = await api.POST('/api/v1/packages/{id}/extract/force', { params: { path: { id } } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    notice.value = resultMessage(response.data)
-    error.value = null
-    return true
-  }
-
-  async function loadPostprocess(id: string): Promise<PostprocessStep[]> {
-    const response = await api.GET('/api/v1/packages/{id}/postprocess', { params: { path: { id } } })
-    return response.data ?? []
-  }
-
   async function renameDownload(id: string, fileName: string): Promise<boolean> {
     const response = await api.PATCH('/api/v1/downloads/{id}', { params: { path: { id } }, body: { file_name: fileName } })
     if (!response.data) {
@@ -503,59 +314,6 @@ export const useTransfersStore = defineStore('transfers', () => {
     }
     downloads.value = downloads.value.map(download => download.id === id ? response.data! : download)
     error.value = null
-    return true
-  }
-
-  async function updatePackages(ids: string[], change: PackageChange): Promise<boolean> {
-    if (!ids.length) return false
-    const response = ids.length === 1 && ids[0]
-      ? await api.PATCH('/api/v1/packages/{id}', { params: { path: { id: ids[0] } }, body: changeBody(change) })
-      : await api.POST('/api/v1/packages/bulk', { body: { ids, ...changeBody(change) } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    error.value = null
-    await refresh()
-    return true
-  }
-
-  /**
-   * Renames a package **and the folder its files live in** (RD-106-13).
-   *
-   * Separate from `updatePackages`, which changes the label alone: this one moves data, and a
-   * name that is already taken comes back as an error instead of being worked around.
-   */
-  async function renamePackageFolder(id: string, name: string): Promise<boolean> {
-    const response = await api.POST('/api/v1/packages/{id}/folder', { params: { path: { id } }, body: { name } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    error.value = null
-    await refresh()
-    return true
-  }
-
-  /**
-   * Removes whole packages.
-   *
-   * `force` is what turns this into a destructive action: without it the server refuses a
-   * package that is still running, waiting, seeding or being post-processed instead of
-   * cancelling its files and dropping what they had already written. Only pass it when the
-   * person was told that is what happens.
-   */
-  async function deletePackages(ids: string[], force = false): Promise<boolean> {
-    if (!ids.length) return false
-    const response = await api.POST('/api/v1/packages/delete', { body: { ids, force } })
-    if (!response.data) {
-      error.value = responseError(response)
-      await refresh()
-      return false
-    }
-    notice.value = resultMessage(response.data)
-    error.value = null
-    await refresh()
     return true
   }
 
@@ -600,84 +358,8 @@ export const useTransfersStore = defineStore('transfers', () => {
     return true
   }
 
-  async function reorderPackages(ids: string[]): Promise<boolean> {
-    const response = await api.POST('/api/v1/packages/reorder', { body: { ids } })
-    if (!response.data) {
-      // The refresh has to come first: on success it clears `error`, so a message set before it
-      // would be wiped and the refusal would read as a saved order.
-      await refresh()
-      error.value = responseError(response)
-      return false
-    }
-    await refresh()
-    return true
-  }
-
-  /**
-   * Writes the manual file order inside one package.
-   *
-   * `ids` has to be exactly that package's files, each of them once — the server refuses
-   * anything else, because it hands out the positions 1..n from this list.
-   */
-  async function reorderDownloads(packageId: string, ids: string[]): Promise<boolean> {
-    const response = await api.POST('/api/v1/downloads/reorder', { body: { package_id: packageId, ids } })
-    if (!response.data) {
-      await refresh()
-      error.value = responseError(response)
-      return false
-    }
-    await refresh()
-    return true
-  }
-
-  const notifications = useNotifications()
-  /** Last seen state per file; `null` until the first snapshot, so a reload announces nothing. */
-  let lastStates: Map<string, string> | null = null
-  let queueArmed = false
-  let completionsSinceArm = 0
-
-  /**
-   * Turns state transitions into desktop notifications.
-   *
-   * Failures are reported per file; the "queue finished" message fires once when the last
-   * running or waiting transfer is gone and at least one file completed since work started.
-   */
-  function announce(next: readonly Download[]): void {
-    const previous = lastStates
-    if (previous) {
-      for (const download of next) {
-        if (previous.get(download.id) === download.state) continue
-        if (FAILED_STATES.includes(download.state)) {
-          // A PAR2 volume is repair data, and whether it was needed is not known when it
-          // fails — only the verification decides that. Announcing it turned the routine
-          // loss of an expired volume into "download failed" for a package that went on to
-          // unpack cleanly (RD-107-10). A package that really cannot be repaired says so
-          // itself, through its own state and notification.
-          if (isRecoveryVolume(download)) continue
-          notifications.notify(
-            t('downloads.notifications.failed_title'),
-            t('downloads.notifications.failed_body', { file: download.file_name })
-          )
-        } else if (download.state === 'completed') {
-          completionsSinceArm += 1
-        }
-      }
-    }
-    lastStates = new Map(next.map(download => [download.id, download.state]))
-
-    if (next.some(download => PAUSABLE_STATES.includes(download.state))) {
-      queueArmed = true
-      return
-    }
-    if (queueArmed && completionsSinceArm > 0) {
-      notifications.notify(
-        t('downloads.notifications.queue_done_title'),
-        t('downloads.notifications.queue_done_body', { count: completionsSinceArm }, completionsSinceArm)
-      )
-    }
-    queueArmed = false
-    completionsSinceArm = 0
-  }
+  const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
+    usePackageActions({ error, notice, refresh })
 
   let refreshTimer: number | null = null
   let historyTimer: number | null = null
@@ -701,38 +383,6 @@ export const useTransfersStore = defineStore('transfers', () => {
     }, 400)
   }
 
-  /// Patches the live stage/percent of one package without a full refresh.
-  function applyPostprocessProgress(event: MessageEvent<string>): void {
-    let payload: PostprocessProgressPayload
-    try {
-      payload = (JSON.parse(event.data) as EventEnvelope<PostprocessProgressPayload>).payload ?? {}
-    } catch {
-      return
-    }
-    if (!payload.owner_id) return
-    const pkg = packages.value.find(item => item.id === payload.owner_id)
-    if (pkg) {
-      pkg.postprocess = {
-        stage: payload.stage ?? pkg.postprocess?.stage ?? null,
-        percent: payload.percent ?? null,
-        current: payload.current ?? null
-      }
-    }
-    usePostprocessStore().applyProgress(payload.owner_id, payload.stage ?? null, payload.percent ?? null, payload.current ?? null)
-  }
-
-  /** Applies one aggregate torrent sample from the event stream. */
-  function applyTorrentStats(event: MessageEvent<string>): void {
-    let payload: { download_id?: string, stats?: TorrentAggregateStats }
-    try {
-      payload = (JSON.parse(event.data) as EventEnvelope<{ download_id?: string, stats?: TorrentAggregateStats }>).payload ?? {}
-    } catch {
-      return
-    }
-    if (!payload.download_id || !payload.stats) return
-    useTorrentsStore().applyStats(payload.download_id, payload.stats)
-  }
-
   function connectEvents(): void {
     if (releaseEvents) return
     releaseEvents = subscribeEvents({
@@ -742,7 +392,7 @@ export const useTransfersStore = defineStore('transfers', () => {
       'usenet.changed': scheduleRefresh,
       // Aggregate torrent counters are pushed; the detail panel pulls peers and pieces.
       'torrent.stats': applyTorrentStats,
-      'postprocess.progress': applyPostprocessProgress
+      'postprocess.progress': (event: MessageEvent<string>) => applyPostprocessProgress(packages, event)
     })
     // The former 3s safety-net poll is gone: the shared stream reconnects with backoff and
     // refreshes on every state event, so the extra round trips only crowded the connection pool.
@@ -830,9 +480,3 @@ export const useTransfersStore = defineStore('transfers', () => {
     totalRemaining
   }
 })
-
-function payloadError(value: unknown): string {
-  return typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
-    ? value.error
-    : t('downloads.notices.remove_failed')
-}

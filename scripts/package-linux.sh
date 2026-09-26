@@ -52,10 +52,12 @@ echo "==> building the binaries"
 source "$ROOT/scripts/lib/version-file.sh"
 # Before the build, so the binary and VERSION.txt carry the same commit and time (RD-130-12).
 rd_build_stamp "$version"
-CARGO_BUILD_JOBS="$JOBS" cargo build --locked --release -j "$JOBS" -p rdownloader -p rd-capture
+# The build directory: the checkout's target, or the lane the release chain gives this step
+# (RD_LANE_TARGET_DIR, scripts/lib/lanes.sh) so it can build beside the other package.
+build_dir="$(rd_build_dir "$ROOT")"
+CARGO_TARGET_DIR="$build_dir" CARGO_BUILD_JOBS="$JOBS" cargo build --locked --release -j "$JOBS" -p rdownloader -p rd-capture
 
-# Respects CARGO_TARGET_DIR, the same derivation check.sh uses for its checkout marker.
-binaries="${CARGO_TARGET_DIR:-$ROOT/target}/release"
+binaries="$build_dir/release"
 mkdir -p "$OUT/plugins"
 
 echo "==> assembling $OUT"

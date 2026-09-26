@@ -44,6 +44,18 @@ export default defineConfig({
       { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) }
     ]
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // One chunk per language rather than one per catalogue file, so switching language is a
+        // single request; English stays in the main chunk as the fallback (RD-140-27).
+        manualChunks(id) {
+          const locale = /\/src\/locales\/(de|es|fr)\//.exec(id)?.[1]
+          return locale ? `locale-${locale}` : undefined
+        }
+      }
+    }
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,

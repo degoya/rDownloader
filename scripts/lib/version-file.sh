@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Writes VERSION.txt into a package directory, so the version can be read without starting it.
 #
 # Usage (sourced):

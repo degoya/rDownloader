@@ -12,21 +12,15 @@
     "remove": "Remove",
     "rename": "Rename",
     "edit": "Edit",
-    "close": "Close",
     "refresh": "Refresh",
-    "add": "Add",
     "test": "Test",
     "start": "Start",
     "pause": "Pause",
-    "resume": "Resume",
     "retry": "Retry",
     "extract": "Extract",
     "select_all": "Select all",
     "clear_selection": "Clear selection",
-    "copy": "Copy",
     "apply": "Apply",
-    "reset": "Reset",
-    "back": "Back",
     "reveal": "Show in list"
   },
   "states": {
@@ -55,22 +49,16 @@
     "file": "no files | {count} file | {count} files",
     "package": "no packages | {count} package | {count} packages",
     "link": "no links | {count} link | {count} links",
-    "entry": "no entries | {count} entry | {count} entries",
-    "selected": "selected",
-    "per_second": "/s"
+    "selected": "selected"
   },
   "values": {
     "unknown": "unknown",
-    "none": "none",
     "default": "Default",
     "yes": "Yes",
-    "no": "No",
-    "enabled": "Enabled",
-    "disabled": "Disabled"
+    "no": "No"
   },
   "errors": {
-    "request_failed": "The request could not be processed.",
-    "unknown": "Unknown error"
+    "request_failed": "The request could not be processed."
   },
   "data": {
     "loading": "Loading",

@@ -205,13 +205,14 @@ async fn an_unknown_schedule_reports_a_coded_404() {
 
 /// Waits for the monitor's planner to produce runs, returning how many there are.
 async fn wait_for_runs(router: &axum::Router) -> usize {
-    for _ in 0..400 {
-        let (_, runs) = get_json(router, "/api/v1/streams/runs").await;
-        let count = runs.as_array().map(Vec::len).unwrap_or_default();
-        if count > 0 {
-            return count;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
-    0
+    common::eventually(
+        common::WAIT,
+        "the planner produced no runs",
+        || async move {
+            let (_, runs) = get_json(router, "/api/v1/streams/runs").await;
+            let count = runs.as_array().map(Vec::len).unwrap_or_default();
+            (count > 0).then_some(count)
+        },
+    )
+    .await
 }

@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Download } from '@/api/types'
 import { i18n, setLocale } from '@/i18n'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 
 import { GIB, MIB, byteModel, formatByteProgress, formatBytes, formatDay, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, progressOf, stateLabel } from './format'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 describe('transfer formatting', () => {
   it('keeps API byte strings outside the JavaScript integer range safe', () => {

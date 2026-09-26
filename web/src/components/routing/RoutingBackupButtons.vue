@@ -97,7 +97,7 @@ function isRoutingBundle(value: unknown): value is RoutingBundle {
 
 <template>
   <div class="flex items-center gap-2">
-    <input ref="fileInput" class="hidden" type="file" accept=".json,application/json" @change="selectFile">
+    <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
     <UButton icon="i-lucide-download" :label="t('routing.backup.export')" color="neutral" variant="outline" size="sm" :loading="exporting" @click="exportRouting" />
     <UButton icon="i-lucide-file-up" :label="t('routing.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="chooseFile" />
   </div>

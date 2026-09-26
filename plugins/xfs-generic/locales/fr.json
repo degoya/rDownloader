@@ -5,7 +5,6 @@
     "xfs_generic.captcha_rejected": "Le site XFileSharing a rejeté la réponse au captcha",
     "xfs_generic.free_limit_reached": "La limite de téléchargements gratuits de ce site XFileSharing est atteinte pour cette adresse IP",
     "xfs_generic.http_error": "Le site XFileSharing a répondu avec le statut HTTP {status}",
-    "xfs_generic.invalid_link": "Lien XFileSharing invalide",
     "xfs_generic.invalid_url": "URL de fournisseur invalide : {error}",
     "xfs_generic.no_account": "Ce résolveur télécharge sans compte et n'en a aucun à vérifier",
     "xfs_generic.no_free_form": "Aucun formulaire de téléchargement gratuit XFileSharing n'a été trouvé sur la page : {diagnosis}",

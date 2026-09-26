@@ -185,6 +185,7 @@ async fn the_remaining_reads_answer_without_a_secret() {
         "get_subscription_review_summary",
         "list_stream_schedules",
         "list_stream_runs",
+        "list_plugin_updates",
     ] {
         ok(&router, &session, name, serde_json::json!({})).await;
     }

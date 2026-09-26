@@ -5,7 +5,6 @@
 //! English sentence for a developer, and repeating it would put a provider's prose — and
 //! whatever it happened to quote — into a log line and into the interface. What travels
 //! instead is `result`, pCloud's own decimal refusal number, which cannot carry anything.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// Which of pCloud's two installations the account lives in. Not a failure: it stands on the
 /// account row, because every region mistake reads like a bad credential until somebody can

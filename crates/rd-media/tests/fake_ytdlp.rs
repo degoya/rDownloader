@@ -454,6 +454,98 @@ async fn runner_merges_two_streams_and_reports_the_full_size() {
     assert_eq!(stored.total_bytes.map(|value| value.get()), Some(307_200));
 }
 
+/// Runs a video that needs a merge against the fixture `script`.
+async fn run_merged_video(script: &str) -> RunOutcome {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(temp.path().join("media.sqlite"))
+        .await
+        .expect("database");
+    let package = database
+        .create_package(NewPackage {
+            id: PackageId::new(),
+            name: "clip".to_owned(),
+            destination: temp.path().join("clip").to_string_lossy().into_owned(),
+            category_id: None,
+            priority: rd_core::DownloadPriority::Normal,
+            postprocess_level: None,
+            script: None,
+            enrichment: Vec::new(),
+        })
+        .await
+        .expect("package");
+    let selection = rd_core::MediaSelection {
+        page_url: "https://www.youtube.com/watch?v=abc".parse().expect("url"),
+        variant_id: "1080p".to_owned(),
+        format: "bv*[height<=1080]+ba/b[height<=1080]".to_owned(),
+        kind: MediaKind::Video,
+        ext: "mp4".to_owned(),
+        title: "clip".to_owned(),
+        contract_version: 0,
+        criteria: None,
+        resolved: None,
+    };
+    let file = database
+        .create_download(NewDownload {
+            id: rd_core::DownloadId::new(),
+            package_id: package.id,
+            source: selection.page_url.clone(),
+            file_name: "clip.mp4".to_owned(),
+            total_bytes: None,
+            expected_checksum: None,
+            account_id: None,
+            proxy_profile_id: None,
+            auth_profile: rd_core::AuthProfileSelection::Auto,
+            initial_state: DownloadState::Queued,
+            kind: DownloadKind::Media,
+            media: Some(selection),
+            replay: None,
+            remote_credential_id: None,
+            mirror_group: None,
+            enrichment: Vec::new(),
+            secret_fragment: None,
+        })
+        .await
+        .expect("download");
+    let runner = MediaRunner::new(
+        database.clone(),
+        secrets(temp.path()).await,
+        settings_for(script),
+    );
+    runner
+        .run(&file, &package, CancellationToken::new(), test_limits())
+        .await
+        .expect("run")
+}
+
+/// yt-dlp that could not reach ffmpeg warns, exits 0 and leaves two stream files: not a
+/// completed download.
+#[tokio::test]
+async fn streams_yt_dlp_did_not_merge_fail_the_download() {
+    let outcome = run_merged_video("fake-yt-dlp-unmerged").await;
+    let RunOutcome::Failed(failure) = outcome else {
+        panic!("an unmerged download must fail, got {outcome:?}");
+    };
+    assert_eq!(
+        failure.code.as_deref(),
+        Some("media.merge_ffmpeg_unreachable")
+    );
+    assert_eq!(failure.category, rd_core::FailureKind::Unsupported);
+}
+
+/// Without the warning the separate stream files beside a target that was never written
+/// are enough to tell.
+#[tokio::test]
+async fn separate_stream_files_without_a_merged_target_fail_the_download() {
+    let outcome = run_merged_video("fake-yt-dlp-unmerged-quiet").await;
+    let RunOutcome::Failed(failure) = outcome else {
+        panic!("an unmerged download must fail, got {outcome:?}");
+    };
+    assert_eq!(
+        failure.code.as_deref(),
+        Some("media.merge_ffmpeg_unreachable")
+    );
+}
+
 /// RD-102-03: a yt-dlp below the floor this build supports stops media probing, names the
 /// capability it stopped, and stops nothing else.
 ///

@@ -217,6 +217,59 @@ async fn a_redirect_between_two_reachable_hosts_is_followed() {
     assert_eq!(followed.body, b"example.iso is complete");
 }
 
+/// The same redirect with the token: the hop to the second host arrives **without** the
+/// `Authorization` header the first request carried (RD-140-07 a, from RD-130-24).
+///
+/// What strips it is reqwest's redirect handling, not the plugin host: the gate only decides
+/// whether a hop is followed, and reqwest drops `Authorization` on every change of host, port
+/// or scheme (see `rd_http::client_pool::redirect_policy`). This test pins that behaviour, so a
+/// client upgrade or a custom policy that stopped doing it fails here rather than on the wire.
+/// The delivery itself is refused afterwards: a request that carried a secret is held to the
+/// provider registry on a change of host (`validate_redirect`), which no notification service
+/// is in.
+#[tokio::test]
+async fn a_redirect_to_another_host_does_not_carry_the_authorization_header() {
+    let wire = wire().await;
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (host, reference) = host_over(directory.path(), &wire, "tk_access").await;
+    let two_hosts = NTFY.replace(
+        r#"domains = ["ntfy.sh", "*"]"#,
+        r#"domains = ["ntfy.example.org", "push.example.org"]"#,
+    );
+    assert_ne!(two_hosts, NTFY, "the manifest's domain line moved");
+    let plugin = notifier(&two_hosts, "rd-plugin-ntfy-notifier", host);
+    let destination = format!("https://ntfy.example.org{REDIRECT_TO}push.example.org/alerts");
+
+    let error = plugin
+        .deliver(Delivery {
+            title: "Package finished",
+            body: "example.iso is complete",
+            event: "package_completed",
+            severity: "info",
+            idempotency_key: "wire:ntfy-redirect-token",
+            destination: &destination,
+            secret_ref: Some(&reference),
+        })
+        .await
+        .expect_err("a credentialed request that changed host is refused afterwards");
+
+    let failure = error
+        .downcast_ref::<rd_core::Failure>()
+        .unwrap_or_else(|| panic!("the refusal carries its code: {error}"));
+    assert_eq!(failure.code.as_deref(), Some("plugin.target_not_allowed"));
+    let arrived = wire.arrived.lock().expect("arrived").clone();
+    assert_eq!(arrived.len(), 2, "{arrived:?}");
+    assert_eq!(arrived[0].tunnel, "ntfy.example.org:443");
+    assert_eq!(
+        arrived[0].header("authorization"),
+        Some("Bearer tk_access"),
+        "{arrived:?}"
+    );
+    let followed = &arrived[1];
+    assert_eq!(followed.tunnel, "push.example.org:443");
+    assert_eq!(followed.headers_named("authorization"), 0, "{followed:?}");
+}
+
 /// `http://` only inside the own network (owner's decision, 2026-09-25): to a public server
 /// the token would travel readable, so the host refuses before the plugin runs, and nothing
 /// is sent at all.

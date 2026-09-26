@@ -5,7 +5,6 @@
     "secret_hint": "Gib deine Konto-E-Mail als Benutzer und deinen Premium-Key (Mein Konto → API) als Secret ein."
   },
   "codes": {
-    "nitroflare.account_missing": "Nitroflare-Account fehlt",
     "nitroflare.api_error": "Nitroflare-API ({api_code}): {message}",
     "nitroflare.bad_credentials": "Der Nitroflare-Premium-Key ist ungültig oder der Login ist fehlgeschlagen",
     "nitroflare.captcha_invalid": "Nitroflare hat eine Captcha-Antwort abgelehnt; dieses Plugin kann keine Captchas lösen",

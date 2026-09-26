@@ -611,46 +611,6 @@ impl Writer {
         })
     }
 
-    /// Drops pins naming a resolver version this build can no longer provide.
-    ///
-    /// A pin keeps a *running* job on one exact resolver version, which is what makes a
-    /// mid-download plugin upgrade safe. It was never meant to outlive the version it names:
-    /// once that build is gone — an ABI break, a removed third-party plugin — the pin can
-    /// never be satisfied again and the job dies with `plugin.pinned_version_missing` on
-    /// every retry, forever. The plugin id is stable across versions, so clearing the pin
-    /// lets the job resolve through the current build of the same plugin, which is the
-    /// outcome the pin was protecting in the first place.
-    ///
-    /// Runs at startup, before the scheduler starts anything, so no running job loses its pin.
-    pub(crate) async fn clear_unsatisfiable_resolver_pins(
-        &mut self,
-        available: &[(String, String)],
-    ) -> Result<u64> {
-        let rows = sqlx::query(
-            "SELECT download_id, plugin_id, plugin_version FROM download_resolver_pins",
-        )
-        .fetch_all(&mut self.connection)
-        .await?;
-        let mut stale = Vec::new();
-        for row in rows {
-            let plugin_id: String = row.get("plugin_id");
-            let version: String = row.get("plugin_version");
-            if !available
-                .iter()
-                .any(|(id, installed)| id == &plugin_id && installed == &version)
-            {
-                stale.push(row.get::<String, _>("download_id"));
-            }
-        }
-        for download_id in &stale {
-            sqlx::query("DELETE FROM download_resolver_pins WHERE download_id = ?")
-                .bind(download_id)
-                .execute(&mut self.connection)
-                .await?;
-        }
-        Ok(stale.len() as u64)
-    }
-
     pub(crate) async fn recover_interrupted(&mut self) -> Result<u64> {
         let now = Utc::now();
         let mut transaction = self.connection.begin().await?;

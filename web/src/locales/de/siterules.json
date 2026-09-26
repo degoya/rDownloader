@@ -23,10 +23,7 @@
   "list": {
     "title": "Regeln",
     "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Importiere die signierte Regeldatei eines Releases, um mit den Regeln des Projekts zu beginnen.",
-    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt.",
-    "steps": "keine Schritte | {count} Schritt | {count} Schritte",
-    "checked_at": "Zuletzt geprüft am {date}",
-    "links_found": "{count} Links"
+    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt."
   },
   "new": "Neue Regel",
   "editor": {
@@ -112,7 +109,6 @@
     "pages": "keine Abrufe | {count} Abruf | {count} Abrufe",
     "kept": "{count} übernommen",
     "refused": "{count} verworfen",
-    "links": "Gefundene Links",
     "no_links": "Der Lauf ergab keinen Link.",
     "mirrors": "Die Regel erklärt diese Links zu Kopien einer Datei.",
     "verdicts": {
@@ -123,7 +119,6 @@
     }
   },
   "transfer": {
-    "heading": "Regeln mitnehmen",
     "export": "Regeln exportieren",
     "export_empty": "Es gibt keine Regel zum Exportieren.",
     "import": "Regeln importieren",

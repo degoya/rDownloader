@@ -290,7 +290,7 @@ void loadProviders()
       </UFormField>
       <input
         ref="fileInput"
-        class="hidden"
+        hidden
         type="file"
         multiple
         accept=".torrent,.nzb,application/x-bittorrent,application/x-nzb"

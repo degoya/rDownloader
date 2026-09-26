@@ -6,6 +6,7 @@ mod args;
 mod cookies;
 mod format_inventory;
 mod manifest;
+mod merge;
 mod probe;
 mod progress;
 mod runner;

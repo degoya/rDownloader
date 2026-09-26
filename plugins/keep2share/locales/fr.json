@@ -5,7 +5,6 @@
     "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre mot de passe comme secret."
   },
   "codes": {
-    "keep2share.account_missing": "Le compte Keep2Share est manquant",
     "keep2share.api_error": "API Keep2Share ({api_status}) : {message}",
     "keep2share.bad_credentials": "L'identifiant ou le mot de passe Keep2Share est incorrect",
     "keep2share.captcha_rejected": "Keep2Share a rejeté la réponse au captcha",

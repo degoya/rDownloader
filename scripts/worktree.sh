@@ -14,26 +14,37 @@
 #
 # Usage:
 #   scripts/worktree.sh new fix/0.9.3-something
+#   scripts/worktree.sh new --own-target fix/0.9.3-something   # a check lane of its own
 #   scripts/worktree.sh check fix/0.9.3-something     # generated files clean?
 #   scripts/worktree.sh finish fix/0.9.3-something    # merge, then remove worktree and branch
 #
+# --own-target (RD-140-06) gives the worktree its own target/ instead of the main checkout's, so
+# its checks run in a lane beside the main checkout's (scripts/lib/lock.sh, RD_LANES) instead of
+# after them. It costs a debug working set of ~52 GiB once the worktree builds, and a first build
+# of every dependency — from sccache where it is installed, from scratch where not — so it is
+# for a branch that is verified on its own while something else holds the shared target, not for
+# every worktree of a wave. The plugin components stay the shared ones: its
+# target/wasm32-unknown-unknown is a link to the main checkout's.
 set -euo pipefail
 
 MAIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Worktrees share the main checkout's target directory -- that is the documented setup, and the
-# green marker a worktree's own `check.sh` recorded lives there. `rd_target_dir` falls back to
-# `<path>/target` when CARGO_TARGET_DIR is unset, so without this line the gate below looks inside
-# the worktree, finds nothing and reports "never verified" for a branch that is demonstrably
-# green. It cost two refused merges on 2026-09-22 before the cause was found, and a gate that
-# says "unverified" when it merely cannot see the record is a gate people route around.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$MAIN/target}"
+# Where a worktree's green record lives — the main checkout's target/, or the worktree's own —
+# is rd_target_dir's to say (scripts/lib/lanes.sh). Until 1.4 this line exported the main
+# target instead, because the fallback then was `<path>/target`: without it the gate looked inside
+# the worktree, found nothing and reported "never verified" for a branch that was demonstrably
+# green, which cost two refused merges on 2026-09-22. A CARGO_TARGET_DIR that is set still wins.
 # shellcheck source=lib/verified.sh
 source "$MAIN/scripts/lib/verified.sh"
 BASE="${BASE:-development}"
 GENERATED=(web/auto-imports.d.ts web/components.d.ts)
 
-usage() { echo "usage: scripts/worktree.sh {new|check|finish} <branch>" >&2; exit 2; }
+usage() { echo "usage: scripts/worktree.sh {new [--own-target]|check|finish} <branch>" >&2; exit 2; }
 # `check` is a pure query and stays lock-free; `finish` merges but does not build.
+own_target=0
+if [[ $# -eq 3 && "$1" == new && "$2" == --own-target ]]; then
+    own_target=1
+    set -- "$1" "$3"
+fi
 [[ $# -eq 2 ]] || usage
 command="$1"
 branch="$2"
@@ -51,6 +62,12 @@ new)
     git worktree add -b "$branch" "$path" "$BASE"
     ln -s "$MAIN/web/node_modules" "$path/web/node_modules"
     ln -s "$MAIN/web/dist" "$path/web/dist"
+    if [[ "$own_target" -eq 1 ]]; then
+        : > "$(rd_own_target_flag "$path")"
+        mkdir -p "$path/target" "$MAIN/target/wasm32-unknown-unknown"
+        ln -s "$MAIN/target/wasm32-unknown-unknown" "$path/target/wasm32-unknown-unknown"
+        echo "==> own target: $path/target (a lane of its own; components linked from $MAIN/target)"
+    fi
     cat <<INFO
 
 ==> $path is ready on $branch (from $BASE)
@@ -88,6 +105,8 @@ finish)
         exit 1
     fi
     rm -f "$path/web/node_modules" "$path/web/dist"
+    # The link, not what it points at: those are the main checkout's components.
+    [[ -L "$path/target/wasm32-unknown-unknown" ]] && rm -f "$path/target/wasm32-unknown-unknown"
 
     cd "$MAIN"
     git checkout "$BASE"

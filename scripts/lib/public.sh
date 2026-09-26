@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by export-public.sh and export-wiki.sh (RD-130-23): the secret scanner, the link check
 # against the exclude list, the identity that authors a public commit, and the local clone whose
 # tree an export replaces.

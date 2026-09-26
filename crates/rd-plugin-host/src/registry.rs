@@ -8,11 +8,11 @@
 
 use std::sync::Arc;
 
-use crate::{PluginInstaller, PluginType, VerifiedPackage};
+use crate::{PluginInstaller, PluginType, VerifiedPackage, VersionRole};
 
 /// The installed packages of one core, grouped by what they are.
 pub struct PluginTypeRegistry {
-    packages: Vec<Arc<VerifiedPackage>>,
+    packages: Vec<(Arc<VerifiedPackage>, VersionRole)>,
 }
 
 impl PluginTypeRegistry {
@@ -26,22 +26,57 @@ impl PluginTypeRegistry {
     /// registry per start, hand it to each adapter, and drop it once they are built: it holds
     /// every component's bytes for as long as it lives.
     pub async fn load(installer: &PluginInstaller) -> anyhow::Result<Self> {
-        Ok(Self::new(installer.load_verified().await?))
+        Ok(Self::with_roles(
+            installer.load_verified_with_roles().await?,
+        ))
     }
 
     /// Buckets verified packages; the input order (newest version first) is preserved.
+    ///
+    /// Without a version choice the first package of an id is its default and the rest are
+    /// retained, which is exactly what the installer decides for a plugin nobody chose for.
     #[must_use]
     pub fn new(packages: Vec<VerifiedPackage>) -> Self {
+        let mut seen = std::collections::HashSet::new();
         Self {
-            packages: packages.into_iter().map(Arc::new).collect(),
+            packages: packages
+                .into_iter()
+                .map(|package| {
+                    let role = if seen.insert(package.manifest.id) {
+                        VersionRole::Default
+                    } else {
+                        VersionRole::Retained
+                    };
+                    (Arc::new(package), role)
+                })
+                .collect(),
         }
     }
 
-    /// Packages declaring one type, newest version of each plugin first.
+    /// Buckets packages whose role the installer already decided (RD-140-02).
+    #[must_use]
+    pub fn with_roles(packages: Vec<(VerifiedPackage, VersionRole)>) -> Self {
+        Self {
+            packages: packages
+                .into_iter()
+                .map(|(package, role)| (Arc::new(package), role))
+                .collect(),
+        }
+    }
+
+    /// Packages declaring one type, the default version of each plugin first.
+    ///
+    /// A staged version is left out: every consumer of this keeps the first entry per id or
+    /// looks up an exact pinned version of a running job, and neither may reach a version that
+    /// is only under test. Resolvers, whose jobs can be pinned to it on purpose, ask
+    /// [`Self::instantiate_with_roles`] instead.
     pub fn of_type(&self, plugin_type: &PluginType) -> impl Iterator<Item = &Arc<VerifiedPackage>> {
         self.packages
             .iter()
-            .filter(move |package| &package.manifest.plugin_type == plugin_type)
+            .filter(move |(package, role)| {
+                &package.manifest.plugin_type == plugin_type && *role != VersionRole::Staged
+            })
+            .map(|(package, _)| package)
     }
 
     /// Instantiates every package of one type, keeping the failures out of the result.
@@ -53,20 +88,56 @@ impl PluginTypeRegistry {
         plugin_type: &PluginType,
         build: impl Fn(&VerifiedPackage) -> anyhow::Result<T>,
     ) -> Vec<T> {
-        let mut loaded = Vec::new();
-        for package in self.of_type(plugin_type) {
-            match build(package) {
-                Ok(instance) => loaded.push(instance),
-                Err(error) => tracing::warn!(
-                    plugin = %package.manifest.name,
-                    plugin_id = %package.manifest.id,
-                    version = %package.manifest.version,
-                    plugin_type = plugin_type.as_str(),
-                    error = %error,
-                    "skipping installed plugin package that failed to load"
-                ),
-            }
-        }
-        loaded
+        build_each(
+            self.packages.iter().filter(|(package, role)| {
+                &package.manifest.plugin_type == plugin_type && *role != VersionRole::Staged
+            }),
+            plugin_type,
+            build,
+        )
+        .into_iter()
+        .map(|(instance, _)| instance)
+        .collect()
     }
+
+    /// The same, staged versions included, each instance with the role of its version.
+    ///
+    /// For the resolver chain only: a download pinned to a staged version has to find it, and
+    /// the role is what keeps every unpinned lookup on the default version.
+    pub fn instantiate_with_roles<T>(
+        &self,
+        plugin_type: &PluginType,
+        build: impl Fn(&VerifiedPackage) -> anyhow::Result<T>,
+    ) -> Vec<(T, VersionRole)> {
+        build_each(
+            self.packages
+                .iter()
+                .filter(|(package, _)| &package.manifest.plugin_type == plugin_type),
+            plugin_type,
+            build,
+        )
+    }
+}
+
+/// Builds each package, logging a failure against that plugin and skipping it.
+fn build_each<'a, T>(
+    packages: impl Iterator<Item = &'a (Arc<VerifiedPackage>, VersionRole)>,
+    plugin_type: &PluginType,
+    build: impl Fn(&VerifiedPackage) -> anyhow::Result<T>,
+) -> Vec<(T, VersionRole)> {
+    let mut loaded = Vec::new();
+    for (package, role) in packages {
+        match build(package) {
+            Ok(instance) => loaded.push((instance, *role)),
+            Err(error) => tracing::warn!(
+                plugin = %package.manifest.name,
+                plugin_id = %package.manifest.id,
+                version = %package.manifest.version,
+                plugin_type = plugin_type.as_str(),
+                error = %error,
+                "skipping installed plugin package that failed to load"
+            ),
+        }
+    }
+    loaded
 }

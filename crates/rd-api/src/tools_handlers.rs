@@ -28,9 +28,12 @@ fn to_api_error(error: rd_tools::ToolError) -> ApiError {
         ToolError::ManifestUntrusted(_) | ToolError::ManifestStale(_) => {
             ApiError::bad_gateway(code, message)
         }
-        ToolError::HashMismatch { .. } | ToolError::DownloadFailed { .. } => {
-            ApiError::bad_gateway(code, message)
-        }
+        ToolError::HashMismatch { .. } => ApiError::bad_gateway(code, message),
+        // The reason names what went wrong -- a status, a size, or the program an archive
+        // failed to deliver under the name the resolver looks for (RD-140-08).
+        ToolError::DownloadFailed { name, reason } => ApiError::bad_gateway(code, message)
+            .with_param("tool", name)
+            .with_param("reason", reason),
         ToolError::VersionNotInstalled { .. } | ToolError::NothingToRollBackTo { .. } => {
             ApiError::not_found(code, message)
         }

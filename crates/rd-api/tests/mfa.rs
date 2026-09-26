@@ -7,29 +7,9 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{auth_harness, get_with_cookie, post_json, post_json_with_cookie};
+use common::{auth_harness, get_with_cookie, post_json, post_json_with_cookie, sign_in};
 
 const PASSWORD: &str = "correct-horse-battery";
-
-async fn sign_in(harness: &common::Harness) -> String {
-    let (status, body) = post_json(
-        &harness.router,
-        "/api/v1/auth/setup",
-        serde_json::json!({ "password": PASSWORD }),
-    )
-    .await;
-    assert!(
-        status.is_success() || body["code"] == "auth.setup_completed",
-        "setup: {body}"
-    );
-    let (_, _, token) = common::post_json_with_headers(
-        &harness.router,
-        "/api/v1/auth/login",
-        serde_json::json!({ "password": PASSWORD }),
-    )
-    .await;
-    token.expect("a session")
-}
 
 /// Enrols a factor and returns `(credential id, base32 secret, recovery codes)`.
 async fn enrol(harness: &common::Harness, token: &str) -> (String, String, Vec<String>) {
@@ -88,7 +68,7 @@ fn current_code(secret_base32: &str) -> String {
 async fn an_unconfirmed_enrolment_does_not_lock_anyone_out() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let _ = enrol(&harness, &token).await;
 
     let (status, body) = post_json(
@@ -104,7 +84,7 @@ async fn an_unconfirmed_enrolment_does_not_lock_anyone_out() {
 async fn a_confirmed_factor_is_required_at_the_next_sign_in() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, _) = enrol(&harness, &token).await;
 
     let (status, body) = post_json_with_cookie(
@@ -144,7 +124,7 @@ async fn a_confirmed_factor_is_required_at_the_next_sign_in() {
 async fn a_wrong_password_never_reveals_that_a_second_factor_exists() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, _) = enrol(&harness, &token).await;
     let (_, _) = post_json_with_cookie(
         &harness.router,
@@ -172,7 +152,7 @@ async fn a_wrong_password_never_reveals_that_a_second_factor_exists() {
 async fn a_recovery_code_signs_you_in_and_then_stops_working() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, codes) = enrol(&harness, &token).await;
     let (_, _) = post_json_with_cookie(
         &harness.router,
@@ -222,7 +202,7 @@ async fn a_recovery_code_signs_you_in_and_then_stops_working() {
 async fn the_factor_is_switched_off_with_the_password() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, _) = enrol(&harness, &token).await;
     let (_, _) = post_json_with_cookie(
         &harness.router,
@@ -269,7 +249,7 @@ async fn the_factor_is_switched_off_with_the_password() {
 async fn the_status_reports_the_factor_and_the_remaining_codes() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body) = get_with_cookie(&harness.router, "/api/v1/mfa", &token).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -307,7 +287,7 @@ async fn the_status_reports_the_factor_and_the_remaining_codes() {
 async fn a_settings_export_does_not_carry_the_second_factor() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (_, secret, codes) = enrol(&harness, &token).await;
 
     let (status, bundle) = post_json_with_cookie(
@@ -341,7 +321,7 @@ async fn a_settings_export_does_not_carry_the_second_factor() {
 async fn an_accepted_totp_code_cannot_be_replayed_inside_its_window() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, _) = enrol(&harness, &token).await;
     let (status, body) = post_json_with_cookie(
         &harness.router,
@@ -403,7 +383,7 @@ async fn an_accepted_totp_code_cannot_be_replayed_inside_its_window() {
 async fn a_wrong_password_does_not_spend_a_recovery_code() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
     let (id, secret, codes) = enrol(&harness, &token).await;
     let (status, body) = post_json_with_cookie(
         &harness.router,

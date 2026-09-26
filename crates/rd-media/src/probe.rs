@@ -292,6 +292,9 @@ fn playlist_entry(
 /// Maps yt-dlp's stderr to a failure class the queue can retry or block on.
 pub(crate) fn map_tool_error(stderr: &str) -> Failure {
     let text = stderr.trim();
+    if crate::merge::merge_skipped(text) {
+        return crate::merge::merge_failure();
+    }
     let lower = text.to_ascii_lowercase();
     // Redacted before it becomes a message and a param: this tail is shown in the UI and
     // stored on the download row, and yt-dlp happily echoes the signed URL it just tried.

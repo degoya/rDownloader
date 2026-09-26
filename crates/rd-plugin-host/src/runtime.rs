@@ -1,23 +1,19 @@
 //! Wasmtime Component Model runtime with deny-by-default capabilities.
 
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    thread::JoinHandle,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, bail};
 use rd_plugin_api::{ClientIdentity, ResolverHost};
 use wasmtime::{
-    Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDeadline, component::Component,
+    Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDeadline, component::Component,
 };
 
-use crate::PluginLimits;
+use crate::{PluginLimits, engine::SharedEngine};
 
-const EPOCH_TICK: Duration = Duration::from_millis(10);
+pub(crate) const EPOCH_TICK: Duration = Duration::from_millis(10);
 /// Interfaces every plugin may import, whatever its manifest says. Neither reaches the
 /// network, a credential value or the user.
 const BASE_IMPORTS: [&str; 2] = ["rdownloader:plugin/host", "rdownloader:plugin/types"];
@@ -152,33 +148,21 @@ impl PluginStoreState {
 }
 
 /// Compiles Components and creates resource-limited stores.
+///
+/// Cheap to create: the engine behind it is the process's one shared engine (`crate::engine`),
+/// and what is per plugin here is only the limits its stores are given.
 pub struct SandboxEngine {
-    engine: Engine,
+    shared: Arc<SharedEngine>,
     limits: PluginLimits,
-    stop_ticker: Arc<AtomicBool>,
-    ticker: Option<JoinHandle<()>>,
 }
 
 impl SandboxEngine {
-    /// Creates a Component Model engine with fuel and epoch interruption enabled.
+    /// A sandbox on the shared Component Model engine, with fuel and epoch interruption.
     pub fn new(limits: PluginLimits) -> Result<Self> {
         validate_limits(limits)?;
-        let mut config = Config::new();
-        config
-            .wasm_component_model(true)
-            .wasm_component_model_async(true)
-            .consume_fuel(true)
-            .epoch_interruption(true)
-            .cranelift_nan_canonicalization(true);
-        let engine = Engine::new(&config)
-            .map_err(|error| anyhow::anyhow!("create Wasmtime sandbox engine: {error}"))?;
-        let stop_ticker = Arc::new(AtomicBool::new(false));
-        let ticker = spawn_epoch_ticker(engine.clone(), Arc::clone(&stop_ticker));
         Ok(Self {
-            engine,
+            shared: crate::engine::shared()?,
             limits,
-            stop_ticker,
-            ticker: Some(ticker),
         })
     }
 
@@ -192,10 +176,11 @@ impl SandboxEngine {
         bytes: &[u8],
         manifest: &crate::PluginManifest,
     ) -> Result<Component> {
-        let component = Component::from_binary(&self.engine, bytes)
-            .map_err(|error| anyhow::anyhow!("compile WebAssembly component: {error}"))?;
+        // Compiled once per content; the grant is checked on every call, because the same
+        // bytes may arrive under a different manifest.
+        let component = self.shared.compile(bytes)?;
         let allowed = allowed_imports(manifest);
-        for (name, _) in component.component_type().imports(&self.engine) {
+        for (name, _) in component.component_type().imports(self.engine()) {
             if !allowed.iter().any(|allowed| import_matches(name, allowed)) {
                 bail!("component imports forbidden interface {name}");
             }
@@ -203,7 +188,8 @@ impl SandboxEngine {
         Ok(component)
     }
 
-    /// Creates a fresh store for one resolver call.
+    /// Creates a fresh store without a resolver host, for the sandbox tests.
+    #[cfg(test)]
     pub fn create_store(&self, allowed_domains: Vec<String>) -> Result<Store<PluginStoreState>> {
         self.create_store_inner(
             allowed_domains,
@@ -259,7 +245,7 @@ impl SandboxEngine {
             connections: std::collections::HashMap::new(),
             next_connection: 1,
         };
-        let mut store = Store::new(&self.engine, state);
+        let mut store = Store::new(self.engine(), state);
         store.limiter(|state| &mut state.limits);
         store
             .set_fuel(self.limits.fuel)
@@ -342,16 +328,7 @@ impl SandboxEngine {
     /// Returns the underlying engine for generated WIT linkers.
     #[must_use]
     pub fn engine(&self) -> &Engine {
-        &self.engine
-    }
-}
-
-impl Drop for SandboxEngine {
-    fn drop(&mut self) {
-        self.stop_ticker.store(true, Ordering::Release);
-        if let Some(ticker) = self.ticker.take() {
-            let _ = ticker.join();
-        }
+        self.shared.engine()
     }
 }
 
@@ -431,15 +408,6 @@ fn timeout_ticks(milliseconds: u64) -> u64 {
         .max(1)
 }
 
-fn spawn_epoch_ticker(engine: Engine, stop: Arc<AtomicBool>) -> JoinHandle<()> {
-    std::thread::spawn(move || {
-        while !stop.load(Ordering::Acquire) {
-            std::thread::sleep(EPOCH_TICK);
-            engine.increment_epoch();
-        }
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::{PluginLimits, SandboxEngine, allowed_imports, timeout_ticks};
@@ -487,6 +455,18 @@ mod tests {
                 "{other} must not reach the credential store"
             );
         }
+    }
+
+    /// One engine and one epoch ticker for the process, however many sandboxes there are.
+    #[test]
+    fn every_sandbox_shares_one_engine() {
+        let first = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+        let second = SandboxEngine::new(PluginLimits {
+            fuel: 1,
+            ..PluginLimits::default()
+        })
+        .expect("sandbox");
+        assert!(wasmtime::Engine::same(first.engine(), second.engine()));
     }
 
     #[test]

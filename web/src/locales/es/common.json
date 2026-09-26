@@ -12,21 +12,15 @@
     "remove": "Quitar",
     "rename": "Renombrar",
     "edit": "Editar",
-    "close": "Cerrar",
     "refresh": "Actualizar",
-    "add": "Añadir",
     "test": "Probar",
     "start": "Iniciar",
     "pause": "Pausar",
-    "resume": "Reanudar",
     "retry": "Reintentar",
     "extract": "Extraer",
     "select_all": "Seleccionar todo",
     "clear_selection": "Quitar selección",
-    "copy": "Copiar",
     "apply": "Aplicar",
-    "reset": "Restablecer",
-    "back": "Atrás",
     "reveal": "Mostrar en la lista"
   },
   "states": {
@@ -55,22 +49,16 @@
     "file": "ningún archivo | {count} archivo | {count} archivos",
     "package": "ningún paquete | {count} paquete | {count} paquetes",
     "link": "ningún enlace | {count} enlace | {count} enlaces",
-    "entry": "ninguna entrada | {count} entrada | {count} entradas",
-    "selected": "seleccionado(s)",
-    "per_second": "/s"
+    "selected": "seleccionado(s)"
   },
   "values": {
     "unknown": "desconocido",
-    "none": "ninguno",
     "default": "Predeterminado",
     "yes": "Sí",
-    "no": "No",
-    "enabled": "Activado",
-    "disabled": "Desactivado"
+    "no": "No"
   },
   "errors": {
-    "request_failed": "No se pudo procesar la solicitud.",
-    "unknown": "Error desconocido"
+    "request_failed": "No se pudo procesar la solicitud."
   },
   "data": {
     "loading": "Cargando",

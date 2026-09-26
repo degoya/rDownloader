@@ -9,6 +9,7 @@ import { defineComponent } from 'vue'
 import nav from '@/locales/en/nav.json'
 import remoteJobs from '@/locales/en/remote_jobs.json'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 const ACCOUNT = { id: 'a1', provider: 'realdebrid', label: 'Real-Debrid', enabled: true }
 const get = vi.fn(async () => ({ data: [ACCOUNT] }))
@@ -72,4 +73,11 @@ describe('RemoteJobsView', () => {
     await waitFor(() => expect(cardProps[0]?.accountsLoading).toBe(false))
     expect(cardProps[0]?.accounts).toEqual([ACCOUNT])
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(cardProps[0]?.accounts).toEqual([ACCOUNT]))
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

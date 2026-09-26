@@ -432,6 +432,34 @@ mod tests {
         }
     }
 
+    /// Every archive entry names, for its own platform, the program the resolver looks for:
+    /// `<name>.exe` on Windows, `<name>` elsewhere (RD-140-08). A raw entry is written under
+    /// that name by the installer itself, so only archives can get it wrong.
+    #[test]
+    fn every_archive_entry_names_its_program_for_its_platform() {
+        let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+        for entry in &manifest.tools {
+            if entry.archive == ArchiveFormat::Raw {
+                continue;
+            }
+            let program = if entry.platform.contains("-windows-") {
+                format!("{}.exe", entry.name)
+            } else {
+                entry.name.clone()
+            };
+            assert!(
+                entry
+                    .members
+                    .iter()
+                    .any(|member| member.rsplit(['/', '\\']).next() == Some(program.as_str())),
+                "{} {} on {} names no member called {program}",
+                entry.name,
+                entry.version,
+                entry.platform
+            );
+        }
+    }
+
     /// What the shipped manifest actually covers, written down as a test so the support
     /// matrix in `docs/external-tools.md` cannot drift away from the document.
     #[test]

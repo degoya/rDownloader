@@ -3,14 +3,17 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use futures_util::StreamExt;
+use futures_util::{FutureExt, StreamExt};
 use rd_core::{Failure, FailureKind, NzbFileStatus, NzbSegmentState};
 use rd_db::Database;
 use rd_files::{collision_free_path, sanitize_file_name};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
 
-use crate::{NntpPool, pool::FetchError, segments::NameDeviations};
+use crate::{
+    NntpPool, checkpoints::PendingCheckpoints, parallel::OpenArticles, pool::FetchError,
+    segments::NameDeviations,
+};
 
 pub(crate) async fn recovered_file_path(
     file: &NzbFileStatus,
@@ -80,6 +83,8 @@ fn server_unavailable_failure(detail: &str) -> Failure {
 /// How long the queue waits before it asks the server again.
 const SERVER_RETRY_SECONDS: u64 = 60;
 
+/// [`download_file_counted`] for a file nobody counts: the tests and the bench.
+#[cfg(test)]
 pub(crate) async fn download_file(
     database: &Database,
     pool: &NntpPool,
@@ -88,6 +93,32 @@ pub(crate) async fn download_file(
     staging: &std::path::Path,
     destination: &std::path::Path,
     limits: &rd_scheduler::RunLimits,
+) -> Result<FileOutcome> {
+    download_file_counted(
+        database,
+        pool,
+        shutdown,
+        nzb_file,
+        staging,
+        destination,
+        limits,
+        &OpenArticles::untracked(),
+    )
+    .await
+}
+
+/// `download_file`, telling `open` about every article that is answered, so the runner
+/// knows how much work its running files still hold (RD-130-22).
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn download_file_counted(
+    database: &Database,
+    pool: &NntpPool,
+    shutdown: &CancellationToken,
+    nzb_file: &NzbFileStatus,
+    staging: &std::path::Path,
+    destination: &std::path::Path,
+    limits: &rd_scheduler::RunLimits,
+    open: &OpenArticles,
 ) -> Result<FileOutcome> {
     let part_path = staging.join(format!("{}.part", nzb_file.id));
     if nzb_file.segments.is_empty() {
@@ -100,22 +131,21 @@ pub(crate) async fn download_file(
     let mut written = Covered::resumed(resume.written)?;
     let segments = resume.remaining;
     let single_segment = nzb_file.segments.len() == 1;
+    // No `Downloading` mark before the request any more (RD-130-22). It was a writer
+    // transaction per article that nothing depends on: the resume trusts only checkpoints,
+    // the start-up recovery turns a leftover mark back into `Queued` anyway, and the one
+    // thing it carried - the attempt count - now travels with the checkpoint.
     let fetches = futures_util::stream::iter(segments).map(|segment| async move {
-        database
-            .set_nzb_segment_state(segment.id, NzbSegmentState::Downloading, None)
-            .await?;
         tokio::select! {
-            () = shutdown.cancelled() => {
-                database.set_nzb_segment_state(segment.id, NzbSegmentState::Queued, None).await?;
-                Ok(FetchedSegment::Cancelled)
-            }
+            () = shutdown.cancelled() => Ok(FetchedSegment::Cancelled),
             result = pool.fetch_decoded(&segment.message_id) => match result {
-                Ok(article) => {
-                    record_additional_attempts(database, segment.id, article.attempts as usize).await?;
-                    Ok(FetchedSegment::Article(Box::new(segment), article.article))
-                }
+                Ok(article) => Ok(FetchedSegment::Article(
+                    Box::new(segment),
+                    article.article,
+                    article.attempts,
+                )),
                 Err(error) => {
-                    record_additional_attempts(database, segment.id, pool.server_count()).await?;
+                    record_attempts(database, segment.id, pool.server_count()).await?;
                     database.set_nzb_segment_state(segment.id, NzbSegmentState::Failed, None).await?;
                     match error {
                         // Nobody answered the question, so nothing may be written in the
@@ -148,9 +178,25 @@ pub(crate) async fn download_file(
     tokio::pin!(fetches);
     let mut missing = 0_usize;
     let mut deviations = NameDeviations::default();
-    while let Some(result) = fetches.next().await {
-        let (segment, decoded) = match result {
-            Ok(FetchedSegment::Article(segment, decoded)) => (*segment, decoded),
+    let mut pending = PendingCheckpoints::default();
+    loop {
+        // Whatever is written is confirmed before the assembly waits for the network, so a
+        // batch only grows while articles are already queueing up behind the writer.
+        let next = match fetches.next().now_or_never() {
+            Some(next) => next,
+            None => {
+                pending.flush(database, nzb_file.id, open).await?;
+                fetches.next().await
+            }
+        };
+        let Some(result) = next else {
+            break;
+        };
+        open.answered();
+        let (segment, decoded, attempts) = match result {
+            Ok(FetchedSegment::Article(segment, decoded, attempts)) => {
+                (*segment, decoded, attempts)
+            }
             Ok(FetchedSegment::Missing(segment, detail)) => {
                 // Like SABnzbd: keep going, leave a zero-filled hole and let PAR2 repair it.
                 missing += 1;
@@ -164,15 +210,21 @@ pub(crate) async fn download_file(
                 continue;
             }
             Ok(FetchedSegment::Cancelled) => {
+                pending
+                    .flush_before_leaving(database, nzb_file.id, open)
+                    .await;
                 reset_inflight_segments(database, nzb_file).await?;
                 return Ok(FileOutcome::Cancelled);
             }
             Err(error) => {
+                pending
+                    .flush_before_leaving(database, nzb_file.id, open)
+                    .await;
                 reset_inflight_segments(database, nzb_file).await?;
                 return Err(error);
             }
         };
-        let checkpoint = async {
+        let assembled = async {
             // Paces the assembly, which back-pressures the bounded fetch stream behind it —
             // so the NNTP transport honours the same limits as every other transport.
             limits.bandwidth.acquire(decoded.data.len()).await?;
@@ -197,28 +249,44 @@ pub(crate) async fn download_file(
             rd_core::failpoint!("usenet.after_article_write", || {
                 anyhow::anyhow!("crash point: usenet.after_article_write")
             });
-            database
-                .checkpoint_nzb_assembly_segment(
-                    nzb_file.id,
-                    segment.id,
-                    decoded.metadata.name.clone(),
-                    decoded.metadata.declared_size,
-                    part_begin,
-                    part_end,
-                    decoded.crc32,
-                )
-                .await?;
-            Result::<()>::Ok(())
+            Result::<(u64, u64)>::Ok((part_begin, part_end))
         }
         .await;
-        if let Err(error) = checkpoint {
-            database
-                .set_nzb_segment_state(segment.id, NzbSegmentState::Failed, None)
-                .await?;
-            reset_inflight_segments(database, nzb_file).await?;
-            return Err(error);
+        match assembled {
+            Ok((part_begin, part_end)) => {
+                pending.push(
+                    decoded.metadata.name.clone(),
+                    decoded.metadata.declared_size,
+                    rd_db::AssembledSegment {
+                        segment_id: segment.id,
+                        part_begin,
+                        part_end,
+                        crc32: decoded.crc32,
+                        attempts,
+                    },
+                );
+                if pending.is_full() {
+                    pending.flush(database, nzb_file.id, open).await?;
+                }
+            }
+            Err(error) => {
+                record_attempts(database, segment.id, attempts as usize).await?;
+                database
+                    .set_nzb_segment_state(segment.id, NzbSegmentState::Failed, None)
+                    .await?;
+                // The articles before this one were written correctly; confirming them
+                // spares the retry their download.
+                pending
+                    .flush_before_leaving(database, nzb_file.id, open)
+                    .await;
+                reset_inflight_segments(database, nzb_file).await?;
+                return Err(error);
+            }
         }
     }
+    // Every article is confirmed before the file's output path is, so a file whose path is
+    // recorded never has a segment that is written but not `Completed`.
+    pending.flush(database, nzb_file.id, open).await?;
     let expected = match declared_size {
         Some(size) => size,
         None if missing > 0 => {
@@ -374,7 +442,8 @@ fn decoded_part_range(decoded: &crate::DecodedArticle, single_segment: bool) -> 
 }
 
 enum FetchedSegment {
-    Article(Box<rd_core::NzbSegmentStatus>, crate::DecodedArticle),
+    /// The article, with the number of servers it took.
+    Article(Box<rd_core::NzbSegmentStatus>, crate::DecodedArticle, u32),
     Missing(Box<rd_core::NzbSegmentStatus>, String),
     Cancelled,
 }
@@ -399,12 +468,13 @@ async fn reset_inflight_segments(database: &Database, file: &NzbFileStatus) -> R
     Ok(())
 }
 
-async fn record_additional_attempts(
+/// Books `attempts` server attempts on a segment that has no checkpoint to carry them.
+async fn record_attempts(
     database: &Database,
     segment_id: rd_core::NzbSegmentId,
     attempts: usize,
 ) -> Result<()> {
-    for _ in 1..attempts {
+    for _ in 0..attempts {
         database
             .set_nzb_segment_state(segment_id, NzbSegmentState::Downloading, None)
             .await?;

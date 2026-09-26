@@ -12,46 +12,14 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
-use common::{get_json, put_json, test_router};
-use http_body_util::BodyExt;
-use tower::ServiceExt;
+use common::{Upload, get_json, put_json, send_strict, test_router};
 
-/// Multipart body carrying one `.dlc` file.
-fn multipart(boundary: &str, content: &[u8]) -> Vec<u8> {
-    let mut body = Vec::new();
-    body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-    body.extend_from_slice(
-        b"Content-Disposition: form-data; name=\"file\"; filename=\"release.dlc\"\r\n",
-    );
-    body.extend_from_slice(b"Content-Type: application/x-dlc\r\n\r\n");
-    body.extend_from_slice(content);
-    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
-    body
-}
-
-async fn import(router: &Router, content: &[u8]) -> (StatusCode, serde_json::Value) {
-    let boundary = "rddlcboundary";
-    let request = Request::post("/api/v1/dlc/import")
-        .header(header::HOST, "127.0.0.1:8710")
-        .header(
-            header::CONTENT_TYPE,
-            format!("multipart/form-data; boundary={boundary}"),
-        )
-        .body(Body::from(multipart(boundary, content)))
-        .expect("request");
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
-    )
-}
+/// The DLC import route, with a file the way JDownloader names one.
+const DLC: Upload<'static> = Upload {
+    uri: "/api/v1/dlc/import",
+    file_name: "release.dlc",
+    part_type: "application/x-dlc",
+};
 
 /// Turns the DLC import on, leaving every other setting as stored.
 async fn enable_dlc(router: &Router, endpoint: Option<&str>) -> (StatusCode, serde_json::Value) {
@@ -74,7 +42,7 @@ async fn an_import_is_refused_while_the_feature_is_off() {
 
     // A syntactically valid container: the refusal must come from the setting, not the parser.
     let container = "A".repeat(32) + &"B".repeat(88);
-    let (status, body) = import(&router, container.as_bytes()).await;
+    let (status, body) = common::import(&router, DLC, container.as_bytes()).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST, "body: {body}");
     assert_eq!(body["code"], "dlc.service_disabled");
@@ -89,7 +57,7 @@ async fn a_file_that_is_not_a_container_is_rejected_before_any_request() {
     let (status, body) = enable_dlc(&router, None).await;
     assert_eq!(status, StatusCode::OK, "settings: {body}");
 
-    let (status, body) = import(&router, b"this is not a DLC container").await;
+    let (status, body) = common::import(&router, DLC, b"this is not a DLC container").await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST, "body: {body}");
     assert_eq!(body["code"], "dlc.file_invalid");
@@ -125,15 +93,8 @@ async fn a_multipart_request_without_a_file_is_reported() {
         )
         .body(Body::from(body))
         .expect("request");
-    let response = router.oneshot(request).await.expect("response");
+    let (status, payload) = send_strict(&router, request).await;
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let payload: serde_json::Value = serde_json::from_slice(&bytes).expect("error body");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(payload["code"], "request.multipart_missing_file");
 }

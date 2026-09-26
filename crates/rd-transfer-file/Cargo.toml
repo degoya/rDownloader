@@ -7,7 +7,6 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-files = { path = "../rd-files" }
@@ -15,7 +14,6 @@ rd-limits = { path = "../rd-limits" }
 rd-scheduler = { path = "../rd-scheduler" }
 tokio.workspace = true
 tokio-util.workspace = true
-tracing.workspace = true
 
 [lints]
 workspace = true

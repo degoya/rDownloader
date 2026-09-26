@@ -60,12 +60,6 @@ impl RemoteProtocol {
         }
     }
 
-    /// Whether the control connection is encrypted (explicitly or implicitly).
-    #[must_use]
-    pub const fn is_encrypted(self) -> bool {
-        !matches!(self, Self::Ftp)
-    }
-
     /// Which transport family handles a link, so a `ftp://` URL can still be served by a
     /// credential that was configured to require `AUTH TLS` on the same port.
     #[must_use]
@@ -372,8 +366,6 @@ mod tests {
         assert_eq!(RemoteProtocol::Ftps.family(), RemoteFamily::Ftp);
         assert_eq!(RemoteProtocol::FtpsImplicit.family(), RemoteFamily::Ftp);
         assert_eq!(RemoteProtocol::Sftp.family(), RemoteFamily::Sftp);
-        assert!(!RemoteProtocol::Ftp.is_encrypted());
-        assert!(RemoteProtocol::Ftps.is_encrypted());
     }
 
     #[test]

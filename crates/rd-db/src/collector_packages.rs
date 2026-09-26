@@ -10,7 +10,8 @@ use rd_core::{
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{
-    collector_store::{CandidateRow, GET_CANDIDATE, enum_string, insert_event},
+    collector_store::{CandidateRow, GET_CANDIDATE, insert_event},
+    enum_string,
     error::{StoreError, StoreErrorKind},
     parse_id,
 };
@@ -953,7 +954,7 @@ pub(crate) async fn claim_package_for_enqueue(
     // variants, not user input, so there is nothing here to inject.
     let states = LinkCandidateState::ENQUEUEABLE
         .iter()
-        .map(|state| Ok(format!("'{}'", crate::collector_store::enum_string(state)?)))
+        .map(|state| Ok(format!("'{}'", crate::enum_string(state)?)))
         .collect::<Result<Vec<_>>>()?
         .join(", ");
     let rows = sqlx::query_as::<_, CandidateRow>(&format!(

@@ -259,7 +259,7 @@ mod tests {
         assert_eq!(state.reconnects, 1);
         // And what was already recorded is still there — the point of the whole loop.
         assert_eq!(state.total_bytes(), 300);
-        assert!(state.has_gaps());
+        assert!(state.segments.iter().any(|s| s.reason.leaves_gap()));
     }
 
     #[test]

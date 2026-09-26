@@ -14,6 +14,12 @@
 //!
 //! `RD_BENCH_RTT_MS` and `RD_BENCH_RATE_MIB` override the line: `RD_BENCH_RTT_MS=1
 //! RD_BENCH_RATE_MIB=0` is a link so fast that the disk is what remains.
+//!
+//! `parallel_files_sweep` (RD-130-22) is the measurement for the number of files at once:
+//!
+//! ```bash
+//! cargo nextest run -p rd-usenet --run-ignored ignored-only -E 'test(parallel_files_sweep)' --no-capture
+//! ```
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
@@ -26,6 +32,8 @@ use crate::{
         FixtureTiming, import_single_file, multipart_article, payload, run_limits, spawn_fixture,
     },
 };
+
+mod sweep;
 
 const CONNECTIONS: u16 = 10;
 const ARTICLES: usize = 200;

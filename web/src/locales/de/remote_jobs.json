@@ -5,10 +5,8 @@
   "empty": "Beim Anbieter läuft kein Auftrag.",
   "account": "Konto",
   "account_unknown": "Unbekanntes Konto",
-  "content": "Inhalt",
   "remote_id": "Dort bekannt als",
   "started": "Begonnen",
-  "updated": "Letzte Änderung",
   "states": {
     "submitting": "Wird übergeben",
     "preparing": "Der Anbieter bereitet ihn vor",
@@ -19,7 +17,6 @@
     "discarded": "Beim Anbieter gelöscht"
   },
   "submit": {
-    "title": "Einen Magnet an ein Konto übergeben",
     "description": "Der Anbieter holt ihn und übergibt die fertigen Adressen an den LinkGrabber. Derselbe Magnet zweimal ist ein Auftrag, nicht zwei.",
     "magnet": "Magnet-Adresse",
     "magnet_placeholder": "magnet:?xt=urn:btih:…",

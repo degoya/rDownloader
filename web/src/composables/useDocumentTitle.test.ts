@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { setLocale } from '@/i18n'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 
 import { transferTitle } from './useDocumentTitle'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 /**
  * The four cases RD-106-07 names, on the pure derivation rather than on a mounted application:

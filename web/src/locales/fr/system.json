@@ -46,7 +46,8 @@
     "extension_hint": "Extension de navigateur : utilisez le jeton brut ci-dessous dans les options de l'extension.",
     "copy_token": "Copier le jeton",
     "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
-    "token_copied_description": "Le jeton de capture est dans le presse-papiers."
+    "token_copied_description": "Le jeton de capture est dans le presse-papiers.",
+    "label": "Nom de la connexion"
   },
   "agents": {
     "eyebrow": "Connexions appairées",

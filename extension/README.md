@@ -99,16 +99,14 @@ The buffer holds fifty requests, and a `GET` is dropped from it before any `POST
 polls in the background used to push the one entry that decides a handoff out of the window
 within seconds.
 
-A service that does not answer at all is reported as unreachable, not as too old, and the
-browser keeps the download. "Too old" is reserved for a build that answered and does not know
-the capture contract.
+A service that does not answer at all is reported as unreachable, and the browser keeps the
+download.
 
-Chrome puts the extension's service worker to sleep after about thirty idle seconds. Everything
-that has to be said once — the "configure server and token first" hint, the "this rDownloader is
-too old" notice — and the capture version negotiated with the service therefore live in
-`storage.session` with an expiry, not in the worker's memory: as memory they came back on every
-single download, which turned one hint into a nuisance and put an extra `/capture/ping` in front
-of every handoff. They are gone when the browser restarts, which is the right lifetime for them.
+Chrome puts the extension's service worker to sleep after about thirty idle seconds. What has to
+be said once — the "configure server and token first" hint — and the capture version negotiated
+with the service therefore live in `storage.session` with an expiry, not in the worker's memory:
+as memory they came back on every single download, which turned one hint into a nuisance and put
+an extra `/capture/ping` in front of every handoff. They are gone when the browser restarts, which is the right lifetime for them.
 
 Credential-bearing headers such as `Cookie` and `Authorization` are dropped in the extension and
 again on the server; they never travel with a captured link.

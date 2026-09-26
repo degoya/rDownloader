@@ -16,7 +16,7 @@ import type { LinkCandidate } from '@/api/types'
 import { hosterOf } from '@/utils/collectorSort'
 
 /** The three dimensions a person may prefer, in the order the toolbar shows them. */
-export const MIRROR_FACETS = ['quality', 'language', 'hoster'] as const
+const MIRROR_FACETS = ['quality', 'language', 'hoster'] as const
 export type MirrorFacet = (typeof MIRROR_FACETS)[number]
 
 /**
@@ -57,7 +57,7 @@ export type LinkRow =
   | { kind: 'group', group: MirrorGroup }
 
 /** The facet value a candidate carries, or `null` where nothing said. */
-export function facetOf(candidate: LinkCandidate, facet: MirrorFacet): string | null {
+function facetOf(candidate: LinkCandidate, facet: MirrorFacet): string | null {
   if (facet === 'hoster') return hosterOf(candidate) || null
   return candidate.mirror?.[facet] ?? null
 }
@@ -77,15 +77,6 @@ export function matchesPreference(candidate: LinkCandidate, preference: MirrorPr
     const value = facetOf(candidate, facet)
     return value === null || value.toLowerCase() === wanted.toLowerCase()
   })
-}
-
-/** How many facets of the preference a candidate actually matches (not merely fails to deny). */
-export function matchedFacets(candidate: LinkCandidate, preference: MirrorPreference): number {
-  return MIRROR_FACETS.filter((facet) => {
-    const wanted = preference[facet]
-    if (!wanted) return false
-    return facetOf(candidate, facet)?.toLowerCase() === wanted.toLowerCase()
-  }).length
 }
 
 /**

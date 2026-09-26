@@ -22,6 +22,20 @@ vi.mock('@/api/client', () => ({
   responseError: () => 'failed'
 }))
 
+/** Which host a staged resolver version would handle; none unless a test sets one. */
+const staged = vi.hoisted(() => ({ host: null as string | null, trial: null as unknown }))
+vi.mock('@/composables/useStagedResolvers', () => {
+  staged.trial = vi.fn(async () => ({ message: 'pinned', error: null }))
+  return {
+    useStagedResolvers: () => ({
+      stagedFor: (source: string) => staged.host && source.includes(staged.host)
+        ? { pluginId: 'p1', name: 'Hoster', version: '2.0.0', domains: [staged.host] }
+        : null,
+      trial: staged.trial
+    })
+  }
+})
+
 interface MenuItem { label: string }
 
 /** The labels the dropdown was handed, flattened out of its groups. */
@@ -83,6 +97,21 @@ describe('TransferCard actions', () => {
   it('offers stopping the seed only while seeding', () => {
     expect(actionsFor('seeding')).toContain(downloads.transfer.stop_seeding)
     expect(actionsFor('completed')).not.toContain(downloads.transfer.stop_seeding)
+  })
+
+  /** "Test with new version" (RD-140-02): only where a loaded staged resolver handles the source. */
+  it('offers a trial of the staged resolver version only on a download that is not running', () => {
+    const label = downloads.transfer.trial_staged.replace('{name}', 'Hoster').replace('{version}', '2.0.0')
+    expect(actionsFor('paused')).not.toContain(label)
+    staged.host = 'example.invalid'
+    try {
+      expect(actionsFor('paused')).toContain(label)
+      expect(actionsFor('failed')).toContain(label)
+      expect(actionsFor('downloading')).not.toContain(label)
+      expect(actionsFor('completed')).not.toContain(label)
+    } finally {
+      staged.host = null
+    }
   })
 
   it('leaves a completed row nothing to start or pause', () => {

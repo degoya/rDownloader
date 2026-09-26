@@ -229,7 +229,7 @@ async fn manual_extraction_uses_package_password_list_and_deletes_originals() {
     database
         .set_setting(
             "service.settings".to_owned(),
-            serde_json::json!({ "delete_archives_after_extract": true }),
+            serde_json::json!({ "default_level": "delete" }),
         )
         .await
         .expect("settings");

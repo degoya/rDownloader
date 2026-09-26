@@ -2972,6 +2972,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Describes an uploaded `.rdplug` without installing it: name, version, publisher,
+         *     permissions and whether its key is trusted.
+         */
+        post: operations["preview_plugin_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_plugin_repositories"];
+        put?: never;
+        /**
+         * Adds a third-party repository once its key is approved.
+         * @description The first request fetches the index and checks that the pasted key signs it, then refuses
+         *     with `409 plugin_repository.key_unconfirmed` naming the key id and fingerprint. The client
+         *     shows both and sends the same request again with `trust_fingerprint`; only an exact match
+         *     adds the repository, so the key approved is the key the person saw.
+         */
+        post: operations["add_plugin_repository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refreshes every enabled repository now, then installs the updates set to automatic. */
+        post: operations["refresh_plugin_repositories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_plugin_repository_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_plugin_repository"];
+        options?: never;
+        head?: never;
+        /**
+         * Switches a repository on or off, or renames it.
+         * @description Off stops refreshes, offers and updates from it. Nothing installed from it is touched.
+         */
+        patch: operations["update_plugin_repository"];
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Installs one offered package. Active after a restart, like every install. */
+        post: operations["install_repository_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/repositories/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Downloads one offered package, proves it matches the index, and describes it like an upload. */
+        post: operations["preview_repository_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins/revocations": {
         parameters: {
             query?: never;
@@ -2999,6 +3129,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["unrevoke_plugin_digest"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Updates for installed plugins and what else the enabled repositories offer. */
+        get: operations["list_plugin_updates"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3041,6 +3188,117 @@ export interface paths {
         get: operations["list_plugin_executions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/lifecycle/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Makes one installed version the one new work runs on from the next start.
+         * @description The version it replaces becomes the rollback target. Activating the staged version ends
+         *     its test: it is simply the active one now.
+         */
+        post: operations["activate_plugin_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/lifecycle/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Chooses how updates of this plugin arrive: shown and installed by click, or on their own.
+         * @description Stored per plugin; an update source reads it when it has something to offer. An update
+         *     installed either way becomes active at a restart like any other install.
+         */
+        put: operations["set_plugin_update_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/lifecycle/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Returns to the version that was active before the last activation or rollback.
+         * @description One write moves both pointers, so every download that starts after the next start runs on
+         *     the version rolled back to, and none on a mix. Downloads already pinned to the version
+         *     rolled away from keep it until they finish; that version stays installed for them.
+         */
+        post: operations["roll_back_plugin_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/lifecycle/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts one installed version under test next to the active one.
+         * @description Nothing runs it until a download is started with it (`…/lifecycle/trial`) or it is
+         *     activated. Only resolver plugins can be tried on a download; for every other type the
+         *     staged version simply waits for its activation.
+         */
+        post: operations["stage_plugin_version"];
+        /** Ends a test without activating the staged version. */
+        delete: operations["discard_staged_plugin_version"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/lifecycle/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts one download with the staged version the next time it runs ("test with new
+         *     version").
+         * @description The download's resolver pin is pointed at the staged version, which is the same mechanism
+         *     that keeps a running job on the version it started with, so the job stays on the staged
+         *     version until it finishes. Refused while the download is running, and until the staged
+         *     version is loaded — staging takes effect at a restart like everything else here.
+         */
+        post: operations["trial_staged_plugin_version"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4150,22 +4408,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/subscriptions/{id}/items": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_subscription_items"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/subscriptions/{id}/items/page": {
         parameters: {
             query?: never;
@@ -4173,7 +4415,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lists one state-filtered page without changing the legacy array-shaped item endpoint. */
+        /** Lists one state-filtered page of a subscription's items. */
         get: operations["list_subscription_item_page"];
         put?: never;
         post?: never;
@@ -4612,6 +4854,15 @@ export interface components {
             /** @enum {string} */
             kind: "resume_package";
         };
+        /** @description Body of `POST /api/v1/plugins/repositories`. */
+        AddPluginRepositoryRequest: {
+            /** @description What to call it; the address's host when empty. */
+            name?: string | null;
+            /** @description The repository's Base64 Ed25519 public key, as its publisher publishes it. */
+            public_key: string;
+            /** @description The index's `https://` address. */
+            url: string;
+        };
         /**
          * @description The widget token a browser harvested from the hoster's page — the extension's tab or the
          *     desktop agent's WebView.
@@ -4627,24 +4878,16 @@ export interface components {
          * @description Pairing request for a machine API token.
          *
          *     Separate from [`CapturePairRequest`] because a capture agent has no scope choice: it
-         *     always gets `capture:*`, while an API client picks between full access and read-only.
+         *     always gets `capture:*`, while an API client picks its areas.
          */
         ApiTokenRequest: {
             label: string;
             /**
-             * @description Legacy: mint `api:read` instead of `api:*`. Superseded by [`Self::scopes`].
-             *
-             *     Kept because it shipped, and because an existing client that only sends a label must
-             *     keep getting the token it used to get. Ignored when `scopes` is non-empty.
-             */
-            read_only?: boolean;
-            /**
              * @description The areas this token may reach, as scope strings.
              *
-             *     Empty falls back to [`Self::read_only`], which is what an older client sends. A caller
-             *     that names scopes gets exactly those: nothing here widens a request, because a minting
-             *     call that quietly grants more than it was asked for is the one mistake this whole model
-             *     exists to prevent.
+             *     Empty mints `api:read`. A caller that names scopes gets exactly those: nothing here
+             *     widens a request, because a minting call that quietly grants more than it was asked
+             *     for is the one mistake this whole model exists to prevent.
              */
             scopes?: string[];
         };
@@ -4721,7 +4964,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -6874,11 +7117,12 @@ export interface components {
          */
         InstalledPluginResponse: {
             /**
-             * @description Whether this is the version that wins among the installed ones for its id.
+             * @description Whether this is the version new work of its id runs on right now.
              *
-             *     Installing never removes an older version, so two can sit side by side; the highest
-             *     SemVer is the one loaded. That rule was never wrong, only invisible — the manager listed
-             *     both with nothing to separate them, so the leftover looked like a second, equal plugin.
+             *     Installing never removes an older version, so two can sit side by side; without a
+             *     version choice the highest SemVer is the one loaded, and with one (RD-140-02) the chosen
+             *     version is. That rule was never wrong, only invisible — the manager listed both with
+             *     nothing to separate them, so the leftover looked like a second, equal plugin.
              *
              *     Says nothing about whether the plugin is switched on; that is a separate choice and
              *     applies to every version of an id at once.
@@ -8251,6 +8495,22 @@ export interface components {
         };
         /** Format: uuid */
         PluginId: string;
+        /** @description One package as an index lists it. */
+        PluginIndexPackageResponse: {
+            api_version: string;
+            min_app_version?: string | null;
+            name: string;
+            package_digest: string;
+            permissions: components["schemas"]["PluginPermissionsResponse"];
+            plugin_id: string;
+            plugin_type: string;
+            publisher: components["schemas"]["PluginPublisherResponse"];
+            /** @description Plain text; shown as text, never as markup. */
+            release_notes?: string | null;
+            /** Format: int64 */
+            size: number;
+            version: string;
+        };
         /**
          * @description What the plugin manager shows: the packages that run, and the packages that do not.
          *
@@ -8260,6 +8520,148 @@ export interface components {
         PluginInventoryResponse: {
             incompatible: components["schemas"]["IncompatiblePluginResponse"][];
             installed: components["schemas"]["InstalledPluginResponse"][];
+            /**
+             * @description One entry per installed plugin id: which version runs, which one is under test, and
+             *     how updates arrive (RD-140-02).
+             */
+            lifecycle: components["schemas"]["PluginLifecycleResponse"][];
+        };
+        /** @description Where one plugin's versions stand, as the plugin manager shows it. */
+        PluginLifecycleResponse: {
+            /** @description The version new work runs on from the next start. */
+            active_version?: string | null;
+            plugin_id: string;
+            /** @description What a rollback returns to, while it is still installed. */
+            previous_version?: string | null;
+            /** @description Whether a stored choice waits for a restart to take effect. */
+            restart_required: boolean;
+            /**
+             * @description The version new work runs on right now. Differs from `active_version` until the
+             *     service restarts.
+             */
+            running_version?: string | null;
+            /** @description The version under test: only a download started with it runs it. */
+            staged_version?: string | null;
+            update_policy: components["schemas"]["PluginUpdatePolicy"];
+        };
+        /** @description One package an enabled repository offers. */
+        PluginOfferResponse: {
+            /** @description `compatible`, `contract_unsupported`, `app_too_old` or `withdrawn`. */
+            compatibility: string;
+            /** @description The newest version of this plugin installed here. */
+            installed_version?: string | null;
+            official: boolean;
+            package: components["schemas"]["PluginIndexPackageResponse"];
+            repository_id: string;
+            repository_name: string;
+        };
+        /** @description Updates for installed plugins, and what else the repositories offer. */
+        PluginOffersResponse: {
+            /** @description Packages of plugins not installed here. */
+            available: components["schemas"]["PluginOfferResponse"][];
+            /**
+             * @description Every package the repositories offer for plugins installed here, whatever its version:
+             *     the release notes of each, for the version panel's history.
+             */
+            installed: components["schemas"]["PluginOfferResponse"][];
+            updates: components["schemas"]["PluginUpdateResponse"][];
+        };
+        /** @description What a package asks for. */
+        PluginPermissionsResponse: {
+            /** @description Capability names, `secrets:<reference>` and `net_stream:<ports>` included. */
+            granted: string[];
+            http_domains: string[];
+            stream_hosts: string[];
+        };
+        /** @description Everything the install preview shows. Nothing is installed by asking for it. */
+        PluginPreviewResponse: {
+            api_version: string;
+            description: string;
+            homepage?: string | null;
+            /** @description Why this build cannot run it, when it cannot. */
+            incompatible?: string | null;
+            /** @description Whether confirming can install it at all. */
+            installable: boolean;
+            /** @description Versions of the same plugin already installed here. */
+            installed_versions: string[];
+            /** @description `trusted`, `untrusted`, `mismatch`, `withdrawn` or `unsigned`. */
+            key_status: string;
+            license?: string | null;
+            min_app_version?: string | null;
+            name: string;
+            package_digest: string;
+            permissions: components["schemas"]["PluginPermissionsResponse"];
+            plugin_id: string;
+            plugin_type: string;
+            publisher?: null | components["schemas"]["PluginPublisherResponse"];
+            /** @description The index's notes for this version; a package on its own carries none. */
+            release_notes?: string | null;
+            /** Format: int64 */
+            size: number;
+            source?: null | components["schemas"]["PluginPreviewSourceResponse"];
+            version: string;
+            /** @description Whether this exact package was withdrawn by its digest. */
+            withdrawn: boolean;
+        };
+        /** @description Where a previewed package comes from, when a repository offered it. */
+        PluginPreviewSourceResponse: {
+            official: boolean;
+            repository_id: string;
+            repository_name: string;
+        };
+        /** @description Who signed a package. */
+        PluginPublisherResponse: {
+            author: string;
+            /** @description Hex SHA-256 of the signing key. */
+            fingerprint: string;
+            key_id: string;
+        };
+        /** @description Every repository and the refresh interval. */
+        PluginRepositoriesResponse: {
+            /**
+             * Format: int32
+             * @description Hours between two automatic refreshes.
+             */
+            refresh_hours: number;
+            repositories: components["schemas"]["PluginRepositoryResponse"][];
+        };
+        /** @description One configured repository. */
+        PluginRepositoryResponse: {
+            enabled: boolean;
+            /** @description When the index in use expires; `None` while none is loaded. */
+            expires_at?: string | null;
+            fingerprint?: string | null;
+            id: string;
+            issued_at?: string | null;
+            /** @description The approved repository key; `None` for the official repository, whose key is compiled in. */
+            key_id?: string | null;
+            /** @description `official` or `third_party`. */
+            kind: string;
+            last_checked_at?: string | null;
+            /** @description Stable code of the last refresh's failure. */
+            last_error?: string | null;
+            last_success_at?: string | null;
+            name: string;
+            /**
+             * Format: int64
+             * @description The highest index sequence accepted so far.
+             */
+            sequence?: number | null;
+            /** @description The index address; the official one's is compiled in and shown here too. */
+            url: string;
+        };
+        /** @description Body of `PUT /api/v1/plugins/repositories/settings`. */
+        PluginRepositorySettingsRequest: {
+            /**
+             * Format: int32
+             * @description Hours between two automatic refreshes, 1 to 168.
+             */
+            refresh_hours: number;
+        };
+        /** @description Body of `POST /api/v1/plugins/{id}/lifecycle/trial`. */
+        PluginTrialRequest: {
+            /** @description The download to run on the staged version the next time it starts. */
+            download_id: components["schemas"]["DownloadId"];
         };
         /** @description One plugin signing key the user confirmed on first use. */
         PluginTrustedKeyResponse: {
@@ -8268,6 +8670,31 @@ export interface components {
             fingerprint: string;
             key_id: string;
             plugin_name?: string | null;
+        };
+        /**
+         * @description How updates for one plugin arrive once an update source offers one.
+         * @enum {string}
+         */
+        PluginUpdatePolicy: "manual" | "automatic";
+        /** @description Body of `PUT /api/v1/plugins/{id}/lifecycle/policy`. */
+        PluginUpdatePolicyRequest: {
+            policy: components["schemas"]["PluginUpdatePolicy"];
+        };
+        /** @description A newer version of an installed plugin, from the key it is already signed with. */
+        PluginUpdateResponse: {
+            /**
+             * @description Asks for a permission the installed version does not have; never installed
+             *     automatically, whatever the policy.
+             */
+            adds_permissions: boolean;
+            installed_version: string;
+            offer: components["schemas"]["PluginOfferResponse"];
+            /** @description `manual` or `automatic`. */
+            policy: string;
+        };
+        /** @description Names one installed version of the plugin. */
+        PluginVersionRequest: {
+            version: string;
         };
         /**
          * @description Which level supplied one effective value.
@@ -8555,12 +8982,6 @@ export interface components {
              *     }
              */
             split: components["schemas"]["SplitPolicy"];
-            /**
-             * @default {
-             *       "mode": "off"
-             *     }
-             */
-            vod_fallback: components["schemas"]["VodFallback"];
         };
         /**
          * @description One continuous stretch of recording.
@@ -8596,11 +9017,6 @@ export interface components {
             segments: components["schemas"]["RecordingSegment"][];
             /** @default [] */
             sidecars: components["schemas"]["SidecarOutcome"][];
-            /**
-             * @description Whether a VOD was fetched to fill in for an incomplete recording.
-             * @default false
-             */
-            vod_fetched: boolean;
         };
         /**
          * @description How a remote credential authenticates.
@@ -8876,6 +9292,13 @@ export interface components {
             has_body: boolean;
             method: components["schemas"]["ReplayMethod"];
             replayable: boolean;
+        };
+        /** @description Which package of which repository. */
+        RepositoryPackageRequest: {
+            plugin_id: string;
+            /** @description Install only: the fingerprint of the package's signing key the person confirmed. */
+            trust_fingerprint?: string | null;
+            version: string;
         };
         /** @description The outcome of the last resolve, carried alongside a selection for display and pinning. */
         ResolvedFormatPlan: {
@@ -9254,8 +9677,6 @@ export interface components {
              * @default 100000
              */
             audit_retention_records: number;
-            /** @default false */
-            auto_extract: boolean;
             /**
              * Format: int32
              * @description How long a package stays after it finished, in hours (1–720).
@@ -9325,11 +9746,6 @@ export interface components {
             custom_ca_pem: string | null;
             /** @default unpack */
             default_level: null | components["schemas"]["PostprocessLevel"];
-            /**
-             * @description Remove archive volumes after a successful extraction.
-             * @default false
-             */
-            delete_archives_after_extract: boolean;
             /**
              * @description Delete the PAR2 recovery set once repair and extraction have both succeeded. Off by
              *     default: it is the only thing that can rescue a damaged package.
@@ -9590,6 +10006,13 @@ export interface components {
              * @default 0
              */
             nntp_connections_per_file: number;
+            /**
+             * Format: int32
+             * @description NZB files downloaded at once, 1 to 8; `0` is automatic - as many as keep every
+             *     connection busy (RD-130-22). All of them together take one `max_active_files` slot.
+             * @default 0
+             */
+            nntp_parallel_files: number;
             /**
              * @description Whether finished spans are exported over OTLP (RD-110-03). Off by default and off
              *     after an upgrade: exporting traces sends the shape of a person's activity to a third
@@ -10300,7 +10723,7 @@ export interface components {
             /** @description streamlink stream selection (`best`, `1080p`, `720p`, …); `None` = the default. */
             quality?: string | null;
             /**
-             * @description Splitting, remux, sidecars and VOD fallback for this channel's recordings
+             * @description Splitting, remux, sidecars and reconnect delay for this channel's recordings
              *     (RD-080-09).
              */
             recording?: components["schemas"]["RecordingPolicy"];
@@ -10317,7 +10740,7 @@ export interface components {
             name?: string | null;
             /** @description streamlink stream selection (`best`, `1080p`, …); `null` = the default quality. */
             quality?: string | null;
-            /** @description Splitting, remux, sidecars and VOD fallback for this channel (RD-080-09). */
+            /** @description Splitting, remux, sidecars and reconnect delay for this channel (RD-080-09). */
             recording?: components["schemas"]["RecordingPolicy"];
             /** Format: uri */
             url: string;
@@ -11508,6 +11931,11 @@ export interface components {
             manual_timeout_seconds?: number | null;
             solver?: null | components["schemas"]["SolverKind"];
         };
+        /** @description Body of `PATCH /api/v1/plugins/repositories/{id}`. */
+        UpdatePluginRepositoryRequest: {
+            enabled?: boolean | null;
+            name?: string | null;
+        };
         /** @description Editable login fields. Empty credential fields preserve their stored values. */
         UpdateRemoteCredentialRequest: {
             auth_mode: components["schemas"]["RemoteAuthMode"];
@@ -11578,20 +12006,6 @@ export interface components {
          * @enum {string}
          */
         VideoCodecFamily: "avc" | "hevc" | "av1" | "vp9" | "vp8" | "other";
-        /** @description When an incomplete live recording may be replaced by the published VOD. */
-        VodFallback: {
-            /** @enum {string} */
-            mode: "off";
-        } | {
-            /** @enum {string} */
-            mode: "below_coverage";
-            /**
-             * Format: int32
-             * @description Fetch the VOD when the live recording covered less than this percentage of the
-             *     scheduled window.
-             */
-            value: number;
-        };
     };
     responses: never;
     parameters: never;
@@ -17726,6 +18140,298 @@ export interface operations {
             };
         };
     };
+    preview_plugin_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginPreviewResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    list_plugin_repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginRepositoriesResponse"];
+                };
+            };
+        };
+    };
+    add_plugin_repository: {
+        parameters: {
+            query?: {
+                /** @description Hex SHA-256 of the repository key, exactly as the 409 response reported it. */
+                trust_fingerprint?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddPluginRepositoryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginRepositoryResponse"];
+                };
+            };
+            /** @description The repository key has not been confirmed yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    refresh_plugin_repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginRepositoriesResponse"];
+                };
+            };
+        };
+    };
+    set_plugin_repository_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginRepositorySettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginRepositoriesResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    remove_plugin_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    update_plugin_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePluginRepositoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    install_repository_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryPackageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Signed by a key the user has not confirmed yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    preview_repository_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryPackageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginPreviewResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
     list_plugin_revocations: {
         parameters: {
             query?: never;
@@ -17813,6 +18519,25 @@ export interface operations {
             };
         };
     };
+    list_plugin_updates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginOffersResponse"];
+                };
+            };
+        };
+    };
     set_plugin_enabled: {
         parameters: {
             query?: never;
@@ -17857,6 +18582,238 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PluginExecutionResponse"][];
+                };
+            };
+        };
+    };
+    activate_plugin_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginVersionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The version would not load */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    set_plugin_update_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginUpdatePolicyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    roll_back_plugin_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description No earlier version to return to */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    stage_plugin_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginVersionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The version is active or would not load */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    discard_staged_plugin_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    trial_staged_plugin_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginTrialRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Nothing staged, not loaded yet, or the download is running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
         };
@@ -20011,29 +20968,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    list_subscription_items: {
-        parameters: {
-            query?: {
-                limit?: number | null;
-            };
-            header?: never;
-            path: {
-                id: components["schemas"]["SubscriptionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SubscriptionItem"][];
                 };
             };
         };

@@ -11,8 +11,6 @@
 //! `https` while the base path was configured for a deployment that used `http`, or a base
 //! path set in one place and not the other.
 
-use std::net::IpAddr;
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -142,8 +140,8 @@ impl ProxyConfig {
     }
 
     /// Whether `address` is one of the configured proxies.
-    #[must_use]
-    pub fn trusts(&self, address: IpAddr) -> bool {
+    #[cfg(test)]
+    fn trusts(&self, address: std::net::IpAddr) -> bool {
         crate::client_ip::is_trusted(address, &self.trusted)
     }
 
@@ -155,14 +153,6 @@ impl ProxyConfig {
     #[must_use]
     pub fn origin(&self) -> Option<&str> {
         self.origin.as_deref()
-    }
-
-    /// The host part of the origin, which is what WebAuthn calls the relying party id.
-    #[must_use]
-    pub fn relying_party_id(&self) -> Option<String> {
-        let origin = self.origin.as_deref()?;
-        let url = url::Url::parse(origin).ok()?;
-        url.host_str().map(str::to_owned)
     }
 
     /// The mount point: `/downloads`, or empty at the root.
@@ -272,7 +262,6 @@ mod tests {
         );
         assert_eq!(config.origin(), Some("https://rd.example.com"));
         assert_eq!(config.base_path(), "/downloads");
-        assert_eq!(config.relying_party_id().as_deref(), Some("rd.example.com"));
         assert!(config.cookie_is_secure());
     }
 
@@ -284,8 +273,6 @@ mod tests {
             CookieSecurity::Auto,
         );
         assert_eq!(config.origin(), Some("https://rd.example.com:8443"));
-        // The relying party id is the host alone: WebAuthn ignores the port.
-        assert_eq!(config.relying_party_id().as_deref(), Some("rd.example.com"));
     }
 
     #[test]

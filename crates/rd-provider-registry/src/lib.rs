@@ -418,11 +418,6 @@ pub fn try_register_dynamic(row: DynamicProvider) -> Result<(), RegisterError> {
     Ok(())
 }
 
-/// Drops every dynamic row owned by `plugin_id`.
-pub fn unregister_dynamic(plugin_id: &str) {
-    dynamic_write().retain(|existing| existing.plugin_id != plugin_id);
-}
-
 /// Rejects a dynamic row that would take another plugin's slug, or claim a secret reference
 /// that already belongs to someone else.
 ///
@@ -765,8 +760,6 @@ mod tests {
         try_register_dynamic(upgraded).expect("self-replacement is allowed");
         assert_eq!(by_slug("fixture").expect("spec").display_name, "Fixture 2");
 
-        unregister_dynamic("plugin-a");
-        assert!(by_slug("fixture").is_none());
         replace_dynamic(Vec::new());
     }
 

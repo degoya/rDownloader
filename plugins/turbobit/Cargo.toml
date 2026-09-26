@@ -6,7 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-wit-bindgen.workspace = true
 plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
 rd-plugin-turbobit-common = { path = "../turbobit-common" }

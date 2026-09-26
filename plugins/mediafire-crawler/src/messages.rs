@@ -2,7 +2,8 @@
 //!
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! Nothing MediaFire wrote appears verbatim in any of them.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
+// Only the guest reports a crawl's failures; the native build compiles these for nothing.
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 /// The address is not a MediaFire folder address — or, for a bare key, turned out to be a
 /// file: reported as `unsupported`, which hands the address on to the resolver.

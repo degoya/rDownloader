@@ -23,7 +23,7 @@ function server(maxConnections: number, enabled = true) {
 }
 
 function mount(cap: number) {
-  const settings = { nntp_connections_per_file: cap, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: '0' }
+  const settings = { nntp_connections_per_file: cap, nntp_parallel_files: 0, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: '0' }
   return render(SettingsGeneralTab, {
     props: { modelValue: settings as never, speedMib: null },
     global: { plugins: [i18n], components }
@@ -89,5 +89,23 @@ describe('SettingsGeneralTab NNTP connection cap', () => {
       expect(vi.mocked(api.GET)).toHaveBeenCalled()
     })
     expect(screen.queryByTestId('nntp-cap-hint')).toBeNull()
+  })
+})
+
+/** RD-130-22: the number of Usenet files at once is a setting, automatic by default. */
+describe('SettingsGeneralTab Usenet files at once', () => {
+  beforeEach(() => {
+    vi.mocked(api.GET).mockReset()
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+  })
+
+  it('offers the setting with automatic as its value', async () => {
+    mount(0)
+
+    expect(screen.getByText('Usenet files at once')).toBeTruthy()
+    expect((screen.getByTestId('nntp-parallel-files') as HTMLInputElement).value).toBe('0')
+    await waitFor(() => {
+      expect(vi.mocked(api.GET)).toHaveBeenCalled()
+    })
   })
 })

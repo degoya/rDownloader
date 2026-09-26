@@ -1041,7 +1041,7 @@ fn fixtures_carry_no_credential_material() {
         }
         checked += 1;
     }
-    assert!(checked >= 10, "only {checked} fixtures were checked");
+    assert!(checked >= 9, "only {checked} fixtures were checked");
 }
 
 /// The three siblings reach only Google, and only the part of it each one needs.

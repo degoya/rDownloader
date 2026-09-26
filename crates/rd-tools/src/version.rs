@@ -115,6 +115,7 @@ impl ToolVersion {
     }
 
     /// Whether the suffix marks this as a build published before the release it names.
+    #[cfg(test)]
     #[must_use]
     pub fn is_pre_release(&self) -> bool {
         self.pre_release.is_some()

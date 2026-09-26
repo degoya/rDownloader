@@ -59,23 +59,22 @@ async fn collect_link(router: &Router, url: &str) -> String {
 
 /// Waits for the supervision loop to reach `blocked` for a root.
 async fn wait_for_blocked(router: &Router, root_id: &str, blocked: bool) -> serde_json::Value {
-    for _ in 0..120 {
+    let what = format!("storage root never reached blocked={blocked}");
+    // The supervision loop runs about once a second; twelve seconds was the hand-written
+    // loop's budget and stays it.
+    let within = std::time::Duration::from_secs(12);
+    common::eventually(within, &what, || async move {
         let (status, capacity) = common::get_json(router, "/api/v1/storage/capacity").await;
         assert_eq!(status, StatusCode::OK, "{capacity}");
-        let entry = capacity["roots"]
+        capacity["roots"]
             .as_array()
             .expect("roots")
             .iter()
             .find(|entry| entry["storage_root_id"] == root_id)
-            .cloned();
-        if let Some(entry) = entry
-            && entry["blocked"] == blocked
-        {
-            return entry;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    panic!("storage root never reached blocked={blocked}");
+            .filter(|entry| entry["blocked"] == blocked)
+            .cloned()
+    })
+    .await
 }
 
 async fn set_threshold(
@@ -199,13 +198,26 @@ async fn without_automatic_resume_a_root_stays_blocked_until_it_is_released() {
         .await
         .expect("settings");
     let root_id = create_root(&router, "data", &root_path).await;
+    // Two witnesses: roots that only ever go from free to blocked, which is a transition this
+    // configuration still makes on its own.
+    let first_path = directory.path().join("first-witness");
+    let second_path = directory.path().join("second-witness");
+    let first = create_root(&router, "first-witness", &first_path).await;
+    let second = create_root(&router, "second-witness", &second_path).await;
 
     set_threshold(&router, &root_id, &root_path, Some(UNREACHABLE_THRESHOLD)).await;
     wait_for_blocked(&router, &root_id, true).await;
 
     set_threshold(&router, &root_id, &root_path, None).await;
-    // Two supervision cycles are far more than the loop needs; the block must survive them.
-    tokio::time::sleep(std::time::Duration::from_millis(2_500)).await;
+    // The block must survive whole supervision cycles, and "it survived" means something only
+    // once a cycle has read the cleared threshold. A cycle reloads every root when it starts,
+    // so the pass that blocks the first witness began after the threshold was cleared — but
+    // may not have reached this root yet when the block shows. The pass that blocks the second
+    // witness, set only once the first shows, cannot start before that one has finished.
+    set_threshold(&router, &first, &first_path, Some(UNREACHABLE_THRESHOLD)).await;
+    wait_for_blocked(&router, &first, true).await;
+    set_threshold(&router, &second, &second_path, Some(UNREACHABLE_THRESHOLD)).await;
+    wait_for_blocked(&router, &second, true).await;
     let (_, capacity) = common::get_json(&router, "/api/v1/storage/capacity").await;
     let entry = capacity["roots"]
         .as_array()

@@ -181,7 +181,7 @@ function summary(profile: BandwidthProfile): string {
             <div class="mt-2 flex flex-wrap items-end gap-2">
               <USelect v-model="scopeKind" :items="scopeKinds" value-key="value" class="w-40" :aria-label="t('bandwidth.scope.title')" />
               <UInput v-model="scopeValue" class="w-56" :placeholder="t(`bandwidth.scope.placeholder_${scopeKind}`)" />
-              <UInput v-model.number="scopeMiB" type="number" min="0" step="0.5" class="w-36">
+              <UInput v-model.number="scopeMiB" type="number" min="0" step="0.5" class="w-36" :aria-label="t('bandwidth.scope.limit')">
                 <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
               </UInput>
               <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('bandwidth.scope.add')" @click="addScope" />

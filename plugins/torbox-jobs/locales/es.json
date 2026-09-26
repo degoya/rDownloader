@@ -2,7 +2,6 @@
   "name": "Trabajos de TorBox",
   "description": "Ejecuta magnets, archivos torrent, NZB y enlaces web como trabajos en una cuenta de TorBox.",
   "codes": {
-    "torbox_jobs.account_missing": "Falta la cuenta de TorBox",
     "torbox_jobs.api_error": "Error de la API de TorBox {api_code}",
     "torbox_jobs.auth_invalid": "La clave de API de TorBox no es válida o ha caducado. Vuelve a introducirla.",
     "torbox_jobs.cooldown": "TorBox mantiene esta cuenta en un periodo de espera. Esperando.",
@@ -25,7 +24,6 @@
     "torbox_jobs.server_busy": "TorBox no está disponible temporalmente",
     "torbox_jobs.server_error": "Error del servidor de TorBox",
     "torbox_jobs.source_gone": "TorBox no pudo acceder al origen de este trabajo",
-    "torbox_jobs.token_missing": "Esta cuenta de TorBox no tiene clave de API",
     "torbox_jobs.too_large": "TorBox rechaza este trabajo por ser demasiado grande"
   }
 }

@@ -23,10 +23,7 @@
   "list": {
     "title": "Règles",
     "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Importez le fichier de règles signé d’une version pour partir des règles du projet.",
-    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée.",
-    "steps": "aucune étape | {count} étape | {count} étapes",
-    "checked_at": "Dernière vérification le {date}",
-    "links_found": "{count} liens"
+    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée."
   },
   "new": "Nouvelle règle",
   "editor": {
@@ -112,7 +109,6 @@
     "pages": "aucune requête | {count} requête | {count} requêtes",
     "kept": "{count} conservés",
     "refused": "{count} écartés",
-    "links": "Liens trouvés",
     "no_links": "L’essai n’a produit aucun lien.",
     "mirrors": "La règle déclare que ces liens sont des copies d’un même fichier.",
     "verdicts": {
@@ -123,7 +119,6 @@
     }
   },
   "transfer": {
-    "heading": "Emporter des règles",
     "export": "Exporter les règles",
     "export_empty": "Il n’y a aucune règle à exporter.",
     "import": "Importer des règles",

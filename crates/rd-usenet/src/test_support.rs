@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     net::SocketAddr,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use rd_core::{NzbFileStatus, NzbSegmentState};
@@ -86,6 +86,57 @@ pub(crate) struct FixtureLog {
     pub connections: Mutex<Vec<Vec<String>>>,
     /// Answers the fixture sent out of order on purpose (`swaps_pipelined_answers`).
     pub swapped: std::sync::atomic::AtomicUsize,
+    /// When each connection had commands waiting and when it had none (RD-130-22), indexed
+    /// like `connections`.
+    clocks: Mutex<Vec<ConnectionClock>>,
+    /// Answer bytes written, over every connection.
+    bytes_sent: std::sync::atomic::AtomicU64,
+    /// When the last `BODY` arrived on any connection.
+    last_command: Mutex<Option<Instant>>,
+}
+
+/// One connection's commands in flight over time, as the server sees them.
+///
+/// A connection is idle while no command is waiting for its answer - the one moment a
+/// provider's line carries nothing although it is paid for. Counted from its first command,
+/// so the handshake is not idle time, and measured at the server, so a client that only
+/// *believes* it keeps the line busy cannot pass for one that does.
+#[derive(Default)]
+struct ConnectionClock {
+    outstanding: usize,
+    most_outstanding: usize,
+    idle_since: Option<Instant>,
+    idle: Vec<(Instant, Instant)>,
+}
+
+impl ConnectionClock {
+    fn command(&mut self, now: Instant) {
+        if self.outstanding == 0
+            && let Some(since) = self.idle_since.take()
+        {
+            self.idle.push((since, now));
+        }
+        self.outstanding += 1;
+        self.most_outstanding = self.most_outstanding.max(self.outstanding);
+    }
+
+    fn answered(&mut self, now: Instant) {
+        self.outstanding = self.outstanding.saturating_sub(1);
+        if self.outstanding == 0 {
+            self.idle_since = Some(now);
+        }
+    }
+
+    /// Idle time up to `until`.
+    fn idle_until(&self, until: Instant) -> Duration {
+        let open = self.idle_since.map(|since| (since, until));
+        self.idle
+            .iter()
+            .copied()
+            .chain(open)
+            .map(|(begin, end)| end.min(until).saturating_duration_since(begin))
+            .sum()
+    }
 }
 
 impl FixtureLog {
@@ -108,6 +159,52 @@ impl FixtureLog {
 
     pub(crate) fn connection_count(&self) -> usize {
         self.connections.lock().expect("fixture log").len()
+    }
+
+    /// Each connection's idle time from its first command up to `until`.
+    pub(crate) fn idle_per_connection(&self, until: Instant) -> Vec<Duration> {
+        self.clocks
+            .lock()
+            .expect("fixture clocks")
+            .iter()
+            .map(|clock| clock.idle_until(until))
+            .collect()
+    }
+
+    /// Each connection's idle time while some article was still to be asked for: up to the
+    /// last command the fixture received, for a run that asks for every article once.
+    pub(crate) fn idle_while_work_remained(&self) -> Vec<Duration> {
+        let Some(last) = *self.last_command.lock().expect("fixture clock") else {
+            return Vec::new();
+        };
+        self.idle_per_connection(last)
+    }
+
+    /// The most commands any one connection had waiting at once.
+    pub(crate) fn most_outstanding(&self) -> usize {
+        self.clocks
+            .lock()
+            .expect("fixture clocks")
+            .iter()
+            .map(|clock| clock.most_outstanding)
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub(crate) fn bytes_sent(&self) -> u64 {
+        self.bytes_sent.load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    fn command(&self, index: usize) {
+        let now = Instant::now();
+        self.clocks.lock().expect("fixture clocks")[index].command(now);
+        *self.last_command.lock().expect("fixture clock") = Some(now);
+    }
+
+    fn answered(&self, index: usize, bytes: usize) {
+        self.bytes_sent
+            .fetch_add(bytes as u64, std::sync::atomic::Ordering::AcqRel);
+        self.clocks.lock().expect("fixture clocks")[index].answered(Instant::now());
     }
 }
 
@@ -296,6 +393,11 @@ pub(crate) async fn spawn_fixture_with(
             let index = {
                 let mut connections = served.connections.lock().expect("fixture log");
                 connections.push(Vec::new());
+                served
+                    .clocks
+                    .lock()
+                    .expect("fixture clocks")
+                    .push(ConnectionClock::default());
                 connections.len() - 1
             };
             let (read, mut write) = stream.into_split();
@@ -319,6 +421,7 @@ pub(crate) async fn spawn_fixture_with(
                         .expect("bracketed BODY command")
                         .to_owned();
                     log.connections.lock().expect("fixture log")[index].push(requested.clone());
+                    log.command(index);
                     let mut reply = articles
                         .get(&requested)
                         .cloned()
@@ -385,6 +488,7 @@ pub(crate) async fn spawn_fixture_with(
                         {
                             return;
                         }
+                        swaps.answered(index, reply.len());
                     }
                     if closes {
                         return;
@@ -439,10 +543,18 @@ pub(crate) async fn import_single_file(
     subject: &str,
     segments: &[(String, u64)],
 ) -> NzbFileStatus {
+    // One digest per subject: an import with a digest already on record is the same NZB again,
+    // so two files imported under one fixed digest would come back as the first one twice.
+    let digest = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::hash::DefaultHasher::new();
+        subject.hash(&mut hasher);
+        format!("{:016x}", hasher.finish()).repeat(4)
+    };
     let import = database
         .add_nzb_import(NewNzbImport {
             name: format!("{subject}.nzb"),
-            sha256: "ab".repeat(32),
+            sha256: digest,
             category_id: None,
             source: rd_core::IngressSource::Manual,
             priority: None,

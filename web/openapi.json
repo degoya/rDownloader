@@ -10,7 +10,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.2.4"
+    "version": "1.3.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -8031,6 +8031,413 @@
         }
       }
     },
+    "/api/v1/plugins/preview": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Describes an uploaded `.rdplug` without installing it: name, version, publisher,\npermissions and whether its key is trusted.",
+        "operationId": "preview_plugin_package",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "operationId": "list_plugin_repositories",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginRepositoriesResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Adds a third-party repository once its key is approved.",
+        "description": "The first request fetches the index and checks that the pasted key signs it, then refuses\nwith `409 plugin_repository.key_unconfirmed` naming the key id and fingerprint. The client\nshows both and sends the same request again with `trust_fingerprint`; only an exact match\nadds the repository, so the key approved is the key the person saw.",
+        "operationId": "add_plugin_repository",
+        "parameters": [
+          {
+            "name": "trust_fingerprint",
+            "in": "query",
+            "description": "Hex SHA-256 of the repository key, exactly as the 409 response reported it.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPluginRepositoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginRepositoryResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The repository key has not been confirmed yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories/refresh": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Refreshes every enabled repository now, then installs the updates set to automatic.",
+        "operationId": "refresh_plugin_repositories",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginRepositoriesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories/settings": {
+      "put": {
+        "tags": [
+          "plugins"
+        ],
+        "operationId": "set_plugin_repository_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginRepositorySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginRepositoriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories/{id}": {
+      "delete": {
+        "tags": [
+          "plugins"
+        ],
+        "operationId": "remove_plugin_repository",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Repository id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Switches a repository on or off, or renames it.",
+        "description": "Off stops refreshes, offers and updates from it. Nothing installed from it is touched.",
+        "operationId": "update_plugin_repository",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Repository id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePluginRepositoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories/{id}/install": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Installs one offered package. Active after a restart, like every install.",
+        "operationId": "install_repository_package",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Repository id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryPackageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Signed by a key the user has not confirmed yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/repositories/{id}/preview": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Downloads one offered package, proves it matches the index, and describes it like an upload.",
+        "operationId": "preview_repository_package",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Repository id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryPackageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginPreviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/revocations": {
       "get": {
         "tags": [
@@ -8124,6 +8531,27 @@
         }
       }
     },
+    "/api/v1/plugins/updates": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Updates for installed plugins and what else the enabled repositories offer.",
+        "operationId": "list_plugin_updates",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginOffersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/{id}": {
       "patch": {
         "tags": [
@@ -8196,6 +8624,341 @@
                   "items": {
                     "$ref": "#/components/schemas/PluginExecutionResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{id}/lifecycle/activate": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Makes one installed version the one new work runs on from the next start.",
+        "description": "The version it replaces becomes the rollback target. Activating the staged version ends\nits test: it is simply the active one now.",
+        "operationId": "activate_plugin_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The version would not load",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{id}/lifecycle/policy": {
+      "put": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Chooses how updates of this plugin arrive: shown and installed by click, or on their own.",
+        "description": "Stored per plugin; an update source reads it when it has something to offer. An update\ninstalled either way becomes active at a restart like any other install.",
+        "operationId": "set_plugin_update_policy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginUpdatePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{id}/lifecycle/rollback": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Returns to the version that was active before the last activation or rollback.",
+        "description": "One write moves both pointers, so every download that starts after the next start runs on\nthe version rolled back to, and none on a mix. Downloads already pinned to the version\nrolled away from keep it until they finish; that version stays installed for them.",
+        "operationId": "roll_back_plugin_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No earlier version to return to",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{id}/lifecycle/stage": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Puts one installed version under test next to the active one.",
+        "description": "Nothing runs it until a download is started with it (`…/lifecycle/trial`) or it is\nactivated. Only resolver plugins can be tried on a download; for every other type the\nstaged version simply waits for its activation.",
+        "operationId": "stage_plugin_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The version is active or would not load",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Ends a test without activating the staged version.",
+        "operationId": "discard_staged_plugin_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{id}/lifecycle/trial": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Starts one download with the staged version the next time it runs (\"test with new\nversion\").",
+        "description": "The download's resolver pin is pointed at the staged version, which is the same mechanism\nthat keeps a running job on the version it started with, so the job stays on the staged\nversion until it finishes. Refused while the download is running, and until the staged\nversion is loaded — staging takes effect at a restart like everything else here.",
+        "operationId": "trial_staged_plugin_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginTrialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nothing staged, not loaded yet, or the download is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
@@ -10921,57 +11684,12 @@
         }
       }
     },
-    "/api/v1/subscriptions/{id}/items": {
-      "get": {
-        "tags": [
-          "subscriptions"
-        ],
-        "operationId": "list_subscription_items",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/SubscriptionId"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SubscriptionItem"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/subscriptions/{id}/items/page": {
       "get": {
         "tags": [
           "subscriptions"
         ],
-        "summary": "Lists one state-filtered page without changing the legacy array-shaped item endpoint.",
+        "summary": "Lists one state-filtered page of a subscription's items.",
         "operationId": "list_subscription_item_page",
         "parameters": [
           {
@@ -12033,6 +12751,31 @@
         ],
         "description": "What an automation does when it fires.\n\nEvery variant names its effect exactly. There is no \"run this command\" action: a script\nis addressed by file name inside the configured scripts directory, which is the same\nconfinement post-processing scripts already have."
       },
+      "AddPluginRepositoryRequest": {
+        "type": "object",
+        "description": "Body of `POST /api/v1/plugins/repositories`.",
+        "required": [
+          "url",
+          "public_key"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What to call it; the address's host when empty."
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The repository's Base64 Ed25519 public key, as its publisher publishes it."
+          },
+          "url": {
+            "type": "string",
+            "description": "The index's `https://` address."
+          }
+        }
+      },
       "AnswerWidgetCaptchaRequest": {
         "type": "object",
         "description": "The widget token a browser harvested from the hoster's page — the extension's tab or the\ndesktop agent's WebView.\n\nDeliberately without `Debug`: this carries a live credential, and the one way it could\nreach a log is a struct that knows how to print itself.",
@@ -12049,7 +12792,7 @@
       },
       "ApiTokenRequest": {
         "type": "object",
-        "description": "Pairing request for a machine API token.\n\nSeparate from [`CapturePairRequest`] because a capture agent has no scope choice: it\nalways gets `capture:*`, while an API client picks between full access and read-only.",
+        "description": "Pairing request for a machine API token.\n\nSeparate from [`CapturePairRequest`] because a capture agent has no scope choice: it\nalways gets `capture:*`, while an API client picks its areas.",
         "required": [
           "label"
         ],
@@ -12057,16 +12800,12 @@
           "label": {
             "type": "string"
           },
-          "read_only": {
-            "type": "boolean",
-            "description": "Legacy: mint `api:read` instead of `api:*`. Superseded by [`Self::scopes`].\n\nKept because it shipped, and because an existing client that only sends a label must\nkeep getting the token it used to get. Ignored when `scopes` is non-empty."
-          },
           "scopes": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "The areas this token may reach, as scope strings.\n\nEmpty falls back to [`Self::read_only`], which is what an older client sends. A caller\nthat names scopes gets exactly those: nothing here widens a request, because a minting\ncall that quietly grants more than it was asked for is the one mistake this whole model\nexists to prevent."
+            "description": "The areas this token may reach, as scope strings.\n\nEmpty mints `api:read`. A caller that names scopes gets exactly those: nothing here\nwidens a request, because a minting call that quietly grants more than it was asked\nfor is the one mistake this whole model exists to prevent."
           }
         }
       },
@@ -12242,6 +12981,10 @@
           "plugin_key_revoked",
           "plugin_digest_revoked",
           "plugin_digest_unrevoked",
+          "plugin_repository_added",
+          "plugin_repository_changed",
+          "plugin_repository_removed",
+          "plugin_version_chosen",
           "download_deleted",
           "package_deleted",
           "category_deleted",
@@ -18424,7 +19167,7 @@
         "properties": {
           "active": {
             "type": "boolean",
-            "description": "Whether this is the version that wins among the installed ones for its id.\n\nInstalling never removes an older version, so two can sit side by side; the highest\nSemVer is the one loaded. That rule was never wrong, only invisible — the manager listed\nboth with nothing to separate them, so the leftover looked like a second, equal plugin.\n\nSays nothing about whether the plugin is switched on; that is a separate choice and\napplies to every version of an id at once."
+            "description": "Whether this is the version new work of its id runs on right now.\n\nInstalling never removes an older version, so two can sit side by side; without a\nversion choice the highest SemVer is the one loaded, and with one (RD-140-02) the chosen\nversion is. That rule was never wrong, only invisible — the manager listed both with\nnothing to separate them, so the leftover looked like a second, equal plugin.\n\nSays nothing about whether the plugin is switched on; that is a separate choice and\napplies to every version of an id at once."
           },
           "api_version": {
             "type": "string",
@@ -21799,12 +22542,72 @@
         "type": "string",
         "format": "uuid"
       },
+      "PluginIndexPackageResponse": {
+        "type": "object",
+        "description": "One package as an index lists it.",
+        "required": [
+          "plugin_id",
+          "name",
+          "version",
+          "plugin_type",
+          "api_version",
+          "package_digest",
+          "size",
+          "publisher",
+          "permissions"
+        ],
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "min_app_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "package_digest": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/PluginPermissionsResponse"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "plugin_type": {
+            "type": "string"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/PluginPublisherResponse"
+          },
+          "release_notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plain text; shown as text, never as markup."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "PluginInventoryResponse": {
         "type": "object",
         "description": "What the plugin manager shows: the packages that run, and the packages that do not.\n\nA refused package is listed rather than dropped. It is an artefact the user installed;\nsilently omitting it explains nothing about why a third-party hoster stopped working.",
         "required": [
           "installed",
-          "incompatible"
+          "incompatible",
+          "lifecycle"
         ],
         "properties": {
           "incompatible": {
@@ -21818,6 +22621,455 @@
             "items": {
               "$ref": "#/components/schemas/InstalledPluginResponse"
             }
+          },
+          "lifecycle": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginLifecycleResponse"
+            },
+            "description": "One entry per installed plugin id: which version runs, which one is under test, and\nhow updates arrive (RD-140-02)."
+          }
+        }
+      },
+      "PluginLifecycleResponse": {
+        "type": "object",
+        "description": "Where one plugin's versions stand, as the plugin manager shows it.",
+        "required": [
+          "plugin_id",
+          "update_policy",
+          "restart_required"
+        ],
+        "properties": {
+          "active_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version new work runs on from the next start."
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "previous_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What a rollback returns to, while it is still installed."
+          },
+          "restart_required": {
+            "type": "boolean",
+            "description": "Whether a stored choice waits for a restart to take effect."
+          },
+          "running_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version new work runs on right now. Differs from `active_version` until the\nservice restarts."
+          },
+          "staged_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version under test: only a download started with it runs it."
+          },
+          "update_policy": {
+            "$ref": "#/components/schemas/PluginUpdatePolicy"
+          }
+        }
+      },
+      "PluginOfferResponse": {
+        "type": "object",
+        "description": "One package an enabled repository offers.",
+        "required": [
+          "repository_id",
+          "repository_name",
+          "official",
+          "package",
+          "compatibility"
+        ],
+        "properties": {
+          "compatibility": {
+            "type": "string",
+            "description": "`compatible`, `contract_unsupported`, `app_too_old` or `withdrawn`."
+          },
+          "installed_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The newest version of this plugin installed here."
+          },
+          "official": {
+            "type": "boolean"
+          },
+          "package": {
+            "$ref": "#/components/schemas/PluginIndexPackageResponse"
+          },
+          "repository_id": {
+            "type": "string"
+          },
+          "repository_name": {
+            "type": "string"
+          }
+        }
+      },
+      "PluginOffersResponse": {
+        "type": "object",
+        "description": "Updates for installed plugins, and what else the repositories offer.",
+        "required": [
+          "updates",
+          "available",
+          "installed"
+        ],
+        "properties": {
+          "available": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginOfferResponse"
+            },
+            "description": "Packages of plugins not installed here."
+          },
+          "installed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginOfferResponse"
+            },
+            "description": "Every package the repositories offer for plugins installed here, whatever its version:\nthe release notes of each, for the version panel's history."
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginUpdateResponse"
+            }
+          }
+        }
+      },
+      "PluginPermissionsResponse": {
+        "type": "object",
+        "description": "What a package asks for.",
+        "required": [
+          "granted",
+          "http_domains",
+          "stream_hosts"
+        ],
+        "properties": {
+          "granted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Capability names, `secrets:<reference>` and `net_stream:<ports>` included."
+          },
+          "http_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stream_hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PluginPreviewResponse": {
+        "type": "object",
+        "description": "Everything the install preview shows. Nothing is installed by asking for it.",
+        "required": [
+          "plugin_id",
+          "name",
+          "version",
+          "plugin_type",
+          "api_version",
+          "description",
+          "package_digest",
+          "size",
+          "permissions",
+          "key_status",
+          "withdrawn",
+          "installable",
+          "installed_versions"
+        ],
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "homepage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "incompatible": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why this build cannot run it, when it cannot."
+          },
+          "installable": {
+            "type": "boolean",
+            "description": "Whether confirming can install it at all."
+          },
+          "installed_versions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Versions of the same plugin already installed here."
+          },
+          "key_status": {
+            "type": "string",
+            "description": "`trusted`, `untrusted`, `mismatch`, `withdrawn` or `unsigned`."
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "min_app_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "package_digest": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/PluginPermissionsResponse"
+          },
+          "plugin_id": {
+            "type": "string"
+          },
+          "plugin_type": {
+            "type": "string"
+          },
+          "publisher": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PluginPublisherResponse",
+                "description": "`None` for an unsigned package."
+              }
+            ]
+          },
+          "release_notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The index's notes for this version; a package on its own carries none."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PluginPreviewSourceResponse"
+              }
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "withdrawn": {
+            "type": "boolean",
+            "description": "Whether this exact package was withdrawn by its digest."
+          }
+        }
+      },
+      "PluginPreviewSourceResponse": {
+        "type": "object",
+        "description": "Where a previewed package comes from, when a repository offered it.",
+        "required": [
+          "repository_id",
+          "repository_name",
+          "official"
+        ],
+        "properties": {
+          "official": {
+            "type": "boolean"
+          },
+          "repository_id": {
+            "type": "string"
+          },
+          "repository_name": {
+            "type": "string"
+          }
+        }
+      },
+      "PluginPublisherResponse": {
+        "type": "object",
+        "description": "Who signed a package.",
+        "required": [
+          "key_id",
+          "fingerprint",
+          "author"
+        ],
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Hex SHA-256 of the signing key."
+          },
+          "key_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PluginRepositoriesResponse": {
+        "type": "object",
+        "description": "Every repository and the refresh interval.",
+        "required": [
+          "repositories",
+          "refresh_hours"
+        ],
+        "properties": {
+          "refresh_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between two automatic refreshes.",
+            "minimum": 0
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginRepositoryResponse"
+            }
+          }
+        }
+      },
+      "PluginRepositoryResponse": {
+        "type": "object",
+        "description": "One configured repository.",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "url",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the index in use expires; `None` while none is loaded."
+          },
+          "fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "key_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The approved repository key; `None` for the official repository, whose key is compiled in."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`official` or `third_party`."
+          },
+          "last_checked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Stable code of the last refresh's failure."
+          },
+          "last_success_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The highest index sequence accepted so far."
+          },
+          "url": {
+            "type": "string",
+            "description": "The index address; the official one's is compiled in and shown here too."
+          }
+        }
+      },
+      "PluginRepositorySettingsRequest": {
+        "type": "object",
+        "description": "Body of `PUT /api/v1/plugins/repositories/settings`.",
+        "required": [
+          "refresh_hours"
+        ],
+        "properties": {
+          "refresh_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between two automatic refreshes, 1 to 168.",
+            "minimum": 0
+          }
+        }
+      },
+      "PluginTrialRequest": {
+        "type": "object",
+        "description": "Body of `POST /api/v1/plugins/{id}/lifecycle/trial`.",
+        "required": [
+          "download_id"
+        ],
+        "properties": {
+          "download_id": {
+            "$ref": "#/components/schemas/DownloadId",
+            "description": "The download to run on the staged version the next time it starts."
           }
         }
       },
@@ -21845,6 +23097,64 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "PluginUpdatePolicy": {
+        "type": "string",
+        "description": "How updates for one plugin arrive once an update source offers one.",
+        "enum": [
+          "manual",
+          "automatic"
+        ]
+      },
+      "PluginUpdatePolicyRequest": {
+        "type": "object",
+        "description": "Body of `PUT /api/v1/plugins/{id}/lifecycle/policy`.",
+        "required": [
+          "policy"
+        ],
+        "properties": {
+          "policy": {
+            "$ref": "#/components/schemas/PluginUpdatePolicy"
+          }
+        }
+      },
+      "PluginUpdateResponse": {
+        "type": "object",
+        "description": "A newer version of an installed plugin, from the key it is already signed with.",
+        "required": [
+          "offer",
+          "installed_version",
+          "policy",
+          "adds_permissions"
+        ],
+        "properties": {
+          "adds_permissions": {
+            "type": "boolean",
+            "description": "Asks for a permission the installed version does not have; never installed\nautomatically, whatever the policy."
+          },
+          "installed_version": {
+            "type": "string"
+          },
+          "offer": {
+            "$ref": "#/components/schemas/PluginOfferResponse"
+          },
+          "policy": {
+            "type": "string",
+            "description": "`manual` or `automatic`."
+          }
+        }
+      },
+      "PluginVersionRequest": {
+        "type": "object",
+        "description": "Names one installed version of the plugin.",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -22587,16 +23897,6 @@
             "default": {
               "mode": "none"
             }
-          },
-          "vod_fallback": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/VodFallback"
-              }
-            ],
-            "default": {
-              "mode": "off"
-            }
           }
         }
       },
@@ -22665,11 +23965,6 @@
               "$ref": "#/components/schemas/SidecarOutcome"
             },
             "default": []
-          },
-          "vod_fetched": {
-            "type": "boolean",
-            "description": "Whether a VOD was fetched to fill in for an incomplete recording.",
-            "default": false
           }
         }
       },
@@ -23369,6 +24664,29 @@
           },
           "replayable": {
             "type": "boolean"
+          }
+        }
+      },
+      "RepositoryPackageRequest": {
+        "type": "object",
+        "description": "Which package of which repository.",
+        "required": [
+          "plugin_id",
+          "version"
+        ],
+        "properties": {
+          "plugin_id": {
+            "type": "string"
+          },
+          "trust_fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Install only: the fingerprint of the package's signing key the person confirmed."
+          },
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -24359,10 +25677,6 @@
             "default": 100000,
             "minimum": 0
           },
-          "auto_extract": {
-            "type": "boolean",
-            "default": false
-          },
           "auto_remove_delay_hours": {
             "type": "integer",
             "format": "int32",
@@ -24472,11 +25786,6 @@
               }
             ],
             "default": "unpack"
-          },
-          "delete_archives_after_extract": {
-            "type": "boolean",
-            "description": "Remove archive volumes after a successful extraction.",
-            "default": false
           },
           "delete_par2": {
             "type": "boolean",
@@ -24785,6 +26094,13 @@
             "type": "integer",
             "format": "int32",
             "description": "NNTP connections one NZB file may hold at once; `0` is as many as the enabled\nservers allow. A value below the servers' total caps the file (RD-108-25).",
+            "default": 0,
+            "minimum": 0
+          },
+          "nntp_parallel_files": {
+            "type": "integer",
+            "format": "int32",
+            "description": "NZB files downloaded at once, 1 to 8; `0` is automatic - as many as keep every\nconnection busy (RD-130-22). All of them together take one `max_active_files` slot.",
             "default": 0,
             "minimum": 0
           },
@@ -26113,7 +27429,7 @@
           },
           "recording": {
             "$ref": "#/components/schemas/RecordingPolicy",
-            "description": "Splitting, remux, sidecars and VOD fallback for this channel's recordings\n(RD-080-09)."
+            "description": "Splitting, remux, sidecars and reconnect delay for this channel's recordings\n(RD-080-09)."
           },
           "url": {
             "type": "string",
@@ -26161,7 +27477,7 @@
           },
           "recording": {
             "$ref": "#/components/schemas/RecordingPolicy",
-            "description": "Splitting, remux, sidecars and VOD fallback for this channel (RD-080-09)."
+            "description": "Splitting, remux, sidecars and reconnect delay for this channel (RD-080-09)."
           },
           "url": {
             "type": "string",
@@ -28857,6 +30173,24 @@
           }
         }
       },
+      "UpdatePluginRepositoryRequest": {
+        "type": "object",
+        "description": "Body of `PATCH /api/v1/plugins/repositories/{id}`.",
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "UpdateRemoteCredentialRequest": {
         "type": "object",
         "description": "Editable login fields. Empty credential fields preserve their stored values.",
@@ -29105,48 +30439,6 @@
           "vp8",
           "other"
         ]
-      },
-      "VodFallback": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "Never. The default, because fetching a VOD doubles the traffic and the recording is\nusually fine.",
-            "required": [
-              "mode"
-            ],
-            "properties": {
-              "mode": {
-                "type": "string",
-                "enum": [
-                  "off"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Fetch the VOD when the live recording covered less than this percentage of the\nscheduled window.",
-            "required": [
-              "value",
-              "mode"
-            ],
-            "properties": {
-              "mode": {
-                "type": "string",
-                "enum": [
-                  "below_coverage"
-                ]
-              },
-              "value": {
-                "type": "integer",
-                "format": "int32",
-                "description": "Fetch the VOD when the live recording covered less than this percentage of the\nscheduled window.",
-                "minimum": 0
-              }
-            }
-          }
-        ],
-        "description": "When an incomplete live recording may be replaced by the published VOD."
       }
     }
   },

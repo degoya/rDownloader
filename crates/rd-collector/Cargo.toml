@@ -16,10 +16,7 @@ rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
 rd-provider-registry = { path = "../rd-provider-registry" }
 regex.workspace = true
-serde.workspace = true
-sha2.workspace = true
 url.workspace = true
-uuid.workspace = true
 
 [lints]
 workspace = true

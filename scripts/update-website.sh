@@ -73,6 +73,7 @@ done < <(grep -o "wiki('[^']*')" "$SITE/app/utils/release.ts" | sed "s/^wiki('//
 
 # From here on a failure puts the data file back, so that the next run finds a clean checkout.
 restore() { git -C "$SITE" checkout --quiet -- "$DATA"; }
+# shellcheck disable=SC2154  # `status` is assigned inside the trap string itself
 trap 'status=$?; [[ $status -eq 0 ]] || restore; exit $status' EXIT
 
 echo "==> setting $DATA to $VERSION"

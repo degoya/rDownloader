@@ -1,12 +1,12 @@
-//! Plugin inventory, installation, diagnostics and trusted-key routes.
+//! Plugin inventory, installation, diagnostics, trusted-key and repository routes.
 
 use axum::{
     Router,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post, put},
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, plugin_handlers};
+use crate::{AppState, plugin_handlers, plugin_lifecycle, plugin_repository_handlers};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -27,6 +27,28 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/plugins/install",
             post(plugin_handlers::install_plugin),
+        )
+        // One segment deeper than `/{id}/{version}`, so no version string can reach these.
+        .route(
+            "/api/v1/plugins/{id}/lifecycle/activate",
+            post(plugin_lifecycle::activate_plugin_version),
+        )
+        .route(
+            "/api/v1/plugins/{id}/lifecycle/stage",
+            post(plugin_lifecycle::stage_plugin_version)
+                .delete(plugin_lifecycle::discard_staged_plugin_version),
+        )
+        .route(
+            "/api/v1/plugins/{id}/lifecycle/rollback",
+            post(plugin_lifecycle::roll_back_plugin_version),
+        )
+        .route(
+            "/api/v1/plugins/{id}/lifecycle/policy",
+            axum::routing::put(plugin_lifecycle::set_plugin_update_policy),
+        )
+        .route(
+            "/api/v1/plugins/{id}/lifecycle/trial",
+            post(plugin_lifecycle::trial_staged_plugin_version),
         )
         .route(
             "/api/v1/plugins/keys",
@@ -51,6 +73,42 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/plugins/i18n/{locale}",
             get(plugin_handlers::plugin_messages),
         )
+        // Static segments again, so `repositories`, `preview` and `updates` are never read as a
+        // plugin id (RD-140-01).
+        .route(
+            "/api/v1/plugins/preview",
+            post(plugin_repository_handlers::preview_plugin_package),
+        )
+        .route(
+            "/api/v1/plugins/updates",
+            get(plugin_repository_handlers::list_plugin_updates),
+        )
+        .route(
+            "/api/v1/plugins/repositories",
+            get(plugin_repository_handlers::list_plugin_repositories)
+                .post(plugin_repository_handlers::add_plugin_repository),
+        )
+        .route(
+            "/api/v1/plugins/repositories/refresh",
+            post(plugin_repository_handlers::refresh_plugin_repositories),
+        )
+        .route(
+            "/api/v1/plugins/repositories/settings",
+            put(plugin_repository_handlers::set_plugin_repository_settings),
+        )
+        .route(
+            "/api/v1/plugins/repositories/{id}",
+            patch(plugin_repository_handlers::update_plugin_repository)
+                .delete(plugin_repository_handlers::remove_plugin_repository),
+        )
+        .route(
+            "/api/v1/plugins/repositories/{id}/preview",
+            post(plugin_repository_handlers::preview_repository_package),
+        )
+        .route(
+            "/api/v1/plugins/repositories/{id}/install",
+            post(plugin_repository_handlers::install_repository_package),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -67,5 +125,21 @@ pub(crate) fn routes() -> Router<AppState> {
     plugin_handlers::revoke_plugin_digest,
     plugin_handlers::unrevoke_plugin_digest,
     plugin_handlers::plugin_messages,
+    plugin_lifecycle::activate_plugin_version,
+    plugin_lifecycle::stage_plugin_version,
+    plugin_lifecycle::discard_staged_plugin_version,
+    plugin_lifecycle::roll_back_plugin_version,
+    plugin_lifecycle::set_plugin_update_policy,
+    plugin_lifecycle::trial_staged_plugin_version,
+    plugin_repository_handlers::list_plugin_repositories,
+    plugin_repository_handlers::add_plugin_repository,
+    plugin_repository_handlers::update_plugin_repository,
+    plugin_repository_handlers::remove_plugin_repository,
+    plugin_repository_handlers::refresh_plugin_repositories,
+    plugin_repository_handlers::set_plugin_repository_settings,
+    plugin_repository_handlers::list_plugin_updates,
+    plugin_repository_handlers::preview_plugin_package,
+    plugin_repository_handlers::preview_repository_package,
+    plugin_repository_handlers::install_repository_package,
 ))]
 pub(crate) struct Doc;

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { SUPPORTED_LOCALES, i18n } from '@/i18n'
 import { translateServerMessage } from '@/i18n/server'
+import { loadEveryLocale } from '@/test/locales'
+
+beforeAll(loadEveryLocale)
 
 function flatten(value: unknown, prefix = ''): Record<string, string> {
   if (typeof value !== 'object' || value === null) return { [prefix]: String(value) }

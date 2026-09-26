@@ -1,7 +1,6 @@
 //! User-facing texts and stable failure codes shared by the native and WebAssembly adapters.
 //!
 //! Each `(code, message)` pair exists exactly once so both targets report identical text.
-#![allow(dead_code)] // Native and guest adapters use different subsets of these constants.
 
 /// The account has no 1fichier API key configured.
 pub(crate) const API_KEY_MISSING: (&str, &str) =

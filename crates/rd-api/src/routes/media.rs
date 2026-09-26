@@ -63,10 +63,6 @@ pub(crate) fn routes() -> Router<AppState> {
             post(subscription_handlers::poll_subscription),
         )
         .route(
-            "/api/v1/subscriptions/{id}/items",
-            get(subscription_handlers::list_subscription_items),
-        )
-        .route(
             "/api/v1/subscriptions/{id}/items/page",
             get(subscription_handlers::list_subscription_item_page),
         )
@@ -129,7 +125,6 @@ pub(crate) fn routes() -> Router<AppState> {
     crate::area_backup::import_subscriptions,
     crate::area_backup::export_streams,
     crate::area_backup::import_streams,
-    subscription_handlers::list_subscription_items,
     subscription_handlers::list_subscription_item_page,
     subscription_handlers::list_subscription_runs,
     subscription_handlers::set_subscription_item_state,

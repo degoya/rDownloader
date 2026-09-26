@@ -7,32 +7,10 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{auth_harness, get_json, post_json};
+use common::{auth_harness, get_json, post_json, sign_in};
 use sha2::{Digest, Sha256};
 
 const PASSWORD: &str = "correct-horse-battery";
-
-/// Completes setup and signs in, returning the session bearer.
-async fn sign_in(harness: &common::Harness) -> String {
-    let (status, body) = post_json(
-        &harness.router,
-        "/api/v1/auth/setup",
-        serde_json::json!({ "password": PASSWORD }),
-    )
-    .await;
-    assert!(
-        status.is_success() || body["code"] == "auth.setup_completed",
-        "setup: {status} {body}"
-    );
-    let (status, _, cookie) = common::post_json_with_headers(
-        &harness.router,
-        "/api/v1/auth/login",
-        serde_json::json!({ "password": PASSWORD }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "login");
-    cookie.expect("a session cookie")
-}
 
 /// A session survives a restart, which the in-memory map it replaces could not do.
 #[tokio::test]
@@ -40,7 +18,7 @@ async fn a_session_still_authenticates_after_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     let token = {
         let harness = auth_harness(directory.path()).await;
-        sign_in(&harness).await
+        sign_in(&harness.router, PASSWORD).await
     };
 
     // Reopening the same directory builds a second router over the same database.
@@ -57,7 +35,7 @@ async fn a_session_still_authenticates_after_a_restart() {
 async fn the_inventory_shows_the_calling_session_as_current() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body) = common::get_with_cookie(&harness.router, "/api/v1/sessions", &token).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -77,8 +55,8 @@ async fn the_inventory_shows_the_calling_session_as_current() {
 async fn signing_out_everywhere_else_keeps_the_caller_signed_in() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let mine = sign_in(&harness).await;
-    let other = sign_in(&harness).await;
+    let mine = sign_in(&harness.router, PASSWORD).await;
+    let other = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body) = common::post_json_with_cookie(
         &harness.router,
@@ -104,7 +82,7 @@ async fn signing_out_everywhere_else_keeps_the_caller_signed_in() {
 async fn signing_out_ends_the_session_immediately() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let token = sign_in(&harness).await;
+    let token = sign_in(&harness.router, PASSWORD).await;
 
     let (status, _) = common::post_json_with_cookie(
         &harness.router,
@@ -144,7 +122,7 @@ async fn signing_out_without_a_session_succeeds_quietly() {
 async fn repeated_wrong_passwords_are_throttled() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let _ = sign_in(&harness).await;
+    let _ = sign_in(&harness.router, PASSWORD).await;
 
     let mut throttled = None;
     for attempt in 0..12 {
@@ -262,7 +240,7 @@ async fn still_signed_in(harness: &common::Harness, token: &str) -> Result<(), S
 async fn the_session_limits_are_bounded_by_the_service() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let admin = sign_in(&harness).await;
+    let admin = sign_in(&harness.router, PASSWORD).await;
 
     for (idle, max, code, min_allowed, max_allowed) in [
         (0, 720, "settings.session_idle_invalid", "1", "720"),
@@ -292,8 +270,8 @@ async fn the_session_limits_are_bounded_by_the_service() {
 async fn a_session_idle_for_longer_than_the_idle_limit_ends() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let admin = sign_in(&harness).await;
-    let idle = sign_in(&harness).await;
+    let admin = sign_in(&harness.router, PASSWORD).await;
+    let idle = sign_in(&harness.router, PASSWORD).await;
 
     // Unused for three hours, under a four-hour idle limit: still signed in, and the request
     // that says so is itself a use.
@@ -322,8 +300,8 @@ async fn a_session_idle_for_longer_than_the_idle_limit_ends() {
 async fn a_shorter_maximum_ends_existing_sessions_at_once() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let admin = sign_in(&harness).await;
-    let older = sign_in(&harness).await;
+    let admin = sign_in(&harness.router, PASSWORD).await;
+    let older = sign_in(&harness.router, PASSWORD).await;
 
     // Signed in five hours ago and in use right now.
     age(&harness, &older, 5, 0).await;
@@ -351,7 +329,7 @@ async fn a_shorter_maximum_ends_existing_sessions_at_once() {
 async fn the_cookie_lives_as_long_as_the_maximum_lifetime() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let admin = sign_in(&harness).await;
+    let admin = sign_in(&harness.router, PASSWORD).await;
 
     let cookie = common::login_cookie(&harness.router, PASSWORD).await;
     assert!(
@@ -372,7 +350,7 @@ async fn the_cookie_lives_as_long_as_the_maximum_lifetime() {
 async fn a_changed_session_limit_is_audited() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-    let admin = sign_in(&harness).await;
+    let admin = sign_in(&harness.router, PASSWORD).await;
 
     let (status, body) = set_limits(&harness, &admin, 8, 168).await;
     assert_eq!(status, StatusCode::OK, "{body}");

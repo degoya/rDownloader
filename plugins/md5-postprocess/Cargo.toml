@@ -21,3 +21,7 @@ world = "postprocess-plugin"
 
 [lints]
 workspace = true
+
+# The package is `md-5`, the library `md5`; cargo-machete looks for the former.
+[package.metadata.cargo-machete]
+ignored = ["md-5"]

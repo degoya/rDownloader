@@ -14,7 +14,7 @@ export const api = createClient<paths>({
 })
 
 /** The code the service answers with when a request needs a session and has none. */
-export const SESSION_REQUIRED = 'auth.session_required'
+const SESSION_REQUIRED = 'auth.session_required'
 
 const sessionLostListeners = new Set<() => void>()
 

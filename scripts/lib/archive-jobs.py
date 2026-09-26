@@ -26,10 +26,12 @@ Left alone on purpose: docs/ideas_and_infos.md (the owner's notepad), crates/rd-
 (sqlx checksums every byte) and plugins/ (a changed plugin source needs a version bump and a
 rebuild, which a documentation step must not cause).
 
-With nothing due it writes nothing and exits 0. --check writes nothing either: it names what is
-due, and every file in archive/ whose status is open again (`Open`, `In progress`, `Partial` —
-moving such a job back is left to a person, with its row), and exits 1 when there is either.
-scripts/check.sh runs it that way, so the layout cannot drift in either direction.
+With nothing due it only recounts the Job Inventory when that table disagrees with the two
+catalogs (RD-140-24), and otherwise writes nothing; it exits 0 either way. --check writes nothing:
+it names what is due, every file in archive/ whose status is open again (`Open`, `In progress`,
+`Partial` — moving such a job back is left to a person, with its row) and every Job Inventory row
+whose numbers the catalogs do not bear out, and exits 1 when there is any of the three.
+scripts/check.sh runs it that way, so neither the layout nor the counts can drift.
 
 Exit 2 is a refusal: uncommitted changes under docs/roadmap/jobs/ that this run would mix into,
 or a jobs directory without its index. A tree without docs/roadmap/jobs/ at all — the public
@@ -371,6 +373,31 @@ def recount(lines, archive):
     return lines[:table[2]] + rows + lines[table[-1] + 1:]
 
 
+def archive_lines(repo):
+    path = os.path.join(repo, ARCHIVE, "README.md")
+    return open(path, encoding="utf-8").read().split("\n") if os.path.exists(path) else []
+
+
+def stale_inventory(repo):
+    """[(written, counted)] for every Job Inventory row that disagrees with the two catalogs.
+    Rows are compared in order; a row the recount adds or drops shows against an empty side."""
+    lines = open(os.path.join(repo, JOBS, "README.md"), encoding="utf-8").read().split("\n")
+    if "## Job Inventory" not in lines or "## Catalog" not in lines:
+        return []
+    counted = recount(lines, archive_lines(repo))
+    if counted == lines:
+        return []
+
+    def table(ls):
+        start, end = section_bounds(ls, "## Job Inventory")
+        return [l for l in ls[start:end] if l.startswith("| ")]
+
+    written, fresh = table(lines), table(counted)
+    written += [""] * (len(fresh) - len(written))
+    fresh += [""] * (len(written) - len(fresh))
+    return [(w, f) for w, f in zip(written, fresh) if w != f]
+
+
 # ---------------------------------------------------------------------------------------------
 
 def main(argv):
@@ -394,12 +421,22 @@ def main(argv):
     for name, word in misplaced:
         print(f"open again: {ARCHIVE}/{name} ({word}) — move it and its row back to {JOBS}/ by hand",
               file=sys.stdout if check else sys.stderr)
+    stale = stale_inventory(repo)
     if check:
         for name, reason in due:
             print(f"due: {JOBS}/{name} ({reason}) — run scripts/archive-jobs.sh")
+        for line in stale:
+            print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
+                  f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if due or misplaced else 0
+        return 1 if due or misplaced or stale else 0
     if not due:
+        if stale:
+            index_path = os.path.join(repo, JOBS, "README.md")
+            lines = open(index_path, encoding="utf-8").read().split("\n")
+            open(index_path, "w", encoding="utf-8").write("\n".join(recount(lines, archive_lines(repo))))
+            print(f"nothing to archive; the Job Inventory recounted ({len(stale)} row(s) corrected)")
+            return 0
         print("nothing to archive")
         return 0
 

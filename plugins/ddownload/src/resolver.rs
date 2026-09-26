@@ -160,7 +160,7 @@ pub(crate) async fn check_account<H: PluginHost>(
             page::SessionVerdict::Unknown => {
                 host.log(
                     "warn",
-                    &crate::session_trace::unconfirmed_page_line(
+                    &xfs_common::session_trace::unconfirmed_page_line(
                         PROVIDER,
                         "the account page",
                         &page.body,
@@ -261,7 +261,7 @@ async fn verify_download_session<H: PluginHost>(
         page::SessionVerdict::Unknown => {
             host.log(
                 "warn",
-                &crate::session_trace::unconfirmed_page_line(
+                &xfs_common::session_trace::unconfirmed_page_line(
                     PROVIDER,
                     "the account page",
                     &page.body,

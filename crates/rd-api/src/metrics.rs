@@ -288,8 +288,8 @@ async fn storage_families(state: &AppState) -> Result<Vec<Family>, ApiError> {
         let probe = path.clone();
         let (free_bytes, total_bytes) = tokio::task::spawn_blocking(move || {
             (
-                fs2::available_space(&probe).ok(),
-                fs2::total_space(&probe).ok(),
+                fs4::available_space(&probe).ok(),
+                fs4::total_space(&probe).ok(),
             )
         })
         .await

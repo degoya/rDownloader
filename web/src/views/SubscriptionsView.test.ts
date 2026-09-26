@@ -12,6 +12,7 @@ import { resetEventStream } from '@/composables/useEventStream'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
 import type { ConfirmOptions } from '@/composables/useConfirm'
+import { axeViolations } from '@/test/axe'
 
 /** Captures the listeners the store registers, so a server event can be replayed. */
 class EventSourceStub {
@@ -630,4 +631,11 @@ describe('SubscriptionsView row', () => {
     expect(name.getAttribute('title')).toBe('My Indexer')
     expect(name.parentElement?.classList.contains('flex-wrap')).toBe(true)
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    await rowOf('My Indexer')
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

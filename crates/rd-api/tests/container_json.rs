@@ -18,7 +18,7 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
-use common::{auth_harness, get_json, put_json, send, test_router};
+use common::{Upload, auth_harness, get_json, put_json, send, test_router};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -29,20 +29,6 @@ const NZB: &[u8] = include_bytes!("../../../testfile/sabnzbd-test-download-100MB
 /// What `service.jdownloader.org/dlcrypt/service.php` answered for `test.dlc`'s key blob
 /// (`srcType=dlc`, `destType=pylo`), recorded on 2026-09-23.
 const DLC_SERVICE_ANSWER: &str = "<rc>y4hx8S5sJrmfs1An9K8ZYw==</rc>";
-
-fn multipart(file_name: &str, content: &[u8]) -> (String, Vec<u8>) {
-    let boundary = "rdcontainerjsonboundary";
-    let mut body = Vec::new();
-    body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-    body.extend_from_slice(
-        format!("Content-Disposition: form-data; name=\"file\"; filename=\"{file_name}\"\r\n")
-            .as_bytes(),
-    );
-    body.extend_from_slice(b"Content-Type: application/octet-stream\r\n\r\n");
-    body.extend_from_slice(content);
-    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
-    (format!("multipart/form-data; boundary={boundary}"), body)
-}
 
 fn post(uri: &str, content_type: &str, body: impl Into<Body>) -> Request<Body> {
     Request::post(uri)
@@ -58,8 +44,12 @@ async fn upload(
     file_name: &str,
     content: &[u8],
 ) -> (StatusCode, Value) {
-    let (content_type, body) = multipart(file_name, content);
-    send(router, post(uri, &content_type, body)).await
+    let upload = Upload {
+        uri,
+        file_name,
+        part_type: "application/octet-stream",
+    };
+    common::import(router, upload, content).await
 }
 
 async fn json_import(router: &Router, uri: &str, body: &Value) -> (StatusCode, Value) {

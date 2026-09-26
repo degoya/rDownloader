@@ -172,22 +172,15 @@ pub(crate) struct ApiFailure {
     pub(crate) params: Vec<(&'static str, String)>,
 }
 
-/// Mirrors `rd_core::FailureKind` / the WIT `failure-kind` variant, without depending on either.
+/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
+/// on either.
 #[derive(Debug)]
 pub(crate) enum ErrorKind {
     Transient(Option<u64>),
     Permanent,
     Offline,
-    #[allow(dead_code)] // `debridlink.api_key_missing` is raised directly by the adapters'
-    // `require_secret` gate (`FailureKind::AuthRequired`, bypassing `classify_error` entirely),
-    // not by any provider error key — no JD-known key maps to this variant.
-    AuthRequired,
     AccountInvalid,
     RateLimited(Option<u64>),
-    #[allow(dead_code)] // Debrid-Link's JSON API never challenges with a captcha.
-    NeedsCaptcha,
-    #[allow(dead_code)] // Kept for `ErrorKind` parity with the other multihoster plugins.
-    Unsupported,
 }
 
 /// Attaches the provider's raw error key as an `api_code` param so the UI can tell which specific

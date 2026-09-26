@@ -719,27 +719,25 @@ async fn a_machine_tokens_use_is_recorded() {
     assert_eq!(status, StatusCode::OK);
 
     // Written off the request path on purpose, so it may land a moment after the answer.
-    let used = tokio::time::timeout(std::time::Duration::from_secs(10), async {
-        loop {
+    let router = &harness.router;
+    let used = common::eventually(
+        std::time::Duration::from_secs(10),
+        "a token use was never recorded",
+        || async move {
             let (_, body) = get_with_bearer(
-                &harness.router,
+                router,
                 "/api/v1/audit/records?action=token_used",
                 API_BEARER,
             )
             .await;
-            if let Some(record) = body["records"]
+            body["records"]
                 .as_array()
                 .and_then(|all| all.first())
                 .cloned()
-                && !record.is_null()
-            {
-                return record;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("a token use was never recorded");
+                .filter(|record| !record.is_null())
+        },
+    )
+    .await;
     assert_eq!(used["actor_kind"], "token");
     assert_eq!(used["target_kind"], "token");
     assert!(used["actor_id"].is_string());

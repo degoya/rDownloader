@@ -1,17 +1,8 @@
-use axum::{
-    Router,
-    body::Body,
-    http::{Request, StatusCode, header},
-};
-use http_body_util::BodyExt;
-use secrecy::ExposeSecret;
-use tower::ServiceExt;
+mod common;
 
-struct Harness {
-    router: Router,
-    database: rd_db::Database,
-    secrets: rd_secrets::SecretStore,
-}
+use axum::{Router, http::StatusCode};
+use common::{Harness, post_json_strict, test_harness};
+use secrecy::ExposeSecret;
 
 /// Token seeded into an auth profile; a bundle without secrets must never contain it.
 const AUTH_PROFILE_TOKEN: &str = "auth-profile-token-must-stay-out-of-backups";
@@ -27,113 +18,6 @@ struct SeededConfig {
     account_id: rd_core::AccountId,
     server_id: rd_core::UsenetServerId,
     old_refs: Vec<String>,
-}
-
-async fn test_harness(directory: &std::path::Path) -> Harness {
-    let database = rd_db::Database::open(directory.join("settings-backup.sqlite3"))
-        .await
-        .expect("database");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let state = rd_api::AppState::new(
-        database.clone(),
-        scheduler,
-        secrets.clone(),
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        rd_api::RemoteServices::new(
-            database.clone(),
-            secrets.clone(),
-            std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-            rd_http::SharedNetworkDefaults::default(),
-        ),
-    );
-    state.auth.set_disabled(true);
-    Harness {
-        router: rd_api::router(state),
-        database,
-        secrets,
-    }
-}
-
-async fn post(
-    router: &Router,
-    path: &str,
-    body: serde_json::Value,
-) -> (StatusCode, serde_json::Value) {
-    let response = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(path)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body.to_string()))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let json = serde_json::from_slice(&bytes).expect("JSON response");
-    (status, json)
 }
 
 async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfig {
@@ -309,7 +193,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
 }
 
 async fn export(router: &Router, include_secrets: bool) -> serde_json::Value {
-    let (status, bundle) = post(
+    let (status, bundle) = post_json_strict(
         router,
         "/api/v1/settings/export",
         serde_json::json!({
@@ -327,7 +211,7 @@ async fn import(
     bundle: serde_json::Value,
     passphrase: Option<&str>,
 ) -> (StatusCode, serde_json::Value) {
-    post(
+    post_json_strict(
         router,
         "/api/v1/settings/import",
         serde_json::json!({ "bundle": bundle, "passphrase": passphrase }),
@@ -556,7 +440,7 @@ async fn factory_reset_restores_runtime_defaults_without_removing_configuration(
         .await
         .expect("custom settings");
 
-    let (status, settings) = post(
+    let (status, settings) = post_json_strict(
         &harness.router,
         "/api/v1/settings/reset",
         serde_json::json!({}),
@@ -631,7 +515,7 @@ async fn auth_profiles_are_backed_up_without_leaking_their_credentials() {
     assert!(!slot.is_empty());
 
     // A round trip restores a working profile with a freshly minted reference.
-    let (status, summary) = post(
+    let (status, summary) = post_json_strict(
         &harness.router,
         "/api/v1/settings/import",
         serde_json::json!({ "bundle": encrypted, "passphrase": "backup-passphrase" }),

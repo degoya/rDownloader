@@ -231,7 +231,7 @@ async function selectFile(event: Event): Promise<void> {
           :title="t('siterules.transfer.import_hint')"
           @click="chooseFile"
         />
-        <input ref="fileInput" class="hidden" type="file" accept=".json,application/json" @change="selectFile">
+        <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
       </template>
 
       <template #list>

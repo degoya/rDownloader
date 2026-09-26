@@ -28,7 +28,7 @@ export interface ShortcutDefinition {
   handler: () => void
 }
 
-export interface ShortcutToastOptions {
+interface ShortcutToastOptions {
   title: string
   color?: 'neutral' | 'primary' | 'success' | 'warning' | 'error' | 'info'
   icon?: string

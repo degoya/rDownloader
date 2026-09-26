@@ -93,7 +93,7 @@ pub(crate) async fn check_account<H: PluginHost>(
         page::SessionState::Unconfirmed(diagnosis) => {
             host.log(
                 "warn",
-                &crate::session_trace::unconfirmed_page_line(PROVIDER, "the homepage", &body),
+                &xfs_common::session_trace::unconfirmed_page_line(PROVIDER, "the homepage", &body),
             );
             return Err(Failure::coded(
                 FailureKind::Transient(None),

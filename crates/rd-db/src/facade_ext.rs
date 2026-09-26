@@ -429,15 +429,38 @@ impl Database {
         part_end: u64,
         crc32: u32,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
-            checkpoint: crate::postprocess_store::NzbCheckpoint::AssemblySegment {
-                file_id,
+        self.checkpoint_nzb_assembly_segments(
+            file_id,
+            name,
+            declared_size,
+            vec![crate::AssembledSegment {
                 segment_id,
-                name,
-                declared_size,
                 part_begin,
                 part_end,
                 crc32,
+                attempts: 0,
+            }],
+        )
+        .await
+    }
+
+    /// Confirms several written articles of one file in one transaction (RD-130-22).
+    ///
+    /// All or nothing: a batch that fails leaves every one of its articles unconfirmed, and
+    /// the resume fetches them again - never a part of the batch counted and the rest lost.
+    pub async fn checkpoint_nzb_assembly_segments(
+        &self,
+        file_id: rd_core::NzbFileId,
+        name: String,
+        declared_size: u64,
+        segments: Vec<crate::AssembledSegment>,
+    ) -> Result<()> {
+        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+            checkpoint: crate::postprocess_store::NzbCheckpoint::AssemblySegments {
+                file_id,
+                name,
+                declared_size,
+                segments,
             },
             reply,
         })
@@ -1703,14 +1726,6 @@ impl Database {
         now: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<rd_core::Subscription>> {
         crate::subscription_store::due(&self.readers, now).await
-    }
-
-    pub async fn subscription_items(
-        &self,
-        id: rd_core::SubscriptionId,
-        limit: i64,
-    ) -> Result<Vec<rd_core::SubscriptionItem>> {
-        crate::subscription_store::items(&self.readers, id, limit).await
     }
 
     pub async fn subscription_item_page(

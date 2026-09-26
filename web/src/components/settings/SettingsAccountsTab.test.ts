@@ -87,7 +87,32 @@ describe('SettingsAccountsTab', () => {
     mount()
 
     expect(screen.queryByText(network.account.empty)).toBeNull()
-    expect(screen.getByRole('status').textContent).toContain('Loading')
+    expect(screen.getAllByRole('status').some(status => status.textContent?.includes('Loading'))).toBe(true)
+  })
+
+  /**
+   * RD-130-06: the catalogue is answered from the installed plugins, and right after a start it
+   * took 25 s while the accounts took milliseconds. It held the whole list back and left an
+   * empty provider picker with no word of why.
+   */
+  it('shows the accounts while the provider catalogue is still loading, and says why it waits', async () => {
+    get.mockImplementation(async (path: string) => {
+      if (path === '/api/v1/providers') return neverResolves()
+      return path === '/api/v1/accounts' ? { data: [ACCOUNT] } : { data: [] }
+    })
+
+    mount()
+
+    await waitFor(() => expect(screen.getByText('Rapidgator')).toBeTruthy())
+    expect(screen.getByTestId('account-providers-loading').textContent).toContain(network.account.providers_loading)
+  })
+
+  it('draws the provider picker once the catalogue has arrived', async () => {
+    get.mockResolvedValue({ data: [] })
+
+    mount()
+
+    await waitFor(() => expect(screen.queryByTestId('account-providers-loading')).toBeNull())
   })
 
   it('shows the empty state once the fetch came back with nothing', async () => {

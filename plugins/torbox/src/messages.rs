@@ -4,7 +4,6 @@
 //! exactly these codes and no others. Nothing TorBox wrote appears in any of them: the `error`
 //! word is stable and documented and travels as the `api_code` parameter, the `detail`
 //! sentence is not and is dropped.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
 
 /// The call carried no account identity, so there is no credential it could run as.
 pub const ACCOUNT_MISSING: (&str, &str) = ("torbox.account_missing", "TorBox account is missing");

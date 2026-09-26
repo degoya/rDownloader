@@ -72,6 +72,9 @@ pub const TOOL_MANIFEST_KEY_ID: &str = "rdownloader-tools-v1";
 /// Key id the shipped site-rule pack is signed under (RD-110-04).
 pub const SITE_RULES_KEY_ID: &str = "rdownloader-siterules-v1";
 
+/// Key id the official plugin repository index is signed under (RD-140-01).
+pub const REPOSITORY_KEY_ID: &str = "rdownloader-repository-v1";
+
 /// Every root this build ships.
 ///
 /// The plugin entry is the key that was previously the lone constant in
@@ -88,7 +91,9 @@ pub const SITE_RULES_KEY_ID: &str = "rdownloader-siterules-v1";
 /// would still make one compromise vouch for both.
 ///
 /// The release and repository roles carry no key yet: those features publish nothing signed so
-/// far, and an empty entry states that honestly instead of inventing a key nobody holds.
+/// far, and an empty entry states that honestly instead of inventing a key nobody holds. The
+/// repository entry is the root the official plugin index verifies against
+/// (`rd_plugin_host::index`, RD-140-01); until it is filled, no index verifies.
 /// `rdownloader plugin keygen --role <role>` produces a pair; paste the printed base64 public
 /// key here and keep the private PEM as a CI secret.
 pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
@@ -112,8 +117,8 @@ pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
     },
     EmbeddedKey {
         role: Role::Repository,
-        key_id: "rdownloader-repository-v1",
-        public_key: "",
+        key_id: REPOSITORY_KEY_ID,
+        public_key: "NwXtTzLKcfzCuTUAMf20mqYyPvWgmuhZMEJp0UuhuVU=",
         not_after: None,
     },
     EmbeddedKey {

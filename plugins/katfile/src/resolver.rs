@@ -216,7 +216,7 @@ async fn verify_download_session<H: PluginHost>(
 fn trace_unconfirmed<H: PluginHost>(host: &H, body: &str) {
     host.log(
         "warn",
-        &crate::session_trace::unconfirmed_page_line(PROVIDER, "the homepage", body),
+        &xfs_common::session_trace::unconfirmed_page_line(PROVIDER, "the homepage", body),
     );
 }
 

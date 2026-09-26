@@ -147,7 +147,8 @@
     "show_details": "Details anzeigen",
     "stop_recording": "Aufnahme stoppen",
     "stop_seeding": "Seeding stoppen",
-    "drag_title": "Ziehen, um die Reihenfolge im Paket zu ändern"
+    "drag_title": "Ziehen, um die Reihenfolge im Paket zu ändern",
+    "trial_staged": "Mit {name} v{version} testen"
   },
   "summary": {
     "eyebrow": "Queue-Status",

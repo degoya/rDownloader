@@ -133,7 +133,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.3.1"
+version = "1.4.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.98"
@@ -155,7 +155,6 @@ chacha20poly1305 = "0.10"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = { version = "0.10", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
-cookie_store = "0.22"
 crc32fast = "1"
 # Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
 # patterns, which is what people copy out of a crontab.
@@ -163,29 +162,30 @@ croner = "3.0.1"
 ctr = "0.9"
 dunce = "1"
 directories = "6"
-ed25519-dalek = { version = "2", features = ["pem", "pkcs8", "rand_core"] }
+ed25519-dalek = { version = "3", features = ["pem", "pkcs8"] }
 embed-resource = "3.0.11"
 futures-util = "0.3"
-fs2 = "0.4"
+# Free and total space of a volume; the maintained fork of `fs2`, same functions.
+fs4 = { version = "1.1", default-features = false }
 governor = "0.10"
 hex = "0.4"
 hmac = "0.12"
 httpdate = "1"
-if-addrs = "0.14"
 # The provider is pinned to aws-lc-rs on purpose: lettre's `rustls-tls` would pull in
 # `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
 # process-wide provider at all.
 lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", "builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "webpki-roots"] }
-image = { version = "0.25.10", default-features = false, features = ["png"] }
 keyring = "4.1.6"
 # XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
 # unpacking bytes fetched from a release host is exactly the place not to link liblzma.
 lzma-rust2 = { version = "0.20", default-features = false, features = ["std", "xz"] }
-md-5 = "0.10"
+md-5 = "0.11"
 mime_guess = "2"
+# Interface enumeration for torrent binding; librqbit links the same crate for UPnP.
+network-interface = "2"
 notify = "8"
-# Arbitrary-precision integers, for `plugins/mega-login-probe` alone: measuring what an
-# RSA-2048 private operation costs a WebAssembly guest needs one, and nothing shipped does.
+# Arbitrary-precision integers for the guest-side RSA of `plugins/mega-auth` (`src/rsa.rs`),
+# and for `plugins/mega-login-probe`, which measures what that private operation costs.
 num-bigint = "0.4"
 # Desktop toasts for the capture agent. `z` selects the pure-Rust zbus backend on Linux
 # instead of the default libdbus binding, so no C library has to be present for the
@@ -193,10 +193,13 @@ num-bigint = "0.4"
 notify-rust = { version = "4", default-features = false, features = ["z"] }
 open = "5.4.2"
 percent-encoding = "2.3"
+# Decodes the capture agent's tray icon; replaces `image`, which wrapped this same crate. On macOS
+# `tray-icon` and `muda` link it anyway.
+png = "0.18"
 # Mozilla's Public Suffix List, compiled in: an imported cookie for `com` or `co.uk` is refused
 # (RD-120-49). No runtime fetch; a list update is a dependency update.
 psl = "2.1"
-quick-xml = { version = "0.41", features = ["serialize"] }
+quick-xml = "0.41"
 rand = "0.9"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["cookies", "gzip", "http2", "json", "multipart", "rustls", "socks", "stream"] }
@@ -208,7 +211,6 @@ rustls-platform-verifier = "0.7"
 rust-par2 = "0.1.3"
 russh = "0.63"
 russh-sftp = "2.4"
-sanitize-filename = "0.6"
 secrecy = { version = "0.10", features = ["serde"] }
 subtle = "2.6"
 zeroize = "1.9"
@@ -230,19 +232,20 @@ thiserror = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-rustls = "0.26"
-tokio-util = { version = "0.7", features = ["io", "rt"] }
-toml = "0.9"
-tower-http = { version = "0.6", features = ["cors", "fs", "limit", "request-id", "trace"] }
+tokio-util = "0.7"
+toml = "1"
+tower-http = { version = "0.6", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tray-icon = "0.24.2"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
 utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
-utoipa-axum = "0.2"
 uuid = { version = "1", features = ["serde", "v7"] }
-wasmparser = "0.240"
-wasmtime = { version = "48.0.1", default-features = false, features = ["anyhow", "async", "component-model", "component-model-async", "cranelift", "runtime", "std"] }
+wasmparser = "0.254"
+# `cache` keeps compiled plugins on disk between starts and `parallel-compilation` spreads the
+# compile a cache miss still costs over the cores (RD-130-06; `rd-plugin-host/src/compile_cache.rs`).
+wasmtime = { version = "48.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
 webauthn-rs = "0.6.1-dev"
 # Test-only: a software authenticator, so the passkey ceremonies can be driven end to end
 # rather than mocked. Pinned to the same line as webauthn-rs so the two share their

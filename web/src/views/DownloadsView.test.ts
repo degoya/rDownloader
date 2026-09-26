@@ -19,6 +19,7 @@ import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import torrent from '@/locales/en/torrent.json'
 import { useTransfersStore } from '@/stores/transfers'
+import { axeViolations } from '@/test/axe'
 
 import DownloadsView from './DownloadsView.vue'
 
@@ -61,7 +62,7 @@ const stubs = {
   UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
   UDropdownMenu: passthrough,
   UIcon: { template: '<span aria-hidden="true" />' },
-  UProgress: { template: '<div role="progressbar" v-bind="$attrs" />' },
+  UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
   USelect: {
     props: ['modelValue', 'items'],
     emits: ['update:modelValue'],
@@ -319,4 +320,12 @@ describe('DownloadsView', () => {
 
     expect(rows).toBeLessThan(100)
   })
+
+  it('renders without an axe violation', async () => {
+    seedQueue(2, 3)
+    const { container } = mountView()
+    await settle()
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

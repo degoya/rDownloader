@@ -23,9 +23,6 @@ pub const HOSTS: [&str; 2] = ["mega.nz", "mega.co.nz"];
 /// The API endpoint every request goes to.
 pub const API: &str = "https://g.api.mega.co.nz/cs";
 
-/// The host pattern storage nodes live under; the manifest grants exactly this.
-pub const STORAGE_SUFFIX: &str = ".userstorage.mega.co.nz";
-
 /// What an address points at.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Target {

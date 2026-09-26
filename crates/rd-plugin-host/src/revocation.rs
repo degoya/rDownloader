@@ -84,6 +84,49 @@ impl RevokedDigests {
     }
 }
 
+/// Fingerprints of plugin signing keys a repository withdrew (RD-140-01), shared between every
+/// clone like [`RevokedDigests`].
+///
+/// Append-only at run time: a withdrawal arrives in a signed index and is never lifted through
+/// the API, so there is no removal. Stored as the lowercase hex `rd_sign::key_fingerprint`
+/// writes, which is the one spelling a comparison can rely on.
+#[derive(Clone, Debug, Default)]
+pub struct WithdrawnKeys {
+    inner: Arc<RwLock<BTreeSet<String>>>,
+}
+
+impl WithdrawnKeys {
+    /// Whether the key with this fingerprint was withdrawn.
+    pub fn contains(&self, fingerprint: &str) -> Result<bool> {
+        Ok(self
+            .inner
+            .read()
+            .map_err(|_| anyhow::anyhow!("withdrawn key list is poisoned"))?
+            .contains(&fingerprint.to_ascii_lowercase()))
+    }
+
+    /// Withdraws one key; returns whether it was not withdrawn before.
+    pub fn insert(&self, fingerprint: &str) -> Result<bool> {
+        Ok(self
+            .inner
+            .write()
+            .map_err(|_| anyhow::anyhow!("withdrawn key list is poisoned"))?
+            .insert(fingerprint.to_ascii_lowercase()))
+    }
+
+    /// Replaces the whole set, for the seeding from persisted state at startup.
+    pub fn replace(&self, fingerprints: impl IntoIterator<Item = String>) -> Result<()> {
+        *self
+            .inner
+            .write()
+            .map_err(|_| anyhow::anyhow!("withdrawn key list is poisoned"))? = fingerprints
+            .into_iter()
+            .map(|fingerprint| fingerprint.to_ascii_lowercase())
+            .collect();
+        Ok(())
+    }
+}
+
 /// Renders a package digest as the 64-character lowercase hex the API and the database use.
 ///
 /// The wire and storage form is hex because a digest is something a person compares against a

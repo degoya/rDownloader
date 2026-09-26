@@ -6,9 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow.workspace = true
 base64.workspace = true
-chrono.workspace = true
 hmac.workspace = true
 rand.workspace = true
 serde.workspace = true

@@ -1,94 +1,7 @@
-use axum::{
-    Router,
-    body::Body,
-    http::{Request, StatusCode, header},
-};
-use http_body_util::BodyExt;
-use tower::ServiceExt;
+mod common;
 
-struct Harness {
-    router: Router,
-    database: rd_db::Database,
-}
-
-async fn test_harness(directory: &std::path::Path) -> Harness {
-    let database = rd_db::Database::open(directory.join("routing-backup.sqlite3"))
-        .await
-        .expect("database");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let remote = rd_api::RemoteServices::new(
-        database.clone(),
-        secrets.clone(),
-        std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-        rd_http::SharedNetworkDefaults::default(),
-    );
-    let state = rd_api::AppState::new(
-        database.clone(),
-        scheduler,
-        secrets,
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        remote,
-    );
-    state.auth.set_disabled(true);
-    Harness {
-        router: rd_api::router(state),
-        database,
-    }
-}
+use axum::{Router, http::StatusCode};
+use common::{Harness, test_harness};
 
 async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core::CategoryId {
     let root = harness
@@ -144,49 +57,17 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
 }
 
 async fn export(router: &Router) -> serde_json::Value {
-    let response = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/api/v1/routing/export")
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    serde_json::from_slice(&bytes).expect("JSON response")
+    let (status, bundle) = common::get_json(router, "/api/v1/routing/export").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        bundle.is_object(),
+        "the export is a JSON document: {bundle}"
+    );
+    bundle
 }
 
 async fn import(router: &Router, bundle: serde_json::Value) -> (StatusCode, serde_json::Value) {
-    let response = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/routing/import")
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(bundle.to_string()))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let json = serde_json::from_slice(&bytes).expect("JSON response");
-    (status, json)
+    common::post_json_strict(router, "/api/v1/routing/import", bundle).await
 }
 
 #[tokio::test]

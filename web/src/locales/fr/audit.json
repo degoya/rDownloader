@@ -50,7 +50,11 @@
     "logs_cleared": "Journal du service vidé",
     "audit_cleared": "Audit vidé",
     "stats_cleared": "Statistiques vidées",
-    "notifications_cleared": "Historique des notifications vidé"
+    "notifications_cleared": "Historique des notifications vidé",
+    "plugin_repository_added": "Dépôt de plugins ajouté",
+    "plugin_repository_changed": "Dépôt de plugins modifié",
+    "plugin_repository_removed": "Dépôt de plugins retiré",
+    "plugin_version_chosen": "Version de plugin choisie"
   },
   "list": {
     "title": "Entrées",

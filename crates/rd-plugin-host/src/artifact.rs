@@ -63,7 +63,7 @@
 
 use std::path::{Path, PathBuf};
 
-use sha2::{Digest, Sha256};
+use rd_sign::digest::hex_sha256;
 
 /// Where `cargo component build --release --target wasm32-unknown-unknown` leaves its output.
 const ARTIFACT_DIRECTORY: &str = "wasm32-unknown-unknown/release";
@@ -223,14 +223,6 @@ fn staleness(
         path.display(),
         build_command(package),
     ))
-}
-
-/// Lower-case hex of the SHA-256 of `bytes`.
-fn hex_sha256(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
 }
 
 /// The source hash of `package` in the workspace at `root`, as the module documentation

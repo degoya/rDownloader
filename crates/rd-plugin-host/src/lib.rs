@@ -3,29 +3,37 @@
 mod account_label;
 pub mod artifact;
 mod bundled;
+mod compile_cache;
 mod component;
 mod conformance;
 mod diagnostics;
+mod engine;
 pub mod extension;
 mod foreign_address;
 mod foreign_text;
+pub mod index;
 mod installed;
 pub mod keyderive;
 mod locales;
 mod manifest;
 mod native;
 mod packager;
+pub mod preview;
 mod registry;
+pub mod repository;
 mod revocation;
 mod runtime;
 mod session;
 mod siterules;
 mod transfer;
+mod unsigned_notice;
+mod versions;
 
 pub use bundled::{BundledSyncReport, sync_bundled};
 pub use component::ComponentResolver;
 pub use conformance::{ConformanceCheck, ConformanceReport, check_package};
 pub use diagnostics::{ExecutionLog, ExecutionOutcome, Invocation};
+pub use engine::configure_compile_cache;
 pub use installed::IncompatiblePlugin;
 pub use locales::{
     MAX_LOCALE_BYTES, MAX_LOCALE_FILES, PluginLocale, PluginLocaleAccount, locale_member_language,
@@ -47,12 +55,13 @@ pub use packager::{
 };
 pub use rd_plugin_api::{AccountStatus, LabelPart};
 pub use registry::PluginTypeRegistry;
-pub use revocation::{RevokedDigests, format_package_digest, parse_package_digest};
+pub use revocation::{RevokedDigests, WithdrawnKeys, format_package_digest, parse_package_digest};
 pub use runtime::{PluginStoreState, SandboxEngine};
 pub use siterules::{RuleCaptcha, RuleFetcher, RuleNetwork, RuleResolver};
 pub use transfer::{
     RemoteFile, TransferBackend, TransferJob, TransferOutcome, TransferState, TransferTarget,
 };
+pub use versions::{VersionChoice, VersionChoices, VersionRole, default_version};
 
 use std::{
     io::{Cursor, Read, Seek},
@@ -182,6 +191,9 @@ pub struct PluginVerifier {
     trusted_keys: rd_sign::TrustStore,
     /// Withdrawn package digests, shared with every clone exactly as the key map is.
     revoked: RevokedDigests,
+    /// Fingerprints of signing keys a repository index withdrew (RD-140-01). Checked before the
+    /// trust decision, so a withdrawn key is refused whether or not anybody trusted it.
+    withdrawn_keys: WithdrawnKeys,
     development_mode: bool,
 }
 
@@ -192,6 +204,7 @@ impl PluginVerifier {
         Self {
             trusted_keys: rd_sign::TrustStore::new(),
             revoked: RevokedDigests::new(),
+            withdrawn_keys: WithdrawnKeys::default(),
             development_mode,
         }
     }
@@ -261,6 +274,26 @@ impl PluginVerifier {
             .iter()
             .map(format_package_digest)
             .collect())
+    }
+
+    /// Withdraws a signing key by its fingerprint; returns whether it was not withdrawn yet.
+    ///
+    /// Stronger than [`revoke_key`](Self::revoke_key): that drops a trusted key and leaves the
+    /// next package signed with it to ask for trust again, while a withdrawn key is refused
+    /// outright, trust prompt included. Named by fingerprint, so no other key that happens to
+    /// carry the same id is touched.
+    pub fn withdraw_key(&self, fingerprint: &str) -> Result<bool> {
+        self.withdrawn_keys.insert(fingerprint)
+    }
+
+    /// Seeds the withdrawn keys from persisted state, replacing whatever is held now.
+    pub fn set_withdrawn_keys(&self, fingerprints: impl IntoIterator<Item = String>) -> Result<()> {
+        self.withdrawn_keys.replace(fingerprints)
+    }
+
+    /// Whether the key with this fingerprint was withdrawn.
+    pub fn is_key_withdrawn(&self, fingerprint: &str) -> Result<bool> {
+        self.withdrawn_keys.contains(fingerprint)
     }
 
     /// Whether `key_id` is currently trusted.
@@ -349,9 +382,7 @@ impl PluginVerifier {
                     "unsigned plugins require development mode"
                 )));
             }
-            None => {
-                tracing::warn!(plugin = %manifest.name, "accepting unsigned development plugin")
-            }
+            None => unsigned_notice::accepted(&manifest.name, &manifest.version),
         }
 
         // A withdrawn version is refused after its signature has checked out, not instead of
@@ -389,6 +420,12 @@ impl PluginVerifier {
         encoded: &[u8],
     ) -> Result<(), VerifyError> {
         let declared = manifest.verifying_key()?;
+        if self.withdrawn_keys.contains(&key_fingerprint(&declared))? {
+            return Err(VerifyError::Other(anyhow::anyhow!(
+                "plugin signing key {} was withdrawn by a repository",
+                manifest.key_id
+            )));
+        }
         let trusted = self.trusted_keys.key(&manifest.key_id)?;
         match trusted {
             Some(trusted) if trusted == declared => {
@@ -453,6 +490,8 @@ pub struct PluginInstaller {
     /// Plugin ids the user switched off. Shared with every clone, because the installer is
     /// cloned into each subsystem that loads plugins.
     disabled: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+    /// The operator's version choices as read at start (RD-140-02), shared like `disabled`.
+    choices: std::sync::Arc<std::sync::RwLock<VersionChoices>>,
 }
 
 impl PluginInstaller {
@@ -462,7 +501,29 @@ impl PluginInstaller {
             root,
             verifier,
             disabled: std::sync::Arc::default(),
+            choices: std::sync::Arc::default(),
         }
+    }
+
+    /// Replaces the active and staged version of every plugin that has a choice.
+    ///
+    /// Seeded once at start, before anything loads a plugin, and deliberately not touched when
+    /// the operator changes a choice later: the running resolvers and adapters were built from
+    /// the choice of this start, and this is what says which one that was. A new choice takes
+    /// effect at the next start, like an install.
+    pub fn set_version_choices(&self, choices: VersionChoices) {
+        if let Ok(mut current) = self.choices.write() {
+            *current = choices;
+        }
+    }
+
+    /// The version choices this start loaded with.
+    #[must_use]
+    pub fn version_choices(&self) -> VersionChoices {
+        self.choices
+            .read()
+            .map(|choices| choices.clone())
+            .unwrap_or_default()
     }
 
     /// Replaces the set of switched-off plugins.

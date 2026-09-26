@@ -90,6 +90,9 @@ const uiPort = computed<number | null>({
           <span>{{ nntpCapHint.text }}</span>
         </p>
       </div>
+      <UFormField :label="t('settings.nntp_parallel_files.label')" :description="t('settings.nntp_parallel_files.description')">
+        <UInput v-model.number="settings.nntp_parallel_files" type="number" min="0" max="8" icon="i-lucide-layers" class="mt-2 w-full" data-testid="nntp-parallel-files" />
+      </UFormField>
       <UFormField :label="t('settings.speed_limit.label')" :description="t('settings.speed_limit.description')">
         <UInput v-model.number="speedMiB" type="number" min="0" step="0.5" icon="i-lucide-gauge" class="mt-2 w-full">
           <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>

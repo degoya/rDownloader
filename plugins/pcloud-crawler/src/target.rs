@@ -73,7 +73,7 @@ mod tests {
             })
         );
         assert_eq!(
-            claim(&pcloud_common::address::folder_address(Region::Eu, 9)),
+            claim("https://e.pcloud.com/#/filemanager?folder=9"),
             Some(Target::Own {
                 folder_id: 9,
                 region: Region::Eu,

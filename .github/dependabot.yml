@@ -1,0 +1,51 @@
+# Update proposals for the public repository (RD-140-25).
+#
+# The public repository is an export, refreshed at every release as one fresh commit, so a
+# Dependabot pull request is never merged there: like every pull request it is a proposal the
+# maintainer applies by hand in the development repository (CONTRIBUTING.md), and its CI run is
+# what says whether the update is safe to apply. Hence few, grouped pull requests on a slow
+# schedule rather than one per crate. Security updates for alerts are switched on in the
+# repository's settings, not here; the `security` groups only bundle what they open.
+version: 2
+updates:
+  # The actions' major versions: few, small, and each one a line to copy. The composite action
+  # under .github/actions/ uses none, so the workflows are all there is to read.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # One pull request for everything semver-compatible and one for the major versions: a major
+  # update is work of its own and becomes a job, while the compatible group is a
+  # `cargo update` away and says which crates moved.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      cargo-compatible:
+        update-types: [minor, patch]
+      cargo-major:
+        update-types: [major]
+      cargo-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # web/ only: extension/package.json declares no dependencies.
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      npm-compatible:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]

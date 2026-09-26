@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import audit from '@/locales/en/audit.json'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
 vi.mock('@/api/client', () => ({
@@ -130,4 +131,11 @@ describe('AuditView', () => {
       params: { query: { limit: 200 } }
     })
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = await mountView()
+    await screen.findByTestId('audit-list')
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

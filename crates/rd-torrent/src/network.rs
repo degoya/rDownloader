@@ -65,25 +65,34 @@ pub struct TorrentNetworkStatus {
 /// Enumerates the interfaces the engine could bind to.
 ///
 /// Addresses of one interface are merged into a single entry, because that is how the
-/// binding works: it names an interface, not an address.
+/// binding works: it names an interface, not an address. An interface without an IP address
+/// (a Linux `AF_PACKET` entry, a disconnected Windows adapter) is left out, and "loopback"
+/// is read from the first address rather than the interface flags, so the list is the one
+/// the earlier `if-addrs` enumeration produced (RD-140-13). On Windows the name is the
+/// adapter's friendly name, as before.
 #[must_use]
 pub fn interfaces() -> Vec<NetworkInterface> {
-    let Ok(found) = if_addrs::get_if_addrs() else {
+    use network_interface::NetworkInterfaceConfig as _;
+
+    let Ok(found) = network_interface::NetworkInterface::show() else {
         return Vec::new();
     };
     let mut merged: std::collections::BTreeMap<String, NetworkInterface> =
         std::collections::BTreeMap::new();
     for interface in found {
-        let entry = merged
-            .entry(interface.name.clone())
-            .or_insert_with(|| NetworkInterface {
-                name: interface.name.clone(),
-                addresses: Vec::new(),
-                up: false,
-                loopback: interface.is_loopback(),
-            });
-        entry.addresses.push(interface.addr.ip().to_string());
-        entry.up = true;
+        for address in &interface.addr {
+            let ip = address.ip();
+            let entry = merged
+                .entry(interface.name.clone())
+                .or_insert_with(|| NetworkInterface {
+                    name: interface.name.clone(),
+                    addresses: Vec::new(),
+                    up: false,
+                    loopback: ip.is_loopback(),
+                });
+            entry.addresses.push(ip.to_string());
+            entry.up = true;
+        }
     }
     merged.into_values().collect()
 }

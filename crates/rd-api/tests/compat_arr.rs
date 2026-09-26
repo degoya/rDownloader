@@ -14,21 +14,14 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use common::{API_BEARER, auth_harness};
-use http_body_util::BodyExt;
-use tower::ServiceExt;
 
 const BOUNDARY: &str = "----arrtest";
 
+/// One request, with the body as text: the adapters answer in the formats the clients expect,
+/// which are not all JSON.
 async fn send(router: &axum::Router, request: Request<Body>) -> (StatusCode, String) {
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    (status, String::from_utf8_lossy(&bytes).into_owned())
+    let (status, _, body) = common::send_text(router, request).await;
+    (status, body)
 }
 
 fn get(uri: &str) -> Request<Body> {

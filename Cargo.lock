@@ -1061,12 +1061,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
-name = "byteorder-lite"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1878,22 +1872,6 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.2.17",
- "curve25519-dalek-derive",
- "digest 0.10.7",
- "fiat-crypto 0.2.9",
- "rustc_version",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "curve25519-dalek"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5eed333089e2e1c1ac8c6c0398e5e2497b4c9926ca6d0365ed1e099afa5bc23"
@@ -1902,7 +1880,7 @@ dependencies = [
  "cpufeatures 0.3.1",
  "curve25519-dalek-derive",
  "digest 0.11.3",
- "fiat-crypto 0.3.0",
+ "fiat-crypto",
  "rand_core 0.10.1",
  "rustc_version",
  "subtle",
@@ -2254,6 +2232,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories-next"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339ee130d97a610ea5a5872d2bbb130fdf68884ff09d3028b81bec8a1ac23bbc"
+dependencies = [
+ "cfg-if",
+ "dirs-sys-next",
+]
+
+[[package]]
 name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2270,8 +2258,19 @@ checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users",
+ "redox_users 0.5.2",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "dirs-sys-next"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
+dependencies = [
+ "libc",
+ "redox_users 0.4.6",
+ "winapi",
 ]
 
 [[package]]
@@ -2430,16 +2429,6 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "2.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
-dependencies = [
- "pkcs8 0.10.2",
- "signature 2.2.0",
-]
-
-[[package]]
-name = "ed25519"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29fcf32e6c73d1079f83ab4d782de2d81620346a5f38c6237a86a22f8368980a"
@@ -2450,27 +2439,12 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
-dependencies = [
- "curve25519-dalek 4.1.3",
- "ed25519 2.2.3",
- "rand_core 0.6.4",
- "serde",
- "sha2 0.10.9",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "ed25519-dalek"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
 dependencies = [
- "curve25519-dalek 5.0.0",
- "ed25519 3.0.0",
+ "curve25519-dalek",
+ "ed25519",
  "rand_core 0.10.1",
  "serde",
  "sha2 0.11.0",
@@ -2737,12 +2711,6 @@ dependencies = [
 
 [[package]]
 name = "fiat-crypto"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
-
-[[package]]
-name = "fiat-crypto"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
@@ -2862,13 +2830,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs2"
-version = "0.4.3"
+name = "fs4"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+checksum = "7e72ed92b67c146290f88e9c89d60ca163ea417a446f61ffd7b72df3e7f1dfd5"
 dependencies = [
- "libc",
- "winapi",
+ "rustix",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3493,7 +3461,6 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash 0.1.5",
- "serde",
 ]
 
 [[package]]
@@ -3647,12 +3614,6 @@ dependencies = [
  "http-body",
  "pin-project-lite",
 ]
-
-[[package]]
-name = "http-range-header"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
 
 [[package]]
 name = "httparse"
@@ -3879,29 +3840,6 @@ checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
-]
-
-[[package]]
-name = "if-addrs"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf39cc0423ee66021dc5eccface85580e4a001e0c5288bae8bea7ecb69225e90"
-dependencies = [
- "libc",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "image"
-version = "0.25.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
-dependencies = [
- "bytemuck",
- "byteorder-lite",
- "moxcms",
- "num-traits",
- "png",
 ]
 
 [[package]]
@@ -5021,16 +4959,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "moxcms"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
-dependencies = [
- "num-traits",
- "pxfm",
-]
-
-[[package]]
 name = "muda"
 version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5715,7 +5643,7 @@ checksum = "d17b851e6b3e378ab4ecb07fa2ed23f4d15f075735f8fec9fa1e7bdce5f8301f"
 dependencies = [
  "ecdsa 0.17.0",
  "elliptic-curve 0.14.1",
- "fiat-crypto 0.3.0",
+ "fiat-crypto",
  "primefield",
  "primeorder 0.14.0",
  "sha2 0.11.0",
@@ -5842,12 +5770,6 @@ checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
  "phc",
 ]
-
-[[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pastey"
@@ -6447,12 +6369,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pxfm"
-version = "0.1.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
-
-[[package]]
 name = "quanta"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6712,7 +6628,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "argon2 0.5.3",
@@ -6723,7 +6639,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "dunce",
- "fs2",
+ "fs4",
  "futures-util",
  "hex",
  "http-body-util",
@@ -6780,7 +6696,6 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "utoipa",
- "utoipa-axum",
  "uuid",
  "webauthn-authenticator-rs",
  "webauthn-rs",
@@ -6789,11 +6704,9 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
- "anyhow",
  "base64 0.22.1",
- "chrono",
  "hmac 0.12.1",
  "rand 0.9.5",
  "serde",
@@ -6807,22 +6720,20 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
- "anyhow",
  "chrono",
  "rd-core",
  "rd-notify",
  "regex",
  "serde",
  "serde_json",
- "tracing",
  "utoipa",
 ]
 
 [[package]]
 name = "rd-autostart"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -6830,9 +6741,8 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",
@@ -6854,7 +6764,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
@@ -6863,15 +6773,14 @@ dependencies = [
  "base64 0.22.1",
  "boa_engine",
  "cbc 0.1.2",
- "chrono",
  "clap",
  "directories",
  "embed-resource",
  "hex",
- "image",
  "keyring",
  "notify-rust",
  "open",
+ "png",
  "rd-autostart",
  "rd-collector",
  "rd-core",
@@ -6883,7 +6792,7 @@ dependencies = [
  "tao",
  "tokio",
  "tokio-util",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "tower-http",
  "tracing",
  "tracing-subscriber",
@@ -6893,7 +6802,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
@@ -6905,10 +6814,7 @@ dependencies = [
  "rd-files",
  "rd-provider-registry",
  "regex",
- "serde",
- "sha2 0.10.9",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -6932,7 +6838,7 @@ dependencies = [
 
 [[package]]
 name = "rd-db"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6958,7 +6864,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6979,7 +6885,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7001,17 +6907,15 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "crc32fast",
  "dunce",
- "fs2",
+ "fs4",
  "hex",
- "md-5 0.10.6",
+ "md-5 0.11.0",
  "rd-core",
- "regex",
- "sanitize-filename",
  "serde",
  "sha1 0.10.7",
  "sha2 0.10.9",
@@ -7025,12 +6929,11 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "futures-util",
  "rd-core",
  "rd-db",
  "rd-files",
@@ -7039,10 +6942,7 @@ dependencies = [
  "rd-scheduler",
  "rd-secrets",
  "rd-transfer-file",
- "rustls",
- "rustls-platform-verifier",
  "secrecy",
- "serde_json",
  "suppaftp",
  "tempfile",
  "tokio",
@@ -7053,7 +6953,7 @@ dependencies = [
 
 [[package]]
 name = "rd-gallery"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7062,15 +6962,13 @@ dependencies = [
  "rd-files",
  "rd-scheduler",
  "rd-tools",
- "serde_json",
  "tokio",
  "tokio-util",
- "tracing",
 ]
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7087,7 +6985,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
@@ -7095,11 +6993,9 @@ dependencies = [
  "axum",
  "bytes",
  "chrono",
- "cookie_store",
  "ctr 0.9.2",
  "futures-util",
  "hex",
- "httpdate",
  "psl",
  "rcgen",
  "rd-core",
@@ -7109,7 +7005,6 @@ dependencies = [
  "rustls",
  "rustls-platform-verifier",
  "secrecy",
- "serde",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
@@ -7125,7 +7020,7 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7139,7 +7034,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7165,7 +7060,7 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7180,7 +7075,6 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "tokio",
- "tracing",
  "utoipa",
 ]
 
@@ -7198,7 +7092,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7215,7 +7108,7 @@ dependencies = [
  "async-trait",
  "rd-core",
  "serde",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "url",
 ]
 
@@ -7233,7 +7126,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7276,7 +7168,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
  "xfs-common",
 ]
 
@@ -7294,7 +7185,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7328,11 +7218,9 @@ dependencies = [
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
- "serde",
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7340,7 +7228,6 @@ name = "rd-plugin-dropbox-crawler"
 version = "1.2.2"
 dependencies = [
  "dropbox-common",
- "serde",
  "serde_json",
  "wit-bindgen",
 ]
@@ -7377,14 +7264,14 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
  "chrono",
- "md-5 0.10.6",
+ "md-5 0.11.0",
  "mega-common",
  "rd-core",
  "rd-extract",
@@ -7398,7 +7285,7 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -7416,7 +7303,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
  "xfs-common",
 ]
 
@@ -7434,7 +7320,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7467,19 +7352,18 @@ dependencies = [
  "rd-plugin-turbobit-common",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
  "chrono",
- "ed25519-dalek 2.2.0",
+ "ed25519-dalek",
  "hmac 0.12.1",
  "rand 0.9.5",
  "rcgen",
@@ -7520,11 +7404,11 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "tracing",
  "url",
  "uuid",
- "wasmparser 0.240.0",
+ "wasmparser 0.254.0",
  "wasmtime",
  "zeroize",
  "zip",
@@ -7544,7 +7428,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
  "xfs-common",
 ]
 
@@ -7562,7 +7445,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7577,9 +7459,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "url",
- "wit-bindgen",
  "xfs-common",
 ]
 
@@ -7597,14 +7478,13 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
 name = "rd-plugin-md5-postprocess"
 version = "1.2.2"
 dependencies = [
- "md-5 0.10.6",
+ "md-5 0.11.0",
  "wit-bindgen",
 ]
 
@@ -7620,9 +7500,8 @@ dependencies = [
  "rd-plugin-api",
  "serde_json",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7697,7 +7576,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7721,7 +7599,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7748,7 +7625,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7783,7 +7659,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7796,11 +7671,8 @@ dependencies = [
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
- "serde",
- "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7808,8 +7680,6 @@ name = "rd-plugin-pcloud-crawler"
 version = "1.2.2"
 dependencies = [
  "pcloud-common",
- "serde",
- "serde_json",
  "wit-bindgen",
 ]
 
@@ -7842,7 +7712,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7872,7 +7741,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7887,8 +7755,6 @@ name = "rd-plugin-premiumize-crawler"
 version = "1.2.2"
 dependencies = [
  "premiumize-common",
- "serde",
- "serde_json",
  "wit-bindgen",
 ]
 
@@ -7917,7 +7783,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7954,7 +7819,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -7971,7 +7835,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -8012,7 +7875,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -8020,7 +7882,6 @@ name = "rd-plugin-seedr-jobs"
 version = "1.2.2"
 dependencies = [
  "seedr-common",
- "serde",
  "serde_json",
  "wit-bindgen",
 ]
@@ -8060,7 +7921,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -8076,7 +7936,7 @@ dependencies = [
 name = "rd-plugin-torbox-jobs"
 version = "1.2.2"
 dependencies = [
- "md-5 0.10.6",
+ "md-5 0.11.0",
  "serde",
  "serde_json",
  "sha1 0.10.7",
@@ -8085,7 +7945,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8100,7 +7960,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.4+spec-1.1.0",
  "tracing",
  "url",
 ]
@@ -8117,7 +7977,6 @@ dependencies = [
  "rd-plugin-turbobit-common",
  "tokio",
  "url",
- "wit-bindgen",
 ]
 
 [[package]]
@@ -8149,13 +8008,12 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
- "wit-bindgen",
  "xfs-common",
 ]
 
 [[package]]
 name = "rd-postprocess"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8172,7 +8030,7 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8197,7 +8055,7 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8227,12 +8085,11 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-secrets"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -8249,7 +8106,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8264,7 +8121,6 @@ dependencies = [
  "russh",
  "russh-sftp",
  "secrecy",
- "serde_json",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -8273,12 +8129,12 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
  "chrono",
- "ed25519-dalek 2.2.0",
+ "ed25519-dalek",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -8287,7 +8143,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8306,7 +8162,7 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8326,7 +8182,7 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8338,7 +8194,6 @@ dependencies = [
  "rd-media",
  "regex",
  "serde",
- "serde_json",
  "sha2 0.10.9",
  "tokio",
  "tracing",
@@ -8348,7 +8203,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8369,7 +8224,6 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tracing",
- "url",
  "utoipa",
  "uuid",
  "zip",
@@ -8377,15 +8231,15 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
  "dunce",
  "hex",
- "if-addrs",
  "librqbit",
+ "network-interface",
  "rd-core",
  "rd-db",
  "rd-scheduler",
@@ -8403,10 +8257,9 @@ dependencies = [
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
- "chrono",
  "rd-core",
  "rd-db",
  "rd-files",
@@ -8415,20 +8268,17 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "tracing",
 ]
 
 [[package]]
 name = "rd-usenet"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
  "crc32fast",
  "dunce",
  "futures-util",
- "quick-xml",
  "rd-collector",
  "rd-core",
  "rd-db",
@@ -8440,7 +8290,6 @@ dependencies = [
  "rd-secrets",
  "rustls",
  "secrecy",
- "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -8452,7 +8301,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8463,13 +8312,12 @@ dependencies = [
  "reqwest",
  "tokio",
  "tokio-util",
- "tracing",
  "url",
 ]
 
 [[package]]
 name = "rdownloader"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8531,6 +8379,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d678d17679829e73d371e96880897e98fee2ded7acc0a50bdf8af2affa4b2fe5"
 dependencies = [
  "bitflags 2.13.1",
+]
+
+[[package]]
+name = "redox_users"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
+dependencies = [
+ "getrandom 0.2.17",
+ "libredox",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -8816,13 +8675,13 @@ dependencies = [
  "cipher 0.5.2",
  "crypto-bigint 0.7.5",
  "ctr 0.10.1",
- "curve25519-dalek 5.0.0",
+ "curve25519-dalek",
  "data-encoding",
  "delegate",
  "der 0.8.1",
  "digest 0.11.3",
  "ecdsa 0.17.0",
- "ed25519-dalek 3.0.0",
+ "ed25519-dalek",
  "elliptic-curve 0.14.1",
  "enum_dispatch",
  "flate2",
@@ -9127,15 +8986,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "sanitize-filename"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc984f4f9ceb736a7bb755c3e3bd17dc56370af2600c9780dcc48c66453da34d"
-dependencies = [
- "regex",
 ]
 
 [[package]]
@@ -9990,7 +9840,7 @@ dependencies = [
  "argon2 0.6.0",
  "bcrypt-pbkdf",
  "ctutils",
- "ed25519-dalek 3.0.0",
+ "ed25519-dalek",
  "hex",
  "hmac 0.13.0",
  "p256 0.14.0",
@@ -10655,11 +10505,6 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "http-range-header",
- "httpdate",
- "mime",
- "mime_guess",
- "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
@@ -10668,7 +10513,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -10728,16 +10572,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-serde"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
-dependencies = [
- "serde",
- "tracing-core",
-]
-
-[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10747,15 +10581,12 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
- "serde",
- "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
- "tracing-serde",
 ]
 
 [[package]]
@@ -10943,19 +10774,6 @@ dependencies = [
  "serde",
  "serde_json",
  "utoipa-gen",
-]
-
-[[package]]
-name = "utoipa-axum"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c25bae5bccc842449ec0c5ddc5cbb6a3a1eaeac4503895dc105a1138f8234a0"
-dependencies = [
- "axum",
- "paste",
- "tower-layer",
- "tower-service",
- "utoipa",
 ]
 
 [[package]]
@@ -11181,19 +10999,6 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.240.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b722dcf61e0ea47440b53ff83ccb5df8efec57a69d150e4f24882e4eba7e24a4"
-dependencies = [
- "bitflags 2.13.1",
- "hashbrown 0.15.5",
- "indexmap 2.14.0",
- "semver",
- "serde",
-]
-
-[[package]]
-name = "wasmparser"
 version = "0.247.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e6fb4c2bee46c5ea4d40f8cdb5c131725cd976718ec56f1c8e82fbde5fa2a80"
@@ -11249,6 +11054,7 @@ dependencies = [
  "once_cell",
  "postcard",
  "pulley-interpreter",
+ "rayon",
  "rustix",
  "semver",
  "serde",
@@ -11257,6 +11063,7 @@ dependencies = [
  "target-lexicon 0.13.5",
  "wasmparser 0.254.0",
  "wasmtime-environ",
+ "wasmtime-internal-cache",
  "wasmtime-internal-component-macro",
  "wasmtime-internal-component-util",
  "wasmtime-internal-core",
@@ -11298,6 +11105,26 @@ dependencies = [
  "wasmprinter",
  "wasmtime-internal-component-util",
  "wasmtime-internal-core",
+]
+
+[[package]]
+name = "wasmtime-internal-cache"
+version = "48.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d447fd40f3e149cda8c0cd808660a1d1de438f3ff28627abb9bcda90dfb4895"
+dependencies = [
+ "base64 0.22.1",
+ "directories-next",
+ "log",
+ "postcard",
+ "rustix",
+ "serde",
+ "serde_derive",
+ "sha2 0.10.9",
+ "toml 0.9.12+spec-1.1.0",
+ "wasmtime-environ",
+ "windows-sys 0.61.2",
+ "zstd",
 ]
 
 [[package]]
@@ -12755,6 +12582,34 @@ dependencies = [
  "crc32fast",
  "log",
  "simd-adler32",
+]
+
+[[package]]
+name = "zstd"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+dependencies = [
+ "zstd-safe",
+]
+
+[[package]]
+name = "zstd-safe"
+version = "7.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d"
+dependencies = [
+ "zstd-sys",
+]
+
+[[package]]
+name = "zstd-sys"
+version = "2.0.16+zstd.1.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748"
+dependencies = [
+ "cc",
+ "pkg-config",
 ]
 
 [[package]]

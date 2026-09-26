@@ -77,7 +77,8 @@
     "placeholder_protocol": "usenet",
     "placeholder_host": "example.com",
     "placeholder_account": "ID de cuenta",
-    "placeholder_category": "ID de categoría"
+    "placeholder_category": "ID de categoría",
+    "limit": "Límite para este ámbito en MiB/s"
   },
   "schedule": {
     "eyebrow": "Plan semanal",

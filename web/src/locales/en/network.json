@@ -58,7 +58,8 @@
       "delivered": "The {host} session arrived and is stored with this account; the account is being checked now.",
       "declined": "Declined in the extension: the {host} session was not handed over.",
       "expired": "Nobody answered the request in time; the {host} session was not handed over."
-    }
+    },
+    "providers_loading": "Loading the plugins the providers come from – after a start or a plugin update this takes a moment…"
   },
   "hosters": {
     "toggle": "Supported hosters",

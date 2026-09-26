@@ -2,7 +2,9 @@ use std::path::Path;
 
 use anyhow::Result;
 use crc32fast::Hasher as Crc32Hasher;
-use md5::Md5;
+// `md-5` implements `digest` 0.11 while `sha1` and `sha2` are still on 0.10, so the MD5 arm
+// streams through its own trait rather than `update_digest`.
+use md5::{Digest as _, Md5};
 use rd_core::ChecksumAlgorithm;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
@@ -25,7 +27,13 @@ pub async fn compute_checksum(
     let value = match algorithm {
         ChecksumAlgorithm::Md5 => {
             let mut hasher = Md5::new();
-            update_digest(&mut file, &mut buffer, &mut hasher).await?;
+            loop {
+                let read = file.read(&mut buffer).await?;
+                if read == 0 {
+                    break;
+                }
+                hasher.update(&buffer[..read]);
+            }
             hex::encode(hasher.finalize())
         }
         ChecksumAlgorithm::Sha1 => {

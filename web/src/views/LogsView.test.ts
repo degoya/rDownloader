@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import logsDe from '@/locales/de/logs.json'
 import logs from '@/locales/en/logs.json'
 import { mountComponent } from '@/test/mount'
+import { axeViolations } from '@/test/axe'
 
 /** Every sentence the bundle's codes render to, in one language. */
 function sentences(group: unknown): string[] {
@@ -209,4 +210,11 @@ describe('LogsView', () => {
     expect(preview.textContent).toContain('a line no catalogue knows yet')
     expect(preview.textContent).not.toContain('diagnostics.bundle.exclusion.not_in_any_catalogue')
   })
+
+  it('renders without an axe violation', async () => {
+    const { container } = await mountView()
+    await screen.findByTestId('log-list')
+    expect(await axeViolations(container)).toBe('')
+  })
+
 })

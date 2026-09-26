@@ -819,5 +819,9 @@
       "column_license": "License",
       "column_file": "License text"
     }
+  },
+  "nntp_parallel_files": {
+    "label": "Usenet files at once",
+    "description": "0 = automatic: as many as keep every connection busy (2 to 8). Together they take a single parallel-files slot."
   }
 }

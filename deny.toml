@@ -14,7 +14,6 @@ ignore = [
   # buffer is `SharedRb<Heap<u8>>` (stream_tx.rs:129): `u8` has no `Drop`, so the path cannot
   # be taken. Remove once librqbit-utp moves to ringbuf >= 0.5.2.
   { id = "RUSTSEC-2026-0293", reason = "ringbuf only via librqbit-utp with u8 elements, which have no Drop; no patched librqbit-utp exists." },
-  { id = "RUSTSEC-2024-0436", reason = "Transitive paste dependency in utoipa-axum; advisory has no safe upgrade and no runtime security impact." },
   # Marvin attack: a timing sidechannel in RSA *private key* operations, reached through
   # russh's default `rsa` feature. Verifying an SSH host key is a public key operation and
   # is unaffected. The only private key operation here is signing once per connection with a

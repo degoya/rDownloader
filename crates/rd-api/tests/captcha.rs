@@ -1,147 +1,25 @@
 //! Captcha REST surface: what the queue offers, what it accepts, and what it must never
 //! hand back — the solver API key above all.
 
+mod common;
+
 use axum::{
-    Router,
     body::Body,
-    http::{Request, StatusCode, header},
+    http::{StatusCode, header},
 };
-use http_body_util::BodyExt;
-use sha2::{Digest, Sha256};
-use tower::ServiceExt;
+use common::{CAPTURE_BEARER, Harness, eventually, request_to, send_strict, test_harness};
 
 const SOLVER_KEY: &str = "top-secret-solver-key";
 
-/// The bearer a paired browser extension or desktop agent presents on the capture surface.
-const CAPTURE_BEARER: &str = "test-capture-bearer-token";
-
-struct Harness {
-    router: Router,
-    database: rd_db::Database,
-    secrets: rd_secrets::SecretStore,
-    scheduler: rd_scheduler::SchedulerHandle,
-}
-
-async fn test_harness(directory: &std::path::Path) -> Harness {
-    let database = rd_db::Database::open(directory.join("captcha.sqlite3"))
-        .await
-        .expect("database");
-    database
-        .create_capture_token(
-            rd_core::CaptureTokenId::new(),
-            rd_core::CAPTURE_SCOPE.to_owned(),
-            hex::encode(Sha256::digest(CAPTURE_BEARER.as_bytes())),
-            vec![rd_core::CAPTURE_SCOPE.to_owned()],
-        )
-        .await
-        .expect("capture token");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let state = rd_api::AppState::new(
-        database.clone(),
-        scheduler.clone(),
-        secrets.clone(),
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        rd_api::RemoteServices::new(
-            database.clone(),
-            secrets.clone(),
-            std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-            rd_http::SharedNetworkDefaults::default(),
-        ),
-    );
-    state.auth.set_disabled(true);
-    Harness {
-        router: rd_api::router(state),
-        database,
-        secrets,
-        scheduler,
-    }
-}
-
 impl Harness {
-    async fn call(&self, request: Request<Body>) -> (StatusCode, serde_json::Value) {
-        let response = self
-            .router
-            .clone()
-            .oneshot(request)
-            .await
-            .expect("response");
-        let status = response.status();
-        let bytes = response
-            .into_body()
-            .collect()
-            .await
-            .expect("body")
-            .to_bytes();
-        let value = if bytes.is_empty() {
-            serde_json::Value::Null
-        } else {
-            serde_json::from_slice(&bytes).expect("json body")
-        };
-        (status, value)
+    /// Sends one request and decodes its JSON answer; a body that is not JSON fails the test.
+    async fn call(&self, request: axum::http::Request<Body>) -> (StatusCode, serde_json::Value) {
+        send_strict(&self.router, request).await
     }
 
     async fn get(&self, uri: &str) -> (StatusCode, serde_json::Value) {
-        self.call(
-            Request::builder()
-                .uri(uri)
-                .body(Body::empty())
-                .expect("request"),
-        )
-        .await
+        self.call(request_to("GET", uri).body(Body::empty()).expect("request"))
+            .await
     }
 
     async fn send(
@@ -151,9 +29,7 @@ impl Harness {
         body: serde_json::Value,
     ) -> (StatusCode, serde_json::Value) {
         self.call(
-            Request::builder()
-                .method(method)
-                .uri(uri)
+            request_to(method, uri)
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from(body.to_string()))
                 .expect("request"),
@@ -169,13 +45,24 @@ impl Harness {
         body: serde_json::Value,
     ) -> (StatusCode, serde_json::Value) {
         self.call(
-            Request::builder()
-                .method(method)
-                .uri(uri)
+            request_to(method, uri)
                 .header(header::CONTENT_TYPE, "application/json")
                 .header(header::AUTHORIZATION, format!("Bearer {CAPTURE_BEARER}"))
                 .body(Body::from(body.to_string()))
                 .expect("request"),
+        )
+        .await
+    }
+
+    /// The first challenge the queue lists, once it lists one.
+    async fn first_pending(&self) -> serde_json::Value {
+        eventually(
+            common::WAIT,
+            "the challenge never reached the queue",
+            || async move {
+                let (_, value) = self.get("/api/v1/captchas").await;
+                value.as_array().and_then(|items| items.first()).cloned()
+            },
         )
         .await
     }
@@ -201,14 +88,7 @@ impl Harness {
                 )
                 .await
         });
-        for _ in 0..600 {
-            let (_, value) = self.get("/api/v1/captchas").await;
-            if let Some(first) = value.as_array().and_then(|items| items.first()) {
-                return (resolver, first.clone());
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        }
-        panic!("the challenge never reached the queue");
+        (resolver, self.first_pending().await)
     }
 }
 
@@ -383,16 +263,7 @@ async fn a_waiting_widget_challenge_is_listed_but_refuses_a_typed_answer() {
             .await
     });
 
-    let mut listed = serde_json::Value::Null;
-    for _ in 0..600 {
-        let (_, value) = harness.get("/api/v1/captchas").await;
-        if value.as_array().is_some_and(|items| !items.is_empty()) {
-            listed = value;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    }
-    let pending = &listed[0];
+    let pending = &harness.first_pending().await;
     assert_eq!(pending["kind"], "h_captcha");
     assert_eq!(pending["host"], "katfile.biz");
     assert!(
@@ -611,16 +482,7 @@ async fn a_click_point_captcha_is_answered_by_a_click_and_refuses_text() {
             .await
     });
 
-    let mut listed = serde_json::Value::Null;
-    for _ in 0..600 {
-        let (_, value) = harness.get("/api/v1/captchas").await;
-        if value.as_array().is_some_and(|items| !items.is_empty()) {
-            listed = value;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    }
-    let pending = &listed[0];
+    let pending = &harness.first_pending().await;
     assert_eq!(pending["kind"], "click_point");
     assert_eq!(pending["image"], "data:image/png;base64,Qk0=");
     assert_eq!(pending["prompt"], "Click the circle");
@@ -683,15 +545,10 @@ async fn a_click_is_refused_for_an_image_captcha_which_keeps_waiting() {
             )
             .await
     });
-    let mut id = String::new();
-    for _ in 0..600 {
-        let (_, value) = harness.get("/api/v1/captchas").await;
-        if let Some(first) = value.as_array().and_then(|items| items.first()) {
-            id = first["id"].as_str().expect("id").to_owned();
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    }
+    let id = harness.first_pending().await["id"]
+        .as_str()
+        .expect("id")
+        .to_owned();
 
     let (status, error) = harness
         .send(

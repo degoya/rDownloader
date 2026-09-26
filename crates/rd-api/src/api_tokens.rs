@@ -1,16 +1,14 @@
 //! Session-managed machine bearer tokens.
 //!
-//! A token carries one or more of the six API areas; `api:*` and `api:read` are the two
-//! legacy spellings and still mean what they always did. All of them are revocable and
-//! stored as a digest, never as the bearer.
+//! A token carries one or more of the API areas, or `api:*` for all of them at once. All of
+//! them are revocable and stored as a digest, never as the bearer.
 //!
 //! ## Least privilege is the default, not the advice
 //!
 //! Minting takes an explicit list of areas and grants exactly that list — nothing here
 //! widens a request. A call that names no areas at all gets read access, because the
 //! alternative default is "everything" and a default of everything makes the whole model
-//! decorative. The one exception is the legacy `read_only` flag, which keeps its old
-//! meaning for clients that predate the areas.
+//! decorative.
 
 use axum::{
     Json,
@@ -102,11 +100,7 @@ pub async fn pair_api_token(
 /// a token that is weaker than the caller believes and fails much later, somewhere else.
 fn requested_scopes(request: &ApiTokenRequest) -> Result<Vec<String>, ApiError> {
     if request.scopes.is_empty() {
-        return Ok(vec![if request.read_only {
-            rd_core::API_READ_SCOPE.to_owned()
-        } else {
-            rd_core::API_SCOPE.to_owned()
-        }]);
+        return Ok(vec![rd_core::API_READ_SCOPE.to_owned()]);
     }
     resolve_scopes(&request.scopes)
 }
@@ -321,18 +315,17 @@ mod tests {
     use super::requested_scopes;
     use crate::dto::ApiTokenRequest;
 
-    fn request(scopes: &[&str], read_only: bool) -> ApiTokenRequest {
+    fn request(scopes: &[&str]) -> ApiTokenRequest {
         ApiTokenRequest {
             label: "test".to_owned(),
             scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
-            read_only,
         }
     }
 
     #[test]
     fn a_named_set_is_granted_exactly() {
-        let scopes = requested_scopes(&request(&["api:queue", "api:intake"], false))
-            .expect("both are real areas");
+        let scopes =
+            requested_scopes(&request(&["api:queue", "api:intake"])).expect("both are real areas");
         assert_eq!(
             scopes,
             vec!["api:intake".to_owned(), "api:queue".to_owned()]
@@ -352,7 +345,7 @@ mod tests {
             "api:secrets",
             "api:admin",
         ] {
-            let scopes = requested_scopes(&request(&[area], false)).expect("a real area");
+            let scopes = requested_scopes(&request(&[area])).expect("a real area");
             assert_eq!(scopes, vec![area.to_owned()], "{area} was widened");
         }
     }
@@ -361,8 +354,8 @@ mod tests {
     /// exactly where somebody would try to bridge them.
     #[test]
     fn the_capture_scope_cannot_be_minted_as_an_api_token() {
-        let error = requested_scopes(&request(&["capture:*"], false))
-            .expect_err("capture is not an API area");
+        let error =
+            requested_scopes(&request(&["capture:*"])).expect_err("capture is not an API area");
         assert_eq!(error.code(), "api.scope_unknown");
     }
 
@@ -372,7 +365,7 @@ mod tests {
     fn an_unknown_scope_is_refused_rather_than_ignored() {
         for name in ["api:everything", "", "read", "api:Read"] {
             assert!(
-                requested_scopes(&request(&[name], false)).is_err(),
+                requested_scopes(&request(&[name])).is_err(),
                 "`{name}` was accepted"
             );
         }
@@ -393,7 +386,6 @@ mod tests {
                 requested_scopes(&ApiTokenRequest {
                     label: "test".to_owned(),
                     scopes: named.clone(),
-                    read_only: false,
                 })
                 .expect("real areas"),
                 "{named:?}"
@@ -412,32 +404,18 @@ mod tests {
 
     #[test]
     fn duplicates_collapse_rather_than_being_stored_twice() {
-        let scopes = requested_scopes(&request(&["api:read", "api:read", " api:read "], false))
+        let scopes = requested_scopes(&request(&["api:read", "api:read", " api:read "]))
             .expect("a real area");
         assert_eq!(scopes, vec!["api:read".to_owned()]);
     }
 
-    /// A client written before the areas existed sends only a label and a flag, and has to
-    /// keep getting the token it used to get.
+    /// Naming no area is least privilege, never everything.
     #[test]
-    fn the_legacy_flag_still_decides_when_no_area_is_named() {
+    fn a_request_naming_no_area_gets_read_access() {
         assert_eq!(
-            requested_scopes(&request(&[], false)).expect("legacy default"),
-            vec![rd_core::API_SCOPE.to_owned()]
-        );
-        assert_eq!(
-            requested_scopes(&request(&[], true)).expect("legacy read-only"),
+            requested_scopes(&request(&[])).expect("read default"),
             vec![rd_core::API_READ_SCOPE.to_owned()]
         );
-    }
-
-    /// Naming areas has to beat the flag, or a UI that sends both produces a token that
-    /// silently ignores the choice the person just made.
-    #[test]
-    fn a_named_set_overrides_the_legacy_flag() {
-        let scopes =
-            requested_scopes(&request(&["api:admin"], true)).expect("admin is a real area");
-        assert_eq!(scopes, vec!["api:admin".to_owned()]);
     }
 
     /// The preview a person chooses against must come from the table that will refuse them,

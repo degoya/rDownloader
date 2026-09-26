@@ -1,124 +1,15 @@
 //! Integration tests for `POST /api/v1/capture/batches`: which request metadata of an
 //! intercepted browser download is accepted, which is dropped and which is rejected.
 
+mod common;
+
 use axum::{
-    Router,
     body::Body,
     http::{Request, StatusCode, header},
 };
+use common::{CAPTURE_BEARER, post_capture, test_router};
 use http_body_util::BodyExt;
-use sha2::{Digest, Sha256};
 use tower::ServiceExt;
-
-const CAPTURE_BEARER: &str = "test-capture-bearer-token";
-
-async fn test_router(directory: &std::path::Path) -> Router {
-    let database = rd_db::Database::open(directory.join("capture-test.sqlite3"))
-        .await
-        .expect("database");
-    database
-        .create_capture_token(
-            rd_core::CaptureTokenId::new(),
-            rd_core::CAPTURE_SCOPE.to_owned(),
-            hex::encode(Sha256::digest(CAPTURE_BEARER.as_bytes())),
-            vec![rd_core::CAPTURE_SCOPE.to_owned()],
-        )
-        .await
-        .expect("token");
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let plugins = rd_plugin_host::PluginInstaller::new(
-        directory.join("plugins"),
-        rd_plugin_host::PluginVerifier::new(true),
-    );
-    let media_settings = rd_media::shared_settings(&database)
-        .await
-        .expect("media settings");
-    let (_media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
-    let gallery_settings = rd_gallery::shared_settings(&database)
-        .await
-        .expect("gallery settings");
-    let stream_settings = rd_stream::shared_settings(&database)
-        .await
-        .expect("stream settings");
-    let torrent_settings = rd_torrent::shared_settings(&database)
-        .await
-        .expect("torrent settings");
-    let torrent = rd_torrent::TorrentService::start(
-        database.clone(),
-        torrent_settings.clone(),
-        directory.to_path_buf(),
-        directory.join("downloads"),
-    );
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: std::time::Duration::from_secs(60),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-        },
-    );
-    let remote = rd_api::RemoteServices::new(
-        database.clone(),
-        secrets.clone(),
-        std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
-        rd_http::SharedNetworkDefaults::default(),
-    );
-    let state = rd_api::AppState::new(
-        database,
-        scheduler,
-        secrets,
-        plugins,
-        extraction,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent,
-        torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        remote,
-    );
-    // Capture intake authenticates with its own token; reading candidates back is a session
-    // route, so the test stands in for an installation without an admin password.
-    state.auth.set_disabled(true);
-    rd_api::router(state)
-}
-
-async fn post_capture(router: &Router, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
-    let request = Request::builder()
-        .method("POST")
-        .uri("/api/v1/capture/batches")
-        .header(header::HOST, "127.0.0.1:8710")
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::AUTHORIZATION, format!("Bearer {CAPTURE_BEARER}"))
-        .body(Body::from(body.to_string()))
-        .expect("request");
-    let response = router.clone().oneshot(request).await.expect("response");
-    let status = response.status();
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body")
-        .to_bytes();
-    let payload = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
-    (status, payload)
-}
 
 /// A structured capture payload as the browser extension sends it.
 fn browser_download(url: &str, headers: serde_json::Value) -> serde_json::Value {

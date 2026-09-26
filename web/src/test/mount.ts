@@ -24,7 +24,7 @@ import common from '@/locales/en/common.json'
 export const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 
 /** A two-way bound input, for the wrappers that carry `modelValue`. */
-export const modelInput = {
+const modelInput = {
   props: ['modelValue'],
   emits: ['update:modelValue'],
   template:
@@ -65,7 +65,14 @@ export const uiStubs = {
       + '<button v-for="item in (items ?? []).flat()" :key="item.label" type="button" :disabled="item.disabled" @click="item.onSelect?.()">{{ item.label }}</button>'
       + '</div></div>'
   },
-  UFormField: passthrough,
+  /**
+   * The label wraps the control, which gives it the name the real field gives it through `for`;
+   * a field without a label renders its slot bare, as the real one names nothing either.
+   */
+  UFormField: {
+    props: ['label'],
+    template: '<div v-bind="$attrs"><label v-if="label">{{ label }}<slot /></label><slot v-else /></div>'
+  },
   UFieldGroup: passthrough,
   UIcon: { template: '<span aria-hidden="true" />' },
   UInput: modelInput,
@@ -99,7 +106,8 @@ export const uiStubs = {
   },
   UModal: passthrough,
   UPopover: passthrough,
-  UProgress: { template: '<div role="progressbar" v-bind="$attrs" />' },
+  /** Named by its percentage unless the caller names it, as Reka's `ProgressRoot` does. */
+  UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
   /**
    * Real radio inputs, each named by the label that wraps it.
    *
@@ -124,10 +132,10 @@ export const uiStubs = {
   USelectMenu: modelInput,
   UPagination: passthrough,
   USwitch: {
-    props: ['modelValue', 'ariaLabel', 'disabled'],
+    props: ['modelValue', 'ariaLabel', 'label', 'disabled'],
     emits: ['update:modelValue'],
     template:
-      '<button role="switch" v-bind="$attrs" :aria-label="ariaLabel" :aria-checked="modelValue" :disabled="disabled" @click="$emit(\'update:modelValue\', !modelValue)" />'
+      '<button role="switch" v-bind="$attrs" :aria-label="ariaLabel ?? label" :aria-checked="modelValue" :disabled="disabled" @click="$emit(\'update:modelValue\', !modelValue)" />'
   },
   UTabs: { template: '<div><slot /><slot name="roots" /><slot name="categories" /><slot name="rules" /><slot name="hotfolders" /></div>' },
   UTextarea: modelInput,

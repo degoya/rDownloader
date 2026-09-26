@@ -46,7 +46,8 @@
     "extension_hint": "Extensión del navegador: usa el token sin procesar de abajo en las opciones de la extensión.",
     "copy_token": "Copiar token",
     "extension_steps": "En las opciones de la extensión, introduce {origin} como URL del servidor, pega este token y pulsa «Probar conexión». Instalación: consulta extension/README.md.",
-    "token_copied_description": "El token de captura está en el portapapeles."
+    "token_copied_description": "El token de captura está en el portapapeles.",
+    "label": "Nombre de la conexión"
   },
   "agents": {
     "eyebrow": "Conexiones emparejadas",

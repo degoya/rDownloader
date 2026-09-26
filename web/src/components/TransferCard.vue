@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useToast } from '@nuxt/ui/composables'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,6 +9,7 @@ import TorrentPeerList from '@/components/TorrentPeerList.vue'
 import TorrentSeedingPolicy from '@/components/TorrentSeedingPolicy.vue'
 import TorrentTrackerList from '@/components/TorrentTrackerList.vue'
 import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfiles'
+import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
@@ -105,6 +107,25 @@ async function openDetails(): Promise<void> {
   ])
 }
 
+/**
+ * "Test with new version" (RD-140-02): offered only while a staged resolver version is loaded
+ * that would handle this download, and only while the download is not running — a running job
+ * keeps the version it started with, and a finished one does not start again.
+ */
+const toast = useToast()
+const { stagedFor, trial } = useStagedResolvers()
+const trialResolver = computed(() => active.value || props.download.state === 'completed'
+  ? null
+  : stagedFor(props.download.source))
+
+async function tryStaged(): Promise<void> {
+  const resolver = trialResolver.value
+  if (!resolver) return
+  const outcome = await trial(resolver, props.download.id)
+  if (outcome.error) toast.add({ title: outcome.error, color: 'error', icon: 'i-lucide-circle-alert' })
+  else toast.add({ title: outcome.message ?? '', color: 'success', icon: 'i-lucide-flask-conical' })
+}
+
 function saveTorrentPlan(plan: TorrentPlanRequest): void {
   void torrents.savePlan('download', props.download.id, plan)
 }
@@ -122,6 +143,13 @@ const actions = computed(() => [[
         label: cancelled.value ? t('downloads.transfer.resume_cancelled_aria') : t('common.actions.start'),
         icon: 'i-lucide-play',
         onSelect: () => emit('resume', props.download.id)
+      }]
+    : []),
+  ...(trialResolver.value
+    ? [{
+        label: t('downloads.transfer.trial_staged', { name: trialResolver.value.name, version: trialResolver.value.version }),
+        icon: 'i-lucide-flask-conical',
+        onSelect: () => void tryStaged()
       }]
     : []),
   ...(props.download.state === 'seeding'

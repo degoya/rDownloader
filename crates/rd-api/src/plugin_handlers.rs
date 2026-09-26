@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-const MAX_PLUGIN_PACKAGE_BYTES: usize = 65 * 1024 * 1024;
+pub(crate) const MAX_PLUGIN_PACKAGE_BYTES: usize = 65 * 1024 * 1024;
 
 /// Confirmation of the fingerprint the client was shown for an unknown signing key.
 #[derive(Deserialize, IntoParams)]
@@ -33,10 +33,15 @@ pub struct InstallPluginQuery {
 pub async fn list_plugins(
     State(state): State<AppState>,
 ) -> Result<Json<PluginInventoryResponse>, ApiError> {
-    // `list_installed` is sorted by name and then by descending version, so the first entry for
-    // an id is the one that wins at load time. Marking it here is what tells a leftover older
-    // version apart from a plugin that is genuinely in use — they looked identical before.
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // Marking the version that runs is what tells a leftover older version apart from a plugin
+    // that is genuinely in use — they looked identical before. Which one runs is the version
+    // choice of this start (RD-140-02), newest first where there is none.
+    let versions = crate::plugin_lifecycle::loadable_versions(&state).await?;
+    let lifecycle = crate::plugin_lifecycle::lifecycles(&state, &versions).await?;
+    let running: std::collections::HashMap<String, String> = lifecycle
+        .iter()
+        .filter_map(|entry| Some((entry.plugin_id.clone(), entry.running_version.clone()?)))
+        .collect();
     // One grouped read for every plugin's number of recorded invocations, so the manager can
     // decide whether to offer the diagnostics accordion at all without fetching a single entry.
     // The entries themselves stay on demand; this is the count, not the history.
@@ -56,7 +61,7 @@ pub async fn list_plugins(
         .into_iter()
         .map(|manifest| {
             let mut response = InstalledPluginResponse::from(manifest);
-            response.active = seen.insert(response.id.to_string());
+            response.active = running.get(&response.id.to_string()) == Some(&response.version);
             response.execution_count = counts
                 .get(&response.id)
                 .copied()
@@ -76,6 +81,7 @@ pub async fn list_plugins(
     Ok(Json(PluginInventoryResponse {
         installed,
         incompatible,
+        lifecycle,
     }))
 }
 
@@ -176,6 +182,7 @@ pub async fn remove_plugin_version(
     // let an account be created that nothing can serve. Installing has always registered its
     // row immediately; removing simply never took it back.
     state.plugins.refresh_providers().await;
+    crate::plugin_lifecycle::forget_version(&state, &id, &version).await?;
     announce_plugin(&state, &id, "removed");
     crate::audit::record(
         &state,
@@ -319,7 +326,39 @@ pub async fn install_plugin(
         .install_bytes(bytes.to_vec())
         .await
         .map_err(install_error)?;
+    register_installed(&state, &installed).await?;
+    // A trust decision, and the sharpest one this service offers: from here on, code somebody
+    // else wrote runs inside it. The record names the plugin, the version and — when the key
+    // was confirmed in this very request — the fingerprint the person approved.
+    let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::PluginInstalled)
+        .by(&audit)
+        .target("plugin", installed.manifest.id)
+        .named(installed.manifest.name.clone())
+        .detail("version", &installed.manifest.version);
+    if let Some(fingerprint) = query.trust_fingerprint.as_deref() {
+        event = event.detail("confirmed_key", fingerprint);
+    }
+    crate::audit::record(&state, event).await;
+    let path = installed.path.display().to_string();
+    Ok((
+        StatusCode::CREATED,
+        Json(
+            MessageResponse::new(
+                "plugin.installed_restart_required",
+                format!("Plugin installed at {path}; restart to activate it"),
+            )
+            .with_param("path", path),
+        ),
+    ))
+}
 
+/// Makes a freshly installed package visible: its provider row, the secret fragment hosts and
+/// the event every open client reloads on. Shared by the upload and the repository install, so
+/// a package from a repository is live in exactly the ways an uploaded one is.
+pub(crate) async fn register_installed(
+    state: &AppState,
+    installed: &rd_plugin_host::InstalledPackage,
+) -> Result<(), ApiError> {
     // The provider row is live at once, so an account can be created straight away; the
     // resolver itself starts working after a restart, since resolvers are built when the
     // scheduler starts. A transfer backend contributes no row — it serves URL schemes, not an
@@ -347,35 +386,13 @@ pub async fn install_plugin(
     // host is live immediately, for the same reason its provider row is (RD-110-38).
     state.plugins.refresh_providers().await;
 
-    announce_plugin(&state, &installed.manifest.id.to_string(), "installed");
-    // A trust decision, and the sharpest one this service offers: from here on, code somebody
-    // else wrote runs inside it. The record names the plugin, the version and — when the key
-    // was confirmed in this very request — the fingerprint the person approved.
-    let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::PluginInstalled)
-        .by(&audit)
-        .target("plugin", installed.manifest.id)
-        .named(installed.manifest.name.clone())
-        .detail("version", &installed.manifest.version);
-    if let Some(fingerprint) = query.trust_fingerprint.as_deref() {
-        event = event.detail("confirmed_key", fingerprint);
-    }
-    crate::audit::record(&state, event).await;
-    let path = installed.path.display().to_string();
-    Ok((
-        StatusCode::CREATED,
-        Json(
-            MessageResponse::new(
-                "plugin.installed_restart_required",
-                format!("Plugin installed at {path}; restart to activate it"),
-            )
-            .with_param("path", path),
-        ),
-    ))
+    announce_plugin(state, &installed.manifest.id.to_string(), "installed");
+    Ok(())
 }
 
 /// Verifies that `bytes` really is signed by the key whose fingerprint the user confirmed,
 /// then records it so the package still verifies after a restart.
-async fn confirm_signing_key(
+pub(crate) async fn confirm_signing_key(
     state: &AppState,
     bytes: &Bytes,
     confirmed: &str,
@@ -430,7 +447,7 @@ async fn confirm_signing_key(
     Ok(())
 }
 
-fn install_error(error: VerifyError) -> ApiError {
+pub(crate) fn install_error(error: VerifyError) -> ApiError {
     match error {
         VerifyError::UntrustedKey {
             key_id,

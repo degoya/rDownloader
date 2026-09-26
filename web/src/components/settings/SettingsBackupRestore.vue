@@ -215,7 +215,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         :description="t('system.backup.import.description')"
       />
       <div class="mt-5 space-y-4">
-        <input ref="fileInput" class="hidden" type="file" accept=".json,application/json" @change="selectFile">
+        <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
         <div class="flex flex-wrap items-center gap-3">
           <UButton
             type="button"

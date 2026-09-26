@@ -2,7 +2,6 @@
   "name": "Real-Debrid-Torrents",
   "description": "Führt Magnets und Torrentdateien als Aufträge in einem Real-Debrid-Konto aus.",
   "codes": {
-    "realdebrid_torrents.account_missing": "Real-Debrid-Konto fehlt",
     "realdebrid_torrents.api_error": "Real-Debrid-API-Fehler {api_code}",
     "realdebrid_torrents.auth_invalid": "Die Real-Debrid-Anmeldung ist nicht mehr gültig. Melde dich erneut an.",
     "realdebrid_torrents.content_refused": "Real-Debrid lehnt diesen Inhalt ab",
@@ -19,7 +18,6 @@
     "realdebrid_torrents.rate_limited": "Das Anfragelimit der Real-Debrid-API wurde erreicht. Es wird gewartet.",
     "realdebrid_torrents.server_busy": "Real-Debrid ist vorübergehend nicht erreichbar",
     "realdebrid_torrents.server_error": "Real-Debrid-Serverfehler",
-    "realdebrid_torrents.token_missing": "Dieses Real-Debrid-Konto ist noch nicht angemeldet",
     "realdebrid_torrents.torrent_dead": "Real-Debrid hat für diesen Torrent keine Peers gefunden",
     "realdebrid_torrents.torrent_failed": "Real-Debrid hat diesen Torrent mit einem Fehler beendet",
     "realdebrid_torrents.torrent_gone": "Real-Debrid hält diesen Torrent nicht mehr"

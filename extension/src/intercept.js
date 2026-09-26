@@ -202,11 +202,3 @@ export function buildIntakePayload({ item, captured, userAgent, browser } = {}) 
   payload.links = [link]
   return payload
 }
-
-/** Text-only body for servers that predate the capture contract. */
-export function buildLegacyPayload(item) {
-  const name = baseName(item?.filename)
-  const payload = { text: String(item?.url ?? ''), source: 'browser_extension', source_label: 'Browser' }
-  if (name) payload.package_name = name
-  return payload
-}

@@ -4,7 +4,6 @@
     "secret_hint": "Importez les cookies d'une session premium connectée depuis votre navigateur."
   },
   "codes": {
-    "filejoker.account_missing": "Compte FileJoker manquant",
     "filejoker.captcha_rejected": "FileJoker a rejeté la réponse au captcha",
     "filejoker.captcha_required": "FileJoker nécessite la résolution d'un captcha pour ce téléchargement, ce qui n'est pas pris en charge",
     "filejoker.cookies_missing": "La session de cookies FileJoker est absente ou ne contient aucun cookie pour filejoker.net",
@@ -13,7 +12,6 @@
     "filejoker.free_limit_reached": "Limite de téléchargements gratuits FileJoker atteinte pour cette adresse IP",
     "filejoker.free_size_limit": "FileJoker n'autorise pas le téléchargement gratuit d'un fichier de cette taille",
     "filejoker.http_error": "Statut HTTP FileJoker {status}",
-    "filejoker.invalid_link": "Lien FileJoker invalide",
     "filejoker.invalid_url": "URL du fournisseur invalide : {error}",
     "filejoker.no_free_form": "Le formulaire de téléchargement gratuit FileJoker n'a pas été trouvé : {diagnosis}",
     "filejoker.no_free_link": "Le téléchargement gratuit FileJoker n'a produit aucun lien de fichier : {diagnosis}",

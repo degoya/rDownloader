@@ -9,7 +9,8 @@ use rd_core::{
 use sqlx::{Connection, SqliteConnection};
 
 use crate::{
-    collector_store::{CandidateRow, GET_CANDIDATE, enum_string, insert_event},
+    collector_store::{CandidateRow, GET_CANDIDATE, insert_event},
+    enum_string,
     error::{StoreError, StoreErrorKind},
 };
 

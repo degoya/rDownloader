@@ -25,7 +25,8 @@ mod messages;
 mod guest;
 mod page;
 mod resolver;
-mod session_trace;
+#[cfg(test)]
+mod session_trace_tests;
 
 /// This plugin's own packaging manifest: the single authority for its identity, domains and
 /// capability grants. The native build reads it from here, the component build gets the same

@@ -28,6 +28,7 @@
 ^crates/rd-api/(Cargo\.toml|build\.rs)$                                                   all
 ^crates/rd-api/src/(lib|handlers|error|error_codes|dto|auth|scope_policy|client|trace_context|static_assets|event_stream)\.rs$   all
 ^crates/rd-api/src/openapi/                                                               all
+^crates/rd-api/src/dto/                                                                   all
 ^crates/rd-api/src/routes/(mod|config|system)\.rs$                                        all
 ^crates/rd-api/src/(config_handlers|setup_handlers)\.rs$                                  all
 ^crates/rd-core/(Cargo\.toml|build\.rs)$                                                  all
@@ -71,7 +72,8 @@
 ^crates/rd-api/src/(notify_handlers|notify_service|routes/notify)\.rs$                    notifications automations
 ^crates/rd-api/src/(package_clear|package_handlers)\.rs$                                  auto_remove category_move_and_reset reorder
 ^crates/rd-api/src/passkey_handlers\.rs$                                                  passkeys
-^crates/rd-api/src/(plugin_handlers|providers_handlers|routes/plugins)\.rs$               plugin_enabled plugin_versions audit
+^crates/rd-api/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)\.rs$  plugin_enabled plugin_versions plugin_repositories audit
+^crates/rd-api/src/plugin_repository_[a-z_]+\.rs$                                        plugin_repositories audit
 ^crates/rd-api/src/power_[a-z_]+\.rs$                                                     power
 ^crates/rd-api/src/reconnect_[a-z_]+\.rs$                                                 reconnect
 ^crates/rd-api/src/(replay_dto|replay_handlers)\.rs$                                      replay_consent replay_restart

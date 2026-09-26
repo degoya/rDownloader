@@ -127,7 +127,6 @@ fn relaxing_is_monotone_and_only_happens_when_nothing_matched() {
         !relaxed.relaxations.is_empty(),
         "something had to give: {relaxed:?}"
     );
-    assert!(!relaxed.is_exact());
 
     // A criteria set that matches on its own relaxes nothing.
     let satisfiable = MediaFormatCriteria {
@@ -136,7 +135,6 @@ fn relaxing_is_monotone_and_only_happens_when_nothing_matched() {
     };
     let exact = resolve(&inventory, &satisfiable, MediaCapabilities::complete()).expect("resolves");
     assert!(exact.relaxations.is_empty(), "{exact:?}");
-    assert!(exact.is_exact());
     assert!(
         exact.matched_total <= exact.candidate_total,
         "a filter cannot keep more than it was given"

@@ -133,6 +133,20 @@ impl AuthFlowService {
         }
     }
 
+    /// Hands over the providers the start built from its one plugin registry (RD-130-06).
+    ///
+    /// Without this the first `GET /api/v1/providers` loaded a registry of its own —
+    /// re-verifying every installed package and compiling it — and the accounts page waited
+    /// 25 s for a list the start had just had in hand. A set that is already there stays.
+    pub fn preload(
+        &self,
+        providers: rd_plugin_ext::AuthProviders,
+        oauth: rd_plugin_ext::OAuthProviders,
+    ) {
+        let _ = self.inner.providers.set(Arc::new(providers));
+        let _ = self.inner.oauth.set(Arc::new(oauth));
+    }
+
     /// The installed authentication providers, compiled on first use.
     pub async fn providers(&self) -> Arc<rd_plugin_ext::AuthProviders> {
         Arc::clone(

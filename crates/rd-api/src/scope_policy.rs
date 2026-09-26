@@ -454,6 +454,25 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/plugins/install", Method::POST, ADMIN),
     entry("/api/v1/plugins/keys", Method::GET, SECRETS),
     entry("/api/v1/plugins/keys/{key_id}", Method::DELETE, SECRETS),
+    // Repositories and the preview are administration, like installing: approving a
+    // repository's key is the same kind of decision as confirming a plugin's (RD-140-01).
+    entry("/api/v1/plugins/preview", Method::POST, ADMIN),
+    entry("/api/v1/plugins/repositories", Method::GET, ADMIN),
+    entry("/api/v1/plugins/repositories", Method::POST, ADMIN),
+    entry("/api/v1/plugins/repositories/refresh", Method::POST, ADMIN),
+    entry("/api/v1/plugins/repositories/settings", Method::PUT, ADMIN),
+    entry("/api/v1/plugins/repositories/{id}", Method::DELETE, ADMIN),
+    entry("/api/v1/plugins/repositories/{id}", Method::PATCH, ADMIN),
+    entry(
+        "/api/v1/plugins/repositories/{id}/install",
+        Method::POST,
+        ADMIN,
+    ),
+    entry(
+        "/api/v1/plugins/repositories/{id}/preview",
+        Method::POST,
+        ADMIN,
+    ),
     // The trust store's second axis, so the same scope as the keys: withdrawing a package is
     // the same kind of decision as withdrawing the key that signed it.
     entry("/api/v1/plugins/revocations", Method::GET, SECRETS),
@@ -463,8 +482,28 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::DELETE,
         SECRETS,
     ),
+    entry("/api/v1/plugins/updates", Method::GET, ADMIN),
     entry("/api/v1/plugins/{id}", Method::PATCH, ADMIN),
     entry("/api/v1/plugins/{id}/executions", Method::GET, ADMIN),
+    // Which build of a plugin runs is the same kind of decision as installing it (RD-140-02).
+    entry(
+        "/api/v1/plugins/{id}/lifecycle/activate",
+        Method::POST,
+        ADMIN,
+    ),
+    entry("/api/v1/plugins/{id}/lifecycle/policy", Method::PUT, ADMIN),
+    entry(
+        "/api/v1/plugins/{id}/lifecycle/rollback",
+        Method::POST,
+        ADMIN,
+    ),
+    entry(
+        "/api/v1/plugins/{id}/lifecycle/stage",
+        Method::DELETE,
+        ADMIN,
+    ),
+    entry("/api/v1/plugins/{id}/lifecycle/stage", Method::POST, ADMIN),
+    entry("/api/v1/plugins/{id}/lifecycle/trial", Method::POST, ADMIN),
     entry("/api/v1/plugins/{id}/{version}", Method::DELETE, ADMIN),
     entry("/api/v1/postprocess/plugin-steps", Method::GET, QUEUE),
     entry("/api/v1/postprocess/queue", Method::GET, READ),
@@ -591,7 +630,6 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/subscriptions/{id}/disable", Method::POST, CONFIG),
     entry("/api/v1/subscriptions/{id}/enable", Method::POST, CONFIG),
     entry("/api/v1/subscriptions/{id}/history", Method::DELETE, CONFIG),
-    entry("/api/v1/subscriptions/{id}/items", Method::GET, CONFIG),
     entry("/api/v1/subscriptions/{id}/items/page", Method::GET, CONFIG),
     entry(
         "/api/v1/subscriptions/{id}/items/pending",

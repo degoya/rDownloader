@@ -291,12 +291,6 @@ impl RemoteJob {
         }
     }
 
-    /// Whether a person still has to answer something about this job.
-    #[must_use]
-    pub fn needs_a_person(&self) -> bool {
-        self.state == RemoteJobState::AwaitingChoice
-    }
-
     /// The entries a person chose, kept to the ones the job actually offered.
     ///
     /// A selection arrives from a client and names provider ids, so it is filtered against

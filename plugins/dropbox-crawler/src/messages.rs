@@ -2,7 +2,8 @@
 //!
 //! Each `(code, message)` pair exists exactly once, and `locales/` translates exactly these.
 //! Nothing Dropbox wrote appears in any of them.
-#![allow(dead_code)] // The native tests and the guest use different subsets.
+// Only the guest reports a crawl's failures; the native build compiles these for nothing.
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 /// The address is not a Dropbox folder address.
 pub(crate) const NOT_A_FOLDER: (&str, &str) = (

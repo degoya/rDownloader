@@ -106,7 +106,7 @@ impl Writer {
             }
             WriterCommand::CheckpointNzb { checkpoint, reply } => {
                 let progress_file = match &checkpoint {
-                    crate::postprocess_store::NzbCheckpoint::AssemblySegment {
+                    crate::postprocess_store::NzbCheckpoint::AssemblySegments {
                         file_id, ..
                     } => Some(file_id.to_string()),
                     _ => None,

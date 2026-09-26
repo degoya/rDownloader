@@ -32,6 +32,7 @@
 #   scripts/check.sh --defer               # postpone a triviality; does NOT record a green
 #   scripts/check.sh --rust                # skip the web half
 #   scripts/check.sh --web                 # skip the Rust half
+#   scripts/check.sh --windows             # only the Windows lint: cargo xwin clippy, every crate
 #   JOBS=2 scripts/check.sh                # lower parallelism further
 #   TEST_THREADS=16 scripts/check.sh       # run tests wider than the build (scripts/lib/jobs.sh)
 #   RD_BASE=main scripts/check.sh          # compare against another base branch
@@ -59,9 +60,9 @@ source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=lib/scope.sh
 source "$ROOT/scripts/lib/scope.sh"
 
-# Where cargo actually writes. Feature worktrees point this at the main checkout's target/, and
-# every question about built artefacts — the checkout marker, the plugin components — has to be
-# asked there rather than at ./target.
+# Where cargo actually writes: the main checkout's target/ for a feature worktree, or its own for
+# one made with `worktree.sh new --own-target` (scripts/lib/lanes.sh; the lock exported it). Every
+# question about built artefacts — the checkout marker, the plugin components — is asked there.
 TARGET_DIR="$(rd_target_dir "$ROOT")"
 BASE="${RD_BASE:-development}"
 
@@ -71,6 +72,7 @@ full=0
 defer=0
 clippy_crates=()
 clippy_all=0
+windows=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -79,6 +81,7 @@ while [[ $# -gt 0 ]]; do
         --full) full=1; shift ;;
         --defer) defer=1; shift ;;
         --clippy-all) clippy_all=1; shift ;;
+        --windows) windows=1; shift ;;
         --clippy)
             shift
             while [[ $# -gt 0 && "$1" != --* ]]; do clippy_crates+=("$1"); shift; done
@@ -90,6 +93,32 @@ done
 if [[ "$full" -eq 1 && "$defer" -eq 1 ]]; then
     echo "--full and --defer are opposites" >&2
     exit 2
+fi
+
+# The Windows half of the workspace (RD-140-23). Nothing else here reads `cfg(windows)` code, and
+# v1.3.0 shipped with 42 Windows test failures that only GitHub's runner found. Clippy links
+# nothing, so this is minutes (4m40s at -j 2 on 2026-09-25), not the hour a Windows test run
+# would be; it is a run of its own because it shares nothing with the Linux scope below. Every
+# crate by name — `--` arguments reach the selected packages only — and all targets and
+# features, because tests compile differently on Windows (RD-120-67). Under the lock taken above,
+# which also stamped this checkout's sources. It records no green: it verifies one platform's lint.
+if [[ "$windows" -eq 1 ]]; then
+    if [[ "$full" -eq 1 || "$defer" -eq 1 || "$clippy_all" -eq 1 || ${#clippy_crates[@]} -gt 0 ]]; then
+        echo "--windows runs alone; start the other run separately" >&2
+        exit 2
+    fi
+    cargo xwin --version > /dev/null 2>&1 \
+        || { echo "cargo xwin is not installed (cargo install cargo-xwin --version 0.23.1 --locked)" >&2; exit 1; }
+    args=()
+    for manifest in crates/*/Cargo.toml; do args+=(-p "$(basename "$(dirname "$manifest")")"); done
+    echo "==> cargo xwin clippy for x86_64-pc-windows-msvc over $(( ${#args[@]} / 2 )) crates (-j 2)"
+    started=$SECONDS
+    CARGO_BUILD_JOBS=2 cargo xwin clippy --target x86_64-pc-windows-msvc -j 2 "${args[@]}" \
+        --all-targets --all-features -- -D warnings
+    echo
+    echo "==> the Windows lint took $((SECONDS - started))s"
+    echo "==> all requested checks passed"
+    exit 0
 fi
 
 # Every stage is timed, and the table at the end is what a before/after measurement reads.
@@ -327,19 +356,12 @@ step "git diff --check"
 git diff --check "$boundary"
 echo "    no whitespace damage"
 
-# The rules that narrow a Cargo.toml/Cargo.lock change, the link guard of the public exports
-# and the job archive, against their cases: python3 and bash, a second each, so no reason to
-# wait for the Rust half.
-if [[ "$full" -eq 1 ]] || touches '^scripts/(lib|tests)/'; then
-    step "the Cargo.lock scope rules against their fixtures"
-    scripts/tests/lock-scope.sh
-    step "the public exports' link guard against its cases"
-    scripts/tests/public-links.sh
-    step "the job archive against its fixture tree"
-    scripts/tests/archive-jobs.sh
-else
-    skip "the Cargo.lock scope fixtures, the link guard cases and the job archive fixture" "nothing under scripts/lib/ or scripts/tests/ changed"
-fi
+# The scripts themselves: bash -n, shellcheck and every test under scripts/tests/ (RD-140-22),
+# whenever something under scripts/ changed — a script included, not only its libraries. Python
+# and bash, seconds, so no reason to wait for the Rust half.
+# shellcheck source=lib/script-checks.sh
+source "$ROOT/scripts/lib/script-checks.sh"
+rd_script_checks
 
 # The job layout (RD-140-19): a finished job left in docs/roadmap/jobs/, or an open one in its
 # archive/, fails here, whatever the change touched — a status line is edited in a documentation

@@ -5,7 +5,6 @@
     "secret_hint": "Import your browser cookies from a logged-in premium session."
   },
   "codes": {
-    "filejoker.account_missing": "FileJoker account is missing",
     "filejoker.captcha_rejected": "FileJoker rejected the captcha answer",
     "filejoker.captcha_required": "FileJoker requires solving a captcha for this download, which is not supported",
     "filejoker.cookies_missing": "FileJoker cookie session is missing or contains no cookies for filejoker.net",
@@ -14,7 +13,6 @@
     "filejoker.free_limit_reached": "FileJoker free download limit reached for this IP address",
     "filejoker.free_size_limit": "FileJoker does not allow free downloads of a file this large",
     "filejoker.http_error": "FileJoker HTTP status {status}",
-    "filejoker.invalid_link": "Invalid FileJoker link",
     "filejoker.invalid_url": "Invalid provider URL: {error}",
     "filejoker.no_free_form": "FileJoker free download form was not found: {diagnosis}",
     "filejoker.no_free_link": "FileJoker free download did not yield a file link: {diagnosis}",

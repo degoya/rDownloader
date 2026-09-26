@@ -5,64 +5,26 @@ import { api, responseError } from '@/api/client'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useNotifications } from '@/composables/useNotifications'
 import { i18n } from '@/i18n'
-import type { CandidateAuthProfileMode, CollectorPackage, CollectorPackageUpdateRequest, DownloadPriority, GrabberEntryRef, LinkCandidate, MediaFormatCriteria, MediaFormatsResponse, MediaOutputPreview, MediaResolution, PostprocessLevel, ReplayPreview } from '@/api/types'
+import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import { useNzbImportsStore } from '@/stores/nzbImports'
-import { EMPTY_PREFERENCE, type MirrorPreference } from '@/utils/mirrorGroups'
+
+import { useCandidateActions } from './collectorCandidates'
+import { useMirrorActions } from './collectorMirrors'
+import {
+  changeBody,
+  type CollectorPackageChange,
+  type EnqueueBatchResult,
+  type GrabberOrderEntry,
+  type IntakeInput,
+  type IntakeOutcome
+} from './collectorShared'
+
+// The store is split over `collectorShared`, `collectorCandidates` and `collectorMirrors`
+// (RD-140-27); these stay importable from here, where callers look for them.
+export type { CollectorPackageChange, EnqueueBatchResult, GrabberOrderEntry, IntakeInput, IntakeOutcome } from './collectorShared'
 
 /** Stored server-side as the batch origin; deliberately not translated. */
 const WEB_UI_SOURCE_LABEL = 'Web UI'
-
-export interface CollectorPackageChange {
-  name?: string
-  categoryId?: string | null
-  priority?: DownloadPriority
-  /** null clears the password */
-  password?: string | null
-  /** null clears the package level (inherit category/global default) */
-  postprocessLevel?: PostprocessLevel | null
-  /** null clears the package script (inherit category/global default) */
-  script?: string | null
-}
-
-/**
- * One row of the LinkGrabber's manual order. The order spans both kinds of entry.
- *
- * The shape is the contract's, not a copy of it: this was hand-written while the endpoint was
- * still being built, and a second declaration of a generated type is one that drifts from it
- * silently.
- */
-export type GrabberOrderEntry = GrabberEntryRef
-
-export interface IntakeInput {
-  text: string
-  packageName?: string
-  password?: string
-}
-
-export interface IntakeOutcome {
-  ok: boolean
-  /** Links dropped by the domain blocklist before candidates were created. */
-  skippedExcluded: number
-  /** Links refused because their transfer service is switched off. */
-  skippedDisabled: number
-  /** Addresses the folder crawlers and site rules returned for this paste. */
-  crawledFound: number
-  /**
-   * How many of those were refused: nothing claims them and no probe confirmed a file
-   * behind them (RD-110-07). Reported rather than swallowed — a rule whose pattern reaches
-   * one element too far otherwise looks exactly like an empty page.
-   */
-  crawledDropped: number
-}
-
-/** Outcome of a batch enqueue, including partial failures and account-less files. */
-export interface EnqueueBatchResult {
-  created: number
-  failed: number
-  firstError: string | null
-  /** Files enqueued without a provider account (free/direct download attempt). */
-  freeDownloadFiles: number
-}
 
 export const useCollectorStore = defineStore('collector', () => {
   const packages = ref<CollectorPackage[]>([])
@@ -120,6 +82,11 @@ export const useCollectorStore = defineStore('collector', () => {
     }, 300)
   }
 
+  const { renameCandidate, setMediaVariant, fetchMediaFormats, previewMediaSelection, previewMediaOutput, setAuthProfile, setMediaSelection, replayPreview, grantReplayConsent, revokeReplayConsent } =
+    useCandidateActions({ candidates, error, refresh })
+  const { mirrorPreference, loadMirrorPreference, setMirrorPreference, chooseMirror, dissolveMirror } =
+    useMirrorActions({ error, refresh })
+
   const notifications = useNotifications()
 
   /**
@@ -170,21 +137,6 @@ export const useCollectorStore = defineStore('collector', () => {
     return { ok: true, skippedExcluded, skippedDisabled, crawledFound, crawledDropped }
   }
 
-  function changeBody(change: CollectorPackageChange): CollectorPackageUpdateRequest {
-    return {
-      ...(change.name ? { name: change.name } : {}),
-      ...(change.categoryId ? { category_id: change.categoryId } : {}),
-      ...(change.categoryId === null ? { clear_category: true } : {}),
-      ...(change.priority ? { priority: change.priority } : {}),
-      ...(change.password ? { password: change.password } : {}),
-      ...(change.password === null ? { clear_password: true } : {}),
-      ...(change.postprocessLevel ? { postprocess_level: change.postprocessLevel } : {}),
-      ...(change.postprocessLevel === null ? { clear_postprocess_level: true } : {}),
-      ...(change.script ? { script: change.script } : {}),
-      ...(change.script === null ? { clear_script: true } : {})
-    }
-  }
-
   async function updatePackages(ids: string[], change: CollectorPackageChange): Promise<boolean> {
     if (!ids.length) return false
     const response = ids.length === 1 && ids[0]
@@ -228,188 +180,10 @@ export const useCollectorStore = defineStore('collector', () => {
     return Boolean(response.data)
   }
 
-  async function patchCandidate(id: string, body: { file_name?: string, media_variant?: string }): Promise<boolean> {
-    const response = await api.PATCH('/api/v1/collector/candidates/{id}', { params: { path: { id } }, body })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    candidates.value = candidates.value.map(candidate => candidate.id === id ? response.data! : candidate)
-    return true
-  }
-
-  async function renameCandidate(id: string, fileName: string): Promise<boolean> {
-    return patchCandidate(id, { file_name: fileName })
-  }
-
-  async function setMediaVariant(id: string, variantId: string): Promise<boolean> {
-    return patchCandidate(id, { media_variant: variantId })
-  }
-
-  /** Full format inventory of one media candidate, fetched only when the selector opens. */
-  async function fetchMediaFormats(id: string): Promise<MediaFormatsResponse | null> {
-    const response = await api.GET('/api/v1/collector/candidates/{id}/media', { params: { path: { id } } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return null
-    }
-    return response.data
-  }
-
-  /**
-   * What a set of criteria would resolve to, without storing it.
-   *
-   * A refusal is returned rather than raised: "nothing matches" is the answer the selector
-   * needs to render its explanation, not an error to swallow. Its stable code travels along,
-   * because "no formats" and "no audio track" call for different advice than a filter
-   * combination that keeps nothing (RD-120-50).
-   */
-  async function previewMediaSelection(
-    id: string,
-    criteria: MediaFormatCriteria
-  ): Promise<{ resolution: MediaResolution | null, code: string | null }> {
-    const response = await api.POST('/api/v1/collector/candidates/{id}/media/preview', {
-      params: { path: { id } },
-      body: { criteria }
-    })
-    if (response.data) return { resolution: response.data, code: null }
-    const failure = response.error as { code?: string | null } | undefined
-    return { resolution: null, code: failure?.code ?? null }
-  }
-
-  /**
-   * What an output template expands to for one link.
-   *
-   * Previewed on the server through the same evaluator the download uses, so the path shown
-   * is the path that gets written. An invalid template returns its reason as the error.
-   */
-  async function previewMediaOutput(id: string, template: string): Promise<MediaOutputPreview | { error: string }> {
-    const response = await api.POST('/api/v1/collector/candidates/{id}/media/output-preview', {
-      params: { path: { id } },
-      body: { template }
-    })
-    return response.data ?? { error: responseError(response) }
-  }
-
-  /**
-   * Chooses the cookie profile a link is queued with (RD-080-04).
-   *
-   * `auto` lets the scope decide, `none` deliberately sends nothing, `pinned` names one.
-   * The server refuses a profile that does not cover the link, so the error is worth
-   * surfacing rather than swallowing.
-   */
-  async function setAuthProfile(
-    id: string,
-    mode: CandidateAuthProfileMode,
-    profileId?: string
-  ): Promise<boolean> {
-    const response = await api.PUT('/api/v1/collector/candidates/{id}/auth-profile', {
-      params: { path: { id } },
-      body: { mode, profile_id: profileId ?? null }
-    })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    candidates.value = candidates.value.map(candidate => candidate.id === id ? response.data! : candidate)
-    return true
-  }
-
-  async function setMediaSelection(id: string, criteria: MediaFormatCriteria): Promise<boolean> {
-    const response = await api.PUT('/api/v1/collector/candidates/{id}/media/selection', {
-      params: { path: { id } },
-      body: { criteria }
-    })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    candidates.value = candidates.value.map(candidate => candidate.id === id ? response.data! : candidate)
-    return true
-  }
-
   async function checkLinks(ids?: string[]): Promise<boolean> {
     const response = await api.POST('/api/v1/collector/candidates/check', { body: { ids: ids ?? null } })
     if (!response.data) error.value = responseError(response)
     return Boolean(response.data)
-  }
-
-  /**
-   * The standing mirror preference (RD-110-19).
-   *
-   * Server state, not view state: it decides which member of every group the queue will
-   * fetch, so it has to outlive this tab and reach the next package that arrives. The store
-   * holds the last answer the server gave, never a value the interface hopes it stored.
-   */
-  const mirrorPreference = ref<MirrorPreference>({ ...EMPTY_PREFERENCE })
-
-  async function loadMirrorPreference(): Promise<void> {
-    const response = await api.GET('/api/v1/collector/mirror-preference')
-    if (!response.data) return
-    mirrorPreference.value = {
-      quality: response.data.quality ?? null,
-      language: response.data.language ?? null,
-      hoster: response.data.hoster ?? null,
-      hidden_hosters: response.data.hidden_hosters ?? []
-    }
-  }
-
-  async function setMirrorPreference(preference: MirrorPreference): Promise<boolean> {
-    const response = await api.PUT('/api/v1/collector/mirror-preference', {
-      body: {
-        quality: preference.quality ?? null,
-        language: preference.language ?? null,
-        hoster: preference.hoster ?? null,
-        hidden_hosters: preference.hidden_hosters
-      }
-    })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    error.value = null
-    mirrorPreference.value = {
-      quality: response.data.quality ?? null,
-      language: response.data.language ?? null,
-      hoster: response.data.hoster ?? null,
-      hidden_hosters: response.data.hidden_hosters ?? []
-    }
-    // The server re-chose every group under the new preference, so the rows on screen are the
-    // previous answer until this lands.
-    await refresh()
-    return true
-  }
-
-  /** Chooses one mirror of a group by hand, or hands the group back to the preference. */
-  async function chooseMirror(id: string, chosen: boolean): Promise<boolean> {
-    const response = chosen
-      ? await api.POST('/api/v1/collector/candidates/{id}/mirror', { params: { path: { id } } })
-      : await api.DELETE('/api/v1/collector/candidates/{id}/mirror', { params: { path: { id } } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    error.value = null
-    await refresh()
-    return true
-  }
-
-  /**
-   * Takes a proposed mirror group apart, so its links stand on their own again (RD-110-34).
-   *
-   * Only a proposal can be taken apart, and the server is the one that says so: a declared or
-   * a name-and-size group is refused there with `collector.mirror_group_not_proposed`, so a
-   * row that offers the action wrongly still changes nothing.
-   */
-  async function dissolveMirror(id: string): Promise<boolean> {
-    const response = await api.POST('/api/v1/collector/candidates/{id}/mirror/dissolve', { params: { path: { id } } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    error.value = null
-    await refresh()
-    return true
   }
 
   async function regroup(): Promise<boolean> {
@@ -480,60 +254,6 @@ export const useCollectorStore = defineStore('collector', () => {
     const next = new Set(deletingIds.value)
     next.delete(id)
     deletingIds.value = next
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    await refresh()
-    return true
-  }
-
-  /** What a captured request would send, for the consent dialog. */
-  async function replayPreview(id: string): Promise<ReplayPreview | null> {
-    const response = await api.GET('/api/v1/collector/candidates/{id}/replay-preview', {
-      params: { path: { id } }
-    })
-    if (!response.data) {
-      error.value = responseError(response)
-      return null
-    }
-    return response.data
-  }
-
-  /**
-   * Approves one captured request.
-   *
-   * The hash binds the approval to the template the user actually saw; the server refuses
-   * it if the capture changed in between.
-   */
-  async function grantReplayConsent(
-    id: string,
-    templateHash: string,
-    approvedOrigins: string[]
-  ): Promise<boolean> {
-    const response = await api.POST('/api/v1/collector/candidates/{id}/replay-consent', {
-      params: { path: { id } },
-      body: { template_hash: templateHash, approved_origins: approvedOrigins }
-    })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    await refresh()
-    return true
-  }
-
-  /**
-   * Withdraws an approval that was granted but never enqueued.
-   *
-   * The enqueue skips the dialog for a candidate that already carries a consent, so an
-   * approval left behind by a cancelled or failed enqueue would send the credentials on the
-   * next attempt without asking again. This is the way back out.
-   */
-  async function revokeReplayConsent(id: string): Promise<boolean> {
-    const response = await api.DELETE('/api/v1/collector/candidates/{id}/replay-consent', {
-      params: { path: { id } }
-    })
     if (!response.data) {
       error.value = responseError(response)
       return false

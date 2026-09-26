@@ -5,8 +5,8 @@
 # A path listed here that the exported tree does not have is reported, not an error: an older
 # tag may predate it.
 
-# The developer documentation, as a whole: the roadmap and the German job files, the audits,
-# loose notes, design drafts, the ADRs and the crate-by-crate reference. The owner regards it as
+# The developer documentation, as a whole: the roadmap and the German job files, loose notes,
+# design drafts, the ADRs and the crate-by-crate reference. The owner regards it as
 # internal material. What a user, a contributor or a plugin author needs from it is in the wiki
 # (scripts/export-wiki.sh): installation, building from source, the plugin reference. Nothing
 # that stays public may need it — the tables tests compare with the code sit beside that code
@@ -18,9 +18,6 @@ docs/
 AGENTS.md
 CLAUDE.md
 .claude/
-
-# An early specification.
-specs.md
 
 # A test that only makes sense next to the planning files. scripts/measure-mega-login-fuel.sh
 # stays public: plugins/mega-login-probe cites it.
