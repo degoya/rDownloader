@@ -64,7 +64,7 @@ build)
     echo "==> building $TAG (cargo -j $JOBS, commit $RD_BUILD_COMMIT)"
     docker build \
         --file docker/Dockerfile \
-        --build-arg "CARGO_BUILD_JOBS=$JOBS" \
+        --build-arg "RD_BUILD_JOBS=$JOBS" \
         --build-arg "RD_BUILD_COMMIT=$RD_BUILD_COMMIT" \
         --build-arg "RD_BUILD_TIME=$RD_BUILD_TIME" \
         --tag "$TAG" \

@@ -51,8 +51,8 @@ except the question of whether the kernel had flushed, which is exactly and only
 is for. Paying for a spawned process at every crash point to re-prove the state machine would
 buy nothing; paying for it once per flush that matters is worth it.
 
-**Axis B must not be run on a development machine.** It spawns real service processes; see
-`AGENTS.md` for why this repository is careful about concurrent heavy jobs.
+**Axis B must not be run on a development machine.** It spawns real service processes, which is
+why its cases are `#[ignore]` and run in CI only.
 
 ## Registered crash points
 

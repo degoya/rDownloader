@@ -4,9 +4,10 @@
 #
 # Development happens in the private repository; github.com/degoya/rDownloader carries one fresh
 # commit per release and no history. This script builds that commit: it takes `git archive` of
-# the release tag, drops what scripts/public-exclude.txt names, scans what is left with gitleaks,
-# lists every remaining reference to the internal planning as a warning, and replaces the tree of
-# a local clone of the public repository with it — never touching the clone's `.git`. The commit
+# the release tag, drops what scripts/public-exclude.txt names, refuses a link from what is left
+# into what was dropped, scans the rest with gitleaks, lists every remaining reference to the
+# internal planning as a warning, and replaces the tree of a local clone of the public
+# repository with it — never touching the clone's `.git`. The commit
 # is "Release <version>", authored by the git identity of this repository, and tagged v<version>.
 #
 # Nothing leaves this machine without --push. The public repository is what strangers read, so
@@ -56,7 +57,7 @@ while [[ $# -gt 0 ]]; do
         --push) DO_PUSH=1; shift ;;
         --ref) REF="${2:?--ref needs a ref}"; shift 2 ;;
         --branch) BRANCH="${2:?--branch needs a branch name}"; shift 2 ;;
-        -h|--help) sed -n '2,36p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,37p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
@@ -117,6 +118,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     fi
 done < "$EXCLUDE_LIST"
 echo "    left out $excluded path(s) named in scripts/public-exclude.txt"
+
+# What stays must not point at what went: a README link into docs/ would be a 404 on GitHub.
+rd_public_check_links "$STAGE" "$EXCLUDE_LIST"
 
 # From inside the tree, so that its own .gitleaks.toml applies and its paths match the ones CI
 # sees in the public repository.

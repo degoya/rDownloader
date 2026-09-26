@@ -26,12 +26,12 @@ before changing it.
 
 The twelfth kind, `stream-transform`, has **no scaffold yet**. It answers with an address *and*
 a declarative description of how the bytes behind it become a file — the world for a provider
-that encrypts on the client and keeps the key out of its own reach (RD-110-33, ADR 0011). The
+that encrypts on the client and keeps the key out of its own reach (RD-110-33). The
 contract is already in every template's `wit/rdownloader.wit`, so writing one means scaffolding
 any other type, setting `plugin_type = "stream-transform"` in `manifest.toml` and pointing
 `[package.metadata.component.target] world` at `stream-transform-plugin`.
-`docs/plugins.md` describes the world, the two primitives the host implements and the four
-properties an author has to write against; `plugins/example-stream-transform/` in the
+[Stream transforms](https://github.com/degoya/rDownloader/wiki/plugin-reference#stream-transforms) in the handbook's plugin reference describes the
+world, the primitives the host implements and the properties an author has to write against; `plugins/example-stream-transform/` in the
 repository is a working reference.
 
 ## Start
@@ -88,7 +88,7 @@ the entrance your provider does not offer, from the manifest and from `src/guest
 host calls only what the manifest names, so there is no stub to keep working. A manifest that
 leaves the field out serves the redirect and nothing else.
 
-Read `docs/plugins.md`, section *OAuth providers*, before changing it — especially the three
+Read [OAuth providers](https://github.com/degoya/rDownloader/wiki/plugin-reference#oauth-providers) in the plugin reference before changing it — especially the three
 rules the flow turns on: a provider that refuses ends the sign-in while one that cannot be
 reached must not, "not confirmed yet" is waiting rather than either, and nothing a provider
 wrote is ever repeated verbatim.
@@ -103,8 +103,7 @@ rdownloader plugin new --type crawler --out ./myfolders
 cd myfolders && cargo test
 ```
 
-Read `docs/plugins.md`, section *Folder crawlers*, and
-`docs/adr/0001-resolving-an-address-that-points-at-many-files.md` before changing it. The two
+Read [Folder crawlers](https://github.com/degoya/rDownloader/wiki/plugin-reference#folder-crawlers) in the plugin reference before changing it. The two
 rules that matter most: the walk bounds itself rather than leaning on the fuel budget, and an
 empty or unreachable folder is a failure with a stable code — never an empty list, which would
 create a package with nothing in it.
@@ -126,8 +125,7 @@ rdownloader plugin new --type remote-job --out ./myprovider
 cd myprovider && cargo test
 ```
 
-Read `docs/plugins.md`, section *Remote jobs*, and
-`docs/adr/0003-a-job-that-runs-at-the-provider.md` before changing it. The two rules that matter
+Read [Remote jobs](https://github.com/degoya/rDownloader/wiki/plugin-reference#remote-jobs) in the plugin reference before changing it. The two rules that matter
 most: `identify` never makes a request and never invents a key — it is derived locally, the host
 writes it down before it asks the provider for anything, and a unique index on it is what makes
 a duplicate submit impossible at a provider whose submit is not idempotent; and `discard` is
@@ -146,7 +144,7 @@ The scaffold ships `locales/en.json`, and English is the one language a localise
 carry: a package with any locale file and no `en.json` is refused. The web interface is offered
 in German, English, Spanish and French, and the bundled plugins ship all four as `de.json`,
 `en.json`, `es.json` and `fr.json`; a language the plugin lacks falls back to English. The keys
-and what they name are in `docs/plugins.md`, section *Translations*.
+and what they name are in [Translations](https://github.com/degoya/rDownloader/wiki/plugin-reference#translations).
 
 The label next to a provider account travels the same way as a failure: `account-status.label`
 is a list of `label-part { code, params, message }`, and the interface translates each part —
@@ -155,7 +153,7 @@ with `plugin.account.premium_unchecked`, one of the core codes every installatio
 (`plugin.account.user`, `premium_until`, `premium_lifetime`, `premium_expired`, `cookies`,
 `signed_in`, `session_active`); anything only your provider says gets a code in your own
 `<slug>.` namespace and a line in each `locales/*.json`. A part without a code is refused by
-the host. The full table is in `docs/plugins.md`, section *The account label*.
+the host. The full table is in [The account label](https://github.com/degoya/rDownloader/wiki/plugin-reference#the-account-label).
 
 ## What conformance checks
 
@@ -212,7 +210,8 @@ decides which call to make:
 `captcha.answer_shape` before anyone is asked. `solve-challenge` takes every kind and returns
 `captcha-answer`, a `token` or a `point`. In `plugin-common` the same two calls are
 `PluginHost::solve_captcha` and `PluginHost::solve_challenge`. Every widget page, CutCaptcha
-included, must lie inside your declared domains. The full table is in `docs/plugins.md`.
+included, must lie inside your declared domains. The full table is in
+[Captchas](https://github.com/degoya/rDownloader/wiki/plugin-reference#captchas).
 
 ## CI
 
@@ -226,8 +225,8 @@ is the one you bump when you build against a newer contract.
 
 ## The contract
 
-`wit/rdownloader.wit` in your scaffold is the contract, and `docs/plugins.md` in the rDownloader
-repository explains the manifest field by field. Both are versioned: `api_version` in your
+`wit/rdownloader.wit` in your scaffold is the contract, and the handbook's
+[Plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) explains the manifest field by field. Both are versioned: `api_version` in your
 manifest names the WIT package version you built against, and a core that does not support it
 refuses your package rather than running it against a contract you did not write for.
 
@@ -236,7 +235,7 @@ The current package is `rdownloader:plugin@0.9.0` (RD-130-11). It adds two funct
 be asked about (`torrent`, `usenet`, `hoster`), and `check-cached`, which answers for a batch of
 sources -- one answer per query, in order, read-only at the provider, `cached`, `known` or
 `unknown` and never `offline`. The `remote-job` template answers "no kinds" and `unknown`, which
-is right for every provider without a cache query; `docs/plugins.md` ("The cache question")
+is right for every provider without a cache query; [The cache question](https://github.com/degoya/rDownloader/wiki/plugin-reference#the-cache-question)
 has the rules. A plugin of any other world builds unchanged against the new `wit/`, but it has
 to be rebuilt: a plugin built against `0.8.0` does not load any more. It is refused as
 `plugin.capability_unknown` (unknown `api_version`) and stays listed in the plugin manager.

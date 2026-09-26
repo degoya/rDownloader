@@ -248,7 +248,7 @@ Three things that bite:
   intake parsers. The service logs `no bundled plugin packages found` at startup when that
   happened.
 - **Cap the compile.** `cargo build` inside the image otherwise uses every core.
-  `scripts/docker.sh` passes `--build-arg CARGO_BUILD_JOBS=4`; with a plain `docker build`, pass
+  `scripts/docker.sh` passes `--build-arg RD_BUILD_JOBS=4`; with a plain `docker build`, pass
   it yourself.
 - **Name the build.** The context carries no `.git`, so the image cannot work out its own
   commit and build time for *Settings → About rDownloader*. `scripts/docker.sh` and the release

@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{get_json, post_json, test_harness};
+use common::{get_json, parked_harness, post_json, test_harness};
 use rd_core::{EventEnvelope, EventKind};
 use serde_json::json;
 
@@ -47,7 +47,7 @@ async fn fired(router: &axum::Router, automation_id: &str) -> bool {
 #[tokio::test]
 async fn the_download_lifecycle_triggers_fire_on_a_real_job() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = parked_harness(directory.path()).await;
 
     let resolved = automation_for(&harness.router, "download_resolved").await;
     let started = automation_for(&harness.router, "download_started").await;
@@ -99,7 +99,7 @@ async fn the_download_lifecycle_triggers_fire_on_a_real_job() {
 #[tokio::test]
 async fn a_failed_download_fires_the_failure_triggers() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = parked_harness(directory.path()).await;
 
     let failed = automation_for(&harness.router, "download_failed").await;
     let package_failed = automation_for(&harness.router, "package_failed").await;

@@ -109,14 +109,14 @@ rd_record_full() {
 }
 
 # Whether tree $2 differs from tree $3 of checkout $1 in documentation only — the same rule
-# check.sh applies ("a documentation-only change gets no build"), recovery-matrix.md and
-# mcp-coverage.md excepted because a test reads them. A tree git no longer has cannot be compared and does not qualify.
+# check.sh applies ("a documentation-only change gets no build"), crates/rd-core/recovery-matrix.md
+# and crates/rd-api/mcp-coverage.md excepted because a test reads them. A tree git no longer has cannot be compared and does not qualify.
 rd_tree_docs_only() {
     local changes
     changes="$(git -C "$1" diff --name-only "$2" "$3" 2> /dev/null)" || return 1
     [[ -n "$changes" ]] || return 0
     ! grep -qvE '^docs/|\.md$' <<< "$changes" \
-        && ! grep -qxE 'docs/(recovery-matrix|mcp-coverage)\.md' <<< "$changes"
+        && ! grep -qxE 'crates/rd-core/recovery-matrix\.md|crates/rd-api/mcp-coverage\.md' <<< "$changes"
 }
 
 # Refuses unless both halves of a --full run are recorded for the current working state of

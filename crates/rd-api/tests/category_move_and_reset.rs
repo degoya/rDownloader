@@ -12,6 +12,9 @@ async fn storage_root(
 ) -> (String, std::path::PathBuf) {
     let root = directory.join("library");
     std::fs::create_dir_all(&root).expect("library directory");
+    // The service stores the root canonicalised, and so do the expectations built from it: a
+    // Windows temp dir can arrive as an 8.3 short name (`RUNNER~1`) the service spells out.
+    let root = dunce::canonicalize(&root).expect("canonical library directory");
     let (status, created) = common::post_json(
         router,
         "/api/v1/storage-roots",
@@ -70,7 +73,7 @@ async fn queued_download(router: &axum::Router) -> (String, String) {
 #[tokio::test]
 async fn a_category_change_gives_the_package_a_folder_of_its_own() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (category_id, category_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (_, package_id) = queued_download(&harness.router).await;
@@ -94,7 +97,7 @@ async fn a_category_change_gives_the_package_a_folder_of_its_own() {
 #[tokio::test]
 async fn a_finished_package_can_still_be_moved_to_another_category() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (first_id, first_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (second_id, second_path) = category(&harness.router, &root_id, &root, "series").await;
@@ -157,7 +160,7 @@ async fn a_finished_package_can_still_be_moved_to_another_category() {
 #[tokio::test]
 async fn moving_a_category_carries_the_whole_package_folder_over() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (first_id, first_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (second_id, second_path) = category(&harness.router, &root_id, &root, "series").await;
@@ -227,7 +230,7 @@ async fn moving_a_category_carries_the_whole_package_folder_over() {
 #[tokio::test]
 async fn a_finished_download_can_be_reset_and_keeps_its_file_unless_asked() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (download_id, _) = queued_download(&harness.router).await;
     let id: rd_core::DownloadId = download_id.parse().expect("download id");
     for state in [
@@ -290,13 +293,10 @@ async fn a_finished_download_can_be_reset_and_keeps_its_file_unless_asked() {
 #[tokio::test]
 async fn the_bulk_endpoint_resets_several_files_at_once() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (download_id, _) = queued_download(&harness.router).await;
-    // A running job is refused a reset, and rightly so, so the state this test is about has to
-    // be established rather than hoped for: the dispatcher picks a fresh row up within half a
-    // second, and under four parallel test binaries that is a race the test used to lose about
-    // once a day (RD-108-15). Pausing is the one non-running state a caller can ask for; what
-    // follows waits for the row to read it, not for a deadline.
+    // A running job is refused a reset, and rightly so; the parked harness never dispatches the
+    // row (RD-108-15), and pausing is the one non-running state a caller can ask for.
     let (status, paused) = common::post_json(
         &harness.router,
         "/api/v1/downloads/bulk",
@@ -369,7 +369,29 @@ async fn finished_package_in(
             .await
             .expect("transition");
     }
+    // Completing the file starts post-processing, and while it runs the package refuses a
+    // rename or move as busy; on a Windows runner the test's next request landed inside that
+    // window (2026-09-26). Wait for the package to settle rather than for a deadline.
+    await_package_settled(&harness.router, &package_id).await;
     (package_id, package_directory)
+}
+
+/// Waits until package `id` is out of post-processing, and says what it reads when it never is.
+async fn await_package_settled(router: &axum::Router, id: &str) {
+    let mut last = serde_json::Value::Null;
+    for _ in 0..200 {
+        let (_, packages) = common::get_json(router, "/api/v1/packages").await;
+        last = packages
+            .as_array()
+            .and_then(|list| list.iter().find(|row| row["id"] == id))
+            .map(|row| row["state"].clone())
+            .unwrap_or_default();
+        if last.as_str() != Some("postprocessing") {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("the package never left post-processing, last read {last}");
 }
 
 /// The gap this endpoint closes (RD-106-13): `PATCH /packages/{id}` renames the label and
@@ -377,7 +399,7 @@ async fn finished_package_in(
 #[tokio::test]
 async fn renaming_a_package_folder_moves_the_data_with_it() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (category_id, category_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (package_id, package_directory) =
@@ -418,7 +440,7 @@ async fn renaming_a_package_folder_moves_the_data_with_it() {
 #[tokio::test]
 async fn a_folder_name_that_is_already_taken_is_refused_rather_than_worked_around() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (category_id, category_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (package_id, package_directory) =
@@ -458,7 +480,7 @@ async fn a_folder_name_that_is_already_taken_is_refused_rather_than_worked_aroun
 #[tokio::test]
 async fn a_package_that_is_still_transferring_is_not_renamed() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (category_id, category_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (download_id, package_id) = queued_download(&harness.router).await;
@@ -502,7 +524,7 @@ async fn a_package_that_is_still_transferring_is_not_renamed() {
 #[tokio::test]
 async fn a_folder_name_cannot_walk_the_package_out_of_its_category() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = common::test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (category_id, category_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (package_id, _) = finished_package_in(&harness, &category_id, &category_path).await;

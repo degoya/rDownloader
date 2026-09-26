@@ -31,7 +31,8 @@ pub struct DownloadPlan<'a> {
     pub format: &'a str,
     /// Absolute output path with a literal stem and yt-dlp's `%(ext)s` placeholder.
     pub output: &'a Path,
-    /// Directory holding ffmpeg/ffprobe, when they were found outside `PATH`.
+    /// Directory holding ffmpeg/ffprobe, or the ffmpeg binary itself when ffprobe lives
+    /// elsewhere (see `FfmpegTools::location`); passed to yt-dlp unchanged.
     pub ffmpeg_location: Option<&'a Path>,
     /// Scoped cookie file for a private or age-restricted page (RD-080-04).
     ///

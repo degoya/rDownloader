@@ -194,21 +194,21 @@ fi
 # What the change demands
 # ---------------------------------------------------------------------------------------------
 
-# docs/recovery-matrix.md is deliberately NOT harmless text: a test compares it against
-# rd_core::failpoint::CRASH_POINTS, so editing it is a code change wearing a .md extension.
-# docs/mcp-coverage.md is the same kind: rd-api's library include_str!s it and
-# mcp::coverage::doc_tests compares it with the capability table.
+# crates/rd-core/recovery-matrix.md is deliberately NOT harmless text: a test compares it
+# against rd_core::failpoint::CRASH_POINTS, so editing it is a code change wearing a .md
+# extension. crates/rd-api/mcp-coverage.md is the same kind: rd-api's library include_str!s it
+# and mcp::coverage::doc_tests compares it with the capability table.
 docs_only=0
 if [[ -n "$changed" ]] && ! grep -qvE '^docs/|\.md$' <<< "$changed"; then
     docs_only=1
 fi
-if touches '^docs/recovery-matrix\.md$|^docs/mcp-coverage\.md$'; then docs_only=0; fi
+if touches '^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'; then docs_only=0; fi
 if [[ "$full" -eq 1 ]]; then docs_only=0; fi
 
 # Whether anything the Rust build reads changed at all. A web-only or scripts-only change
 # compiles nothing, so it gets no Rust test — not even rd-api's library.
 rust_touched=0
-if [[ "$full" -eq 1 ]] || touches '^crates/|^plugins/|^Cargo\.(toml|lock)$|^rust-toolchain\.toml$|\.sql$|^\.config/nextest\.toml$|^deny\.toml$|^docs/mcp-coverage\.md$'; then
+if [[ "$full" -eq 1 ]] || touches '^crates/|^plugins/|^Cargo\.(toml|lock)$|^rust-toolchain\.toml$|\.sql$|^\.config/nextest\.toml$|^deny\.toml$'; then
     rust_touched=1
 fi
 
@@ -309,7 +309,7 @@ fi
 
 failpoints=0
 if [[ "$full" -eq 1 ]] \
-    || touches '^crates/rd-core/src/failpoint\.rs$|^docs/recovery-matrix\.md$' \
+    || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
     || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet'; then
     failpoints=1
 fi
@@ -327,14 +327,26 @@ step "git diff --check"
 git diff --check "$boundary"
 echo "    no whitespace damage"
 
-# The rules that narrow a Cargo.toml/Cargo.lock change, against their fixtures: python3 and
-# bash, a second, so no reason to wait for the Rust half.
+# The rules that narrow a Cargo.toml/Cargo.lock change, the link guard of the public exports
+# and the job archive, against their cases: python3 and bash, a second each, so no reason to
+# wait for the Rust half.
 if [[ "$full" -eq 1 ]] || touches '^scripts/(lib|tests)/'; then
     step "the Cargo.lock scope rules against their fixtures"
     scripts/tests/lock-scope.sh
+    step "the public exports' link guard against its cases"
+    scripts/tests/public-links.sh
+    step "the job archive against its fixture tree"
+    scripts/tests/archive-jobs.sh
 else
-    skip "the Cargo.lock scope fixtures" "nothing under scripts/lib/ or scripts/tests/ changed"
+    skip "the Cargo.lock scope fixtures, the link guard cases and the job archive fixture" "nothing under scripts/lib/ or scripts/tests/ changed"
 fi
+
+# The job layout (RD-140-19): a finished job left in docs/roadmap/jobs/, or an open one in its
+# archive/, fails here, whatever the change touched — a status line is edited in a documentation
+# commit, and that is exactly the change that must not leave the file where it was. Reads files
+# only, well under a second.
+step "the job layout: finished jobs archived, open ones not"
+scripts/archive-jobs.sh --check
 
 # ---------------------------------------------------------------------------------------------
 # Rust
@@ -507,7 +519,8 @@ if [[ "$run_rust" -eq 1 ]]; then
         if [[ "$failpoints" -eq 1 ]]; then
             step "crash and restart matrix"
             # Off in every other run, including the one above: with the feature disabled the
-            # crash points expand to nothing, which is the point. See docs/recovery-matrix.md.
+            # crash points expand to nothing, which is the point. See
+            # crates/rd-core/recovery-matrix.md.
             # Every owning crate's own feature, not just rd-core's: each crash-test file is
             # gated on the feature of the crate that owns the point, and rd-core/failpoints does
             # not turn those on — a binary compiled to nothing reports success.

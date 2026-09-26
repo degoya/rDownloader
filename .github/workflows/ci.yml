@@ -6,6 +6,16 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # A re-check of one fix need not wait an hour for platforms it cannot affect: dispatched by
+  # hand, the `rust` matrix takes only the runners named here (`docker` still runs, since it
+  # needs `rust`). Pushes, pull requests, `main` and tags always run all three.
+  #   gh workflow run ci.yml --ref ci/1.3.1 -f platforms='["ubuntu-24.04"]'
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: JSON list of runner images for the rust job
+        required: false
+        default: '["ubuntu-24.04","windows-2025","macos-15"]'
 
 permissions:
   contents: read
@@ -57,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     # A hang is cut off rather than billed for six hours: on 2026-09-25 a keychain call blocked the
     # macOS tests for an hour, at ten times the Linux rate.
@@ -196,11 +206,17 @@ jobs:
       - name: Check Windows launcher arguments
         if: runner.os == 'Windows'
         shell: pwsh
+        # The launcher pauses at the end when started by a double click; unattended it must not.
+        env:
+          RDOWNLOADER_NO_PAUSE: "1"
         run: |
           cmd /c scripts\windows\start-rdownloader.bat invalid-mode
           if ($LASTEXITCODE -ne 2) { throw "start script accepted an invalid mode" }
           cmd /c scripts\windows\stop-rdownloader.bat invalid-mode
           if ($LASTEXITCODE -ne 2) { throw "stop script accepted an invalid mode" }
+          # The runner ends a pwsh step with `exit $LASTEXITCODE`, which would turn the expected
+          # refusal (2) into a failed step.
+          exit 0
       - name: Build and validate macOS NZB helper app
         if: runner.os == 'macOS'
         shell: bash
@@ -441,8 +457,15 @@ jobs:
             --volume "${downloads_volume}:/downloads" \
             rdownloader:smoke)"
           trap 'docker rm --force "${container_id}"; docker volume rm "${config_volume}" "${downloads_volume}"' EXIT
-          curl --fail --silent --show-error --retry 20 --retry-delay 1 \
-            http://127.0.0.1:8710/api/v1/health
+          # The service loads its plugins before it listens, and until then Docker's port proxy
+          # answers with a reset — an error curl's plain --retry does not repeat. Retry all
+          # errors for up to two minutes, and show the container's log when it never answers.
+          if ! curl --fail --silent --show-error --retry 60 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:8710/api/v1/health; then
+            docker ps --all --filter "id=${container_id}"
+            docker logs "${container_id}" 2>&1 | tail -n 80
+            exit 1
+          fi
           # The bundled Python tools run as the service user, apprise included (RD-130-14).
           docker exec --user rdownloader "${container_id}" apprise --version
       - uses: docker/build-push-action@v7

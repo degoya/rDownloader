@@ -6,8 +6,8 @@
 //! said which files they want, and the account keeps it afterwards whether anybody wanted
 //! that or not. None of the other ten worlds can hold that — `resolve` answers with one file,
 //! `crawl` with a list in one call, `parse` with what was already in hand, and `run` carries
-//! bytes for exactly as long as one download lasts. The reasoning, and the four designs that
-//! were rejected, are in `docs/adr/0003-a-job-that-runs-at-the-provider.md`.
+//! bytes for exactly as long as one download lasts. The rules are in the handbook:
+//! <https://github.com/degoya/rDownloader/wiki/plugin-reference#remote-jobs>.
 //!
 //! Four things the host guarantees, which shape how this is written:
 //!

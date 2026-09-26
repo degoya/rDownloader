@@ -80,10 +80,13 @@ fn the_sources_are_the_crate_its_plugin_libraries_and_the_contract_but_no_core_c
     let mut found: Vec<String> = sources(&base, "rd-plugin-sample")
         .iter()
         .map(|path| {
+            // `/`-joined, the way `source_hash` names them, so Windows reads the same list.
             path.strip_prefix(&base)
                 .expect("inside")
-                .display()
-                .to_string()
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/")
         })
         .collect();
     found.sort();

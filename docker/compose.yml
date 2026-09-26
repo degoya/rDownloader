@@ -6,7 +6,7 @@ services:
       dockerfile: docker/Dockerfile
       # A local build on a workstation: cap cargo so the compile cannot exhaust memory.
       # args:
-      #   CARGO_BUILD_JOBS: "4"
+      #   RD_BUILD_JOBS: "4"
     image: rdownloader:local
     restart: unless-stopped
     ports:

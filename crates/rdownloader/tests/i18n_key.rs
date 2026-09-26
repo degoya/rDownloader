@@ -10,6 +10,11 @@
 //! These cases run the script against a throwaway catalogue tree through `RD_LOCALES_DIR`, which
 //! exists for exactly this: the script is a repository tool, and there is no other way to check
 //! what it does to a file without letting it write to the real ones.
+//!
+//! Unix only: the script is a bash tool for the repository, and on a Windows runner `bash` is
+//! WSL's launcher without a distribution behind it.
+
+#![cfg(unix)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

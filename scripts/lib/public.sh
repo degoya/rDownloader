@@ -1,5 +1,6 @@
-# Shared by export-public.sh and export-wiki.sh (RD-130-23): the secret scanner, the identity
-# that authors a public commit, and the local clone whose tree an export replaces.
+# Shared by export-public.sh and export-wiki.sh (RD-130-23): the secret scanner, the link check
+# against the exclude list, the identity that authors a public commit, and the local clone whose
+# tree an export replaces.
 #
 # Sourced, never run. Every function exits the calling script on a refusal, with the reason.
 
@@ -37,6 +38,21 @@ rd_public_scan() {
         echo "   A real secret is removed at the source. A fixture gets an entry in .gitleaks.toml." >&2
         exit 1
     fi
+}
+
+# Refuses a link in tree $1 into a path the exclude list $2 names: it would be dead in the
+# public repository. $3 is `--wiki` for a converted wiki tree, whose relative links name wiki
+# pages rather than repository paths. The rules are in lib/public-links.py.
+rd_public_check_links() {
+    local findings
+    echo "==> links into paths the public repository leaves out"
+    if ! findings="$(python3 "$ROOT/scripts/lib/public-links.py" "$@")"; then
+        echo "!! the export links into what it leaves out; nothing was committed:" >&2
+        printf '%s\n' "$findings" | sed 's/^/   /' >&2
+        echo "   Point the link at the public wiki (https://github.com/degoya/rDownloader/wiki) or drop it." >&2
+        exit 1
+    fi
+    echo "    none"
 }
 
 # Brings the clone $1 of $2 to the tip of branch $3, cloning it when missing. An empty remote

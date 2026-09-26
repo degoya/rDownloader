@@ -37,6 +37,8 @@
 # --- every route, every MCP tool -------------------------------------------------------------
 ^crates/rd-api/src/(.*_handlers\.rs|routes/)                                              + scope_matrix mcp
 ^crates/rd-api/src/mcp/                                                                   mcp
+# The page mcp::coverage::doc_tests include_str!s: a library test, and rd-api --lib always runs.
+^crates/rd-api/mcp-coverage\.md$                                                          -
 
 # --- unit tests inside the library: `rd-api --lib` runs them ---------------------------------
 ^crates/rd-api/src/.*tests\.rs$                                                           -
@@ -87,7 +89,9 @@
 
 # --- rd-core, by domain module ----------------------------------------------------------------
 # failpoint.rs compiles to nothing without its feature; the crash matrix is its test.
+# recovery-matrix.md is the table rd-core's own library test compares with the registry.
 ^crates/rd-core/src/failpoint\.rs$                                                        -
+^crates/rd-core/recovery-matrix\.md$                                                      -
 ^crates/rd-core/tests/                                                                    -
 ^crates/rd-core/src/audit\.rs$                                                            audit data_reset api_tokens mcp
 ^crates/rd-core/src/(auth_flow|auth_profile|cookie_file)\.rs$                             auth_profiles media_cookie_profile browser_session capture_intake mcp

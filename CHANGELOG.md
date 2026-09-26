@@ -6,6 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-26
+
+### Changed
+
+- **CI can re-check one platform.** Dispatched by hand, the CI workflow takes a `platforms` list for
+  its `rust` matrix (`gh workflow run ci.yml --ref <branch> -f platforms='["ubuntu-24.04"]'`), so
+  re-checking a Linux or Docker fix no longer waits an hour for Windows and macOS. Pushes, pull
+  requests, `main` and tags still run all three.
+
+- **The public repository no longer carries `docs/`.** The developer documentation stays in the
+  development repository; what a user, a contributor or a plugin author needs from it is in the
+  [handbook](https://github.com/degoya/rDownloader/wiki), which gains *Building from source* and
+  a *Plugin reference* (the manifest field by field, every plugin type, translations, keys).
+  `README.md`, `CONTRIBUTING.md`, `sdk/README.md` and the feature-request form link there. The
+  two tables tests compare with the code moved beside it — `crates/rd-core/recovery-matrix.md`,
+  `crates/rd-api/mcp-coverage.md` — and the README's screenshots to `.github/readme/`.
+  `scripts/export-public.sh` refuses a public file linking into an excluded path, and
+  `scripts/export-wiki.sh` a wiki page linking into one.
+
+### Fixed
+
+- **A link with an apostrophe is taken whole.** The LinkGrabber cut
+  `https://downup.me/…/c't_Sonderhefte…pdf.html` after `c`, because the link pattern stopped at
+  every `'`. An apostrophe now belongs to the address; a link written inside single quotes
+  (`href='…'`) still ends at its closing quote.
+- **Video and audio are merged again when the managed tool store supplies ffmpeg.** The store
+  keeps ffmpeg and ffprobe in separate folders, so yt-dlp was given no `--ffmpeg-location`,
+  reported "You have requested merging of multiple formats but ffmpeg is not installed. The
+  formats won't be merged" and left the video and the audio stream as two files, while the
+  download still counted as finished. A folder holding both binaries (such as `vendor/`) is now
+  preferred, otherwise yt-dlp is pointed at the ffmpeg binary itself, and a merge is only
+  offered when yt-dlp can reach ffmpeg.
+- **The test suite passes on a Windows runner.** A root `.gitattributes` keeps every checkout LF
+  (batch files CRLF, fixtures byte for byte), so the migration checksums hold under
+  `core.autocrlf`. Tests that assumed Unix paths, `bash`, `/proc/mounts`, an instant refused
+  connect or `.exe`-less binaries now build their expectations per platform or run on Unix only,
+  and the TLS fixtures give their test CA a name of its own, because Windows reads a leaf whose
+  subject equals its issuer as self-signed.
+- **The Windows launcher check in CI passes.** Its step ended on the launchers' expected refusal
+  (exit code 2), which the runner reports as a failed step, and the start script paused for a
+  key press; the step now ends with `exit 0` and sets `RDOWNLOADER_NO_PAUSE`.
+- **The container image builds again.** The Dockerfile's build argument for cargo's parallelism
+  was called `CARGO_BUILD_JOBS` and empty by default; as a build argument it is in the build's
+  environment, where cargo reads it itself and refuses an empty value, so the release image of
+  1.2.4 and 1.3.0 was not built. It is `RD_BUILD_JOBS` now (`scripts/docker.sh`, `compose.yml`
+  and `docker/README.md` follow).
+- **The image build finds the log catalogue it compiles in.** `rd-diagnostics` embeds
+  `web/src/locales/en/logs.json`; the Dockerfile's build stage copied only the built web UI, so
+  once the build-argument fix let cargo start, the image failed on the missing file.
+- **Tests that fake a download's lifecycle no longer race the scheduler.** They run on a
+  `parked_harness` whose scheduler never dispatches, instead of pausing the row and hoping the
+  dispatcher had not claimed it first, which slow Windows runners lost.
+
 ## [1.3.0] - 2026-09-25
 
 ### Added
@@ -601,7 +654,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   does not import it at all). An `api_key` slot would be a field a person fills in that nothing
   can ever send, so `manifest.toml` carries `credentials = "none"` and records why. **The premium
   path Pixeldrain requires for hotlinking is therefore not reachable**, and
-  `docs/roadmap/jobs/120-07-pixeldrain.md` records that as open rather than closing it quietly.
+  `docs/roadmap/jobs/archive/120-07-pixeldrain.md` records that as open rather than closing it quietly.
   *Closed before release by RD-120-38 (under Fixed): Pixeldrain now takes an optional API key.*
 
   **The limits are reported, never worked around.** The per-IP allowance, the transfer volume,
@@ -651,7 +704,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   What is deliberately **not** built: a Seedr download address carries no credential, because
   the transfer engine attaches an account's own only for OAuth providers. The bytes are fetched
   with an HTTP Basic authentication profile a person configures once for `www.seedr.cc`, which
-  rDownloader already matches by address. `docs/roadmap/jobs/120-04-seedr-feasibility.md` records
+  rDownloader already matches by address. `docs/roadmap/jobs/archive/120-04-seedr-feasibility.md` records
   that, and the run against a real premium account, as open. *Closed before release by
   RD-120-38 (under Fixed): the engine attaches the account's own Basic pair, no profile needed.
   The run against a real account is still open.*
@@ -730,7 +783,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   What is deliberately **not** built is the cached-item display. `enum link-status` can say
   online, offline or unknown and nothing else, and a magnet never reaches a resolver at all
   because dispatch runs on domains — so a cache badge needs contract work rather than TorBox
-  work, and `docs/roadmap/jobs/120-01-torbox.md` names exactly what. Rather than show a cache
+  work, and `docs/roadmap/jobs/archive/120-01-torbox.md` names exactly what. Rather than show a cache
   status that could be stale, nothing shows one. A run against a real TorBox account is open too.
 
 - **Put.io, the third provider whose job runs at the provider (RD-120-03).** Three sibling
@@ -801,7 +854,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
   **No run against a real Offcloud account is claimed.** Every shape comes from the provider's
   published API documentation and from two independent, maintained clients of it;
-  `docs/roadmap/jobs/120-02-offcloud.md` records that gap and the three endpoints the published
+  `docs/roadmap/jobs/archive/120-02-offcloud.md` records that gap and the three endpoints the published
   README does not list.
 - **Logs, audit records and statistics can be emptied from the settings (RD-120-34).** Testing
   against the running service meant reading the interesting part out of what earlier runs had
@@ -1654,7 +1707,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   plugin never sees a credential, the host substitutes secrets on the way *out* of the guest, and
   MEGA's `us` call wants a value derived from the password rather than the password. The sign-in
   is therefore a decision with three named options rather than a task, it is written up in
-  `docs/roadmap/jobs/120-11-mega.md` and `docs/adr/0011-*`, and **no `mega-auth` plugin was
+  `docs/roadmap/jobs/archive/120-11-mega.md` and `docs/adr/0011-*`, and **no `mega-auth` plugin was
   shipped** — a signed package that cannot do its own job would be worse than none. Measure it
   again with `scripts/measure-mega-login-fuel.sh`.
 
@@ -1673,7 +1726,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   wait out a wrong number literally.
 
 - **Version set to 1.2.0, and the milestone's working file exists.**
-  `docs/roadmap/jobs/120-00-release-koordination.md` records the base, the waves, the pre-assigned
+  `docs/roadmap/jobs/archive/120-00-release-koordination.md` records the base, the waves, the pre-assigned
   migration numbers and the per-branch verification chain for all fourteen jobs of milestone 1.2 —
   the ten hoster and remote-download jobs plus the four carried over from 1.1 (`120-11` MEGA,
   `120-12` rule format, `120-13` account test, `120-14` status-word lint). None of the fourteen has
@@ -2089,7 +2142,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   The third site the job named, `warez-world.org`, **no longer exists**: it and every address
   under it now redirect to a parked "for sale" page, and its two sister domains are a JS bot
   wall and a domain that changed owner. The captcha branch of that site went with it, so no
-  shipped rule has one yet; `docs/roadmap/jobs/110-10-die-ersten-drei-seiten.md` records the
+  shipped rule has one yet; `docs/roadmap/jobs/archive/110-10-die-ersten-drei-seiten.md` records the
   measurement and names the candidate for RD-110-11.
 - **Rules take their place in the crawler selection** (RD-110-06). A pasted address is now
   offered to three kinds of source in one fixed order: the crawler plugins that name a service,
@@ -2507,7 +2560,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   gate the contract could answer (a password, or a 100×40 GD image captcha) but has no container
   identifier in any public source, its forum being behind Cloudflare. No shared ADR: the class
   did not end as a No-Go, and a single reason would have been invented. Every measurement,
-  command and byte count is in `docs/roadmap/jobs/110-17-die-uebrigen-protektoren.md`.
+  command and byte count is in `docs/roadmap/jobs/archive/110-17-die-uebrigen-protektoren.md`.
 
 - **Five sites behind a browser gate get no rules** (RD-110-14, ADR 0012). The feasibility
   measurement of 2026-09-21 looked at real content pages rather than domain roots, and found
@@ -2525,7 +2578,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   fingerprint, the line ADR 0010 drew for filecrypt. Nothing behind the gate was ever seen,
   which is a second and independent reason: a rule describes a response, and there is no
   response to describe. All five jobs' verdicts, every command and every byte count are in
-  `docs/roadmap/jobs/110-14-seiten-mit-bot-schutz.md`; `docs/site-rules.md` gains "No browser,
+  `docs/roadmap/jobs/archive/110-14-seiten-mit-bot-schutz.md`; `docs/site-rules.md` gains "No browser,
   either" beside "No JavaScript interpreter". The error code for the case was already there and
   is confirmed rather than changed: `site_rules.blocked`, in all four catalogues, which is what
   RD-110-09's `blockiert` state is fed from. The extension question — may it read a gated page
@@ -2588,7 +2641,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   Open; both now say `Blocked/No-Go` for the reason the appendix gives — there is no installed
   base to migrate. RD-110-22 is settled through RD-110-23, the real event resume, rather than
   through a candidate counter on the capture surface. The working file is
-  `docs/roadmap/jobs/110-00-release-koordination.md` (RD-110-00).
+  `docs/roadmap/jobs/archive/110-00-release-koordination.md` (RD-110-00).
 
 ### Fixed
 
@@ -3515,7 +3568,7 @@ what is left of the captcha window now that the extension carries the work (`108
 acceptances 1.0.7 owed (`108-11`) were not caught up either: every single one needs a real
 account, a real server, a browser or a Windows desktop, and none of that exists where this
 release was built. They are listed, with what each one needs, in
-`docs/roadmap/jobs/108-00-abnahme-checkliste.md` — together with the twenty-odd checks from these
+`docs/roadmap/jobs/archive/108-00-abnahme-checkliste.md` — together with the twenty-odd checks from these
 nine jobs that a person still has to make.
 
 Five further findings turned up while verifying and were written down rather than quietly fixed:
@@ -3537,7 +3590,7 @@ date moved; the version did not, because nothing in it had been published.
   both things that are easy to get wrong: it takes effect at the next start, and the author's
   signing key stays trusted, so every other plugin signed with it keeps loading.
 - **A fifth audit pass, and the plan behind it
-  (`docs/roadmap/jobs/108-31-was-der-audit-offen-liess.md`).** What was left needed decisions
+  (`docs/roadmap/jobs/archive/108-31-was-der-audit-offen-liess.md`).** What was left needed decisions
   rather than fixes, so the decisions are written down with their reasoning — what a plugin
   withdrawal may and may not do, why the Windows key-file permission stays open, why the 103
   overlong files are not split in one go. `docs/backend-audit.md` covers all five passes and
@@ -4520,7 +4573,7 @@ directory instead.
   that something is waiting and nothing more.
 
   **Not yet accepted.** The behavioural criteria are ticked on a Windows or macOS desktop, and
-  this was written on Linux. `docs/roadmap/jobs/107-03-widget-captchas-selbst-loesen.md` lists
+  this was written on Linux. `docs/roadmap/jobs/archive/107-03-widget-captchas-selbst-loesen.md` lists
   exactly what a person has to run there.
 
 - **A job that runs at the provider now has a place to live (RD-107-06).** RD-106-03 left
@@ -5117,7 +5170,7 @@ none of its cases, because enabling `rd-core/failpoints` does not enable the own
   It claims http(s) and deliberately **not** `magnet:`: a torrent has to be uploaded, waited for
   and have its files chosen before any address exists, which is a remote job with a state machine
   and not a link that resolves. That half is **RD-107-06** in 1.0.7 rather than half delivered
-  here; `docs/roadmap/jobs/107-06-real-debrid-torrents.md` carries the three criteria unchanged,
+  here; `docs/roadmap/jobs/archive/107-06-real-debrid-torrents.md` carries the three criteria unchanged,
   the four reasons a torrent is not a folder crawler, and the finding underneath them — that no
   plugin world carries a persistent remote job, which is an ADR of its own.
 
@@ -5788,7 +5841,7 @@ confined host did not forward `store-oauth-token`.
   not as damage.
 
   What SABnzbd does that this does *not* adopt is written down with its reason in
-  [docs/postprocessing.md](docs/postprocessing.md) — above all `postpone_pars`, which holds
+  `docs/postprocessing.md` — above all `postpone_pars`, which holds
   `vol` volumes back and fetches only the recovery blocks a repair actually needs. That one
   needs a package to be able to move back from post-processing into downloading, which nothing
   can do today; it is a job of its own and until it lands every volume of an NZB is still

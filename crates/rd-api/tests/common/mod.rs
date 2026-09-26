@@ -40,7 +40,17 @@ pub async fn test_router(directory: &std::path::Path) -> Router {
 
 /// Same, but keeps the database and secret store reachable.
 pub async fn test_harness(directory: &std::path::Path) -> Harness {
-    build_harness(directory, true).await
+    build_harness(directory, true, false).await
+}
+
+/// A harness whose scheduler never dispatches a queued row.
+///
+/// For tests that fake a download's lifecycle with `transition_download`: the live supervisor
+/// claims every `queued` row within half a second, and a test racing it for the same row lost
+/// on slow Windows runners (2026-09-26). With `max_active_files` at zero the dispatch loop
+/// skips every job that counts against the cap; nothing in the harness raises it again.
+pub async fn parked_harness(directory: &std::path::Path) -> Harness {
+    build_harness(directory, true, true).await
 }
 
 /// A harness with the administrator login switched **on**.
@@ -49,10 +59,10 @@ pub async fn test_harness(directory: &std::path::Path) -> Harness {
 /// scope and token tests need the opposite, because a disabled login waves every request
 /// through before a scope is ever consulted.
 pub async fn auth_harness(directory: &std::path::Path) -> Harness {
-    build_harness(directory, false).await
+    build_harness(directory, false, false).await
 }
 
-async fn build_harness(directory: &std::path::Path, disable_auth: bool) -> Harness {
+async fn build_harness(directory: &std::path::Path, disable_auth: bool, parked: bool) -> Harness {
     let database_path = directory.join("api-test.sqlite3");
     let database = rd_db::Database::open(&database_path)
         .await
@@ -106,9 +116,14 @@ async fn build_harness(directory: &std::path::Path, disable_auth: bool) -> Harne
         directory.to_path_buf(),
         directory.join("downloads"),
     );
+    let mut scheduler_config =
+        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads"));
+    if parked {
+        scheduler_config.max_active_files = 0;
+    }
     let scheduler = rd_scheduler::SchedulerHandle::start(
         database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
+        scheduler_config,
         secrets.clone(),
         None,
         Vec::new(),

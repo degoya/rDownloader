@@ -20,16 +20,17 @@ and taken WSL down more than once.
 | `release.sh` | The whole chain in order: version, checks, packages |
 | `release-pipeline.sh` | The same chain run to the tag, with an evidence log that gates it |
 | `release-smoke.sh` | Start the built binary and check the real API and UI |
-| `export-public.sh` | Export a release tag to the public repository as one fresh commit, minus `public-exclude.txt`, after a gitleaks scan; pushes only with `--push` (`--branch <name>` for an unreleased export) |
-| `export-wiki.sh` | Convert the private user wiki to GitHub-wiki form and commit it as "Handbook for <version>" into the public wiki's clone; pushes only with `--push`. Leaves out a page whose first line is `<!-- private page -->` (and its sidebar entry) and every section between `<!-- private -->` and `<!-- /private -->` lines; refuses a public link to either, an unbalanced marker and marker text anywhere else |
+| `export-public.sh` | Export a release tag to the public repository as one fresh commit, minus `public-exclude.txt` (all of `docs/` among it), refusing a link from what stays into what is left out, after a gitleaks scan; pushes only with `--push` (`--branch <name>` for an unreleased export) |
+| `export-wiki.sh` | Convert the private user wiki to GitHub-wiki form and commit it as "Handbook for <version>" into the public wiki's clone; pushes only with `--push`. Leaves out a page whose first line is `<!-- private page -->` (and its sidebar entry) and every section between `<!-- private -->` and `<!-- /private -->` lines; refuses a public link to either, a link into a path `public-exclude.txt` names, an unbalanced marker and marker text anywhere else |
 | `update-website.sh` | Set the website's `app/data/release.json` (`~/projects/rdownloader-website`) to a release — version, today's date; tag, asset, image and wiki links derive from it — check its wiki links against the public wiki clone, run its tests and `pnpm run generate`, commit "Release <version>" on its `main`; pushes only with `--push`. Never deploys: the last line names the built `.output/public/`, which the owner uploads by hand |
 | `api-contract.sh` | Regenerate `web/openapi.json` and the TS types (`--check` to verify) |
 | `build-extension.sh` | Test, build and verify Chrome/Firefox → `artifacts/browser-extensions` (`--skip-tests`, `--test-only`) |
 | `worktree.sh` | Create, check and finish a feature worktree without the symlink traps |
 | `i18n-key.sh` | Add one translation key to all four catalogues at once |
 | `migration-pin.sh` | Pin a new migration's checksum in `crates/rd-db/migrations.sha384` (appends only) |
-| `mcp-coverage.sh` | Regenerate the MCP capability comparison in `docs/mcp-coverage.md` (`--check` to verify) |
+| `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
 | `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/package-lock.json` changed (`--check` to verify) |
+| `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); a no-op when nothing is due; `--check` names what is due, and any open job lying in `archive/`, and exits 1 — `check.sh` runs it on every change; refuses uncommitted changes under `docs/roadmap/jobs/` |
 | `measure-mega-login-fuel.sh` | Price a MEGA account sign-in in guest fuel (RD-120-11); a measurement, not a gate |
 
 The Cargo-heavy scripts take their parallelism from `scripts/lib/jobs.sh` (RD-130-17), the one
@@ -76,13 +77,15 @@ area selects the binaries whose routes that area serves, and a path under `crate
 is not clear the answer is the wide one. The run refuses a map row naming a missing binary and a
 binary no row names, so a new test file needs its row. The crash matrix, sqlx, web and extension
 keep their triggers: the matrix for `rd-core`, `rd-http`, `rd-scheduler`, `rd-usenet`,
-`failpoint.rs` or `docs/recovery-matrix.md`; sqlx for `rd-db` or a `.sql` file; web and extension
-for `web/` and `extension/`. A change to the toolchain, nextest or deny config runs the workspace
+`failpoint.rs` or `crates/rd-core/recovery-matrix.md`; sqlx for `rd-db` or a `.sql` file; web and
+extension for `web/` and `extension/`. A change to the toolchain, nextest or deny config runs the workspace
 and every `rd-api` batch. A change to the root `Cargo.toml` or `Cargo.lock` does so only when
 `lib/lock-scope.py` cannot narrow it (a profile, a member, `[patch]`, anything outside
 `[workspace.dependencies]`); otherwise the members whose resolved tree changed count as touched,
 and the run names them with the reason (RD-130-17). `tests/lock-scope.sh` holds those rules
-against fixtures and runs when `scripts/lib/` or `scripts/tests/` change, and under `--full`.
+against fixtures and runs when `scripts/lib/` or `scripts/tests/` change, and under `--full`;
+`tests/public-links.sh`, the export's link guard, and `tests/archive-jobs.sh`, the job archive on
+a fixture repository, run beside it.
 `cargo fmt`, the capture-tree check, the map check and the component checks always run: they
 are seconds.
 
@@ -326,8 +329,12 @@ signed in to github.com.
 
 `publish-public` runs last and hands the tag to `export-public.sh`: the public repository at
 `github.com/degoya/rDownloader` carries one commit per release and no history, built from `git
-archive` of the tag minus the paths `scripts/public-exclude.txt` names — the planning, the
-working card for coding agents, the audits. gitleaks scans the exported tree before anything is
+archive` of the tag minus the paths `scripts/public-exclude.txt` names — the whole developer
+documentation under `docs/` and the working card for coding agents. What stays must not link into
+what went: `lib/public-links.py` refuses a Markdown or HTML link into an excluded path and a GitHub
+address of the repository pointing at one, and `tests/public-links.sh` holds it against its cases.
+The tables tests read therefore sit beside their code (`crates/rd-core/recovery-matrix.md`,
+`crates/rd-api/mcp-coverage.md`) and the README's screenshots under `.github/readme/`. gitleaks scans the exported tree before anything is
 committed, with the known fixture findings allowlisted in `.gitleaks.toml`, and every
 remaining reference to the internal planning is printed as a warning. The export is committed
 and tagged in the local clone (`RD_PUBLIC_DIR`, `~/projects/rDownloader-public` by default) and
@@ -336,7 +343,9 @@ pushed only when the pipeline itself was given `--push`. The same step then runs
 (<https://github.com/degoya/rDownloader/wiki>) as one "Handbook for <version>" snapshot, converted
 from the private wiki's GitLab form — `Home.md` and `_Sidebar.md`, page links by base name,
 image paths relative to the wiki root — into a local clone at `~/projects/rDownloader-public.wiki`.
-It refuses two pages with the same base name and any link to a page or file that does not exist.
+It refuses two pages with the same base name, any link to a page or file that does not exist, and
+a link to the repository at a path `public-exclude.txt` names — `docs/` is not public, so what a
+reader needs from it has a wiki page: *Building from source*, *Plugin reference*.
 Private material stays in the one source, marked: a page whose first line is `<!-- private page -->`
 is left out together with every sidebar or footer list item linking to it, and the lines from a
 `<!-- private -->` line to the next `<!-- /private -->` line are removed. A public page linking to
@@ -357,6 +366,13 @@ rule would let through.
 the real API — including the check that a protected route still refuses an anonymous caller — and
 then the real UI in Chromium, driven by the Playwright in the npx cache against the browsers in
 `~/.cache/ms-playwright`.
+
+`archive-jobs` runs `archive-jobs.sh --release <version>` right after `docs-gate` and before
+`commit-guard`: the jobs this release finished move into `docs/roadmap/jobs/archive/`, with their
+links and index rows, and `commit-guard`'s `git add -A` takes them into the release commit. The
+working file of the release being cut counts as tagged, since the tag comes later. With nothing
+due it says so and passes. `plugins/` is never rewritten — a plugin comment naming a moved job
+keeps the old path rather than forcing a version bump and a rebuild.
 
 The judgement stays where it was. `docs-gate` refuses a release whose changelog, README and
 roadmap have not been brought up to date, but it will not write them. And the pipeline stops at

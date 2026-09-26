@@ -2,7 +2,7 @@
 #
 # Prices a MEGA account sign-in inside the WebAssembly sandbox (RD-120-11).
 #
-# `docs/roadmap/jobs/120-11-mega.md` moved MEGA out of milestone 1.1 on exactly one unmeasured
+# `docs/roadmap/jobs/archive/120-11-mega.md` moved MEGA out of milestone 1.1 on exactly one unmeasured
 # number: what RSA costs a guest against the plugin host's fuel budget. Section 7 of that job
 # reasoned its way to "roughly 200 Wasm instructions per AES block" and said plainly that the
 # figure was arithmetic. This script replaces it with a measurement.

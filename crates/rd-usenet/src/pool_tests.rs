@@ -331,8 +331,12 @@ async fn a_line_broken_mid_body_is_retired_and_the_request_behind_it_moves_on() 
         (broken_line, fresh_line, closed)
     });
     let pool = single_connection(address, 256);
+    // The oversized request's last attempt dials the fixture after it has gone. Linux refuses
+    // that at once; Windows retries the SYN and reports the refusal only after about two
+    // seconds, which alone used up the whole bound there.
+    let bound = std::time::Duration::from_secs(if cfg!(windows) { 8 } else { 2 });
 
-    let (oversized, second) = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    let (oversized, second) = tokio::time::timeout(bound, async {
         let oversized = tokio::spawn({
             let pool = pool.clone();
             async move { pool.fetch_decoded("oversized@example.test").await }

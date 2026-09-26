@@ -43,11 +43,11 @@ fn rust_sources_contain_no_german_text() {
     let offenders: Vec<String> = sources
         .iter()
         .filter(|path| {
-            let relative = path
-                .strip_prefix(&root)
-                .expect("relative")
-                .to_string_lossy();
-            !ALLOWED_FILES.contains(&relative.as_ref())
+            let relative = path.strip_prefix(&root).expect("relative");
+            // `Path` equality compares components, so the `/` spelling matches a Windows `\`.
+            !ALLOWED_FILES
+                .iter()
+                .any(|allowed| relative == Path::new(allowed))
         })
         .filter_map(|path| {
             let text = std::fs::read_to_string(path).ok()?;

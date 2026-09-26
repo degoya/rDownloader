@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Writes the MCP coverage comparison into docs/mcp-coverage.md.
+# Writes the MCP coverage comparison into crates/rd-api/mcp-coverage.md.
 #
 # The comparison is generated rather than kept by hand, because a hand-kept one is wrong by the
 # time it is committed. Its source is `crates/rd-api/src/mcp/coverage.rs`: one row per
@@ -38,7 +38,7 @@ for argument in "$@"; do
     esac
 done
 
-PAGE="docs/mcp-coverage.md"
+PAGE="crates/rd-api/mcp-coverage.md"
 TEST="mcp::coverage::doc_tests::write_the_doc_table"
 
 # rd-api's integration binaries OOM this workspace when they are all built at once, so the run

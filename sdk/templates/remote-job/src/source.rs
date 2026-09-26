@@ -4,7 +4,7 @@
 //! whole point of `identify`. The content key is what keeps a provider whose submit is not
 //! idempotent from being asked twice, and a key that needed a request could not be written
 //! into the host's row *before* the first one. See
-//! `docs/adr/0003-a-job-that-runs-at-the-provider.md`.
+//! <https://github.com/degoya/rDownloader/wiki/plugin-reference#remote-jobs>.
 //!
 //! For both shapes the key here is the BitTorrent info hash, lower-case hex. A magnet carries
 //! it (`xt=urn:btih:`), in hex or in base32; a `.torrent` file is the SHA-1 of the bencoded

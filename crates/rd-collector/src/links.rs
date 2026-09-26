@@ -6,7 +6,7 @@ use url::Url;
 /// Compiled once. `parse_link_list` calls `extract_urls` per line, so rebuilding this made a
 /// large pasted list pay for tens of thousands of regex compilations to run as many matches.
 static URL_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(https?://|magnet:\?|ftps?://|sftp://|webdavs?://|davs?://)[^\s<>\"']+"#)
+    Regex::new(r#"(https?://|magnet:\?|ftps?://|sftp://|webdavs?://|davs?://)[^\s<>\"]+"#)
         .expect("static URL regex")
 });
 
@@ -21,9 +21,16 @@ pub fn extract_urls(text: &str) -> Vec<Url> {
     URL_PATTERN
         .find_iter(text)
         .filter_map(|candidate| {
-            let trimmed = candidate
-                .as_str()
-                .trim_end_matches(['.', ',', ';', ')', ']']);
+            // An apostrophe belongs to the address (`c't_Sonderhefte…pdf.html`), so the pattern
+            // no longer stops at one. A link written inside single quotes (`href='…'`) still ends
+            // at the closing quote, and a quote left at the end is trimmed like punctuation.
+            let mut raw = candidate.as_str();
+            if text[..candidate.start()].ends_with('\'')
+                && let Some(end) = raw.find('\'')
+            {
+                raw = &raw[..end];
+            }
+            let trimmed = raw.trim_end_matches(['.', ',', ';', ')', ']', '\'']);
             Url::parse(trimmed).ok()
         })
         .map(canonical_url)
@@ -111,6 +118,40 @@ pub(crate) mod tests {
         let urls = extract_urls(input);
         assert_eq!(urls.len(), 1);
         assert_eq!(urls[0].as_str(), "https://example.com/a");
+    }
+
+    #[test]
+    fn an_apostrophe_in_the_path_stays_part_of_the_link() {
+        let urls = extract_urls(
+            "https://downup.me/8q6i5f7qn2r1/c't_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html",
+        );
+        assert_eq!(urls.len(), 1);
+        assert!(
+            urls[0]
+                .as_str()
+                .ends_with("/c't_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html")
+                || urls[0]
+                    .as_str()
+                    .ends_with("/c%27t_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html"),
+            "{}",
+            urls[0]
+        );
+    }
+
+    #[test]
+    fn a_link_in_single_quotes_ends_at_the_closing_quote() {
+        let urls = extract_urls(
+            "<a href='https://example.com/a.bin'>x</a> 'https://example.com/b.bin', and https://example.com/c.bin'",
+        );
+        let found: Vec<&str> = urls.iter().map(Url::as_str).collect();
+        assert_eq!(
+            found,
+            [
+                "https://example.com/a.bin",
+                "https://example.com/b.bin",
+                "https://example.com/c.bin"
+            ]
+        );
     }
 
     #[test]

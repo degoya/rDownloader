@@ -178,6 +178,16 @@ fn open(parsed: &Url) -> Result<Action> {
 mod tests {
     use super::{Action, MAX_LINKS, parse};
 
+    /// An ordinary absolute local path on this host -- `/tmp/<name>` on Unix, `C:\tmp\<name>` on
+    /// Windows, where `/tmp/...` has no drive and is not absolute -- and the address opening it.
+    fn local(name: &str) -> (String, std::path::PathBuf) {
+        let base = if cfg!(windows) { "C:\\tmp" } else { "/tmp" };
+        let path = std::path::Path::new(base).join(name);
+        let encoded: String =
+            url::form_urlencoded::byte_serialize(path.to_string_lossy().as_bytes()).collect();
+        (format!("rdownloader://open?path={encoded}"), path)
+    }
+
     #[test]
     fn a_link_is_handed_over() {
         assert_eq!(
@@ -261,15 +271,13 @@ mod tests {
 
     #[test]
     fn only_nzb_files_can_be_opened() {
-        assert_eq!(
-            parse("rdownloader://open?path=%2Ftmp%2Frelease.nzb").expect("parse"),
-            Action::OpenFile(std::path::PathBuf::from("/tmp/release.nzb"))
-        );
-        assert!(parse("rdownloader://open?path=%2Fetc%2Fpasswd").is_err());
-        assert!(parse("rdownloader://open?path=%2Ftmp%2Fx.sh").is_err());
+        let (address, path) = local("release.nzb");
+        assert_eq!(parse(&address).expect("parse"), Action::OpenFile(path));
+        assert!(parse(&local("passwd").0).is_err());
+        assert!(parse(&local("x.sh").0).is_err());
         // `.torrent` parsed cleanly and then broke at the NZB endpoint it was handed to. It is
         // refused here instead, until there is a path that really imports one (RD-109-03).
-        assert!(parse("rdownloader://open?path=%2Ftmp%2Frelease.torrent").is_err());
+        assert!(parse(&local("release.torrent").0).is_err());
     }
 
     /// A web page may hand this handler an address. `//host/share/x.nzb` is absolute on
@@ -296,7 +304,7 @@ mod tests {
             );
         }
         // An ordinary absolute path is untouched by the rule.
-        assert!(parse("rdownloader://open?path=%2Ftmp%2Frelease.nzb").is_ok());
+        assert!(parse(&local("release.nzb").0).is_ok());
     }
 
     #[test]
@@ -304,7 +312,7 @@ mod tests {
         // A relative path resolves against whatever directory the browser started the
         // handler in; `..` is the same problem written differently.
         assert!(parse("rdownloader://open?path=release.nzb").is_err());
-        assert!(parse("rdownloader://open?path=%2Ftmp%2F..%2F..%2Fetc%2Fx.nzb").is_err());
+        assert!(parse(&local("../../etc/x.nzb").0).is_err());
     }
 
     #[test]

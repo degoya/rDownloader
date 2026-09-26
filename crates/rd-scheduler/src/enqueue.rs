@@ -137,7 +137,7 @@ async fn write_package(
     // The package row is written before its first file, and there is no way round that: a
     // download row needs a package to belong to. A stop in the window between the two is
     // therefore the one interruption this path cannot prevent, only survive — see
-    // `docs/recovery-matrix.md`.
+    // `crates/rd-core/recovery-matrix.md`.
     rd_core::failpoint!("scheduler.after_package_row", || anyhow::anyhow!(
         "crash point: the package row is written and no file is"
     ));

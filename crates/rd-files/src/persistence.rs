@@ -173,7 +173,7 @@ impl PersistenceProbe {
     /// Test-only: every production path goes through `detect`, which reads the real table.
     /// Exposing it more widely would make `MountTable` part of this crate's public surface
     /// for no caller.
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub(crate) fn new(table: Option<MountTable>, containerized: bool) -> Self {
         Self {
@@ -241,7 +241,10 @@ fn containerized() -> bool {
     false
 }
 
-#[cfg(test)]
+// Unix only: every case is a Unix mount table with Unix-absolute paths, which on Windows are
+// relative (no drive) and classify as `Unknown` before the table is read. The table itself exists
+// only on Linux.
+#[cfg(all(test, unix))]
 mod tests {
     use std::path::Path;
 

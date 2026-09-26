@@ -24,7 +24,7 @@ Issues work as usual and are the best place to talk about a change before you wr
   `rdownloader --version`), the platform, how you installed it and the steps that lead to the
   problem make the difference between a fix and a guess.
 - **A diagnostic bundle.** The *Logs* page builds one on your machine, after showing you exactly
-  what it will contain ([docs/diagnostics.md](docs/diagnostics.md)). Credentials are redacted
+  what it will contain ([Diagnostics and maintenance](https://github.com/degoya/rDownloader/wiki/diagnostics-and-maintenance)). Credentials are redacted
   before anything is stored, but the bundle still describes your setup — hosts, paths, plugin
   names. **Look through it before you attach it to a public issue**, and untick or remove
   anything you would rather not publish.
@@ -32,8 +32,9 @@ Issues work as usual and are the best place to talk about a change before you wr
   only the solution you have in mind.
 - **Plugins.** Support for a new hoster, protocol, notifier or storage target does not have to
   live in this repository. Third-party plugins are signed WebAssembly components built with the
-  SDK in [`sdk/`](sdk/) and published from their own repositories; [docs/plugins.md](docs/plugins.md)
-  describes the manifest, the capabilities and how packages are signed and installed.
+  SDK in [`sdk/`](sdk/) and published from their own repositories. The handbook's
+  [Developing a plugin](https://github.com/degoya/rDownloader/wiki/developing-a-plugin) and [Plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference)
+  describe the manifest, the capabilities and how packages are signed and installed.
 
 ## Security issues
 
@@ -43,16 +44,15 @@ vulnerability reporting instead, as described in [SECURITY.md](SECURITY.md):
 
 ## Building and testing locally
 
-[docs/development.md](docs/development.md) covers the prerequisites, building for every platform,
-the plugin components and the quality checks. `scripts/check.sh` runs the checks that matter for
+[Building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) in the handbook covers the prerequisites,
+building for every platform, the plugin components and the quality checks. `scripts/check.sh` runs the checks that matter for
 your change — formatting, Clippy, the Rust tests, the SQLx query cache, the web type check and
 tests — and prints what it skipped and why; [`scripts/README.md`](scripts/README.md) describes
 its options. Please say in your pull request which checks you ran.
 
 ## Conventions that matter in a pull request
 
-The full list is in [docs/architecture.md](docs/architecture.md#conventions); these are the ones a
-contribution most often runs into:
+These are the conventions a contribution most often runs into:
 
 - **Rust sources are English-only** — comments, identifiers, test strings and commit messages.
   `crates/rdownloader/tests/no_german.rs` fails on an umlaut or sharp s in a `.rs` file.

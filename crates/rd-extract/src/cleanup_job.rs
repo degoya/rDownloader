@@ -134,7 +134,7 @@ pub(crate) async fn run(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use super::{CleanupRules, collect_targets};
 
@@ -169,18 +169,21 @@ mod tests {
         std::os::unix::fs::symlink(temp.path().join("outside.nfo"), root.join("link.nfo"))
             .expect("symlink");
         let targets = collect_targets(&root, &rules());
-        let names: Vec<String> = targets
+        let names: Vec<PathBuf> = targets
             .iter()
             .map(|path| {
                 path.strip_prefix(dunce::canonicalize(&root).expect("root"))
                     .expect("rel")
-                    .to_string_lossy()
-                    .into_owned()
+                    .to_path_buf()
             })
             .collect();
         assert_eq!(
             names,
-            vec!["movie.sample.mkv", "release.nfo", "sub/check.SFV"]
+            vec![
+                PathBuf::from("movie.sample.mkv"),
+                PathBuf::from("release.nfo"),
+                Path::new("sub").join("check.SFV"),
+            ]
         );
     }
 }

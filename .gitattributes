@@ -1,0 +1,27 @@
+# Every text file is LF in the repository and in every checkout, Windows included: sqlx checksums
+# each migration's bytes, and tests compare sources and fixtures byte for byte. A Windows runner's
+# core.autocrlf=true would otherwise check out CRLF.
+* text=auto eol=lf
+
+# cmd.exe mis-parses `call :label` in a batch file with LF line ends.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Recorded pages and responses stay byte for byte as captured, mixed line ends included.
+**/tests/fixtures/** -text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.gz binary
+*.xz binary
+*.7z binary
+*.rar binary
+*.wasm binary
+*.rdplug binary
+*.torrent binary
+*.dlc binary

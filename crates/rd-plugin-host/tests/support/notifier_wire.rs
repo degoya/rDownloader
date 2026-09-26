@@ -115,6 +115,12 @@ pub async fn wire() -> Wire {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let mut ca_params = rcgen::CertificateParams::new(Vec::new()).expect("ca params");
     ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    // rcgen names every certificate `CN=rcgen self signed cert`. Windows reads a leaf whose
+    // subject equals its issuer as self-signed and fails it on its own signature
+    // (TRUST_E_CERT_SIGNATURE), so the CA gets a name of its own.
+    ca_params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "rDownloader test CA");
     let ca_key = rcgen::KeyPair::generate().expect("ca key");
     let ca_cert = ca_params.self_signed(&ca_key).expect("ca cert");
     let issuer = rcgen::Issuer::from_params(&ca_params, &ca_key);

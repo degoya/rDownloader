@@ -5,7 +5,7 @@
 //! a release, poll for it, import it, remove it. They are recorded sequences rather than a
 //! live integration: no *arr instance runs here, so what is proven is that the contract each
 //! step depends on holds, not that a given version of Sonarr is happy. That last step needs
-//! a real instance and is tracked in `docs/roadmap/jobs/090-03-arr-kompatibilitaet.md`.
+//! a real instance and is tracked in `docs/roadmap/jobs/130-20-die-offenen-live-abnahmen.md`.
 
 mod common;
 

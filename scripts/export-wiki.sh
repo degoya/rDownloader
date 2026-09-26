@@ -18,7 +18,9 @@
 #     refused, because one of them could never be linked.
 #   * An image or other file link becomes relative to the wiki root: `../images/a.png` and
 #     `images/a.png` both become `images/a.png`, which GitHub serves for every page.
-#   * A link to a page or file that does not exist is refused rather than exported dead.
+#   * A link to a page or file that does not exist is refused rather than exported dead, and so
+#     is a link to the source repository at a path scripts/public-exclude.txt leaves out — all of
+#     docs/ among them.
 #   * The GitLab-only `.gitlab/` folder is left out.
 #
 # Private material stays in the one source, marked, and never leaves it:
@@ -60,7 +62,7 @@ DO_PUSH=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --push) DO_PUSH=1; shift ;;
-        -h|--help) sed -n '2,36p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,47p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
@@ -277,6 +279,9 @@ print(f"    {len(pages)} pages converted; left out: {len(private_pages)} private
       f"{sections} private sections")
 PY
 
+# The handbook is public; the developer documentation under docs/ and whatever else
+# scripts/public-exclude.txt names is not, so a link to it would be dead on GitHub.
+rd_public_check_links "$STAGE" "$ROOT/scripts/public-exclude.txt" --wiki
 rd_public_scan "$STAGE"
 
 pub() { git -C "$WIKI_DIR" "$@"; }

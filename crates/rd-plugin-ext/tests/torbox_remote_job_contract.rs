@@ -30,7 +30,7 @@
 //! | The key expired during a cache check | `error_bad_token.json` | the whole call refused, `auth_invalid` |
 //!
 //! **A run against the real provider is not claimed here.** It needs a TorBox account with an
-//! API key; `docs/roadmap/jobs/120-01-torbox.md` records that as open.
+//! API key; `docs/roadmap/jobs/archive/120-01-torbox.md` records that as open.
 
 use std::{
     collections::VecDeque,

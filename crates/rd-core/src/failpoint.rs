@@ -34,8 +34,8 @@
 /// One registered crash point: where it stops, and what a restart then has to prove.
 ///
 /// The registry exists so the recovery matrix is reviewable. A failpoint buried in a runner is
-/// invisible; a table of them, checked against `docs/recovery-matrix.md` by a test, is a list
-/// somebody can read and notice a gap in. Registering a point is deliberately separate from
+/// invisible; a table of them, checked against `crates/rd-core/recovery-matrix.md` by a test, is
+/// a list somebody can read and notice a gap in. Registering a point is deliberately separate from
 /// *using* it, so a point that is added and never covered by a case shows up as a hole rather
 /// than as nothing at all.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -401,7 +401,8 @@ mod registry_tests {
     }
 }
 
-/// The registry and `docs/recovery-matrix.md` are one thing described twice; keep them equal.
+/// The registry and `crates/rd-core/recovery-matrix.md` are one thing described twice; keep them
+/// equal.
 ///
 /// A matrix document that drifts from the code is worse than none: it reads as a statement
 /// about what is covered, and a reader has no way to tell that it stopped being true.
@@ -409,7 +410,7 @@ mod registry_tests {
 mod matrix_document_tests {
     use super::*;
 
-    const MATRIX: &str = include_str!("../../../docs/recovery-matrix.md");
+    const MATRIX: &str = include_str!("../recovery-matrix.md");
 
     /// Every registered point has a row, with the invariant it actually claims.
     #[test]
@@ -421,7 +422,7 @@ mod matrix_document_tests {
             );
             assert!(
                 MATRIX.contains(&row),
-                "docs/recovery-matrix.md is missing this row:\n{row}"
+                "crates/rd-core/recovery-matrix.md is missing this row:\n{row}"
             );
         }
     }
@@ -441,7 +442,7 @@ mod matrix_document_tests {
             }
             assert!(
                 crash_point(name).is_some(),
-                "docs/recovery-matrix.md lists {name}, which is not registered"
+                "crates/rd-core/recovery-matrix.md lists {name}, which is not registered"
             );
         }
     }

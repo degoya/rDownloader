@@ -30,7 +30,7 @@
 //! | A device code was asked for | refused: Put.io's out-of-band entrance is not implemented |
 //!
 //! **A run against the real provider is not claimed here.** It needs a Put.io account;
-//! `docs/roadmap/jobs/120-03-putio.md` records that as open.
+//! `docs/roadmap/jobs/archive/120-03-putio.md` records that as open.
 
 use std::sync::{Arc, Mutex};
 

@@ -474,9 +474,11 @@ mod tests {
         let record = nzb_failure_record(&failure("Release{{secret}}.nzb")).expect("record");
         assert_eq!(record.name, "Release.nzb");
         assert_eq!(record.sha256, "a".repeat(64));
+        // The watched file's own path, in the platform's spelling (`\` before the name on Windows).
+        let source = PathBuf::from("/watch").join("Release{{secret}}.nzb");
         assert_eq!(
             record.source_path.as_deref(),
-            Some("/watch/Release{{secret}}.nzb")
+            Some(source.to_string_lossy().as_ref())
         );
         assert_eq!(record.error, "NZB could not be parsed");
     }

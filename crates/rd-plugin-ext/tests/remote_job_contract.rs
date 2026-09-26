@@ -27,7 +27,7 @@
 //! | A submit was lost in flight | `torrents.json` | adopted by its hash; a stranger's is not |
 //!
 //! **A run against the real provider is not claimed here.** It needs a Real-Debrid account;
-//! `docs/roadmap/jobs/108-03-remote-job-der-ablauf.md` records that as open.
+//! `docs/roadmap/jobs/archive/108-03-remote-job-der-ablauf.md` records that as open.
 
 use std::{
     collections::VecDeque,

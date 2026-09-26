@@ -16,7 +16,7 @@
 # site describes, that is written by hand, like the wiki.
 #
 # Nothing leaves this machine without --push, and even then only the commit. The script never
-# deploys: the owner uploads .output/public/ by hand (the site's docs/deployment-ispconfig-nginx.md),
+# deploys: scripts/deploy.py in the site repository publishes .output/public/ on the owner's word,
 # and the last line names that directory.
 #
 # Usage:
@@ -117,4 +117,4 @@ else
     echo "==> not pushed; publish with: git -C $SITE push origin $SITE_BRANCH"
 fi
 
-echo "==> website built in $SITE/.output/public — deploy it by hand (the site's docs/deployment-ispconfig-nginx.md)"
+echo "==> website built in $SITE/.output/public — deploy on the owner's word: (cd $SITE && python3 scripts/deploy.py --apply)"

@@ -30,7 +30,7 @@
 //! | A cache query that is not a magnet | -- | `unknown`, no request |
 //!
 //! **A run against the real provider is not claimed here.** It needs a Premiumize account;
-//! `docs/roadmap/jobs/120-23-premiumize-nimmt-auftraege-entgegen.md` records that as open.
+//! `docs/roadmap/jobs/archive/120-23-premiumize-nimmt-auftraege-entgegen.md` records that as open.
 
 use std::{
     collections::VecDeque,

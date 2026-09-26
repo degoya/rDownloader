@@ -1,6 +1,6 @@
 //! Prices a MEGA account sign-in inside the sandbox, stage by stage (RD-120-11).
 //!
-//! `docs/roadmap/jobs/120-11-mega.md` moved this job out of 1.1 on one unmeasured number: what
+//! `docs/roadmap/jobs/archive/120-11-mega.md` moved this job out of 1.1 on one unmeasured number: what
 //! RSA costs a WebAssembly guest against the plugin host's fuel budget. This program measures
 //! it, together with the three other stages a sign-in performs, so the answer is a figure
 //! rather than an order of magnitude.

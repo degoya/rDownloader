@@ -29,7 +29,7 @@
 //! | Nothing asks for a selection | -- | `choose` is refused rather than silently ignored |
 //!
 //! **A run against the real provider is not claimed here.** It needs an Offcloud account;
-//! `docs/roadmap/jobs/120-02-offcloud.md` records that as open.
+//! `docs/roadmap/jobs/archive/120-02-offcloud.md` records that as open.
 
 use std::{
     collections::VecDeque,

@@ -3,7 +3,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{delete_json, get_json, post_json, test_harness};
+use common::{delete_json, get_json, parked_harness, post_json, test_harness};
 use serde_json::json;
 
 fn definition(name: &str, enabled: bool) -> serde_json::Value {
@@ -220,7 +220,7 @@ async fn a_dry_run_shows_a_condition_that_does_not_hold() {
 #[tokio::test]
 async fn a_completed_download_queues_a_run_for_a_matching_automation() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = parked_harness(directory.path()).await;
 
     post_json(
         &harness.router,
@@ -282,7 +282,7 @@ async fn a_completed_download_queues_a_run_for_a_matching_automation() {
 #[tokio::test]
 async fn a_disabled_automation_starts_no_runs() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = parked_harness(directory.path()).await;
 
     let (_, created) = post_json(
         &harness.router,

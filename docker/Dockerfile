@@ -12,16 +12,22 @@ COPY crates/ crates/
 COPY plugins/ plugins/
 COPY resources/ resources/
 COPY --from=web /src/web/dist web/dist
+# Compiled in, not served: rd-diagnostics embeds the English log catalogue
+# (crates/rd-diagnostics/src/notes.rs, include_str!). Without it the image build fails.
+COPY web/src/locales/ web/src/locales/
 # Empty by default so CI keeps every core. Unbounded cargo parallelism has exhausted memory on
-# developer machines more than once, so a local build passes --build-arg CARGO_BUILD_JOBS=4.
-ARG CARGO_BUILD_JOBS=
+# developer machines more than once, so a local build passes --build-arg RD_BUILD_JOBS=4. Not
+# named CARGO_BUILD_JOBS: a build argument is in the RUN's environment, and cargo reads that
+# variable itself and refuses an empty one ("could not parse ``"), which broke the release
+# image of 1.2.4 and 1.3.0.
+ARG RD_BUILD_JOBS=
 # The commit and build time the About page and VERSION.txt name (RD-130-12). The context has no
 # .git, so without them the binary says "unknown"; scripts/docker.sh and the release workflow
 # pass what `rd_build_stamp` in scripts/lib/version-file.sh works out. As build arguments they
 # are in the environment of the RUN below, where crates/rdownloader/build.rs reads them.
 ARG RD_BUILD_COMMIT=
 ARG RD_BUILD_TIME=
-RUN cargo build --locked --release ${CARGO_BUILD_JOBS:+-j ${CARGO_BUILD_JOBS}} -p rdownloader
+RUN cargo build --locked --release ${RD_BUILD_JOBS:+-j ${RD_BUILD_JOBS}} -p rdownloader
 
 FROM debian:bookworm-slim AS runtime
 # Pinned so the image is reproducible. yt-dlp in particular ages fast; the running versions are

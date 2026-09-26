@@ -28,7 +28,16 @@ fn digest(bytes: &[u8]) -> String {
 /// the nested layout the manifest has to name members inside.
 const FFMPEG_PREFIX: &str = "ffmpeg-n9.0.1-27-g9b0578816c-linux64-gpl-9.0";
 
-/// A `.tar.xz` holding `bin/ffmpeg` and `bin/ffprobe`, built once.
+/// Where the fixture archive keeps the binary for `tool`.
+fn ffmpeg_member(tool: &str) -> String {
+    format!(
+        "{FFMPEG_PREFIX}/bin/{}",
+        rd_tools::download::executable_name(tool)
+    )
+}
+
+/// A `.tar.xz` holding `bin/ffmpeg` and `bin/ffprobe`, built once -- with `.exe` on Windows,
+/// as a Windows build carries them and as the store resolves them there.
 ///
 /// Built here rather than committed: a real FFmpeg archive is 120 MB, and what has to be
 /// tested is the unpacking rule, not the bytes of somebody else's build.
@@ -39,8 +48,8 @@ fn ffmpeg_archive() -> &'static [u8] {
         {
             let mut builder = tar::Builder::new(&mut tarball);
             for (name, body) in [
-                (format!("{FFMPEG_PREFIX}/bin/ffmpeg"), &b"fake-ffmpeg"[..]),
-                (format!("{FFMPEG_PREFIX}/bin/ffprobe"), &b"fake-ffprobe"[..]),
+                (ffmpeg_member("ffmpeg"), &b"fake-ffmpeg"[..]),
+                (ffmpeg_member("ffprobe"), &b"fake-ffprobe"[..]),
                 (format!("{FFMPEG_PREFIX}/README.txt"), &b"documentation"[..]),
             ] {
                 let mut header = tar::Header::new_gnu();
@@ -113,7 +122,7 @@ fn ffmpeg_entry(address: SocketAddr, name: &str) -> ToolEntry {
         sha256: digest(ffmpeg_archive()),
         size: ffmpeg_archive().len() as u64,
         archive: ArchiveFormat::TarXz,
-        members: vec![format!("{FFMPEG_PREFIX}/bin/{name}")],
+        members: vec![ffmpeg_member(name)],
         min_app_version: None,
         max_app_version: None,
     }

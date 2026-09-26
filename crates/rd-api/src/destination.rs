@@ -67,8 +67,9 @@ mod tests {
     async fn falls_back_to_the_default_storage_root_without_any_category() {
         let temporary = tempfile::tempdir().expect("tempdir");
         // The resolver hands back canonical paths, and on macOS the temp dir is under
-        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same.
-        let base = temporary.path().canonicalize().expect("canonical tempdir");
+        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
+        // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
+        let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
         let database = database(temporary.path()).await;
         let alphabetically_first = base.join("archive");
         let marked_default = base.join("media");
@@ -98,8 +99,9 @@ mod tests {
     async fn falls_back_to_the_first_root_which_the_invariant_made_the_default() {
         let temporary = tempfile::tempdir().expect("tempdir");
         // The resolver hands back canonical paths, and on macOS the temp dir is under
-        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same.
-        let base = temporary.path().canonicalize().expect("canonical tempdir");
+        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
+        // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
+        let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
         let database = database(temporary.path()).await;
         let only = base.join("storage");
         database
@@ -130,8 +132,9 @@ mod tests {
     async fn a_default_category_still_wins_over_the_bare_root() {
         let temporary = tempfile::tempdir().expect("tempdir");
         // The resolver hands back canonical paths, and on macOS the temp dir is under
-        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same.
-        let base = temporary.path().canonicalize().expect("canonical tempdir");
+        // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
+        // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
+        let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
         let database = database(temporary.path()).await;
         let root_path = base.join("storage");
         let root = database

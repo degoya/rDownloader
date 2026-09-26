@@ -3,8 +3,8 @@
 //!
 //! The instant is the one the removed per-article `sync_data()` sat next to (RD-108-25): an
 //! article's bytes are appended to the `.part` file and the database has not recorded them.
-//! A restart must not count them. The four invariants of `docs/recovery-matrix.md` are
-//! asserted the way `rd-http`'s cases assert them: no confirmed byte invented, no confirmed
+//! A restart must not count them. The four invariants of `crates/rd-core/recovery-matrix.md`
+//! are asserted the way `rd-http`'s cases assert them: no confirmed byte invented, no confirmed
 //! byte overwritten, the same bytes as an uninterrupted run, nothing left behind.
 
 #![cfg(feature = "failpoints")]

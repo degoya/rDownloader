@@ -22,7 +22,7 @@
 //! | The renewal was refused | `refresh_refused.json` | `Failed`, sign in again |
 //!
 //! **A run against the real provider is not claimed here.** It needs a Real-Debrid account and
-//! an application registration; `docs/roadmap/jobs/106-03-real-debrid.md` records which
+//! an application registration; `docs/roadmap/jobs/archive/106-03-real-debrid.md` records which
 //! acceptance criteria that leaves unproven.
 
 use std::sync::{Arc, Mutex};

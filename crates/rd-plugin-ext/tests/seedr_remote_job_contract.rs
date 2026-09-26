@@ -30,7 +30,7 @@
 //!
 //! **A run against the real provider is not claimed here.** It needs a premium Seedr account --
 //! the API is a paid feature by Seedr's own documentation -- and
-//! `docs/roadmap/jobs/120-04-seedr-feasibility.md` records that as open.
+//! `docs/roadmap/jobs/archive/120-04-seedr-feasibility.md` records that as open.
 
 use std::{
     collections::VecDeque,

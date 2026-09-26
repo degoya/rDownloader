@@ -86,11 +86,14 @@ LOG="$ROOT/artifacts/release-evidence-$VERSION.log"
 # then sign", but package-linux.sh and package-windows.sh copy dist/plugins into the package and
 # refuse a package short of a plugin, so a signature produced afterwards would never reach the
 # artifact. Signing first and verifying the packaged result afterwards keeps both halves honest.
+#
+# archive-jobs sits between docs-gate and commit-guard: the job files the release finished move
+# into docs/roadmap/jobs/archive/ once their status is written, and are staged with the rest.
 # ---------------------------------------------------------------------------------------------
 STEP_IDS=(
     preflight version-bump test clippy web sign-plugins build-linux build-windows
-    verify-artifacts smoke docs-gate commit-guard commit merge-main evidence-gate public-ci tag
-    push publish-public
+    verify-artifacts smoke docs-gate archive-jobs commit-guard commit merge-main evidence-gate
+    public-ci tag push publish-public
 )
 
 step_command() {
@@ -106,6 +109,7 @@ step_command() {
         verify-artifacts) echo "step_verify_artifacts" ;;
         smoke)            echo "step_smoke" ;;
         docs-gate)        echo "step_docs_gate" ;;
+        archive-jobs)     echo "step_archive_jobs" ;;
         commit-guard)     echo "step_commit_guard" ;;
         commit)           echo "step_commit" ;;
         merge-main)       echo "step_merge_main" ;;
@@ -121,7 +125,7 @@ step_command() {
 # tag, the push and the public export come after it, so they are not in the list.
 GATE_REQUIRES=(
     preflight version-bump test clippy web sign-plugins build-linux build-windows
-    verify-artifacts smoke docs-gate commit-guard commit merge-main
+    verify-artifacts smoke docs-gate archive-jobs commit-guard commit merge-main
 )
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
@@ -410,6 +414,13 @@ step_docs_gate() {
 
     [[ "$failed" -eq 0 ]]
 }
+
+# The job files this release finished move into docs/roadmap/jobs/archive/, with their links and
+# index rows (RD-140-19). After docs-gate, so the hand-written status changes are in; before
+# commit-guard, whose `git add -A` takes the moves into the release commit. --release makes the
+# working file of this release count as tagged, because the tag comes later. With nothing due it
+# prints so and passes. A resumed run skips it once green; run again it would find nothing due.
+step_archive_jobs() { scripts/archive-jobs.sh --release "$VERSION"; }
 
 # Requirement: nothing linked, nothing generated, nothing built may enter the release commit.
 # Runs against the staged index, before the commit exists and long before the merge.

@@ -1412,6 +1412,5 @@ frontend must be built before the Rust binary because `rd-api` embeds its files 
 - Security-sensitive defaults must remain safe for local operation; remote exposure is a deliberate
   operator decision.
 
-Further references: [`README.md`](README.md),
-[`docs/feature-list.md`](docs/feature-list.md), [`docs/plugins.md`](docs/plugins.md),
-and [`docs/postprocessing.md`](docs/postprocessing.md).
+Further references: [`README.md`](README.md) and the [handbook](https://github.com/degoya/rDownloader/wiki), above all its
+[Plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) and [Post-processing](https://github.com/degoya/rDownloader/wiki/post-processing) pages.

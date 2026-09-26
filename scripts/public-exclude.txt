@@ -5,26 +5,23 @@
 # A path listed here that the exported tree does not have is reported, not an error: an older
 # tag may predate it.
 
-# The planning: the detailed roadmap and one German file per job.
-docs/roadmap/
-docs/roadmap.md
+# The developer documentation, as a whole: the roadmap and the German job files, the audits,
+# loose notes, design drafts, the ADRs and the crate-by-crate reference. The owner regards it as
+# internal material. What a user, a contributor or a plugin author needs from it is in the wiki
+# (scripts/export-wiki.sh): installation, building from source, the plugin reference. Nothing
+# that stays public may need it — the tables tests compare with the code sit beside that code
+# (crates/rd-core/recovery-matrix.md, crates/rd-api/mcp-coverage.md), the README's screenshots
+# under .github/readme/ — and export-public.sh refuses a public file that links into it.
+docs/
 
 # The working card for coding agents and their configuration.
 AGENTS.md
 CLAUDE.md
 .claude/
 
-# Working material: the 1.0.8 audits, loose notes, design drafts, an early specification.
-docs/backend-audit.md
-docs/frontend-audit.md
-docs/ideas_and_infos.md
-docs/design/
+# An early specification.
 specs.md
 
-# Moved to the website repository; listed so that an export of an older tag leaves it out too.
-docs/rdownloader-marketing-website-package/
-
-# A test that only makes sense next to the planning files. scripts/mcp-coverage.sh and
-# scripts/measure-mega-login-fuel.sh stay public: the first writes the public
-# docs/mcp-coverage.md, the second is cited by ADR 0011 and docs/architecture.md.
+# A test that only makes sense next to the planning files. scripts/measure-mega-login-fuel.sh
+# stays public: plugins/mega-login-probe cites it.
 crates/rdownloader/tests/job_status_words.rs
