@@ -426,3 +426,31 @@ fn the_committed_withdrawal_list_is_valid() {
             .expect("parse");
     revocations.validate().expect("valid");
 }
+
+/// Every bundled plugin's permissions fit an index entry: the 1.4.0 release failed on
+/// `xfs-generic`, whose 422 HTTP domains exceeded the list bound.
+#[test]
+fn every_bundled_plugin_fits_an_index_entry() {
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
+    let plugins = std::path::Path::new(&manifest_dir).join("../../plugins");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&plugins).expect("plugins directory") {
+        let path = entry.expect("entry").path().join("manifest.toml");
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let manifest: crate::PluginManifest =
+            toml::from_slice(&bytes).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        let mut index = index();
+        index.packages[0].permissions = Permissions::of(&manifest);
+        index
+            .validate()
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        checked += 1;
+    }
+    assert!(
+        checked > 50,
+        "only {checked} manifests found under {}",
+        plugins.display()
+    );
+}

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-09-26
+
+### Fixed
+
+- **The release publishes its plugin index again.** The 1.4.0 release workflow refused its own
+  signed plugin index because `xfs-generic` asks for 422 HTTP domains and each permission list of
+  an index entry was bound at 256; no binaries, packages or container image were published for
+  1.4.0. A permission list now holds up to 4,096 entries (the index as a whole stays bound at
+  4 MiB), and a test builds an index entry from every bundled plugin's manifest.
+
 ## [1.4.0] - 2026-09-26
 
 ### Added

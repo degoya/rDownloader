@@ -14,7 +14,9 @@ use crate::{format_package_digest, parse_package_digest};
 const MAX_NAME_CHARS: usize = 120;
 const MAX_KEY_ID_CHARS: usize = 128;
 const MAX_ENTRY_CHARS: usize = 256;
-const MAX_LIST_ENTRIES: usize = 256;
+/// Entries per permission list. A generic plugin asks for hundreds of hosts (`xfs-generic`: 422);
+/// 256 refused it and stopped the 1.4.0 release. The whole index stays bound by `MAX_INDEX_BYTES`.
+const MAX_LIST_ENTRIES: usize = 4096;
 const MAX_URL_CHARS: usize = 1024;
 
 impl PluginIndex {
