@@ -258,7 +258,7 @@ jobs:
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print0 \
             | sort --zero-terminated \
             | xargs --null sha256sum > SHA256SUMS
-      - uses: sigstore/cosign-installer@v4.0.0
+      - uses: sigstore/cosign-installer@v4.1.2
       - name: Sign checksum manifest with Sigstore
         working-directory: release-assets
         run: cosign sign-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json --yes
@@ -360,6 +360,6 @@ jobs:
           tags: ${{ steps.image.outputs.tags }}
           provenance: mode=max
           sbom: true
-      - uses: sigstore/cosign-installer@v4.0.0
+      - uses: sigstore/cosign-installer@v4.1.2
       - name: Sign multiarch image with Sigstore
         run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"
