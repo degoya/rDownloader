@@ -1,0 +1,42 @@
+name: Provider support
+description: You run a hosting, debrid, Usenet or cloud service and would like rDownloader to support it.
+labels: ["provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for getting in touch. Sponsored accounts for testing and integration are very welcome — they are what lets a plugin be tested against the real service before it ships.
+
+        **Never post credentials, API keys or account details in this issue** — issues are public. Say below how you would like to hand an account over, and the maintainer will arrange it privately.
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      description: Name and website of the service.
+      placeholder: Example Host — https://example.com
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of service
+      options:
+        - File hoster
+        - Debrid / multihoster
+        - Usenet provider or indexer
+        - Cloud storage
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: API and documentation
+      description: Links to the API documentation, if there is one, and anything an integration should know (rate limits, sign-in method, terms for third-party clients).
+  - type: textarea
+    id: account
+    attributes:
+      label: Test account
+      description: Whether you can sponsor an account for testing, and how you would like to hand it over privately. Do not put the account details here.
+    validations:
+      required: true
