@@ -49,7 +49,7 @@ use rd_core::Scope;
 use rmcp::{
     RoleServer, ServerHandler,
     handler::server::router::tool::ToolRouter,
-    model::{Implementation, ServerCapabilities, ServerInfo},
+    model::{Implementation, ServerCapabilities, ServerConfig},
     service::RequestContext,
     tool_handler,
     transport::{
@@ -315,8 +315,8 @@ impl ServerHandler for RdMcpServer {
         mask::mask_response(self.call_tool_unmasked(request, context).await)
     }
 
-    fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+    fn get_info(&self) -> ServerConfig {
+        let mut info = ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_instructions(INSTRUCTIONS);
         let mut implementation = Implementation::default();
         implementation.name = "rdownloader".to_owned();

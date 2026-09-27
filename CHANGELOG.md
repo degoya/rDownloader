@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-27
+
+### Changed
+
+- **Dependency updates from Dependabot.** The compatible npm group (six packages in `web/`), the
+  compatible Cargo group (eleven crates; `rmcp` 3.4 renames the MCP server's `ServerInfo` to
+  `ServerConfig`) and `sigstore/cosign-installer` 4.1.2 in the release workflow. The two major
+  groups are jobs of their own (RD-150-06, RD-150-07).
+
+### Fixed
+
+- **Accounts and Usenet servers stay inside the setup wizard.** In the wizard's narrow list
+  column, an account row with its buttons (connect, take over a browser session, test, edit,
+  delete) did not wrap and pushed the list past the wizard's edge (seen in Firefox); the same
+  held for a Usenet server row. Both rows now wrap, and long names are cut with an ellipsis.
+
 ## [1.4.1] - 2026-09-26
 
 ### Fixed

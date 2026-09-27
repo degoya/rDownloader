@@ -668,8 +668,10 @@ function proxyName(id: string | null | undefined): string {
         </template>
         <template #list>
           <div class="grid gap-2">
-            <div v-for="account in accounts" :key="account.id" class="border p-3" :class="editingAccountId === account.id ? 'border-primary' : 'border-muted'">
-              <div class="flex items-center gap-3">
+            <div v-for="account in accounts" :key="account.id" class="min-w-0 border p-3" :class="editingAccountId === account.id ? 'border-primary' : 'border-muted'">
+              <!-- Wraps: in a narrow column (the setup wizard) the buttons would otherwise push the
+                   row, and with it the whole list, past the column's edge. -->
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <USwitch
                   :model-value="account.enabled"
                   :disabled="togglingAccountId === account.id"
@@ -677,7 +679,7 @@ function proxyName(id: string | null | undefined): string {
                   :title="account.enabled ? t('network.account.disable') : t('network.account.enable')"
                   @update:model-value="(value: boolean) => setAccountEnabled(account, value)"
                 />
-                <div class="min-w-0 flex-1"><p class="text-sm font-medium text-highlighted">{{ account.label }}</p><p class="font-mono text-[11px] text-muted">{{ account.provider }} · {{ proxyName(account.proxy_profile_id) }}</p></div>
+                <div class="min-w-0 flex-1 basis-40"><p class="truncate text-sm font-medium text-highlighted">{{ account.label }}</p><p class="truncate font-mono text-[11px] text-muted">{{ account.provider }} · {{ proxyName(account.proxy_profile_id) }}</p></div>
                 <UBadge v-if="editingAccountId === account.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                 <UIcon v-if="account.has_secret" name="i-lucide-key-round" class="text-primary" />
                 <UIcon v-if="account.has_cookies" name="i-lucide-cookie" class="text-warning" />

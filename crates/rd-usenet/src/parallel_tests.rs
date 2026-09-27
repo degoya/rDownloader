@@ -117,7 +117,9 @@ async fn no_connection_waits_at_a_file_boundary_while_articles_are_open() {
         .await
         .expect("database");
     let (articles, files) = release(&database, &[3, 16]).await;
-    let rtt = Duration::from_millis(50);
+    // Long enough that scheduler noise stays well below it: at 50 ms a loaded Windows runner
+    // measured 118 ms of idle on a connection. Waiting at the boundary costs a whole round trip.
+    let rtt = Duration::from_millis(250);
     let (address, log) = spawn_fixture(
         articles,
         FixtureTiming {

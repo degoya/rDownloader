@@ -282,8 +282,9 @@ function proxyName(id: string | null | undefined): string {
             <UBadge color="neutral" variant="outline">{{ servers.length }}</UBadge>
           </div>
           <div class="space-y-2">
-            <article v-for="(server, index) in servers" :key="server.id" class="border p-4" :class="editingId === server.id ? 'border-primary' : 'border-muted'">
-              <div class="flex items-start gap-4">
+            <article v-for="(server, index) in servers" :key="server.id" class="min-w-0 border p-4" :class="editingId === server.id ? 'border-primary' : 'border-muted'">
+              <!-- Wraps in a narrow column (the setup wizard), like the account rows. -->
+              <div class="flex flex-wrap items-start gap-4">
                 <div class="flex shrink-0 flex-col items-center gap-1">
                   <UButton
                     size="xs"
@@ -307,12 +308,12 @@ function proxyName(id: string | null | undefined): string {
                     @click="moveServer(index, 1)"
                   />
                 </div>
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-1 basis-40">
                   <div class="flex items-center gap-2"><span class="size-2" :class="server.enabled ? 'bg-success' : 'bg-muted'" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
                   <p class="mt-1 truncate font-mono text-xs text-muted">{{ server.host }}:{{ server.port }}</p>
                   <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }} · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <UBadge v-if="editingId === server.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                   <UBadge :color="server.tls ? 'success' : 'warning'" variant="subtle">{{ server.tls ? 'TLS' : 'PLAIN' }}</UBadge>
                   <UIcon v-if="server.has_password" name="i-lucide-key-round" class="text-primary" />
