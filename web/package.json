@@ -19,7 +19,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@iconify/vue": "^5.0.3",
     "@nuxt/ui": "^4.11.2",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15.0.0",
     "driver.js": "^1.8.0",
     "openapi-fetch": "^0.17.0",
     "pinia": "^4.0.3",
