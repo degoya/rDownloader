@@ -13,19 +13,22 @@ import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 
-import type { LinkCandidate, Settings } from '@/api/types'
+import type { Category, LinkCandidate, Settings, StorageRoot } from '@/api/types'
 
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
+import routing from '@/locales/en/routing.json'
 import settings from '@/locales/en/settings.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import torrent from '@/locales/en/torrent.json'
+import { mountComponent } from '@/test/mount'
 
 import CollectorCandidateRow from './CollectorCandidateRow.vue'
 import LiveAnnouncer from './LiveAnnouncer.vue'
 import VirtualRowList from './VirtualRowList.vue'
 import PostprocessSteps from './PostprocessSteps.vue'
+import RoutingCategories from './routing/RoutingCategories.vue'
 import SubscriptionItemRow from './SubscriptionItemRow.vue'
 import SettingsServicesTab from './settings/SettingsServicesTab.vue'
 
@@ -64,7 +67,14 @@ const stubs = {
   },
   UCollapsible: passthrough,
   UDropdownMenu: passthrough,
-  UFormField: passthrough,
+  /**
+   * The label wraps the control, which names it the way the real field does through `for` — a
+   * switch in a horizontal field row carries no `aria-label` of its own (RD-150-11).
+   */
+  UFormField: {
+    props: ['label'],
+    template: '<div v-bind="$attrs"><label v-if="label">{{ label }}<slot /></label><slot v-else /></div>'
+  },
   UIcon: { template: '<span aria-hidden="true" />' },
   UInput: { props: ['modelValue'], template: '<input v-bind="$attrs" :value="modelValue" />' },
   UProgress: { template: '<div role="progressbar" v-bind="$attrs" />' },
@@ -98,6 +108,31 @@ function describeViolations(found: axe.Result[]): string {
 }
 
 describe('accessibility', () => {
+  /**
+   * RD-150-13: the categories grouped by storage root. Each section header is a button that
+   * names its root and says whether it is open; the rows inside keep their named actions.
+   */
+  it('the categories grouped by storage root name every section and every action', async () => {
+    const root = (id: string, name: string, path: string): StorageRoot =>
+      ({ id, name, path, is_default: id === 'r1', minimum_free_bytes: null, persistence: 'persistent' })
+    const category = (id: string, name: string, rootId: string): Category =>
+      ({ id, name, color: '#38BDF8', storage_root_id: rootId, relative_path: name.toLowerCase(), is_default: id === 'c1' }) as Category
+    const { container } = mountComponent(RoutingCategories, {
+      messages: { routing },
+      props: {
+        modelValue: [category('c1', 'Films', 'r1'), category('c2', 'Series', 'r2')],
+        roots: [root('r1', 'Downloads', '/downloads'), root('r2', 'Archive', '/mnt/archive')],
+        loading: false,
+        loadError: null
+      },
+      stubs: { UInputTags: true }
+    })
+    const headers = container.querySelectorAll('[data-accordion-item] > button')
+    expect(Array.from(headers).map(header => header.getAttribute('aria-expanded'))).toEqual(['true', 'true'])
+    const found = await violations(container)
+    expect(describeViolations(found)).toBe('')
+  })
+
   it('the services settings have a name for every switch', async () => {
     const { container } = render(SettingsServicesTab, {
       props: {

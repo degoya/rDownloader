@@ -77,6 +77,13 @@ const stubs = {
     emits: ['update:modelValue'],
     template: '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
   },
+  /** A real checkbox with the switch's role, so a test flips it and reads it back (RD-150-19). */
+  USwitch: {
+    inheritAttrs: false,
+    props: ['modelValue', 'label'],
+    emits: ['update:modelValue'],
+    template: '<label>{{ label }}<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
+  },
   UTooltip: passthrough,
   IndexerReviewList: true,
   NzbHistoryModal: true,
@@ -800,5 +807,51 @@ describe('LinkGrabberView adds only what a filter shows', () => {
     expect(enqueueBody()).toEqual({ ids: ['cpkg-0'], paused: false })
     expect(store.candidates).toEqual([])
     expect(store.packages).toEqual([])
+  })
+})
+
+/**
+ * The "Show metadata" switch (RD-150-19): the LinkGrabber's own, stored in this browser apart
+ * from the queue's. It hides the enricher chips only; the provider-cache chip is no metadata.
+ */
+describe('LinkGrabberView metadata switch', () => {
+  function seedEnriched() {
+    const store = useCollectorStore()
+    store.packages = [makePackage(0)]
+    store.candidates = [{
+      ...makeCandidate(0, 0),
+      enrichment: [{ name: 'metadata.series', value: 'Breaking Bad', plugin_id: 'metadata-enricher', fetched_at: '2026-09-27T10:00:00Z' }]
+    } as unknown as LinkCandidate]
+    return store
+  }
+
+  const chips = (container: Element) => container.querySelectorAll('[data-testid="enrichment-chip"]')
+  const toggle = (container: Element) => {
+    const input = container.querySelector<HTMLInputElement>('[data-testid="show-metadata"]')
+    if (!input) throw new Error('no metadata switch')
+    return input
+  }
+
+  it('shows the chips by default, hides them when switched off and keeps that across a reload', async () => {
+    const store = seedEnriched()
+    const first = mountView()
+    await nextTick()
+    expect(toggle(first.container).checked).toBe(true)
+    expect(chips(first.container)).toHaveLength(1)
+    expect(first.container.textContent).toContain('Series: Breaking Bad')
+
+    await fireEvent.click(toggle(first.container))
+    await settle()
+    expect(chips(first.container)).toHaveLength(0)
+    expect(store.candidates[0]?.enrichment).toHaveLength(1)
+    expect(localStorage.getItem('rdownloader-show-metadata-linkgrabber')).toBe('false')
+    // The queue's switch is a separate choice.
+    expect(localStorage.getItem('rdownloader-show-metadata-downloads')).toBeNull()
+    first.unmount()
+
+    const second = mountView()
+    await nextTick()
+    expect(toggle(second.container).checked).toBe(false)
+    expect(chips(second.container)).toHaveLength(0)
   })
 })

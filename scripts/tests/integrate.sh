@@ -18,6 +18,11 @@ source "$ROOT/scripts/tests/lib/expect.sh"
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
 export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 export CARGO_TARGET_DIR="$SCRATCH/target"
+# worktree.sh installs web/node_modules with pnpm (RD-150-14); nothing here needs a real one.
+mkdir -p "$SCRATCH/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$SCRATCH/bin/pnpm"
+chmod +x "$SCRATCH/bin/pnpm"
+export PATH="$SCRATCH/bin:$PATH"
 
 MAIN="$SCRATCH/repo"
 git init -q -b development "$MAIN"

@@ -4,6 +4,10 @@ mod active;
 mod bandwidth;
 mod block;
 mod capacity;
+mod collision;
+#[cfg(test)]
+mod collision_tests;
+mod content_index;
 mod control;
 mod enqueue;
 mod failures;
@@ -48,11 +52,12 @@ use url::Url;
 use active::ActiveState;
 pub use bandwidth::{BandwidthService, BandwidthStatus};
 pub use block::BlockReason;
+pub use content_index::ContentIndexCheck;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
 use provider::ProviderSlot;
 pub use rates::estimate_seconds;
-pub use runner::{ExternalRunner, RunLimits, RunOutcome};
+pub use runner::{ExternalRunner, HTTP_REUSE, RunLimits, RunOutcome};
 
 /// Runtime defaults for queue execution.
 #[derive(Clone, Debug)]
@@ -78,6 +83,9 @@ pub struct SchedulerConfig {
     pub network_defaults: SharedNetworkDefaults,
     /// Raised by the post-processing service while a package is being processed.
     pub postprocess_hold: rd_core::PostprocessHold,
+    /// The address the service's own API listens on. A mirror a Metalink names may never point
+    /// at it, even where the person's own network is otherwise allowed (RD-150-03).
+    pub own_address: Option<std::net::SocketAddr>,
 }
 
 /// Package-level queue attributes chosen at enqueue time.
@@ -102,6 +110,9 @@ pub struct RuntimeSettings {
     /// its own load (RD-130-22), at most [`MAX_EXTERNAL_PARALLEL_FILES`].
     pub external_parallel_files: usize,
     pub speed_limit_bytes_per_second: Option<u64>,
+    /// The hand-set upload limit (RD-150-15); like the download one it stays in force through
+    /// every profile switch, and the stricter of it and the profile's wins.
+    pub upload_limit_bytes_per_second: Option<u64>,
     pub generate_sha256: bool,
     pub global_proxy_profile_id: Option<ProxyProfileId>,
     pub custom_ca_pem: Option<String>,
@@ -134,6 +145,7 @@ impl Default for RuntimeSettings {
             external_connections_per_file: 0,
             external_parallel_files: 0,
             speed_limit_bytes_per_second: None,
+            upload_limit_bytes_per_second: None,
             generate_sha256: true,
             global_proxy_profile_id: None,
             custom_ca_pem: None,
@@ -158,6 +170,7 @@ impl SchedulerConfig {
             bandwidth: bandwidth::BandwidthService::new(),
             network_defaults: SharedNetworkDefaults::default(),
             postprocess_hold: rd_core::PostprocessHold::new(),
+            own_address: None,
         }
     }
 }
@@ -237,6 +250,13 @@ impl SchedulerHandle {
             .await
             .context("create downloads directory")?;
         database.recover_interrupted().await?;
+        let interrupted = database.interrupt_storage_operations().await?;
+        if interrupted > 0 {
+            tracing::info!(
+                interrupted,
+                "storage operations of the previous run were interrupted"
+            );
+        }
         // `session_store::purge_expired` implements a 30-day grace period that had no caller
         // outside its own test, so the `sessions` table grew for the life of the install —
         // silently, because `list_sessions` filters expired rows out anyway. rd-db owns no
@@ -327,6 +347,13 @@ impl SchedulerHandle {
         if let Err(error) = handle.reload_bandwidth().await {
             tracing::warn!(%error, "bandwidth profiles could not be loaded");
         }
+        // Storage work the previous run left: category moves to finish, the history to
+        // settle, the content index to check against the disk (RD-150-02). In the background,
+        // because a cross-device move is a copy and the queue must not wait for it.
+        {
+            let recovering = handle.clone();
+            tokio::spawn(async move { recovering.recover_storage_work().await });
+        }
         tokio::spawn(handle.clone().supervise());
         Ok(handle)
     }
@@ -337,7 +364,7 @@ impl SchedulerHandle {
         crate::failures::recover_stalled_mirror_groups(self).await
     }
 
-    /// Resolver chain (native + installed components) for link checks outside the scheduler.
+    /// Resolver chain (the installed components) for link checks outside the scheduler.
     #[must_use]
     pub fn resolvers(&self) -> rd_plugin_host::ResolverService {
         self.resolvers.clone()
@@ -356,7 +383,42 @@ impl SchedulerHandle {
     /// HTTP client honouring the global proxy/TLS defaults without an account identity,
     /// plus any credential headers of the auth profile matching `scope`.
     pub async fn direct_client(&self, scope: &Url) -> Result<NetworkClient> {
-        worker::build_client(self, None, None, rd_core::AuthProfileSelection::Auto, scope).await
+        worker::build_client(
+            self,
+            None,
+            None,
+            rd_core::AuthProfileSelection::Auto,
+            scope,
+            None,
+        )
+        .await
+    }
+
+    /// [`Self::direct_client`] held to `policy`: names are resolved through the guard at
+    /// connect time and no redirect goes to a refused literal address (RD-150-03). For a
+    /// request made on a stranger's word — a link a document or a page proposed.
+    pub async fn guarded_client(
+        &self,
+        scope: &Url,
+        policy: rd_http::AddressPolicy,
+    ) -> Result<NetworkClient> {
+        worker::build_client(
+            self,
+            None,
+            None,
+            rd_core::AuthProfileSelection::Auto,
+            scope,
+            Some(policy),
+        )
+        .await
+    }
+
+    /// The address rule for a request made on a stranger's word (RD-150-03): never this
+    /// machine — its loopback and link-local addresses and the address the service listens
+    /// on — and the person's own network only when `local_network`.
+    #[must_use]
+    pub fn remote_address_policy(&self, local_network: bool) -> rd_http::AddressPolicy {
+        rd_http::AddressPolicy::new(local_network).listening_on(self.config.own_address)
     }
 
     /// The captcha broker resolvers hand their challenges to; REST handlers use it to list
@@ -492,12 +554,11 @@ impl SchedulerHandle {
         if !released.is_empty() {
             self.requeue_blocked_of_kinds(&released).await;
         }
-        // The hand-set limit is independent of the schedule: it stays in force through
+        // The hand-set limits are independent of the schedule: they stay in force through
         // every profile switch, and whichever of the two is stricter wins.
-        self.config
-            .bandwidth
-            .limits()
-            .set_manual_limit(settings.speed_limit_bytes_per_second);
+        let limits = self.config.bandwidth.limits();
+        limits.set_manual_limit(settings.speed_limit_bytes_per_second);
+        limits.set_manual_upload_limit(settings.upload_limit_bytes_per_second);
         {
             let mut defaults = self.network_defaults.write().await;
             defaults.global_proxy_profile_id = settings.global_proxy_profile_id;
@@ -595,7 +656,15 @@ impl SchedulerHandle {
         auth_profile: rd_core::AuthProfileSelection,
         scope: &Url,
     ) -> Result<NetworkClient> {
-        worker::build_client(self, account_id, proxy_profile_id, auth_profile, scope).await
+        worker::build_client(
+            self,
+            account_id,
+            proxy_profile_id,
+            auth_profile,
+            scope,
+            None,
+        )
+        .await
     }
 
     pub(crate) fn max_retries(&self) -> u32 {

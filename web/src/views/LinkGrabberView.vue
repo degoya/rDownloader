@@ -15,6 +15,7 @@ import IndexerReviewList from '@/components/IndexerReviewList.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
+import { refreshQueuedSources } from '@/composables/useQueuedSources'
 import { consumeFileImportRequest, fileImportRequested } from '@/composables/nzbImportRequest'
 import { useFileImport } from '@/composables/useFileImport'
 import { useGrabberActions } from '@/composables/useGrabberActions'
@@ -26,6 +27,7 @@ import { useIntakeModal } from '@/composables/useIntakeModal'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
 import { useGrabberReorder } from '@/composables/useGrabberReorder'
 import { useOpenSections } from '@/composables/useOpenSections'
+import { useShowMetadata } from '@/composables/useShowMetadata'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { sharedText } from '@/utils/sharedLinks'
@@ -56,6 +58,8 @@ const notice = ref<string | null>(null)
 const sortItems = computed(() => SORT_OPTIONS.map(option => ({ label: t(option.labelKey), value: option.value })))
 
 const openPackages = useOpenSections({ defaultOpen: true })
+/** The "Show metadata" switch: the enricher chips under the link names, per browser (RD-150-19). */
+const showMetadata = useShowMetadata('linkgrabber')
 
 const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } = useGrabberRows({
   sort, descending, stateFilter, hidden: hiddenHosters.hidden, openPackages, openMirrors
@@ -136,6 +140,13 @@ onMounted(() => {
   // to load first, otherwise openNzbImport() snapshots an empty list into the open modal.
   void loadCategories().finally(handlePendingImportRequest)
 })
+
+// The queue's copies of these links (RD-150-01), asked again whenever the address list changes.
+watch(
+  () => collector.candidates.map(candidate => candidate.url).join('\n'),
+  (joined) => { void refreshQueuedSources(joined ? joined.split('\n') : []) },
+  { immediate: true }
+)
 
 // A window-level NZB drop (useNzbDropZone) navigates here and stashes files in the handoff
 // module; a request already pending on mount is picked up above, one arriving while this view
@@ -251,6 +262,7 @@ function openNzbHistory(): void {
           <UButton icon="i-lucide-group" :label="t('linkgrabber.actions.regroup')" color="neutral" variant="ghost" size="sm" @click="collector.regroup()" />
         </template>
         <template #right>
+          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
           <span class="numeric whitespace-nowrap text-xs text-muted">{{ t('common.units.package', { count: entries.length }, entries.length) }} · {{ filterActive ? t('linkgrabber.filter.count', { visible: visibleLinks, total: collector.candidates.length }) : t('common.units.link', { count: collector.candidates.length }, collector.candidates.length) }}</span>
           <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :aria-label="t('common.actions.refresh')" @click="collector.refresh" />
         </template>
@@ -327,6 +339,7 @@ function openNzbHistory(): void {
               v-else-if="row.kind === 'candidate'"
               :class="linkFrame(row.entry)"
               :candidate="row.candidate"
+              :hide-metadata="!showMetadata"
               :selected="selection.collectorIdSet.value.has(row.candidate.id)"
               :busy="collector.enqueuingIds.has(row.candidate.id)"
               :mirror-group="row.group ?? null"

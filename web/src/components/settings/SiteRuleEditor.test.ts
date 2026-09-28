@@ -153,3 +153,48 @@ describe('the site-rule editor', () => {
 
 // The component does not fetch, so nothing here needs the API client.
 vi.mock('@/api/client', () => ({ api: {}, responseError: () => '', resultMessage: () => '' }))
+
+describe('the editor as a form (RD-150-11)', () => {
+  function complete(): RuleDraft {
+    const value = draft()
+    value.group = 'board'
+    return value
+  }
+
+  it('saves on Enter and ends with the create action, the active switch above it', async () => {
+    const { emitted } = mountComponent(SiteRuleEditor, {
+      messages: { common, server, siterules },
+      props: { modelValue: complete(), editingId: null, pending: false, testResult: null, groups: [] }
+    })
+    const actions = Array.from(document.querySelectorAll('[data-form-actions] button')).map(button => button.textContent)
+    expect(actions).toEqual([siterules.editor.create])
+    expect(screen.getByRole('switch', { name: siterules.editor.enabled })).toBeTruthy()
+
+    await fireEvent.submit(screen.getByLabelText(siterules.editor.name).closest('form') as HTMLFormElement)
+    expect(emitted().save).toHaveLength(1)
+  })
+
+  it('offers save and the icon-only cross while a rule is edited', async () => {
+    const { emitted } = mountComponent(SiteRuleEditor, {
+      messages: { common, server, siterules },
+      props: { modelValue: complete(), editingId: 'my-board', pending: false, testResult: null, groups: [] }
+    })
+    const [save, cancel] = Array.from(document.querySelectorAll('[data-form-actions] button'))
+    expect(save?.textContent).toBe(common.actions.save)
+    expect(cancel?.getAttribute('aria-label')).toBe(common.actions.cancel_edit)
+    await fireEvent.click(cancel as HTMLElement)
+    expect(emitted().cancel).toHaveLength(1)
+  })
+
+  it('runs the test on Enter in the test address instead of saving', async () => {
+    const { emitted } = mountComponent(SiteRuleEditor, {
+      messages: { common, server, siterules },
+      props: { modelValue: complete(), editingId: null, pending: false, testResult: null, groups: [] }
+    })
+    const address = screen.getByLabelText(siterules.test.address)
+    await fireEvent.update(address, 'https://example.org/release/2')
+    await fireEvent.keyDown(address, { key: 'Enter' })
+    expect(emitted().test).toEqual([['https://example.org/release/2']])
+    expect(emitted().save).toBeUndefined()
+  })
+})

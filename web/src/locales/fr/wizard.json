@@ -46,7 +46,9 @@
   "services": {
     "intro": "Facultatif : les comptes premium lèvent les limites de vitesse et de captcha, un serveur Usenet permet les téléchargements NZB.",
     "accounts_tab": "Comptes d'hébergeurs",
-    "usenet_tab": "Usenet"
+    "usenet_tab": "Usenet",
+    "extension_title": "Ces comptes ont besoin de l'extension du navigateur",
+    "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu'avec l'extension du navigateur appairée, et aucune ne s'est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé d'API."
   },
   "actions": {
     "back": "Retour",

@@ -93,6 +93,18 @@ impl ExternalRunner for PluginTransferRunner {
         DownloadKind::Plugin
     }
 
+    /// The backend's checkpoint is resumed after the remote file was validated against it; a
+    /// finished file is not adopted and the backend states no digest.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: true,
+            recheck_partial: true,
+            adopt_completed: false,
+            verify_completed: false,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         // The strictest backend decides, because one semaphore covers the whole kind.
         self.backends.concurrency_floor().unwrap_or(1)

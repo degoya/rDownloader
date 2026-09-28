@@ -20,7 +20,7 @@ use std::{
 };
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::RngCore;
+use rand::Rng;
 
 /// How long a session survives without being used. qBittorrent's own default is one hour.
 const IDLE_TIMEOUT: Duration = Duration::from_secs(60 * 60);

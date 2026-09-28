@@ -40,14 +40,14 @@ const { t } = useI18n()
         :title="t('system.session_limits.title')"
         :description="t('system.session_limits.description')"
       />
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
+      <div class="mt-4 grid gap-4">
         <UFormField :label="t('system.session_limits.idle_label')" :description="t('system.session_limits.idle_description')">
-          <UInput v-model.number="settings.session_idle_hours" type="number" min="1" max="720" icon="i-lucide-timer" class="mt-2 w-full">
+          <UInput v-model.number="settings.session_idle_hours" type="number" min="1" max="720" icon="i-lucide-timer" class="w-full">
             <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
           </UInput>
         </UFormField>
         <UFormField :label="t('system.session_limits.max_label')" :description="t('system.session_limits.max_description')">
-          <UInput v-model.number="settings.session_max_hours" type="number" min="1" max="2160" icon="i-lucide-hourglass" class="mt-2 w-full">
+          <UInput v-model.number="settings.session_max_hours" type="number" min="1" max="2160" icon="i-lucide-hourglass" class="w-full">
             <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
           </UInput>
         </UFormField>

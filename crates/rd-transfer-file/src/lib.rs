@@ -1,6 +1,6 @@
 //! The half of a remote file transfer that has nothing to do with the protocol.
 //!
-//! FTP and SFTP differ only in how the bytes are asked for. Everything around that — the
+//! FTP, SFTP and object storage differ only in how the bytes are asked for. Everything around that — the
 //! `.rdownloader/<id>.part` staging file, the size-and-timestamp check that decides whether
 //! a partial download may be continued, the throttled progress write, the guard on the
 //! delivered length and the sync that has to precede the rename which publishes the file —
@@ -125,9 +125,23 @@ impl<'a> Staging<'a> {
     /// continuing would write the new file's bytes behind the old file's, and nothing
     /// downstream would notice.
     pub async fn plan_resume(&self, modified: Option<String>) -> Result<Resume> {
+        self.plan_resume_validated(None, modified).await
+    }
+
+    /// [`Self::plan_resume`] for a protocol that also names a version of the file: an object
+    /// store's `ETag`. A different one refuses the resume exactly like a different size.
+    ///
+    /// The value is compared as an opaque string and nothing else. What an `ETag` is made of
+    /// differs by service, upload path and encryption, so reading more into it — a digest of
+    /// the content, say — would be a guess.
+    pub async fn plan_resume_validated(
+        &self,
+        etag: Option<String>,
+        modified: Option<String>,
+    ) -> Result<Resume> {
         if self.committed == 0 {
             self.database
-                .prepare_transfer(self.file.id, Some(self.size), None, modified, Vec::new())
+                .prepare_transfer(self.file.id, Some(self.size), etag, modified, Vec::new())
                 .await?;
             return Ok(Resume::Fresh);
         }
@@ -138,9 +152,14 @@ impl<'a> Staging<'a> {
             .as_ref()
             .zip(modified.as_ref())
             .is_some_and(|(old, new)| old != new);
+        let version_changed = stored
+            .etag
+            .as_ref()
+            .zip(etag.as_ref())
+            .is_some_and(|(old, new)| old != new);
         // More on disk than the server says the whole file holds means the two disagree
         // about what was downloaded, whatever the validators claim.
-        if size_changed || time_changed || self.committed > self.size {
+        if size_changed || time_changed || version_changed || self.committed > self.size {
             return Ok(Resume::Refused);
         }
         if self.committed == self.size {
@@ -258,7 +277,7 @@ mod tests {
     use rd_scheduler::RunOutcome;
     use tokio::io::AsyncWriteExt;
 
-    use super::{Labels, Staging, TransferEnd};
+    use super::{Labels, Resume, Staging, TransferEnd};
 
     /// The labels are the caller's; any pair of constants exercises the shared code.
     const LABELS: Labels = Labels {
@@ -364,6 +383,39 @@ mod tests {
         let mut sink = staging.open_part().await.expect("open part");
         sink.write_all(bytes).await.expect("write");
         sink
+    }
+
+    #[tokio::test]
+    async fn a_different_version_refuses_the_resume() {
+        let fixture = Fixture::start().await;
+        let fresh = fixture.staging(1000).await;
+        assert!(matches!(
+            fresh
+                .plan_resume_validated(Some("\"v1\"".to_owned()), None)
+                .await
+                .expect("plan"),
+            Resume::Fresh
+        ));
+        let sink = part_with(&fixture, &[7u8; 500]).await;
+        sink.sync_all().await.expect("sync");
+
+        // Same size, same time, another object behind the same key: appending its bytes to
+        // the old ones would publish a file that is neither.
+        let staging = fixture.staging(1000).await;
+        assert!(matches!(
+            staging
+                .plan_resume_validated(Some("\"v2\"".to_owned()), None)
+                .await
+                .expect("plan"),
+            Resume::Refused
+        ));
+        assert!(matches!(
+            staging
+                .plan_resume_validated(Some("\"v1\"".to_owned()), None)
+                .await
+                .expect("plan"),
+            Resume::Continue
+        ));
     }
 
     #[tokio::test]

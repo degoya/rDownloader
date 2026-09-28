@@ -126,6 +126,7 @@ pub async fn export_settings(
             autoplay: subscription.autoplay,
             card_ratio: subscription.card_ratio,
             schedule: subscription.schedule,
+            script_arguments: subscription.script_arguments,
             secret_slot: slots.add(&state, secret_ref).await?,
         });
     }
@@ -442,6 +443,7 @@ fn into_replacement(
                 autoplay: value.autoplay,
                 card_ratio: value.card_ratio,
                 schedule: value.schedule,
+                script_arguments: value.script_arguments,
                 secret_ref: slot_reference(minted, value.secret_slot),
             })
             .collect(),

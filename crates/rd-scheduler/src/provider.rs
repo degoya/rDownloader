@@ -226,18 +226,28 @@ mod tests {
         assert_eq!(semaphore.available_permits(), 3);
     }
 
-    async fn scheduler(directory: &std::path::Path) -> crate::SchedulerHandle {
+    /// A scheduler whose resolver chain holds exactly `plugins`, loaded from their built
+    /// components the way the service loads installed packages. Nothing is compiled in any
+    /// more (RD-150-18), so a free resolver exists only while a component provides it.
+    async fn scheduler(directory: &std::path::Path, plugins: &[&str]) -> crate::SchedulerHandle {
         let database = rd_db::Database::open(directory.join("scheduler.sqlite3"))
             .await
             .expect("database");
         let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
             .await
             .expect("secrets");
+        let registry = rd_plugin_host::PluginTypeRegistry::new(
+            plugins
+                .iter()
+                .copied()
+                .map(rd_plugin_host::artifact::bundled_package)
+                .collect(),
+        );
         crate::SchedulerHandle::start(
             database,
             crate::SchedulerConfig::for_directory(directory.join("downloads")),
             secrets,
-            None,
+            Some(&registry),
             Vec::new(),
         )
         .await
@@ -248,10 +258,17 @@ mod tests {
     /// cookie jar. A second concurrent attempt would break the first one's session and earn
     /// both an IP block, so the slot must be strictly serialised — while a different hoster
     /// carries on untouched.
+    ///
+    /// Needs the two built components; the `no-components` nextest profile leaves it out by
+    /// its name's `on_real_components` ending.
     #[tokio::test]
-    async fn a_hoster_runs_one_free_download_at_a_time() {
+    async fn a_hoster_runs_one_free_download_at_a_time_on_real_components() {
         let directory = tempfile::tempdir().expect("directory");
-        let scheduler = scheduler(directory.path()).await;
+        let scheduler = scheduler(
+            directory.path(),
+            &["rd-plugin-rapidgator", "rd-plugin-ddownload"],
+        )
+        .await;
         let first_link = url::Url::parse("https://rapidgator.net/file/123456").expect("url");
         let other_hoster =
             url::Url::parse("https://ddownload.com/abc123xyz/release.rar").expect("url");
@@ -295,7 +312,7 @@ mod tests {
     #[tokio::test]
     async fn a_link_without_a_free_resolver_is_not_serialised() {
         let directory = tempfile::tempdir().expect("directory");
-        let scheduler = scheduler(directory.path()).await;
+        let scheduler = scheduler(directory.path(), &[]).await;
         let link = url::Url::parse("https://example.test/file.bin").expect("url");
 
         assert!(matches!(

@@ -68,9 +68,11 @@ impl TryFrom<Row> for UserSiteRule {
 const COLUMNS: &str = "id, name, rule_group, enabled, rule_json, created_at, updated_at";
 
 pub(crate) async fn list_site_rules(pool: &SqlitePool) -> Result<Vec<UserSiteRule>> {
-    let rows = sqlx::query_as::<_, Row>(&format!("SELECT {COLUMNS} FROM site_rules ORDER BY id"))
-        .fetch_all(pool)
-        .await?;
+    let rows = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM site_rules ORDER BY id"
+    )))
+    .fetch_all(pool)
+    .await?;
     rows.into_iter().map(UserSiteRule::try_from).collect()
 }
 
@@ -103,10 +105,12 @@ pub(crate) async fn upsert_site_rule(
     .bind(&now)
     .execute(&mut *transaction)
     .await?;
-    let row = sqlx::query_as::<_, Row>(&format!("SELECT {COLUMNS} FROM site_rules WHERE id = ?"))
-        .bind(&input.id)
-        .fetch_one(&mut *transaction)
-        .await?;
+    let row = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM site_rules WHERE id = ?"
+    )))
+    .bind(&input.id)
+    .fetch_one(&mut *transaction)
+    .await?;
     let event = rule_event(&input.id);
     insert_event(&mut transaction, &event).await?;
     transaction.commit().await?;

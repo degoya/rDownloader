@@ -30,8 +30,10 @@
     "category_default": "Categoría predeterminada",
     "enabled_label": "Vigilar",
     "enabled_description": "Comprobar este canal y grabar automáticamente mientras esté en directo.",
-    "add": "Añadir canal",
-    "record_now": "Grabar ahora"
+    "record_now": "Grabar ahora",
+    "create": "Crear canal",
+    "form_new": "Nuevo canal",
+    "form_edit": "Editar canal"
   },
   "schedules": {
     "title": "Programaciones",
@@ -48,7 +50,6 @@
     "trail": "Vigilar después (minutos)",
     "replay": "Grabar desde el principio",
     "replay_hint": "Solo se usa si el proveedor lo ofrece de verdad.",
-    "add": "Añadir programación",
     "empty": "Aún no hay programaciones.",
     "needs_channel": "Añade primero un canal arriba: una programación necesita uno para grabar.",
     "replay_used": "grabado desde el principio",
@@ -68,7 +69,15 @@
       "completed": "Grabado",
       "missed": "Perdido",
       "failed": "Fallido"
-    }
+    },
+    "delete": {
+      "title": "Eliminar programación",
+      "description": "¿Eliminar «{name}»? Las grabaciones ya hechas se conservan."
+    },
+    "eyebrow": "Franjas horarias",
+    "create": "Crear programación",
+    "form_new": "Nueva programación",
+    "form_edit": "Editar programación"
   },
   "recording": {
     "split": "Dividir grabaciones largas",

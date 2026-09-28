@@ -529,6 +529,7 @@ fn every_download_kind_survives_a_round_trip_through_the_column() {
         rd_core::DownloadKind::Ftp,
         rd_core::DownloadKind::Sftp,
         rd_core::DownloadKind::Plugin,
+        rd_core::DownloadKind::ObjectStorage,
     ] {
         let stored = serde_json::to_string(&kind).expect("serialize");
         let column = stored.trim_matches('"');
@@ -2965,6 +2966,7 @@ fn new_subscription(name: &str) -> crate::NewSubscription {
         autoplay: false,
         card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
         schedule: None,
+        script_arguments: Vec::new(),
         secret_ref: None,
     }
 }
@@ -3513,6 +3515,50 @@ async fn a_scheduled_script_subscription_is_armed_once_and_a_new_schedule_clears
         .expect("update");
     assert_eq!(changed.schedule.as_deref(), Some("30 7 * * 1-5"));
     assert!(changed.next_run_at.is_none());
+}
+
+#[tokio::test]
+async fn a_script_subscription_keeps_its_arguments_one_by_one() {
+    // RD-150-08. Each argument is stored as it was given -- spaces, quotes and shell
+    // operators included -- and an edit replaces the whole list.
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(directory.path().join("subscriptions.sqlite"))
+        .await
+        .expect("database");
+    let mut input = new_subscription("Daily links");
+    input.kind = rd_core::SubscriptionKind::Script;
+    input.url = "script:daily-links.sh".parse().expect("url");
+    let plain = database
+        .create_subscription(new_subscription("Channel"))
+        .await
+        .expect("subscription");
+    assert!(plain.script_arguments.is_empty());
+
+    input.script_arguments = vec![
+        "--since".to_owned(),
+        "two words".to_owned(),
+        "a&b;c".to_owned(),
+        "it's \"quoted\"".to_owned(),
+        String::new(),
+    ];
+    let created = database
+        .create_subscription(input.clone())
+        .await
+        .expect("subscription");
+    assert_eq!(created.script_arguments, input.script_arguments);
+    let stored = database
+        .subscription(created.id)
+        .await
+        .expect("get")
+        .expect("exists");
+    assert_eq!(stored.script_arguments, input.script_arguments);
+
+    input.script_arguments = vec!["--full".to_owned()];
+    let (changed, _) = database
+        .update_subscription(created.id, input)
+        .await
+        .expect("update");
+    assert_eq!(changed.script_arguments, ["--full"]);
 }
 
 #[tokio::test]
@@ -5561,6 +5607,7 @@ async fn a_second_remote_job_for_the_same_content_is_refused_rather_than_created
         content_key: "c8f1a0b2c8f1a0b2c8f1a0b2c8f1a0b2c8f1a0b2".to_owned(),
         source_kind: rd_core::RemoteJobSourceKind::Magnet,
         source: b"magnet:?xt=urn:btih:c8f1a0b2c8f1a0b2c8f1a0b2c8f1a0b2c8f1a0b2".to_vec(),
+        source_name: None,
         package_id: None,
     };
 
@@ -5620,6 +5667,7 @@ async fn a_remote_job_that_was_named_by_the_provider_never_submits_again() {
             content_key: "deadbeef".to_owned(),
             source_kind: rd_core::RemoteJobSourceKind::Magnet,
             source: b"magnet:?xt=urn:btih:deadbeef".to_vec(),
+            source_name: None,
             package_id: None,
         })
         .await
@@ -5714,6 +5762,7 @@ async fn a_discarded_remote_job_is_not_brought_back_by_a_late_answer() {
             content_key: "feedface".to_owned(),
             source_kind: rd_core::RemoteJobSourceKind::Container,
             source: b"d8:announce".to_vec(),
+            source_name: None,
             package_id: None,
         })
         .await
@@ -6338,6 +6387,7 @@ async fn the_shared_order_backfill_preserves_the_order_the_list_showed_before() 
             ignore_missing: false,
             locking: true,
             no_tx: false,
+            ..sqlx::migrate::Migrator::DEFAULT
         };
         before.run(&mut connection).await.expect("migrate to 0073");
 
@@ -6743,6 +6793,80 @@ async fn a_restart_leaves_a_held_verdict_open_while_a_sibling_is_still_queued() 
     );
 }
 
+/// RD-108-24: removing the sibling a held verdict waits for decides it.
+///
+/// The owner's case: a package whose other files were removed while one of them waited for
+/// the rest of the set. Nothing else would ever move in that package again, so the removal
+/// itself has to ask the question, or the row sits in `Verifying` with no worker for good.
+#[tokio::test]
+async fn removing_the_last_sibling_decides_a_held_verdict() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (database, package, rows) =
+        obfuscated_pair(directory.path(), "d5", &["a1b2c3.bin", "d4e5f6.bin"]).await;
+    let payload = row_of(&rows, "a1b2c3.bin");
+    let other = row_of(&rows, "d4e5f6.bin");
+    defer_in_verifying(&database, payload.id, 4).await;
+    assert_eq!(
+        state_of(&database, payload.id).await.state,
+        rd_core::DownloadState::Verifying,
+        "the queued sibling keeps the verdict open"
+    );
+
+    database
+        .delete_download(other.id)
+        .await
+        .expect("remove the queued sibling");
+
+    let decided = state_of(&database, payload.id).await;
+    assert_eq!(
+        decided.state,
+        rd_core::DownloadState::Failed,
+        "nothing is left that could bring PAR2"
+    );
+    assert_eq!(
+        decided
+            .last_error
+            .and_then(|failure| failure.code)
+            .as_deref(),
+        Some("usenet.segments_missing_no_par2")
+    );
+    assert!(
+        database
+            .list_packages()
+            .await
+            .expect("packages")
+            .iter()
+            .any(|remaining| remaining.id == package),
+        "the package keeps its decided file"
+    );
+}
+
+/// A row waiting for its set's verdict can be cancelled and then removed like any other.
+#[tokio::test]
+async fn a_held_verdict_can_be_cancelled_and_removed() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (database, _package, rows) =
+        obfuscated_pair(directory.path(), "d6", &["a1b2c3.bin", "d4e5f6.bin"]).await;
+    let payload = row_of(&rows, "a1b2c3.bin");
+    defer_in_verifying(&database, payload.id, 1).await;
+
+    database
+        .transition_download(payload.id, rd_core::DownloadState::Cancelled)
+        .await
+        .expect("a waiting row can be cancelled");
+    database
+        .delete_download(payload.id)
+        .await
+        .expect("a cancelled row can be removed");
+    assert!(
+        database
+            .get_download(payload.id)
+            .await
+            .expect("lookup")
+            .is_none()
+    );
+}
+
 /// A password somebody appended to an address never reaches a candidate row (RD-109-32).
 ///
 /// RD-108-07 closed this for a link a crawler claims: the fragment becomes an encrypted auth
@@ -7097,6 +7221,86 @@ async fn a_declared_mirror_group_survives_a_reopen_of_the_database() {
     );
     assert_eq!(mirrors[0].quality.as_deref(), Some("1080p"));
     assert_eq!(mirrors[0].language.as_deref(), Some("German"));
+}
+
+/// An address counts as a duplicate while it is still in the LinkGrabber or in the download
+/// list; once its download is deleted, taking it in again is a fresh intake, not a duplicate.
+#[tokio::test]
+async fn a_deleted_download_no_longer_makes_its_address_a_duplicate() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = directory.path().join("duplicate-after-delete.sqlite");
+    let database = Database::open(&path).await.expect("database");
+    let url = "https://host.example/file.rar";
+    let intake = || mirror_batch(&[url], vec![Some("file.rar".to_owned())], vec![None]);
+    let (_, _, first) = database.add_collector_batch(intake()).await.expect("first");
+    assert_ne!(first[0].state, rd_core::LinkCandidateState::Duplicate);
+
+    // Queued: the candidate stays behind as `enqueued`, the download exists.
+    let mut connection = <sqlx::SqliteConnection as sqlx::Connection>::connect_with(
+        &sqlx::sqlite::SqliteConnectOptions::new().filename(&path),
+    )
+    .await
+    .expect("connect");
+    sqlx::query("UPDATE link_candidates SET state = 'enqueued', package_id = NULL WHERE url = ?")
+        .bind(url)
+        .execute(&mut connection)
+        .await
+        .expect("enqueued");
+    let package_id = PackageId::new();
+    database
+        .create_package(NewPackage {
+            id: package_id,
+            name: "file".to_owned(),
+            destination: directory.path().to_string_lossy().into_owned(),
+            category_id: None,
+            priority: rd_core::DownloadPriority::Normal,
+            postprocess_level: None,
+            script: None,
+            enrichment: Vec::new(),
+        })
+        .await
+        .expect("package");
+    let download = database
+        .create_download(NewDownload {
+            id: DownloadId::new(),
+            package_id,
+            source: url.parse().expect("URL"),
+            file_name: "file.rar".to_owned(),
+            total_bytes: None,
+            expected_checksum: None,
+            account_id: None,
+            proxy_profile_id: None,
+            auth_profile: AuthProfileSelection::Auto,
+            initial_state: rd_core::DownloadState::Queued,
+            kind: rd_core::DownloadKind::Http,
+            media: None,
+            remote_credential_id: None,
+            replay: None,
+            mirror_group: None,
+            enrichment: Vec::new(),
+            secret_fragment: None,
+        })
+        .await
+        .expect("download");
+    let (_, _, while_queued) = database.add_collector_batch(intake()).await.expect("again");
+    assert_eq!(
+        while_queued[0].state,
+        rd_core::LinkCandidateState::Duplicate,
+        "still in the download list"
+    );
+
+    // Deleted from the queue: the address is new again.
+    database.delete_download(download.id).await.expect("delete");
+    sqlx::query("DELETE FROM link_candidates WHERE state = 'duplicate'")
+        .execute(&mut connection)
+        .await
+        .expect("clear the second intake");
+    let (_, _, after_delete) = database.add_collector_batch(intake()).await.expect("after");
+    assert_ne!(
+        after_delete[0].state,
+        rd_core::LinkCandidateState::Duplicate,
+        "an enqueued row whose download is gone is no duplicate"
+    );
 }
 
 /// A mirror is not a duplicate, and the duplicate state must not swallow one (RD-110-18).

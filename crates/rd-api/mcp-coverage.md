@@ -14,7 +14,7 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**72 capabilities, 54 covered by a tool, 18 deliberately out (12 of them on the owner's line of 2026-09-23).** 335 REST operations, 165 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**78 capabilities, 59 covered by a tool, 19 deliberately out (13 of them on the owner's line of 2026-09-23).** 354 REST operations, 179 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -53,10 +53,15 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Renaming and retargeting queued work | Downloads | 5 | `rename_download`, `rename_package_folder`, `update_package`, `update_packages` |
 | Clearing finished work in one sweep | Downloads | 1 | `clear_finished_packages` |
 | Unpacking on demand | Downloads | 4 | `extract_downloads`, `extract_packages` |
+| The mirrors of a download and their health | Downloads > transfer details | 1 | `get_download_sources` |
 | Torrent detail and seeding | Downloads > torrent panel | 18 | `get_torrent_details`, `get_torrent_engine`, `list_network_interfaces`, `set_category_seeding`, `set_torrent_file_plan`, `set_torrent_seeding`, `stop_seeding`, `update_torrent_trackers` |
 | Post-processing inventory and queue | Settings > Post-processing | 7 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `update_category_postprocess` |
 | Managed external tools | Settings > Tools | 6 | `list_managed_tools`, `manage_tool`, `refresh_tool_manifest` |
 | Storage capacity | Settings > Storage | 2 | `get_storage_capacity`, `resume_storage_target` |
+| File collision policies | Settings > General, Settings > Routing, package editor | 4 | `get_package_collision_policy`, `list_collision_policies`, `set_category_collision_policy`, `set_package_collision_policy` |
+| Answering a collision prompt | Downloads | 2 | `decide_collision`, `list_collision_prompts` |
+| Source and content duplicates | Downloads > package, LinkGrabber | 3 | `dedupe_download`, `get_download_duplicates`, `lookup_duplicates` |
+| Storage history, reuse and the content index | Settings > Storage | 4 | `check_content_index`, `get_link_support`, `get_storage_reuse`, `list_storage_operations` |
 | About rDownloader | Settings > About | 2 | `get_about` |
 | Writing a site rule | Settings > Site rules | 4 | `create_site_rule`, `delete_site_rule`, `test_site_rule`, `update_site_rule` |
 | Which providers can take a remote job | Remote jobs | 1 | `list_remote_job_providers` |
@@ -82,8 +87,9 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Deleting a remote job at the provider | Remote jobs | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in, sessions, second factor and API tokens | Login, Settings > Security | 25 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in at a provider | Settings > Accounts | 13 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
-| Trying a stored credential or destination | several forms | 6 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Trying a stored credential or destination | several forms | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Remote logins and trusted host keys | Settings > Remote | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Object storage profiles | Settings > Transfers | 4 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Solving captchas | captcha dialog | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Consent to replay a paid link | LinkGrabber | 3 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Import and export of a whole area | Settings > Backup | 14 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |

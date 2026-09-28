@@ -374,7 +374,8 @@ pub async fn test_site_rule(
             continue;
         };
         let verdict =
-            crate::collector_crawl_verdict::verdict(&state, &url, &media, &gallery, deadline).await;
+            crate::collector_crawl_verdict::verdict(&state, &url, &media, &gallery, deadline, None)
+                .await;
         links.push(TestedLinkResponse {
             url: link.clone(),
             verdict: verdict.as_str().to_owned(),

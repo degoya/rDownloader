@@ -52,9 +52,9 @@ fn changed_event() -> EventEnvelope {
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<StreamSchedule>> {
-    sqlx::query_as::<_, ScheduleRow>(&format!(
+    sqlx::query_as::<_, ScheduleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM stream_schedules ORDER BY name, created_at"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -63,9 +63,9 @@ pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<StreamSchedule>> {
 }
 
 pub(crate) async fn enabled(pool: &SqlitePool) -> Result<Vec<StreamSchedule>> {
-    sqlx::query_as::<_, ScheduleRow>(&format!(
+    sqlx::query_as::<_, ScheduleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM stream_schedules WHERE enabled = 1"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -81,18 +81,18 @@ pub(crate) async fn runs(
     let rows =
         match schedule_id {
             Some(id) => {
-                sqlx::query_as::<_, RunRow>(&format!(
+                sqlx::query_as::<_, RunRow>(sqlx::AssertSqlSafe(format!(
                     "SELECT {RUN_COLUMNS} FROM stream_scheduled_runs WHERE schedule_id = ? \
                  ORDER BY starts_at DESC LIMIT ?"
-                ))
+                )))
                 .bind(id.to_string())
                 .bind(limit)
                 .fetch_all(pool)
                 .await?
             }
-            None => sqlx::query_as::<_, RunRow>(&format!(
+            None => sqlx::query_as::<_, RunRow>(sqlx::AssertSqlSafe(format!(
                 "SELECT {RUN_COLUMNS} FROM stream_scheduled_runs ORDER BY starts_at DESC LIMIT ?"
-            ))
+            )))
             .bind(limit)
             .fetch_all(pool)
             .await?,
@@ -102,10 +102,10 @@ pub(crate) async fn runs(
 
 /// Runs that still need the monitor's attention, oldest first.
 pub(crate) async fn open_runs(pool: &SqlitePool) -> Result<Vec<StreamScheduledRun>> {
-    sqlx::query_as::<_, RunRow>(&format!(
+    sqlx::query_as::<_, RunRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {RUN_COLUMNS} FROM stream_scheduled_runs \
          WHERE state IN ('planned', 'waiting', 'recording') ORDER BY starts_at"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -204,9 +204,9 @@ pub(crate) async fn update(
         .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let updated = sqlx::query_as::<_, ScheduleRow>(&format!(
+    let updated = sqlx::query_as::<_, ScheduleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM stream_schedules WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?

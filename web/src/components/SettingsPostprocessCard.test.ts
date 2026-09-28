@@ -5,7 +5,7 @@
  * elsewhere left the card claiming the feature does not exist, and one removed left a switch
  * that writes a `plugin_steps` entry nothing can run.
  */
-import { screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Settings } from '@/api/types'
@@ -49,17 +49,19 @@ const SETTINGS = {
   rar_tool: 'unrar'
 } as unknown as Settings
 
-/** Answers the card's two fetches; both lists are what the tests move around. */
-function serve(steps: unknown[], destinations: unknown[]) {
-  get.mockImplementation(async (path: string) =>
-    path === '/api/v1/postprocess/plugin-steps' ? { data: steps } : { data: destinations }
-  )
+/** Answers the card's fetches; the plugin lists are what most tests move around. */
+function serve(steps: unknown[], destinations: unknown[], storageProfiles: unknown[] = []) {
+  get.mockImplementation(async (path: string) => {
+    if (path === '/api/v1/postprocess/plugin-steps') return { data: steps }
+    if (path === '/api/v1/object-storage/profiles') return { data: storageProfiles }
+    return { data: destinations }
+  })
 }
 
-function mount() {
+function mount(model: Settings = { ...SETTINGS }) {
   return mountComponent(SettingsPostprocessCard, {
     messages: { settings },
-    props: { modelValue: { ...SETTINGS } },
+    props: { modelValue: model },
     stubs: { UInputTags: true }
   })
 }
@@ -135,5 +137,81 @@ describe('SettingsPostprocessCard reacting to postprocess_catalog.changed', () =
 
     await waitFor(() => expect(get.mock.calls.length).toBe(2), { timeout: 2000 })
     expect(get.mock.calls.length).toBe(2)
+  })
+})
+
+/**
+ * An object storage profile is an upload target the same way a storage plugin is (RD-150-04):
+ * the shortcut writes the prefix, and only enabled profiles are offered.
+ */
+describe('SettingsPostprocessCard object storage targets', () => {
+  beforeEach(() => get.mockReset())
+
+  it('offers enabled profiles and writes their upload target', async () => {
+    serve([], [], [
+      { id: 'p1', name: 'Archive bucket', enabled: true },
+      { id: 'p2', name: 'Retired bucket', enabled: false },
+      { id: 'p3', name: 'Bound bucket', enabled: true, bucket: 'media-bucket' }
+    ])
+    const model = { ...SETTINGS }
+
+    mount(model)
+
+    const button = await waitFor(() => screen.getByRole('button', { name: 'Archive bucket' }))
+    expect(screen.queryByRole('button', { name: 'Retired bucket' })).toBeNull()
+    await fireEvent.click(button)
+    expect(model.upload_remote).toBe('object-storage:p1/')
+    // A profile bound to a bucket names it, so the target is complete as written.
+    await fireEvent.click(screen.getByRole('button', { name: 'Bound bucket' }))
+    expect(model.upload_remote).toBe('object-storage:p3/media-bucket/')
+  })
+
+  it('offers nothing when the profiles cannot be read', async () => {
+    get.mockImplementation(async (path: string) =>
+      path === '/api/v1/object-storage/profiles' ? { error: { code: 'auth.forbidden' } } : { data: [] }
+    )
+
+    mount()
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/object-storage/profiles'))
+    expect(screen.queryByTestId('upload-object-storage')).toBeNull()
+  })
+})
+
+/**
+ * RD-150-11: the card's switches used to be hand-built rows — a label paragraph, a description
+ * paragraph and a switch named only by its own `aria-label`. They are `UFormField` rows in the
+ * horizontal orientation now, so the field's label names the switch and its description stands
+ * beside it, the way Nuxt UI wires them.
+ */
+describe('SettingsPostprocessCard switch rows', () => {
+  const UFormField = {
+    props: ['label', 'description', 'orientation'],
+    template:
+      '<div :data-orientation="orientation ?? \'vertical\'"><label v-if="label">{{ label }}<slot /></label><slot v-else />'
+      + '<p v-if="description" data-description>{{ description }}</p></div>'
+  }
+
+  beforeEach(() => {
+    get.mockReset()
+    serve([], [])
+  })
+
+  it('names each switch by its field and keeps the description in the same row', () => {
+    mountComponent(SettingsPostprocessCard, {
+      messages: { settings },
+      props: { modelValue: { ...SETTINGS } },
+      stubs: { UInputTags: true, UFormField }
+    })
+    const rows = ['recursive_unpack', 'sfv_verify', 'safe_postproc', 'delete_par2', 'enable_all_par', 'enrichment', 'pause', 'ignore_samples', 'upload'] as const
+    for (const key of rows) {
+      const entry = settings.postprocess[key]
+      const toggle = screen.getByRole('switch', { name: entry.label })
+      // No private name: the field's label is the only one, so the two cannot drift apart.
+      expect(toggle.hasAttribute('aria-label')).toBe(false)
+      const field = toggle.closest('[data-orientation]') as HTMLElement
+      expect(field.dataset.orientation).toBe('horizontal')
+      expect(field.querySelector('[data-description]')?.textContent).toBe(entry.description)
+    }
   })
 })

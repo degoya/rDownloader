@@ -27,6 +27,8 @@ mod collector_crawl_verdict;
 mod collector_enqueue;
 mod collector_exclusions;
 mod collector_handlers;
+mod collector_source_sets;
+mod collision_handlers;
 mod compat;
 mod config_handlers;
 mod container_handlers;
@@ -38,7 +40,9 @@ mod diagnostics_dto;
 mod diagnostics_handlers;
 mod dlc_import;
 mod download_handlers;
+mod download_sources;
 mod dto;
+mod duplicates;
 mod error;
 mod error_codes;
 mod event_stream;
@@ -57,6 +61,7 @@ mod mfa_handlers;
 mod notify_handlers;
 mod notify_service;
 mod nzb_zip;
+mod object_storage_handlers;
 mod openapi;
 mod package_clear;
 mod package_handlers;
@@ -99,6 +104,7 @@ mod static_assets;
 mod stats_handlers;
 mod stats_retention_service;
 mod storage_capacity;
+mod storage_handlers;
 mod stream_handlers;
 mod stream_monitor;
 mod stream_schedule_handlers;
@@ -184,6 +190,8 @@ pub struct AppState {
     pub ftp: rd_ftp::FtpService,
     /// SFTP transport, which also owns the SSH host-key trust decisions.
     pub sftp: rd_sftp::SftpService,
+    /// Object storage (RD-150-04): the probe, the profile test and the upload sweep.
+    pub object_storage: rd_object_storage::ObjectStorageService,
     /// Remote transfer settings shared with both runners.
     pub remote_settings: rd_ftp::SharedRemoteSettings,
     /// URL schemes the installed transfer backends claim, so intake can route a link to the
@@ -248,11 +256,12 @@ pub struct AppState {
 pub struct RemoteServices {
     pub ftp: rd_ftp::FtpService,
     pub sftp: rd_sftp::SftpService,
+    pub object_storage: rd_object_storage::ObjectStorageService,
     pub settings: rd_ftp::SharedRemoteSettings,
 }
 
 impl RemoteServices {
-    /// Builds both transports on the scheduler's network defaults, so a proxy and a custom
+    /// Builds the transports on the scheduler's network defaults, so a proxy and a custom
     /// CA reach them exactly as they reach HTTP. Byte pacing is not passed here: the queue
     /// hands each runner a limiter scoped to the transfer it is about to start.
     #[must_use]
@@ -264,6 +273,12 @@ impl RemoteServices {
     ) -> Self {
         Self {
             ftp: rd_ftp::FtpService::new(
+                database.clone(),
+                secrets.clone(),
+                settings.clone(),
+                network_defaults.clone(),
+            ),
+            object_storage: rd_object_storage::ObjectStorageService::new(
                 database.clone(),
                 secrets.clone(),
                 settings.clone(),
@@ -303,6 +318,7 @@ impl AppState {
             media_probe.clone(),
             remote.ftp.clone(),
             remote.sftp.clone(),
+            remote.object_storage.clone(),
             torrent.clone(),
             plugins.clone(),
             scheduler.plugin_host(),
@@ -442,6 +458,7 @@ impl AppState {
             automations,
             ftp: remote.ftp,
             sftp: remote.sftp,
+            object_storage: remote.object_storage,
             remote_settings: remote.settings,
             plugin_transfer_schemes: std::sync::Arc::new(Vec::new()),
             intake_parsers: std::sync::Arc::new(rd_plugin_ext::IntakeParsers::none()),

@@ -4,16 +4,19 @@
  * The service cannot read a browser's cookies, so the account row opens a request the browser
  * extension answers. What these hold: the offer exists only where a plugin declares the site,
  * the waiting line says where to answer and whether an extension is around, and a session that
- * arrived makes the row re-read the account and check it.
+ * arrived makes the row re-read the account and check it. Without an extension the pairing opens
+ * in place rather than on another page, and the warning goes once one reports in (RD-150-17).
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import captcha from '@/locales/en/captcha.json'
 import network from '@/locales/en/network.json'
+import system from '@/locales/en/system.json'
 import { mountComponent } from '@/test/mount'
 
 import { BROWSER_SESSION_POLL_MS } from '@/composables/useBrowserSessions'
+import { EXTENSION_POLL_MS } from '@/composables/useExtensionConnection'
 
 const get = vi.fn()
 const post = vi.fn()
@@ -31,7 +34,9 @@ vi.mock('@/api/client', () => ({
 }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+const { push } = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
+vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
 const { default: SettingsAccountsTab } = await import('./SettingsAccountsTab.vue')
 
@@ -67,8 +72,16 @@ function answer(path: string) {
 
 function mount() {
   return mountComponent(SettingsAccountsTab, {
-    messages: { network, captcha },
-    stubs: { SettingsRemoteJobsCard: true }
+    messages: { network, captcha, system },
+    stubs: {
+      SettingsRemoteJobsCard: true,
+      // Drawn only while open, with its body, as the real dialog is.
+      UModal: {
+        props: ['open', 'title'],
+        emits: ['update:open'],
+        template: '<div v-if="open" role="dialog" :aria-label="title"><slot name="body" /><slot name="footer" /></div>'
+      }
+    }
   })
 }
 
@@ -76,6 +89,7 @@ describe('Take over from browser', () => {
   beforeEach(() => {
     session = null
     extensionConnected = false
+    push.mockReset()
     get.mockReset().mockImplementation(async (path: string) => answer(path))
     post.mockReset().mockImplementation(async (path: string) => {
       if (path.endsWith('/browser-session')) {
@@ -126,6 +140,39 @@ describe('Take over from browser', () => {
     const panel = await within(row).findByTestId('browser-session')
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/captcha-answerers'))
     expect(within(panel).queryByTestId('browser-session-extension-missing')).toBeNull()
+  })
+
+  it('pairs the extension in place instead of leaving the page', async () => {
+    mount()
+    const row = (await screen.findByText('DDownload main')).closest('.border') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: network.account.browser_session.take_over }))
+    const missing = await within(row).findByTestId('browser-session-extension-missing')
+
+    await fireEvent.click(within(missing).getByRole('button', { name: captcha.widget.extension_setup }))
+
+    const dialog = await screen.findByRole('dialog', { name: system.extension.modal_title })
+    expect(within(dialog).getByTestId('extension-status').getAttribute('data-connected')).toBe('false')
+    expect(within(dialog).getByText(system.extension.pair_title)).toBeTruthy()
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/capture/agents'))
+    expect(push).not.toHaveBeenCalled()
+
+    await fireEvent.click(within(dialog).getByRole('button', { name: system.extension.done }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('drops the warning on its own once an extension reports in', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mount()
+    const row = (await screen.findByText('DDownload main')).closest('.border') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: network.account.browser_session.take_over }))
+    await within(row).findByTestId('browser-session-extension-missing')
+
+    extensionConnected = true
+    await vi.advanceTimersByTimeAsync(EXTENSION_POLL_MS)
+
+    await waitFor(() => expect(within(row).queryByTestId('browser-session-extension-missing')).toBeNull())
+    expect(within(row).getByTestId('browser-session').textContent)
+      .toContain(network.account.browser_session.waiting.replace('{host}', 'ddownload.com'))
   })
 
   it('re-reads the account and checks it once the session arrived', async () => {

@@ -5,6 +5,10 @@
 //! the chain has to release the bytes, the strictest applicable limit wins without anyone
 //! having to compute a minimum, and [`LimiterRegistry::binding_limit`] can still name which
 //! one it was.
+//!
+//! Uploads (RD-150-15) have a chain of their own: the hand-set upload limit and the active
+//! profile's, and nothing scoped — a protocol, host or category bucket describes where a
+//! download comes from, not where a finished package goes.
 
 use std::{
     collections::HashMap,
@@ -107,6 +111,10 @@ struct RegistryState {
     manual: Option<BandwidthLimiter>,
     global: Option<BandwidthLimiter>,
     scoped: HashMap<LimitScope, BandwidthLimiter>,
+    /// The hand-set upload limit, independent of the schedule like `manual`.
+    upload_manual: BandwidthLimiter,
+    /// The active profile's upload limit.
+    upload_global: BandwidthLimiter,
 }
 
 /// The global limiter plus every configured scoped one.
@@ -161,6 +169,36 @@ impl LimiterRegistry {
         }
     }
 
+    /// Replaces the active profile's upload limit — the upload half of the profile switch.
+    ///
+    /// Updated in place like [`Self::apply`], so an upload already waiting continues under
+    /// the new quota at its next slice instead of starting over.
+    pub fn apply_upload(&self, bytes_per_second: Option<u64>) {
+        self.state
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .upload_global
+            .set_limit(bytes_per_second);
+    }
+
+    /// Replaces the hand-set upload limit, which survives every profile switch.
+    pub fn set_manual_upload_limit(&self, bytes_per_second: Option<u64>) {
+        self.state
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .upload_manual
+            .set_limit(bytes_per_second);
+    }
+
+    /// The limiters an upload has to pass.
+    fn upload_chain(&self) -> Vec<(LimitSource, BandwidthLimiter)> {
+        let state = self.state.read().unwrap_or_else(|error| error.into_inner());
+        vec![
+            (LimitSource::Manual, state.upload_manual.clone()),
+            (LimitSource::Global, state.upload_global.clone()),
+        ]
+    }
+
     /// The limiters a transfer has to pass, from the broadest to the narrowest.
     fn chain(&self, scope: &TransferScope) -> Vec<(LimitSource, BandwidthLimiter)> {
         let state = self.state.read().unwrap_or_else(|error| error.into_inner());
@@ -181,24 +219,19 @@ impl LimiterRegistry {
 
     /// Waits until every applicable bucket has released `bytes`.
     pub async fn acquire(&self, scope: &TransferScope, bytes: usize) -> Result<()> {
-        for (_, limiter) in self.chain(scope) {
-            limiter.acquire(bytes).await?;
-        }
-        Ok(())
+        acquire_all(self.chain(scope), bytes).await
     }
 
     /// The strictest limit applying to a scope, for the "why is this slow" display.
     #[must_use]
     pub fn binding_limit(&self, scope: &TransferScope) -> Option<BindingLimit> {
-        self.chain(scope)
-            .into_iter()
-            .filter_map(|(source, limiter)| {
-                limiter.limit().map(|bytes_per_second| BindingLimit {
-                    bytes_per_second,
-                    source,
-                })
-            })
-            .min_by_key(|limit| limit.bytes_per_second)
+        strictest(self.chain(scope))
+    }
+
+    /// The strictest upload limit — hand-set or the active profile's — and where it comes from.
+    #[must_use]
+    pub fn upload_binding_limit(&self) -> Option<BindingLimit> {
+        strictest(self.upload_chain())
     }
 
     /// A handle that already knows its scope, handed to the transports.
@@ -207,15 +240,53 @@ impl LimiterRegistry {
         ScopedLimiter {
             registry: self.clone(),
             scope,
+            direction: Direction::Download,
+        }
+    }
+
+    /// The handle every upload holds: S3, rclone's rate and the storage plugins.
+    #[must_use]
+    pub fn upload(&self) -> ScopedLimiter {
+        ScopedLimiter {
+            registry: self.clone(),
+            scope: TransferScope::default(),
+            direction: Direction::Upload,
         }
     }
 }
 
+async fn acquire_all(chain: Vec<(LimitSource, BandwidthLimiter)>, bytes: usize) -> Result<()> {
+    for (_, limiter) in chain {
+        limiter.acquire(bytes).await?;
+    }
+    Ok(())
+}
+
+fn strictest(chain: Vec<(LimitSource, BandwidthLimiter)>) -> Option<BindingLimit> {
+    chain
+        .into_iter()
+        .filter_map(|(source, limiter)| {
+            limiter.limit().map(|bytes_per_second| BindingLimit {
+                bytes_per_second,
+                source,
+            })
+        })
+        .min_by_key(|limit| limit.bytes_per_second)
+}
+
+/// Which chain a handle acquires from.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Direction {
+    Download,
+    Upload,
+}
+
 /// A limiter bound to one transfer's scope; what the transports actually hold.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ScopedLimiter {
     registry: LimiterRegistry,
     scope: TransferScope,
+    direction: Direction,
 }
 
 impl ScopedLimiter {
@@ -225,16 +296,23 @@ impl ScopedLimiter {
         Self {
             registry: LimiterRegistry::new(),
             scope: TransferScope::default(),
+            direction: Direction::Download,
         }
     }
 
     pub async fn acquire(&self, bytes: usize) -> Result<()> {
-        self.registry.acquire(&self.scope, bytes).await
+        match self.direction {
+            Direction::Download => self.registry.acquire(&self.scope, bytes).await,
+            Direction::Upload => acquire_all(self.registry.upload_chain(), bytes).await,
+        }
     }
 
     #[must_use]
     pub fn binding_limit(&self) -> Option<BindingLimit> {
-        self.registry.binding_limit(&self.scope)
+        match self.direction {
+            Direction::Download => self.registry.binding_limit(&self.scope),
+            Direction::Upload => self.registry.upload_binding_limit(),
+        }
     }
 }
 
@@ -343,3 +421,7 @@ mod manual_tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "upload_tests.rs"]
+mod upload_tests;

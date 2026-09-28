@@ -44,6 +44,18 @@ impl ExternalRunner for FtpRunner {
         DownloadKind::Ftp
     }
 
+    /// The staged part file resumes after its length and the server's validators were checked
+    /// (`rd-transfer-file`); a finished file is not adopted and there is no digest to verify.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: true,
+            recheck_partial: true,
+            adopt_completed: false,
+            verify_completed: false,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         self.service.max_parallel()
     }

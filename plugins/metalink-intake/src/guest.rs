@@ -3,10 +3,13 @@
 
 wit_bindgen::generate!({
     path: "../../crates/rd-plugin-api/wit",
-    world: "intake-plugin",
+    world: "intake-mirrors-plugin",
 });
 
 use exports::rdownloader::plugin::intake::{Guest, IntakeCandidate};
+use exports::rdownloader::plugin::mirror_sets::{
+    Guest as MirrorSetsGuest, PieceHashes, SetSource, SourceSet, StatedHash,
+};
 use rdownloader::plugin::types::Failure;
 
 use crate::parse;
@@ -19,9 +22,9 @@ impl Guest for Component {
     }
 
     fn parse(input: String) -> Result<Vec<IntakeCandidate>, Failure> {
-        // Only the first mirror of each file is proposed. The rest are the same bytes from
+        // Only the best mirror of each file is proposed. The rest are the same bytes from
         // somewhere else, and the LinkGrabber is a list of things to download, not of ways
-        // to download them — mirror selection belongs to the transfer, not to intake.
+        // to download them — the others travel in `sets` and belong to the transfer.
         Ok(parse::files_in(&input)
             .into_iter()
             .filter_map(|file| {
@@ -38,6 +41,42 @@ impl Guest for Component {
     /// Nothing to canonicalise: a metalink already carries the addresses its author meant.
     fn normalize(_url: String) -> Result<Option<String>, Failure> {
         Ok(None)
+    }
+}
+
+impl MirrorSetsGuest for Component {
+    fn sets(input: String) -> Result<Vec<SourceSet>, Failure> {
+        // `parse` proposed `urls[0]` for each file; the same address names the set here, so
+        // the host can put the two back together.
+        Ok(parse::files_in(&input)
+            .into_iter()
+            .filter_map(|file| {
+                Some(SourceSet {
+                    primary_url: file.urls.first()?.clone(),
+                    file_name: file.name,
+                    size: file.size,
+                    sources: file
+                        .sources
+                        .into_iter()
+                        .map(|source| SetSource {
+                            url: source.url,
+                            priority: source.priority,
+                            location: source.location,
+                        })
+                        .collect(),
+                    hashes: file
+                        .hashes
+                        .into_iter()
+                        .map(|(algorithm, value)| StatedHash { algorithm, value })
+                        .collect(),
+                    pieces: file.pieces.map(|pieces| PieceHashes {
+                        algorithm: pieces.algorithm,
+                        length: pieces.length,
+                        hashes: pieces.hashes,
+                    }),
+                })
+            })
+            .collect())
     }
 }
 

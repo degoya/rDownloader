@@ -119,6 +119,17 @@ impl ExternalRunner for StreamRunner {
         DownloadKind::Record
     }
 
+    /// A live recording cannot be resumed or re-fetched: what was missed is gone.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: false,
+            recheck_partial: false,
+            adopt_completed: false,
+            verify_completed: false,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         self.slot_capacity
     }

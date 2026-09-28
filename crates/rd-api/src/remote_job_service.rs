@@ -305,6 +305,17 @@ impl RemoteJobService {
         account_id: AccountId,
         source: RemoteJobSource,
     ) -> anyhow::Result<SubmitOutcome> {
+        self.submit_named(account_id, source, None).await
+    }
+
+    /// [`Self::submit`], with the name the source was handed in under -- a container's file
+    /// name. The job's LinkGrabber package is named after it when the job finishes.
+    pub async fn submit_named(
+        &self,
+        account_id: AccountId,
+        source: RemoteJobSource,
+        source_name: Option<String>,
+    ) -> anyhow::Result<SubmitOutcome> {
         let accounts = self.inner.database.list_accounts().await?;
         let Some(account) = accounts
             .into_iter()
@@ -346,6 +357,7 @@ impl RemoteJobService {
             content_key: content_key.clone(),
             source_kind,
             source: bytes,
+            source_name,
             package_id: None,
         };
         match self.inner.database.claim_remote_job(claim).await {
@@ -643,7 +655,13 @@ impl RemoteJobService {
             )
             .await?;
         match runners
-            .submit(&job.plugin_id, job.account_id, &source, &job.content_key)
+            .submit_named(
+                &job.plugin_id,
+                job.account_id,
+                &source,
+                &job.content_key,
+                job.source_name.as_deref(),
+            )
             .await
         {
             Ok(handle) => self.named(job, handle, false, now).await,
@@ -763,6 +781,15 @@ impl RemoteJobService {
 
     /// What a finished job produced goes to the LinkGrabber, and then the row is closed.
     ///
+    /// One job is one batch, and a batch's packages are its own: nothing in the LinkGrabber
+    /// merges packages across batches, so two jobs never share a package however alike their
+    /// names are. A job whose source came with a name -- a container's file name -- is one
+    /// package named after it (`Show.S01.nzb` is `Show.S01`), stated rather than guessed, so the
+    /// regroup after the online check leaves it alone. Without one the plugin's package hints
+    /// decide, as they always did. A provider's own name for its transfer is no substitute: at
+    /// Premiumize it was the upload name `source.nzb` for every NZB (owner report,
+    /// 2026-09-27).
+    ///
     /// The batch is written first and the row second, and the gap between the two writes is
     /// the one this file does not close: a crash exactly there leaves a row that will poll
     /// `ready` once more and hand the same addresses over a second time. The LinkGrabber's own
@@ -818,7 +845,11 @@ impl RemoteJobService {
                 // the label says where it came from.
                 source: IngressSource::Api,
                 source_label: Some(label),
-                package_name: None,
+                package_name: current
+                    .source_name
+                    .as_deref()
+                    .map(rd_collector::container_name)
+                    .filter(|name| !name.is_empty()),
                 password: None,
                 passwords: vec![None; count],
                 category_id: None,
@@ -986,3 +1017,7 @@ mod tests;
 #[cfg(test)]
 #[path = "remote_job_service/provider_tests.rs"]
 mod provider_tests;
+
+#[cfg(test)]
+#[path = "remote_job_service/package_tests.rs"]
+mod package_tests;

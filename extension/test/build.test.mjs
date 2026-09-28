@@ -18,7 +18,15 @@ test('chrome uses a service worker, firefox background scripts with a gecko id',
   const firefox = manifestFor('firefox', base)
   assert.deepEqual(firefox.background.scripts, ['src/background.js'])
   assert.equal(firefox.browser_specific_settings.gecko.id, 'rdownloader@degoya.de')
+  // AMO refuses a new add-on without it (2026-09-27).
+  assert.deepEqual(firefox.browser_specific_settings.gecko.data_collection_permissions, {
+    required: ['browsingActivity', 'websiteActivity'],
+    optional: ['websiteContent']
+  })
+  assert.equal(chrome.browser_specific_settings, undefined)
   assert.equal(base.background, undefined, 'base manifest must stay browser-neutral')
+  // Both stores and the browsers' add-on pages link it.
+  for (const target of TARGETS) assert.equal(manifestFor(target, base).homepage_url, 'https://rdownloader.net')
 })
 
 test('only the Firefox build may block a request and copy a response', () => {

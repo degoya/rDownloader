@@ -65,6 +65,7 @@ async fn serve(
             default_scripts_directory: directory.join("scripts"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     let remote = rd_api::RemoteServices::new(

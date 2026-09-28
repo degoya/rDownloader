@@ -9,6 +9,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { resetEventStream } from '@/composables/useEventStream'
+import common from '@/locales/en/common.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
 import type { ConfirmOptions } from '@/composables/useConfirm'
@@ -42,13 +43,14 @@ function pollEvent(payload: Record<string, unknown>): MessageEvent<string> {
 
 const get = vi.fn()
 const post = vi.fn()
+const put = vi.fn()
 const del = vi.fn()
 const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
 vi.mock('@/api/client', () => ({
   api: {
     GET: (...args: unknown[]) => get(...args),
     POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
+    PUT: (...args: unknown[]) => put(...args),
     PATCH: vi.fn(),
     DELETE: (...args: unknown[]) => del(...args)
   },
@@ -77,6 +79,14 @@ const EMPTY = subscriptions.list.empty
 
 function mount() {
   return mountComponent(SubscriptionsView, { messages: { subscriptions } })
+}
+
+/** Answers the scripts folder with `scripts` and the list with `rows`; everything else is empty. */
+function withScripts(scripts: string[], rows: unknown[] = []): void {
+  get.mockImplementation((path: string) => {
+    if (path === '/api/v1/postprocess/scripts') return Promise.resolve({ data: { scripts, directory: '/scripts' } })
+    return Promise.resolve({ data: path === '/api/v1/subscriptions' ? rows : [] })
+  })
 }
 
 describe('SubscriptionsView', () => {
@@ -125,6 +135,17 @@ describe('SubscriptionsView', () => {
 
     await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'indexer')
     expect((await screen.findByTestId('subscription-api-key')).classList.contains('w-full')).toBe(true)
+  })
+
+  it('asks for the type first, because it decides which fields follow', async () => {
+    get.mockResolvedValue({ data: [] })
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+
+    const form = container.querySelector('form') as HTMLFormElement
+    const first = form.querySelector('input, select') as HTMLElement
+    expect(first.tagName).toBe('SELECT')
+    expect([...(first as HTMLSelectElement).options].map(option => option.value)).toContain('indexer')
   })
 
   it('offers the LinkGrabber view for an indexer, list by default, and autoplay only for cards (RD-120-37)', async () => {
@@ -181,7 +202,7 @@ describe('SubscriptionsView', () => {
   })
 
   it('asks a script subscription for its script and schedule instead of an address (RD-130-19)', async () => {
-    get.mockResolvedValue({ data: [] })
+    withScripts(['daily-links.sh', 'weekly.py'])
     post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
     const { container } = mount()
     await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
@@ -192,17 +213,129 @@ describe('SubscriptionsView', () => {
     // A script has no address to type and no backlog to protect against.
     expect(screen.queryByTestId('subscription-url')).toBeNull()
     expect(screen.queryByText(subscriptions.form.backlog)).toBeNull()
-    await fireEvent.update(await screen.findByTestId('subscription-script'), 'daily-links.sh')
+    // Chosen from the scripts folder, starting on the first one there is (RD-150-08).
+    const script = await screen.findByTestId('subscription-script') as HTMLSelectElement
+    expect([...script.options].map(option => option.value)).toEqual(['daily-links.sh', 'weekly.py'])
+    await waitFor(() => expect(script.value).toBe('daily-links.sh'))
+    await fireEvent.update(script, 'weekly.py')
     await fireEvent.update(screen.getByTestId('subscription-schedule'), ' 0 6 * * * ')
     await fireEvent.update(screen.getByTestId('subscription-name'), 'Daily links')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
     const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
-    expect(body).toMatchObject({ kind: 'script', url: 'daily-links.sh', schedule: '0 6 * * *' })
+    expect(body).toMatchObject({ kind: 'script', url: 'weekly.py', schedule: '0 6 * * *', script_arguments: [] })
   })
 
-  it('sends no schedule for any other kind, even one typed before switching (RD-130-19)', async () => {
-    get.mockResolvedValue({ data: [] })
+  it('splits the parameter line like a shell, shows each argument, and sends the list (RD-150-08)', async () => {
+    withScripts(['daily-links.sh'])
+    post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+    const form = container.querySelector('form') as HTMLFormElement
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'script')
+    await screen.findByTestId('subscription-script')
+
+    await fireEvent.update(screen.getByTestId('subscription-script-arguments'), '--since "two words" \'a&b;c\' ""')
+    const preview = screen.getByTestId('subscription-script-arguments-preview')
+    expect(preview.getAttribute('aria-label')).toBe(subscriptions.form.script_arguments_preview)
+    expect([...preview.querySelectorAll('li')].map(item => item.textContent?.trim())).toEqual([
+      '--since',
+      'two words',
+      'a&b;c',
+      subscriptions.form.script_arguments_empty
+    ])
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Daily links')
+    await fireEvent.submit(form)
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body.script_arguments).toEqual(['--since', 'two words', 'a&b;c', ''])
+  })
+
+  it('refuses an open quote and a broken limit in the form, before the server does (RD-150-08)', async () => {
+    withScripts(['daily-links.sh'])
+    post.mockClear()
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+    const form = container.querySelector('form') as HTMLFormElement
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'script')
+    await screen.findByTestId('subscription-script')
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Daily links')
+    const line = screen.getByTestId('subscription-script-arguments')
+
+    await fireEvent.update(line, '--title "unfinished')
+    expect(screen.getByTestId('subscription-script-arguments-error').textContent).toContain(subscriptions.form.script_arguments_unclosed)
+    expect(screen.queryByTestId('subscription-script-arguments-preview')).toBeNull()
+    await fireEvent.submit(form)
+
+    await fireEvent.update(line, Array.from({ length: 33 }, (_, index) => `a${index}`).join(' '))
+    expect(screen.getByTestId('subscription-script-arguments-error').textContent).toContain('32')
+    await fireEvent.submit(form)
+    expect(post).not.toHaveBeenCalled()
+
+    await fireEvent.update(line, '--ok')
+    expect(screen.queryByTestId('subscription-script-arguments-error')).toBeNull()
+  })
+
+  it('keeps a saved script that left the folder, marked, and its arguments as a line (RD-150-08)', async () => {
+    const saved = {
+      id: 's9',
+      name: 'Old links',
+      url: 'script:gone.sh',
+      kind: 'script',
+      enabled: true,
+      mode: 'review',
+      interval_seconds: 3600,
+      schedule: '0 6 * * *',
+      script_arguments: ['--since', 'two words', "it's"]
+    }
+    withScripts(['daily-links.sh'], [saved])
+    put.mockResolvedValue({ data: saved, response: { ok: true } })
+    mount()
+    const row = (await screen.findByText('Old links')).closest('li') as HTMLElement
+    await fireEvent.click(within(row).getByText('Edit'))
+
+    const script = await screen.findByTestId('subscription-script') as HTMLSelectElement
+    await waitFor(() => expect(script.options.length).toBe(2))
+    expect(script.value).toBe('gone.sh')
+    expect(script.options[0]?.textContent).toContain('gone.sh')
+    expect(script.options[0]?.textContent).toContain('no longer in the scripts folder')
+    const line = screen.getByTestId('subscription-script-arguments') as HTMLInputElement
+    expect(line.value).toBe(`--since 'two words' "it's"`)
+
+    await fireEvent.submit(line.closest('form') as HTMLFormElement)
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    const body = (put.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body).toMatchObject({ url: 'gone.sh', script_arguments: ['--since', 'two words', "it's"] })
+  })
+
+  it('says so when the scripts folder is empty, as the automation does (RD-150-08)', async () => {
+    withScripts([])
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+    await fireEvent.update(container.querySelector('form')?.querySelector('select') as HTMLSelectElement, 'script')
+    expect(await screen.findByTestId('subscription-no-scripts')).toBeTruthy()
+    expect(screen.queryByTestId('subscription-script')).toBeNull()
+  })
+
+  it('translates a run Windows refused for its arguments rather than showing the code (RD-150-08)', async () => {
+    withScripts([], [{
+      id: 's8',
+      name: 'Batch links',
+      url: 'script:links.bat',
+      kind: 'script',
+      enabled: true,
+      mode: 'review',
+      interval_seconds: 3600,
+      last_error: 'script.batch_arguments_refused'
+    }])
+    mount()
+    await screen.findByText('Batch links')
+    expect(screen.queryByText('script.batch_arguments_refused')).toBeNull()
+    expect(screen.getByText(/cannot pass one of the arguments safely/)).toBeTruthy()
+  })
+
+  it('sends no schedule and no arguments for any other kind, even ones typed before switching (RD-130-19)', async () => {
+    withScripts(['daily-links.sh'])
     post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
     const { container } = mount()
     await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
@@ -210,6 +343,7 @@ describe('SubscriptionsView', () => {
     const kind = form.querySelector('select') as HTMLSelectElement
     await fireEvent.update(kind, 'script')
     await fireEvent.update(await screen.findByTestId('subscription-schedule'), '0 6 * * *')
+    await fireEvent.update(await screen.findByTestId('subscription-script-arguments'), '--since today')
     await fireEvent.update(kind, 'feed')
     expect(screen.queryByTestId('subscription-schedule')).toBeNull()
     await fireEvent.update(screen.getByTestId('subscription-name'), 'News')
@@ -217,7 +351,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
     const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
-    expect(body).toMatchObject({ kind: 'feed', schedule: null })
+    expect(body).toMatchObject({ kind: 'feed', schedule: null, script_arguments: [], url: 'https://news.test/feed.xml' })
   })
 })
 
@@ -414,7 +548,7 @@ describe('SubscriptionsView, checking now', () => {
     expect(firstRow.classList.contains('border-primary')).toBe(true)
     expect(secondRow.classList.contains('border-primary')).toBe(false)
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }))
     expect(firstRow.classList.contains('border-primary')).toBe(false)
   })
 
@@ -582,6 +716,36 @@ describe('SubscriptionsView row', () => {
     for (const label of ['Edit', subscriptions.actions.duplicate, 'Delete']) {
       expect(labels).toContain(label)
     }
+  })
+
+  it('names a duplicate with the shared copy suffix and leaves the key and the state behind', async () => {
+    post.mockReset()
+    post.mockResolvedValue({ data: { id: 'copy' } })
+    mount()
+    const row = await rowOf('My Indexer')
+    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/subscriptions', expect.anything()))
+    const body = post.mock.calls.find(call => call[0] === '/api/v1/subscriptions')?.[1]?.body
+    expect(body.name).toBe(`My Indexer (${common.copy_suffix})`)
+    expect(body.api_key).toBeNull()
+    expect(body.enabled).toBe(false)
+    expect(body).not.toHaveProperty('last_run_at')
+  })
+
+  it('opens the copy in the form, marked as the one being edited', async () => {
+    post.mockReset()
+    post.mockResolvedValue({ data: { id: 'copy' } })
+    const copy = { ...first, id: 'copy', name: `My Indexer (${common.copy_suffix})`, enabled: false }
+    let created = false
+    post.mockImplementation(async () => { created = true; return { data: copy } })
+    get.mockImplementation((path: string) =>
+      Promise.resolve({ data: path === '/api/v1/subscriptions' ? (created ? [first, second, copy] : [first, second]) : [] }))
+    mount()
+    const row = await rowOf('My Indexer')
+    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+
+    await waitFor(() => expect(screen.getByDisplayValue(copy.name)).toBeTruthy())
+    expect(screen.getByRole('heading', { name: subscriptions.form.edit })).toBeTruthy()
   })
 
   it('still asks before deleting through the menu it moved into', async () => {

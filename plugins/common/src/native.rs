@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use rand::RngCore;
+use rand::Rng;
 use rd_core::{AccountId, ByteCount};
 use rd_plugin_api::{ClientIdentity, ResolverHost};
 

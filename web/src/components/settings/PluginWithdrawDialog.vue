@@ -25,7 +25,7 @@ const open = computed({
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('plugins.withdraw.title')">
+  <UModal v-model:open="open" :title="t('plugins.withdraw.title')" :ui="{ footer: 'justify-end' }">
     <template #body>
       <div v-if="pending" class="space-y-4">
         <p class="text-sm leading-6 text-toned">{{ t('plugins.withdraw.intro', { name: pending.name, version: pending.version }) }}</p>
@@ -39,10 +39,10 @@ const open = computed({
       </div>
     </template>
     <template #footer>
-      <div v-if="pending" class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :label="t('common.actions.cancel')" @click="emit('cancel')" />
+      <template v-if="pending">
+        <UButton color="neutral" variant="outline" :label="t('common.actions.cancel')" @click="emit('cancel')" />
         <UButton color="error" icon="i-lucide-shield-off" :label="t('plugins.withdraw.confirm')" :loading="withdrawing" @click="emit('confirm')" />
-      </div>
+      </template>
     </template>
   </UModal>
 </template>

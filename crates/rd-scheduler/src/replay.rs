@@ -254,7 +254,7 @@ async fn renew_from_capture(
     file: &DownloadFile,
     replay: &ReplayContext,
 ) -> Result<Option<Url>> {
-    let network = crate::worker::build_replay_client(scheduler, file, Some(replay)).await?;
+    let network = crate::worker::build_replay_client(scheduler, file, Some(replay), None).await?;
     let probe =
         rd_http::probe_with_headers(&network.client, file.source.clone(), &network.headers).await;
     let Ok(result) = probe else { return Ok(None) };

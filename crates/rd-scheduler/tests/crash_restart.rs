@@ -76,6 +76,7 @@ fn one_paused_file(directory: &Path) -> (PackageSpec, Vec<FileSpec>) {
             skipped: false,
             enrichment: Vec::new(),
             secret_fragment: None,
+            source_set: None,
         }],
     )
 }
@@ -331,6 +332,98 @@ async fn a_crash_after_the_package_row_leaves_no_empty_package_behind() {
         database.list_packages().await.expect("packages").len(),
         1,
         "recovery removed a package that still had its file"
+    );
+}
+
+/// A category move that stops between its verified copy and the removal of the original
+/// (RD-150-02). Within one device the copy *is* the rename, so the stop leaves the payload at
+/// the new place alone; the second half of the case builds the state a cross-device copy
+/// leaves — both copies, identical — which a test cannot reach through `rename`.
+#[tokio::test]
+async fn a_crash_before_the_original_is_removed_ends_with_one_verified_copy() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, database, file, destination) = paused_package(temporary.path()).await;
+    tokio::fs::create_dir_all(&destination)
+        .await
+        .expect("destination");
+    tokio::fs::write(destination.join(&file.file_name), b"payload")
+        .await
+        .expect("payload");
+    let renamed = temporary.path().join("storage").join("Moved");
+    database
+        .rename_package_directory(
+            file.package_id,
+            "Moved".to_owned(),
+            renamed.to_string_lossy().into_owned(),
+        )
+        .await
+        .expect("rename")
+        .expect("package");
+
+    let guard = FailpointGuard::once("scheduler.before_move_source_removed");
+    // A file that could not be carried over leaves the move outstanding instead of failing it.
+    scheduler
+        .relocate_package(file.package_id)
+        .await
+        .expect("the interrupted pass");
+    assert!(guard.fired(), "the crash point was never reached");
+    drop(guard);
+    assert!(
+        database
+            .package_previous_destination(file.package_id)
+            .await
+            .expect("previous destination")
+            .is_some(),
+        "the unfinished move was forgotten"
+    );
+
+    // What a stopped cross-device copy leaves: the original, and a verified copy in place.
+    tokio::fs::write(destination.join(&file.file_name), b"payload")
+        .await
+        .expect("original");
+    assert!(
+        renamed.join(&file.file_name).exists(),
+        "the copy is in place"
+    );
+
+    scheduler
+        .relocate_package(file.package_id)
+        .await
+        .expect("the resumed move");
+
+    assert_eq!(
+        tokio::fs::read(renamed.join(&file.file_name))
+            .await
+            .expect("moved payload"),
+        b"payload"
+    );
+    assert!(
+        !renamed.join("file (1).bin").exists(),
+        "the resume filed a second copy beside the first"
+    );
+    assert!(
+        !destination.exists(),
+        "the original survived the resumed move"
+    );
+    assert_eq!(
+        database
+            .package_previous_destination(file.package_id)
+            .await
+            .expect("previous destination"),
+        None
+    );
+    let history = database.list_storage_operations(10).await.expect("history");
+    assert_eq!(
+        history.first().map(|operation| operation.state),
+        Some(rd_core::StorageOperationState::Completed),
+        "the resumed move is not in the history"
+    );
+    assert!(
+        history
+            .first()
+            .and_then(|operation| operation.verified_digest.as_ref())
+            .is_some(),
+        "the resume did not verify the copy it kept"
     );
 }
 

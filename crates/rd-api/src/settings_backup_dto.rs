@@ -135,6 +135,10 @@ pub struct BundleSubscription {
     /// configuration, restored only by the administrator.
     #[serde(default)]
     pub schedule: Option<String>,
+    /// The arguments a script subscription hands its script (RD-150-08). Absent from a bundle
+    /// written before they existed, which restores the empty list every script ran with then.
+    #[serde(default)]
+    pub script_arguments: Vec<String>,
     /// Slot of the indexer API key inside the encrypted section, if the subscription has one.
     #[serde(default)]
     pub secret_slot: Option<String>,

@@ -59,7 +59,8 @@
     "secret_plugin_description": "El token con el que se autentica este destino. Queda en la bóveda y el plugin nunca lo ve: solo la petición que construye lo lleva.",
     "destination_label": "Plugin",
     "destination_description": "Qué destino instalado entrega este objetivo.",
-    "form_new": "Nuevo destino"
+    "form_new": "Nuevo destino",
+    "secret_copy": "No se ha copiado: vuelve a introducirlo; hasta entonces la copia no tiene ninguno."
   },
   "smtp": {
     "from": "Remitente",

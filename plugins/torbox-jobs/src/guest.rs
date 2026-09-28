@@ -24,6 +24,7 @@ use exports::rdownloader::plugin::remote_job::{
 use rdownloader::plugin::{
     host,
     http::{self, RequestHeader, RequestQuery},
+    job_context,
     types::{Failure, FailureKind},
 };
 
@@ -31,6 +32,7 @@ use crate::{
     api::{self, ApiFailure, ErrorKind, Stage},
     messages,
     source::{self, Handed, Kind},
+    upload,
 };
 
 struct Component;
@@ -333,10 +335,15 @@ impl Guest for Component {
             JobSource::Address(address) => {
                 api::multipart(&boundary, &[(api::text_field(kind), address)], None)
             }
+            // The person's own file name when the host knows it, as an upload by hand.
             JobSource::Container(bytes) => api::multipart(
                 &boundary,
                 &[],
-                Some(("file", api::container_name(kind), bytes)),
+                Some((
+                    "file",
+                    &upload::upload_name(kind, job_context::source_name().as_deref(), bytes),
+                    bytes,
+                )),
             ),
         };
         let answer: api::CreatedJob = data(&call(

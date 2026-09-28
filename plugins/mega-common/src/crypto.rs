@@ -7,7 +7,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt as _, KeyInit as _, generic_array::GenericArray},
+    cipher::{BlockCipherDecrypt as _, KeyInit as _},
 };
 use base64::{
     Engine as _,
@@ -95,12 +95,12 @@ pub fn decrypt_attributes(key: &[u8; 16], blob: &[u8]) -> Option<String> {
     if blob.is_empty() || !blob.len().is_multiple_of(16) {
         return None;
     }
-    let cipher = Aes128::new(GenericArray::from_slice(key));
+    let cipher = Aes128::new(key.into());
     let mut previous = [0_u8; 16];
     let mut plain = Vec::with_capacity(blob.len());
     for block in blob.as_chunks::<16>().0 {
-        let mut buffer = GenericArray::clone_from_slice(block);
-        cipher.decrypt_block(&mut buffer);
+        let mut buffer = *block;
+        cipher.decrypt_block((&mut buffer).into());
         for (index, byte) in buffer.iter().enumerate() {
             plain.push(byte ^ previous[index]);
         }
@@ -119,11 +119,11 @@ pub fn decrypt_node_key(share_key: &[u8; 16], raw: &[u8]) -> Option<Vec<u8>> {
     if raw.is_empty() || !raw.len().is_multiple_of(16) {
         return None;
     }
-    let cipher = Aes128::new(GenericArray::from_slice(share_key));
+    let cipher = Aes128::new(share_key.into());
     let mut plain = Vec::with_capacity(raw.len());
     for block in raw.as_chunks::<16>().0 {
-        let mut buffer = GenericArray::clone_from_slice(block);
-        cipher.decrypt_block(&mut buffer);
+        let mut buffer = *block;
+        cipher.decrypt_block((&mut buffer).into());
         plain.extend_from_slice(&buffer);
     }
     Some(plain)

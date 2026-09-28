@@ -3,7 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
-import type { PostprocessLevel, PostprocessPluginStep, Settings, UploadDestination } from '@/api/types'
+import type { ObjectStorageProfile, PostprocessLevel, PostprocessPluginStep, Settings, UploadDestination } from '@/api/types'
+import { enabledObjectStorageProfiles, uploadRemoteFor } from '@/composables/useObjectStorageProfiles'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
@@ -30,6 +31,9 @@ const pluginSteps = ref<PostprocessPluginStep[]>([])
 /** Installed upload destination plugins; the picker stays hidden when there are none. */
 const uploadDestinations = ref<UploadDestination[]>([])
 
+/** Enabled object storage profiles (RD-150-04); the picker stays hidden when there are none. */
+const storageProfiles = ref<ObjectStorageProfile[]>([])
+
 /** The live subscription and the timer that coalesces a burst of plugin events into one read. */
 let releaseEvents: (() => void) | null = null
 let reloadTimer: number | null = null
@@ -45,6 +49,7 @@ async function loadPluginLists(): Promise<void> {
 
 onMounted(() => {
   void loadPluginLists()
+  void enabledObjectStorageProfiles().then(profiles => { storageProfiles.value = profiles })
   releaseEvents = subscribeEvents({ 'postprocess_catalog.changed': scheduleReload })
 })
 
@@ -99,6 +104,14 @@ function useDestination(pluginId: string): void {
 }
 
 /**
+ * The same shortcut for an object storage profile. A profile bound to a bucket fills that in;
+ * otherwise the bucket and the prefix after the slash are the person's to write.
+ */
+function useStorageProfile(profile: ObjectStorageProfile): void {
+  settings.value.upload_remote = uploadRemoteFor(profile.id, profile.bucket ? `${profile.bucket}/` : '')
+}
+
+/**
  * A step is on when its id is in the list, and the list is ordered: enabling one appends it,
  * so the order steps run in is the order they were switched on. Nothing here reorders an
  * existing list, which would silently change what a package does.
@@ -135,52 +148,27 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.default_level.label')" :description="t('settings.postprocess.default_level.description')">
       <USelect v-model="defaultLevel" :items="levelItems" value-key="value" icon="i-lucide-workflow" class="w-full" />
     </UFormField>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.recursive_unpack.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.recursive_unpack.description') }}</p>
-      </div>
-      <USwitch v-model="settings.recursive_unpack" :aria-label="t('settings.postprocess.recursive_unpack.label')" />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.sfv_verify.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.sfv_verify.description') }}</p>
-      </div>
-      <USwitch v-model="settings.sfv_verify" :aria-label="t('settings.postprocess.sfv_verify.label')" />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.safe_postproc.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.safe_postproc.description') }}</p>
-      </div>
-      <USwitch v-model="settings.safe_postproc" :aria-label="t('settings.postprocess.safe_postproc.label')" />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.delete_par2.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.delete_par2.description') }}</p>
-      </div>
-      <USwitch v-model="settings.delete_par2" :aria-label="t('settings.postprocess.delete_par2.label')" />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.enable_all_par.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.enable_all_par.description') }}</p>
-      </div>
-      <USwitch v-model="settings.enable_all_par" :aria-label="t('settings.postprocess.enable_all_par.label')" />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.enrichment.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.enrichment.description') }}</p>
-      </div>
+    <UFormField :label="t('settings.postprocess.recursive_unpack.label')" :description="t('settings.postprocess.recursive_unpack.description')" orientation="horizontal">
+      <USwitch v-model="settings.recursive_unpack" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.sfv_verify.label')" :description="t('settings.postprocess.sfv_verify.description')" orientation="horizontal">
+      <USwitch v-model="settings.sfv_verify" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.safe_postproc.label')" :description="t('settings.postprocess.safe_postproc.description')" orientation="horizontal">
+      <USwitch v-model="settings.safe_postproc" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.delete_par2.label')" :description="t('settings.postprocess.delete_par2.description')" orientation="horizontal">
+      <USwitch v-model="settings.delete_par2" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.enable_all_par.label')" :description="t('settings.postprocess.enable_all_par.description')" orientation="horizontal">
+      <USwitch v-model="settings.enable_all_par" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.enrichment.label')" :description="t('settings.postprocess.enrichment.description')" orientation="horizontal">
       <USwitch
         v-model="settings.metadata_enrichment_enabled"
-        :aria-label="t('settings.postprocess.enrichment.label')"
         data-testid="metadata-enrichment"
       />
-    </div>
+    </UFormField>
     <div v-if="pluginSteps.length" class="space-y-3">
       <div>
         <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.plugin_steps.label') }}</p>
@@ -195,23 +183,15 @@ const sampleMiB = byteModel(
         />
       </div>
     </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.pause.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.pause.description') }}</p>
-      </div>
-      <USwitch v-model="settings.pause_during_postprocess" :aria-label="t('settings.postprocess.pause.label')" />
-    </div>
+    <UFormField :label="t('settings.postprocess.pause.label')" :description="t('settings.postprocess.pause.description')" orientation="horizontal">
+      <USwitch v-model="settings.pause_during_postprocess" />
+    </UFormField>
     <UFormField :label="t('settings.postprocess.cleanup_extensions.label')" :description="t('settings.postprocess.cleanup_extensions.description')">
       <UInputTags v-model="settings.cleanup_extensions" :placeholder="t('settings.postprocess.cleanup_extensions.placeholder')" icon="i-lucide-broom" add-on-blur add-on-paste delimiter="," class="w-full font-mono" />
     </UFormField>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.ignore_samples.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.ignore_samples.description') }}</p>
-      </div>
-      <USwitch v-model="settings.ignore_samples" :aria-label="t('settings.postprocess.ignore_samples.label')" />
-    </div>
+    <UFormField :label="t('settings.postprocess.ignore_samples.label')" :description="t('settings.postprocess.ignore_samples.description')" orientation="horizontal">
+      <USwitch v-model="settings.ignore_samples" />
+    </UFormField>
     <UFormField :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
       <UInput v-model.number="sampleMiB" type="number" min="0" step="1" :disabled="!settings.ignore_samples" class="w-full">
         <template #trailing><span class="font-mono text-xs text-muted">MiB</span></template>
@@ -242,13 +222,9 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.rar_tool')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
-    <div class="flex items-center justify-between gap-5 border-t border-muted pt-4">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.upload.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.upload.description') }}</p>
-      </div>
-      <USwitch v-model="settings.upload_enabled" :aria-label="t('settings.postprocess.upload.label')" />
-    </div>
+    <UFormField :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
+      <USwitch v-model="settings.upload_enabled" />
+    </UFormField>
     <UFormField :label="t('settings.postprocess.upload_remote.label')" :description="t('settings.postprocess.upload_remote.description')">
       <UInput v-model="settings.upload_remote" :disabled="!settings.upload_enabled" icon="i-lucide-cloud-upload" placeholder="gdrive:downloads" class="w-full font-mono" />
       <div v-if="uploadDestinations.length" class="mt-2 flex flex-wrap items-center gap-2">
@@ -263,6 +239,21 @@ const sampleMiB = byteModel(
           :disabled="!settings.upload_enabled"
           :label="withPluginVersion(destination.name, destination.version)"
           @click="useDestination(destination.plugin_id)"
+        />
+      </div>
+      <div v-if="storageProfiles.length" class="mt-2 flex flex-wrap items-center gap-2" data-testid="upload-object-storage">
+        <span class="text-xs text-muted">{{ t('settings.postprocess.upload_destinations.object_storage_hint') }}</span>
+        <UButton
+          v-for="profile in storageProfiles"
+          :key="profile.id"
+          type="button"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-cylinder"
+          :disabled="!settings.upload_enabled"
+          :label="profile.name"
+          @click="useStorageProfile(profile)"
         />
       </div>
     </UFormField>

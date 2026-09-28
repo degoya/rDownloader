@@ -252,11 +252,7 @@ async function resetSettings(): Promise<void> {
             <SettingsMediaTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'transfers'" class="pt-4">
-            <SettingsTransfersTab
-              :model-value="settings"
-              @message="(text: string) => (message = text)"
-              @error="(text: string) => (error = text)"
-            />
+            <SettingsTransfersTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'services'" class="pt-4">
             <SettingsServicesTab :model-value="settings" />
@@ -279,8 +275,6 @@ async function resetSettings(): Promise<void> {
               v-model:proxies="proxies"
               :proxies-loading="proxiesLoading"
               :proxies-error="proxiesError"
-              @message="(text: string) => (message = text)"
-              @error="(text: string) => (error = text)"
             />
           </div>
           <div v-if="activeSection === 'security'" class="pt-4">

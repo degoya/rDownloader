@@ -348,9 +348,9 @@ const RULE_COLUMNS: &str = "id, name, priority, source, domain, protocol, extens
 const HOTFOLDER_COLUMNS: &str = "id, name, executor_json, path, recursive, category_id, import_mode, processed_path, failed_path, enabled";
 
 pub(crate) async fn list_categories(pool: &SqlitePool) -> Result<Vec<Category>> {
-    sqlx::query_as::<_, CategoryRow>(&format!(
+    sqlx::query_as::<_, CategoryRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {CATEGORY_COLUMNS} FROM categories ORDER BY is_default DESC, name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -359,9 +359,9 @@ pub(crate) async fn list_categories(pool: &SqlitePool) -> Result<Vec<Category>> 
 }
 
 pub(crate) async fn list_category_rules(pool: &SqlitePool) -> Result<Vec<CategoryRule>> {
-    sqlx::query_as::<_, RuleRow>(&format!(
+    sqlx::query_as::<_, RuleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {RULE_COLUMNS} FROM category_rules ORDER BY priority, name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -370,9 +370,9 @@ pub(crate) async fn list_category_rules(pool: &SqlitePool) -> Result<Vec<Categor
 }
 
 pub(crate) async fn list_hotfolders(pool: &SqlitePool) -> Result<Vec<HotFolderConfig>> {
-    sqlx::query_as::<_, HotFolderRow>(&format!(
+    sqlx::query_as::<_, HotFolderRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {HOTFOLDER_COLUMNS} FROM hotfolders ORDER BY name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -383,9 +383,9 @@ pub(crate) async fn list_hotfolders(pool: &SqlitePool) -> Result<Vec<HotFolderCo
 pub(crate) async fn routing_config(
     connection: &mut SqliteConnection,
 ) -> Result<(Vec<CategoryRule>, Option<CategoryId>)> {
-    let rules = sqlx::query_as::<_, RuleRow>(&format!(
+    let rules = sqlx::query_as::<_, RuleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {RULE_COLUMNS} FROM category_rules ORDER BY priority, name"
-    ))
+    )))
     .fetch_all(&mut *connection)
     .await?
     .into_iter()
@@ -809,9 +809,9 @@ pub(crate) async fn delete_category(
         "subscriptions",
         "stream_channels",
     ] {
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE {table} SET category_id = NULL WHERE category_id = ?"
-        ))
+        )))
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;
@@ -1017,9 +1017,9 @@ pub(crate) async fn update_category_postprocess(
     }
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let category = sqlx::query_as::<_, CategoryRow>(&format!(
+    let category = sqlx::query_as::<_, CategoryRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {CATEGORY_COLUMNS} FROM categories WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?

@@ -8,7 +8,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt, BlockEncrypt, KeyInit},
+    cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit},
 };
 use mega_common::crypto;
 use serde_json::Value;

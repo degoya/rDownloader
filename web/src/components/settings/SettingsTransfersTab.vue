@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * FTP, SFTP & WebDAV: the remote credentials card that used to sit under Network (RD-110-29).
+ * FTP, SFTP, WebDAV & S3: the remote credentials card that used to sit under Network (RD-110-29),
+ * and the object storage profiles (RD-150-04), which save themselves as well.
  * The logins and host keys save themselves; the limits at its foot are settings-document
  * fields, so this page shows the save bar.
  */
@@ -8,10 +9,10 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsObjectStorageCard from '@/components/settings/SettingsObjectStorageCard.vue'
 import SettingsRemoteCredentialsCard from '@/components/settings/SettingsRemoteCredentialsCard.vue'
 
 const settings = defineModel<Settings>({ required: true })
-const emit = defineEmits<{ message: [string], error: [string] }>()
 const { t } = useI18n()
 </script>
 
@@ -25,10 +26,7 @@ const { t } = useI18n()
         level="page"
       />
     </header>
-    <SettingsRemoteCredentialsCard
-      :settings="settings"
-      @message="(text: string) => emit('message', text)"
-      @error="(text: string) => emit('error', text)"
-    />
+    <SettingsRemoteCredentialsCard :settings="settings" />
+    <SettingsObjectStorageCard />
   </div>
 </template>

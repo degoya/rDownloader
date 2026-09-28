@@ -33,7 +33,7 @@ use wasmtime::{
 pub use auth::{AuthProgress, AuthProvider};
 pub use crawler::{CrawlRefusal, CrawledLink, FolderCrawler, MAX_CRAWLED_LINKS};
 pub use enricher::MetadataEnricher;
-pub use intake::{IntakeParser, IntakeProposal};
+pub use intake::{IntakeParser, IntakeProposal, SourceSetProposal};
 pub use notifier::{Delivery, NotifierPlugin};
 pub use oauth::{AuthorizationRequest, DeviceAuthorization, OAuthProvider, TokenOutcome};
 pub use postprocess::{PostprocessPlugin, StepOutcome};
@@ -149,6 +149,14 @@ fn linker_for(
     // plugin does, and no other type can even name the interface.
     if matches!(manifest.plugin_type, PluginType::Auth | PluginType::OAuth) {
         bindings::auth::rdownloader::plugin::credentials::add_to_linker::<_, HasSelf<_>>(
+            &mut linker,
+            |state| state,
+        )?;
+    }
+    // Likewise what a remote-job plugin is: the name its job was added under, and nothing
+    // that reaches anywhere.
+    if manifest.plugin_type == PluginType::RemoteJob {
+        bindings::remote_job::rdownloader::plugin::job_context::add_to_linker::<_, HasSelf<_>>(
             &mut linker,
             |state| state,
         )?;

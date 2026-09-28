@@ -93,8 +93,8 @@
     },
     "transfers": {
       "eyebrow": "Remote servers",
-      "title": "FTP, SFTP & WebDAV",
-      "description": "Stored logins for FTP, FTPS and SFTP servers, the SSH host keys you confirmed, and the limits for remote transfers."
+      "title": "FTP, SFTP, WebDAV & S3",
+      "description": "Stored logins for FTP, FTPS and SFTP servers, the SSH host keys you confirmed, the limits for remote transfers, and the profiles for S3-compatible object storage."
     },
     "tools": {
       "eyebrow": "External helpers",
@@ -179,7 +179,8 @@
     "username_label": "Username",
     "username_description": "Only needed for proxies that require authentication.",
     "password_label": "Password",
-    "password_description": "Stored encrypted and never returned by the API."
+    "password_description": "Stored encrypted and never returned by the API.",
+    "list_title": "Proxy profiles"
   },
   "global_proxy": {
     "eyebrow": "Network fallback",
@@ -278,7 +279,8 @@
       "description": "Optional absolute path to rclone; empty = vendor folders and PATH."
     },
     "upload_destinations": {
-      "hint": "Use a plugin destination:"
+      "hint": "Use a plugin destination:",
+      "object_storage_hint": "Use an object storage profile:"
     },
     "enrichment": {
       "label": "Ask enricher plugins about links",
@@ -411,7 +413,7 @@
     "system": "System",
     "tools": "Tools",
     "torrent": "BitTorrent",
-    "transfers": "FTP, SFTP & WebDAV",
+    "transfers": "FTP, SFTP, WebDAV & S3",
     "unattended": "Unattended operation",
     "usenet": "Usenet",
     "about": "About rDownloader"
@@ -626,11 +628,9 @@
     "badge_certificate": "Client certificate",
     "badge_disabled": "Inactive",
     "badge_expired": "Expired",
-    "cancel": "Cancel",
     "certificate_clear": "Remove the stored certificate",
     "certificate_description": "Private key and certificate chain as one decrypted PEM bundle. Passphrase-protected keys are not supported.",
     "certificate_label": "Client certificate (optional)",
-    "create": "Add profile",
     "created": "Authentication profile created",
     "delete": "Delete",
     "delete_description": "The stored credentials are deleted with it. Jobs pinned to it fall back to automatic matching.",
@@ -648,7 +648,6 @@
     "method_label": "Method",
     "name_label": "Name",
     "name_placeholder": "Intranet",
-    "save": "Save",
     "saved": "Authentication profile saved",
     "scope_description": "Host, optionally with a path prefix. The path decides which profile matches, it does not confine the credential.",
     "scope_label": "Domain",
@@ -660,7 +659,10 @@
     "subdomains_label": "Include subdomains",
     "test": "Test",
     "title": "Authentication profiles",
-    "username_label": "Username"
+    "username_label": "Username",
+    "form_new": "New authentication profile",
+    "form_edit": "Edit authentication profile",
+    "create_action": "Create profile"
   },
   "storage": {
     "title": "Storage capacity",
@@ -676,6 +678,58 @@
     "auto_resume": {
       "label": "Resume automatically",
       "description": "Releases a blocked destination as soon as it has room again; off requires the manual resume action."
+    },
+    "collision": {
+      "label": "On a name collision",
+      "description": "What happens when a finished file meets a name that is taken – for packages and categories without a policy of their own."
+    },
+    "activity": {
+      "eyebrow": "Storage",
+      "title": "Moves, links and reuse",
+      "description": "Verified moves between folders, duplicate links, and what each kind of transfer reuses of data already on disk.",
+      "index_checked": "Content index checked: {checked} entries, {missing} missing, {restored} found again, {backfilled} added.",
+      "links_title": "Hard links per storage root",
+      "links_description": "Found out by trying. This build creates no reflinks.",
+      "hardlink_yes": "Hard links possible",
+      "hardlink_no": "no hard links",
+      "reuse_title": "Reuse per kind of transfer",
+      "reuse_description": "Declared by each runner itself: resume, re-check, adopt, verify, and whether the collision policy applies to it.",
+      "kind": "Kind",
+      "yes": "yes",
+      "no": "no",
+      "reuse": {
+        "resume_partial": "resumes",
+        "recheck_partial": "re-checks partial data",
+        "adopt_completed": "adopts finished files",
+        "verify_completed": "verifies",
+        "applies_collision_policy": "collision policy"
+      },
+      "runner": {
+        "http": "HTTP",
+        "usenet": "Usenet",
+        "media": "Media (yt-dlp)",
+        "gallery": "Gallery",
+        "record": "Recording",
+        "torrent": "Torrent",
+        "ftp": "FTP",
+        "sftp": "SFTP",
+        "plugin": "Plugin transfer"
+      },
+      "history_title": "History",
+      "history_description": "Newest first. A move between devices is verified by SHA-256 before the original is removed.",
+      "check_index": "Check the content index",
+      "history_empty": "No moves or links yet.",
+      "verified": "verified",
+      "operation": {
+        "move": "Move",
+        "dedupe": "Duplicate link"
+      },
+      "states": {
+        "running": "running",
+        "completed": "completed",
+        "failed": "failed",
+        "interrupted": "interrupted"
+      }
     }
   },
   "services": {
@@ -807,7 +861,7 @@
       "tools": "Bundled tools",
       "tools_hint": "The Linux and Windows packages ship them under vendor/, their license texts under vendor/licenses/.",
       "dependencies": "Dependencies",
-      "dependencies_hint": "Generated at build time from Cargo.lock and package-lock.json, never kept by hand.",
+      "dependencies_hint": "Everything a shipped package contains: the crates the service, the capture agent and the plugins link on Linux, Windows and macOS, and the packages of the interface. Generated at build time from Cargo.lock and pnpm-lock.yaml, never kept by hand.",
       "rust": "Rust crates",
       "npm": "npm packages of the interface",
       "show": "Show all {count}",
@@ -823,5 +877,9 @@
   "nntp_parallel_files": {
     "label": "Usenet files at once",
     "description": "0 = automatic: as many as keep every connection busy (2 to 8). Together they take a single parallel-files slot."
+  },
+  "upload_limit": {
+    "label": "Upload limit",
+    "description": "Applies to every upload: torrent seeding, object storage, rclone and upload destinations. Empty means unlimited"
   }
 }

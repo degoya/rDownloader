@@ -144,6 +144,27 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "The mirrors of one download that came from a Metalink file, in the order they are tried: address (redacted), priority, location, whether each is ready, backing off or isolated after wrong bytes, and how many bytes each delivered. Empty for a download with a single address."
+    )]
+    pub async fn get_download_sources(
+        &self,
+        Parameters(params): Parameters<GetDownloadParams>,
+    ) -> McpToolResult {
+        let id = match parse_id::<rd_core::DownloadId>(&params.id) {
+            Ok(id) => id,
+            Err(error) => return Ok(api_error(error)),
+        };
+        respond(
+            crate::download_sources::list_download_sources(
+                axum::extract::State(self.state.clone()),
+                axum::extract::Path(id),
+            )
+            .await
+            .map(|axum::Json(sources)| sources),
+        )
+    }
+
+    #[tool(
         description = "Pause, resume, cancel or remove downloads by id (bulk, 1-500 ids). remove deletes the list entry; active files are cancelled first."
     )]
     pub async fn control_downloads(

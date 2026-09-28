@@ -119,7 +119,8 @@ impl rd_subscription::SecretResolver for VaultSecretResolver {
 /// The one road from a subscription to a process on this machine, and deliberately the
 /// same one post-processing and automation scripts take: the scripts directory, the name
 /// rules, the timeout and no shell. What the script learns about the subscription is its id
-/// and name; everything else it needs, it knows itself.
+/// and name in the environment and the subscription's arguments as its argv (RD-150-08);
+/// everything else it needs, it knows itself.
 pub struct SandboxScriptRunner {
     extraction: rd_extract::ExtractionService,
 }
@@ -141,6 +142,7 @@ impl rd_subscription::ScriptRunner for SandboxScriptRunner {
         self.extraction
             .run_output_script(
                 name,
+                &subscription.script_arguments,
                 vec![
                     ("RD_SUBSCRIPTION_ID".to_owned(), subscription.id.to_string()),
                     ("RD_SUBSCRIPTION_NAME".to_owned(), subscription.name.clone()),

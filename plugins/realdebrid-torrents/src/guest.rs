@@ -17,6 +17,7 @@ use exports::rdownloader::plugin::remote_job::{
     RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest,
 };
 use rdownloader::plugin::{
+    host,
     http::{self, RequestHeader, RequestQuery},
     types::{Failure, FailureKind},
 };
@@ -58,13 +59,25 @@ fn from_api(failure: ApiFailure) -> Failure {
     }
 }
 
+/// The reference of the token this account holds (RD-150-09).
+///
+/// Asked of the host, which answers only for the slot the account's mode makes live. An account
+/// holding neither falls through to the last one, and the host refuses that request with the
+/// code that says the credential is missing -- the same answer as before there were two.
+fn token_reference(account_id: &str) -> &'static str {
+    api::TOKEN_REFERENCES
+        .into_iter()
+        .find(|reference| host::secret_available(account_id, reference))
+        .unwrap_or(api::TOKEN_REFERENCES[1])
+}
+
 /// The bearer header, as a template. The token's value never reaches this plugin: the host
 /// substitutes it on the way out, towards `api.real-debrid.com` and nowhere else.
-fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
+fn headers(token: &str, content_type: Option<&str>) -> Vec<RequestHeader> {
     let mut headers = vec![
         RequestHeader {
             name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{}}}}}", api::TOKEN_REFERENCE),
+            value_template: format!("Bearer {{{{secret:{token}}}}}"),
         },
         RequestHeader {
             name: "Accept".to_owned(),
@@ -85,13 +98,15 @@ fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
 /// The vocabulary stays small on purpose: a caller gets bytes or a failure and never decides a
 /// second time what a status code means.
 fn call(
+    account_id: &str,
     method: &str,
     url: &str,
     query: &[RequestQuery],
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
-    let response = http::http_request(method, url, query, &headers(content_type), body)?;
+    let headers = headers(token_reference(account_id), content_type);
+    let response = http::http_request(method, url, query, &headers, body)?;
     let retry_after = api::retry_after_seconds(
         response
             .headers
@@ -214,7 +229,14 @@ impl Guest for Component {
                 Some("application/x-bittorrent"),
             ),
         };
-        let answer: api::AddedTorrent = parse(&call(method, &url, &[], content_type, &body)?)?;
+        let answer: api::AddedTorrent = parse(&call(
+            &request.account_id,
+            method,
+            &url,
+            &[],
+            content_type,
+            &body,
+        )?)?;
         let Some(id) = answer.id.filter(|id| api::is_safe_remote_id(id)) else {
             // Something may well have been created and this installation cannot name it. The
             // host is told plainly rather than being handed an empty handle it would poll for
@@ -231,6 +253,7 @@ impl Guest for Component {
     /// torrents must not cost a thousand requests against a budget of 250 a minute.
     fn adopt(account_id: String, content_key: String) -> Result<Option<RemoteHandle>, Failure> {
         let body = call(
+            &account_id,
             "GET",
             &format!("{}/torrents", api::API_BASE),
             &[RequestQuery {
@@ -257,6 +280,7 @@ impl Guest for Component {
     fn poll(handle: RemoteHandle) -> Result<RemoteProgress, Failure> {
         let id = safe_id(&handle)?;
         let body = call(
+            &handle.account_id,
             "GET",
             &format!("{}/torrents/info/{id}", api::API_BASE),
             &[],
@@ -291,6 +315,7 @@ impl Guest for Component {
             return Err(refuse(messages::EMPTY_CHOICE, FailureKind::Permanent));
         }
         call(
+            &handle.account_id,
             "POST",
             &format!("{}/torrents/selectFiles/{id}", api::API_BASE),
             &[],
@@ -304,6 +329,7 @@ impl Guest for Component {
     fn discard(handle: RemoteHandle) -> Result<(), Failure> {
         let id = safe_id(&handle)?;
         call(
+            &handle.account_id,
             "DELETE",
             &format!("{}/torrents/delete/{id}", api::API_BASE),
             &[],

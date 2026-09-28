@@ -25,7 +25,6 @@
     "empty": "No rule is installed, so no release page is recognised by rule. Import the signed rule file of a release to start from the project's rules.",
     "group_off": "The group is switched off, so this rule is not consulted."
   },
-  "new": "New rule",
   "editor": {
     "eyebrow": "Own rule",
     "title_new": "Write a rule",
@@ -58,7 +57,8 @@
     "package_from": "Read from variable",
     "package_name": "Variable",
     "enabled": "Consult this rule right away",
-    "incomplete": "Identifier, name, group, one host, one step and a probe address are needed."
+    "incomplete": "Identifier, name, group, one host, one step and a probe address are needed.",
+    "create": "Create rule"
   },
   "steps": {
     "heading": "Steps",
@@ -132,8 +132,5 @@
     "title": "Remove this rule?",
     "description": "{name} is removed from this installation. Export it first if you want to keep it."
   },
-  "duplicate": "Duplicate",
-  "duplicate_hint": "Makes a switched-off copy under a new identifier and opens it in the editor",
-  "copy_suffix": "copy",
   "duplicated": "{name} was created, switched off, and opened for editing."
 }

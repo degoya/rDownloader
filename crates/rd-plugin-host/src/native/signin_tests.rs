@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use aes::{
     Aes128,
-    cipher::{BlockEncrypt, KeyInit},
+    cipher::{BlockCipherEncrypt, KeyInit},
 };
 use rd_core::AccountId;
 use rd_db::NewAccount;

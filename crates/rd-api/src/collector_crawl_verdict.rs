@@ -164,11 +164,12 @@ pub(crate) async fn verdict(
     media: &rd_core::MediaSettings,
     gallery: &rd_core::GallerySettings,
     deadline: std::time::Instant,
+    guard: Option<&rd_http::AddressPolicy>,
 ) -> CrawlVerdict {
     decide(
         claim(state, url, media, gallery),
         std::time::Instant::now() < deadline,
-        || probe(state, url),
+        || probe(state, url, guard),
     )
     .await
 }
@@ -192,8 +193,27 @@ where
     probe().await
 }
 
-async fn probe(state: &AppState, url: &Url) -> CrawlVerdict {
-    let Ok(network) = state.scheduler.direct_client(url).await else {
+/// `guard` is the address rule of a page a stranger wrote (RD-150-03): an address it refuses
+/// is kept unproven rather than requested, and the online check marks it; one it permits is
+/// probed through a client that holds to the rule at connect time.
+async fn probe(
+    state: &AppState,
+    url: &Url,
+    guard: Option<&rd_http::AddressPolicy>,
+) -> CrawlVerdict {
+    let network = match guard {
+        None => state.scheduler.direct_client(url).await,
+        Some(policy) => {
+            if rd_http::check_target(policy, &rd_http::SystemLookup, url)
+                .await
+                .is_err()
+            {
+                return CrawlVerdict::Unconfirmed;
+            }
+            state.scheduler.guarded_client(url, policy.clone()).await
+        }
+    };
+    let Ok(network) = network else {
         return CrawlVerdict::Unconfirmed;
     };
     confirm(&network.client, &network.headers, url.clone()).await

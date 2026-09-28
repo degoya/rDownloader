@@ -275,9 +275,9 @@ pub(crate) async fn delete_proxy_profile(
         ("usenet_servers", ""),
         ("downloads", " AND state NOT IN ('completed', 'cancelled')"),
     ] {
-        let used = sqlx::query_scalar::<_, i64>(&format!(
+        let used = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(format!(
             "SELECT COUNT(*) FROM {table} WHERE proxy_profile_id = ?{condition}"
-        ))
+        )))
         .bind(id.to_string())
         .fetch_one(&mut *tx)
         .await?;

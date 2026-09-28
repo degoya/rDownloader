@@ -100,12 +100,20 @@ pub(crate) async fn upsert(
     Ok((flow, event))
 }
 
-/// Removes the flow of one account, if it has one.
+/// Removes the flow of one account, if it has one, and the parts it kept (RD-150-09).
+///
+/// The parts go with the flow because they are halves of the same sign-in: a cancelled one
+/// has signed the account out, and a client secret left behind would be credential material
+/// belonging to nothing.
 pub(crate) async fn delete(
     connection: &mut SqliteConnection,
     account_id: AccountId,
 ) -> Result<EventEnvelope> {
     sqlx::query("DELETE FROM auth_flows WHERE account_id = ?")
+        .bind(account_id.to_string())
+        .execute(&mut *connection)
+        .await?;
+    sqlx::query("DELETE FROM auth_flow_parts WHERE account_id = ?")
         .bind(account_id.to_string())
         .execute(&mut *connection)
         .await?;
@@ -117,10 +125,12 @@ pub(crate) async fn delete(
 
 /// The flow of one account.
 pub(crate) async fn get(pool: &SqlitePool, account_id: AccountId) -> Result<Option<AuthFlow>> {
-    let row = sqlx::query_as::<_, FlowRow>(&format!("{SELECT} WHERE account_id = ?"))
-        .bind(account_id.to_string())
-        .fetch_optional(pool)
-        .await?;
+    let row = sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
+        "{SELECT} WHERE account_id = ?"
+    )))
+    .bind(account_id.to_string())
+    .fetch_optional(pool)
+    .await?;
     row.map(TryInto::try_into).transpose()
 }
 
@@ -130,10 +140,10 @@ pub(crate) async fn get(pool: &SqlitePool, account_id: AccountId) -> Result<Opti
 /// for us to ask again, and polling it would drive it through the device-flow plugins -- which
 /// do not claim its provider and would fail it on the first tick.
 pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<AuthFlow>> {
-    sqlx::query_as::<_, FlowRow>(&format!(
+    sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state IN ('waiting_for_user', 'polling') AND callback_state IS NULL \
          AND (next_poll_at IS NULL OR next_poll_at <= ?) ORDER BY started_at"
-    ))
+    )))
     .bind(now)
     .fetch_all(pool)
     .await?
@@ -207,6 +217,55 @@ pub(crate) async fn set_session(
     ))
 }
 
+/// Records one named part a sign-in keeps beside its token (RD-150-09), answering the vault
+/// reference it replaced so the caller can drop that value.
+///
+/// Read and written on the writer's own connection, one after the other, so nothing else can
+/// write the same part in between: the answer is exactly the reference this call took out of use.
+pub(crate) async fn set_part(
+    connection: &mut SqliteConnection,
+    account_id: AccountId,
+    name: &str,
+    secret_ref: &str,
+) -> Result<(Option<String>, EventEnvelope)> {
+    let replaced = sqlx::query_scalar::<_, String>(
+        "SELECT secret_ref FROM auth_flow_parts WHERE account_id = ? AND name = ?",
+    )
+    .bind(account_id.to_string())
+    .bind(name)
+    .fetch_optional(&mut *connection)
+    .await?;
+    sqlx::query(
+        "INSERT INTO auth_flow_parts (account_id, name, secret_ref) VALUES (?, ?, ?) \
+         ON CONFLICT(account_id, name) DO UPDATE SET secret_ref = excluded.secret_ref",
+    )
+    .bind(account_id.to_string())
+    .bind(name)
+    .bind(secret_ref)
+    .execute(&mut *connection)
+    .await?;
+    let event = EventEnvelope::new(
+        EventKind::AccountChanged,
+        serde_json::json!({ "entity": "auth_flow", "account_id": account_id }),
+    );
+    Ok((replaced.filter(|old| old != secret_ref), event))
+}
+
+/// The vault reference of one named part of an account's sign-in, if it stored one.
+pub(crate) async fn part(
+    pool: &SqlitePool,
+    account_id: AccountId,
+    name: &str,
+) -> Result<Option<String>> {
+    Ok(sqlx::query_scalar::<_, String>(
+        "SELECT secret_ref FROM auth_flow_parts WHERE account_id = ? AND name = ?",
+    )
+    .bind(account_id.to_string())
+    .bind(name)
+    .fetch_optional(pool)
+    .await?)
+}
+
 /// The flow an arriving callback belongs to, found by the value the provider echoed back.
 ///
 /// The lookup *is* the check: a callback carrying a state no open flow claims matches nothing
@@ -215,10 +274,12 @@ pub(crate) async fn by_callback_state(
     pool: &SqlitePool,
     callback_state: &str,
 ) -> Result<Option<AuthFlow>> {
-    let row = sqlx::query_as::<_, FlowRow>(&format!("{SELECT} WHERE callback_state = ?"))
-        .bind(callback_state)
-        .fetch_optional(pool)
-        .await?;
+    let row = sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
+        "{SELECT} WHERE callback_state = ?"
+    )))
+    .bind(callback_state)
+    .fetch_optional(pool)
+    .await?;
     row.map(TryInto::try_into).transpose()
 }
 
@@ -254,11 +315,11 @@ pub(crate) async fn due_refresh(
     now: DateTime<Utc>,
     threshold: DateTime<Utc>,
 ) -> Result<Vec<AuthFlow>> {
-    sqlx::query_as::<_, FlowRow>(&format!(
+    sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state = 'authorized' AND refresh_ref IS NOT NULL \
          AND token_expires_at IS NOT NULL AND token_expires_at <= ? \
          AND (next_poll_at IS NULL OR next_poll_at <= ?) ORDER BY token_expires_at"
-    ))
+    )))
     .bind(threshold)
     .bind(now)
     .fetch_all(pool)

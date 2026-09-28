@@ -9,7 +9,8 @@
 //! A sibling rather than part of `plugins/realdebrid/`, because a manifest carries exactly one
 //! `plugin_type`. The three of them share one account and one provider row:
 //!
-//! - `plugins/realdebrid-auth/` signs in by device code and keeps the token renewed.
+//! - the account carries the person's private API token (since 1.4.3; `plugins/realdebrid-auth/`
+//!   signs in by device code again once RD-150-09 lands).
 //! - `plugins/realdebrid/` unrestricts hoster links — including the links this plugin hands
 //!   back, because what a finished torrent produces at Real-Debrid is still a restricted link.
 //! - this one turns a magnet or a `.torrent` into a job at the provider.

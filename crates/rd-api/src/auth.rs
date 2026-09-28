@@ -3,7 +3,7 @@ use std::{
     time::Instant,
 };
 
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
     extract::{Request, State},
     http::{HeaderMap, Method, header},
@@ -11,7 +11,7 @@ use axum::{
     response::Response,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
@@ -765,12 +765,8 @@ pub(crate) async fn require_capture(
 fn hash_password(password: &str) -> Result<String, ApiError> {
     let mut salt_bytes = [0_u8; 16];
     rand::rng().fill_bytes(&mut salt_bytes);
-    let salt = SaltString::encode_b64(&salt_bytes).map_err(|error| {
-        tracing::error!(%error, "failed to encode password salt");
-        ApiError::bad_request("auth.password_hash_failed", "Password could not be hashed")
-    })?;
     Ok(Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password_with_salt(password.as_bytes(), &salt_bytes)
         .map_err(|error| {
             tracing::error!(%error, "failed to hash password");
             ApiError::bad_request("auth.password_hash_failed", "Password could not be hashed")
@@ -1010,7 +1006,7 @@ mod tests {
 
     /// The positive direction of the policy, decided rather than executed.
     ///
-    /// `tests/scope_matrix.rs` drives the *negative* direction through the real router across
+    /// `tests/access/scope_matrix.rs` drives the *negative* direction through the real router across
     /// every route. It deliberately does not drive the positive one: letting 233 requests
     /// through reaches real handlers, some of which open network connections or spawn external
     /// tools. So the "a token that holds the scope gets through" half is checked here, against

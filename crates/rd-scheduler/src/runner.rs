@@ -71,6 +71,11 @@ pub trait ExternalRunner: Send + Sync {
     fn shares_one_global_slot(&self) -> bool {
         false
     }
+    /// What this runner can do with data that is already on disk (RD-150-02).
+    ///
+    /// No default on purpose: a runner added later has to say whether it resumes, rechecks
+    /// and adopts, rather than inheriting an answer that is true of somebody else.
+    fn reuse(&self) -> rd_core::ReuseCapability;
     async fn run(
         &self,
         file: &DownloadFile,
@@ -79,6 +84,18 @@ pub trait ExternalRunner: Send + Sync {
         limits: RunLimits,
     ) -> Result<RunOutcome>;
 }
+
+/// What the built-in HTTP transfer does with data on disk: chunks resume from their recorded
+/// checkpoints and are guarded by the validators rather than re-hashed, a finished file already
+/// in place is adopted after a restart, the payload is verified when a digest is configured,
+/// and a taken name follows the collision policy.
+pub const HTTP_REUSE: rd_core::ReuseCapability = rd_core::ReuseCapability {
+    resume_partial: true,
+    recheck_partial: false,
+    adopt_completed: true,
+    verify_completed: true,
+    applies_collision_policy: true,
+};
 
 /// Runner registry with a per-kind count of running files.
 #[derive(Default)]
@@ -113,6 +130,14 @@ impl RunnerRegistry {
         self.runners.get(&kind).cloned()
     }
 
+    /// Every registered runner's declaration.
+    pub(crate) fn reuse(&self) -> Vec<(DownloadKind, rd_core::ReuseCapability)> {
+        self.runners
+            .iter()
+            .map(|(kind, runner)| (*kind, runner.reuse()))
+            .collect()
+    }
+
     /// Non-blocking slot acquisition; `None` when the kind is saturated.
     ///
     /// `requested_files` is handed to [`ExternalRunner::dispatch_capacity`]. The count is
@@ -135,6 +160,17 @@ impl RunnerRegistry {
 }
 
 impl SchedulerHandle {
+    /// What each transfer kind this service runs can reuse, the built-in HTTP transfer first
+    /// and the registered runners after it in a stable order.
+    #[must_use]
+    pub fn reuse_capabilities(&self) -> Vec<(DownloadKind, rd_core::ReuseCapability)> {
+        let mut runners = self.runners.reuse();
+        runners.sort_by_key(|(kind, _)| format!("{kind:?}"));
+        std::iter::once((DownloadKind::Http, HTTP_REUSE))
+            .chain(runners)
+            .collect()
+    }
+
     /// Verifies a package destination has room for `remaining` bytes; `None` means no
     /// runner could state a size and the headroom policy applies.
     ///
@@ -168,6 +204,35 @@ impl SchedulerHandle {
         self.record_storage_block(target, destination, shortfall)
             .await?;
         Ok(false)
+    }
+
+    /// Adds a single-file payload an external runner finished to the content index, hashed here
+    /// because the runner states no digest. Only while SHA-256 generation is on — the same
+    /// switch that decides whether HTTP payloads are hashed — and only for a regular file: a
+    /// torrent's or a gallery's tree is not one file with one digest.
+    async fn index_external_payload(&self, id: rd_core::DownloadId, destination: &str, name: &str) {
+        if !self.generate_sha256() || destination.is_empty() {
+            return;
+        }
+        let path = std::path::Path::new(destination).join(name);
+        if !tokio::fs::metadata(&path)
+            .await
+            .is_ok_and(|metadata| metadata.is_file())
+        {
+            return;
+        }
+        match rd_files::compute_checksum(&path, rd_core::ChecksumAlgorithm::Sha256).await {
+            Ok(computed) => {
+                let digest = rd_core::ExpectedChecksum {
+                    algorithm: computed.algorithm,
+                    value: computed.value,
+                };
+                crate::collision::index_finished(self, id, &path, Some(&digest)).await;
+            }
+            Err(error) => {
+                tracing::warn!(download_id = %id, %error, "the finished file was not hashed for the index");
+            }
+        }
     }
 
     /// Runs one file through its external runner and maps the outcome to queue states.
@@ -221,8 +286,10 @@ impl SchedulerHandle {
                     .transition_download(file.id, DownloadState::Verifying)
                     .await?;
                 self.database
-                    .complete_download(file.id, final_name, None)
+                    .complete_download(file.id, final_name.clone(), None)
                     .await?;
+                self.index_external_payload(file.id, &package.destination, &final_name)
+                    .await;
                 Ok(())
             }
             RunOutcome::Detached { state } => {
@@ -264,6 +331,10 @@ mod registry_tests {
 
         fn slot_capacity(&self) -> usize {
             8
+        }
+
+        fn reuse(&self) -> rd_core::ReuseCapability {
+            rd_core::ReuseCapability::default()
         }
 
         fn dispatch_capacity(&self, requested_files: usize) -> usize {

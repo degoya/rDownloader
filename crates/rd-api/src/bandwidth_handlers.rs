@@ -19,7 +19,8 @@ pub struct BandwidthProfileRequest {
     /// Global download limit; empty = unlimited.
     #[serde(default)]
     pub download_bytes_per_second: Option<rd_core::ByteCount>,
-    /// Global torrent upload limit; empty = unlimited.
+    /// Global upload limit for every upload — torrent seeding, object storage, rclone and
+    /// upload destinations; empty = unlimited.
     #[serde(default)]
     pub upload_bytes_per_second: Option<rd_core::ByteCount>,
     /// Caps the queue's parallelism while the profile is active; empty keeps the setting.
@@ -92,6 +93,8 @@ pub struct BandwidthStatusResponse {
     pub budget_exhausted: bool,
     /// The strictest limit a plain HTTP download would meet right now.
     pub binding_limit: Option<BindingLimitResponse>,
+    /// The strictest limit an upload meets right now: the hand-set one or the profile's.
+    pub upload_binding_limit: Option<BindingLimitResponse>,
 }
 
 #[utoipa::path(get, path = "/api/v1/bandwidth/profiles", tag = "bandwidth", responses((status = 200, body = [rd_limits::BandwidthProfile])))]
@@ -267,12 +270,22 @@ pub async fn bandwidth_status(
             limits.monthly_bytes,
         ),
         budget_exhausted: status.exceeded.is_some(),
-        binding_limit: binding.map(|limit| BindingLimitResponse {
-            bytes_per_second: rd_core::ByteCount::new(limit.bytes_per_second).unwrap_or_default(),
-            source: limit.source,
-        }),
+        binding_limit: binding.map(binding_response),
+        upload_binding_limit: state
+            .scheduler
+            .bandwidth()
+            .limits()
+            .upload_binding_limit()
+            .map(binding_response),
         active_profile: status.active_profile,
     }))
+}
+
+fn binding_response(limit: rd_limits::BindingLimit) -> BindingLimitResponse {
+    BindingLimitResponse {
+        bytes_per_second: rd_core::ByteCount::new(limit.bytes_per_second).unwrap_or_default(),
+        source: limit.source,
+    }
 }
 
 /// What each transport can actually enforce, so the UI can mark what a limit will not reach

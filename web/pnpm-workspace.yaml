@@ -1,0 +1,14 @@
+# A flat node_modules, as npm laid it out. Isolated (pnpm's default) resolves every package
+# through node_modules/.pnpm/<name>@<version>_<peer hash>/, and the Nuxt UI resolver writes that
+# real path into the tracked web/components.d.ts and web/auto-imports.d.ts, so each dependency
+# update and each machine would rewrite them. The packages still come from pnpm's store as
+# hard links; what is given up is only the strict check for undeclared imports, which passed
+# once on 2026-09-27 (RD-150-14: vue-tsc, Vitest and the build under isolated).
+nodeLinker: hoisted
+
+# pnpm runs no dependency's install script unless it is named here (true runs it, false
+# silences the warning). esbuild's swaps its JS shim for the native binary; vue-demi's only
+# picks between Vue 2 and 3, and the default is already 3. Same choice as the website.
+allowBuilds:
+  esbuild: true
+  vue-demi: false

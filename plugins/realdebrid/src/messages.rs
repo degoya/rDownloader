@@ -9,8 +9,8 @@
 //! translate. So the number travels as the `api_code` parameter and the sentence is dropped —
 //! the same rule `sanitize_error` applies in `realdebrid-auth`, arrived at from the other side.
 
-/// The account holds no Real-Debrid access token: it has never been signed in, or the sign-in
-/// was revoked and the renewal sweep could not replace it.
+/// The account holds no token in its mode: it has never been signed in, the sign-in was
+/// revoked and the renewal sweep could not replace it, or no API token was typed.
 pub(crate) const TOKEN_MISSING: (&str, &str) = (
     "realdebrid.token_missing",
     "Real-Debrid account is not signed in",

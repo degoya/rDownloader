@@ -67,8 +67,149 @@ allow = [
 ]
 
 [bans]
-multiple-versions = "warn"
+# A second version of a crate is an error (RD-150-21): every older version below is held back by
+# a dependency we cannot move ourselves, and its entry names that dependency. The list only
+# shrinks — CI runs `cargo deny check` with `-D unmatched-skip -D unnecessary-skip`, so an entry
+# whose upstream moved on fails until it is deleted. A new duplicate is fixed (`cargo update -p`,
+# a version the upstream already uses) before it earns an entry here. Versions are caret
+# requirements so a patch release of the held-back line needs no edit. Dev-dependencies do not
+# count (`multiple-versions-include-dev` is off); build scripts and proc macros do.
+multiple-versions = "deny"
 wildcards = "allow"
+skip = [
+  # webauthn-rs 0.6.1-dev (rd-authn): webauthn-rs-core pins crypto-glue ^0.1.15, which carries
+  # the previous RustCrypto generation (digest 0.10, cipher 0.4, elliptic-curve 0.13, rand 0.8);
+  # crypto-glue 0.2 is released. About 45 duplicates leave with it.
+  { crate = "aead:0.5", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
+  { crate = "aes:0.8", reason = "crypto-glue 0.1, aes-kw 0.2 (webauthn-rs)" },
+  { crate = "aes-gcm:0.10", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "argon2:0.5", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "base16ct:0.2", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
+  { crate = "base64:0.21", reason = "webauthn-rs-core and webauthn-rs-proto 0.6.1-dev" },
+  { crate = "blake2:0.10", reason = "crypto-glue 0.1 via argon2 0.5 (webauthn-rs)" },
+  { crate = "block-padding:0.3", reason = "crypto-glue 0.1 via inout 0.1 (webauthn-rs)" },
+  { crate = "cbc:0.1", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "cipher:0.4", reason = "crypto-glue 0.1, aes-kw 0.2 (webauthn-rs)" },
+  { crate = "crypto-bigint:0.5", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
+  { crate = "ctr:0.9", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
+  { crate = "der:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
+  { crate = "ecdsa:0.16", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "elliptic-curve:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "ff:0.13", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
+  { crate = "ghash:0.5", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
+  { crate = "group:0.13", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
+  { crate = "hkdf:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "hmac:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "inout:0.1", reason = "crypto-glue 0.1 via cipher 0.4 (webauthn-rs)" },
+  { crate = "nom:7", reason = "webauthn-rs-core, x509-parser, der-parser, asn1-rs (webauthn-rs)" },
+  { crate = "num-bigint:0.4", reason = "der-parser (webauthn-rs); num 0.4 (secret-service via keyring)" },
+  { crate = "p256:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "p384:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "p521:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "password-hash:0.5", reason = "crypto-glue 0.1 via argon2 0.5 (webauthn-rs)" },
+  { crate = "pbkdf2:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "pem-rfc7468:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
+  { crate = "pkcs1:0.7", reason = "crypto-glue 0.1 via rsa 0.9 (webauthn-rs)" },
+  { crate = "pkcs5:0.7", reason = "crypto-glue 0.1 via pkcs8 0.10 (webauthn-rs)" },
+  { crate = "pkcs8:0.10", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "polyval:0.6", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
+  { crate = "primeorder:0.13", reason = "crypto-glue 0.1 via p256/p384/p521 0.13 (webauthn-rs)" },
+  { crate = "rand:0.8", reason = "crypto-glue 0.1, num-bigint-dig (webauthn-rs)" },
+  { crate = "rand_chacha:0.3", reason = "crypto-glue 0.1 via rand 0.8 (webauthn-rs)" },
+  { crate = "rfc6979:0.4", reason = "crypto-glue 0.1 via ecdsa 0.16 (webauthn-rs)" },
+  { crate = "rsa:0.9", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "salsa20:0.10", reason = "crypto-glue 0.1 via scrypt 0.11 (webauthn-rs)" },
+  { crate = "scrypt:0.11", reason = "crypto-glue 0.1 via pkcs5 0.7 (webauthn-rs)" },
+  { crate = "sec1:0.7", reason = "crypto-glue 0.1 (webauthn-rs)" },
+  { crate = "sha1:0.10", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
+  { crate = "signature:2", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
+  { crate = "spki:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
+  { crate = "universal-hash:0.5", reason = "crypto-glue 0.1 via polyval 0.6 (webauthn-rs)" },
+
+  # The same RustCrypto generation, also held by wasmtime 49 / cranelift 0.136 (sha2 0.10),
+  # sqlx 0.9 (sqlx-core: sha2 0.10) and object_store 0.14 (crc-fast: digest 0.10) besides
+  # crypto-glue 0.1.
+  { crate = "block-buffer:0.10", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "const-oid:0.9", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "cpufeatures:0.2", reason = "sha2 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core" },
+  { crate = "crypto-common:0.1", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "digest:0.10", reason = "crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "generic-array:0.14", reason = "digest 0.10 users as above; generic-array 1 (russh) re-exports it" },
+  { crate = "rand_core:0.6", reason = "crypto-glue 0.1 and the digest 0.10 users as above" },
+  { crate = "sha2:0.10", reason = "crypto-glue 0.1, wasmtime-environ, wasmtime-internal-cache, cranelift-codegen, sqlx-core" },
+  { crate = "base64:0.22", reason = "hyper-util 0.1 (axum, reqwest), sqlx-core, wasmtime-internal-cache, crypto-glue 0.1" },
+  { crate = "getrandom:0.2", reason = "rand_core 0.6 (as above), ring 0.17, redox_users" },
+
+  # rand 0.9 line: governor 0.10 (rd-limits), librqbit-utp 0.7 (librqbit), webauthn-rs-core.
+  { crate = "rand:0.9", reason = "governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
+  { crate = "rand_core:0.9", reason = "rand 0.9: governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
+  { crate = "getrandom:0.3", reason = "rand_core 0.9: governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
+
+  # librqbit 9.0.1 (rd-torrent).
+  { crate = "generic-array:0.12", reason = "size_format 1.0 (librqbit)" },
+  { crate = "num:0.2", reason = "size_format 1.0 (librqbit)" },
+  { crate = "num-complex:0.2", reason = "size_format 1.0 via num 0.2 (librqbit)" },
+  { crate = "num-rational:0.2", reason = "size_format 1.0 via num 0.2 (librqbit)" },
+  { crate = "nix:0.30", reason = "librqbit 9.0.1" },
+  { crate = "quick-xml:0.41", reason = "librqbit-upnp 9.0.1, object_store 0.14, wayland-scanner (arboard)" },
+  { crate = "thiserror:1", reason = "tokio-socks 0.5 (librqbit), webauthn-rs-core, asn1-rs, x509-parser, jni 0.21 (tao), glib 0.18, redox_users 0.4 (wasmtime cache)" },
+  { crate = "thiserror-impl:1", reason = "thiserror 1, as above" },
+
+  # sqlx 0.9 (rd-db).
+  { crate = "atoi:2", reason = "sqlx-sqlite and sqlx-postgres 0.9" },
+  { crate = "spin:0.9", reason = "flume 0.12 (sqlx-sqlite), multer 3 (axum), lazy_static 1.5" },
+
+  # hashbrown: every line has its own holder.
+  { crate = "hashbrown:0.14", reason = "dashmap 6 (governor, boa_engine, russh-sftp)" },
+  { crate = "hashbrown:0.15", reason = "petgraph 0.8 via tree_magic_mini, wl-clipboard-rs (arboard)" },
+  { crate = "foldhash:0.1", reason = "hashbrown 0.15 via petgraph 0.8 (arboard)" },
+  { crate = "hashbrown:0.16", reason = "gimli 0.33 (wasmtime), sqlx-core and hashlink 0.11 (sqlx), governor 0.10" },
+
+  # wasmtime 49 / cranelift 0.136 (rd-plugin-host).
+  { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 49" },
+
+  # croner 4 (rd-subscription).
+  { crate = "darling:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
+  { crate = "darling_core:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
+  { crate = "darling_macro:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
+  { crate = "strum:0.27", reason = "croner 4" },
+  { crate = "strum_macros:0.27", reason = "croner 4 via strum 0.27" },
+
+  # chrono-tz 0.10 (rd-api, rd-limits, rd-power, rd-scheduler, rd-stream).
+  { crate = "phf:0.12", reason = "chrono-tz 0.10" },
+  { crate = "phf_shared:0.12", reason = "chrono-tz 0.10 via phf 0.12" },
+
+  # tao 0.37 / tray-icon 0.25 / muda (rd-capture). The GTK3 stack is a Linux dependency of
+  # crates rd-capture only builds on Windows and macOS (see the advisories above): graph artefacts,
+  # compiled for no target we ship.
+  { crate = "heck:0.4", reason = "glib-macros 0.18 (GTK3 via tao, tray-icon)" },
+  { crate = "proc-macro-crate:1", reason = "gtk3-macros 0.18 (GTK3 via tao, tray-icon)" },
+  { crate = "proc-macro-crate:2", reason = "glib-macros 0.18 (GTK3 via tao, tray-icon)" },
+  { crate = "serde_spanned:0.6", reason = "system-deps 6, glib-macros 0.18 (GTK3 via tao, tray-icon)" },
+  { crate = "syn:1", reason = "proc-macro-error 1 (GTK3 via tao, tray-icon)" },
+  { crate = "target-lexicon:0.12", reason = "cfg-expr 0.15 via system-deps 6 (GTK3 via tao, tray-icon)" },
+  { crate = "toml:0.8", reason = "system-deps 6 (GTK3 via tao, tray-icon)" },
+  { crate = "toml_datetime:0.6", reason = "system-deps 6, glib-macros, gtk3-macros 0.18 (GTK3 via tao, tray-icon)" },
+  { crate = "toml_edit:0.19", reason = "gtk3-macros 0.18 via proc-macro-crate 1 (GTK3 via tao, tray-icon)" },
+  { crate = "toml_edit:0.20", reason = "glib-macros 0.18, system-deps 6 (GTK3 via tao, tray-icon)" },
+  { crate = "winnow:0.5", reason = "toml_edit 0.19/0.20 (GTK3 via tao, tray-icon)" },
+  { crate = "miniz_oxide:0.8", reason = "png 0.18 (muda via tray-icon, rd-capture's tray icon); flate2 uses 0.9" },
+
+  # windows-sys: one line per holder.
+  { crate = "windows-sys:0.52", reason = "ring 0.17 (rustls-webpki, quinn-proto), dontfrag 1 (librqbit-utp)" },
+  { crate = "windows-sys:0.59", reason = "winreg 0.55 (embed-resource, a build dependency)" },
+  { crate = "windows-sys:0.60", reason = "arboard 3.6 (rd-capture), notify 8.2 (rd-hotfolder)" },
+  { crate = "windows-targets:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
+  { crate = "windows_x86_64_gnu:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
+  { crate = "windows_x86_64_msvc:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
+
+  # One holder each.
+  { crate = "untrusted:0.7", reason = "aws-lc-rs 1.18 (object_store, librqbit-sha1-wrapper); ring uses 0.9" },
+  { crate = "tower-http:0.6", reason = "reqwest 0.13" },
+  { crate = "sha3:0.11", reason = "ml-kem 0.3 (russh 0.63)" },
+  { crate = "syn:2", reason = "about 55 proc macros are still on syn 2 (tracing-attributes, pin-project-internal, zerocopy-derive, sqlx-macros, wit-bindgen-rust, …)" },
+  { crate = "synstructure:0.13", reason = "yoke-derive, zerofrom-derive (url via icu), asn1-rs-derive (webauthn-rs)" },
+]
 
 [sources]
 unknown-registry = "deny"

@@ -93,8 +93,8 @@
     },
     "transfers": {
       "eyebrow": "Serveurs distants",
-      "title": "FTP, SFTP et WebDAV",
-      "description": "Identifiants enregistrés pour les serveurs FTP, FTPS et SFTP, les clés d'hôte SSH que vous avez confirmées et les limites des transferts distants."
+      "title": "FTP, SFTP, WebDAV et S3",
+      "description": "Identifiants enregistrés pour les serveurs FTP, FTPS et SFTP, les clés d'hôte SSH que vous avez confirmées, les limites des transferts distants et les profils de stockage objet compatible S3."
     },
     "tools": {
       "eyebrow": "Assistants externes",
@@ -179,7 +179,8 @@
     "username_label": "Utilisateur",
     "username_description": "Nécessaire uniquement pour les proxys avec authentification.",
     "password_label": "Mot de passe",
-    "password_description": "Stocké chiffré et jamais renvoyé par l’API."
+    "password_description": "Stocké chiffré et jamais renvoyé par l’API.",
+    "list_title": "Profils proxy"
   },
   "global_proxy": {
     "eyebrow": "Repli réseau",
@@ -278,7 +279,8 @@
       "description": "Chemin absolu facultatif de rclone ; vide = dossiers vendor et PATH."
     },
     "upload_destinations": {
-      "hint": "Utiliser une destination par plugin :"
+      "hint": "Utiliser une destination par plugin :",
+      "object_storage_hint": "Utiliser un profil de stockage objet :"
     },
     "enrichment": {
       "label": "Interroger les plugins enrichisseurs",
@@ -411,7 +413,7 @@
     "system": "Système",
     "tools": "Outils",
     "torrent": "BitTorrent",
-    "transfers": "FTP, SFTP et WebDAV",
+    "transfers": "FTP, SFTP, WebDAV et S3",
     "unattended": "Fonctionnement sans surveillance",
     "usenet": "Usenet",
     "about": "À propos de rDownloader"
@@ -626,11 +628,9 @@
     "badge_certificate": "Certificat client",
     "badge_disabled": "Inactif",
     "badge_expired": "Expiré",
-    "cancel": "Annuler",
     "certificate_clear": "Supprimer le certificat enregistré",
     "certificate_description": "Clé privée et chaîne de certificats en un seul PEM déchiffré. Les clés protégées par phrase secrète ne sont pas prises en charge.",
     "certificate_label": "Certificat client (facultatif)",
-    "create": "Ajouter un profil",
     "created": "Profil d'authentification créé",
     "delete": "Supprimer",
     "delete_description": "Les identifiants enregistrés sont supprimés avec lui. Les tâches qui l'utilisaient reviennent à la correspondance automatique.",
@@ -648,7 +648,6 @@
     "method_label": "Méthode",
     "name_label": "Nom",
     "name_placeholder": "Intranet",
-    "save": "Enregistrer",
     "saved": "Profil d'authentification enregistré",
     "scope_description": "Hôte, éventuellement avec un préfixe de chemin. Le chemin détermine quel profil correspond, il ne confine pas l'identifiant.",
     "scope_label": "Domaine",
@@ -660,7 +659,10 @@
     "subdomains_label": "Inclure les sous-domaines",
     "test": "Tester",
     "title": "Profils d'authentification",
-    "username_label": "Nom d'utilisateur"
+    "username_label": "Nom d'utilisateur",
+    "form_new": "Nouveau profil d'authentification",
+    "form_edit": "Modifier le profil d'authentification",
+    "create_action": "Créer le profil"
   },
   "storage": {
     "title": "Capacité de stockage",
@@ -676,6 +678,58 @@
     "auto_resume": {
       "label": "Reprendre automatiquement",
       "description": "Libère une destination bloquée dès qu'elle a de la place ; désactivé, la reprise manuelle est requise."
+    },
+    "collision": {
+      "label": "En cas de collision de noms",
+      "description": "Ce qui se passe quand un fichier terminé rencontre un nom déjà pris – pour les paquets et catégories sans règle propre."
+    },
+    "activity": {
+      "eyebrow": "Stockage",
+      "title": "Déplacements, liens et réutilisation",
+      "description": "Déplacements vérifiés entre dossiers, liens de doublons et ce que chaque type de transfert réutilise des données déjà présentes.",
+      "index_checked": "Index de contenu vérifié : {checked} entrées, {missing} manquantes, {restored} retrouvées, {backfilled} ajoutées.",
+      "links_title": "Liens physiques par emplacement",
+      "links_description": "Déterminé en essayant. Cette version ne crée pas de reflinks.",
+      "hardlink_yes": "Liens physiques possibles",
+      "hardlink_no": "pas de liens physiques",
+      "reuse_title": "Réutilisation par type de transfert",
+      "reuse_description": "Déclaré par chaque runner : reprendre, revérifier, adopter, vérifier, et si la règle de collision s’applique.",
+      "kind": "Type",
+      "yes": "oui",
+      "no": "non",
+      "reuse": {
+        "resume_partial": "reprend",
+        "recheck_partial": "revérifie les données partielles",
+        "adopt_completed": "adopte les fichiers terminés",
+        "verify_completed": "vérifie",
+        "applies_collision_policy": "règle de collision"
+      },
+      "runner": {
+        "http": "HTTP",
+        "usenet": "Usenet",
+        "media": "Médias (yt-dlp)",
+        "gallery": "Galerie",
+        "record": "Enregistrement",
+        "torrent": "Torrent",
+        "ftp": "FTP",
+        "sftp": "SFTP",
+        "plugin": "Transfert par plugin"
+      },
+      "history_title": "Historique",
+      "history_description": "Les plus récents d’abord. Un déplacement entre périphériques est vérifié par SHA-256 avant la suppression de l’original.",
+      "check_index": "Vérifier l’index de contenu",
+      "history_empty": "Aucun déplacement ni lien pour l’instant.",
+      "verified": "vérifié",
+      "operation": {
+        "move": "Déplacement",
+        "dedupe": "Lien de doublon"
+      },
+      "states": {
+        "running": "en cours",
+        "completed": "terminé",
+        "failed": "échoué",
+        "interrupted": "interrompu"
+      }
     }
   },
   "services": {
@@ -807,7 +861,7 @@
       "tools": "Outils fournis",
       "tools_hint": "Les paquets Linux et Windows les livrent sous vendor/, leurs textes de licence sous vendor/licenses/.",
       "dependencies": "Dépendances",
-      "dependencies_hint": "Générées au build à partir de Cargo.lock et package-lock.json, jamais à la main.",
+      "dependencies_hint": "Tout ce que contient un paquet livré : les crates que lient le service, l'agent de capture et les plugins sous Linux, Windows et macOS, et les paquets de l'interface. Générées au build à partir de Cargo.lock et pnpm-lock.yaml, jamais à la main.",
       "rust": "Crates Rust",
       "npm": "Paquets npm de l'interface",
       "show": "Afficher les {count}",
@@ -823,5 +877,9 @@
   "nntp_parallel_files": {
     "label": "Fichiers Usenet simultanés",
     "description": "0 = automatique : autant qu’il en faut pour occuper chaque connexion (2 à 8). Ensemble, ils n’occupent qu’une seule place de fichiers parallèles."
+  },
+  "upload_limit": {
+    "label": "Limite d'envoi",
+    "description": "S'applique à chaque envoi : partage torrent, stockage objet, rclone et destinations d'envoi. Vide signifie illimité"
   }
 }

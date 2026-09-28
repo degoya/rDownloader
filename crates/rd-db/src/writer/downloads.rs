@@ -13,8 +13,12 @@ impl Writer {
             WriterCommand::CreatePackage { package, reply } => {
                 send(reply, self.create_package(package).await);
             }
-            WriterCommand::CreateDownload { download, reply } => {
-                send(reply, self.create_download(download).await);
+            WriterCommand::CreateDownload {
+                download,
+                sources,
+                reply,
+            } => {
+                send(reply, self.create_download(download, sources).await);
             }
             WriterCommand::TransitionDownload { id, next, reply } => {
                 send(reply, self.transition_download(id, next).await);

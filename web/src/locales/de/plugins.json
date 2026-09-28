@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installierte Versionen",
     "title": "Lokaler Bestand",
-    "empty": "Noch keine externen Pluginversionen installiert. Die nativen v1-Resolver bleiben verfügbar.",
+    "empty": "Noch keine Plugins installiert. Hoster-Links brauchen ein Resolver-Plugin: Die mitgelieferten werden beim nächsten Start installiert, alle anderen kommen aus einem Repository.",
     "filter_label": "Nach Plugin-Gruppe filtern"
   },
   "card": {
@@ -74,7 +74,7 @@
   "incompatible": {
     "eyebrow": "Abgelehnte Pakete",
     "title": "Installiert, aber nicht ausführbar",
-    "description": "Diese Pakete liegen auf der Platte, diese Version kann sie aber nicht ausführen. Sie bleiben liegen, bis Sie sie entfernen — automatisch zu löschen ließe einen Hoster nur kommentarlos verschwinden. Ein Paket, das eine neuere Version braucht, läuft wieder, sobald sein Autor es neu baut.",
+    "description": "Diese Pakete liegen auf der Platte, diese Version kann sie aber nicht ausführen. Sie bleiben liegen, bis du sie entfernst — automatisch zu löschen ließe einen Hoster nur kommentarlos verschwinden. Ein Paket, das eine neuere Version braucht, läuft wieder, sobald sein Autor es neu baut.",
     "remove": "Entfernen",
     "reason": {
       "plugin.manifest_outdated": "Für einen älteren Plugin-Vertrag gebaut. Der Autor muss es für diese Version neu bauen.",
@@ -136,7 +136,7 @@
     "next": "Ab dem nächsten Start: v{version}",
     "restart_required": "Neustart nötig",
     "staged": "Im Test: v{version}",
-    "staged_hint": "Nur Downloads, die ausdrücklich mit dieser Version gestartet werden, nutzen sie – bis Sie sie aktivieren.",
+    "staged_hint": "Nur Downloads, die ausdrücklich mit dieser Version gestartet werden, nutzen sie – bis du sie aktivierst.",
     "activate": "Aktivieren",
     "discard": "Test beenden",
     "roll_back": "Zurück zu v{version}",
@@ -155,7 +155,7 @@
     "publisher": "Herausgeber",
     "author": "Autor: {author}",
     "key": {
-      "trusted": "Mit einem Schlüssel signiert, dem Sie bereits vertrauen.",
+      "trusted": "Mit einem Schlüssel signiert, dem du bereits vertraust.",
       "untrusted": "Mit einem Schlüssel signiert, den diese Installation noch nicht kennt. Wer installiert, vertraut ihm.",
       "mismatch": "Die Schlüssel-ID gehört zu einem anderen, vertrauten Schlüssel. Dieses Paket kann nicht installiert werden.",
       "withdrawn": "Ein Plugin-Repository hat diesen Signaturschlüssel zurückgezogen. Dieses Paket kann nicht installiert werden.",
@@ -175,7 +175,7 @@
   "updates": {
     "eyebrow": "Repositories",
     "title": "Updates",
-    "description": "Neuere Versionen aus den aktivierten Repositories, signiert mit dem Schlüssel der installierten Version. Nichts wird ohne Ihre Prüfung installiert, außer ein Plugin ist auf automatische Updates gestellt.",
+    "description": "Neuere Versionen aus den aktivierten Repositories, signiert mit dem Schlüssel der installierten Version. Nichts wird ohne deine Prüfung installiert, außer ein Plugin ist auf automatische Updates gestellt.",
     "empty": "Alle installierten Plugins sind aktuell.",
     "version_change": "v{from} → v{to}",
     "from": "aus {repository}",
@@ -191,12 +191,12 @@
       "withdrawn": "Zurückgezogen"
     },
     "adds_permissions": "Neue Rechte",
-    "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach Ihrer Prüfung installiert, auch bei automatischen Updates."
+    "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach deiner Prüfung installiert, auch bei automatischen Updates."
   },
   "repositories": {
     "eyebrow": "Quellen",
     "title": "Plugin-Repositories",
-    "description": "Ein Repository liefert nur Pakete aus: Jedes muss weiterhin mit einem Plugin-Schlüssel signiert sein, dem Sie vertrauen. Ein abgeschaltetes Repository liefert keine Updates und Angebote mehr; was daraus installiert wurde, bleibt.",
+    "description": "Ein Repository liefert nur Pakete aus: Jedes muss weiterhin mit einem Plugin-Schlüssel signiert sein, dem du vertraust. Ein abgeschaltetes Repository liefert keine Updates und Angebote mehr; was daraus installiert wurde, bleibt.",
     "official": "Offiziell",
     "enabled_label": "{name} verwenden",
     "key": "Repository-Schlüssel {key_id}",
@@ -212,12 +212,12 @@
     "add_title": "Repository hinzufügen",
     "url_label": "Index-Adresse (https://)",
     "key_label": "Öffentlicher Repository-Schlüssel (Base64)",
-    "key_hint": "So, wie der Herausgeber des Repositorys ihn veröffentlicht. Vergleichen Sie den danach angezeigten Fingerabdruck, bevor Sie ihn bestätigen.",
+    "key_hint": "So, wie der Herausgeber des Repositorys ihn veröffentlicht. Vergleiche den danach angezeigten Fingerabdruck, bevor du ihn bestätigst.",
     "name_label": "Name (optional)",
     "add": "Repository hinzufügen",
     "approve_title": "Repository-Schlüssel bestätigen",
     "approve_intro": "Der Index unter {url} ist mit diesem Schlüssel signiert und bietet {count} Pakete an.",
-    "approve_warning": "Bestätigen Sie nur, wenn dieser Fingerabdruck mit dem vom Herausgeber veröffentlichten übereinstimmt. Das Repository darf dann Pakete anbieten und zurückziehen, was es geliefert hat; jedes Paket braucht weiterhin einen Plugin-Schlüssel, dem Sie vertrauen.",
+    "approve_warning": "Bestätige nur, wenn dieser Fingerabdruck mit dem vom Herausgeber veröffentlichten übereinstimmt. Das Repository darf dann Pakete anbieten und zurückziehen, was es geliefert hat; jedes Paket braucht weiterhin einen Plugin-Schlüssel, dem du vertraust.",
     "approve": "Bestätigen und hinzufügen",
     "added": "Repository hinzugefügt.",
     "remove": "Repository entfernen",

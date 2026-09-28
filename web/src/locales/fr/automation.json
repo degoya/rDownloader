@@ -101,5 +101,7 @@
     "failed": "Échouée"
   },
   "list_title": "Automatisations",
-  "pick_or_create": "Choisissez une automatisation dans la liste pour la modifier, ou créez-en une nouvelle."
+  "pick_or_create": "Choisissez une automatisation dans la liste pour la modifier, ou créez-en une nouvelle.",
+  "eyebrow": "Si – alors",
+  "duplicate_hint": "Crée une copie désactivée et l’ouvre pour la modifier ; activée, elle agirait une seconde fois à côté de l’original"
 }

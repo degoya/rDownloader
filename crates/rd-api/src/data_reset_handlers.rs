@@ -24,7 +24,7 @@
 //! ## What is never touched
 //!
 //! Downloads, packages, candidates, categories, accounts and the settings document. Each
-//! action deletes only from the store it names, and `crates/rd-api/tests/data_reset.rs` holds
+//! action deletes only from the store it names, and `crates/rd-api/tests/admin/data_reset.rs` holds
 //! that line with a queue that survives all of them. Within the notification history, a
 //! delivery still queued or retrying is never touched either: it is a notification the worker
 //! has yet to send, not a record of one.

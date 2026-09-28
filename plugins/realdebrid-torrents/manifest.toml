@@ -3,18 +3,16 @@ plugin_type = "remote-job"
 api_version = "0.9.0"
 id = "019d0000-0000-7000-8000-00000000011d"
 name = "Real-Debrid torrents"
-version = "0.1.5"
+version = "0.2.1"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
 [capabilities]
-# The access token an `oauth` sign-in produced, the same slot the resolver sibling reads. It
-# is written by `realdebrid-auth` through `store-oauth-token` and read back here only as the
-# template `{{secret:realdebrid_access_token}}`, never as a value.
-#
-# Deliberately not `realdebrid_client_secret`: submitting a magnet has no business with the
-# application the person registered, and a grant it does not need is a grant it should not have.
-secrets = ["realdebrid_access_token"]
+# The account's token, the same two slots the resolver sibling reads (RD-150-09): the access
+# token of a sign-in with a code, or the private API token the person typed. Read here only as
+# the template `{{secret:<reference>}}`, never as a value; the host answers `secret-available`
+# for the one the account's mode makes live.
+secrets = ["realdebrid_access_token", "realdebrid_api_token"]
 
 # The provider's own API, and nothing else. `torrents/*` lives here.
 [capabilities.net_http]

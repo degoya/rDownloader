@@ -73,6 +73,16 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a durable write without its commit falls back to the older checkpoint",
     },
     CrashPoint {
+        name: "http.before_piece_check",
+        owner: "rd-http",
+        invariant: "a chunk confirmed but not checked against its piece hashes is checked before anything builds on it, and a piece that fails isolates the source named for it",
+    },
+    CrashPoint {
+        name: "object_storage.after_part_upload",
+        owner: "rd-object-storage",
+        invariant: "a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again",
+    },
+    CrashPoint {
         name: "scheduler.after_package_row",
         owner: "rd-scheduler",
         invariant: "a package row written before any of its files is dropped by the next start, never left in the queue as an empty one",
@@ -81,6 +91,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "scheduler.before_mirror_promoted",
         owner: "rd-scheduler",
         invariant: "a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming",
+    },
+    CrashPoint {
+        name: "scheduler.before_move_source_removed",
+        owner: "rd-scheduler",
+        invariant: "a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it",
     },
     CrashPoint {
         name: "scheduler.before_package_move",

@@ -24,6 +24,9 @@ pub struct SourceState {
     files: Vec<String>,
     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
     progress: Option<ProgressReporter>,
+    /// Paces the reads of an upload destination (RD-150-15); `None` for a post-processing
+    /// step, which reads the package without sending it anywhere.
+    bandwidth: Option<rd_limits::ScopedLimiter>,
 }
 
 impl SourceState {
@@ -36,7 +39,19 @@ impl SourceState {
             files,
             cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             progress: None,
+            bandwidth: None,
         }
+    }
+
+    /// Paces every read by the upload limit.
+    ///
+    /// The reads are the one place an upload's bytes pass the host before they leave: a
+    /// destination reads a slice and sends it, so holding the slice back until the limiter has
+    /// released it keeps the upload at the limit whatever the plugin does with it afterwards.
+    #[must_use]
+    pub fn with_bandwidth(mut self, bandwidth: rd_limits::ScopedLimiter) -> Self {
+        self.bandwidth = Some(bandwidth);
+        self
     }
 
     /// Where this invocation's progress goes, if the caller wanted it.
@@ -191,7 +206,20 @@ impl crate::extension::bindings::postprocess::rdownloader::plugin::source::Host
         offset: u64,
         length: u32,
     ) -> Result<Vec<u8>, crate::component::rdownloader::plugin::types::Failure> {
-        read_at(self, &handle, &file, offset, length).map_err(refused)
+        let bytes = read_at(self, &handle, &file, offset, length).map_err(refused)?;
+        if let Some(limiter) = self
+            .source
+            .as_ref()
+            .and_then(|source| source.bandwidth.clone())
+            && !bytes.is_empty()
+        {
+            let waited = std::time::Instant::now();
+            let acquired = limiter.acquire(bytes.len()).await;
+            // Waiting on the limit is not the plugin thinking, as with a socket read.
+            self.credit_host_time(waited.elapsed());
+            acquired.map_err(|error| refused(error.to_string()))?;
+        }
+        Ok(bytes)
     }
 
     async fn size_of(

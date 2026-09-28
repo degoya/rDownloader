@@ -1,15 +1,15 @@
-//! Capability enforcement for the built-in resolvers.
+//! Capability enforcement on the application's own host, per plugin.
 //!
 //! A component is confined twice over: the import allowlist decides which host interfaces
 //! it may link at all, and the store carries the manifest's domain list into every call.
-//! The built-in resolvers share one `NativeHost`, so before this they were confined only by
-//! the provider registry — a union across *all* providers — and by nothing at all for
-//! cookies and captchas. "Every grant is enforced at runtime" was therefore true of one
-//! code path and not of the other, for the same hoster logic.
+//! The extension plugin types are handed the shared `NativeHost` itself, and without a
+//! narrowing of their own they would be confined only by the provider registry — a union
+//! across *all* providers — and by nothing at all for cookies and captchas.
 //!
-//! [`GrantedHost`] closes that: it wraps the shared host in one plugin's own manifest, so a
-//! built-in resolver reaches the same set of things its packaged twin does, and refuses with
-//! the same failures.
+//! [`GrantedHost`] closes that: it wraps the shared host in one plugin's own manifest, so an
+//! extension reaches the same set of things a resolver component of the same manifest does,
+//! and refuses with the same failures. Until RD-150-18 it confined the built-in resolvers
+//! too; nothing is compiled in any more.
 
 use std::{sync::Arc, time::Duration};
 
@@ -32,26 +32,11 @@ pub(crate) struct GrantedHost {
 }
 
 impl GrantedHost {
-    /// Wraps `inner` in the grants of the plugin whose bundled manifest is `manifest_toml`.
-    ///
-    /// Returns the trait object rather than `Self`, because a caller has no reason to hold a
-    /// narrowed host as anything but a host.
-    ///
-    /// # Panics
-    ///
-    /// The manifest is embedded at compile time and covered by the bundled manifest tests,
-    /// so a parse failure is a build defect rather than a runtime condition.
-    pub(crate) fn wrap(inner: Arc<dyn ResolverHost>, manifest_toml: &str) -> Arc<dyn ResolverHost> {
-        let manifest: PluginManifest =
-            toml::from_str(manifest_toml).expect("bundled plugin manifest is well-formed");
-        Self::confine(inner, &manifest)
-    }
-
-    /// Narrows `inner` to an already parsed manifest.
+    /// Narrows `inner` to what `manifest` declares.
     ///
     /// The extension types take this route: their manifest arrives with the installed
-    /// package rather than compiled in, but what confines them has to be the same code, or
-    /// "every grant is enforced at runtime" would again be true of one path and not another.
+    /// package, and what confines them has to be the same code for every plugin, or "every
+    /// grant is enforced at runtime" would be true of one path and not another.
     pub(crate) fn confine(
         inner: Arc<dyn ResolverHost>,
         manifest: &PluginManifest,
@@ -201,6 +186,17 @@ impl ResolverHost for GrantedHost {
             .await
     }
 
+    /// Delegated like its two siblings (RD-150-09). What confines it is underneath: the host
+    /// writes only into a part slot the account's own provider declares.
+    async fn store_flow_secret(
+        &self,
+        account_id: AccountId,
+        name: &str,
+        value: &str,
+    ) -> Result<(), Failure> {
+        self.inner.store_flow_secret(account_id, name, value).await
+    }
+
     async fn wait(&self, client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
         self.inner.wait(client, seconds).await
     }
@@ -320,18 +316,23 @@ mod tests {
         }
     }
 
+    const PREMIUMIZE: &str = include_str!("../../../../plugins/premiumize/manifest.toml");
+    const DDOWNLOAD: &str = include_str!("../../../../plugins/ddownload/manifest.toml");
+    const ONEFICHIER: &str = include_str!("../../../../plugins/onefichier/manifest.toml");
+
     fn wrap(manifest: &str) -> (Arc<Recording>, Arc<dyn ResolverHost>) {
         let inner = Arc::new(Recording::default());
-        let host = GrantedHost::wrap(inner.clone(), manifest);
+        let manifest: PluginManifest = toml::from_str(manifest).expect("bundled manifest");
+        let host = GrantedHost::confine(inner.clone(), &manifest);
         (inner, host)
     }
 
     /// Premiumize is an API-key multihoster: no captcha, no cookies. The component of the
-    /// same plugin cannot even link those interfaces, and the built-in resolver must not be
-    /// able to reach past them either.
+    /// same plugin cannot even link those interfaces, and the narrowed host must not let
+    /// anything under its manifest reach past them either.
     #[tokio::test]
-    async fn a_plugin_without_the_captcha_grant_is_refused_on_the_native_path_too() {
-        let (inner, host) = wrap(rd_plugin_premiumize::MANIFEST);
+    async fn a_plugin_without_the_captcha_grant_is_refused_by_the_narrowed_host_too() {
+        let (inner, host) = wrap(PREMIUMIZE);
         let failure = host
             .solve_captcha(&identity(), challenge(), Duration::from_secs(60))
             .await
@@ -348,7 +349,7 @@ mod tests {
     /// that window at somebody else's site, so the page is held to the manifest's domains.
     #[tokio::test]
     async fn a_widget_captcha_page_outside_the_plugins_domains_is_refused() {
-        let (inner, host) = wrap(rd_plugin_ddownload::MANIFEST);
+        let (inner, host) = wrap(DDOWNLOAD);
         let elsewhere = CaptchaChallenge::Turnstile(WidgetChallenge {
             site_key: "0x4AAA".to_owned(),
             page_url: "https://www.premiumize.me/login".to_owned(),
@@ -374,7 +375,7 @@ mod tests {
     /// challenge — which names no page at all — is untouched by the check.
     #[tokio::test]
     async fn the_plugins_own_page_and_an_image_challenge_still_reach_the_broker() {
-        let (inner, host) = wrap(rd_plugin_ddownload::MANIFEST);
+        let (inner, host) = wrap(DDOWNLOAD);
 
         host.solve_captcha(&identity(), challenge(), Duration::from_secs(60))
             .await
@@ -393,7 +394,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_plugin_without_the_cookies_grant_reads_no_cookies() {
-        let (inner, host) = wrap(rd_plugin_premiumize::MANIFEST);
+        let (inner, host) = wrap(PREMIUMIZE);
         let cookies = host
             .cookies_get(
                 AccountId::new(),
@@ -408,7 +409,7 @@ mod tests {
     /// without a per-plugin check ddownload could have reached premiumize's API.
     #[tokio::test]
     async fn a_request_outside_the_plugins_own_domains_is_refused() {
-        let (inner, host) = wrap(rd_plugin_ddownload::MANIFEST);
+        let (inner, host) = wrap(DDOWNLOAD);
         let failure = host
             .http_request(
                 &identity(),
@@ -432,7 +433,7 @@ mod tests {
     /// live in `net_http` and nowhere else, so the per-plugin gate has to allow them.
     #[tokio::test]
     async fn the_free_flows_api_and_delivery_hosts_stay_requestable() {
-        let (_, onefichier) = wrap(rd_plugin_onefichier::MANIFEST);
+        let (_, onefichier) = wrap(ONEFICHIER);
         onefichier
             .http_request(
                 &identity(),
@@ -441,7 +442,7 @@ mod tests {
             .await
             .expect("1fichier's API host is granted");
 
-        let (_, ddownload) = wrap(rd_plugin_ddownload::MANIFEST);
+        let (_, ddownload) = wrap(DDOWNLOAD);
         ddownload
             .http_request(&identity(), request("https://s12.zeuscdn.org/file.bin"))
             .await
@@ -450,7 +451,7 @@ mod tests {
 
     #[tokio::test]
     async fn only_the_granted_secret_reference_is_visible() {
-        let (inner, host) = wrap(rd_plugin_ddownload::MANIFEST);
+        let (inner, host) = wrap(DDOWNLOAD);
         assert!(
             !host
                 .secret_available(AccountId::new(), "premiumize_api_key")

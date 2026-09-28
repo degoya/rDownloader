@@ -102,6 +102,8 @@ struct MockRealDebrid {
     failure: Option<(u16, &'static str, Option<&'static str>)>,
     requests: Mutex<Vec<Recorded>>,
     authorizations: Mutex<Vec<String>>,
+    /// The one token reference the host admits for the account, by its mode (RD-150-09).
+    token: &'static str,
 }
 
 impl MockRealDebrid {
@@ -111,6 +113,7 @@ impl MockRealDebrid {
             failure: None,
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
+            token: "realdebrid_access_token",
         })
     }
 
@@ -120,6 +123,18 @@ impl MockRealDebrid {
             failure: Some((status, body, retry_after)),
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
+            token: "realdebrid_access_token",
+        })
+    }
+
+    /// An account in "API token" mode: the host admits the typed token and not a sign-in's.
+    fn with_api_token(info: &[&'static str]) -> Arc<Self> {
+        Arc::new(Self {
+            info: Mutex::new(info.iter().copied().collect()),
+            failure: None,
+            requests: Mutex::new(Vec::new()),
+            authorizations: Mutex::new(Vec::new()),
+            token: "realdebrid_api_token",
         })
     }
 
@@ -203,7 +218,7 @@ impl ResolverHost for MockRealDebrid {
     }
 
     async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        reference == "realdebrid_access_token"
+        reference == self.token
     }
 }
 
@@ -524,6 +539,29 @@ async fn the_access_token_travels_as_a_template_and_never_as_a_value() {
     );
 }
 
+/// An account holding a typed API token sends that one, as a template too (RD-150-09): the
+/// plugin asks the host which reference is live instead of assuming the sign-in's.
+#[tokio::test]
+async fn an_account_in_api_token_mode_sends_the_typed_token() {
+    let bytes = component();
+    let host = MockRealDebrid::with_api_token(&[INFO_DOWNLOADED]);
+    let runners = runners(Arc::clone(&host), &bytes);
+    let account = AccountId::new();
+    let handle = runners
+        .submit(PLUGIN_ID, account, &magnet(), HASH)
+        .await
+        .expect("submitted");
+    let _ = runners.poll(PLUGIN_ID, account, &handle).await;
+    let authorizations = host.authorizations();
+    assert_eq!(authorizations.len(), 2);
+    assert!(
+        authorizations
+            .iter()
+            .all(|value| value == "Bearer {{secret:realdebrid_api_token}}"),
+        "{authorizations:?}"
+    );
+}
+
 /// A torrent the provider ended is a refusal that ends the job, under the code that says how.
 #[tokio::test]
 async fn a_torrent_the_provider_ended_is_a_failure_and_not_a_wait() {
@@ -733,11 +771,14 @@ fn the_plugin_reaches_only_the_part_of_real_debrid_it_needs() {
         manifest.capabilities.domains(),
         ["api.real-debrid.com".to_owned()].as_slice()
     );
-    // The access token and nothing else: submitting a magnet has no business with the
-    // application the person registered.
+    // The account's token in either mode and nothing else: submitting a magnet has no
+    // business with the client id and client secret the sign-in keeps (RD-150-09).
     assert_eq!(
         manifest.capabilities.secrets,
-        vec!["realdebrid_access_token".to_owned()]
+        vec![
+            "realdebrid_access_token".to_owned(),
+            "realdebrid_api_token".to_owned()
+        ]
     );
     assert!(!manifest.capabilities.cookies);
     assert!(!manifest.capabilities.captcha);

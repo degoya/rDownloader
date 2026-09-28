@@ -16,12 +16,15 @@ import routing from '@/locales/en/routing.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
+const post = vi.fn()
+const put = vi.fn()
+const patch = vi.fn()
 vi.mock('@/api/client', () => ({
   api: {
     GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
+    POST: (...args: unknown[]) => post(...args),
+    PUT: (...args: unknown[]) => put(...args),
+    PATCH: (...args: unknown[]) => patch(...args),
     DELETE: vi.fn()
   },
   responseError: vi.fn(() => 'rejected'),
@@ -113,7 +116,7 @@ describe('RoutingCategories', () => {
     expect(name.value).toBe('Series')
     await waitFor(() => expect(document.activeElement).toBe(name))
 
-    await fireEvent.click(screen.getByRole('button', { name: routing.cancel_edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.cancel_edit }))
 
     expect(screen.getByRole('heading', { level: 3, name: routing.category.form_new })).toBeTruthy()
     expect(screen.queryByText(common.editing)).toBeNull()
@@ -213,5 +216,182 @@ describe('RoutingCategories reacting to postprocess_catalog.changed', () => {
 
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/postprocess/plugin-steps'), { timeout: 2000 })
     expect(get.mock.calls.filter(([path]) => path === '/api/v1/postprocess/plugin-steps').length).toBe(1)
+  })
+})
+
+const SECOND_ROOT: StorageRoot = { ...ROOT, id: 'root-2', name: 'Archive', path: '/mnt/archive', is_default: false }
+const EMPTY_ROOT: StorageRoot = { ...ROOT, id: 'root-3', name: 'Scratch', path: '/scratch', is_default: false }
+
+function on(root: StorageRoot, entry: Category): Category {
+  return { ...entry, storage_root_id: root.id }
+}
+
+function mountWith(modelValue: Category[], roots: StorageRoot[]) {
+  return mountComponent(RoutingCategories, {
+    messages: { routing },
+    props: { modelValue, roots, loading: false, loadError: null },
+    stubs: { UInputTags: true }
+  })
+}
+
+/** The accordion section of one storage root, found by its header button. */
+function sectionOf(rootName: string): HTMLElement {
+  return screen.getByRole('button', { name: new RegExp(rootName) }).closest('[data-accordion-item]') as HTMLElement
+}
+
+function serveEditor(): void {
+  get.mockReset()
+  get.mockImplementation(async (path: string) =>
+    path === '/api/v1/postprocess/scripts' ? { data: { scripts: [], directory: '/scripts' } } : { data: [] }
+  )
+}
+
+/**
+ * RD-150-13: with categories on several drives, the list is grouped by storage root, so a
+ * category is found by where it lands rather than in one long list.
+ */
+describe('RoutingCategories grouped by storage root', () => {
+  beforeEach(() => {
+    serveEditor()
+    post.mockReset()
+  })
+
+  it('opens one section per root that holds a category, headed by name, path and count', () => {
+    mountWith([
+      on(ROOT, { ...category('cat-1', 'Films'), is_default: true }),
+      on(SECOND_ROOT, category('cat-2', 'Series')),
+      on(SECOND_ROOT, category('cat-3', 'Docs'))
+    ], [ROOT, SECOND_ROOT, EMPTY_ROOT])
+
+    const sections = screen.getByTestId('category-groups').querySelectorAll('[data-accordion-item]')
+    // In the order of the roots, and none for the root without categories.
+    expect(Array.from(sections).map(section => section.querySelector('button')?.textContent)).toEqual([
+      expect.stringContaining('Downloads'),
+      expect.stringContaining('Archive')
+    ])
+    expect(screen.queryByRole('button', { name: /Scratch/ })).toBeNull()
+    const archive = sectionOf('Archive').querySelector('button') as HTMLElement
+    expect(archive.textContent).toContain('/mnt/archive')
+    expect(archive.textContent).toContain('2 categories')
+    // The section holding the default category says so in its header.
+    expect(sectionOf('Downloads').querySelector('button')?.textContent).toContain(routing.category.default_badge)
+    expect(archive.textContent).not.toContain(routing.category.default_badge)
+    // Every section starts open.
+    expect(within(sectionOf('Archive')).getByText('Series')).toBeTruthy()
+    expect(within(sectionOf('Downloads')).getByText('Films')).toBeTruthy()
+  })
+
+  it('stays flat while every category lies on one root', () => {
+    mountWith([category('cat-1', 'Films'), category('cat-2', 'Series')], [ROOT, SECOND_ROOT])
+
+    expect(screen.queryByTestId('category-groups')).toBeNull()
+    expect(screen.getByText('Films')).toBeTruthy()
+    expect(screen.getByText('Series')).toBeTruthy()
+  })
+
+  it('opens the section of a category created into a closed one', async () => {
+    mountWith([on(ROOT, category('cat-1', 'Films')), on(SECOND_ROOT, category('cat-2', 'Series'))], [ROOT, SECOND_ROOT])
+    await fireEvent.click(sectionOf('Archive').querySelector('button') as HTMLElement)
+    expect(within(sectionOf('Archive')).queryByText('Series')).toBeNull()
+
+    post.mockResolvedValue({ data: on(SECOND_ROOT, category('cat-9', 'Music')) })
+    await fireEvent.update(screen.getByPlaceholderText(routing.category.name_placeholder), 'Music')
+    await fireEvent.click(screen.getByRole('button', { name: routing.category.create }))
+
+    await waitFor(() => expect(within(sectionOf('Archive')).getByText('Music')).toBeTruthy())
+    expect(within(sectionOf('Archive')).getByText('Series')).toBeTruthy()
+  })
+
+  it('names each header control by its root and reports whether it is open', async () => {
+    mountWith([on(ROOT, category('cat-1', 'Films')), on(SECOND_ROOT, category('cat-2', 'Series'))], [ROOT, SECOND_ROOT])
+    const header = sectionOf('Archive').querySelector('button') as HTMLElement
+
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    await fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+  })
+})
+
+/**
+ * RD-150-12: a category is copied with every setting, never with the default mark or the rules
+ * that point at the original, and the copy opens in the form to be changed.
+ */
+describe('RoutingCategories duplicate', () => {
+  beforeEach(() => {
+    serveEditor()
+    post.mockReset()
+    put.mockReset()
+    patch.mockReset()
+  })
+
+  it('creates the copy with the settings under a free name and opens it in the form', async () => {
+    const original: Category = {
+      ...category('cat-1', 'Films'),
+      is_default: true,
+      color: '#FF0000',
+      postprocess_level: 'unpack',
+      script: 'tag.sh',
+      cleanup_extensions: ['nfo'],
+      upload_enabled: true,
+      upload_remote: 'gdrive:films',
+      plugin_steps: ['rd-plugin-tag'],
+      seeding: { enabled: true, ratio_milli: 1500, time: { minutes: 90 } }
+    } as Category
+    let created: Record<string, unknown> = {}
+    post.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => {
+      created = { ...original, ...body, id: 'cat-copy', plugin_steps: null, seeding: null }
+      return { data: created }
+    })
+    patch.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...created, plugin_steps: body.plugin_steps }
+    }))
+    put.mockResolvedValue({ data: {} })
+    mountWith([original, category('cat-2', 'Films (copy)')], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.duplicate }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    const body = post.mock.calls[0]?.[1]?.body as Record<string, unknown>
+    expect(body).toMatchObject({
+      name: 'Films (copy 2)',
+      is_default: false,
+      color: '#FF0000',
+      storage_root_id: ROOT.id,
+      relative_path: 'films',
+      postprocess_level: 'unpack',
+      script: 'tag.sh',
+      cleanup_extensions: ['nfo'],
+      upload_enabled: true,
+      upload_remote: 'gdrive:films'
+    })
+    // What the create route does not take travels on the routes that set it.
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(patch.mock.calls[0]?.[1]).toMatchObject({ params: { path: { id: 'cat-copy' } }, body: { plugin_steps: ['rd-plugin-tag'] } })
+    expect(put.mock.calls[0]?.[0]).toBe('/api/v1/categories/{id}/seeding')
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      params: { path: { id: 'cat-copy' } },
+      body: { enabled: true, ratio: 1.5, time_minutes: 90, time_unlimited: null }
+    })
+
+    // The copy stands in the form, marked as the row being edited; the original keeps its mark.
+    await waitFor(() => expect(screen.getByRole('heading', { level: 3, name: routing.category.form_edit })).toBeTruthy())
+    expect(within(rowOf('Films (copy 2)')).getByText(common.editing)).toBeTruthy()
+    expect(within(rowOf('Films (copy 2)')).queryByText(routing.category.default_badge)).toBeNull()
+    expect(within(rowOf('Films')).getByText(routing.category.default_badge)).toBeTruthy()
+    const name = screen.getByPlaceholderText(routing.category.name_placeholder) as HTMLInputElement
+    expect(name.value).toBe('Films (copy 2)')
+    expect(screen.getByText(routing.category.duplicated)).toBeTruthy()
+  })
+
+  it('leaves the list alone when the server refuses the copy', async () => {
+    post.mockResolvedValue({ error: { code: 'category.name_taken' } })
+    mountWith([category('cat-1', 'Films')], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.duplicate }))
+
+    await waitFor(() => expect(screen.getByText('rejected')).toBeTruthy())
+    expect(screen.getAllByText(/^Films/)).toHaveLength(1)
+    expect(patch).not.toHaveBeenCalled()
+    expect(put).not.toHaveBeenCalled()
   })
 })

@@ -54,7 +54,11 @@
     "plugin_repository_added": "Plugin repository added",
     "plugin_repository_changed": "Plugin repository changed",
     "plugin_repository_removed": "Plugin repository removed",
-    "plugin_version_chosen": "Plugin version chosen"
+    "plugin_version_chosen": "Plugin version chosen",
+    "script_subscription_changed": "Script subscription created or changed",
+    "file_overwritten": "File overwritten",
+    "collision_decided": "File collision decided",
+    "duplicate_linked": "Duplicate linked"
   },
   "list": {
     "title": "Records",

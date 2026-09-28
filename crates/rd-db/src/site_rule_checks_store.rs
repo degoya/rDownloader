@@ -39,11 +39,13 @@ pub struct NewSiteRuleCheck {
 const COLUMNS: &str = "rule_id, verdict, code, links, pages, checked_at";
 
 pub(crate) async fn list_site_rule_checks(pool: &SqlitePool) -> Result<Vec<SiteRuleCheck>> {
-    Ok(sqlx::query_as::<_, SiteRuleCheck>(&format!(
-        "SELECT {COLUMNS} FROM site_rule_checks ORDER BY rule_id"
-    ))
-    .fetch_all(pool)
-    .await?)
+    Ok(
+        sqlx::query_as::<_, SiteRuleCheck>(sqlx::AssertSqlSafe(format!(
+            "SELECT {COLUMNS} FROM site_rule_checks ORDER BY rule_id"
+        )))
+        .fetch_all(pool)
+        .await?,
+    )
 }
 
 /// Writes the results of one self-test run, replacing what an earlier run said about the

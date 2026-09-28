@@ -23,7 +23,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt, KeyInit},
+    cipher::{BlockCipherDecrypt, KeyInit},
 };
 use hmac::{Hmac, Mac};
 use rd_core::{Failure, FailureKind};
@@ -258,7 +258,7 @@ pub fn run(secret: &[u8], steps: &[DerivationStep]) -> Result<Vec<u8>, Failure> 
 /// implementation would be a different number.
 fn pbkdf2_hmac_sha512(password: &[u8], salt: &[u8], rounds: u32, length: usize) -> Vec<u8> {
     let round = |data: &[u8]| -> Zeroizing<Vec<u8>> {
-        let mut mac = <Hmac<Sha512> as Mac>::new_from_slice(password)
+        let mut mac = <Hmac<Sha512> as KeyInit>::new_from_slice(password)
             .expect("HMAC takes a key of any length");
         mac.update(data);
         Zeroizing::new(mac.finalize().into_bytes().to_vec())

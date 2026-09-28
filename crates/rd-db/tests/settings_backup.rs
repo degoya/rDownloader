@@ -133,6 +133,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             autoplay: false,
             card_ratio: rd_core::SubscriptionCardRatio::OneOne,
             schedule: None,
+            script_arguments: vec!["--since".to_owned(), "two words".to_owned()],
             secret_ref: None,
         }],
         auth_profiles: vec![ReplacementAuthProfile {
@@ -187,6 +188,11 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(
         database.list_subscriptions().await.expect("subscriptions")[0].card_ratio,
         rd_core::SubscriptionCardRatio::OneOne
+    );
+    // So are the arguments a script is handed (RD-150-08), each one as it was.
+    assert_eq!(
+        database.list_subscriptions().await.expect("subscriptions")[0].script_arguments,
+        ["--since", "two words"]
     );
     let restored = database.list_categories().await.expect("categories");
     assert_eq!(restored[0].id, ids.1);

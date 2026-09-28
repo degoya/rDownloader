@@ -36,6 +36,8 @@ aes.workspace = true
 # The seam RD-120-11 found broken: what the real component answers has to be something
 # `StreamTransform::new` will accept. Already in the graph through `rd-plugin-host`.
 rd-http = { path = "../rd-http" }
+# The paced upload test builds a registry with an upload limit (RD-150-15).
+rd-limits = { path = "../rd-limits" }
 toml.workspace = true
 
 [lints]

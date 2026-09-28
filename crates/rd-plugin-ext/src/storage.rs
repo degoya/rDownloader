@@ -137,7 +137,9 @@ impl StorageUploader for StorageDestinations {
                 Arc::clone(&upload.progress),
                 sent,
                 package,
-            ));
+            ))
+            // The upload limit (RD-150-15), paced on the plugin's reads of the package.
+            .with_bandwidth(upload.bandwidth.clone());
             let outcome = destination
                 .plugin
                 .put(

@@ -1,9 +1,11 @@
 //! Resumable HTTP download engine.
 
+mod address_guard;
 mod client_pool;
 mod cookies;
 mod engine;
 mod hostlimit;
+mod multisource;
 mod plan;
 mod probe;
 mod redirect;
@@ -11,6 +13,10 @@ mod sniff;
 mod tls;
 mod transform;
 
+pub use address_guard::{
+    AddressPolicy, AddressRefused, AddressScope, GuardedResolver, HostLookup, LookupFuture,
+    SystemLookup, TargetRefusal, address_scope, check_target, is_refusal, literal_address,
+};
 pub use client_pool::{
     AuthMaterial, ClientContext, ClientKey, ClientPool, NetworkDefaults, ProxyCredentials,
     SharedNetworkDefaults,
@@ -23,7 +29,8 @@ pub use engine::{
     LOCAL_IO_CODE, ReplayPayload, TransformPlan,
 };
 pub use hostlimit::{DEFAULT_CONNECTIONS_PER_HOST, HostLimits, MAX_CONNECTIONS_PER_HOST};
-pub use plan::{ChunkSpec, plan_chunks};
+pub use multisource::{MultiSourceRequest, SourceEndpoint, SourceLedger};
+pub use plan::{ChunkSpec, chunks_aligned, plan_aligned_chunks, plan_chunks};
 pub use probe::{
     ConditionalBody, FetchedDocument, ProbeResult, VerbatimBody, contradicts_announced_size,
     fetch_bytes, fetch_conditional, fetch_document, fetch_text_verbatim, peek_body_text, probe,

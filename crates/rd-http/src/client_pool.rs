@@ -46,6 +46,10 @@ pub struct ClientKey {
     /// exactly as fragmented as it was before replay existed.
     pub replay_scope: Option<u64>,
     pub tls_revision: u64,
+    /// The address rule of a request made on a stranger's word — a Metalink's mirror
+    /// (RD-150-03). Such a client resolves names through [`crate::GuardedResolver`] and
+    /// follows no redirect to an address the rule refuses. `None` for every ordinary download.
+    pub address_policy: Option<crate::AddressPolicy>,
 }
 
 /// Decrypted proxy credentials held only while a client is built.
@@ -124,6 +128,7 @@ fn build_client(context: &ClientContext) -> Result<Client> {
         .redirect(redirect_policy(
             context.auth.as_ref(),
             context.replay_scope.clone(),
+            context.key.address_policy.clone(),
         ))
         .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")));
 
@@ -146,6 +151,15 @@ fn build_client(context: &ClientContext) -> Result<Client> {
         builder = builder.identity(identity);
     }
 
+    // Through a proxy the resolver would only ever see the proxy's own name — which may well
+    // sit on the person's network — while the proxy resolves the target. The target was still
+    // judged before the request (`check_target`), and every redirect hop still is.
+    if let Some(policy) = &context.key.address_policy
+        && context.proxy.is_none()
+    {
+        builder = builder.dns_resolver(crate::GuardedResolver::system(policy.clone()));
+    }
+
     builder.build().context("build HTTP client")
 }
 
@@ -162,13 +176,24 @@ fn build_client(context: &ClientContext) -> Result<Client> {
 /// subdomains, and presenting a client certificate to a sibling host is exactly the leak
 /// this prevents. It is also the definition of "cross-origin" reqwest itself uses when it
 /// strips credential headers.
-fn redirect_policy(auth: Option<&AuthMaterial>, replay: Option<Arc<crate::ReplayScope>>) -> Policy {
+///
+/// A client with an address rule refuses, on top of all that, a hop to a scheme other than
+/// HTTP(S) or to a literal address the rule does not permit: a literal never reaches the
+/// resolver that judges names.
+fn redirect_policy(
+    auth: Option<&AuthMaterial>,
+    replay: Option<Arc<crate::ReplayScope>>,
+    guard: Option<crate::AddressPolicy>,
+) -> Policy {
     // A consented replay is confined to the origins a person approved, which is narrower
     // and more explicit than the same-origin rule a client certificate gets.
     if let Some(scope) = replay {
         return Policy::custom(move |attempt: Attempt| {
             if attempt.previous().len() >= MAX_REDIRECTS {
                 return attempt.error(RedirectRefused::TooMany);
+            }
+            if let Some(refused) = hop_refusal(guard.as_ref(), attempt.url()) {
+                return attempt.error(refused);
             }
             if !crate::redirect::gate_allows(attempt.url()) {
                 return attempt.stop();
@@ -191,9 +216,12 @@ fn redirect_policy(auth: Option<&AuthMaterial>, replay: Option<Arc<crate::Replay
     // can know about. Stopping hands the redirect back as the response, unfollowed; the
     // sender refuses it by its own rules. Without a gate this is `Policy::limited`.
     if auth.is_none() {
-        return Policy::custom(|attempt: Attempt| {
+        return Policy::custom(move |attempt: Attempt| {
             if attempt.previous().len() >= MAX_REDIRECTS {
                 return attempt.error(RedirectRefused::TooMany);
+            }
+            if let Some(refused) = hop_refusal(guard.as_ref(), attempt.url()) {
+                return attempt.error(refused);
             }
             if !crate::redirect::gate_allows(attempt.url()) {
                 return attempt.stop();
@@ -205,6 +233,9 @@ fn redirect_policy(auth: Option<&AuthMaterial>, replay: Option<Arc<crate::Replay
         // A custom policy inherits no loop or limit handling, so the budget is explicit.
         if attempt.previous().len() >= MAX_REDIRECTS {
             return attempt.error(RedirectRefused::TooMany);
+        }
+        if let Some(refused) = hop_refusal(guard.as_ref(), attempt.url()) {
+            return attempt.error(refused);
         }
         if !crate::redirect::gate_allows(attempt.url()) {
             return attempt.stop();
@@ -218,6 +249,15 @@ fn redirect_policy(auth: Option<&AuthMaterial>, replay: Option<Arc<crate::Replay
             attempt.error(RedirectRefused::OutOfScope)
         }
     })
+}
+
+/// Why a guarded client may not follow a hop; `None` without a guard. An error rather than
+/// `stop()`, so the refusal travels in the error chain and the engine reports it by its code.
+fn hop_refusal(
+    guard: Option<&crate::AddressPolicy>,
+    target: &Url,
+) -> Option<crate::AddressRefused> {
+    guard.and_then(|policy| policy.hop_refusal(target))
 }
 
 /// Scheme, host and effective port — the triple reqwest treats as one origin.
@@ -269,6 +309,7 @@ mod tests {
             auth_revision: revision,
             replay_scope: None,
             tls_revision: 0,
+            address_policy: None,
         }
     }
 

@@ -101,5 +101,7 @@
     "failed": "Fehlgeschlagen"
   },
   "list_title": "Automationen",
-  "pick_or_create": "Wähle eine Automation aus der Liste, um sie zu bearbeiten, oder lege eine neue an."
+  "pick_or_create": "Wähle eine Automation aus der Liste, um sie zu bearbeiten, oder lege eine neue an.",
+  "eyebrow": "Wenn – dann",
+  "duplicate_hint": "Legt eine abgeschaltete Kopie an und öffnet sie zum Bearbeiten – eingeschaltet würde sie neben dem Original doppelt handeln"
 }

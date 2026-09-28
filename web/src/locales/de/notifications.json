@@ -59,7 +59,8 @@
     "secret_plugin_description": "Das Token, mit dem sich dieses Ziel ausweist. Es liegt im Tresor; das Plugin sieht es nie — nur die Anfrage, die es baut, trägt es.",
     "destination_label": "Plugin",
     "destination_description": "Welches installierte Ziel dieses Element zustellt.",
-    "form_new": "Neues Ziel"
+    "form_new": "Neues Ziel",
+    "secret_copy": "Nicht mitkopiert – bitte neu eintragen; bis dahin hat die Kopie keins."
   },
   "smtp": {
     "from": "Absender",

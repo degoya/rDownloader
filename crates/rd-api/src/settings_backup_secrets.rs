@@ -9,7 +9,7 @@
 //! the secret store, so a secret is in a bundle only because somebody wrote a line putting it
 //! there. That is what keeps the second factor out: an authenticator seed and its recovery
 //! codes live in the same store, and a bundle is a file people copy between machines and hand
-//! to each other for support. `crates/rd-api/tests/mfa.rs` fails if that ever changes.
+//! to each other for support. `crates/rd-api/tests/access/mfa.rs` fails if that ever changes.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 

@@ -114,6 +114,7 @@ async fn fixture(start: DateTime<Utc>) -> Fixture {
         media_probe,
         remote.ftp,
         remote.sftp,
+        remote.object_storage,
         rd_torrent::TorrentService::start(
             database.clone(),
             rd_torrent::shared_settings(&database)
@@ -169,6 +170,7 @@ fn daily_at_six() -> rd_db::NewSubscription {
         autoplay: false,
         card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
         schedule: Some("0 6 * * *".to_owned()),
+        script_arguments: Vec::new(),
         secret_ref: None,
     }
 }

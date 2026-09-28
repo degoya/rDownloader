@@ -30,6 +30,8 @@ pub struct ClaimRemoteJob {
     pub source_kind: RemoteJobSourceKind,
     /// The magnet or plain address as UTF-8, or the container's bytes.
     pub source: Vec<u8>,
+    /// The name the source was handed in under, when the caller knew one.
+    pub source_name: Option<String>,
     pub package_id: Option<CollectorPackageId>,
 }
 
@@ -70,9 +72,9 @@ pub(crate) async fn claim(
     let affected = sqlx::query(
         "INSERT INTO remote_jobs \
          (id, account_id, plugin_id, content_key, remote_id, state, source_kind, source, \
-          submit_attempts, adoption_checked, package_id, entries, chosen, progress_permille, \
-          message, code, next_poll_at, created_at, updated_at, job_state) \
-         VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 0, 0, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, NULL) \
+          source_name, submit_attempts, adoption_checked, package_id, entries, chosen, \
+          progress_permille, message, code, next_poll_at, created_at, updated_at, job_state) \
+         VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, 0, 0, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, NULL) \
          ON CONFLICT(account_id, content_key) DO NOTHING",
     )
     .bind(input.id.to_string())
@@ -82,6 +84,7 @@ pub(crate) async fn claim(
     .bind(RemoteJobState::Submitting.as_str())
     .bind(input.source_kind.as_str())
     .bind(&input.source)
+    .bind(&input.source_name)
     .bind(input.package_id.map(|id| id.to_string()))
     .bind(now)
     .bind(now)
@@ -100,6 +103,7 @@ pub(crate) async fn claim(
         remote_id: None,
         state: RemoteJobState::Submitting,
         source_kind: input.source_kind,
+        source_name: input.source_name,
         submit_attempts: 0,
         adoption_checked: false,
         package_id: input.package_id,
@@ -207,7 +211,7 @@ pub(crate) async fn advance(
 
 /// One job by its own identifier.
 pub(crate) async fn get(pool: &SqlitePool, id: RemoteJobId) -> Result<Option<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!("{SELECT} WHERE id = ?"))
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!("{SELECT} WHERE id = ?")))
         .bind(id.to_string())
         .fetch_optional(pool)
         .await?
@@ -224,9 +228,9 @@ pub(crate) async fn by_content(
     account_id: AccountId,
     content_key: &str,
 ) -> Result<Option<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!(
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE account_id = ? AND content_key = ?"
-    ))
+    )))
     .bind(account_id.to_string())
     .bind(content_key)
     .fetch_optional(pool)
@@ -241,10 +245,10 @@ pub(crate) async fn by_content(
 /// person answers, and polling in the meantime would spend an account's request budget on
 /// re-reading a question nobody has got to yet.
 pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!(
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state IN ('submitting', 'preparing', 'working') \
          AND (next_poll_at IS NULL OR next_poll_at <= ?) ORDER BY created_at"
-    ))
+    )))
     .bind(now)
     .fetch_all(pool)
     .await?
@@ -259,19 +263,21 @@ pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Rem
 /// "is anything running at a provider" is asking about their installation and not about one
 /// account at a time; the row names its own account.
 pub(crate) async fn list_all(pool: &SqlitePool) -> Result<Vec<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!("{SELECT} ORDER BY created_at DESC"))
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!(
+        "{SELECT} ORDER BY created_at DESC"
+    )))
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
 }
 
 /// Every job of one account, newest first.
 pub(crate) async fn list(pool: &SqlitePool, account_id: AccountId) -> Result<Vec<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!(
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE account_id = ? ORDER BY created_at DESC"
-    ))
+    )))
     .bind(account_id.to_string())
     .fetch_all(pool)
     .await?
@@ -333,7 +339,7 @@ fn changed(job: &RemoteJob) -> EventEnvelope {
 }
 
 async fn fetch(connection: &mut SqliteConnection, id: RemoteJobId) -> Result<Option<RemoteJob>> {
-    sqlx::query_as::<_, JobRow>(&format!("{SELECT} WHERE id = ?"))
+    sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!("{SELECT} WHERE id = ?")))
         .bind(id.to_string())
         .fetch_optional(&mut *connection)
         .await?
@@ -342,7 +348,7 @@ async fn fetch(connection: &mut SqliteConnection, id: RemoteJobId) -> Result<Opt
 }
 
 const SELECT: &str = "SELECT id, account_id, plugin_id, content_key, remote_id, state, \
-     source_kind, submit_attempts, adoption_checked, package_id, entries, chosen, \
+     source_kind, source_name, submit_attempts, adoption_checked, package_id, entries, chosen, \
      progress_permille, message, code, next_poll_at, created_at, updated_at, job_state \
      FROM remote_jobs";
 
@@ -355,6 +361,7 @@ struct JobRow {
     remote_id: Option<String>,
     state: String,
     source_kind: String,
+    source_name: Option<String>,
     submit_attempts: i64,
     adoption_checked: bool,
     package_id: Option<String>,
@@ -395,6 +402,7 @@ impl TryFrom<JobRow> for RemoteJob {
             remote_id: row.remote_id,
             state,
             source_kind,
+            source_name: row.source_name,
             submit_attempts: u32::try_from(row.submit_attempts.max(0)).unwrap_or(u32::MAX),
             adoption_checked: row.adoption_checked,
             package_id: row.package_id.map(|id| id.parse()).transpose()?,

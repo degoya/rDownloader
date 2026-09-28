@@ -364,9 +364,9 @@ pub(crate) async fn list_imports(pool: &SqlitePool) -> Result<Vec<NzbImport>> {
     // The LinkGrabber's manual order is one sequence over both tables, so this list has to come
     // out of the database in it; sorting by creation time in the client is what made an import
     // un-draggable in the first place.
-    sqlx::query_as::<_, NzbImportRow>(&format!(
+    sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!(
         "{IMPORT_SELECT} ORDER BY position ASC, created_at ASC"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -635,19 +635,21 @@ async fn get_by_hash_connection(
     connection: &mut SqliteConnection,
     sha256: &str,
 ) -> Result<Option<NzbImport>> {
-    sqlx::query_as::<_, NzbImportRow>(&format!("{IMPORT_SELECT} WHERE sha256 = ?"))
-        .bind(sha256)
-        .fetch_optional(connection)
-        .await?
-        .map(TryInto::try_into)
-        .transpose()
+    sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!(
+        "{IMPORT_SELECT} WHERE sha256 = ?"
+    )))
+    .bind(sha256)
+    .fetch_optional(connection)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
 }
 
 async fn get_by_id_connection(
     connection: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: NzbImportId,
 ) -> Result<Option<NzbImport>> {
-    sqlx::query_as::<_, NzbImportRow>(&format!("{IMPORT_SELECT} WHERE id = ?"))
+    sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!("{IMPORT_SELECT} WHERE id = ?")))
         .bind(id.to_string())
         .fetch_optional(&mut **connection)
         .await?

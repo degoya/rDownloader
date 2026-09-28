@@ -101,5 +101,7 @@
     "failed": "Failed"
   },
   "list_title": "Automations",
-  "pick_or_create": "Pick an automation from the list to edit it, or create a new one."
+  "pick_or_create": "Pick an automation from the list to edit it, or create a new one.",
+  "eyebrow": "When – then",
+  "duplicate_hint": "Creates a switched-off copy and opens it for editing — switched on, it would act a second time beside the original"
 }

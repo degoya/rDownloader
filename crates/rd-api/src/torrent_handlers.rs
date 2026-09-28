@@ -81,6 +81,7 @@ pub(crate) async fn enqueue_torrent_with(
                 // Nothing looked at this: it is started from what the person chose.
                 enrichment: Vec::new(),
                 secret_fragment: None,
+                source_set: None,
             }],
         )
         .await?;

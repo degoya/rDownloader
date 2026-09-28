@@ -1,16 +1,6 @@
-import { duplicateName } from './copyName'
-
-const MAX_RULE_NAME_LENGTH = 100
+/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+export const MAX_RULE_NAME_LENGTH = 100
 const MAX_RULE_PRIORITY = 2_147_483_647
-
-/** Builds the first free, length-safe copy name for a category rule. */
-export function duplicateRuleName(
-  original: string,
-  existingNames: Iterable<string>,
-  copyLabel: string
-): string {
-  return duplicateName(original, existingNames, copyLabel, MAX_RULE_NAME_LENGTH)
-}
 
 /** Places a copy immediately after its source where possible, without creating a tie. */
 export function nextRulePriority(current: number, priorities: Iterable<number>): number {

@@ -35,12 +35,18 @@ updates:
         applies-to: security-updates
         patterns: ["*"]
 
-  # web/ only: extension/package.json declares no dependencies.
+  # web/ only: extension/package.json declares no dependencies. `npm` is also the ecosystem for
+  # a pnpm project: Dependabot reads web/pnpm-lock.yaml and updates it with pnpm (RD-150-14).
   - package-ecosystem: npm
     directory: "/web"
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    # `openapi-typescript` (the schema generator) requires TypeScript 5; a TypeScript major in
+    # the group fails the install and hides every other update's result (RD-150-06).
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     groups:
       npm-compatible:
         update-types: [minor, patch]

@@ -168,6 +168,17 @@ pub trait RemoteJobDriver: Send + Sync {
         source: &RemoteJobSource,
         content_key: &str,
     ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>>;
+    /// [`Self::submit`], with the name the source was added under. The default forgets the
+    /// name, which is what a driver without a `job-context` does.
+    async fn submit_named(
+        &self,
+        account: AccountId,
+        source: &RemoteJobSource,
+        content_key: &str,
+        _source_name: Option<&str>,
+    ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
+        self.submit(account, source, content_key).await
+    }
     async fn adopt(
         &self,
         account: AccountId,
@@ -224,6 +235,16 @@ impl RemoteJobDriver for RemoteJobPlugin {
         content_key: &str,
     ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
         Self::submit(self, account, source, content_key).await
+    }
+
+    async fn submit_named(
+        &self,
+        account: AccountId,
+        source: &RemoteJobSource,
+        content_key: &str,
+        source_name: Option<&str>,
+    ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
+        Self::submit_named(self, account, source, content_key, source_name).await
     }
 
     async fn adopt(
@@ -513,12 +534,29 @@ impl RemoteJobRunners {
         source: &RemoteJobSource,
         content_key: &str,
     ) -> Result<RemoteJobHandle, JobRefusal> {
+        self.submit_named(plugin_id, account, source, content_key, None)
+            .await
+    }
+
+    /// [`Self::submit`], with the name the source was added under -- a container's file name,
+    /// which a provider that names its job after the upload needs (`job-context`).
+    pub async fn submit_named(
+        &self,
+        plugin_id: &str,
+        account: AccountId,
+        source: &RemoteJobSource,
+        content_key: &str,
+        source_name: Option<&str>,
+    ) -> Result<RemoteJobHandle, JobRefusal> {
         let runner = self
             .runner(plugin_id)
             .ok_or_else(|| JobRefusal::no_plugin(plugin_id))?;
         Self::settle(
             runner,
-            runner.plugin.submit(account, source, content_key).await,
+            runner
+                .plugin
+                .submit_named(account, source, content_key, source_name)
+                .await,
         )
     }
 

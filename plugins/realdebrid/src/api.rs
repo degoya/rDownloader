@@ -6,11 +6,11 @@
 //!
 //! Written against the published API document at <https://api.real-debrid.com/>:
 //!
-//! - **Auth flavour**: `Authorization: Bearer <token>`. The token is what the OAuth2 device
-//!   flow in `plugins/realdebrid-auth/` produced, and it expires — which is the whole reason
-//!   that sibling is an `oauth` plugin and not an `auth` one. This plugin never sees it: every
-//!   request carries the template `{{secret:realdebrid_access_token}}` and the host expands it
-//!   on the way out, towards `api.real-debrid.com` and nowhere else.
+//! - **Auth flavour**: `Authorization: Bearer <token>`. The token is either the access token a
+//!   sign-in with a code obtained or the person's private API token from
+//!   real-debrid.com/apitoken, whichever the account's mode holds (RD-150-09). This plugin never
+//!   sees it: every request carries the template `{{secret:<reference>}}` and the host expands
+//!   it on the way out, towards `api.real-debrid.com` and nowhere else.
 //! - **Unrestriction**: `POST /unrestrict/link` with a form body carrying `link`. The answer's
 //!   `download` field is the generated address; `link` is the original one echoed back, and
 //!   confusing the two would queue the hoster page instead of the file.
@@ -35,9 +35,15 @@ use url::form_urlencoded;
 
 use crate::messages;
 
-/// `rd-provider-registry`'s `realdebrid` row: `secret_reference`. The OAuth device flow in
-/// `plugins/realdebrid-auth/` writes the access token here through `store-oauth-token`.
-pub(crate) const TOKEN_REFERENCE: &str = "realdebrid_access_token";
+/// The access token a sign-in with a code stored ("Connect with a code", the default mode).
+pub(crate) const SIGN_IN_TOKEN_REFERENCE: &str = "realdebrid_access_token";
+
+/// The private API token the person typed ("API token" mode, since 1.4.3).
+pub(crate) const API_TOKEN_REFERENCE: &str = "realdebrid_api_token";
+
+/// Both, in the order they are asked about. The host answers `secret-available` only for the
+/// slot the account's mode makes live, so at most one of them is ever there.
+pub(crate) const TOKEN_REFERENCES: [&str; 2] = [SIGN_IN_TOKEN_REFERENCE, API_TOKEN_REFERENCE];
 
 pub(crate) const API_BASE: &str = "https://api.real-debrid.com/rest/1.0";
 

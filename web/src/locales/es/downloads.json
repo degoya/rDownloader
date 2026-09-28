@@ -94,7 +94,6 @@
     "reset": "Restablecer {count} archivo | Restablecer {count} archivos"
   },
   "package": {
-    "enrichment_source": "{name}, consultado por un plugin el {at}",
     "drag_title": "Arrastra para cambiar el orden dentro del nivel de prioridad",
     "select_aria": "Seleccionar paquete",
     "hide_files": "Ocultar archivos",
@@ -128,7 +127,8 @@
     "extracted_title": "Los archivos se extrajeron correctamente",
     "extract_failed": "Fallo al extraer",
     "actions_aria": "Acciones del paquete",
-    "priority_value": "Prioridad: {priority}"
+    "priority_value": "Prioridad: {priority}",
+    "storage_aria": "Colisiones y duplicados"
   },
   "transfer": {
     "actions_aria": "Acciones del archivo",
@@ -148,7 +148,28 @@
     "stop_recording": "Detener grabación",
     "stop_seeding": "Detener siembra",
     "drag_title": "Arrastra para cambiar el orden dentro del paquete",
-    "trial_staged": "Probar con {name} v{version}"
+    "trial_staged": "Probar con {name} v{version}",
+    "sources": {
+      "title": "Fuentes ({count})",
+      "pieces": "Comprobado en {count} piezas de {size} ({algorithm})",
+      "no_pieces": "Sin sumas por pieza; la suma del archivo completo se comprueba antes de terminar, si existe.",
+      "priority": "Prioridad {value}",
+      "delivered": "{size} entregados",
+      "failures": "{count} fallos",
+      "retry_after": "de nuevo desde {time}",
+      "state": {
+        "ready": "Lista",
+        "backing_off": "En espera",
+        "isolated": "Excluida",
+        "unsupported": "Aún no se usa"
+      },
+      "isolated_reason": {
+        "piece": "Entregó datos que no coinciden con su suma.",
+        "size": "Ofrece otro tamaño de archivo.",
+        "other": "Ya no se usa para este archivo."
+      },
+      "unsupported_hint": "Las fuentes FTP y SFTP se muestran, pero aún no se usan para las partes."
+    }
   },
   "summary": {
     "eyebrow": "Estado de la cola",
@@ -286,5 +307,76 @@
   },
   "list": {
     "aria": "Cola de descargas, {count} filas"
+  },
+  "collision": {
+    "policies": {
+      "rename": "Renombrar",
+      "skip": "Omitir",
+      "overwrite": "Sobrescribir",
+      "compare": "Comparar",
+      "ask": "Preguntar"
+    },
+    "hints": {
+      "rename": "El archivo nuevo se guarda junto al existente como «nombre (1)»; no se pierde nada.",
+      "skip": "El archivo nuevo no se escribe; el existente no cambia y la descarga termina con un aviso.",
+      "overwrite": "El archivo nuevo sustituye al existente. Queda registrado en el registro de auditoría y nunca se hace sobre un archivo en transferencia o compartiéndose.",
+      "compare": "Se comparan los contenidos: con los mismos bytes se adopta el archivo existente, si difieren se renombra.",
+      "ask": "La descarga espera hasta que alguien decida. Solo espera esta descarga, y la pregunta sobrevive a un reinicio."
+    },
+    "decisions": {
+      "rename": "Renombrar",
+      "skip": "Omitir",
+      "overwrite": "Sobrescribir"
+    },
+    "prompts": {
+      "title": "«{name}» ya existe",
+      "before_transfer": "Paquete {package}: en el destino ya hay un archivo con este nombre ({size}). Aún no se ha descargado nada.",
+      "after_transfer": "Paquete {package}: el nombre se ocupó durante la transferencia ({size}). El archivo verificado espera en la carpeta temporal.",
+      "only_this": "Solo espera esta descarga; el resto de la cola sigue.",
+      "failed": "No se pudo guardar la decisión."
+    },
+    "inherit": "Heredar",
+    "inherit_from": "Heredar: {policy} ({level})",
+    "levels": {
+      "package": "paquete",
+      "category": "categoría",
+      "global": "global"
+    },
+    "label": "Ante una colisión de nombres",
+    "package_description": "Se aplica a los archivos de este paquete antes que la categoría y el ajuste global.",
+    "effective": "Vigente: {policy} (nivel: {level})",
+    "saved": "Guardado. Ahora rige: {policy}."
+  },
+  "duplicates": {
+    "file": "Archivo",
+    "loading": "Buscando duplicados …",
+    "source_title": "Misma fuente",
+    "source_description": "Lo mismo ya se pidió antes: reconocido por {kind}, antes de descargar un byte.",
+    "identity": {
+      "url": "la dirección normalizada",
+      "magnet": "el info-hash",
+      "nzb": "el hash del NZB y el nombre del archivo",
+      "provider": "el alojamiento y la dirección"
+    },
+    "none": "No se encontró ninguno.",
+    "location": {
+      "queue": "Cola",
+      "linkgrabber": "LinkGrabber"
+    },
+    "content_title": "Mismo contenido",
+    "basis": {
+      "verified_hash": "Los mismos bytes ya están en disco: reconocidos por el SHA-256 verificado del archivo terminado.",
+      "stated_checksum": "Aún sin terminar: se compara con el SHA-256 indicado por la fuente.",
+      "none": "Aún no se conoce ningún hash: los duplicados de contenido aparecen cuando el archivo esté terminado y verificado."
+    },
+    "missing": "falta",
+    "link": "Sustituir por un enlace",
+    "link_title": "Sustituye el archivo elegido por un enlace duro a este archivo idéntico. Antes se calculan los hashes de ambos.",
+    "other_file_system": "otro sistema de archivos: no es posible un enlace",
+    "linked": "Enlazado; {size} ya no se guardan dos veces."
+  },
+  "storage_modal": {
+    "title": "Colisiones y duplicados: {name}",
+    "description": "Qué ocurre cuando un nombre de archivo ya existe y qué archivos del paquete ya están presentes."
   }
 }

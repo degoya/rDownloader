@@ -54,7 +54,11 @@
     "plugin_repository_added": "Dépôt de plugins ajouté",
     "plugin_repository_changed": "Dépôt de plugins modifié",
     "plugin_repository_removed": "Dépôt de plugins retiré",
-    "plugin_version_chosen": "Version de plugin choisie"
+    "plugin_version_chosen": "Version de plugin choisie",
+    "script_subscription_changed": "Abonnement de script créé ou modifié",
+    "file_overwritten": "Fichier écrasé",
+    "collision_decided": "Collision de fichier tranchée",
+    "duplicate_linked": "Doublon lié"
   },
   "list": {
     "title": "Entrées",

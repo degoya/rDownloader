@@ -24,10 +24,13 @@ mod maintenance;
 mod network;
 mod notify;
 mod nzb;
+mod object_storage;
 mod packages;
 mod plugin_repositories;
 mod plugins;
 mod sessions;
+mod sources;
+mod storage;
 mod streams;
 mod subscriptions;
 
@@ -86,6 +89,13 @@ impl Writer {
                 | WriterCommand::ClearUnsatisfiableResolverPins { .. }
                 | WriterCommand::PinDownloadResolver { .. }) => {
                     self.handle_downloads(command).await
+                }
+                command @ (WriterCommand::RecordSourceOutcome { .. }
+                | WriterCommand::MarkChunk { .. }
+                | WriterCommand::RewindChunk { .. }
+                | WriterCommand::SetCandidateSourceSet { .. }
+                | WriterCommand::SetCandidateRemoteReach { .. }) => {
+                    self.handle_sources(command).await
                 }
                 command @ (WriterCommand::CarryEnrichment { .. }
                 | WriterCommand::UpdatePackages { .. }
@@ -172,6 +182,7 @@ impl Writer {
                 command @ (WriterCommand::UpsertAuthFlow { .. }
                 | WriterCommand::SetAuthFlowRenewal { .. }
                 | WriterCommand::SetAuthFlowSession { .. }
+                | WriterCommand::SetAuthFlowPart { .. }
                 | WriterCommand::DeferAuthFlowRenewal { .. }
                 | WriterCommand::DeleteAuthFlow { .. }
                 | WriterCommand::SetDownloadAuthProfile { .. }
@@ -219,6 +230,15 @@ impl Writer {
                 | WriterCommand::WithdrawPluginKey { .. }
                 | WriterCommand::RecordPluginRepositoryInstall { .. }) => {
                     self.handle_plugin_repositories(command).await
+                }
+                command @ (WriterCommand::CreateObjectStorageProfile { .. }
+                | WriterCommand::UpdateObjectStorageProfile { .. }
+                | WriterCommand::DeleteObjectStorageProfile { .. }
+                | WriterCommand::BeginObjectUpload { .. }
+                | WriterCommand::RecordObjectUploadPart { .. }
+                | WriterCommand::CompleteObjectUpload { .. }
+                | WriterCommand::ForgetObjectUploads { .. }) => {
+                    self.handle_object_storage(command).await
                 }
                 command @ (WriterCommand::SetDownloadRecordingState { .. }
                 | WriterCommand::CreateStreamSchedule { .. }
@@ -278,6 +298,19 @@ impl Writer {
                 command @ (WriterCommand::AppendAuditRecords { .. }
                 | WriterCommand::PruneAuditRecords { .. }
                 | WriterCommand::ClearAuditRecords { .. }) => self.handle_audit(command).await,
+                command @ (WriterCommand::SetCollisionPolicy { .. }
+                | WriterCommand::OpenCollisionPrompt { .. }
+                | WriterCommand::DecideCollisionPrompt { .. }
+                | WriterCommand::ClearCollisionPrompt { .. }
+                | WriterCommand::IndexContent { .. }
+                | WriterCommand::MoveIndexedContent { .. }
+                | WriterCommand::MarkIndexedContent { .. }
+                | WriterCommand::ForgetIndexedPath { .. }
+                | WriterCommand::StartStorageOperation { .. }
+                | WriterCommand::FinishStorageOperation { .. }
+                | WriterCommand::InterruptStorageOperations { .. }) => {
+                    self.handle_storage(command).await
+                }
             }
         }
     }

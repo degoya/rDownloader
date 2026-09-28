@@ -35,11 +35,13 @@ pub struct SiteRuleSwitch {
 const COLUMNS: &str = "scope, \"key\", enabled";
 
 pub(crate) async fn list_site_rule_switches(pool: &SqlitePool) -> Result<Vec<SiteRuleSwitch>> {
-    Ok(sqlx::query_as::<_, SiteRuleSwitch>(&format!(
-        "SELECT {COLUMNS} FROM site_rule_switches ORDER BY scope, \"key\""
-    ))
-    .fetch_all(pool)
-    .await?)
+    Ok(
+        sqlx::query_as::<_, SiteRuleSwitch>(sqlx::AssertSqlSafe(format!(
+            "SELECT {COLUMNS} FROM site_rule_switches ORDER BY scope, \"key\""
+        )))
+        .fetch_all(pool)
+        .await?,
+    )
 }
 
 /// Records one decision, replacing whatever the last one said about the same subject.

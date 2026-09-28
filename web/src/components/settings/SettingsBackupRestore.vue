@@ -181,23 +181,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         :title="t('system.backup.export.title')"
         :description="t('system.backup.export.description')"
       />
+      <UAlert v-if="exportError" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="exportError" />
       <form class="mt-5 space-y-4" @submit.prevent="downloadBackup">
         <UFormField
           name="include-secrets"
           :label="t('system.backup.export.include_secrets')"
           :description="t('system.backup.export.include_secrets_description')"
+          orientation="horizontal"
         >
           <USwitch v-model="includeSecrets" />
         </UFormField>
-        <div v-if="includeSecrets" class="grid gap-3 sm:grid-cols-2">
-          <UFormField name="export-passphrase" :label="t('system.backup.export.passphrase')">
-            <UInput v-model="exportPassphrase" type="password" autocomplete="new-password" class="w-full" />
+        <template v-if="includeSecrets">
+          <UFormField name="export-passphrase" :label="t('system.backup.export.passphrase')" required>
+            <UInput v-model="exportPassphrase" type="password" autocomplete="new-password" required class="w-full" />
           </UFormField>
-          <UFormField name="export-confirmation" :label="t('system.backup.export.confirm_passphrase')">
-            <UInput v-model="exportConfirmation" type="password" autocomplete="new-password" class="w-full" />
+          <UFormField name="export-confirmation" :label="t('system.backup.export.confirm_passphrase')" required>
+            <UInput v-model="exportConfirmation" type="password" autocomplete="new-password" required class="w-full" />
           </UFormField>
-        </div>
-        <UAlert v-if="exportError" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="exportError" />
+        </template>
         <UButton
           type="submit"
           icon="i-lucide-download"
@@ -214,7 +215,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         :title="t('system.backup.import.title')"
         :description="t('system.backup.import.description')"
       />
-      <div class="mt-5 space-y-4">
+      <UAlert v-if="importError" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="importError" />
+      <form class="mt-5 space-y-4" @submit.prevent="restoreBackup">
         <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
         <div class="flex flex-wrap items-center gap-3">
           <UButton
@@ -239,18 +241,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         >
           <UInput v-model="importPassphrase" type="password" autocomplete="current-password" class="w-full" />
         </UFormField>
-        <UAlert v-if="importError" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="importError" />
         <UButton
-          type="button"
+          type="submit"
           icon="i-lucide-database-backup"
           :label="t('system.backup.import.button')"
           color="error"
           variant="soft"
           :disabled="!importBundle || (importNeedsPassphrase && !importPassphrase)"
           :loading="importing"
-          @click="restoreBackup"
         />
-      </div>
+      </form>
     </section>
   </div>
 </template>

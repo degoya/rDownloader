@@ -125,7 +125,6 @@
       "label": "Cambiar permisos",
       "hint": "El valor del token no cambia: el cliente sigue funcionando y alcanza las nuevas áreas desde su siguiente petición. Aquí no se puede quitar todo — para eso revoca el token.",
       "save": "Guardar permisos",
-      "cancel": "Cancelar",
       "done": "Permisos cambiados",
       "empty": "Elige al menos un área, o revoca el token."
     },
@@ -167,7 +166,8 @@
     "sensitive": "Sensible",
     "sensitive_warning": "Este token podrá leer credenciales guardadas o administrar el servicio. Ninguna otra área lo concede, así que dáselo solo a un cliente que realmente lo necesite.",
     "also_includes": "Incluye además: {areas}",
-    "minted_areas": "Este token incluye: {areas}"
+    "minted_areas": "Este token incluye: {areas}",
+    "label_label": "Nombre del cliente"
   },
   "readiness": {
     "eyebrow": "Configuración",
@@ -351,5 +351,20 @@
     "idle_description": "Horas sin actividad antes de tener que volver a iniciar sesión. De 1 a 720 (30 días).",
     "max_label": "Duración máxima",
     "max_description": "Horas desde el inicio de sesión tras las que termina, incluso en mitad del trabajo. De 1 a 2160 (90 días)."
+  },
+  "extension": {
+    "connected_title": "Extensión del navegador conectada",
+    "connected_description": "Una extensión del navegador acaba de conectarse. Las cuentas que toman el inicio de sesión de tu navegador reciben la sesión a través de ella.",
+    "missing_title": "Ninguna extensión del navegador se ha conectado todavía",
+    "missing_description": "Se comprueba cada pocos segundos; en cuanto la extensión esté emparejada y se conecte, aparecerá aquí.",
+    "why": "Las cuentas de hosters que toman el inicio de sesión de tu navegador —por ejemplo, DDownload— necesitan la extensión de rDownloader para el navegador: solo ella puede entregar la sesión desde el navegador. El emparejamiento es opcional; sin la extensión quedan el usuario y la contraseña o una clave de API.",
+    "step_install": "Instala la extensión de rDownloader en el navegador con el que has iniciado sesión en el hoster.",
+    "step_pair": "Pulsa «Emparejar» abajo: rDownloader muestra un token una sola vez; cópialo.",
+    "step_options": "En las opciones de la extensión, introduce {origin} como URL del servidor, pega el token, pulsa «Probar conexión» y después «Guardar».",
+    "default_label": "Extensión del navegador",
+    "pair_title": "Emparejar la extensión del navegador",
+    "modal_title": "Emparejar la extensión del navegador",
+    "modal_description": "El inicio de sesión en el hoster viene de tu navegador y solo la extensión puede entregarlo. Emparéjala aquí sin salir de la página.",
+    "done": "Listo"
   }
 }

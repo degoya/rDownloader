@@ -16,7 +16,7 @@
  * component. The file goes out exactly as it was read, because a signature covers bytes.
  */
 import { useToast } from '@nuxt/ui/composables'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SiteRule, SiteRuleTestResult } from '@/api/types'
@@ -25,6 +25,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SiteRuleEditor from '@/components/settings/SiteRuleEditor.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCopyName } from '@/composables/useCopyName'
 import {
   emptyDraft,
   fromRule,
@@ -36,11 +37,13 @@ const { t, te } = useI18n()
 const toast = useToast()
 const confirm = useConfirm()
 const rules = useSiteRules()
+const copyName = useCopyName()
 
 const draft = ref<RuleDraft>(emptyDraft())
 const editingId = ref<string | null>(null)
 const testResult = ref<SiteRuleTestResult | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+const editorElement = ref<HTMLElement | null>(null)
 const ruleCount = computed(() => rules.rules.value.length)
 
 onMounted(() => void rules.refresh())
@@ -89,6 +92,18 @@ function startEdit(rule: SiteRule): void {
   draft.value = fromRule(rule)
   editingId.value = rule.id
   testResult.value = null
+  void focusEditor()
+}
+
+/**
+ * The focus move of `useFormFocus`, skipping the identifier: it is locked while a rule is
+ * edited, and a disabled field takes no focus, so the move would otherwise go nowhere.
+ */
+async function focusEditor(): Promise<void> {
+  await nextTick()
+  editorElement.value
+    ?.querySelector<HTMLElement>('input:not([type="hidden"]):not(:disabled), textarea, select, [role="combobox"]')
+    ?.focus()
 }
 
 async function save(): Promise<void> {
@@ -102,7 +117,7 @@ async function runTest(address: string): Promise<void> {
 }
 
 async function duplicate(rule: SiteRule): Promise<void> {
-  const id = await rules.duplicate(rule, t('siterules.copy_suffix'))
+  const id = await rules.duplicate(rule, copyName)
   if (!id) return
   const copy = rules.rules.value.find(entry => entry.id === id)
   if (copy) startEdit(copy)
@@ -191,27 +206,21 @@ async function selectFile(event: Event): Promise<void> {
 
     <FormListLayout :list-title="t('siterules.list.title')" :count="rules.rules.value.length">
       <template #form>
-        <SiteRuleEditor
-          v-model="draft"
-          :editing-id="editingId"
-          :pending="rules.pending.value"
-          :groups="rules.groups.value.map(entry => entry.group)"
-          :test-result="testResult"
-          @save="save"
-          @cancel="startNew"
-          @test="runTest"
-        />
+        <div ref="editorElement">
+          <SiteRuleEditor
+            v-model="draft"
+            :editing-id="editingId"
+            :pending="rules.pending.value"
+            :groups="rules.groups.value.map(entry => entry.group)"
+            :test-result="testResult"
+            @save="save"
+            @cancel="startNew"
+            @test="runTest"
+          />
+        </div>
       </template>
 
       <template #list-actions>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-plus"
-          :label="t('siterules.new')"
-          @click="startNew"
-        />
         <UButton
           size="xs"
           color="neutral"
@@ -262,12 +271,19 @@ async function selectFile(event: Event): Promise<void> {
             </div>
           </div>
           <div class="divide-y divide-muted border border-muted">
-            <div v-for="rule in entry.rules" :key="rule.id" class="flex flex-wrap items-center gap-3 p-3">
+            <div
+              v-for="rule in entry.rules"
+              :key="rule.id"
+              class="flex flex-wrap items-center gap-3 p-3"
+              :class="editingId === rule.id ? 'outline outline-1 outline-primary' : ''"
+              data-rule-row
+            >
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
                 <p class="truncate font-mono text-[11px] text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
                 <p v-if="!entry.group.enabled" class="mt-1 text-[11px] text-muted">{{ t('siterules.list.group_off') }}</p>
               </div>
+              <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
               <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">
                 {{ t(`siterules.badge.${stateKey(rule)}`) }}
               </UBadge>
@@ -283,8 +299,8 @@ async function selectFile(event: Event): Promise<void> {
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-copy-plus"
-                :label="t('siterules.duplicate')"
-                :title="t('siterules.duplicate_hint')"
+                :label="t('common.actions.duplicate')"
+                :title="t('common.duplicate_hint')"
                 :loading="rules.busyId.value === `copy:${rule.id}`"
                 @click="duplicate(rule)"
               />

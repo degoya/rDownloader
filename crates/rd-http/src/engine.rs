@@ -314,6 +314,46 @@ impl DownloadEngine {
     }
 }
 
+impl DownloadEngine {
+    /// Fetches one chunk from one address: a plain `GET` with a range, no transform, no
+    /// replay and no validator. The shape every source of a mirror set is fetched in
+    /// (RD-150-03), where each source has validators of its own and the piece and whole-file
+    /// hashes stand in for them.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn fetch_chunk(
+        &self,
+        url: Url,
+        headers: Arc<Vec<(String, String)>>,
+        part: PartFile,
+        checkpoints: Arc<dyn CheckpointSink>,
+        cancellation: CancellationToken,
+        chunk: ChunkSpec,
+        covers_whole_file: bool,
+    ) -> Result<DownloadOutcome, HttpDownloadError> {
+        Worker {
+            client: self.client.clone(),
+            limiter: self.limiter.clone(),
+            hosts: self.hosts.clone(),
+            covers_whole_file,
+            part,
+            checkpoints,
+            cancellation,
+            url,
+            validator: None,
+            require_range: true,
+            headers,
+            method: rd_core::ReplayMethod::Get,
+            body: None,
+            approved_origins: Arc::new(Vec::new()),
+            captured_user_agent: None,
+            transform: None,
+            macs: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
+        }
+        .run(chunk)
+        .await
+    }
+}
+
 /// Whether this chunk layout is responsible for every byte of the file.
 ///
 /// Ascending and gap-free from zero to the end. A layout with a hole in it is not one this
@@ -695,6 +735,16 @@ fn not_a_file(content_type: Option<String>) -> HttpDownloadError {
 }
 
 pub(crate) fn network_failure(error: reqwest::Error) -> HttpDownloadError {
+    // A guarded client refused the address (RD-150-03): not a network that is down, and not
+    // worth another attempt — the address will point at the same place next time.
+    if crate::is_refusal(&error) {
+        return Failure::coded(
+            FailureKind::Permanent,
+            rd_core::CODE_INTERNAL_ADDRESS,
+            "The source points at an address a remote document may not reach",
+        )
+        .into();
+    }
     let category = if error.is_connect() {
         FailureKind::Offline
     } else {

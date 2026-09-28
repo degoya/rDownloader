@@ -198,10 +198,24 @@ impl Writer {
             .bind(id.to_string())
             .execute(&mut *transaction)
             .await?;
-        remove_package_if_empty(&mut transaction, &current.package_id.to_string()).await?;
+        let package_gone =
+            remove_package_if_empty(&mut transaction, &current.package_id.to_string()).await?;
         crate::writer::insert_event(&mut transaction, &event).await?;
         transaction.commit().await?;
         let _ = self.events.send(event);
+        // A removed file leaves the set as surely as one that finished: a sibling held back for
+        // the PAR2 verdict (RD-108-24) may have been waiting for exactly this row, and nothing
+        // else would ever ask again - it stayed in `Verifying` with no worker behind it. The
+        // removal itself is committed, so a failure here is logged rather than reported as one.
+        if !package_gone
+            && let Err(error) = self.settle_package_after_download(current.package_id).await
+        {
+            tracing::warn!(
+                package_id = %current.package_id,
+                %error,
+                "the package was not settled after a removal"
+            );
+        }
         Ok(())
     }
 

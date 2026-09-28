@@ -11,7 +11,7 @@
 
 use aes::{
     Aes192,
-    cipher::{BlockEncrypt, KeyInit, generic_array::GenericArray},
+    cipher::{BlockCipherEncrypt, KeyInit},
 };
 use anyhow::{Context, Result, bail};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -109,10 +109,9 @@ fn link_vector(cipher: &Aes192) -> [u8; 16] {
     vector
 }
 
-fn encrypt_block(cipher: &Aes192, block: [u8; 16]) -> [u8; 16] {
-    let mut block = GenericArray::from(block);
-    cipher.encrypt_block(&mut block);
-    block.into()
+fn encrypt_block(cipher: &Aes192, mut block: [u8; 16]) -> [u8; 16] {
+    cipher.encrypt_block((&mut block).into());
+    block
 }
 
 /// CFB with full-block feedback: each block is XORed with the encrypted previous ciphertext

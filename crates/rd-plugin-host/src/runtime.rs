@@ -49,6 +49,9 @@ pub struct PluginStoreState {
     /// per invocation instead. Exactly one, so "which secret" is never a question the plugin
     /// gets to answer.
     pub(crate) granted_secret: Option<String>,
+    /// The name the source of the remote job being submitted was added under, answered by
+    /// `job-context.source-name`. Set only for a `submit` call; `None` everywhere else.
+    pub(crate) job_source_name: Option<String>,
     /// Sockets the host opened for this invocation, addressed by the opaque handles the
     /// guest received. Dropping the store closes every one of them.
     pub(crate) connections: std::collections::HashMap<u32, crate::transfer::HostConnection>,
@@ -235,6 +238,7 @@ impl SandboxEngine {
             identity,
             redactions: Vec::new(),
             granted_secret: None,
+            job_source_name: None,
             request_authority: rd_plugin_api::RequestAuthority::Provider,
             write_methods: false,
             execution_deadline: Instant::now()
@@ -371,6 +375,11 @@ fn allowed_imports(manifest: &crate::PluginManifest) -> Vec<&'static str> {
     ) {
         allowed.push("rdownloader:plugin/credentials");
     }
+    // What the host knows about the job being submitted (2026-09-27). Reaches nothing and
+    // reads one label the host chose, so it is what a remote-job plugin is, not a grant.
+    if manifest.plugin_type == crate::PluginType::RemoteJob {
+        allowed.push("rdownloader:plugin/job-context");
+    }
     let capabilities = &manifest.capabilities;
     if capabilities.net_http.is_some() {
         allowed.push("rdownloader:plugin/http");
@@ -412,31 +421,32 @@ fn timeout_ticks(milliseconds: u64) -> u64 {
 mod tests {
     use super::{PluginLimits, SandboxEngine, allowed_imports, timeout_ticks};
 
+    fn manifest(plugin_type: &str) -> crate::PluginManifest {
+        toml::from_str(&format!(
+            r#"
+            manifest_version = 3
+            plugin_type = "{plugin_type}"
+            api_version = "0.9.0"
+            id = "11111111-1111-4111-8111-111111111111"
+            name = "Demo"
+            version = "0.1.0"
+            key_id = "demo-v1"
+            public_key = "AAAA"
+            [metadata]
+            description = "d"
+            author = "a"
+            license = "MIT"
+            min_app_version = "0.8.0"
+            "#
+        ))
+        .expect("manifest parses")
+    }
+
     /// Writing a credential back is bound to the authentication type, not to a capability.
     /// A manifest cannot ask for it, so the only way to reach it is to be that type.
     #[test]
     fn only_an_authentication_plugin_may_write_a_credential() {
         const CREDENTIALS: &str = "rdownloader:plugin/credentials";
-        let manifest = |plugin_type: &str| -> crate::PluginManifest {
-            toml::from_str(&format!(
-                r#"
-                manifest_version = 3
-                plugin_type = "{plugin_type}"
-                api_version = "0.9.0"
-                id = "11111111-1111-4111-8111-111111111111"
-                name = "Demo"
-                version = "0.1.0"
-                key_id = "demo-v1"
-                public_key = "AAAA"
-                [metadata]
-                description = "d"
-                author = "a"
-                license = "MIT"
-                min_app_version = "0.8.0"
-                "#
-            ))
-            .expect("manifest parses")
-        };
         assert!(
             allowed_imports(&manifest("auth")).contains(&CREDENTIALS),
             "an authentication plugin needs it"
@@ -453,6 +463,19 @@ mod tests {
             assert!(
                 !allowed_imports(&manifest(other)).contains(&CREDENTIALS),
                 "{other} must not reach the credential store"
+            );
+        }
+    }
+
+    /// The name a remote job was added under is read by the remote-job type and nobody else.
+    #[test]
+    fn only_a_remote_job_plugin_may_read_its_job_context() {
+        const JOB_CONTEXT: &str = "rdownloader:plugin/job-context";
+        assert!(allowed_imports(&manifest("remote-job")).contains(&JOB_CONTEXT));
+        for other in ["resolver", "crawler", "auth", "storage"] {
+            assert!(
+                !allowed_imports(&manifest(other)).contains(&JOB_CONTEXT),
+                "{other} has no job to ask about"
             );
         }
     }

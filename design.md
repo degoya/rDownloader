@@ -390,6 +390,11 @@ prevent columns from shifting during live updates.
   number of its place and renumbers what follows, so the keys keep reading top to bottom.
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
   into the same locale namespace at runtime.
+- **German says "du", French "vous", Spanish "tú"** — as the website does (owner, 2026-09-27):
+  an open-source tool, not a business form. German is lower-case *du*, *dein*, imperatives in the
+  du form (*Klicke*, *Prüfe*), never *Sie*/*Ihnen*/*Ihr*; "sie" in the third person stays. Tests
+  over the web, extension and plugin catalogues fail on a formal address, with a short list of
+  third-person sentence starts ("Sie laufen …").
 - Settings navigation follows stable task groups rather than an alphabetical order that changes
   with the selected language. Group labels are headings, never expandable detours: every settings
   page remains one click away after Settings is open, including in the collapsed sidebar popover.
@@ -682,12 +687,57 @@ paths differed between them. What the composable states once:
 The caller keeps its own form and its own mapping from a row into it, because that is where the
 DTO lives, and it keeps any message or per-row spinner of its own.
 
-**A duplicate is a create, and where the copy is meant to be worked on it opens in the form.**
-Category rules and subscriptions create the copy and leave the form alone, because a copy there
-is usually wanted as it is. A site rule is copied to be changed — a working rule is the template
-somebody learns from (RD-130-07) — so the copy, stored switched off under a free id, fills the
-form the moment it exists, exactly as pressing edit on it would. Either way the original is not
-written, and the button carries its label, as the row conventions below ask of a duplicate.
+**A duplicate is a create, and the copy opens in the form.** Somebody copies an entry because
+they want one that is almost the same, so the copy is there to be changed: it is stored through
+the list's ordinary create route under a free name — the original's name with `common.copy_suffix`,
+counted up on a collision (`useCopyName()`) — and then fills the form exactly as pressing edit on
+it would, badge and focus included (RD-150-12). One row button everywhere: `i-lucide-copy-plus`
+with its label and a `title`, as the row conventions below ask of a duplicate. What the copy
+takes is the entry's settings; what it leaves is what hangs on a relation — the default mark,
+rules pointing at the original, counters, history — and every secret. The browser never holds a
+secret, so a copy has an empty secret field and the form says it must be entered again. Where
+the create route refuses the copy as it stands — a Usenet server whose username needs its
+password, a hot folder on a path another one already watches — the form holds the copy as a new
+entry that is not stored yet, with the field that has to change named, and the cross drops it.
+Something copied to act the same way twice is stored switched off: an automation, a
+subscription, a site rule. The original is never written.
+
+### Forms Share One Shape
+
+About sixty forms had grown up one at a time, and a reader moving between them had to look for
+the save button: right-aligned in two, behind an *Active* switch in two more, "Cancel" spelled in
+nine ways, seven of them not a `<form>` at all, so Enter sent nothing (RD-150-11). What most of
+them already did is the standard, and a form that differs is drifting:
+
+1. **The field that decides comes first.** A type, kind, method or mode stands directly above
+   every field it governs, answered when the form opens (the interaction rule *What a choice
+   governs stands after the choice*). In a form beside a list the type is the first field, before
+   the name; a switch that locks a value — *unlimited* above the limit it disables — stands
+   before that value, not after it.
+2. **One action row, at the form's end, left-aligned.** `FormActions.vue` is the row: the primary
+   action first, `type="submit"`, *Create <thing>* with `i-lucide-plus` (or its own icon) while
+   creating and *Save* with `i-lucide-save` while editing; then, only while editing, *Cancel
+   editing* as an **icon-only** `ghost neutral i-lucide-x` with `aria-label` and `title` — the
+   cross is unambiguous and the label cost a line in a narrow column. Anything else a form offers
+   (a test, a preview) follows those two. An *Active* switch is a field of the form, never a
+   member of the row. Every form is a `<form>` with `@submit.prevent`, so Enter submits.
+3. **Feedback above the form, required fields marked by the field.** A failure or a success is a
+   `UAlert` between the section header and the `<form>`, in the form's own column — never at the
+   end of the page, where the reader who pressed *Save* does not look. A field the server refuses
+   empty carries `required` on its `UFormField` (Nuxt UI draws the mark) and on its control;
+   optional fields carry nothing. One field per row, the hint in `description` rather than `help`,
+   and the edit state follows *Editing a Row in Place*: badge, "Edit …" heading, focus.
+4. **A dialog footer ends right-aligned.** `:ui="{ footer: 'justify-end' }"`, *Cancel* first as
+   `color="neutral" variant="outline"` without an icon, then the primary action with its icon.
+
+**Nuxt UI before anything of our own.** A control Nuxt UI offers is taken from Nuxt UI:
+`UFormField` with `orientation="horizontal"` for a label-and-switch row rather than a hand-built
+flex row, `USwitch label/description` where the switch stands alone, `UCheckboxGroup` for a set
+of chips a person toggles (it carries the group semantics a row of buttons lacks),
+`URadioGroup legend` rather than a `<p>` above it, `UAccordion` for groups that open. No second UI
+library, and no re-implementation of one of its components. Our own components exist only where
+Nuxt UI has no counterpart and the markup would otherwise drift — `FormListLayout`,
+`SectionHeader`, `FormActions` — and they are compositions of Nuxt UI, not replacements for it.
 
 ### Section Headers
 
@@ -815,10 +865,14 @@ recognised as drifting.
 - **What the application did not resolve itself is shown as a chip that names its source.** A
   field a plugin contributed — an enricher's rating, a look-up from a service outside this
   machine — sits in its own wrapping row below the row it belongs to, as a monospaced badge
-  reading `<last name segment>: <value>`, with a tooltip naming the full field, the plugin and
-  the time it answered. Never merged into the row's own text: a value somebody else supplied
-  has to stay recognisable as somebody else's answer, and a stale one as stale. The LinkGrabber
-  candidate row and the download-list package header use the same chip row for exactly this.
+  reading `<label>: <value>`, with a tooltip naming the full field, the plugin and the time it
+  answered. The label is the field name's last segment, translated where the catalogue knows it
+  (`common.enrichment.fields`) and printed as it is where it does not. Never merged into the
+  row's own text: a value somebody else supplied has to stay recognisable as somebody else's
+  answer, and a stale one as stale. The LinkGrabber candidate row and the download-list package
+  header use the one `EnrichmentChips` component for exactly this, and each of the two views
+  carries a "Show metadata" `USwitch` at the right end of its toolbar that hides the row in this
+  browser without touching the stored fields (RD-150-19).
 - **A list that shows part of itself says which part, and how much it is holding back.** Where
   the default is not "everything" — the subscription archive keeps the hits a filter rejected,
   because an unwritten one would be rediscovered on every poll, and defaults to the accepted

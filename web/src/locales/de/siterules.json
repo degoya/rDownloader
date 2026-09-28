@@ -25,7 +25,6 @@
     "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Importiere die signierte Regeldatei eines Releases, um mit den Regeln des Projekts zu beginnen.",
     "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt."
   },
-  "new": "Neue Regel",
   "editor": {
     "eyebrow": "Eigene Regel",
     "title_new": "Regel schreiben",
@@ -58,7 +57,8 @@
     "package_from": "Aus Variable lesen",
     "package_name": "Variable",
     "enabled": "Diese Regel sofort befragen",
-    "incomplete": "Kennung, Name, Gruppe, ein Host, ein Schritt und eine Prüfadresse werden gebraucht."
+    "incomplete": "Kennung, Name, Gruppe, ein Host, ein Schritt und eine Prüfadresse werden gebraucht.",
+    "create": "Regel anlegen"
   },
   "steps": {
     "heading": "Schritte",
@@ -132,8 +132,5 @@
     "title": "Diese Regel entfernen?",
     "description": "{name} wird aus dieser Installation entfernt. Exportiere sie vorher, wenn du sie behalten willst."
   },
-  "duplicate": "Duplizieren",
-  "duplicate_hint": "Legt eine abgeschaltete Kopie unter neuer Kennung an und öffnet sie im Editor",
-  "copy_suffix": "Kopie",
   "duplicated": "{name} wurde abgeschaltet angelegt und zum Bearbeiten geöffnet."
 }

@@ -76,6 +76,7 @@ async fn mirror_group(
             skipped: index > 0,
             enrichment: Vec::new(),
             secret_fragment: None,
+            source_set: None,
         })
         .collect::<Vec<_>>();
     let (_, created) = scheduler
@@ -115,6 +116,14 @@ fn disk_full() -> Failure {
     )
 }
 
+/// Queued, or already picked up: the supervisor may start a successor before a test reads it.
+fn taking_its_turn(state: DownloadState) -> bool {
+    matches!(
+        state,
+        DownloadState::Queued | DownloadState::Resolving | DownloadState::Downloading
+    )
+}
+
 #[tokio::test]
 async fn a_mirror_that_went_offline_hands_the_turn_over_instead_of_failing_the_file() {
     let directory = tempfile::tempdir().expect("temp");
@@ -127,10 +136,10 @@ async fn a_mirror_that_went_offline_hands_the_turn_over_instead_of_failing_the_f
     let given_up = state_of(&database, &files[0]).await;
     let successor = state_of(&database, &files[1]).await;
     assert_eq!(given_up.state, DownloadState::Failed);
-    assert_eq!(
-        successor.state,
-        DownloadState::Queued,
-        "the second mirror has to take the turn without anybody pasting the link again"
+    assert!(
+        taking_its_turn(successor.state),
+        "the second mirror has to take the turn without anybody pasting the link again: {:?}",
+        successor.state
     );
     assert_eq!(
         given_up
@@ -151,10 +160,7 @@ async fn a_page_instead_of_the_file_hands_the_mirror_turn_over() {
         .await
         .expect("record");
 
-    assert_eq!(
-        state_of(&database, &files[1]).await.state,
-        DownloadState::Queued
-    );
+    assert!(taking_its_turn(state_of(&database, &files[1]).await.state));
     let recorded = state_of(&database, &files[0])
         .await
         .last_error
@@ -243,10 +249,10 @@ async fn an_exhausted_mirror_group_ends_with_the_chosen_mirrors_reason() {
         .await
         .expect("second");
     let third = state_of(&database, &files[2]).await;
-    assert_eq!(
-        third.state,
-        DownloadState::Queued,
-        "the third mirror gets its turn before the group is called exhausted"
+    assert!(
+        taking_its_turn(third.state),
+        "the third mirror gets its turn before the group is called exhausted: {:?}",
+        third.state
     );
     // A reason of its own, and one that is final, so the verdict below cannot be this one by
     // accident and the group really is out of attempts as well as out of mirrors.

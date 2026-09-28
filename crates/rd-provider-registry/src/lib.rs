@@ -42,6 +42,13 @@ pub enum CredentialKind {
     /// material -- is obtained and stored by the flow, so the accounts form asks for a sign-in
     /// rather than for something to paste.
     OAuth,
+    /// Two ways to hold one account, picked per account (RD-150-09): sign in with a code the
+    /// person confirms at the provider, or paste a ready-made API key. The account's
+    /// `credential_mode` says which ([`CredentialMode::OAuth`] or [`CredentialMode::ApiKey`]).
+    /// In the first mode every slot is filled by the flow -- the access token, and the named
+    /// parts a sign-in keeps beside it -- and nothing is typed; in the second the one slot the
+    /// person fills is the account's credential, exactly as for [`Self::ApiKey`].
+    OAuthOrApiKey,
     /// No account at all. The provider registers for resolving and is hidden from the accounts
     /// list, because there is nothing to enter (RD-098-01).
     NoneRequired,
@@ -72,8 +79,8 @@ pub enum TransferAuth {
 
 /// Which of a provider's credential modes an account uses.
 ///
-/// Only meaningful for [`CredentialKind::LoginOrApiKey`]; every other kind has exactly one way
-/// to hold an account and stores `None`.
+/// Only meaningful for [`CredentialKind::LoginOrApiKey`] and [`CredentialKind::OAuthOrApiKey`];
+/// every other kind has exactly one way to hold an account and stores `None`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
 )]
@@ -83,6 +90,11 @@ pub enum CredentialMode {
     Login,
     /// The single secret slot holds a ready-made API key.
     ApiKey,
+    /// Nothing is typed: a sign-in with a code fills the account's slots (RD-150-09).
+    ///
+    /// Renamed explicitly, because `rename_all = "snake_case"` would spell it `o_auth`.
+    #[serde(rename = "oauth")]
+    OAuth,
 }
 
 impl CredentialMode {
@@ -92,6 +104,7 @@ impl CredentialMode {
         match self {
             Self::Login => "login",
             Self::ApiKey => "api_key",
+            Self::OAuth => "oauth",
         }
     }
 
@@ -102,6 +115,7 @@ impl CredentialMode {
         match value.trim() {
             "login" => Some(Self::Login),
             "api_key" => Some(Self::ApiKey),
+            "oauth" => Some(Self::OAuth),
             _ => None,
         }
     }
@@ -231,10 +245,24 @@ impl ProviderSpec {
     /// The slot a sign-in flow fills, when this provider has one (RD-106-03).
     ///
     /// Its presence is what tells the host that this provider's access token has a place of
-    /// its own and must not be written over the credential the person registered.
+    /// its own and must not be written over the credential the person registered. With more
+    /// than one flow slot (RD-150-09) the first declared is the access token's.
     #[must_use]
     pub fn flow_secret_slot(&self) -> Option<&SecretSlot> {
         self.secrets.iter().find(|slot| slot.is_filled_by_flow())
+    }
+
+    /// The flow-filled slot named `reference`, when it is a *part* a sign-in keeps beside its
+    /// token rather than the token itself (RD-150-09).
+    ///
+    /// Every flow slot after the first is one: Real-Debrid's personal client id and client
+    /// secret, which each renewal needs beside the refresh material. They are written by
+    /// `store-flow-secret` and never by `store-oauth-token`.
+    #[must_use]
+    pub fn flow_part_slot(&self, reference: &str) -> Option<&SecretSlot> {
+        let token = self.flow_secret_slot()?;
+        self.secret_slot(reference)
+            .filter(|slot| slot.is_filled_by_flow() && slot.reference != token.reference)
     }
 
     /// The slot the person fills, i.e. the account's own credential.

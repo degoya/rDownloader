@@ -21,7 +21,9 @@
     "select_all": "Alle auswählen",
     "clear_selection": "Auswahl aufheben",
     "apply": "Anwenden",
-    "reveal": "In der Liste zeigen"
+    "reveal": "In der Liste zeigen",
+    "cancel_edit": "Bearbeitung abbrechen",
+    "duplicate": "Duplizieren"
   },
   "states": {
     "queued": "Warteschlange",
@@ -133,5 +135,22 @@
     "import_success": "Import abgeschlossen",
     "import_summary": "{created} übernommen, {skipped} übersprungen"
   },
-  "editing": "Wird bearbeitet"
+  "editing": "Wird bearbeitet",
+  "duplicate_hint": "Legt eine Kopie an und öffnet sie zum Bearbeiten",
+  "copy_suffix": "Kopie",
+  "enrichment": {
+    "show": "Metadaten anzeigen",
+    "show_hint": "Blendet aus, was Plugins zu den Links gefunden haben – gelöscht wird nichts.",
+    "source": "{name}, von einem Plugin abgefragt am {at}",
+    "fields": {
+      "title": "Titel",
+      "series": "Serie",
+      "season": "Staffel",
+      "episode": "Folge",
+      "year": "Jahr",
+      "rating": "Bewertung",
+      "genre": "Genre",
+      "runtime": "Laufzeit"
+    }
+  }
 }

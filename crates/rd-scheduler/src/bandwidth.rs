@@ -169,17 +169,28 @@ impl BandwidthService {
             .and_then(|profile| profile.max_active_files)
     }
 
-    /// The torrent session rates of the active profile, applied by the torrent supervisor.
+    /// The torrent session rates, applied by the torrent supervisor: the active profile's
+    /// download limit, and the upload limit every other upload keeps too — the stricter of the
+    /// hand-set one and the profile's (RD-150-15).
     pub async fn torrent_rates(&self) -> (Option<u64>, Option<u64>) {
-        let state = self.state.read().await;
-        state.active_profile().map_or((None, None), |profile| {
-            (
-                profile
-                    .download_bytes_per_second
-                    .map(rd_core::ByteCount::get),
-                profile.upload_bytes_per_second.map(rd_core::ByteCount::get),
-            )
-        })
+        let download = {
+            let state = self.state.read().await;
+            state
+                .active_profile()
+                .and_then(|profile| profile.download_bytes_per_second)
+                .map(rd_core::ByteCount::get)
+        };
+        let upload = self
+            .limits
+            .upload_binding_limit()
+            .map(|limit| limit.bytes_per_second);
+        (download, upload)
+    }
+
+    /// The handle every upload paces itself with (RD-150-15).
+    #[must_use]
+    pub fn upload_limiter(&self) -> rd_limits::ScopedLimiter {
+        self.limits.upload()
     }
 }
 
@@ -261,13 +272,21 @@ impl SchedulerHandle {
             self.database.broadcast(event);
         }
         match &profile {
-            Some(profile) => service.limits.apply(
-                profile
-                    .download_bytes_per_second
-                    .map(rd_core::ByteCount::get),
-                &profile.scope_limits(),
-            ),
-            None => service.limits.apply(None, &[]),
+            Some(profile) => {
+                service.limits.apply(
+                    profile
+                        .download_bytes_per_second
+                        .map(rd_core::ByteCount::get),
+                    &profile.scope_limits(),
+                );
+                service
+                    .limits
+                    .apply_upload(profile.upload_bytes_per_second.map(rd_core::ByteCount::get));
+            }
+            None => {
+                service.limits.apply(None, &[]);
+                service.limits.apply_upload(None);
+            }
         }
         if switched {
             let name = profile

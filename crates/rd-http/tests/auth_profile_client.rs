@@ -32,6 +32,7 @@ fn key(profile: Option<rd_core::AuthProfileId>) -> ClientKey {
         auth_revision: 1,
         replay_scope: None,
         tls_revision: 0,
+        address_policy: None,
     }
 }
 

@@ -75,7 +75,15 @@
     "script": "Script",
     "script_description": "A file in the service's scripts folder. Every line it prints that is a link is taken, and a link already seen is not taken again. Only the administrator can set up a script subscription.",
     "schedule": "Schedule (cron)",
-    "schedule_description": "Five fields in the service's local time, e.g. 0 6 * * * for 06:00 every day. Leave empty to use the interval; with a schedule, the interval only sets how soon a failed run is retried."
+    "schedule_description": "Five fields in the service's local time, e.g. 0 6 * * * for 06:00 every day. Leave empty to use the interval; with a schedule, the interval only sets how soon a failed run is retried.",
+    "script_arguments": "Arguments",
+    "script_arguments_description": "One line, split at spaces; \"…\" or '…' keep an argument with spaces together. No shell: $variables, > redirections, ; and & arrive unchanged. No secrets: arguments are stored in plain text in the database, backups and the audit log.",
+    "script_arguments_preview": "How the arguments reach the script",
+    "script_arguments_empty": "empty",
+    "script_arguments_unclosed": "A quotation mark is not closed",
+    "script_missing": "{name} (no longer in the scripts folder)",
+    "create": "Create subscription",
+    "form_new": "New subscription"
   },
   "list": {
     "title": "Subscriptions",

@@ -5,11 +5,12 @@
 //! what lives here is the sequence of calls.
 //!
 //! One thing is worth saying out loud because it is the difference between this plugin and the
-//! four beside it: the Bearer token is **not** something the person typed. It is what the
-//! device sign-in in `plugins/realdebrid-auth/` produced, and it expires. So a 401 here does
-//! not mean "the person mistyped their key"; it means the renewal has not caught up yet, or
-//! the sign-in was revoked. It is reported as `AccountInvalid` either way, because that is what
-//! makes the interface offer a sign-in rather than a retry.
+//! four beside it: the Bearer token is one of two, by the account's mode (RD-150-09) -- the
+//! access token the sign-in in `plugins/realdebrid-auth/` stored and keeps renewed, or the
+//! person's private API token from real-debrid.com/apitoken. Which one is asked of the host
+//! before the first request, and the plugin never learns the mode itself. A 401 means the token
+//! was mistyped, renewed at Real-Debrid or revoked. It is reported as `AccountInvalid`, because
+//! that is what makes the interface ask for the credential again rather than retry.
 
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
@@ -31,8 +32,8 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
-    let response = call(host, "GET", "/user", Vec::new(), true).await?;
+    let token = require_token(host, account_id).await?;
+    let response = call(host, "GET", "/user", Vec::new(), Some(token)).await?;
     let user: api::UserInfo = parse_json(&response)?;
     Ok(Account {
         valid: true,
@@ -58,13 +59,13 @@ pub(crate) async fn resolve<H: PluginHost>(
         .account_id
         .as_deref()
         .ok_or_else(|| coded(FailureKind::AuthRequired, messages::ACCOUNT_MISSING))?;
-    require_token(host, account_id).await?;
+    let token = require_token(host, account_id).await?;
     let response = call(
         host,
         "POST",
         "/unrestrict/link",
         api::link_body(&request.url),
-        true,
+        Some(token),
     )
     .await?;
     let unrestricted: api::UnrestrictedLink = parse_json(&response)?;
@@ -94,7 +95,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     require_token(host, account_id).await?;
     // `hosts/domains` takes no token, so the request carries none: a catalogue is public, and
     // sending a credential to fetch it would be spending one for nothing.
-    let response = call(host, "GET", "/hosts/domains", Vec::new(), false).await?;
+    let response = call(host, "GET", "/hosts/domains", Vec::new(), None).await?;
     let domains: Vec<String> = parse_json(&response)?;
     Ok(api::merge_hosters(domains))
 }
@@ -121,15 +122,7 @@ pub(crate) async fn check<H: PluginHost>(
             results.push(unknown(url));
             continue;
         }
-        match call(
-            host,
-            "POST",
-            "/unrestrict/check",
-            api::link_body(url),
-            false,
-        )
-        .await
-        {
+        match call(host, "POST", "/unrestrict/check", api::link_body(url), None).await {
             Ok(response) => results.push(match parse_json::<api::CheckedLink>(&response) {
                 Ok(checked) => LinkCheck {
                     url: url.clone(),
@@ -167,9 +160,9 @@ fn unknown(url: &str) -> LinkCheck {
 
 /// Calls `{API_BASE}{path}` and turns whatever came back into a failure or a response.
 ///
-/// `authenticated` decides whether the Bearer header is attached at all. Two of Real-Debrid's
-/// endpoints take no token, and sending one to them would put a credential on the wire for no
-/// reason — the host would allow it, which is exactly why the plugin should not ask.
+/// `token` names the reference the Bearer header carries, or `None` for no header at all. Two of
+/// Real-Debrid's endpoints take no token, and sending one to them would put a credential on the
+/// wire for no reason — the host would allow it, which is exactly why the plugin should not ask.
 ///
 /// The token never enters the plugin: `{{secret:…}}` is expanded by the host, towards
 /// `api.real-debrid.com` and nowhere else.
@@ -178,7 +171,7 @@ async fn call<H: PluginHost>(
     method: &str,
     path: &str,
     body: Vec<u8>,
-    authenticated: bool,
+    token: Option<&str>,
 ) -> Result<HttpResponse, Failure> {
     let mut request = HttpRequest {
         method: method.to_owned(),
@@ -188,10 +181,10 @@ async fn call<H: PluginHost>(
         body,
     }
     .with_header("Accept", "application/json");
-    if authenticated {
+    if let Some(reference) = token {
         request = request.with_header(
             "Authorization",
-            format!("Bearer {{{{secret:{}}}}}", api::TOKEN_REFERENCE),
+            format!("Bearer {{{{secret:{reference}}}}}"),
         );
     }
     if !request.body.is_empty() {
@@ -208,19 +201,20 @@ async fn call<H: PluginHost>(
     Ok(response)
 }
 
-/// Fails before any request when the account holds no access token.
+/// The reference of the token this account holds, or a failure before any request when it
+/// holds none.
 ///
-/// Unlike the pasted-key multihosters this is not "the person forgot to type something": the
-/// token is written by the sign-in and replaced by the renewal sweep, so its absence means the
-/// account has never been signed in or has been signed out.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, api::TOKEN_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::TOKEN_MISSING));
+/// Asked of the host rather than decided here: `secret-available` answers only for the slot the
+/// account's mode makes live, so a signed-in account names the access token and an account with
+/// a pasted key names that key. Neither being there means the account has never been signed in,
+/// was signed out, or has no token typed yet.
+async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<&'static str, Failure> {
+    for reference in api::TOKEN_REFERENCES {
+        if host.secret_available(account_id, reference).await {
+            return Ok(reference);
+        }
     }
-    Ok(())
+    Err(coded(FailureKind::AuthRequired, messages::TOKEN_MISSING))
 }
 
 fn convert_failure(failure: api::ApiFailure) -> Failure {

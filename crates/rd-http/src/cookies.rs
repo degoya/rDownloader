@@ -139,7 +139,8 @@ pub fn earliest_expiry(content: &str) -> Option<DateTime<Utc>> {
     content
         .lines()
         .filter_map(|line| {
-            let line = line.trim_end();
+            // Only the line ending: a trailing tab is an empty cookie value.
+            let line = line.trim_end_matches('\r');
             let line = line.strip_prefix("#HttpOnly_").unwrap_or(line);
             let fields = line.split('\t').collect::<Vec<_>>();
             (fields.len() == 7).then(|| fields[4].parse::<i64>().ok())?
@@ -153,8 +154,10 @@ pub fn earliest_expiry(content: &str) -> Option<DateTime<Utc>> {
 fn import_netscape(jar: &Jar, content: &str, scope: &CookieScope) -> Result<()> {
     let mut imported = 0_usize;
     for raw_line in content.lines() {
-        let line = raw_line.trim_end();
-        if line.is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
+        // Only the line ending: a cookie with an empty value ends its row in a tab, and trimming
+        // that tab turned a valid row into six fields (DDownload, 1.5.0).
+        let line = raw_line.trim_end_matches('\r');
+        if line.trim().is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
             continue;
         }
         let line = line.strip_prefix("#HttpOnly_").unwrap_or(line);

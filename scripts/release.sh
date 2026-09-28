@@ -56,9 +56,10 @@ fi
 # check already tested them; rebuilding here is cheap and makes the release output deterministic.
 scripts/build-extension.sh --skip-tests
 
-# Linux first: it builds web/dist, which the Windows run then reuses.
-scripts/package-linux.sh
-scripts/package-windows.sh --skip-web
+# Linux first: it builds web/dist, which the Windows run then reuses. The release profile by name,
+# so a RD_PACKAGE_PROFILE left for a test package cannot build the release (RD-150-20).
+scripts/package-linux.sh --profile release
+scripts/package-windows.sh --skip-web --profile release
 
 cat <<SUMMARY
 

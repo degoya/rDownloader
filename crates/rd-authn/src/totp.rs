@@ -13,7 +13,7 @@
 //! is not what HMAC relies on; HMAC-SHA1 remains sound and is what every implementation of
 //! this protocol speaks.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit as _, Mac};
 use sha1::Sha1;
 
 /// Seconds per code. Fixed by what authenticator apps assume.
@@ -33,7 +33,7 @@ pub const SECRET_BYTES: usize = 20;
 /// Generates a fresh secret.
 #[must_use]
 pub fn generate_secret() -> Vec<u8> {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = vec![0_u8; SECRET_BYTES];
     rand::rng().fill_bytes(&mut bytes);
     bytes

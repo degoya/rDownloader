@@ -109,3 +109,18 @@ describe('SettingsGeneralTab Usenet files at once', () => {
     })
   })
 })
+
+/** RD-150-15: the hand-set upload limit sits beside the speed limit, in MiB/s. */
+describe('SettingsGeneralTab upload limit', () => {
+  it('shows the stored bytes per second as MiB/s', () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+    const settings = { nntp_connections_per_file: 0, nntp_parallel_files: 0, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: '0', upload_limit_bytes_per_second: String(3 * 1024 ** 2) }
+    render(SettingsGeneralTab, {
+      props: { modelValue: settings as never, speedMib: null },
+      global: { plugins: [i18n], components }
+    })
+
+    expect(screen.getByText('Upload limit')).toBeTruthy()
+    expect((screen.getByTestId('upload-limit') as HTMLInputElement).value).toBe('3')
+  })
+})

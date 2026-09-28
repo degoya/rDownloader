@@ -95,9 +95,9 @@ const PROFILE_COLUMNS: &str = "id, name, download_bytes_per_second, upload_bytes
      max_active_files, daily_budget_bytes, monthly_budget_bytes, scopes_json";
 
 pub(crate) async fn list_profiles(pool: &SqlitePool) -> Result<Vec<BandwidthProfile>> {
-    sqlx::query_as::<_, ProfileRow>(&format!(
+    sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {PROFILE_COLUMNS} FROM bandwidth_profiles ORDER BY name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()

@@ -53,6 +53,8 @@ pub struct NewSubscription {
     pub card_ratio: SubscriptionCardRatio,
     /// A cron expression that replaces the interval (RD-130-19), already validated.
     pub schedule: Option<String>,
+    /// The arguments a script subscription hands its script (RD-150-08), already validated.
+    pub script_arguments: Vec<String>,
     pub secret_ref: Option<String>,
 }
 
@@ -91,8 +93,8 @@ pub struct PollResult {
 
 const COLUMNS: &str = "id, name, url, kind, enabled, mode, category_id, priority, \
      interval_seconds, filters_json, backlog_json, category_map_json, \
-     source_categories_json, every_release, view, autoplay, card_ratio, schedule, primed, \
-     last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
+     source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
+     script_arguments_json, primed, last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
      secret_ref, created_at, updated_at";
 
 const ITEM_COLUMNS: &str = "id, subscription_id, item_key, title, url, published_at, \
@@ -145,9 +147,9 @@ fn run_finished_event(subscription_id: SubscriptionId, result: &PollResult) -> E
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<Subscription>> {
-    sqlx::query_as::<_, SubscriptionRow>(&format!(
+    sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions ORDER BY name, created_at"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -156,9 +158,9 @@ pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<Subscription>> {
 }
 
 pub(crate) async fn get(pool: &SqlitePool, id: SubscriptionId) -> Result<Option<Subscription>> {
-    sqlx::query_as::<_, SubscriptionRow>(&format!(
+    sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(pool)
     .await?
@@ -171,11 +173,11 @@ pub(crate) async fn get(pool: &SqlitePool, id: SubscriptionId) -> Result<Option<
 /// A row with no `next_run_at` has never run and is due immediately, which is what makes a
 /// freshly created subscription poll without waiting a full interval.
 pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Subscription>> {
-    sqlx::query_as::<_, SubscriptionRow>(&format!(
+    sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions \
          WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?) \
          ORDER BY next_run_at IS NOT NULL, next_run_at"
-    ))
+    )))
     .bind(now)
     .fetch_all(pool)
     .await?
@@ -193,11 +195,11 @@ pub(crate) async fn item_page(
     offset: i64,
 ) -> Result<SubscriptionItemPage> {
     let state = state.map(item_state_string);
-    let rows = sqlx::query_as::<_, ItemRow>(&format!(
+    let rows = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {ITEM_COLUMNS} FROM subscription_items \
          WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
          ORDER BY discovered_at DESC, id DESC LIMIT ? OFFSET ?"
-    ))
+    )))
     .bind(id.to_string())
     .bind(state)
     .bind(state)
@@ -291,9 +293,9 @@ pub(crate) async fn item(
     pool: &SqlitePool,
     id: rd_core::SubscriptionItemId,
 ) -> Result<Option<SubscriptionItem>> {
-    sqlx::query_as::<_, ItemRow>(&format!(
+    sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {ITEM_COLUMNS} FROM subscription_items WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(pool)
     .await?
@@ -354,6 +356,7 @@ pub(crate) async fn create(
         autoplay: input.autoplay,
         card_ratio: input.card_ratio,
         schedule: input.schedule,
+        script_arguments: input.script_arguments,
         created_at: now,
         updated_at: now,
     };
@@ -362,9 +365,10 @@ pub(crate) async fn create(
     sqlx::query(
         "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, priority, \
          interval_seconds, filters_json, backlog_json, category_map_json, \
-         source_categories_json, every_release, view, autoplay, card_ratio, schedule, primed, \
-         consecutive_failures, secret_ref, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+         source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
+         script_arguments_json, primed, consecutive_failures, secret_ref, created_at, \
+         updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
     )
     .bind(value.id.to_string())
     .bind(&value.name)
@@ -384,6 +388,7 @@ pub(crate) async fn create(
     .bind(i64::from(value.autoplay))
     .bind(value.card_ratio.as_str())
     .bind(value.schedule.as_deref())
+    .bind(serde_json::to_string(&value.script_arguments)?)
     .bind(value.secret_ref.as_deref())
     .bind(value.created_at)
     .bind(value.updated_at)
@@ -405,9 +410,9 @@ pub(crate) async fn update(
     id: SubscriptionId,
     input: NewSubscription,
 ) -> Result<(Subscription, Option<String>, EventEnvelope)> {
-    let existing = sqlx::query_as::<_, SubscriptionRow>(&format!(
+    let existing = sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(&mut *connection)
     .await?
@@ -427,6 +432,7 @@ pub(crate) async fn update(
          category_id = ?, priority = ?, interval_seconds = ?, filters_json = ?, \
          backlog_json = ?, category_map_json = ?, source_categories_json = ?, \
          every_release = ?, view = ?, autoplay = ?, card_ratio = ?, secret_ref = ?, \
+         script_arguments_json = ?, \
          next_run_at = CASE WHEN schedule IS ? THEN next_run_at ELSE NULL END, schedule = ?, \
          updated_at = ? \
          WHERE id = ?",
@@ -448,6 +454,7 @@ pub(crate) async fn update(
     .bind(i64::from(input.autoplay))
     .bind(input.card_ratio.as_str())
     .bind(secret_ref.as_deref())
+    .bind(serde_json::to_string(&input.script_arguments)?)
     .bind(input.schedule.as_deref())
     .bind(input.schedule.as_deref())
     .bind(Utc::now())
@@ -456,9 +463,9 @@ pub(crate) async fn update(
     .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let updated = sqlx::query_as::<_, SubscriptionRow>(&format!(
+    let updated = sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?
@@ -484,9 +491,9 @@ pub(crate) async fn set_enabled(
     }
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let updated = sqlx::query_as::<_, SubscriptionRow>(&format!(
+    let updated = sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?
@@ -816,6 +823,7 @@ struct SubscriptionRow {
     autoplay: i64,
     card_ratio: String,
     schedule: Option<String>,
+    script_arguments_json: String,
     primed: i64,
     last_run_at: Option<DateTime<Utc>>,
     next_run_at: Option<DateTime<Utc>>,
@@ -907,6 +915,10 @@ impl TryFrom<SubscriptionRow> for Subscription {
             autoplay: row.autoplay != 0,
             card_ratio: SubscriptionCardRatio::from_stored(&row.card_ratio),
             schedule: row.schedule,
+            // Refused rather than defaulted, like the filters: a script run without the
+            // arguments it was given runs another variant of it, which nobody asked for.
+            script_arguments: serde_json::from_str(&row.script_arguments_json)
+                .context("subscription script arguments are unreadable")?,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

@@ -318,6 +318,11 @@ fn locale_bundle_sync(
                             ("secret_hint_login", account.secret_hint_login),
                             ("secret_label_api_key", account.secret_label_api_key),
                             ("secret_hint_api_key", account.secret_hint_api_key),
+                            ("secret_label_oauth", account.secret_label_oauth),
+                            ("secret_hint_oauth", account.secret_hint_oauth),
+                            ("mode_label_login", account.mode_label_login),
+                            ("mode_label_api_key", account.mode_label_api_key),
+                            ("mode_label_oauth", account.mode_label_oauth),
                             ("username_label", account.username_label),
                             ("username_hint", account.username_hint),
                         ] {

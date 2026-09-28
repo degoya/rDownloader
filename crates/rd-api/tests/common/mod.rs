@@ -183,6 +183,7 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
             default_scripts_directory: directory.join("scripts"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     let state = rd_api::AppState::new(

@@ -12,6 +12,7 @@ pub(crate) mod queue;
 pub(crate) mod security;
 pub(crate) mod site_rules;
 pub(crate) mod stats;
+pub(crate) mod storage;
 pub(crate) mod system;
 pub(crate) mod torrent;
 pub(crate) mod usenet;
@@ -36,6 +37,7 @@ pub(crate) fn protected() -> Router<AppState> {
         .merge(torrent::routes())
         .merge(usenet::routes())
         .merge(stats::routes())
+        .merge(storage::routes())
         .merge(diagnostics::routes())
         .merge(audit::routes())
 }

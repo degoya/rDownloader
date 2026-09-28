@@ -10,7 +10,7 @@
 //! What this module deliberately cannot express is a label whose value is free text. A
 //! [`Family`] takes its label values as `&str`, and the collector in `metrics.rs` only ever
 //! hands it enum names, provider ids and storage-root ids; the exposition test in
-//! `tests/metrics.rs` checks that nothing a person typed reaches the output.
+//! `tests/admin/metrics.rs` checks that nothing a person typed reaches the output.
 
 use std::fmt::Write as _;
 

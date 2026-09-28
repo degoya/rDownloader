@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.9.0"
 id = "019d0000-0000-7000-8000-00000000000c"
 name = "Real-Debrid"
-version = "0.1.5"
+version = "0.2.1"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["*"]
@@ -14,12 +14,14 @@ download_domains = ["*"]
 max_concurrent_downloads = 3
 
 [capabilities]
-# The access token an `oauth` sign-in produced. It is written by `realdebrid-auth` through
-# `store-oauth-token` and read back here only as the template below, never as a value.
+# The two credentials a request may carry, one per way of holding the account, each read here
+# only as a template and never as a value: the access token a sign-in with a code obtained, and
+# the private API token from real-debrid.com/apitoken. Both travel as `Authorization: Bearer`;
+# the host answers `secret-available` for the one the account's mode makes live.
 #
-# Deliberately not `realdebrid_client_secret`: this plugin has no business with the application
-# the person registered, and a grant it does not need is a grant it should not have.
-secrets = ["realdebrid_access_token"]
+# Deliberately not the personal client id and client secret the sign-in keeps: those belong to
+# `realdebrid-auth`, and a grant this plugin does not need is a grant it should not have.
+secrets = ["realdebrid_access_token", "realdebrid_api_token"]
 
 [capabilities.net_http]
 domains = ["api.real-debrid.com"]
@@ -34,28 +36,42 @@ min_app_version = "0.9.0"
 [provider]
 slug = "realdebrid"
 kind = "multihoster"
-# The person brings their own Real-Debrid application: `username` is its client id and the
-# account credential is its client secret. `plugins/realdebrid-auth/` runs the OAuth2 device
-# flow with them, and the host's renewal sweep keeps the token it obtains alive.
-#
-# Two slots, because two credentials have to exist at once. The client secret is what the
-# person registered and typed; the access token is what the sign-in obtained. Writing the
-# second over the first would destroy the value every later renewal needs, so each has its own
-# slot and `filled_by` says which is which.
-credentials = "oauth"
-username_required = true
+# Two ways to hold the account (RD-150-09). "Connect with a code" is the default: the sign-in in
+# `plugins/realdebrid-auth/` runs Real-Debrid's open-source device flow, which hands the person a
+# client id and client secret of their own, and the renewal sweep keeps the token alive. "API
+# token" is the private token from real-debrid.com/apitoken (1.4.3), typed with the account.
+credentials = "oauth_or_api_key"
+username_required = false
 # Deliberately no `cookie_scope`. This is an API-shaped multihoster with no `cookies`
 # capability; a scope nothing can use would be a promise about where credentials go that
 # nothing keeps.
 
-[[provider.secrets]]
-reference = "realdebrid_client_secret"
-domains = ["api.real-debrid.com"]
-
+# The first declared mode is the default one, so the sign-in comes first. Its first slot is the
+# access token; the two after it are the named parts the sign-in keeps beside the token for
+# every renewal. All three are filled by the flow and nobody types them.
 [[provider.secrets]]
 reference = "realdebrid_access_token"
 domains = ["api.real-debrid.com"]
+mode = "oauth"
 filled_by = "flow"
+
+[[provider.secrets]]
+reference = "realdebrid_client_id"
+domains = ["api.real-debrid.com"]
+mode = "oauth"
+filled_by = "flow"
+
+[[provider.secrets]]
+reference = "realdebrid_client_secret"
+domains = ["api.real-debrid.com"]
+mode = "oauth"
+filled_by = "flow"
+
+# What the person types in the other mode.
+[[provider.secrets]]
+reference = "realdebrid_api_token"
+domains = ["api.real-debrid.com"]
+mode = "api_key"
 
 [limits]
 memory_bytes = 67108864

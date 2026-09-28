@@ -25,14 +25,12 @@ function submit(): void {
     <template #body>
       <form id="collector-intake-form" class="space-y-3" @submit.prevent="submit">
         <UTextarea v-model="text" :rows="10" autoresize autofocus :placeholder="t('linkgrabber.intake.placeholder')" class="w-full font-mono text-xs" />
-        <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('linkgrabber.intake.package_name')" :description="t('linkgrabber.intake.package_name_hint')">
-            <UInput v-model="packageName" maxlength="200" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('linkgrabber.intake.password')">
-            <UInput v-model="password" type="password" maxlength="1024" class="w-full font-mono" />
-          </UFormField>
-        </div>
+        <UFormField :label="t('linkgrabber.intake.package_name')" :description="t('linkgrabber.intake.package_name_hint')">
+          <UInput v-model="packageName" maxlength="200" class="w-full" />
+        </UFormField>
+        <UFormField :label="t('linkgrabber.intake.password')">
+          <UInput v-model="password" type="password" maxlength="1024" class="w-full font-mono" />
+        </UFormField>
       </form>
     </template>
     <template #footer>

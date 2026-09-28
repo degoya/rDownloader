@@ -107,7 +107,15 @@ impl DownloadState {
                     RetryWait,
                     Queued | Resolving | Downloading | Paused | Failed | Cancelled
                 )
-                | (Verifying, Repairing | Extracting | Completed | Failed)
+                // `Blocked` from `Verifying` is the `ask` collision policy meeting a name that was
+                // taken while the transfer ran (RD-150-01): the verified file waits in staging
+                // for an answer, and only this download waits with it. `Cancelled` is for a row
+                // that waits for its set's PAR2 verdict with no worker behind it (RD-108-24);
+                // without it such a row could be neither cancelled nor removed.
+                | (
+                    Verifying,
+                    Repairing | Extracting | Completed | Failed | Blocked | Cancelled
+                )
                 | (Repairing, Extracting | Completed | Failed)
                 | (Extracting, Completed | Failed)
                 | (Completed, Extracting)
@@ -216,6 +224,8 @@ pub enum DownloadKind {
     Sftp,
     /// A protocol carried by an installed transfer backend; one row per remote file.
     Plugin,
+    /// An object in an S3-compatible bucket (RD-150-04); one row per object.
+    ObjectStorage,
 }
 
 /// A logical package grouping one or more files.
@@ -383,5 +393,13 @@ mod tests {
     fn a_queued_download_can_be_blocked() {
         assert!(DownloadState::Queued.can_transition_to(DownloadState::Blocked));
         assert!(DownloadState::Blocked.can_transition_to(DownloadState::Queued));
+    }
+
+    /// A verified file whose name was taken during the transfer waits for an `ask` answer in
+    /// `Blocked`, and the answer puts it back into the queue (RD-150-01).
+    #[test]
+    fn a_verified_download_can_wait_for_a_collision_answer() {
+        assert!(DownloadState::Verifying.can_transition_to(DownloadState::Blocked));
+        assert!(!DownloadState::Completed.can_transition_to(DownloadState::Blocked));
     }
 }

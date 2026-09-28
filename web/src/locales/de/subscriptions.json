@@ -75,7 +75,15 @@
     "script": "Skript",
     "script_description": "Eine Datei im Skriptordner des Dienstes. Jede Zeile, die sie ausgibt und die ein Link ist, wird übernommen, schon gesehene Links nicht noch einmal. Nur der Administrator richtet ein Skript-Abo ein.",
     "schedule": "Zeitplan (Cron)",
-    "schedule_description": "Fünf Felder in der Ortszeit des Dienstes, z. B. 0 6 * * * für täglich 06:00. Leer lassen, um das Intervall zu verwenden; mit Zeitplan bestimmt das Intervall nur, wie bald ein fehlgeschlagener Lauf wiederholt wird."
+    "schedule_description": "Fünf Felder in der Ortszeit des Dienstes, z. B. 0 6 * * * für täglich 06:00. Leer lassen, um das Intervall zu verwenden; mit Zeitplan bestimmt das Intervall nur, wie bald ein fehlgeschlagener Lauf wiederholt wird.",
+    "script_arguments": "Parameter",
+    "script_arguments_description": "Eine Zeile, getrennt an Leerzeichen; \"…\" oder '…' halten einen Parameter mit Leerzeichen zusammen. Keine Shell: $Variablen, > Umleitungen, ; und & kommen unverändert an. Keine Geheimnisse: Parameter stehen im Klartext in der Datenbank, in Backups und im Audit-Log.",
+    "script_arguments_preview": "So kommen die Parameter beim Skript an",
+    "script_arguments_empty": "leer",
+    "script_arguments_unclosed": "Ein Anführungszeichen ist nicht geschlossen",
+    "script_missing": "{name} (nicht mehr im Skriptordner)",
+    "create": "Abonnement anlegen",
+    "form_new": "Neues Abonnement"
   },
   "list": {
     "title": "Abonnements",

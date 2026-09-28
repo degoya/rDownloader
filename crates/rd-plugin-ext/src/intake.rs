@@ -126,6 +126,49 @@ impl IntakeParsers {
         collected
     }
 
+    /// Every source set the installed parsers state for `input` (RD-150-03), checked.
+    ///
+    /// Each set comes back with the address it belongs to — the one the same parser proposed
+    /// through [`Self::parse`] — so the intake can put the two back together. A set whose
+    /// address is not a URL, is not one of its own sources, or keeps no source after
+    /// [`rd_core::SourceSet::checked`] is dropped with a warning, like a bad proposal is.
+    pub async fn source_sets(&self, input: &str) -> Vec<(url::Url, rd_core::SourceSet)> {
+        let mut collected = Vec::new();
+        for parser in self
+            .plugins
+            .iter()
+            .filter(|parser| parser.plugin.states_sources())
+        {
+            let proposals = match parser.plugin.source_sets(input).await {
+                Ok(proposals) => proposals,
+                Err(error) => {
+                    tracing::warn!(
+                        plugin = %parser.manifest.name,
+                        %error,
+                        "intake parser could not state its sources"
+                    );
+                    continue;
+                }
+            };
+            for proposal in proposals.into_iter().take(MAX_CANDIDATES) {
+                let Some(checked) = checked_set(proposal) else {
+                    tracing::warn!(
+                        plugin = %parser.manifest.name,
+                        "intake parser stated a source set the host cannot use"
+                    );
+                    continue;
+                };
+                if !collected
+                    .iter()
+                    .any(|(primary, _): &(url::Url, rd_core::SourceSet)| *primary == checked.0)
+                {
+                    collected.push(checked);
+                }
+            }
+        }
+        collected
+    }
+
     /// Offers a URL to each parser for normalisation, keeping the first rewrite.
     ///
     /// A rewrite that is not a valid URL, or that changes the host, is discarded: a
@@ -152,6 +195,26 @@ impl IntakeParsers {
     }
 }
 
+/// A parser's source set, checked, keyed by the address it was proposed under.
+fn checked_set(
+    proposal: rd_plugin_host::extension::SourceSetProposal,
+) -> Option<(url::Url, rd_core::SourceSet)> {
+    let primary = url::Url::parse(proposal.primary_url.trim()).ok()?;
+    let hashes: Vec<rd_core::StatedHash> = proposal
+        .hashes
+        .into_iter()
+        .map(|(algorithm, value)| rd_core::StatedHash { algorithm, value })
+        .collect();
+    let set =
+        rd_core::SourceSet::checked(proposal.sources, proposal.size, &hashes, proposal.pieces)?;
+    // The proposal is the download's own address; a set that does not contain it describes
+    // some other file, and mixing the two is exactly what the hashes are there to prevent.
+    set.sources
+        .iter()
+        .any(|source| source.url == primary)
+        .then_some((primary, set))
+}
+
 /// Drops every installed version of a parser but the newest.
 ///
 /// `load_verified` hands out one package per installed *version*, newest first, so a machine
@@ -161,4 +224,49 @@ impl IntakeParsers {
 fn keep_newest_version(plugins: &mut Vec<Parser>) {
     let mut seen = HashSet::new();
     plugins.retain(|parser| seen.insert(parser.manifest.id.to_string()));
+}
+
+#[cfg(test)]
+mod tests {
+    use rd_plugin_host::extension::SourceSetProposal;
+
+    use super::checked_set;
+
+    fn proposal(primary: &str, sources: &[&str]) -> SourceSetProposal {
+        SourceSetProposal {
+            primary_url: primary.to_owned(),
+            file_name: Some("f.iso".to_owned()),
+            size: Some(10),
+            sources: sources
+                .iter()
+                .map(|url| ((*url).to_owned(), None, None))
+                .collect(),
+            hashes: vec![("sha-1".to_owned(), "0".repeat(40))],
+            pieces: None,
+        }
+    }
+
+    #[test]
+    fn a_set_is_kept_under_the_address_it_was_proposed_with() {
+        let (primary, set) = checked_set(proposal(
+            "https://a.example/f.iso",
+            &["https://a.example/f.iso", "https://b.example/f.iso"],
+        ))
+        .expect("set");
+        assert_eq!(primary.as_str(), "https://a.example/f.iso");
+        assert_eq!(set.sources.len(), 2);
+        assert!(set.checksum.is_some());
+    }
+
+    #[test]
+    fn a_set_that_does_not_contain_its_own_address_is_dropped() {
+        assert!(
+            checked_set(proposal(
+                "https://a.example/f.iso",
+                &["https://b.example/f.iso"]
+            ))
+            .is_none()
+        );
+        assert!(checked_set(proposal("not a url", &["https://b.example/f.iso"])).is_none());
+    }
 }

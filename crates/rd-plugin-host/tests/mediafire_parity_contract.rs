@@ -1,5 +1,9 @@
-//! The MediaFire resolver's native fallback and its WebAssembly component pass the same
+//! The MediaFire resolver's host-side build and its WebAssembly component pass the same
 //! contract (RD-103-06, criterion 3).
+//!
+//! The host-side build is not a fallback any more -- since RD-150-18 nothing is compiled into
+//! the service -- but it is what the plugin crate's own unit tests run on, so this is what
+//! makes those tests speak for the component that is shipped.
 //!
 //! The same scripted host answers both: the captured `file/get_info` document and file page
 //! of 2026-09-21 for the success path, the captured refusals and the synthetic page states

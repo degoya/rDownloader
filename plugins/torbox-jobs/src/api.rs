@@ -140,7 +140,7 @@ pub const fn text_field(kind: Kind) -> &'static str {
     }
 }
 
-/// The file name a container of this kind is submitted under.
+/// The generic file name a part of this kind carries; see [`crate::upload`] for a container's.
 ///
 /// TorBox reads the bytes, not the name, but a multipart part has to carry one and a name that
 /// says what the part is beats a generic one in anybody's server log.

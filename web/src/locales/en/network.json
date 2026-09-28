@@ -19,7 +19,6 @@
     "enabled": "Account enabled",
     "save_changes": "Save changes",
     "create": "Create account",
-    "cancel_edit": "Cancel editing",
     "hint_title": "Importing credentials correctly",
     "secret_generic": "API key or password",
     "secret_generic_api_key": "API key",
@@ -59,7 +58,9 @@
       "declined": "Declined in the extension: the {host} session was not handed over.",
       "expired": "Nobody answered the request in time; the {host} session was not handed over."
     },
-    "providers_loading": "Loading the plugins the providers come from – after a start or a plugin update this takes a moment…"
+    "providers_loading": "Loading the plugins the providers come from – after a start or a plugin update this takes a moment…",
+    "credential_mode_oauth": "Connect with a code",
+    "no_providers": "No plugin for accounts is active. Enable hoster plugins under Settings → Plugins."
   },
   "hosters": {
     "toggle": "Supported hosters",

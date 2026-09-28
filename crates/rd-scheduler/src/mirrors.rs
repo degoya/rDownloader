@@ -19,6 +19,28 @@
 
 use rd_core::{DownloadFile, DownloadState, Failure, FailureKind};
 
+/// A resume refused because another link to the same file is already downloading.
+///
+/// A refusal of its own rather than a wrong state: the file itself may be resumed, just not
+/// while its sibling holds the turn, and the interface says which of the two it is instead of
+/// an internal error (RD-150-22). `source` is the sibling's link, for the log only.
+#[derive(Debug)]
+pub struct MirrorTaken {
+    pub source: String,
+}
+
+impl std::fmt::Display for MirrorTaken {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "another link to this file is already downloading: {}",
+            self.source
+        )
+    }
+}
+
+impl std::error::Error for MirrorTaken {}
+
 /// Whether links of this transport are ever mirrors of each other.
 ///
 /// Usenet and torrent files are members of one download each, not alternative routes to the
@@ -33,6 +55,7 @@ pub const fn groups_mirrors(kind: rd_core::DownloadKind) -> bool {
             | rd_core::DownloadKind::Plugin
             | rd_core::DownloadKind::Ftp
             | rd_core::DownloadKind::Sftp
+            | rd_core::DownloadKind::ObjectStorage
     )
 }
 
@@ -70,11 +93,14 @@ pub fn hands_over(failure: &Failure, retry_at: Option<chrono::DateTime<chrono::U
 }
 
 /// Whether the failure was raised by this machine rather than by the remote side.
+///
+/// A collision the policy answered with `skip` is one of these: another mirror of the same
+/// file would meet the same name and the same answer.
 #[must_use]
 pub fn is_local(failure: &Failure) -> bool {
     matches!(
         failure.code.as_deref(),
-        Some(rd_http::LOCAL_IO_CODE | LOCAL_PROMOTE_CODE)
+        Some(rd_http::LOCAL_IO_CODE | LOCAL_PROMOTE_CODE | rd_core::CODE_COLLISION_SKIPPED)
     )
 }
 

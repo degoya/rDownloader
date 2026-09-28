@@ -56,12 +56,14 @@ impl ResolverHost for NoHost {
 /// the local ones -- `claims`, `identify` -- are answered from the source alone, as a real
 /// plugin answers them.
 #[derive(Default)]
-struct MockProvider {
+pub(super) struct MockProvider {
     submits: Mutex<VecDeque<Result<RemoteJobHandle, RemoteJobRefusal>>>,
     adopts: Mutex<VecDeque<Option<RemoteJobHandle>>>,
     polls: Mutex<VecDeque<RemoteJobProgress>>,
     calls: Mutex<Vec<String>>,
     submitted: Mutex<Vec<RemoteJobSource>>,
+    /// The name each submit carried, in order (`job-context`).
+    names: Mutex<Vec<Option<String>>>,
 }
 
 impl MockProvider {
@@ -73,11 +75,15 @@ impl MockProvider {
         self.submitted.lock().expect("submitted").clone()
     }
 
+    pub(super) fn names(&self) -> Vec<Option<String>> {
+        self.names.lock().expect("names").clone()
+    }
+
     fn record(&self, call: impl Into<String>) {
         self.calls.lock().expect("calls").push(call.into());
     }
 
-    fn will_submit(&self, answer: Result<RemoteJobHandle, RemoteJobRefusal>) {
+    pub(super) fn will_submit(&self, answer: Result<RemoteJobHandle, RemoteJobRefusal>) {
         self.submits.lock().expect("submits").push_back(answer);
     }
 
@@ -85,7 +91,7 @@ impl MockProvider {
         self.adopts.lock().expect("adopts").push_back(answer);
     }
 
-    fn will_answer(&self, progress: RemoteJobProgress) {
+    pub(super) fn will_answer(&self, progress: RemoteJobProgress) {
         self.polls.lock().expect("polls").push_back(progress);
     }
 }
@@ -146,6 +152,21 @@ impl RemoteJobDriver for Driver {
             .expect("submits")
             .pop_front()
             .expect("a scripted submit answer"))
+    }
+
+    async fn submit_named(
+        &self,
+        account: AccountId,
+        source: &RemoteJobSource,
+        content_key: &str,
+        source_name: Option<&str>,
+    ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
+        self.0
+            .names
+            .lock()
+            .expect("names")
+            .push(source_name.map(str::to_owned));
+        self.submit(account, source, content_key).await
     }
 
     async fn adopt(
@@ -209,7 +230,7 @@ fn refusal(category: FailureKind, message: &str) -> RemoteJobRefusal {
     }
 }
 
-fn handle(remote_id: &str) -> RemoteJobHandle {
+pub(super) fn handle(remote_id: &str) -> RemoteJobHandle {
     RemoteJobHandle {
         remote_id: remote_id.to_owned(),
         account_id: "set by the host".to_owned(),
@@ -234,14 +255,14 @@ fn runners_for(provider: &Arc<MockProvider>) -> RemoteJobRunners {
 }
 
 /// A database, an account on the provider the mock claims, and a service driving the mock.
-struct Harness {
+pub(super) struct Harness {
     _directory: tempfile::TempDir,
-    database: rd_db::Database,
-    account: AccountId,
-    service: RemoteJobService,
+    pub(super) database: rd_db::Database,
+    pub(super) account: AccountId,
+    pub(super) service: RemoteJobService,
 }
 
-async fn harness(provider: &Arc<MockProvider>) -> Harness {
+pub(super) async fn harness(provider: &Arc<MockProvider>) -> Harness {
     let directory = tempfile::tempdir().expect("tempdir");
     let database = rd_db::Database::open(directory.path().join("remote-jobs.sqlite3"))
         .await
@@ -286,7 +307,7 @@ impl Harness {
         }
     }
 
-    async fn job(&self, id: RemoteJobId) -> rd_core::RemoteJob {
+    pub(super) async fn job(&self, id: RemoteJobId) -> rd_core::RemoteJob {
         self.database
             .remote_job(id)
             .await
@@ -294,12 +315,12 @@ impl Harness {
             .expect("the row")
     }
 
-    async fn sweep(&self, now: DateTime<Utc>) {
+    pub(super) async fn sweep(&self, now: DateTime<Utc>) {
         self.service.sweep_once(now).await.expect("sweep");
     }
 }
 
-fn later(now: DateTime<Utc>, seconds: i64) -> DateTime<Utc> {
+pub(super) fn later(now: DateTime<Utc>, seconds: i64) -> DateTime<Utc> {
     now + chrono::Duration::seconds(seconds)
 }
 
@@ -960,6 +981,7 @@ fn the_backoff_ladder_starts_at_the_default_and_stops_at_the_maximum() {
         remote_id: Some("REMOTE06".to_owned()),
         state: RemoteJobState::Preparing,
         source_kind: rd_core::RemoteJobSourceKind::Magnet,
+        source_name: None,
         submit_attempts: 1,
         adoption_checked: false,
         package_id: None,

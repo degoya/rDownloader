@@ -26,10 +26,7 @@ use super::{to_persisted, transition_stopped, validators_changed};
 use crate::{
     BlockReason, SchedulerHandle,
     failures::{record_error, size_mismatch},
-    finish::{
-        adopt_existing_final, current_destination, prepare_final_path, remove_if_empty,
-        verify_part_and_promote,
-    },
+    finish::{adopt_existing_final, current_destination, promote, remove_if_empty, verify_part},
 };
 
 /// A phase's answer: `Break` once the attempt's outcome is recorded, `Continue` otherwise.
@@ -273,7 +270,14 @@ pub(super) async fn prepare_destination(
     {
         return Ok(ControlFlow::Break(()));
     }
-    let final_path = prepare_final_path(scheduler, file, root.path()).await?;
+    // The collision policy decides the name before a byte is fetched (RD-150-01): a `skip`,
+    // an `ask` or a `compare` that can adopt the existing file ends the attempt right here.
+    let ControlFlow::Continue(final_path) =
+        crate::collision::before_transfer(scheduler, file, root.path(), &part_path, total_bytes)
+            .await?
+    else {
+        return Ok(ControlFlow::Break(()));
+    };
     // The same policy every other runner passes through; an insufficient root is blocked
     // instead of letting the transfer fail on a write halfway through.
     let remaining = total_bytes.map(|total| total.saturating_sub(file.committed_bytes.get()));
@@ -380,11 +384,43 @@ pub(super) async fn finish_download(
     let final_path = match current_destination(scheduler, file).await {
         Ok(Some(destination)) if destination != *root.path() => {
             tokio::fs::create_dir_all(&destination).await?;
-            prepare_final_path(scheduler, file, &destination).await?
+            destination.join(&file.file_name)
         }
         _ => final_path,
     };
-    let result = verify_part_and_promote(scheduler, file, part_path, &final_path).await;
+    let result: Result<()> = async {
+        let computed = verify_part(scheduler, file, part_path).await?;
+        // The name may have been taken while the transfer ran; the policy is applied again
+        // rather than letting the rename replace whatever arrived there in between.
+        let ControlFlow::Continue((final_path, overwrite)) = crate::collision::after_transfer(
+            scheduler,
+            file,
+            part_path,
+            final_path,
+            computed.as_ref(),
+        )
+        .await?
+        else {
+            return Ok(());
+        };
+        // Recorded before the replacement, so no file is overwritten without its record: an
+        // audit log that cannot be written stops the overwrite rather than missing it.
+        if let Some(overwrite) = overwrite {
+            crate::collision::audit_overwrite(scheduler, file, &final_path, overwrite).await?;
+        }
+        promote(scheduler, file, part_path, &final_path, computed).await?;
+        // The replaced file's own download no longer lies there: its index entry would claim
+        // this download's bytes carry its digest.
+        if overwrite.is_some() {
+            scheduler
+                .database
+                .forget_indexed_path(final_path.to_string_lossy().into_owned(), file.id)
+                .await?;
+        }
+        scheduler.database.clear_collision_prompt(file.id).await?;
+        Ok(())
+    }
+    .await;
     if result.is_ok() {
         remove_if_empty(staging).await;
     }

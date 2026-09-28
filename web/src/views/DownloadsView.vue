@@ -14,13 +14,16 @@ import PostprocessQueue from '@/components/PostprocessQueue.vue'
 import QueueSummary from '@/components/QueueSummary.vue'
 import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
+import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useOpenSections } from '@/composables/useOpenSections'
 import type { VirtualRow } from '@/composables/useVirtualRows'
 import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
+import { usePackageStorage } from '@/composables/usePackageStorage'
 import { useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
 import { useRename } from '@/composables/useRename'
 import { useResetConfirm } from '@/composables/useResetConfirm'
+import { useShowMetadata } from '@/composables/useShowMetadata'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { PAUSABLE_STATES, RESETTABLE_STATES, RESUMABLE_STATES, useTransfersStore, type PackageChange } from '@/stores/transfers'
 import { hasExtractable } from '@/utils/format'
@@ -32,6 +35,7 @@ const confirm = useConfirm()
 const rename = useRename()
 const confirmReset = useResetConfirm()
 const editPackage = usePackageEdit()
+const openPackageStorage = usePackageStorage()
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 const filter = ref('all')
@@ -99,6 +103,8 @@ const PACKAGE_ROW_SIZE = 52
 const FILE_ROW_SIZE = 40
 
 const openPackages = useOpenSections({ storageKey: 'rdownloader-open-packages', defaultOpen: false })
+/** The "Show metadata" switch: the enricher chips under the package names, per browser (RD-150-19). */
+const showMetadata = useShowMetadata('downloads')
 
 const rows = computed<QueueRow[]>(() => {
   const result: QueueRow[] = []
@@ -352,6 +358,22 @@ async function bulkRename(): Promise<void> {
   if (id) await renameFile(id)
 }
 
+/**
+ * The package's collision policy and its files' duplicates (RD-150-01). Every file of the
+ * package is offered, whatever the view's filter hides.
+ */
+async function packageStorage(id: string): Promise<void> {
+  const group = groups.value.find(entry => entry.package.id === id)
+  if (!group) return
+  await openPackageStorage({
+    packageId: id,
+    packageName: group.package.name,
+    downloads: transfers.downloads
+      .filter(item => item.package_id === id)
+      .map(item => ({ id: item.id, file_name: item.file_name, state: item.state }))
+  })
+}
+
 async function renamePackage(id: string): Promise<void> {
   const pkg = transfers.packages.find(item => item.id === id)
   if (!pkg) return
@@ -533,6 +555,7 @@ async function removeDownload(id: string): Promise<void> {
           />
         </template>
         <template #right>
+          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" data-testid="show-metadata" />
           <span class="numeric text-xs text-muted">{{ t('common.units.package', { count: groups.length }, groups.length) }} · {{ t('common.units.file', { count: visible.length }, visible.length) }}</span>
         </template>
       </UDashboardToolbar>
@@ -548,7 +571,18 @@ async function removeDownload(id: string): Promise<void> {
 
         <StorageCapacityAlert />
 
-        <UAlert v-if="transfers.error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="transfers.error" />
+        <CollisionPromptsAlert />
+
+        <!-- Dismissible: a refusal stays until the next action or until it is closed, rather than being wiped by the next queue refresh. -->
+        <UAlert
+          v-if="transfers.error"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :description="transfers.error"
+          close
+          @update:open="transfers.error = null"
+        />
         <UAlert v-if="transfers.notice" color="info" variant="subtle" icon="i-lucide-info" :description="transfers.notice" />
 
         <PostprocessQueue v-if="postprocess.queue.length" :entries="postprocess.queue" />
@@ -595,6 +629,7 @@ async function removeDownload(id: string): Promise<void> {
               <PackageGroup
                 v-if="row.kind === 'package'"
                 :package="row.group.package"
+                :hide-metadata="!showMetadata"
                 :downloads="row.group.downloads"
                 :categories="categories"
                 :selection="selection.packageState(row.group)"
@@ -611,6 +646,7 @@ async function removeDownload(id: string): Promise<void> {
                 @category="(id, categoryId) => changePackages([id], { categoryId })"
                 @priority="(id, value) => changePackages([id], { priority: value })"
                 @rename="renamePackage"
+                @storage="packageStorage"
                 @extract="(id) => extractPackages([id])"
                 @force-extract="forceExtractPackage"
                 @dragstart="(id) => draggingId = id"

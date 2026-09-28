@@ -1,4 +1,5 @@
-//! Authentication profiles, API tokens, remote credentials and request replay routes.
+//! Authentication profiles, API tokens, remote credentials, object storage profiles and request
+//! replay routes.
 
 use axum::{
     Router,
@@ -7,8 +8,9 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::{
-    AppState, api_tokens, auth_profile_handlers, mfa_handlers, passkey_handlers, password_handlers,
-    remote_handlers, remote_listing_handlers, replay_handlers, session_handlers,
+    AppState, api_tokens, auth_profile_handlers, mfa_handlers, object_storage_handlers,
+    passkey_handlers, password_handlers, remote_handlers, remote_listing_handlers, replay_handlers,
+    session_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -118,6 +120,20 @@ pub(crate) fn routes() -> Router<AppState> {
             post(remote_handlers::test_remote_credential),
         )
         .route(
+            "/api/v1/object-storage/profiles",
+            get(object_storage_handlers::list_object_storage_profiles)
+                .post(object_storage_handlers::create_object_storage_profile),
+        )
+        .route(
+            "/api/v1/object-storage/profiles/{id}",
+            axum::routing::put(object_storage_handlers::update_object_storage_profile)
+                .delete(object_storage_handlers::delete_object_storage_profile),
+        )
+        .route(
+            "/api/v1/object-storage/profiles/{id}/test",
+            post(object_storage_handlers::test_object_storage_profile),
+        )
+        .route(
             "/api/v1/collector/candidates/{id}/listing",
             get(remote_listing_handlers::get_candidate_listing),
         )
@@ -169,6 +185,11 @@ pub(crate) fn routes() -> Router<AppState> {
     remote_handlers::list_ssh_host_keys,
     remote_handlers::trust_ssh_host_key,
     remote_handlers::forget_ssh_host_key,
+    object_storage_handlers::list_object_storage_profiles,
+    object_storage_handlers::create_object_storage_profile,
+    object_storage_handlers::update_object_storage_profile,
+    object_storage_handlers::delete_object_storage_profile,
+    object_storage_handlers::test_object_storage_profile,
     remote_listing_handlers::get_candidate_listing,
     remote_listing_handlers::put_candidate_listing_plan,
 ))]

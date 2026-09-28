@@ -66,49 +66,42 @@ pub(crate) async fn scrape(announce: &str, info_hash: &str) -> Result<TrackerScr
     // A tracker URL can come straight out of an untrusted `.torrent`, so it is a
     // request target an attacker chooses. Refuse the ones that only make sense as an
     // attack before anything is sent.
-    reject_internal_target(&url).await?;
+    let addresses = reject_internal_target(&url).await?;
     let raw = hex::decode(info_hash).context("info hash is not hex")?;
     match url.scheme() {
         "http" | "https" => scrape_http(announce, &raw).await,
-        "udp" => scrape_udp(announce, &raw).await,
+        "udp" => scrape_udp(announce, &raw, &addresses).await,
         other => bail!("scrape is not defined for {other} trackers"),
     }
 }
 
-/// Refuses a tracker whose host resolves to an address that cannot be a real tracker.
+/// Refuses a tracker whose host resolves to an address that cannot be a real tracker, and
+/// returns the addresses it checked.
 ///
 /// A `.torrent` from a public site is attacker-controlled input, and a scrape is a request
 /// rDownloader makes on the user's behalf, so a hostile announce URL is a server-side
 /// request forgery primitive: `169.254.169.254` is the cloud metadata endpoint, loopback
-/// reaches rDownloader's own API and anything else bound locally.
+/// reaches rDownloader's own API and anything else bound locally. The rule is the one a
+/// Metalink's mirrors keep to (`rd_http::AddressPolicy`).
 ///
 /// Private LAN ranges stay allowed on purpose — a self-hosted tracker on the local network
 /// is a legitimate setup, and blocking it would break more than it protects.
-async fn reject_internal_target(url: &url::Url) -> Result<()> {
-    let host = url.host_str().context("tracker URL has no host")?;
-    let port = url.port_or_known_default().unwrap_or(80);
-    let resolved = tokio::net::lookup_host((host, port))
+async fn reject_internal_target(url: &url::Url) -> Result<Vec<std::net::IpAddr>> {
+    rd_http::check_target(&tracker_policy(), &rd_http::SystemLookup, url)
         .await
-        .with_context(|| format!("tracker host {host} could not be resolved"))?;
-    let mut any = false;
-    for address in resolved {
-        any = true;
-        let ip = address.ip();
-        let blocked = ip.is_loopback()
-            || ip.is_unspecified()
-            || ip.is_multicast()
-            || match ip {
-                std::net::IpAddr::V4(v4) => v4.is_link_local() || v4.is_broadcast(),
-                std::net::IpAddr::V6(v6) => {
-                    // Link-local unicast (fe80::/10) and unique-local (fc00::/7).
-                    matches!(v6.segments()[0] & 0xffc0, 0xfe80)
-                        || matches!(v6.segments()[0] & 0xfe00, 0xfc00)
-                }
-            };
-        anyhow::ensure!(!blocked, "tracker address is not routable on the internet");
-    }
-    anyhow::ensure!(any, "tracker host resolved to no address");
-    Ok(())
+        .map_err(|refusal| match refusal {
+            rd_http::TargetRefusal::Refused(_) => {
+                anyhow::anyhow!("tracker address is not routable on the internet")
+            }
+            rd_http::TargetRefusal::Unresolved(error) => {
+                anyhow::Error::new(error).context("tracker host could not be resolved")
+            }
+        })
+}
+
+/// Public addresses and the person's own network; never this machine.
+fn tracker_policy() -> rd_http::AddressPolicy {
+    rd_http::AddressPolicy::new(true)
 }
 
 /// HTTP(S) scrape (BEP 48).
@@ -127,6 +120,9 @@ async fn scrape_http(announce: &str, info_hash: &[u8]) -> Result<TrackerScrape> 
         // A redirect would send the request to a host that was never validated, which is
         // exactly the check `reject_internal_target` just performed.
         .redirect(reqwest::redirect::Policy::none())
+        // The name is resolved again to connect; the guard sees that answer too, so a name
+        // that pointed elsewhere a moment ago cannot point inside now.
+        .dns_resolver(rd_http::GuardedResolver::system(tracker_policy()))
         .build()
         .context("build scrape client")?;
     let body = client
@@ -181,16 +177,25 @@ pub(crate) fn parse_http_scrape(body: &[u8], info_hash: &[u8]) -> Result<Tracker
     })
 }
 
-/// UDP scrape (BEP 15): connect handshake, then one scrape request.
-async fn scrape_udp(announce: &str, info_hash: &[u8]) -> Result<TrackerScrape> {
+/// UDP scrape (BEP 15): connect handshake, then one scrape request — sent to the addresses
+/// `reject_internal_target` checked rather than to a second lookup of the name, which could
+/// answer differently.
+async fn scrape_udp(
+    announce: &str,
+    info_hash: &[u8],
+    addresses: &[std::net::IpAddr],
+) -> Result<TrackerScrape> {
     let url = url::Url::parse(announce).context("tracker URL is invalid")?;
-    let host = url.host_str().context("tracker URL has no host")?;
     let port = url.port().unwrap_or(80);
+    let targets: Vec<std::net::SocketAddr> = addresses
+        .iter()
+        .map(|address| std::net::SocketAddr::new(*address, port))
+        .collect();
     let socket = tokio::net::UdpSocket::bind("0.0.0.0:0")
         .await
         .context("bind scrape socket")?;
     socket
-        .connect((host, port))
+        .connect(&targets[..])
         .await
         .context("connect to the tracker")?;
 
@@ -472,10 +477,30 @@ mod tests {
             "http://169.254.169.254/announce",
             "http://0.0.0.0/announce",
             "http://[::1]/announce",
+            // An IPv4 loopback address in IPv6 clothing, which the tracker check alone used
+            // to let through.
+            "http://[::ffff:127.0.0.1]/announce",
+            "udp://[fe80::1]:6969/announce",
         ] {
             let url = url::Url::parse(announce).expect("valid url");
             let refused = super::reject_internal_target(&url).await;
             assert!(refused.is_err(), "{announce} was not refused");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_tracker_on_the_local_network_stays_allowed() {
+        // A self-hosted tracker on the LAN is a real setup; only this machine is refused.
+        for announce in [
+            "http://192.168.1.10:6969/announce",
+            "udp://10.0.0.2:6969/announce",
+            "http://[fd00::2]/announce",
+        ] {
+            let url = url::Url::parse(announce).expect("valid url");
+            assert!(
+                super::reject_internal_target(&url).await.is_ok(),
+                "{announce} was refused"
+            );
         }
     }
 

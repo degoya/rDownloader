@@ -18,7 +18,7 @@
 //! screenshot, one printout left in a drawer, into a permanent bypass of the second factor.
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 
 /// How many codes are issued at enrolment.

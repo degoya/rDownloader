@@ -89,7 +89,7 @@
       "headers": "Cabeceras"
     },
     "drag_hint": "Arrastra para cambiar el orden dentro del paquete",
-    "duplicate_hint": "Esta dirección ya está en el LinkGrabber o ya se ha encolado. Puede añadirse de nuevo deliberadamente.",
+    "duplicate_hint": "Esta dirección ya está en el LinkGrabber o en la lista de descargas. Puede añadirse de nuevo deliberadamente.",
     "unresolvable_hint": "Esta dirección responde con una página, no con un archivo. No se puede añadir a la lista de descargas.",
     "no_resolver_hint": "No hay ningún resolutor instalado para {host}, por lo que esta dirección no puede añadirse a la lista de descargas. Puede ser un alojamiento no admitido aquí o un reenvío a otra dirección."
   },
@@ -408,9 +408,6 @@
       "post_resume_unsupported": "El servidor no permite reanudar esta descarga."
     }
   },
-  "enrichment": {
-    "source": "{name}, consultado por un plugin el {at}"
-  },
   "notifications": {
     "intake_title": "Enlaces nuevos",
     "intake_body": "No se añadió ningún enlace. | {count} enlace en el LinkGrabber. | {count} enlaces en el LinkGrabber."
@@ -478,5 +475,9 @@
     "summary": "Ocultos: {links} de {hosters}",
     "show_all": "Mostrar todo",
     "hint": "Los alojadores ocultos permanecen en el LinkGrabber y no se ponen en cola ni se comprueban. Como espejo de un enlace visible van con él como alternativa."
+  },
+  "duplicates": {
+    "queued": "{count} × ya en la cola",
+    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el alojamiento."
   }
 }

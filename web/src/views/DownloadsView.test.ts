@@ -68,11 +68,19 @@ const stubs = {
     emits: ['update:modelValue'],
     template: '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
   },
+  /** A real checkbox with the switch's role, so a test flips it and reads it back (RD-150-19). */
+  USwitch: {
+    inheritAttrs: false,
+    props: ['modelValue', 'label'],
+    emits: ['update:modelValue'],
+    template: '<label>{{ label }}<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
+  },
   UTooltip: passthrough,
   // Everything on the page that is not the list; none of it is what these cases are about.
   DirectAddForm: true,
   PowerCountdownAlert: true,
   StorageCapacityAlert: true,
+  CollisionPromptsAlert: true,
   PostprocessQueue: true,
   QueueSummary: true,
   BulkActionBar: { template: '<div><slot /></div>' }
@@ -328,4 +336,52 @@ describe('DownloadsView', () => {
     expect(await axeViolations(container)).toBe('')
   })
 
+})
+
+/**
+ * The "Show metadata" switch (RD-150-19). The enricher chips under a package name are a view
+ * choice of this browser: off hides them, the fields stay on the package, and a reload keeps it.
+ */
+describe('DownloadsView metadata switch', () => {
+  function seedEnriched() {
+    const store = useTransfersStore()
+    store.packages = [{
+      ...makePackage(0),
+      enrichment: [{ name: 'metadata.year', value: '2008', plugin_id: 'metadata-enricher', fetched_at: '2026-09-27T10:00:00Z' }]
+    } as unknown as DownloadPackage]
+    store.downloads = [makeDownload(0, 0)]
+    return store
+  }
+
+  const chips = (container: Element) => container.querySelectorAll('[data-testid="enrichment-chip"]')
+  const toggle = (container: Element) => {
+    const input = container.querySelector<HTMLInputElement>('[data-testid="show-metadata"]')
+    if (!input) throw new Error('no metadata switch')
+    return input
+  }
+
+  it('shows the chips by default, hides them when switched off and keeps that across a reload', async () => {
+    const store = seedEnriched()
+    const first = mountView()
+    await nextTick()
+    expect(toggle(first.container).checked).toBe(true)
+    expect(chips(first.container)).toHaveLength(1)
+    expect(first.container.textContent).toContain('Year: 2008')
+
+    await fireEvent.click(toggle(first.container))
+    await settle()
+    expect(chips(first.container)).toHaveLength(0)
+    expect(store.packages[0]?.enrichment).toHaveLength(1)
+    expect(localStorage.getItem('rdownloader-show-metadata-downloads')).toBe('false')
+    first.unmount()
+
+    const second = mountView()
+    await nextTick()
+    expect(toggle(second.container).checked).toBe(false)
+    expect(chips(second.container)).toHaveLength(0)
+
+    await fireEvent.click(toggle(second.container))
+    await settle()
+    expect(chips(second.container)).toHaveLength(1)
+  })
 })

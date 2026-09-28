@@ -165,30 +165,29 @@ fn read_responses(body: &str) -> Result<Vec<Response>, ParseError> {
                     return Err(ParseError::TooDeep);
                 }
                 match local_name(start.name().as_ref()) {
-                    b"response" => current = Some(Response::empty()),
-                    b"href" if current.is_some() => in_href = true,
-                    b"collection" => {
+                    "response" => current = Some(Response::empty()),
+                    "href" if current.is_some() => in_href = true,
+                    "collection" => {
                         if let Some(response) = current.as_mut() {
                             response.is_collection = true;
                         }
                     }
-                    b"getcontentlength" => property = Some(Property::Length),
-                    b"getlastmodified" => property = Some(Property::LastModified),
-                    b"getetag" => property = Some(Property::Etag),
+                    "getcontentlength" => property = Some(Property::Length),
+                    "getlastmodified" => property = Some(Property::LastModified),
+                    "getetag" => property = Some(Property::Etag),
                     _ => {}
                 }
             }
             Ok(Event::Empty(empty)) => {
                 // `<D:collection/>` is the usual way a server marks a folder.
-                if local_name(empty.name().as_ref()) == b"collection"
+                if local_name(empty.name().as_ref()) == "collection"
                     && let Some(response) = current.as_mut()
                 {
                     response.is_collection = true;
                 }
             }
             Ok(Event::Text(text)) => {
-                let value = text.decode().map_err(|_| ParseError::Malformed)?;
-                let value = value.trim();
+                let value = text.trim();
                 if value.is_empty() {
                 } else if in_href {
                     if let Some(response) = current.as_mut() {
@@ -201,15 +200,15 @@ fn read_responses(body: &str) -> Result<Vec<Response>, ParseError> {
             Ok(Event::End(end)) => {
                 depth = depth.saturating_sub(1);
                 match local_name(end.name().as_ref()) {
-                    b"response" => {
+                    "response" => {
                         if let Some(response) = current.take()
                             && !response.href.is_empty()
                         {
                             responses.push(response);
                         }
                     }
-                    b"href" => in_href = false,
-                    b"getcontentlength" | b"getlastmodified" | b"getetag" => property = None,
+                    "href" => in_href = false,
+                    "getcontentlength" | "getlastmodified" | "getetag" => property = None,
                     _ => {}
                 }
             }
@@ -272,11 +271,8 @@ impl Response {
 }
 
 /// Strips the namespace prefix from an element name.
-fn local_name(name: &[u8]) -> &[u8] {
-    match name.iter().position(|byte| *byte == b':') {
-        Some(index) => &name[index + 1..],
-        None => name,
-    }
+fn local_name(name: &str) -> &str {
+    name.split_once(':').map_or(name, |(_, local)| local)
 }
 
 /// Resolves a `href` against the collection URL, refusing anything on another origin.

@@ -190,6 +190,16 @@ impl CacheAnswer {
     }
 }
 
+/// `job-context`: the one label the host chose for the call in progress.
+///
+/// Answers what [`RemoteJobPlugin::submit_named`] put in the store and nothing else, so a
+/// guest cannot ask about another job, and every call but `submit` answers `none`.
+impl bindings::rdownloader::plugin::job_context::Host for PluginStoreState {
+    async fn source_name(&mut self) -> Option<String> {
+        self.job_source_name.clone()
+    }
+}
+
 /// A compiled remote-job plugin, pinned to one installed manifest version.
 pub struct RemoteJobPlugin {
     runtime: ExtensionRuntime,
@@ -367,10 +377,23 @@ impl RemoteJobPlugin {
         source: &RemoteJobSource,
         content_key: &str,
     ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
+        self.submit_named(account, source, content_key, None).await
+    }
+
+    /// [`Self::submit`], with the name the source was added under. The guest reads it through
+    /// `job-context.source-name` during this call and in no other.
+    pub async fn submit_named(
+        &self,
+        account: AccountId,
+        source: &RemoteJobSource,
+        content_key: &str,
+        source_name: Option<&str>,
+    ) -> Result<Result<RemoteJobHandle, RemoteJobRefusal>> {
         if marked(source) {
             return Ok(Err(marked_refusal()));
         }
         let mut store = self.runtime.store(Some(account))?;
+        store.data_mut().job_source_name = source_name.map(str::to_owned);
         let instance = self.pre.instantiate_async(&mut store).await?;
         let request = bindings::exports::rdownloader::plugin::remote_job::SubmitRequest {
             source: to_wit_source(source),

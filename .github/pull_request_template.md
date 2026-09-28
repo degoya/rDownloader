@@ -7,7 +7,7 @@ Closes #
 ## Tests
 
 <!-- Which checks did you run? For example `scripts/check.sh`, or a single
-`cargo nextest run -p <crate>` / `npm run test --prefix web -- <file>`. -->
+`cargo nextest run -p <crate>` / `pnpm --dir web test <file>`. -->
 
 ## Checklist
 

@@ -246,6 +246,7 @@ async fn build_and_enqueue(
             Some(rd_core::TORRENT_PROVIDER) => rd_core::DownloadKind::Torrent,
             Some(rd_core::FTP_PROVIDER) => rd_core::DownloadKind::Ftp,
             Some(rd_core::SFTP_PROVIDER) => rd_core::DownloadKind::Sftp,
+            Some(rd_core::OBJECT_STORAGE_PROVIDER) => rd_core::DownloadKind::ObjectStorage,
             // A scheme an installed transfer backend claims goes to the plugin runner. The
             // scheme is the whole routing rule: a backend that claims one owns every link
             // carrying it, which is why two backends cannot claim the same one.
@@ -302,6 +303,17 @@ async fn build_and_enqueue(
             }
             torrent_states.push((source.clone(), stored));
         }
+        // The mirrors and hashes a Metalink parser stated for this link (RD-150-03). Only
+        // for a plain HTTP row: every other kind has a runner of its own that knows no sets.
+        let source_set = if kind == rd_core::DownloadKind::Http {
+            state
+                .database
+                .candidate_source_set(candidate.id)
+                .await?
+                .map(Box::new)
+        } else {
+            None
+        };
         files.push(FileSpec {
             source,
             file_name,
@@ -324,6 +336,7 @@ async fn build_and_enqueue(
             skipped: false,
             enrichment: candidate.enrichment.clone(),
             secret_fragment,
+            source_set,
         });
     }
     group_mirrors(&mut files, &mirrors, mirror_detection);
@@ -477,12 +490,23 @@ async fn remote_files(
     if stored.listing.single_file {
         return Ok(None);
     }
+    // An object storage prefix: every selected key becomes its own `s3://`, `az://` or `gs://`
+    // row, the profile hint of the link carried along so each one is signed by the same
+    // profile.
+    let object_base = rd_core::ObjectAddress::parse(&candidate.url).map(|address| {
+        if address.is_prefix() {
+            address
+        } else {
+            // The probe listed `shows` as the prefix `shows/` it meant.
+            address.child("")
+        }
+    });
     let Some(base) = rd_core::RemoteTarget::parse(&candidate.url).and_then(|target| {
         // The queue row addresses the file itself, so the base is the collection URL the
         // listing was taken from.
         target.sanitized_url()
     }) else {
-        return Ok(None);
+        return Ok(object_base.map(|base| object_files(candidate, &base, &stored, kind)));
     };
     let resolved = stored.resolve();
     let mut files = Vec::with_capacity(resolved.selected_files);
@@ -519,9 +543,51 @@ async fn remote_files(
             // Every file of the listing inherits what was found about the candidate.
             enrichment: candidate.enrichment.clone(),
             secret_fragment: None,
+            source_set: None,
         });
     }
     Ok(Some(files))
+}
+
+/// The selected objects of a reviewed prefix, one queue row each.
+fn object_files(
+    candidate: &LinkCandidate,
+    base: &rd_core::ObjectAddress,
+    stored: &rd_core::RemoteCandidateState,
+    kind: rd_core::DownloadKind,
+) -> Vec<FileSpec> {
+    let resolved = stored.resolve();
+    resolved
+        .entries
+        .iter()
+        .filter(|entry| !entry.is_dir && entry.included)
+        .filter_map(|entry| {
+            let source = base.child(&entry.path).url()?;
+            let file_name = entry
+                .path
+                .rsplit('/')
+                .find(|segment| !segment.is_empty())
+                .unwrap_or("download.bin")
+                .to_owned();
+            Some(FileSpec {
+                source,
+                file_name,
+                size: entry.size,
+                account_id: None,
+                proxy_profile_id: None,
+                auth_profile: candidate.auth_profile,
+                kind,
+                media: None,
+                replay: None,
+                remote_credential_id: None,
+                mirror_group: None,
+                skipped: false,
+                enrichment: candidate.enrichment.clone(),
+                secret_fragment: None,
+                source_set: None,
+            })
+        })
+        .collect()
 }
 
 /// Whether an installed transfer backend claims this URL scheme.

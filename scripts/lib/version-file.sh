@@ -3,7 +3,7 @@
 #
 # Usage (sourced):
 #   rd_build_stamp <version>                              # before `cargo build`
-#   rd_write_version_file <out-dir> <version> <platform>  # after it
+#   rd_write_version_file <out-dir> <version> <platform> [profile]  # after it
 #
 # rd_build_stamp exports RD_BUILD_COMMIT and RD_BUILD_TIME. crates/rdownloader/build.rs compiles
 # the same two variables into the binary, whose About page shows them (RD-130-12), so the
@@ -39,14 +39,21 @@ rd_build_stamp() {
     export RD_BUILD_COMMIT RD_BUILD_TIME
 }
 
+# The profile line names the cargo profile (RD-150-20); a `release-test` package says that it is
+# a test package, so it cannot pass for a release one. The release chain checks for `release`.
 rd_write_version_file() {
-    local out="$1" version="$2" platform="$3"
+    local out="$1" version="$2" platform="$3" profile="${4:-release}"
     rd_build_stamp "$version"
     {
         echo "rDownloader $version"
         echo "commit   $RD_BUILD_COMMIT"
         echo "built    $RD_BUILD_TIME"
         echo "platform $platform"
+        if [[ "$profile" == release ]]; then
+            echo "profile  release"
+        else
+            echo "profile  $profile (test package, not for publishing)"
+        fi
     } > "$out/VERSION.txt"
     chmod 644 "$out/VERSION.txt"
 }

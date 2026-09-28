@@ -11,6 +11,10 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{hosters, link_check_cache, link_check_probe::probe_direct};
 
+/// Stable code: a link a document or a page proposed points at this machine or, for one the
+/// person did not hand over themselves, into their network; it was not requested (RD-150-03).
+pub(crate) const CODE_CHECK_INTERNAL_ADDRESS: &str = "collector.check_internal_address";
+
 enum CheckJob {
     Candidates(Vec<CandidateId>),
     Batch(BatchId),
@@ -22,6 +26,7 @@ struct Inner {
     media_probe: Arc<dyn rd_media::MediaProbe>,
     ftp: rd_ftp::FtpService,
     sftp: rd_sftp::SftpService,
+    object_storage: rd_object_storage::ObjectStorageService,
     /// Keeps a re-routed torrent the check read for its download (RD-130-18).
     torrent: rd_torrent::TorrentService,
     jobs: mpsc::Sender<CheckJob>,
@@ -56,6 +61,7 @@ impl LinkCheckService {
         media_probe: Arc<dyn rd_media::MediaProbe>,
         ftp: rd_ftp::FtpService,
         sftp: rd_sftp::SftpService,
+        object_storage: rd_object_storage::ObjectStorageService,
         torrent: rd_torrent::TorrentService,
         plugins: rd_plugin_host::PluginInstaller,
         plugin_host: Arc<dyn rd_plugin_api::ResolverHost>,
@@ -68,6 +74,7 @@ impl LinkCheckService {
                 media_probe,
                 ftp,
                 sftp,
+                object_storage,
                 torrent,
                 jobs: sender,
                 completed: broadcast::channel(64).0,
@@ -154,6 +161,16 @@ impl LinkCheckService {
         if claimed.is_empty() {
             return Ok(());
         }
+        let (claimed, guards) = self.screen_remote(claimed).await?;
+        if claimed.is_empty() {
+            if let Some(batch_id) = batch_id {
+                self.inner
+                    .database
+                    .regroup_collector_batches(vec![batch_id])
+                    .await?;
+            }
+            return Ok(());
+        }
         let accounts: Vec<Account> = self
             .inner
             .database
@@ -195,7 +212,10 @@ impl LinkCheckService {
             }
             if matches!(
                 provider,
-                rd_core::FTP_PROVIDER | rd_core::SFTP_PROVIDER | rd_core::WEBDAV_PROVIDER
+                rd_core::FTP_PROVIDER
+                    | rd_core::SFTP_PROVIDER
+                    | rd_core::WEBDAV_PROVIDER
+                    | rd_core::OBJECT_STORAGE_PROVIDER
             ) {
                 remote.push(candidate);
                 continue;
@@ -267,9 +287,14 @@ impl LinkCheckService {
             for candidate in direct {
                 let permit = Arc::clone(&semaphore).acquire_owned().await?;
                 let scheduler = self.inner.scheduler.clone();
+                let guard = guards.get(&candidate.id).cloned();
                 tasks.push(tokio::spawn(async move {
                     let _permit = permit;
-                    let result = match scheduler.direct_client(&candidate.url).await {
+                    let network = match guard {
+                        Some(policy) => scheduler.guarded_client(&candidate.url, policy).await,
+                        None => scheduler.direct_client(&candidate.url).await,
+                    };
+                    let result = match network {
                         Ok(network) => Some(
                             probe_direct(&network.client, &network.headers, candidate.url.clone())
                                 .await,
@@ -286,14 +311,15 @@ impl LinkCheckService {
                     // it (RD-080-11). Asked first since RD-130-18: a torrent served as
                     // `application/octet-stream` is plausible as a manifest too, and reading
                     // it for one would be a grab of its own.
-                    let rerouted = self.reclassify_document(&candidate).await;
+                    let guard = guards.get(&candidate.id);
+                    let rerouted = self.reclassify_document(&candidate, guard).await;
                     // A manifest does not have to announce itself in its address: a signed
                     // CDN link has no extension and is often served as `text/plain`
                     // (RD-080-06). Reclassifying here is what keeps it from being queued as
                     // a text file.
                     if matches!(rerouted, Rerouted::No)
                         && result.is_some()
-                        && self.classify_manifest(&candidate, false).await
+                        && self.classify_manifest(&candidate, false, guard).await
                     {
                         continue;
                     }
@@ -304,7 +330,8 @@ impl LinkCheckService {
             }
         }
         for candidate in media {
-            self.check_media(candidate).await;
+            let guard = guards.get(&candidate.id).cloned();
+            self.check_media(candidate, guard.as_ref()).await;
         }
         for candidate in remote {
             self.check_remote(candidate).await;
@@ -365,6 +392,70 @@ impl LinkCheckService {
         Ok(())
     }
 
+    /// Holds the links a document or a page proposed to their address rule (RD-150-03).
+    ///
+    /// A candidate the person added themselves passes as it always did. One a Metalink, an
+    /// intake parser or a crawler on a stranger's page proposed is checked before anything
+    /// asks for it: an address that is, or resolves to, this machine — or the person's own
+    /// network, unless they handed the document over themselves — is marked with
+    /// `collector.check_internal_address` and never requested. The others go on with their
+    /// rule, which the HTTP probes below take into a guarded client, so a name that answers
+    /// differently when the connection is made is refused there too. The yt-dlp probe and the
+    /// FTP, SFTP, WebDAV and bucket checks open their own connections and have the check
+    /// before the request only.
+    async fn screen_remote(
+        &self,
+        claimed: Vec<LinkCandidate>,
+    ) -> Result<(
+        Vec<LinkCandidate>,
+        HashMap<CandidateId, rd_http::AddressPolicy>,
+    )> {
+        let reaches = self.inner.database.candidates_remote_reach().await?;
+        let mut guards = HashMap::new();
+        let mut admitted = Vec::with_capacity(claimed.len());
+        for candidate in claimed {
+            let Some(local_network) = reaches.get(&candidate.id).copied() else {
+                admitted.push(candidate);
+                continue;
+            };
+            let policy = self.inner.scheduler.remote_address_policy(local_network);
+            if let Err(rd_http::TargetRefusal::Refused(_)) =
+                rd_http::check_target(&policy, &rd_http::SystemLookup, &candidate.url).await
+            {
+                tracing::warn!(
+                    candidate_id = %candidate.id,
+                    "a proposed link points at an address it may not reach; it was not checked"
+                );
+                let message = rd_core::CandidateMessage::coded(
+                    CODE_CHECK_INTERNAL_ADDRESS,
+                    "This link points at this machine or into your own network, so it was not checked",
+                );
+                self.record(&candidate, None, Some(message)).await;
+                continue;
+            }
+            guards.insert(candidate.id, policy);
+            admitted.push(candidate);
+        }
+        Ok((admitted, guards))
+    }
+
+    /// The client a check of `url` goes out with: held to `guard` when the link was proposed.
+    async fn client_for(
+        &self,
+        url: &url::Url,
+        guard: Option<&rd_http::AddressPolicy>,
+    ) -> Result<rd_scheduler::NetworkClient> {
+        match guard {
+            Some(policy) => {
+                self.inner
+                    .scheduler
+                    .guarded_client(url, policy.clone())
+                    .await
+            }
+            None => self.inner.scheduler.direct_client(url).await,
+        }
+    }
+
     /// Probes a media page; playlists fan out into additional candidates of the package.
     /// Classifies a direct HLS/DASH manifest before it is handed to the extractor
     /// (RD-080-06).
@@ -374,8 +465,13 @@ impl LinkCheckService {
     /// yt-dlp probe should describe as usual.
     /// `force` skips the cheap gate below, for a link whose address already ends in
     /// `.m3u8`/`.mpd` and is therefore worth reading in full.
-    async fn classify_manifest(&self, candidate: &LinkCandidate, force: bool) -> bool {
-        let Ok(network) = self.inner.scheduler.direct_client(&candidate.url).await else {
+    async fn classify_manifest(
+        &self,
+        candidate: &LinkCandidate,
+        force: bool,
+        guard: Option<&rd_http::AddressPolicy>,
+    ) -> bool {
+        let Ok(network) = self.client_for(&candidate.url, guard).await else {
             return false;
         };
         // Reading the body of every direct link to see whether it might be a playlist would
@@ -497,8 +593,12 @@ impl LinkCheckService {
     /// the address it came from ends in whatever token the site hands out. The file tree is
     /// stored on the candidate the way an uploaded `.torrent` stores it, so the review and
     /// the info hash exist before the row does.
-    async fn reclassify_document(&self, candidate: &LinkCandidate) -> Rerouted {
-        let Ok(network) = self.inner.scheduler.direct_client(&candidate.url).await else {
+    async fn reclassify_document(
+        &self,
+        candidate: &LinkCandidate,
+        guard: Option<&rd_http::AddressPolicy>,
+    ) -> Rerouted {
+        let Ok(network) = self.client_for(&candidate.url, guard).await else {
             return Rerouted::No;
         };
         let Ok(probed) =
@@ -588,10 +688,10 @@ impl LinkCheckService {
         Rerouted::Torrent(parsed.map(Box::new))
     }
 
-    async fn check_media(&self, candidate: LinkCandidate) {
+    async fn check_media(&self, candidate: LinkCandidate, guard: Option<&rd_http::AddressPolicy>) {
         // A direct manifest is classified first: whether it is protected, and whether it is
         // live, decides where it goes before the extractor is asked anything.
-        if self.classify_manifest(&candidate, true).await {
+        if self.classify_manifest(&candidate, true, guard).await {
             return;
         }
         match self.inner.media_probe.probe(&candidate.url).await {
@@ -656,6 +756,10 @@ impl LinkCheckService {
     /// which is affordable here because a directory listing is cheap on all three
     /// protocols — unlike crawling a gallery or joining a torrent swarm.
     async fn check_remote(&self, candidate: LinkCandidate) {
+        if rd_core::ObjectStorageProvider::from_scheme(candidate.url.scheme()).is_some() {
+            self.check_object(candidate).await;
+            return;
+        }
         let Some(target) = rd_core::RemoteTarget::parse(&candidate.url) else {
             self.record(
                 &candidate,
@@ -737,6 +841,51 @@ impl LinkCheckService {
             url: candidate.url.clone(),
             status: LinkStatus::Online,
             // A single-file link keeps its own name; a directory is named by its folder.
+            file_name: (summary.single_file || summary.file_count > 0)
+                .then(|| file_name_for(&candidate, &summary)),
+            size: Some(summary.total_bytes),
+            media: None,
+        };
+        self.record(&candidate, Some(result), None).await;
+    }
+
+    /// Resolves an object storage link (RD-150-04): one object, or the prefix it names.
+    ///
+    /// The profile is chosen here as it will be at the transfer's start, so a link that no
+    /// profile serves is marked before anybody queues it.
+    async fn check_object(&self, candidate: LinkCandidate) {
+        let listing = match self.inner.object_storage.probe(&candidate.url).await {
+            Ok(Ok(listing)) => listing,
+            Ok(Err(failure)) => {
+                self.record_failure(&candidate, &failure).await;
+                return;
+            }
+            Err(error) => {
+                tracing::warn!(candidate_id = %candidate.id, %error, "object storage link check failed");
+                self.record(
+                    &candidate,
+                    None,
+                    Some(rd_core::CandidateMessage::coded(
+                        "collector.check_remote_unreachable",
+                        "The server could not be reached",
+                    )),
+                )
+                .await;
+                return;
+            }
+        };
+        let summary = listing.summary();
+        if let Err(error) = self
+            .inner
+            .database
+            .set_candidate_listing(candidate.id, listing, None)
+            .await
+        {
+            tracing::warn!(candidate_id = %candidate.id, %error, "listing could not be stored");
+        }
+        let result = LinkCheckResult {
+            url: candidate.url.clone(),
+            status: LinkStatus::Online,
             file_name: (summary.single_file || summary.file_count > 0)
                 .then(|| file_name_for(&candidate, &summary)),
             size: Some(summary.total_bytes),

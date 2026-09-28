@@ -139,7 +139,8 @@ pub fn group_links(
 
 /// The release name behind a container's file name: `Show.S01E01.nzb` is the package
 /// `Show.S01E01`, and a name that is nothing but the extension keeps it.
-fn container_name(file_name: &str) -> String {
+#[must_use]
+pub fn container_name(file_name: &str) -> String {
     let trimmed = file_name.trim();
     let stem = trimmed
         .strip_suffix(".nzb")

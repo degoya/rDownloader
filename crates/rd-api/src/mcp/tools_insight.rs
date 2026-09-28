@@ -13,7 +13,7 @@
 //!
 //! None of these answers carries a credential. The audit log names actors by id and the log
 //! store holds messages the service wrote with the redaction `rd-diagnostics` applies on the
-//! way in; `crates/rd-api/tests/mcp.rs` walks the answers looking for one anyway.
+//! way in; `crates/rd-api/tests/mcp/mcp.rs` walks the answers looking for one anyway.
 
 use axum::extract::{Path as AxumPath, Query, State};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};

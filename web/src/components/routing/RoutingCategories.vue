@@ -3,16 +3,27 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
+import { listCollisionPolicies, setCategoryCollisionPolicy, type CollisionPolicy } from '@/api/storage'
 import type { Category, CreateCategory, PostprocessLevel, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
+import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
+import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
+import { groupByRoot } from '@/utils/categoryGroups'
 import SectionHeader from '@/components/SectionHeader.vue'
+import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
+import { translateServerMessage } from '@/i18n/server'
+
+/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+const MAX_CATEGORY_NAME = 100
 
 const categories = defineModel<Category[]>({ required: true })
 const props = defineProps<{
@@ -25,8 +36,10 @@ const props = defineProps<{
 const emit = defineEmits<{ removed: [] }>()
 const { t } = useI18n()
 const postprocess = usePostprocessStore()
+const copyName = useCopyName()
 const message = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
+const duplicatingId = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 /** `false` keeps `cleanup_extensions` at `null` (inherit); `true` sends the explicit list below. */
@@ -40,6 +53,17 @@ const cleanupExtensions = ref<string[]>([])
  */
 const pluginStepsOverride = ref(false)
 const pluginStepIds = ref<string[]>([])
+/**
+ * The category's own collision policy (RD-150-01), `null` to inherit the global one. It rides
+ * its own endpoint like the plugin steps, sent once the category is saved and has an id.
+ */
+const collisionPolicy = ref<CollisionPolicy | null>(null)
+const collisionPolicies = ref<Record<string, CollisionPolicy>>({})
+
+async function loadCollisionPolicies(): Promise<void> {
+  const answer = await listCollisionPolicies()
+  if (answer.ok) collisionPolicies.value = Object.fromEntries(answer.data.categories.map(entry => [entry.id, entry.policy]))
+}
 const form = reactive<CreateCategory>({
   name: '',
   color: '#38BDF8',
@@ -126,6 +150,7 @@ let releaseEvents: (() => void) | null = null
 let stepsTimer: number | null = null
 
 onMounted(() => {
+  void loadCollisionPolicies()
   void postprocess.loadScripts()
   void postprocess.loadPluginSteps()
   releaseEvents = subscribeEvents({ 'postprocess_catalog.changed': scheduleStepReload })
@@ -178,11 +203,44 @@ function rootName(id: string): string {
   return props.roots.find(root => root.id === id)?.name ?? t('routing.category.root_unknown')
 }
 
-function cleanupSummary(category: Category): string {
-  const extensions = category.cleanup_extensions
-  if (!extensions) return t('routing.category.cleanup_inherit_badge')
-  if (!extensions.length) return t('routing.category.cleanup_none_badge')
-  return t('routing.category.cleanup_list_badge', { count: extensions.length })
+function location(category: Category): string {
+  return `${rootName(category.storage_root_id)} / ${category.relative_path || '.'}`
+}
+
+/**
+ * The list grouped by storage root, one accordion section per root that holds a category, in the
+ * order of the roots (RD-150-13). A root without categories has no section — a control that
+ * opens onto nothing is not rendered (`design.md`) — and while every category lies on one root
+ * the list stays flat, because a single section would be a click that shows what was there.
+ */
+const groups = computed(() => groupByRoot(categories.value, props.roots))
+const grouped = computed(() => groups.value.length > 1)
+const sections = computed(() => groups.value.map(group => ({
+  value: group.rootId,
+  label: group.root?.name ?? t('routing.category.root_unknown'),
+  path: group.root?.path ?? '',
+  count: group.categories.length,
+  hasDefault: group.categories.some(category => category.is_default),
+  categories: group.categories
+})))
+/**
+ * Every section starts open: the list reads as before, only with headings, and a reader closes
+ * what is in the way. Decided without the running interface at hand (RD-150-13 leaves "all, or
+ * only the default root with many categories" to a look at it); the section of the category
+ * being edited, created or copied is opened whatever the reader had closed.
+ */
+const openRoots = ref<string[]>([])
+const seenRoots = new Set<string>()
+watch(() => groups.value.map(group => group.rootId), (ids) => {
+  const fresh = ids.filter(id => !seenRoots.has(id))
+  fresh.forEach(id => seenRoots.add(id))
+  if (fresh.length) openRoots.value = [...openRoots.value, ...fresh]
+}, { immediate: true })
+
+function openRootOf(category: Category): void {
+  if (!openRoots.value.includes(category.storage_root_id)) {
+    openRoots.value = [...openRoots.value, category.storage_root_id]
+  }
 }
 
 /** The backend keeps a single default; mirror that locally instead of refetching. */
@@ -216,6 +274,7 @@ const list = useEditableList<Category, CreateCategory>({
     form.upload_remote = null
     cleanupOverride.value = false
     cleanupExtensions.value = []
+    collisionPolicy.value = null
   },
   confirmDelete: category => ({
     title: t('routing.category.delete_title'),
@@ -269,10 +328,16 @@ async function submit(): Promise<void> {
   // produced — so they follow an update and are left to the next save on a create, as before.
   const withSteps = updating ? await savePluginSteps(saved) : null
   const current = withSteps ?? saved
+  if ((collisionPolicies.value[current.id] ?? null) !== collisionPolicy.value) {
+    const answer = await setCategoryCollisionPolicy(current.id, collisionPolicy.value)
+    if (!answer.ok) error.value = translateServerMessage(answer.message)
+    else await loadCollisionPolicies()
+  }
   const rows = withSteps
     ? categories.value.map(item => (item.id === current.id ? current : item))
     : categories.value
   categories.value = applyDefault(rows, current)
+  openRootOf(current)
   message.value = updating ? t('routing.category.updated') : t('routing.category.created')
 }
 
@@ -296,7 +361,65 @@ function edit(category: Category): void {
   cleanupExtensions.value = [...(category.cleanup_extensions ?? [])]
   pluginStepsOverride.value = Boolean(category.plugin_steps)
   pluginStepIds.value = [...(category.plugin_steps ?? [])]
+  openRootOf(category)
+  collisionPolicy.value = collisionPolicies.value[category.id] ?? null
   void focusForm()
+}
+
+/**
+ * Copies a category and opens the copy in the form (RD-150-12).
+ *
+ * The copy takes every setting — root, path, post-processing, upload, cleanup, the plugin steps
+ * and the seeding override — through the routes that set them: the create route, then the
+ * post-processing and seeding routes, which the create route does not cover. What hangs on a
+ * relation stays with the original: the default mark, and the rules that point at it.
+ */
+async function duplicate(category: Category): Promise<void> {
+  duplicatingId.value = category.id
+  error.value = null
+  message.value = null
+  const name = copyName(category.name, categories.value.map(item => item.name), MAX_CATEGORY_NAME)
+  const created = await api.POST('/api/v1/categories', { body: categoryCopyBody(category, name) })
+  if (!created.data) {
+    duplicatingId.value = null
+    error.value = responseError(created)
+    return
+  }
+  let copy: Category = created.data
+  if (category.plugin_steps) {
+    const steps = await api.PATCH('/api/v1/categories/{id}/postprocess', {
+      params: { path: { id: copy.id } },
+      body: {
+        postprocess_level: copy.postprocess_level ?? null,
+        script: copy.script ?? null,
+        cleanup_extensions: copy.cleanup_extensions ?? null,
+        recursive_unpack: copy.recursive_unpack ?? null,
+        sfv_verify: copy.sfv_verify ?? null,
+        safe_postproc: copy.safe_postproc ?? null,
+        delete_par2: copy.delete_par2 ?? null,
+        plugin_steps: [...category.plugin_steps],
+        upload_enabled: copy.upload_enabled ?? null,
+        upload_remote: copy.upload_remote ?? null
+      }
+    })
+    if (steps.data) copy = steps.data
+    else error.value = responseError(steps)
+  }
+  if (category.seeding) {
+    const seeding = await api.PUT('/api/v1/categories/{id}/seeding', {
+      params: { path: { id: copy.id } },
+      body: seedingRequest(category.seeding)
+    })
+    if (seeding.error === undefined) copy = { ...copy, seeding: category.seeding }
+    else error.value = responseError(seeding)
+  }
+  duplicatingId.value = null
+  categories.value = [...categories.value, copy]
+  const failure = error.value
+  edit(copy)
+  // `edit` clears the message and the error; a step that did not carry over must stay said.
+  error.value = failure
+  message.value = t('routing.category.duplicated')
 }
 
 async function remove(category: Category): Promise<void> {
@@ -323,10 +446,10 @@ async function remove(category: Category): Promise<void> {
         <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
         <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
-          <UFormField :label="t('routing.category.name_label')" :description="t('routing.category.name_description')">
+          <UFormField required :label="t('routing.category.name_label')" :description="t('routing.category.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.category.name_placeholder')" />
           </UFormField>
-          <UFormField :label="t('routing.category.root_label')" :description="t('routing.category.root_description')">
+          <UFormField required :label="t('routing.category.root_label')" :description="t('routing.category.root_description')">
             <USelect v-model="form.storage_root_id" required :items="rootItems" value-key="value" class="w-full" :placeholder="t('routing.category.root_placeholder')" />
           </UFormField>
           <UFormField :label="t('routing.category.path_label')" :description="t('routing.category.path_description')">
@@ -359,10 +482,13 @@ async function remove(category: Category): Promise<void> {
           <UFormField :label="t('routing.category.delete_par2_label')" :description="t('routing.category.delete_par2_description')">
             <USelect v-model="deletePar2" :items="deletePar2Items" value-key="value" icon="i-lucide-shield-off" class="w-full" />
           </UFormField>
-          <UFormField :label="t('routing.category.default_label')" :description="t('routing.category.default_description')">
+          <UFormField :label="t('routing.category.collision_label')" :description="t('routing.category.collision_description')">
+            <CollisionPolicySelect v-model="collisionPolicy" :inherit-label="t('routing.category.collision_inherit')" />
+          </UFormField>
+          <UFormField orientation="horizontal" :label="t('routing.category.default_label')" :description="t('routing.category.default_description')">
             <USwitch v-model="form.is_default" :aria-label="t('routing.category.default_label')" />
           </UFormField>
-          <UFormField :label="t('routing.category.cleanup_override_label')" :description="t('routing.category.cleanup_override_description')">
+          <UFormField orientation="horizontal" :label="t('routing.category.cleanup_override_label')" :description="t('routing.category.cleanup_override_description')">
             <USwitch v-model="cleanupOverride" :aria-label="t('routing.category.cleanup_override_label')" />
           </UFormField>
           <UFormField
@@ -375,6 +501,7 @@ async function remove(category: Category): Promise<void> {
           <p v-else class="text-xs leading-5 text-muted">{{ t('routing.category.cleanup_inherit_hint') }}</p>
           <template v-if="postprocess.pluginSteps.length">
             <UFormField
+              orientation="horizontal"
               :label="t('routing.category.plugin_steps_override_label')"
               :description="t('routing.category.plugin_steps_override_description')"
             >
@@ -394,32 +521,66 @@ async function remove(category: Category): Promise<void> {
               </p>
             </div>
           </template>
-          <div class="flex gap-2">
-            <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-plus'" :label="editingId ? t('common.actions.save') : t('routing.category.create')" :loading="pending" :disabled="!roots.length" />
-            <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('routing.cancel_edit')" @click="list.reset" />
-          </div>
+          <FormActions
+            :editing="editingId !== null"
+            :create-label="t('routing.category.create')"
+            :loading="pending"
+            :disabled="!roots.length"
+            @cancel="list.reset"
+          />
           <!-- Not a warning worth raising while the roots are still being fetched. -->
           <p v-if="!props.loading && !roots.length" class="text-xs leading-5 text-warning">{{ t('routing.category.no_root_hint') }}</p>
         </form>
       </template>
       <template #list>
         <div class="grid gap-2">
-          <div v-for="category in categories" :key="category.id" class="border p-3" :class="editingId === category.id ? 'border-primary' : 'border-muted'">
-            <div class="flex items-center gap-2">
-              <span class="size-2" :style="{ backgroundColor: category.color }" />
-              <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ category.name }}</p>
-              <UBadge v-if="editingId === category.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-              <UBadge v-if="category.is_default" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
-              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" @click="edit(category)" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :loading="deletingId === category.id" @click="remove(category)" />
-            </div>
-            <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ rootName(category.storage_root_id) }} / {{ category.relative_path || '.' }}</p>
-            <div class="mt-2 flex flex-wrap items-center gap-1">
-              <UBadge size="sm" color="neutral" variant="subtle">{{ t('routing.category.level_badge', { level: category.postprocess_level ?? t('routing.category.inherit_short') }) }}</UBadge>
-              <UBadge size="sm" color="neutral" variant="subtle" class="font-mono">{{ t('routing.category.script_badge', { script: category.script ?? t('routing.category.inherit_short') }) }}</UBadge>
-              <UBadge size="sm" color="neutral" variant="subtle">{{ cleanupSummary(category) }}</UBadge>
-            </div>
-          </div>
+          <UAccordion
+            v-if="grouped"
+            v-model="openRoots"
+            type="multiple"
+            :items="sections"
+            :ui="{ body: 'grid gap-2 pb-3' }"
+            data-testid="category-groups"
+          >
+            <template #default="{ item }">
+              <span class="flex min-w-0 flex-1 items-center gap-2">
+                <span class="truncate text-sm font-medium text-highlighted">{{ item.label }}</span>
+                <span class="truncate font-mono text-[11px] text-muted">{{ item.path }}</span>
+                <UBadge v-if="item.hasDefault" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
+                <UBadge size="sm" color="neutral" variant="outline" class="ms-auto">{{ t('routing.category.group_count', { count: item.count }, item.count) }}</UBadge>
+              </span>
+            </template>
+            <template #body="{ item }">
+              <RoutingCategoryRow
+                v-for="category in item.categories"
+                :key="category.id"
+                :category="category"
+                :location="category.relative_path || '.'"
+                :editing="editingId === category.id"
+                :deleting="deletingId === category.id"
+                :duplicating="duplicatingId === category.id"
+                :collision="collisionPolicies[category.id]"
+                @edit="edit(category)"
+                @duplicate="duplicate(category)"
+                @remove="remove(category)"
+              />
+            </template>
+          </UAccordion>
+          <template v-else>
+            <RoutingCategoryRow
+              v-for="category in categories"
+              :key="category.id"
+              :category="category"
+              :location="location(category)"
+              :editing="editingId === category.id"
+              :deleting="deletingId === category.id"
+              :duplicating="duplicatingId === category.id"
+              :collision="collisionPolicies[category.id]"
+              @edit="edit(category)"
+              @duplicate="duplicate(category)"
+              @remove="remove(category)"
+            />
+          </template>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!categories.length">
             <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('routing.category.empty') }}</p>
           </DataState>

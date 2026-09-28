@@ -18,6 +18,7 @@ import { usePackageActions } from './transfersPackages'
 import {
   PAUSABLE_STATES,
   RESUMABLE_STATES,
+  bulkRefusals,
   payloadError,
   t,
   type ClearResult,
@@ -57,6 +58,12 @@ export const useTransfersStore = defineStore('transfers', () => {
   let refreshTicket = 0
   /** True while a refresh is awaiting the network; event bursts wait rather than pile up. */
   let refreshing = false
+  /**
+   * The error the last failed `refresh()` put up, the only one a later successful refresh may
+   * take down. Refreshes follow every queue event, so clearing whatever `error` held wiped an
+   * action's refusal within 400 ms, and a refused cancel or removal looked like nothing at all.
+   */
+  let loadError: string | null = null
 
   const { active, queued, totalCommitted, totalRemaining, globalControl, activePackages, packageComplete, packageRates, packageEtas } =
     useTransferFigures(downloads, packages, downloadRates)
@@ -101,9 +108,11 @@ export const useTransfersStore = defineStore('transfers', () => {
       announce(downloadResponse.data)
       downloads.value = downloadResponse.data
       packages.value = packageResponse.data
-      error.value = null
+      if (error.value === loadError) error.value = null
+      loadError = null
     } else {
-      error.value = responseError(downloadResponse.data ? packageResponse : downloadResponse)
+      loadError = responseError(downloadResponse.data ? packageResponse : downloadResponse)
+      error.value = loadError
     }
   }
 
@@ -262,9 +271,8 @@ export const useTransfersStore = defineStore('transfers', () => {
       await refresh()
       return 0
     }
-    if (response.data.errors.length) error.value = response.data.errors.slice(0, 3).join(' · ')
-    else error.value = null
     await refresh()
+    error.value = bulkRefusals(response.data)
     return response.data.affected
   }
 

@@ -48,6 +48,65 @@ export const uiStubs = {
     emits: ['update:modelValue'],
     template: '<label>{{ label }}<input type="checkbox" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
   },
+  /**
+   * A fieldset of real checkboxes under its legend, as Reka's group renders it, so a test finds
+   * each chip by role and name and reads the pressed state from `checked` (RD-150-11).
+   */
+  UCheckboxGroup: {
+    props: ['modelValue', 'items', 'legend', 'valueKey', 'labelKey', 'disabled'],
+    emits: ['update:modelValue'],
+    methods: {
+      valueOf(this: { valueKey?: string }, item: unknown): unknown {
+        return item !== null && typeof item === 'object' ? (item as Record<string, unknown>)[this.valueKey ?? 'value'] : item
+      },
+      labelOf(this: { labelKey?: string }, item: unknown): unknown {
+        return item !== null && typeof item === 'object' ? (item as Record<string, unknown>)[this.labelKey ?? 'label'] : item
+      },
+      toggle(this: { modelValue?: unknown[], $emit: (event: string, value: unknown[]) => void }, value: unknown, on: boolean): void {
+        const current = (this.modelValue ?? []).filter(entry => entry !== value)
+        this.$emit('update:modelValue', on ? [...current, value] : current)
+      }
+    },
+    template:
+      '<fieldset v-bind="$attrs" :disabled="disabled"><legend v-if="legend">{{ legend }}</legend>'
+      + '<label v-for="item in items" :key="String(valueOf(item))">'
+      + '<input type="checkbox" :checked="(modelValue ?? []).includes(valueOf(item))"'
+      + ' @change="toggle(valueOf(item), $event.target.checked)" />{{ labelOf(item) }}</label></fieldset>'
+  },
+  /**
+   * Every item a header button with `aria-expanded`, and its body rendered only while open —
+   * the real one unmounts a closed panel, so a test can tell open from closed by presence.
+   */
+  UAccordion: {
+    props: ['items', 'modelValue', 'type'],
+    emits: ['update:modelValue'],
+    methods: {
+      keyOf(item: { value?: string }, index: number): string {
+        return item.value ?? String(index)
+      },
+      isOpen(this: { modelValue?: string | string[], keyOf: (item: object, index: number) => string }, item: object, index: number): boolean {
+        const key = this.keyOf(item, index)
+        return Array.isArray(this.modelValue) ? this.modelValue.includes(key) : this.modelValue === key
+      },
+      toggle(this: { modelValue?: string | string[], type?: string, isOpen: (item: object, index: number) => boolean, keyOf: (item: object, index: number) => string, $emit: (event: string, value: unknown) => void }, item: object, index: number): void {
+        const key = this.keyOf(item, index)
+        const open = this.isOpen(item, index)
+        if (this.type === 'multiple') {
+          const current = Array.isArray(this.modelValue) ? this.modelValue : []
+          this.$emit('update:modelValue', open ? current.filter(entry => entry !== key) : [...current, key])
+        } else {
+          this.$emit('update:modelValue', open ? undefined : key)
+        }
+      }
+    },
+    template:
+      '<div v-bind="$attrs"><div v-for="(item, index) in items" :key="keyOf(item, index)" data-accordion-item :data-state="isOpen(item, index) ? \'open\' : \'closed\'">'
+      + '<button type="button" :aria-expanded="isOpen(item, index)" @click="toggle(item, index)">'
+      + '<slot :item="item" :index="index" :open="isOpen(item, index)">{{ item.label }}</slot>'
+      + '<slot name="trailing" :item="item" :index="index" :open="isOpen(item, index)" /></button>'
+      + '<div v-if="isOpen(item, index)" data-accordion-body><slot name="body" :item="item" :index="index" :open="true" /></div>'
+      + '</div></div>'
+  },
   UCollapsible: passthrough,
   UDashboardNavbar: passthrough,
   UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },

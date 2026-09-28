@@ -6,6 +6,254 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-28
+
+### Added
+
+- **Metadata chips can be switched off (RD-150-19).** The download list and the LinkGrabber each
+  carry a "Show metadata" switch in their toolbar that hides the chips an enricher added under a
+  package or link name, remembered per browser and shown by default; nothing stored is deleted.
+  The chip labels (title, series, season, episode, year, rating, genre, runtime) are translated,
+  an unknown field keeps its raw name, and both lists render one shared chip component.
+
+- **Real-Debrid connects with a code (RD-150-09).** A Real-Debrid account offers two ways in:
+  "Connect with a code" (default) shows an address and a code after saving, you confirm it at
+  real-debrid.com/device, and the sign-in renews itself — no username, no token to copy, no
+  application to register. "API token" keeps the private token from real-debrid.com/apitoken. Underneath, Real-Debrid's
+  open-source device flow issues each person a client of their own, which the host keeps as named
+  parts of the sign-in: the plugin contract gains the additive `credentials.store-flow-secret`
+  (still `rdownloader:plugin@0.9.0`), manifests the provider kind `oauth_or_api_key` and the
+  credential mode `oauth` (migration 0106). `realdebrid`, `realdebrid-auth` and
+  `realdebrid-torrents` 0.2.0.
+
+- **Uploads keep a bandwidth limit (RD-150-15).** Every bandwidth profile's upload limit, until now
+  the torrent session's alone, applies to every upload, and a hand-set upload limit sits beside the
+  speed limit under Settings → General (`upload_limit_bytes_per_second`); the stricter wins, both
+  default to unlimited. Object storage uploads and upload destination plugins are paced through the
+  same limiter as downloads and follow a profile switch mid-upload; rclone receives the rate as
+  `--bwlimit` when it starts; torrent seeding takes the stricter of it and its own setting.
+  `GET /api/v1/bandwidth/status` reports the binding `upload_binding_limit`.
+
+- **Capture-only launchers for a server on a NAS or in Docker.** `start-capture.bat`/`stop-capture.bat`
+  (Windows), `start-capture.sh`/`stop-capture.sh` (Linux) and `start-capture.command`/
+  `stop-capture.command` (macOS) start and stop only the capture agent — the same as the main
+  launcher with `capture`, as files of their own. On Windows a failed start keeps the window open.
+
+- **Routing export by part.** The export under Settings → Routing offers everything, categories only
+  or rules only (`GET /api/v1/routing/export?part=all|categories|rules`, without `part` as before).
+  A rules-only file imports against categories that exist by name on the target; rules whose
+  category is missing are counted as skipped.
+
+- **Metalink files download from several mirrors at once (RD-150-03).** A `.meta4`/`.metalink`
+  file becomes one download with every mirror as a source, ordered by priority, with location and
+  protocol stored. With a whole-file or piece hash the chunks come from several mirrors in
+  parallel, otherwise one mirror works at a time. A failing mirror hands its chunk to the next one
+  from the last confirmed byte and waits out a backoff; a piece that does not match its hash
+  excludes the mirror that sent it and keeps the file from completing until another mirror
+  delivers it. Order, backoffs and exclusions survive a restart. The transfer details list every
+  mirror (`GET /api/v1/downloads/{id}/sources`, MCP `get_download_sources`). Plugins gain the
+  additive `mirror-sets` interface and `intake-mirrors-plugin` world; the Metalink plugin
+  implements it (0.10.0). FTP/SFTP mirrors are kept and shown, not yet fetched from.
+
+- **S3-compatible object storage as source and upload target (RD-150-04).** `s3://bucket/key`
+  links download with a resumable, `If-Match`-guarded range read; prefixes are reviewed as a file
+  tree. Profiles under Settings → Transfers hold endpoint, region, addressing and credentials
+  (static key pair in the vault, the machine's own credentials, or anonymous;
+  `/api/v1/object-storage/profiles`). `object-storage:<profile>/<bucket>/<prefix>` uploads a
+  finished package in recorded parts that continue after a restart; abandoned uploads are aborted.
+  New crate `rd-object-storage` on `object_store` 0.14, migration 0102.
+
+- **Azure Blob Storage and Google Cloud Storage beside S3 (RD-150-05).** `az://container/blob` and
+  `gs://bucket/object` download, resume and list like `s3://`; a profile picks the service first.
+  Azure signs with the account key, a shared access signature (replaced on the profile when it
+  expires, partial downloads continue), the machine's identity or nothing; Google with a service
+  account key, the application default credentials or nothing. Resume is refused when the ETag or
+  the provider's version (Google's generation) moved. Throttling and quotas fail as
+  `object_storage.rate_limited` and are retried later. Both are default cargo features of
+  `rd-object-storage` (`azure`, `gcs`); migration 0105 adds the account column.
+
+- **Duplicate wherever a near-copy is useful** (RD-150-12): automation and notification rules,
+  notification targets, bandwidth profiles and schedule windows, stream schedules, Usenet servers,
+  categories and hotfolders join category rules, subscriptions and site rules — one button, one
+  copy name, and the copy opens in the form. Secrets are never copied: the copy asks for them again.
+
+- **Categories grouped by storage root** (RD-150-13): with categories on more than one root, the
+  list folds into one section per root with its path and count; the section of the category being
+  edited, created or copied opens.
+
+- **Collision policies and duplicates explained apart (RD-150-01).** A finished file that meets a
+  taken name follows one visible policy — rename, skip, overwrite (audited, never over a file in
+  use), compare or ask — globally, per category or per package; `ask` blocks only that download
+  with a prompt that survives a restart. Source and content duplicates (from a new SHA-256 index
+  of finished files) are listed separately, and the LinkGrabber marks links the queue already has.
+
+- **Verified moves and hard-link dedupe (RD-150-02).** A category move across devices copies,
+  hashes both sides and only then removes the original, resumes after a crash, and is recorded in
+  a storage history; an identical finished file can be replaced by a hard link on request. Every
+  transfer kind declares what it reuses of data on disk.
+
+### Changed
+
+- **`scripts/check.sh` typechecks the web UI like CI** (RD-150-22): every run that touches `web/`,
+  `--defer` included, runs `pnpm run typecheck:full` instead of the incremental `typecheck`, which
+  let two type errors through to GitHub.
+
+- **The setup wizard pairs the browser extension before an account needs it** (RD-150-17). The
+  pairing step says that accounts taking over the browser's sign-in (DDownload, for one) need the
+  extension, lists the three steps and shows live whether an extension has reported in. The
+  services step names those providers while none is connected, and an account waiting for the
+  browser's session opens the pairing in a dialog instead of leaving for Settings → Desktop
+  client, in the wizard and in the settings; its warning goes once the extension reports in.
+
+- **Every form has the same shape** (RD-150-11): the deciding field first, one field per row,
+  feedback above the form, and one action row at its end — primary action first, an icon-only
+  cross to leave an edit — and Enter submits everywhere. Day and event chips are checkbox groups,
+  switch rows and dialog footers come from Nuxt UI, and seven editors became real forms.
+
+- **The German interface says "du" throughout** (RD-150-16): the web UI, the browser extension
+  and seven plugin catalogues no longer switch between "Sie" and "du". Tests over all three
+  catalogue sets fail on a formal address.
+
+- **No resolver is compiled into the application any more** (RD-150-18). Fifteen hosters and
+  multihosters also ran natively as a fallback beside their signed packages; that duplicate is
+  gone, and the service no longer builds a single plugin crate. The bundled packages are
+  installed at startup before the service answers, as before, so the provider list is never
+  empty; a package that no longer verifies is absent and listed with its reason under
+  Settings → Plugins instead of being replaced silently.
+
+- **The subscription form asks for the type first,** because the type decides which fields follow.
+- **Script subscriptions pick their script from the scripts folder and take arguments** (RD-150-08).
+  One parameter line, split like shell words with `"…"`/`'…'` but without a shell, previewed per
+  argument and handed to the script as argv (migration `0103`; at most 32 × 1024 characters). A
+  `.bat`/`.cmd` is now started as itself so its arguments are escaped for `cmd.exe`; one that
+  cannot be escaped fails the run as `script.batch_arguments_refused`. Changes are audited as
+  `script_subscription_changed`.
+
+- **Faster builds, no check dropped (RD-150-10).** Release binaries compile beside the plugin build
+  and get the signed plugins in a short `packages` job; the container image waits for the Linux
+  binaries alone; the macOS Intel binary is cross-compiled on
+  the Apple Silicon runner. CI and the release reuse unchanged plugin components from a cache keyed
+  by their sources (`scripts/build-plugins.sh --cache-key`); CI's `rust` job uses sccache and
+  links with `rust-lld` on Windows; `docker` no longer waits for the whole test matrix. The 57
+  `rd-api` integration test files are modules of six binaries, one per subject, and the branch
+  check selects them by suite. `public-ci` waits for a run as long as it runs instead of 90 minutes.
+
+- **Signing plugins no longer builds the service, and test packages build faster** (RD-150-20).
+  The publishing commands (`plugin package|verify|conformance|new|index`, `site-rules sign|verify`)
+  moved into `crates/rd-pack`; `rdownloader` offers them unchanged, and the small `rd-pack` binary
+  with the same arguments is what `build-plugins.sh`, CI and the release workflow run — no `rd-api`,
+  no `web/dist`, no release-profile build of the whole service. A new `release-test` profile
+  (16 code units, no LTO) builds `rd-pack` and, with `package-linux.sh`/`package-windows.sh
+  --profile release-test`, the owner's test packages; `VERSION.txt` names the profile and the
+  release keeps `release`. The three example plugins are built and checked in CI but no longer
+  bundled: 69 packages instead of 72.
+
+- **Web UI tooling on current majors:** Vite 8, Vitest 5, Pinia 4, Vue Router 5 and jsdom 30. TypeScript
+  stays on 5 (the API type generator requires it), `@types/node` on 24 (the Node version the project
+  builds with) and VueUse on 14 (Nuxt UI's own version; 15 would ship a second copy).
+- **Rust dependencies on current majors (RD-150-07):** the RustCrypto set together (aes 0.9,
+  cbc 0.2, ctr 0.10, chacha20poly1305 0.11, hmac 0.13, sha1/sha2 0.11, argon2 0.6), rand 0.10,
+  sqlx 0.9 (`sqlx-cli` 0.9.0; migrations and their checksums unchanged), utoipa 6, wasmtime 49,
+  wit-bindgen 0.61, and base64 0.23, quick-xml 0.42, num-bigint 0.5, lzma-rust2 0.21,
+  sevenz-rust2 0.23, tray-icon 0.25, wasmparser 0.258 (wasmtime 49's own), tower-http 0.7, zip 8, suppaftp 12 and
+  croner 4. Every plugin component changes with wit-bindgen, so 61 bundled plugins raise their
+  patch version; the SDK templates build against wit-bindgen 0.61 with the contract unchanged.
+  The OpenAPI document keeps a description on every response, as OpenAPI 3.1 requires.
+- **The web UI is installed with pnpm instead of npm** (`web/pnpm-lock.yaml`, pnpm pinned through
+  `packageManager`). A feature worktree gets its own `node_modules` from pnpm's shared store in
+  seconds instead of a link into the main checkout. The licence list of the About page now reads
+  the pnpm lockfile.
+- **The object storage and storage (collision, duplicate, dedupe) web clients take their types from
+  the generated API schema** instead of declarations written by hand; the object storage settings
+  call the typed client. No behaviour changes.
+- **Fewer duplicate crates, and a guard against new ones (RD-150-21).** Targeted updates of
+  notify-rust, secret-service and serde_with drop `windows` 0.61 with its eight companion crates and
+  darling 0.23 and put the Linux keyring on the current RustCrypto generation; wasmparser follows
+  wasmtime to 0.258.
+  `deny.toml` now denies a second version of a crate: every remaining one is listed with the
+  upstream crate that holds it back, and CI fails on an entry that is no longer needed, so the list
+  only shrinks. The About page's licence list names exactly what a shipped package contains — the
+  crates linked on Linux, Windows and macOS and into the plugins, without proc macros, build
+  scripts and dependencies no shipped target reaches: 658 crates instead of 921.
+
+### Fixed
+
+- **The Real-Debrid sign-in method says "API token", as Real-Debrid does.** The picker named the
+  mode with the core's generic "API key"; a plugin catalogue can now name each mode
+  (`mode_label_<mode>`), and a provider without one keeps the generic name (DDownload: "API key").
+  `realdebrid` 0.2.1. The plugins' own texts for the code sign-in (`secret_label_oauth`,
+  `secret_hint_oauth`) now reach the form as well; they were never passed on.
+
+- **A Usenet file waiting for its set's PAR2 verdict no longer gets stuck in "Verifying".** A
+  file assembled with missing segments waits until the rest of its set has arrived; removing the
+  files it waited for never asked the question again, and the row stayed in "Verifying" with no
+  worker behind it. Such a row could not be cancelled (`verifying -> cancelled` was no transition),
+  removed or deleted with its package. A removal now settles the package like any other change, a
+  waiting row can be cancelled and is removed directly, a cancel the state does not allow answers
+  `409 download.cancel_state` instead of an internal error.
+
+- **A refused delete, removal or cancel no longer looks like nothing happened.** Every queue event
+  refreshes the download list, and each successful refresh cleared the error line whatever had
+  put it there, so a refusal vanished within 400 ms. A refresh now takes down only an error of
+  its own; a refusal stays until the next action or until it is closed. `POST
+  /api/v1/downloads/bulk` reports its refusals coded in `refusals` beside the English `errors`,
+  and bulk actions and removals show them translated. A refused pause or resume, alone or in a
+  batch, now answers `409` with `download.pause_state`, `download.resume_state` or
+  `download.mirror_active` (another link to the file already downloads) instead of
+  `internal.error`; a transition the state does not allow is a tagged store refusal (RD-150-22).
+
+- **Two containers sent to Premiumize no longer come back as one package called `source.nzb`.**
+  Every container was uploaded under that one name, so Premiumize named both transfers — and the
+  cloud folder each finished into — alike, and each job handed the other's files back. A remote
+  job now remembers the file name it was added under (`file_name` on
+  `POST /api/v1/accounts/{id}/remote-jobs` and the MCP tool, migration 0107), hands it to the
+  plugin during `submit` through the additive `job-context.source-name` (still
+  `rdownloader:plugin@0.9.0`, remote-job plugins only), and names its one LinkGrabber package
+  after it. Premiumize and TorBox upload under that name, as a file added by hand; without one
+  they use the release name the container states plus a tag from its content, never a fixed name. `premiumize-transfers` and
+  `torbox-jobs` 0.2.2.
+
+- **The Firefox add-on declares what it sends.** AMO refuses a new add-on without
+  `data_collection_permissions`; the manifest now names the addresses of links and downloads
+  handed over and the downloads taken over, and — only with the optional cookie grant — the
+  cookies and headers of a session handover. All of it goes only to the configured rDownloader.
+
+- **An address taken in again after its download was deleted is no duplicate.** The LinkGrabber
+  counted every address ever handed to the queue, so a DLC imported, queued, deleted and imported
+  again showed its links as already in the list. An address is now a duplicate while it is in the
+  LinkGrabber or in the download list, finished or not; `downloads.source_url` is indexed for it.
+
+- **Deleting a stream schedule asks first,** like deleting a channel; it used to go at the first click.
+- **Handing a DDownload session over from the browser works.** DDownload sets cookies with an
+  empty value; their Netscape row ends in a tab, and reading the rows trimmed that tab, so the
+  whole handover was refused as `browser_session.cookies_invalid`. Cookie rows now lose only their
+  line ending — in the handover, the account's cookie jar and cookie-file imports. The browser
+  extension also names each refusal of a handover in its own sentence instead of showing the bare
+  code.
+- **A Real-Debrid account can be added again.** The account asked for an application registered
+  at Real-Debrid — its client id as the username, its client secret as the credential — and
+  without one the sign-in stopped with `realdebrid_auth.client_not_configured` before any code
+  was shown; nobody could be expected to register one. The account now takes the private API
+  token from real-debrid.com/apitoken and no username. Resolver and torrent plugin send it as
+  before. The code sign-in beside it is RD-150-09, under Added.
+
+### Security
+
+- **A Metalink's mirrors cannot point inside (RD-150-03).** Every mirror of a source set is
+  checked before it is requested and again when the connection is made: loopback, link-local
+  (the cloud metadata address `169.254.169.254` among it), unspecified, multicast, broadcast,
+  the reserved blocks and the address the service listens on are refused, in every spelling
+  (`::ffff:127.0.0.1`, `2130706433`, a name that resolves there or answers differently the second
+  time). The person's own network (10/8, 172.16/12, 192.168/16, fc00::/7) is allowed only for a
+  document pasted by hand or dropped into a watched folder, never for one relayed by the browser
+  extension, the API or a feed (migration 0108). A refused mirror is isolated with
+  `mirror.internal_address` and the other mirrors carry on; redirects of a mirror are held to the
+  same rule. The LinkGrabber's automatic online check holds every link a document or a page
+  proposed — a Metalink's link, an intake parser's or a crawler's find on a relayed page — to
+  the same rule: a refused one is marked `collector.check_internal_address` and never requested.
+  Links you type, paste or drop keep being checked as before. The tracker scrape shares the check
+  and now also refuses an IPv4-mapped loopback address.
+
 ## [1.4.2] - 2026-09-27
 
 ### Changed

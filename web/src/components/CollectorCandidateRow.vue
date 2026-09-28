@@ -13,9 +13,11 @@ import type {
   ResolvedRemoteListing,
   TorrentPlanRequest
 } from '@/api/types'
+import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import MediaFormatSelector from '@/components/MediaFormatSelector.vue'
 import RemoteFileTree from '@/components/RemoteFileTree.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
+import { queuedCount } from '@/composables/useQueuedSources'
 import { useAccountProviders } from '@/composables/useAccountProviders'
 import { useConfirm } from '@/composables/useConfirm'
 import { translateServerMessage } from '@/i18n/server'
@@ -36,7 +38,9 @@ const props = defineProps<{
   /** Whether the group's other mirrors are showing. */
   mirrorOpen?: boolean,
   /** Set on a row that is one of those other mirrors rather than a candidate of its own. */
-  mirrorMember?: boolean
+  mirrorMember?: boolean,
+  /** The view's "Show metadata" switch is off: the enricher chips stay stored, only unshown (RD-150-19). */
+  hideMetadata?: boolean
 }>()
 const { lacksAccount, providerName } = useAccountProviders()
 /** Hoster link that will be fetched without any account — surfaced instead of failing later. */
@@ -78,6 +82,8 @@ const stateColor = computed<'success' | 'error' | 'warning' | 'neutral' | 'prima
   }
 })
 const stateLabel = computed(() => t(`linkgrabber.candidate.state.${props.candidate.state}`))
+/** Queue downloads of the same source, by identity rather than by spelling (RD-150-01). */
+const queuedCopies = computed(() => queuedCount(props.candidate.url))
 /**
  * The values a coded candidate message interpolates.
  *
@@ -496,6 +502,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
           <UIcon name="i-lucide-list-tree" class="mr-1 size-3.5" />{{ torrent.selected_count }}/{{ torrent.file_count }}
         </UBadge>
         <UBadge v-if="consent" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-shield-check" :title="t('linkgrabber.replay.consent.granted')" :aria-label="t('linkgrabber.replay.consent.granted')" />
+        <UBadge v-if="queuedCopies" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-list-checks" :title="t('linkgrabber.duplicates.queued_hint', { count: queuedCopies })" :aria-label="t('linkgrabber.duplicates.queued', { count: queuedCopies })" data-testid="queued-badge" />
         <UBadge v-if="freeDownload" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-user-x" :title="t('linkgrabber.candidate.no_account')" :aria-label="t('linkgrabber.candidate.no_account')" />
         <!-- The group, and how sure it is. The word changes with the evidence, not only the
              colour: a proposal that merely looked different would read as a fact to anybody
@@ -548,7 +555,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
       </div>
     </div>
     <p v-if="candidateError" class="truncate px-12 pb-1 text-xs text-error" :title="candidateError">{{ candidateError }}</p>
-    <div v-if="enrichment.length || cachedAt" class="flex flex-wrap items-center gap-2 px-12 pb-1">
+    <div v-if="(enrichment.length && !props.hideMetadata) || cachedAt" class="flex flex-wrap items-center gap-2 px-12 pb-1">
       <UBadge
         v-if="cachedAt"
         color="neutral"
@@ -558,15 +565,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         data-testid="candidate-cached"
         :title="cacheHint"
       >{{ t('linkgrabber.cache.label') }}: {{ formatMoment(cachedAt) }}</UBadge>
-      <UBadge
-        v-for="field in enrichment"
-        :key="`${field.plugin_id}:${field.name}`"
-        color="neutral"
-        variant="subtle"
-        size="sm"
-        class="font-mono"
-        :title="t('linkgrabber.enrichment.source', { name: field.name, at: formatMoment(field.fetched_at) })"
-      >{{ field.name.split('.').pop() }}: {{ field.value }}</UBadge>
+      <EnrichmentChips v-if="!props.hideMetadata" :fields="enrichment" />
     </div>
     <div v-if="torrent && expanded" class="border-t border-muted px-12 py-2">
       <p v-if="torrentBusy && !torrentDetail" class="flex items-center gap-2 text-xs text-muted">

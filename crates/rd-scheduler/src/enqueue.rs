@@ -62,6 +62,9 @@ pub struct FileSpec {
     pub skipped: bool,
     /// What the enrichers found for this file; see [`PackageSpec::enrichment`].
     pub enrichment: Vec<rd_core::EnrichmentField>,
+    /// Every source of the file and the hashes its bytes must match (RD-150-03), written with
+    /// the row. Its whole-file hash becomes the download's expected checksum.
+    pub source_set: Option<Box<rd_core::SourceSet>>,
 }
 
 /// The template, its consent and the vaulted body, on their way from a candidate to a
@@ -163,47 +166,62 @@ async fn write_package(
     }
     let mut created = Vec::with_capacity(files.len());
     for file in files {
-        let created_file = database
-            .create_download(NewDownload {
-                id: rd_core::DownloadId::new(),
-                package_id,
-                source: file.source,
-                file_name: rd_files::sanitize_file_name(&file.file_name),
-                total_bytes: file.size,
-                expected_checksum: None,
-                account_id: file.account_id,
-                proxy_profile_id: file.proxy_profile_id,
-                auth_profile: file.auth_profile,
-                initial_state: if file.skipped {
-                    // A mirror waits for the member that is downloading, whatever
-                    // the package's own start mode says.
-                    DownloadState::Skipped
-                } else if spec.start_paused {
-                    DownloadState::Paused
-                } else {
-                    DownloadState::Queued
-                },
-                kind: file.kind,
-                media: file.media,
-                remote_credential_id: file.remote_credential_id,
-                mirror_group: file.mirror_group,
-                enrichment: file.enrichment,
-                replay: file.replay.map(|replay| {
-                    Box::new(rd_db::NewReplayTemplate {
-                        request: replay.request,
-                        consent: replay.consent,
-                        body_ref: replay.body_ref,
-                        candidate_id: replay.candidate_id,
-                    })
-                }),
-                secret_fragment: file.secret_fragment.map(|fragment| {
-                    Box::new(rd_db::NewSecretFragment {
-                        reference: fragment.reference,
-                        candidate_id: fragment.candidate_id,
-                    })
-                }),
-            })
-            .await;
+        let new_download = NewDownload {
+            id: rd_core::DownloadId::new(),
+            package_id,
+            source: file.source,
+            file_name: rd_files::sanitize_file_name(&file.file_name),
+            // A Metalink file states its size; the link itself was proposed without one.
+            total_bytes: file.size.or_else(|| {
+                file.source_set
+                    .as_ref()
+                    .and_then(|set| set.size)
+                    .and_then(|size| rd_core::ByteCount::new(size).ok())
+            }),
+            expected_checksum: file
+                .source_set
+                .as_ref()
+                .and_then(|set| set.checksum.clone()),
+            account_id: file.account_id,
+            proxy_profile_id: file.proxy_profile_id,
+            auth_profile: file.auth_profile,
+            initial_state: if file.skipped {
+                // A mirror waits for the member that is downloading, whatever
+                // the package's own start mode says.
+                DownloadState::Skipped
+            } else if spec.start_paused {
+                DownloadState::Paused
+            } else {
+                DownloadState::Queued
+            },
+            kind: file.kind,
+            media: file.media,
+            remote_credential_id: file.remote_credential_id,
+            mirror_group: file.mirror_group,
+            enrichment: file.enrichment,
+            replay: file.replay.map(|replay| {
+                Box::new(rd_db::NewReplayTemplate {
+                    request: replay.request,
+                    consent: replay.consent,
+                    body_ref: replay.body_ref,
+                    candidate_id: replay.candidate_id,
+                })
+            }),
+            secret_fragment: file.secret_fragment.map(|fragment| {
+                Box::new(rd_db::NewSecretFragment {
+                    reference: fragment.reference,
+                    candidate_id: fragment.candidate_id,
+                })
+            }),
+        };
+        let created_file = match file.source_set {
+            Some(set) => {
+                database
+                    .create_download_with_sources(new_download, *set)
+                    .await
+            }
+            None => database.create_download(new_download).await,
+        };
         match created_file {
             Ok(download) => created.push(download),
             // A package holding part of its file set is worse than no package at all:

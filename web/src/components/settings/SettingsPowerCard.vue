@@ -12,6 +12,7 @@ const status = ref<PowerStatus | null>(null)
 
 /** Monday-first, matching the backend's bitmask. */
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
+const dayItems = computed(() => DAYS.map(day => ({ value: day, label: t(`bandwidth.days.${day}`) })))
 
 const actions = computed(() =>
   (['none', 'script', 'standby', 'shutdown'] as const).map(value => ({
@@ -45,11 +46,16 @@ function removeWindow(index: number): void {
   }
 }
 
-function toggleDay(index: number, day: number): void {
+/** The window's bitmask as the list of days a checkbox group holds. */
+function daysOf(mask: number): number[] {
+  return DAYS.filter(day => (mask & (1 << day)) !== 0)
+}
+
+function setDays(index: number, days: number[]): void {
   const windows = [...(settings.value.quiet_hours?.windows ?? [])]
   const window = windows[index]
   if (!window) return
-  windows[index] = { ...window, days: window.days ^ (1 << day) }
+  windows[index] = { ...window, days: days.reduce((mask, day) => mask | (1 << day), 0) }
   settings.value.quiet_hours = { enabled: settings.value.quiet_hours?.enabled ?? false, windows }
 }
 
@@ -78,17 +84,12 @@ onMounted(async () => {
   <section class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('power.card.eyebrow')" :title="t('power.card.title')" :description="t('power.card.description')" class="mb-4" />
 
-    <div class="flex items-center justify-between gap-5 border-t border-muted pt-4">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('power.quiet.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('power.quiet.description') }}</p>
-      </div>
+    <UFormField :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch
         :model-value="settings.quiet_hours?.enabled ?? false"
-        :aria-label="t('power.quiet.label')"
         @update:model-value="settings.quiet_hours = { enabled: Boolean($event), windows: settings.quiet_hours?.windows ?? [] }"
       />
-    </div>
+    </UFormField>
 
     <div v-if="settings.quiet_hours?.enabled" class="mt-3 space-y-3">
       <div v-for="(window, index) in settings.quiet_hours.windows" :key="index" class="border border-muted p-3">
@@ -99,30 +100,26 @@ onMounted(async () => {
           <UFormField :label="t('power.quiet.to')">
             <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-28" @update:model-value="setTime(index, 'end_minute', String($event))" />
           </UFormField>
-          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" @click="removeWindow(index)" />
+          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeWindow(index)" />
         </div>
-        <div class="mt-2 flex flex-wrap gap-1">
-          <UButton
-            v-for="day in DAYS"
-            :key="day"
-            size="xs"
-            :color="(window.days & (1 << day)) ? 'primary' : 'neutral'"
-            :variant="(window.days & (1 << day)) ? 'solid' : 'outline'"
-            :label="t(`bandwidth.days.${day}`)"
-            @click="toggleDay(index, day)"
-          />
-        </div>
+        <UCheckboxGroup
+          class="mt-2"
+          :model-value="daysOf(window.days)"
+          :items="dayItems"
+          :legend="t('bandwidth.schedule.days_label')"
+          orientation="horizontal"
+          size="sm"
+          @update:model-value="(days: number[]) => setDays(index, days)"
+        />
       </div>
       <UButton type="button" color="neutral" variant="outline" size="xs" icon="i-lucide-plus" :label="t('power.quiet.add')" @click="addWindow" />
       <div class="grid gap-3">
-        <div class="flex items-center justify-between gap-3">
-          <p class="text-xs leading-5 text-muted">{{ t('power.quiet.defer_postprocess') }}</p>
-          <USwitch v-model="settings.quiet_hours_defer_postprocess" :aria-label="t('power.quiet.defer_postprocess')" />
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <p class="text-xs leading-5 text-muted">{{ t('power.quiet.defer_notifications') }}</p>
-          <USwitch v-model="settings.quiet_hours_defer_notifications" :aria-label="t('power.quiet.defer_notifications')" />
-        </div>
+        <UFormField :label="t('power.quiet.defer_postprocess')" orientation="horizontal">
+          <USwitch v-model="settings.quiet_hours_defer_postprocess" />
+        </UFormField>
+        <UFormField :label="t('power.quiet.defer_notifications')" orientation="horizontal">
+          <USwitch v-model="settings.quiet_hours_defer_notifications" />
+        </UFormField>
       </div>
     </div>
 
@@ -138,47 +135,39 @@ onMounted(async () => {
           <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
         </UInput>
       </UFormField>
-      <div v-if="destructive" class="flex items-center justify-between gap-5">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('power.completion.approval_label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('power.completion.approval_description') }}</p>
-          <p v-if="!settings.power_actions_allowed" class="mt-1 text-xs leading-5 text-warning">{{ t('power.completion.approval_missing') }}</p>
-        </div>
-        <USwitch v-model="settings.power_actions_allowed" :aria-label="t('power.completion.approval_label')" />
-      </div>
+      <template v-if="destructive">
+        <UFormField :label="t('power.completion.approval_label')" :description="t('power.completion.approval_description')" orientation="horizontal">
+          <USwitch v-model="settings.power_actions_allowed" />
+        </UFormField>
+        <p v-if="!settings.power_actions_allowed" class="-mt-2 text-xs leading-5 text-warning">{{ t('power.completion.approval_missing') }}</p>
+      </template>
     </div>
 
     <div class="mt-4 grid gap-3 border-t border-muted pt-4">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('power.context.battery_label') }}</p>
-          <p v-if="status && !status.capabilities.battery" class="mt-1 text-xs leading-5 text-muted">{{ t('power.context.unavailable') }}</p>
-        </div>
-        <USwitch v-model="settings.pause_on_battery" :disabled="status?.capabilities.battery === false" :aria-label="t('power.context.battery_label')" />
-      </div>
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('power.context.metered_label') }}</p>
-          <p v-if="status && !status.capabilities.metered" class="mt-1 text-xs leading-5 text-muted">{{ t('power.context.unavailable') }}</p>
-        </div>
-        <USwitch v-model="settings.pause_on_metered" :disabled="status?.capabilities.metered === false" :aria-label="t('power.context.metered_label')" />
-      </div>
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('power.context.prevent_standby_label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">
-            {{ status && !status.capabilities.inhibit_standby ? t('power.context.unavailable') : t('power.context.prevent_standby_description') }}
-          </p>
-        </div>
-        <USwitch v-model="settings.prevent_standby" :disabled="status?.capabilities.inhibit_standby === false" :aria-label="t('power.context.prevent_standby_label')" />
-      </div>
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('power.context.prevent_display_label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('power.context.prevent_display_description') }}</p>
-        </div>
-        <USwitch v-model="settings.prevent_display_standby" :disabled="!settings.prevent_standby || status?.capabilities.inhibit_display === false" :aria-label="t('power.context.prevent_display_label')" />
-      </div>
+      <UFormField
+        :label="t('power.context.battery_label')"
+        :description="status && !status.capabilities.battery ? t('power.context.unavailable') : undefined"
+        orientation="horizontal"
+      >
+        <USwitch v-model="settings.pause_on_battery" :disabled="status?.capabilities.battery === false" />
+      </UFormField>
+      <UFormField
+        :label="t('power.context.metered_label')"
+        :description="status && !status.capabilities.metered ? t('power.context.unavailable') : undefined"
+        orientation="horizontal"
+      >
+        <USwitch v-model="settings.pause_on_metered" :disabled="status?.capabilities.metered === false" />
+      </UFormField>
+      <UFormField
+        :label="t('power.context.prevent_standby_label')"
+        :description="status && !status.capabilities.inhibit_standby ? t('power.context.unavailable') : t('power.context.prevent_standby_description')"
+        orientation="horizontal"
+      >
+        <USwitch v-model="settings.prevent_standby" :disabled="status?.capabilities.inhibit_standby === false" />
+      </UFormField>
+      <UFormField :label="t('power.context.prevent_display_label')" :description="t('power.context.prevent_display_description')" orientation="horizontal">
+        <USwitch v-model="settings.prevent_display_standby" :disabled="!settings.prevent_standby || status?.capabilities.inhibit_display === false" />
+      </UFormField>
     </div>
     <p v-if="status?.inhibiting" class="mt-3 flex items-center gap-1.5 text-xs text-muted">
       <UIcon name="i-lucide-coffee" class="size-3.5 shrink-0" />

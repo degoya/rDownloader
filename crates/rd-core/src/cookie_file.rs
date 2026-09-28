@@ -114,9 +114,11 @@ pub fn parse(content: &str, header_host: &str) -> Result<Vec<CookieRow>, CookieF
 fn parse_netscape(content: &str) -> Result<Vec<CookieRow>, CookieFileError> {
     let mut rows = Vec::new();
     for raw_line in content.lines() {
-        let line = raw_line.trim_end();
+        // Only the line ending: a cookie with an empty value ends its row in a tab, and trimming
+        // that tab turned a valid row into six fields (DDownload, 1.5.0).
+        let line = raw_line.trim_end_matches('\r');
         // `#HttpOnly_` is a real row wearing a comment prefix; every other `#` is a comment.
-        if line.is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
+        if line.trim().is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
             continue;
         }
         let line = line.strip_prefix("#HttpOnly_").unwrap_or(line);
@@ -223,6 +225,18 @@ mod tests {
         assert!(rows[0].include_subdomains);
         assert!(rows[0].secure);
         assert_eq!(rows[0].value, "abc");
+    }
+
+    #[test]
+    fn a_row_with_an_empty_value_keeps_its_seventh_field() {
+        let rows = parse(
+            &netscape("example.com\tFALSE\t/\tFALSE\t0\tlang\t\r\n"),
+            "example.com",
+        )
+        .expect("rows");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "lang");
+        assert_eq!(rows[0].value, "");
     }
 
     #[test]

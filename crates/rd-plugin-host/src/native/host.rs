@@ -246,6 +246,18 @@ impl ResolverHost for NativeHost {
         if !reference_active_for_account(&provider, reference, mode) {
             return false;
         }
+        // A part a sign-in keeps beside its token is asked of its own row (RD-150-09): the
+        // personal client secret exists once the device flow handed it out, whether or not the
+        // token exchange after it has finished.
+        if rd_provider_registry::by_slug(&provider)
+            .is_some_and(|spec| spec.flow_part_slot(reference).is_some())
+        {
+            return self
+                .database
+                .auth_flow_part(account_id, reference)
+                .await
+                .is_ok_and(|part| part.is_some());
+        }
         // A slot a flow fills is asked of the flow (RD-106-03). Answering it from the account's
         // credential would say "signed in" for an account that has only registered its
         // application -- and a resolver that believed it would send the client secret as a
@@ -457,6 +469,60 @@ impl ResolverHost for NativeHost {
         }
         Ok(())
     }
+
+    /// Stores one named part of a sign-in beside its token (RD-150-09).
+    ///
+    /// The name has to be a part slot of the account's own provider, live in the account's
+    /// mode: a plugin cannot invent a place to write to, cannot overwrite the token or what the
+    /// person typed through this call, and an account holding a pasted key keeps no sign-in
+    /// parts at all. The new value is referenced before the one it replaces is dropped, for the
+    /// reason `store_token` gives.
+    async fn store_flow_secret(
+        &self,
+        account_id: AccountId,
+        name: &str,
+        value: &str,
+    ) -> Result<(), Failure> {
+        if value.trim().is_empty() {
+            return Err(Failure::coded(
+                FailureKind::Permanent,
+                "plugin.store_token_empty",
+                "An authentication flow returned an empty credential",
+            ));
+        }
+        let (provider, mode) = super::account_credentials(&self.database, account_id).await?;
+        let is_part = rd_provider_registry::by_slug(&provider)
+            .is_some_and(|spec| spec.flow_part_slot(name).is_some());
+        if !is_part || !reference_active_for_account(&provider, name, mode) {
+            return Err(Failure::coded(
+                FailureKind::Permanent,
+                "plugin.store_token_not_allowed",
+                "This provider keeps no sign-in part of that name",
+            ));
+        }
+        let stored = self
+            .secrets
+            .put_string(value.to_owned())
+            .await
+            .map_err(super::permanent)?;
+        match self
+            .database
+            .set_auth_flow_part(account_id, name.to_owned(), stored.clone())
+            .await
+        {
+            Ok(replaced) => {
+                if let Some(old) = replaced {
+                    let _ = self.secrets.remove(&old).await;
+                }
+                Ok(())
+            }
+            Err(error) => {
+                // Nothing references the value just written, so it is ours to take back.
+                let _ = self.secrets.remove(&stored).await;
+                Err(super::permanent(error))
+            }
+        }
+    }
 }
 
 impl NativeHost {
@@ -509,22 +575,35 @@ impl NativeHost {
                 .is_some_and(rd_provider_registry::SecretSlot::is_filled_by_flow)
         });
         if filled_by_flow {
-            if !secret_domain_allowed(reference, &request.url) {
+            // The mode gate as well, since RD-150-09 put flow slots beside a typed one: an
+            // account holding a pasted API key must not reach what a sign-in would have kept.
+            if !reference_active_for_account(&provider, reference, mode)
+                || !secret_domain_allowed(reference, &request.url)
+            {
                 return Err(secret_target_not_allowed());
             }
-            let stored = self
-                .database
-                .auth_flow(account_id)
-                .await
-                .map_err(super::permanent)?
-                .and_then(|flow| flow.access_ref)
-                .ok_or_else(|| {
-                    Failure::coded(
-                        FailureKind::AuthRequired,
-                        "plugin.provider_secret_missing",
-                        "Provider secret is missing",
-                    )
-                })?;
+            // A named part is read from its own row, the token from the flow's.
+            let is_part = rd_provider_registry::by_slug(&provider)
+                .is_some_and(|spec| spec.flow_part_slot(reference).is_some());
+            let stored = if is_part {
+                self.database
+                    .auth_flow_part(account_id, reference)
+                    .await
+                    .map_err(super::permanent)?
+            } else {
+                self.database
+                    .auth_flow(account_id)
+                    .await
+                    .map_err(super::permanent)?
+                    .and_then(|flow| flow.access_ref)
+            };
+            let stored = stored.ok_or_else(|| {
+                Failure::coded(
+                    FailureKind::AuthRequired,
+                    "plugin.provider_secret_missing",
+                    "Provider secret is missing",
+                )
+            })?;
             return self.secrets.get(&stored).await.map_err(super::permanent);
         }
         // The renewal material of this account's own sign-in (RD-106-03).
@@ -725,6 +804,8 @@ impl NativeHost {
                     auth_revision: 0,
                     replay_scope: None,
                     tls_revision: defaults.tls_revision,
+                    // A plugin's requests are bounded by its manifest's domains instead.
+                    address_policy: None,
                 },
                 proxy: config.proxy,
                 proxy_credentials,
@@ -747,3 +828,7 @@ mod host_tests;
 #[cfg(test)]
 #[path = "host_basic_tests.rs"]
 mod host_basic_tests;
+
+#[cfg(test)]
+#[path = "parts_tests.rs"]
+mod parts_tests;

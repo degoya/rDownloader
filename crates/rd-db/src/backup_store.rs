@@ -95,6 +95,8 @@ pub struct ReplacementSubscription {
     pub card_ratio: rd_core::SubscriptionCardRatio,
     /// The cron expression replacing the interval (RD-130-19), when there is one.
     pub schedule: Option<String>,
+    /// The arguments a script subscription hands its script (RD-150-08).
+    pub script_arguments: Vec<String>,
     pub secret_ref: Option<String>,
 }
 
@@ -161,7 +163,7 @@ pub(crate) async fn replace_all(
         "categories",
         "storage_roots",
     ] {
-        sqlx::query(&format!("DELETE FROM {table}"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table}")))
             .execute(&mut *tx)
             .await?;
     }
@@ -298,8 +300,9 @@ pub(crate) async fn replace_all(
             "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, \
              priority, interval_seconds, filters_json, backlog_json, category_map_json, \
              source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-             primed, consecutive_failures, secret_ref, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+             script_arguments_json, primed, consecutive_failures, secret_ref, created_at, \
+             updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -329,6 +332,7 @@ pub(crate) async fn replace_all(
         .bind(i64::from(value.autoplay))
         .bind(value.card_ratio.as_str())
         .bind(value.schedule)
+        .bind(serde_json::to_string(&value.script_arguments)?)
         .bind(value.secret_ref)
         .bind(now)
         .bind(now)
@@ -422,10 +426,10 @@ pub(crate) async fn replace_all(
     }
 
     for table in ["link_candidates", "nzb_imports", "collector_packages"] {
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE {table} SET category_id = NULL WHERE category_id IS NOT NULL \
              AND NOT EXISTS (SELECT 1 FROM categories WHERE categories.id = {table}.category_id)"
-        ))
+        )))
         .execute(&mut *tx)
         .await?;
     }

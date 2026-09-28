@@ -19,9 +19,11 @@ mod params_delivery;
 mod params_handling;
 mod params_insight;
 mod params_remaining;
+mod params_storage;
 mod policy;
 mod tools_candidates;
 mod tools_collector;
+mod tools_collisions;
 mod tools_config;
 mod tools_containers;
 mod tools_credentials;
@@ -91,7 +93,11 @@ seeding and tracker tools, list_postprocess_options, list_managed_tools and mana
 and get_storage_capacity cover the rest; get_about says which build is running. The histories and catalogues beside the editors are \
 here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
 subscription review list and its polls, recording schedules and record-now, plugin runs, \
-power and reconnect status, metrics and the diagnostic bundle's preview. Ids always come \
+power and reconnect status, metrics and the diagnostic bundle's preview. What happens when a \
+finished file meets a taken name is a collision policy (list_collision_policies and the set \
+tools); downloads waiting for an answer are list_collision_prompts and decide_collision. \
+get_download_duplicates explains source and content duplicates apart, dedupe_download links an \
+identical file, and list_storage_operations shows verified moves and links. Ids always come \
 from a list tool first. \
 Passwords, API keys and cookies are never accepted or returned by any tool; a row is \
 created here and its credential is entered in the web UI.";
@@ -135,6 +141,7 @@ impl RdMcpServer {
             + Self::editors_router()
             + Self::subscription_review_router()
             + Self::stream_schedules_router()
+            + Self::collisions_router()
     }
 }
 

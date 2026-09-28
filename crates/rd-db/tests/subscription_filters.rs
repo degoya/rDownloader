@@ -38,6 +38,7 @@ fn subscription() -> NewSubscription {
         autoplay: false,
         card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
         schedule: None,
+        script_arguments: Vec::new(),
         secret_ref: None,
     }
 }

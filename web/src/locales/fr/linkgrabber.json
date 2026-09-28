@@ -89,7 +89,7 @@
       "headers": "En-têtes"
     },
     "drag_hint": "Glisser pour modifier l’ordre au sein du paquet",
-    "duplicate_hint": "Cette adresse est déjà dans le LinkGrabber ou déjà mise en file. Elle peut être ajoutée à nouveau délibérément.",
+    "duplicate_hint": "Cette adresse est déjà dans le LinkGrabber ou dans la liste des téléchargements. Elle peut être ajoutée à nouveau délibérément.",
     "unresolvable_hint": "Cette adresse répond par une page, pas par un fichier. Elle ne peut pas être ajoutée à la liste de téléchargement.",
     "no_resolver_hint": "Aucun résolveur n’est installé pour {host}, cette adresse ne peut donc pas être ajoutée à la liste de téléchargement. Il peut s’agir d’un hébergeur non pris en charge ici ou d’une redirection vers une autre adresse."
   },
@@ -408,9 +408,6 @@
       "post_resume_unsupported": "Le serveur ne permet pas de reprendre ce téléchargement."
     }
   },
-  "enrichment": {
-    "source": "{name}, consulté par un plugin le {at}"
-  },
   "notifications": {
     "intake_title": "Nouveaux liens",
     "intake_body": "Aucun lien ajouté. | {count} lien dans le LinkGrabber. | {count} liens dans le LinkGrabber."
@@ -478,5 +475,9 @@
     "summary": "Masqués : {links} de {hosters}",
     "show_all": "Tout afficher",
     "hint": "Les hébergeurs masqués restent dans le LinkGrabber et ne sont ni mis en file ni vérifiés. En tant que miroir d’un lien affiché, ils l’accompagnent comme solution de repli."
+  },
+  "duplicates": {
+    "queued": "{count} × déjà dans la file",
+    "queued_hint": "La même source est déjà {count} fois dans la file – reconnue par l’adresse normalisée, l’info-hash ou l’hébergeur."
   }
 }

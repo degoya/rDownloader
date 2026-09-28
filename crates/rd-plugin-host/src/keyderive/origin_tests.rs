@@ -2,7 +2,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockEncrypt, KeyInit},
+    cipher::{BlockCipherEncrypt, KeyInit},
 };
 use rd_plugin_api::DerivationStep;
 

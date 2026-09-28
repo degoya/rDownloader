@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, resultMessage } from '@/api/client'
 import type { CreateStorageRoot, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
@@ -136,10 +137,10 @@ async function remove(root: StorageRoot): Promise<void> {
         <UAlert v-if="ephemeral.length" class="mb-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('routing.root.ephemeral_title')" :description="t('routing.root.ephemeral_description')" />
         <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
-          <UFormField :label="t('routing.root.name_label')" :description="t('routing.root.name_description')">
+          <UFormField required :label="t('routing.root.name_label')" :description="t('routing.root.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.root.name_placeholder')" icon="i-lucide-hard-drive" />
           </UFormField>
-          <UFormField :label="t('routing.root.path_label')" :description="t('routing.root.path_description')">
+          <UFormField required :label="t('routing.root.path_label')" :description="t('routing.root.path_description')">
             <UInput v-model="form.path" required class="w-full font-mono" :placeholder="t('routing.root.path_placeholder')" icon="i-lucide-folder" />
           </UFormField>
           <UFormField :label="t('routing.root.minimum_free_label')" :description="t('routing.root.minimum_free_description')">
@@ -147,14 +148,11 @@ async function remove(root: StorageRoot): Promise<void> {
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>
           </UFormField>
-          <UFormField :label="t('routing.root.default_label')" :description="t('routing.root.default_description')">
+          <UFormField orientation="horizontal" :label="t('routing.root.default_label')" :description="t('routing.root.default_description')">
             <USwitch v-model="form.is_default" :disabled="lockDefault" :aria-label="t('routing.root.default_label')" />
             <p v-if="lockDefault" class="mt-1 text-[11px] leading-5 text-muted">{{ t('routing.root.default_locked_hint') }}</p>
           </UFormField>
-          <div class="flex gap-2">
-            <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-plus'" :label="editingId ? t('common.actions.save') : t('routing.root.create')" :loading="pending" />
-            <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('routing.cancel_edit')" @click="list.reset" />
-          </div>
+          <FormActions :editing="editingId !== null" :create-label="t('routing.root.create')" :loading="pending" @cancel="list.reset" />
         </form>
       </template>
       <template #list>
@@ -169,8 +167,8 @@ async function remove(root: StorageRoot): Promise<void> {
             <UBadge v-if="editingId === root.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge v-if="root.persistence === 'ephemeral'" color="warning" variant="subtle" icon="i-lucide-triangle-alert">{{ t('routing.root.ephemeral_badge') }}</UBadge>
             <UBadge v-if="root.is_default" color="primary" variant="subtle">{{ t('routing.root.default_badge') }}</UBadge>
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" @click="edit(root)" />
-            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :loading="deletingId === root.id" @click="remove(root)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(root)" />
+            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="deletingId === root.id" @click="remove(root)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!roots.length" variant="inline" class="p-5">
             <p class="text-center text-sm text-muted">{{ t('routing.root.empty') }}</p>

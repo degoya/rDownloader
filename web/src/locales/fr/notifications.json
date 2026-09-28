@@ -59,7 +59,8 @@
     "secret_plugin_description": "Le jeton avec lequel cette destination s'authentifie. Il reste dans le coffre et le plugin ne le voit jamais — seule la requête qu'il construit le porte.",
     "destination_label": "Plugin",
     "destination_description": "Quelle destination installée distribue cette cible.",
-    "form_new": "Nouvelle cible"
+    "form_new": "Nouvelle cible",
+    "secret_copy": "Non copié — saisissez-le à nouveau ; d’ici là, la copie n’en a aucun."
   },
   "smtp": {
     "from": "Expéditeur",

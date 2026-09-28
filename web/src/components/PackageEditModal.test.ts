@@ -76,3 +76,32 @@ describe('PackageEditModal — the name is ready to be replaced', () => {
     expect(document.activeElement).toBe(nameInput())
   })
 })
+
+/**
+ * RD-150-11: one field per row. Post-processing and script sat side by side in a two-column
+ * grid, and the two switches were a hand-built `<label>` around a bare `USwitch`; the switches
+ * now stand after the field they belong to and carry their own label.
+ */
+describe('PackageEditModal — one field per row', () => {
+  it('keeps no two-column grid in the form', () => {
+    mountComponent(PackageEditModal, {
+      props: { name: 'Pkg', hasPassword: true, canRenameFolder: true, password: null, postprocessLevel: null, script: null, scripts: [] },
+      messages: { common, downloads },
+      stubs: { UInput, UModal }
+    })
+    const form = document.getElementById('package-edit-form') as HTMLFormElement
+    expect(form.querySelector('[class*="grid-cols"]')).toBeNull()
+  })
+
+  it('places each switch right after the field it acts on', () => {
+    mountComponent(PackageEditModal, {
+      props: { name: 'Pkg', hasPassword: true, canRenameFolder: true, password: null, postprocessLevel: null, script: null, scripts: [] },
+      messages: { common, downloads },
+      stubs: { UInput, UModal }
+    })
+    const edit = downloads.edit_package
+    const order = Array.from(document.querySelectorAll('#package-edit-form label, #package-edit-form [role="switch"]'))
+      .map(node => node.getAttribute('aria-label') ?? node.textContent?.trim())
+    expect(order.slice(0, 4)).toEqual([edit.name, edit.rename_folder, edit.password, edit.clear_password])
+  })
+})

@@ -294,8 +294,9 @@ entrypoint, health check:
 | `prebuilt` | copied from `dist/docker/linux-<arch>/rdownloader` in the build context | CI and the release workflow |
 
 The release does not compile rDownloader a second time for the image: its `container` job takes
-the `rdownloader-linux-x86_64` and `rdownloader-linux-aarch64` tarballs the `binaries` job built
-(the latter on GitHub's native arm runner), unpacks them to `dist/docker/linux-amd64/` and
+the executable from the `rdownloader-linux-x86_64` and `rdownloader-linux-aarch64` archives the
+`linux-binaries` job built (the latter on GitHub's native arm runner) — the same bytes the shipped
+tarballs carry, and it waits for the Linux legs alone, not for Windows and macOS — unpacks them to `dist/docker/linux-amd64/` and
 `dist/docker/linux-arm64/`, builds `--target prebuilt` for both platforms, smoke-tests the amd64
 image (`scripts/docker-smoke.sh`) and only then pushes. `:latest` moves only for the newest
 `vX.Y.Z` tag. CI builds the amd64 release binary on the runner and smoke-tests the same target;

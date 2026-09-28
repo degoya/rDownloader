@@ -1,0 +1,52 @@
+[package]
+name = "rd-object-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# Azure Blob Storage and Google Cloud Storage (RD-150-05). On by default; a build without them
+# still accepts `az://` and `gs://` links and refuses them with
+# `object_storage.provider_unsupported`. S3 is always there.
+default = ["azure", "gcs"]
+azure = ["object_store/azure"]
+gcs = ["object_store/gcp"]
+# The crash point of the multipart upload (`object_storage.after_part_upload`), for its case in
+# `src/tests.rs`; see `crates/rd-core/recovery-matrix.md`.
+failpoints = ["rd-core/failpoints"]
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+# The shape checks of an Azure account key and a Google service account key (`credentials.rs`).
+base64.workspace = true
+chrono.workspace = true
+futures-util.workspace = true
+object_store.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+# For the upload step's contract, `rd_extract::ObjectUploader`, which this crate implements.
+rd-extract = { path = "../rd-extract" }
+rd-files = { path = "../rd-files" }
+# The proxy and custom CA every other transport uses (`rd_http::SharedNetworkDefaults`).
+rd-http = { path = "../rd-http" }
+rd-limits = { path = "../rd-limits" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-secrets = { path = "../rd-secrets" }
+rd-transfer-file = { path = "../rd-transfer-file" }
+secrecy.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true

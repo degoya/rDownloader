@@ -51,6 +51,7 @@ impl RdMcpServer {
                     magnet: params.magnet,
                     address: params.address,
                     container: params.container,
+                    file_name: params.file_name,
                 }),
             )
             .await?

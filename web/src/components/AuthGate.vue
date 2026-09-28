@@ -72,6 +72,7 @@ async function signInWithPasskey(): Promise<void> {
           </p>
         </div>
 
+        <UAlert v-if="session.error" class="mb-4" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="session.error" />
         <form class="space-y-4" @submit.prevent="submit">
           <UFormField :label="t('auth.password')" required>
             <UInput
@@ -97,7 +98,7 @@ async function signInWithPasskey(): Promise<void> {
           <UFormField
             v-if="session.mfaRequired"
             :label="t('auth.code')"
-            :help="t('auth.code_hint')"
+            :description="t('auth.code_hint')"
             required
           >
             <UInput
@@ -110,7 +111,6 @@ async function signInWithPasskey(): Promise<void> {
               class="w-full"
             />
           </UFormField>
-          <UAlert v-if="session.error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="session.error" />
           <UButton
             type="submit"
             block

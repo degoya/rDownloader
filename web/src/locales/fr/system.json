@@ -125,7 +125,6 @@
       "label": "Modifier les autorisations",
       "hint": "La valeur du jeton reste la même : le client continue de fonctionner et atteint les nouvelles zones dès sa prochaine requête. Tout retirer n'est pas possible ici — révoquez le jeton pour cela.",
       "save": "Enregistrer les autorisations",
-      "cancel": "Annuler",
       "done": "Autorisations modifiées",
       "empty": "Choisissez au moins une zone, ou révoquez le jeton."
     },
@@ -167,7 +166,8 @@
     "sensitive": "Sensible",
     "sensitive_warning": "Ce jeton pourra lire les identifiants enregistrés ou administrer le service. Aucune autre zone ne l'accorde : ne le confiez qu'à un client qui en a réellement besoin.",
     "also_includes": "Inclut également : {areas}",
-    "minted_areas": "Ce jeton comprend : {areas}"
+    "minted_areas": "Ce jeton comprend : {areas}",
+    "label_label": "Nom du client"
   },
   "readiness": {
     "eyebrow": "Configuration",
@@ -351,5 +351,20 @@
     "idle_description": "Heures sans requête avant de devoir se reconnecter. De 1 à 720 (30 jours).",
     "max_label": "Durée maximale",
     "max_description": "Heures après la connexion au bout desquelles elle prend fin, même en plein travail. De 1 à 2160 (90 jours)."
+  },
+  "extension": {
+    "connected_title": "Extension du navigateur connectée",
+    "connected_description": "Une extension du navigateur vient de se signaler. Les comptes qui reprennent la connexion de votre navigateur reçoivent la session par son intermédiaire.",
+    "missing_title": "Aucune extension du navigateur ne s'est encore signalée",
+    "missing_description": "Vérifié toutes les quelques secondes ; dès que l'extension est appairée et se signale, cela s'affiche ici.",
+    "why": "Les comptes d'hébergeurs qui reprennent la connexion de votre navigateur — DDownload, par exemple — ont besoin de l'extension rDownloader pour le navigateur : elle seule peut transmettre la session depuis le navigateur. L'appairage est facultatif ; sans l'extension, il reste le nom d'utilisateur et le mot de passe ou une clé d'API.",
+    "step_install": "Installez l'extension rDownloader dans le navigateur avec lequel vous êtes connecté à l'hébergeur.",
+    "step_pair": "Cliquez ci-dessous sur « Appairer » : rDownloader affiche un jeton une seule fois — copiez-le.",
+    "step_options": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez le jeton, cliquez sur « Tester la connexion » puis sur « Enregistrer ».",
+    "default_label": "Extension du navigateur",
+    "pair_title": "Appairer l'extension du navigateur",
+    "modal_title": "Appairer l'extension du navigateur",
+    "modal_description": "La connexion à l'hébergeur vient de votre navigateur, et seule l'extension peut la transmettre. Appairez-la ici sans quitter la page.",
+    "done": "Terminé"
   }
 }

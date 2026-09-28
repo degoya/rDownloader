@@ -1,5 +1,7 @@
 //! Reading what Real-Debrid's OAuth2 endpoints answered.
 //!
+//! Three endpoints since RD-150-09, in the order the open-source device flow meets them: the
+//! device code, the personal credentials the confirmed code is exchanged for, and the token.
 //! Kept apart from the component so it can be unit-tested on the host target: `cargo test` here
 //! runs without a WebAssembly toolchain.
 //!
@@ -55,9 +57,9 @@ pub enum TokenAnswer {
 /// language the person reads. `realdebrid_auth` is this plugin's slug; the catalogue in
 /// `locales/` carries each of these.
 ///
-/// `invalid_client` gets its own code on purpose. It is the one refusal that is not about the
-/// person at all — it says this build's application registration is not accepted — and telling
-/// somebody to sign in again would send them round a loop that cannot end.
+/// `invalid_client` gets its own code on purpose. It says the client credentials the sign-in
+/// received are no longer accepted -- revoked at Real-Debrid, or the public client id refused --
+/// which a fresh connection answers and waiting never does.
 #[must_use]
 pub fn refusal_code(error: &str, api_code: Option<u64>) -> &'static str {
     match error {
@@ -115,6 +117,82 @@ pub fn read_device_code(body: &str) -> Option<DeviceCode> {
     })
 }
 
+/// The `error` words the credentials endpoint answers that end a sign-in rather than delay it.
+///
+/// Real-Debrid documents only that the endpoint answers "an error message until the user has
+/// entered the code", and names no word for that. So the refusals are listed and everything
+/// else is waiting -- bounded by the window the device code came with, which the host enforces.
+const REFUSING_WORDS: [&str; 6] = [
+    "access_denied",
+    "consent_required",
+    "interaction_required",
+    "expired_token",
+    "invalid_client",
+    "unauthorized_client",
+];
+
+/// What the credentials endpoint answered.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CredentialsAnswer {
+    /// The person confirmed: the client id and client secret that are theirs from now on.
+    Issued {
+        client_id: String,
+        client_secret: String,
+    },
+    /// The provider said no, as [`TokenAnswer::Refused`] does.
+    Refused {
+        error: String,
+        api_code: Option<u64>,
+    },
+    /// Not confirmed yet, or asked too often. Wait this many seconds.
+    Busy(u64),
+}
+
+/// Reads an answer of `/oauth/v2/device/credentials`.
+///
+/// Both values or neither: a client id without its secret cannot mint a token, and treating it
+/// as issued would store half a sign-in.
+#[must_use]
+pub fn read_credentials_answer(
+    status: u16,
+    retry_after: Option<&str>,
+    body: &str,
+) -> CredentialsAnswer {
+    let client_id = json::string_field(body, "client_id").filter(|value| !value.is_empty());
+    let client_secret = json::string_field(body, "client_secret").filter(|value| !value.is_empty());
+    if let (Some(client_id), Some(client_secret)) = (client_id, client_secret) {
+        return CredentialsAnswer::Issued {
+            client_id,
+            client_secret,
+        };
+    }
+    let error = json::string_field(body, "error");
+    let api_code = json::number_field(body, "error_code");
+    let asked_too_often =
+        status == 429 || api_code.is_some_and(|code| WAITING_CODES.contains(&code));
+    if !asked_too_often
+        && let Some(error) = error.filter(|word| REFUSING_WORDS.contains(&word.as_str()))
+    {
+        return CredentialsAnswer::Refused { error, api_code };
+    }
+    CredentialsAnswer::Busy(wait_seconds(retry_after, body))
+}
+
+/// How long a wait lasts: the `Retry-After` header, then the body's `interval`, then the floor.
+fn wait_seconds(retry_after: Option<&str>, body: &str) -> u64 {
+    retry_after
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .or_else(|| json::number_field(body, "interval"))
+        .unwrap_or(DEFAULT_WAIT)
+}
+
+/// Whether an answer of the device-code endpoint is a spent request budget rather than a reply.
+#[must_use]
+pub fn is_rate_limited(status: u16, body: &str) -> bool {
+    status == 429
+        || json::number_field(body, "error_code").is_some_and(|code| WAITING_CODES.contains(&code))
+}
+
 /// Reads a token or refresh answer.
 ///
 /// `retry_after` is the `Retry-After` response header, which is where a provider says how long
@@ -133,11 +211,7 @@ pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> 
         )
         || api_code.is_some_and(|code| WAITING_CODES.contains(&code));
     if waiting {
-        let seconds = retry_after
-            .and_then(|value| value.trim().parse::<u64>().ok())
-            .or_else(|| json::number_field(body, "interval"))
-            .unwrap_or(DEFAULT_WAIT);
-        return TokenAnswer::Busy(seconds);
+        return TokenAnswer::Busy(wait_seconds(retry_after, body));
     }
     if let Some(error) = error {
         return TokenAnswer::Refused { error, api_code };

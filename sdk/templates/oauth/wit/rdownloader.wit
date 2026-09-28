@@ -296,6 +296,18 @@ interface credentials {
   /// go to the vault. The expiry is the only part kept in the clear, and only because a sweep
   /// has to be able to ask whether a flow is due without decrypting a secret to find out.
   store-oauth-token: func(account-id: string, access-token: string, refresh-token: option<string>, expires-in-seconds: option<u64>) -> result<_, failure>;
+
+  /// Stores one named part of what a sign-in produced, beside its token (RD-150-09).
+  ///
+  /// For a provider whose renewal needs more than a refresh token: Real-Debrid's open-source
+  /// device flow hands every person a client id and a client secret of their own, and every
+  /// renewal needs both. `name` must be a slot the account's provider declares with
+  /// `filled_by = "flow"` other than the one the access token fills. The host keeps each part
+  /// as a vault entry of its own, so parts are never joined into one value that would have to
+  /// be split again, and replaces a part stored under the same name. There is no call that
+  /// reads one back: a later request names it as `{{secret:<name>}}`, expanded by the host
+  /// towards the slot's own domains and nowhere else.
+  store-flow-secret: func(account-id: string, name: string, value: string) -> result<_, failure>;
 }
 
 /// Reading the files of a package, for the plugin types that work on finished downloads.
@@ -388,6 +400,58 @@ interface intake {
   normalize: func(url: string) -> result<option<string>, failure>;
 }
 
+/// Every source of a file, not just the first (RD-150-03).
+///
+/// `intake` proposes one link per file, which is right for the LinkGrabber and loses what a
+/// Metalink document is for: the same bytes at several addresses, ranked, with the hashes they
+/// must match. A parser that knows a file's sources states them here as well; the host checks
+/// every field, keeps the set beside the candidate it proposed through `parse`, and hands it
+/// to the transfer, which fetches chunks from several sources at once.
+///
+/// Its own interface and world, so every intake plugin that does not implement it keeps
+/// satisfying `intake-plugin` exactly as before. The host asks it only of a component that
+/// exports it.
+interface mirror-sets {
+  use types.{failure};
+
+  /// One address of the file.
+  record set-source {
+    url: string,
+    /// Lower is preferred, as Metalink 4 counts it (1 to 999999). Absent sorts last.
+    priority: option<u32>,
+    /// ISO 3166-1 alpha-2 country code the document gave.
+    location: option<string>,
+  }
+
+  /// A digest the document states, e.g. `sha-256` and its hex value.
+  record stated-hash {
+    algorithm: string,
+    value: string,
+  }
+
+  /// Hashes of consecutive pieces of `length` bytes; the last piece may be shorter.
+  record piece-hashes {
+    algorithm: string,
+    length: u64,
+    hashes: list<string>,
+  }
+
+  /// One file and every place it can be fetched from.
+  record source-set {
+    /// The address this file was proposed under in `parse`; the host matches the two by it.
+    primary-url: string,
+    file-name: option<string>,
+    size: option<u64>,
+    /// In document order; the host sorts them by priority.
+    sources: list<set-source>,
+    hashes: list<stated-hash>,
+    pieces: option<piece-hashes>,
+  }
+
+  /// The source sets in `input`, one per file. Empty when there are none.
+  sets: func(input: string) -> result<list<source-set>, failure>;
+}
+
 /// Turning one address into the many files behind it (RD-104-03).
 ///
 /// The counterpart of `resolver`, and the reason it is not part of it: `resolve` answers with
@@ -429,6 +493,23 @@ interface crawler {
   /// it. Depth, count and cycles are the plugin's own to bound — one invocation runs under
   /// one fuel and time budget, and a crawler that walks forever spends it and is stopped.
   crawl: func(url: string) -> result<list<crawled-link>, failure>;
+}
+
+/// What the host knows about the job a `remote-job` call is made for, beyond the source.
+///
+/// Additive (still `rdownloader:plugin@0.9.0`): an interface of its own, imported by
+/// `remote-job-plugin` only, so a component built before it existed links unchanged and a
+/// record the guest already knows keeps its shape.
+interface job-context {
+  /// The name the person's source was added under -- a container's file name, reduced by the
+  /// host to one path segment without control characters -- during `submit`, when the
+  /// client sent one. `none` in every other call and for a source that came without a name.
+  ///
+  /// It exists for providers that name a job after the uploaded file's name: an upload under a
+  /// fixed name gave every job one name, and at Premiumize one cloud folder, so two jobs read
+  /// each other's files back (2026-09-27). It is a label, never a path, and never a key: the
+  /// content key stays what `identify` derives from the bytes.
+  source-name: func() -> option<string>;
 }
 
 /// A job that runs at the provider, for days if it has to (RD-107-06).
@@ -1092,6 +1173,14 @@ world intake-plugin {
   export intake;
 }
 
+/// An intake parser that also states every source of the files it proposes (RD-150-03).
+world intake-mirrors-plugin {
+  import host;
+  import http;
+  export intake;
+  export mirror-sets;
+}
+
 world crawler-plugin {
   import host;
   import http;
@@ -1104,6 +1193,7 @@ world crawler-plugin {
 world remote-job-plugin {
   import host;
   import http;
+  import job-context;
   export remote-job;
 }
 

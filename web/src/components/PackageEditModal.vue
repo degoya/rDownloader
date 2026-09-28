@@ -72,20 +72,24 @@ function submit(): void {
         <UFormField :label="t('downloads.edit_package.name')">
           <UInput ref="nameField" v-model="name" maxlength="200" class="w-full" />
         </UFormField>
+        <USwitch
+          v-if="props.canRenameFolder"
+          v-model="renameFolder"
+          size="sm"
+          :disabled="name.trim() === props.name"
+          :label="t('downloads.edit_package.rename_folder')"
+          :description="renameFolder ? t('downloads.edit_package.rename_folder_hint') : undefined"
+        />
         <UFormField :label="t('downloads.edit_package.password')" :description="props.hasPassword ? t('downloads.edit_package.password_stored') : t('downloads.edit_package.password_optional')">
           <UInput v-model="password" maxlength="1024" class="w-full font-mono" :placeholder="t('downloads.edit_package.password_placeholder')" />
         </UFormField>
-        <label v-if="props.canRenameFolder" class="flex items-center gap-3 text-xs text-muted"><USwitch v-model="renameFolder" :disabled="name.trim() === props.name" /> {{ t('downloads.edit_package.rename_folder') }}</label>
-        <p v-if="props.canRenameFolder && renameFolder" class="text-xs text-muted">{{ t('downloads.edit_package.rename_folder_hint') }}</p>
-        <label v-if="props.hasPassword" class="flex items-center gap-3 text-xs text-muted"><USwitch v-model="clearPassword" /> {{ t('downloads.edit_package.clear_password') }}</label>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('downloads.edit_package.postprocess_level')" :description="t('downloads.edit_package.postprocess_level_hint')">
-            <USelect v-model="level" :items="levelItems" value-key="value" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('downloads.edit_package.script')" :description="props.scripts.length ? t('downloads.edit_package.script_hint') : t('downloads.edit_package.script_empty')">
-            <USelect v-model="script" :items="scriptItems" value-key="value" class="w-full font-mono" />
-          </UFormField>
-        </div>
+        <USwitch v-if="props.hasPassword" v-model="clearPassword" size="sm" :label="t('downloads.edit_package.clear_password')" />
+        <UFormField :label="t('downloads.edit_package.postprocess_level')" :description="t('downloads.edit_package.postprocess_level_hint')">
+          <USelect v-model="level" :items="levelItems" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField :label="t('downloads.edit_package.script')" :description="props.scripts.length ? t('downloads.edit_package.script_hint') : t('downloads.edit_package.script_empty')">
+          <USelect v-model="script" :items="scriptItems" value-key="value" class="w-full font-mono" />
+        </UFormField>
       </form>
     </template>
     <template #footer>

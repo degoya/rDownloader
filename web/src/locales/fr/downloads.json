@@ -94,7 +94,6 @@
     "reset": "Réinitialiser {count} fichier | Réinitialiser {count} fichiers"
   },
   "package": {
-    "enrichment_source": "{name}, consulté par un plugin le {at}",
     "drag_title": "Glisser pour modifier l’ordre au sein du niveau de priorité",
     "select_aria": "Sélectionner le paquet",
     "hide_files": "Masquer les fichiers",
@@ -128,7 +127,8 @@
     "extracted_title": "Les archives ont été extraites avec succès",
     "extract_failed": "Échec de l'extraction",
     "actions_aria": "Actions du paquet",
-    "priority_value": "Priorité : {priority}"
+    "priority_value": "Priorité : {priority}",
+    "storage_aria": "Collisions et doublons"
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
@@ -148,7 +148,28 @@
     "stop_recording": "Arrêter l'enregistrement",
     "stop_seeding": "Arrêter le seed",
     "drag_title": "Glisser pour modifier l’ordre au sein du paquet",
-    "trial_staged": "Tester avec {name} v{version}"
+    "trial_staged": "Tester avec {name} v{version}",
+    "sources": {
+      "title": "Sources ({count})",
+      "pieces": "Vérifié en {count} morceaux de {size} ({algorithm})",
+      "no_pieces": "Pas d'empreintes par morceau ; l'empreinte du fichier entier est vérifiée avant la fin s'il y en a une.",
+      "priority": "Priorité {value}",
+      "delivered": "{size} livrés",
+      "failures": "{count} échecs",
+      "retry_after": "à nouveau à partir de {time}",
+      "state": {
+        "ready": "Prête",
+        "backing_off": "En attente",
+        "isolated": "Exclue",
+        "unsupported": "Pas encore utilisée"
+      },
+      "isolated_reason": {
+        "piece": "A livré des données qui ne correspondent pas à leur empreinte.",
+        "size": "Propose une autre taille de fichier.",
+        "other": "N'est plus utilisée pour ce fichier."
+      },
+      "unsupported_hint": "Les sources FTP et SFTP sont affichées mais pas encore utilisées pour les morceaux."
+    }
   },
   "summary": {
     "eyebrow": "État de la file",
@@ -286,5 +307,76 @@
   },
   "list": {
     "aria": "File d'attente, {count} lignes"
+  },
+  "collision": {
+    "policies": {
+      "rename": "Renommer",
+      "skip": "Ignorer",
+      "overwrite": "Écraser",
+      "compare": "Comparer",
+      "ask": "Demander"
+    },
+    "hints": {
+      "rename": "Le nouveau fichier est placé à côté de l’existant sous « nom (1) » ; rien n’est perdu.",
+      "skip": "Le nouveau fichier n’est pas écrit ; l’existant reste tel quel et le téléchargement se termine avec une note.",
+      "overwrite": "Le nouveau fichier remplace l’existant. Consigné dans le journal d’audit, et jamais sur un fichier en cours de transfert ou de partage.",
+      "compare": "Les contenus sont comparés : des octets identiques adoptent le fichier existant, des différents sont renommés.",
+      "ask": "Le téléchargement attend une décision. Seul ce téléchargement attend, et la question survit à un redémarrage."
+    },
+    "decisions": {
+      "rename": "Renommer",
+      "skip": "Ignorer",
+      "overwrite": "Écraser"
+    },
+    "prompts": {
+      "title": "« {name} » existe déjà",
+      "before_transfer": "Paquet {package} : un fichier de ce nom se trouve déjà à la destination ({size}). Rien n’a encore été téléchargé.",
+      "after_transfer": "Paquet {package} : le nom a été pris pendant le transfert ({size}). Le fichier vérifié attend dans le dossier de préparation.",
+      "only_this": "Seul ce téléchargement attend ; le reste de la file continue.",
+      "failed": "La décision n’a pas pu être enregistrée."
+    },
+    "inherit": "Hériter",
+    "inherit_from": "Hériter : {policy} ({level})",
+    "levels": {
+      "package": "paquet",
+      "category": "catégorie",
+      "global": "global"
+    },
+    "label": "En cas de collision de noms",
+    "package_description": "S’applique aux fichiers de ce paquet avant la catégorie et le réglage global.",
+    "effective": "En vigueur : {policy} (niveau : {level})",
+    "saved": "Enregistré. En vigueur : {policy}."
+  },
+  "duplicates": {
+    "file": "Fichier",
+    "loading": "Recherche de doublons …",
+    "source_title": "Même source",
+    "source_description": "La même chose a déjà été demandée – reconnue par {kind}, avant qu’un octet ne soit téléchargé.",
+    "identity": {
+      "url": "l’adresse normalisée",
+      "magnet": "l’info-hash",
+      "nzb": "le hachage du NZB et le nom du fichier",
+      "provider": "l’hébergeur et l’adresse"
+    },
+    "none": "Aucun trouvé.",
+    "location": {
+      "queue": "File d’attente",
+      "linkgrabber": "LinkGrabber"
+    },
+    "content_title": "Même contenu",
+    "basis": {
+      "verified_hash": "Les mêmes octets sont déjà sur le disque – reconnus par le SHA-256 vérifié du fichier terminé.",
+      "stated_checksum": "Pas encore terminé : comparé au SHA-256 indiqué par la source.",
+      "none": "Aucun hachage connu pour l’instant : les doublons de contenu apparaissent une fois le fichier terminé et vérifié."
+    },
+    "missing": "manquant",
+    "link": "Remplacer par un lien",
+    "link_title": "Remplace le fichier choisi par un lien physique vers ce fichier identique. Les deux sont hachés au préalable.",
+    "other_file_system": "autre système de fichiers – aucun lien possible",
+    "linked": "Lié ; {size} ne sont plus stockés en double."
+  },
+  "storage_modal": {
+    "title": "Collisions et doublons : {name}",
+    "description": "Ce qui se passe quand un nom de fichier est pris, et quels fichiers du paquet existent déjà."
   }
 }

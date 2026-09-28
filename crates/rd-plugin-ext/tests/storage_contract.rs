@@ -3,8 +3,9 @@
 //! No WebDAV server runs here, so what is checked is what a server could not tell us anyway:
 //! that the component satisfies the world, that the destination is narrowed to one host rather
 //! than the wildcard the manifest declares, that what the plugin reports while it uploads
-//! reaches the caller that started the upload, and — the point of the whole type — that
-//! nothing local is deleted until the destination has separately confirmed it holds the file.
+//! reaches the caller that started the upload, that the upload limit paces what the plugin
+//! reads, and — the point of the whole type — that nothing local is deleted until the
+//! destination has separately confirmed it holds the file.
 
 use std::sync::{Arc, Mutex};
 
@@ -86,6 +87,7 @@ async fn a_destination_that_cannot_confirm_the_file_fails_the_upload() {
                 secret_ref: None,
                 // This destination never reads the package, so nothing reports anything.
                 progress: Arc::new(|_, _| {}),
+                bandwidth: rd_limits::ScopedLimiter::unlimited(),
             },
         )
         .await
@@ -185,4 +187,59 @@ async fn what_the_destination_reports_while_uploading_reaches_the_caller() {
     );
     // And it really was the upload that was watched, not a call that never left the host.
     assert_eq!(*server.methods.lock().expect("methods"), ["MKCOL", "PUT"]);
+}
+
+#[tokio::test]
+async fn the_upload_limit_paces_what_the_destination_reads() {
+    // RD-150-15, measured on the real component against the mock server: 1 MiB at 512 KiB/s.
+    // The limiter's bucket holds one second's worth, so the second half is the paced one.
+    const RATE: u64 = 512 * 1024;
+    let bytes = component("rd-plugin-webdav-storage");
+    let server = Arc::new(MockWebDav::default());
+    let plugin = StoragePlugin::new(
+        manifest(),
+        &bytes,
+        Some(Arc::clone(&server) as Arc<dyn ResolverHost>),
+    )
+    .expect("satisfies the world");
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let payload = vec![b'x'; 2 * RATE as usize];
+    std::fs::write(directory.path().join("release.bin"), &payload).expect("write");
+    let limits = rd_limits::LimiterRegistry::new();
+    limits.apply_upload(Some(RATE));
+    let source = SourceState::new(
+        "package-1".to_owned(),
+        directory.path().to_path_buf(),
+        vec!["release.bin".to_owned()],
+    )
+    .with_bandwidth(limits.upload());
+
+    let started = std::time::Instant::now();
+    let outcome = plugin
+        .put(
+            source,
+            Upload {
+                file_name: "release.bin",
+                size: payload.len() as u64,
+                destination: "https://cloud.example/dav/Downloads",
+                username: Some("me"),
+                secret_ref: None,
+                checkpoint: None,
+            },
+        )
+        .await
+        .expect("put");
+    let elapsed = started.elapsed().as_secs_f64();
+
+    assert!(
+        matches!(outcome, UploadOutcome::Complete { .. }),
+        "{outcome:?}"
+    );
+    assert_eq!(*server.methods.lock().expect("methods"), ["MKCOL", "PUT"]);
+    let rate = (2 * RATE - RATE) as f64 / elapsed;
+    assert!(
+        rate <= RATE as f64 * 1.05,
+        "{rate:.0} B/s past the burst, {elapsed:.2} s in all"
+    );
 }

@@ -59,6 +59,16 @@ defineExpose({ reload: load })
         </dd>
       </div>
       <div>
+        <dt class="text-xs text-muted">{{ t('bandwidth.status.upload_binding') }}</dt>
+        <dd class="numeric mt-1 text-sm text-highlighted" data-testid="upload-binding">
+          <template v-if="status.upload_binding_limit">
+            {{ formatBytes(status.upload_binding_limit.bytes_per_second) }}/s
+            <span class="text-muted">· {{ t(`bandwidth.source.${status.upload_binding_limit.source}`) }}</span>
+          </template>
+          <template v-else>{{ t('bandwidth.status.unlimited') }}</template>
+        </dd>
+      </div>
+      <div>
         <dt class="text-xs text-muted">{{ t('bandwidth.status.next_switch') }}</dt>
         <dd class="mt-1 text-sm text-highlighted">
           {{ formatLongMoment(status.next_switch_at) || t('bandwidth.status.no_switch') }}

@@ -29,9 +29,9 @@ fn changed_event() -> EventEnvelope {
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<StreamChannel>> {
-    sqlx::query_as::<_, ChannelRow>(&format!(
+    sqlx::query_as::<_, ChannelRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM stream_channels ORDER BY name, created_at"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -104,9 +104,9 @@ pub(crate) async fn update(
     }
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let value = sqlx::query_as::<_, ChannelRow>(&format!(
+    let value = sqlx::query_as::<_, ChannelRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM stream_channels WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?

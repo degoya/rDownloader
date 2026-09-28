@@ -4,6 +4,7 @@
  */
 import type { DownloadPriority, PackageUpdateRequest, PostprocessLevel } from '@/api/types'
 import { i18n } from '@/i18n'
+import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 
 export interface DownloadSelection {
   categoryId?: string | undefined
@@ -81,8 +82,22 @@ export function changeBody(change: PackageChange): PackageUpdateRequest {
   }
 }
 
+/**
+ * What a bulk action refused, translated by code and each reason once, or `null` when every file
+ * was done. The coded `refusals` are read loosely so an answer without them still shows the
+ * English `errors`.
+ */
+export function bulkRefusals(result: { errors: string[] }): string | null {
+  const coded = (result as { refusals?: unknown }).refusals
+  const messages = Array.isArray(coded) && coded.length
+    ? coded.map(refusal => translateServerMessage(serverMessageFrom(refusal)))
+    : result.errors
+  const distinct = [...new Set(messages)]
+  return distinct.length ? distinct.slice(0, 3).join(' · ') : null
+}
+
+/** The refusal in a failed removal's body, translated by its code when the catalogue knows it. */
 export function payloadError(value: unknown): string {
-  return typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
-    ? value.error
-    : t('downloads.notices.remove_failed')
+  const message = serverMessageFrom(value)
+  return message ? translateServerMessage(message) : t('downloads.notices.remove_failed')
 }

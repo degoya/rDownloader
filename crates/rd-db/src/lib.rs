@@ -8,6 +8,7 @@ mod bandwidth_store;
 mod capture_store;
 mod collector_media;
 mod collector_mirrors;
+mod collision_store;
 mod remote_store;
 pub use collector_media::media_file_name;
 mod audit_store;
@@ -15,17 +16,21 @@ mod collector_packages;
 mod collector_store;
 mod commands;
 mod config_store;
+mod download_sources_store;
 mod error;
 mod event_bus;
 mod facade_audit;
 mod facade_collector;
 mod facade_ext;
 mod facade_logs;
+mod facade_object_storage;
 mod facade_plugin_repositories;
 mod facade_site_rule_checks;
 mod facade_site_rule_switches;
 mod facade_site_rules;
+mod facade_sources;
 mod facade_stats;
+mod facade_storage;
 mod log_store;
 mod managed_tools_store;
 mod mfa_store;
@@ -34,6 +39,7 @@ mod network_store;
 mod notify_store;
 mod nzb_queue;
 mod nzb_store;
+mod object_storage_store;
 mod package_store;
 mod plugin_execution_store;
 mod plugin_keys_store;
@@ -50,6 +56,7 @@ mod site_rule_checks_store;
 mod site_rule_switches_store;
 mod site_rules_store;
 mod stats_store;
+mod storage_ops_store;
 mod stream_schedule_store;
 mod stream_store;
 mod subscription_store;
@@ -94,10 +101,16 @@ pub use bandwidth_store::{NewBandwidthProfile, NewScheduleWindow};
 pub use collector_mirrors::{MIRROR_PREFERENCE_KEY, MirrorDissolve};
 pub use collector_packages::{CollectorPackageChange, MoveTarget};
 pub use collector_store::NewCollectorBatch;
+pub use collision_store::{
+    CollisionPolicyLevels, CollisionPolicyRow, CollisionPrompt, ContentIndexEntry,
+    NewCollisionPrompt, SCOPE_CATEGORY as COLLISION_SCOPE_CATEGORY,
+    SCOPE_PACKAGE as COLLISION_SCOPE_PACKAGE,
+};
 use commands::WriterCommand;
 pub use config_store::{
     CategoryPostprocess, NewCategory, NewCategoryRule, NewHotFolder, NewStorageRoot,
 };
+pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
 pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Replay};
 pub use log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord};
@@ -107,6 +120,7 @@ pub use models::{NewReplayTemplate, NewSecretFragment};
 pub use network_store::{NetworkClientConfig, NewAccount, NewProxyProfile, UpdateAccount};
 pub use notify_store::{NewDelivery, NewNotificationRule, NewNotificationTarget};
 pub use nzb_store::{FailedNzbImport, NewNzbFile, NewNzbImport, NewNzbSegment, NzbImportChange};
+pub use object_storage_store::{NewObjectStorageProfile, ObjectUpload, ObjectUploadPart};
 pub use package_store::{CategoryAssignment, PackageChange};
 pub use plugin_execution_store::{MAX_EXECUTIONS_PER_PLUGIN, NewPluginExecution, PluginExecution};
 pub use plugin_keys_store::{NewPluginTrustedKey, PluginTrustedKey};
@@ -131,6 +145,9 @@ pub use site_rules_store::{NewUserSiteRule, UserSiteRule};
 pub use stats_store::{
     DIRECT_PROVIDER, PRUNE_BATCH, StatsPruneReport, StatsResolution, StatsRetention,
     TransferBucket, TransferTotal,
+};
+pub use storage_ops_store::{
+    NewStorageOperation, STORAGE_OPERATIONS_KEPT, StorageOperation, StorageOperationOutcome,
 };
 pub use stream_schedule_store::{NewStreamSchedule, PlannedOccurrence};
 pub use stream_store::NewStreamChannel;
@@ -285,6 +302,7 @@ impl Database {
     pub async fn create_download(&self, download: NewDownload) -> Result<DownloadFile> {
         writer::request(&self.writer, |reply| WriterCommand::CreateDownload {
             download,
+            sources: None,
             reply,
         })
         .await
@@ -780,9 +798,9 @@ impl Database {
     pub async fn plugin_version_usage(&self, plugin_id: &str, version: &str) -> Result<u64> {
         use sqlx::Row;
 
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT COUNT(*) AS bound FROM ({PLUGIN_VERSION_BINDINGS})"
-        ))
+        )))
         .bind(plugin_id)
         .bind(version)
         .bind(plugin_id)
@@ -804,11 +822,11 @@ impl Database {
     ) -> Result<Vec<String>> {
         use sqlx::Row;
 
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT job.file_name AS file_name FROM ({PLUGIN_VERSION_BINDINGS}) binding \
                JOIN downloads job ON job.id = binding.download_id \
               ORDER BY job.created_at LIMIT ?"
-        ))
+        )))
         .bind(plugin_id)
         .bind(version)
         .bind(plugin_id)
@@ -992,6 +1010,34 @@ impl Database {
             reply,
         })
         .await
+    }
+
+    /// Records one named part a sign-in keeps beside its token (RD-150-09).
+    ///
+    /// Answers the vault reference this replaced, which nothing references any more and the
+    /// caller drops; `None` when the part is new.
+    pub async fn set_auth_flow_part(
+        &self,
+        account_id: rd_core::AccountId,
+        name: String,
+        secret_ref: String,
+    ) -> Result<Option<String>> {
+        writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowPart {
+            account_id,
+            name,
+            secret_ref,
+            reply,
+        })
+        .await
+    }
+
+    /// The vault reference of one named part of an account's sign-in (RD-150-09).
+    pub async fn auth_flow_part(
+        &self,
+        account_id: rd_core::AccountId,
+        name: &str,
+    ) -> Result<Option<String>> {
+        crate::auth_flow_store::part(&self.readers, account_id, name).await
     }
 
     /// Removes the authentication flow of one account.

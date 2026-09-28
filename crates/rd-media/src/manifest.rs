@@ -402,8 +402,7 @@ pub fn parse_dash(body: &str, base: &Url) -> Result<ManifestReport, quick_xml::E
         match reader.read_event()? {
             Event::Eof => break,
             Event::Start(element) | Event::Empty(element) => {
-                let name = element.local_name();
-                let name = String::from_utf8_lossy(name.as_ref()).to_string();
+                let name = element.local_name().as_ref().to_owned();
                 let attributes = xml_attributes(&element);
                 match name.as_str() {
                     "MPD" => {
@@ -455,12 +454,11 @@ pub fn parse_dash(body: &str, base: &Url) -> Result<ManifestReport, quick_xml::E
                 }
             }
             Event::Text(text) if in_base_url => {
-                let value = text.decode().unwrap_or_default();
-                if let Ok(joined) = base.join(value.trim()) {
+                if let Ok(joined) = base.join(text.trim()) {
                     effective_base = joined;
                 }
             }
-            Event::End(element) if element.local_name().as_ref() == b"BaseURL" => {
+            Event::End(element) if element.local_name().as_ref() == "BaseURL" => {
                 in_base_url = false;
             }
             _ => {}
@@ -494,8 +492,8 @@ fn xml_attributes(element: &quick_xml::events::BytesStart<'_>) -> Vec<(String, S
         .attributes()
         .filter_map(Result::ok)
         .map(|attribute| {
-            let key = String::from_utf8_lossy(attribute.key.local_name().as_ref()).to_string();
-            let value = String::from_utf8_lossy(attribute.value.as_ref()).to_string();
+            let key = attribute.key.local_name().as_ref().to_owned();
+            let value = attribute.value.into_owned();
             (key, value)
         })
         .collect()

@@ -22,6 +22,15 @@ fn the_scopes_own_cookies_are_accepted_and_counted() {
     assert_eq!(cookies_in_scope(content, &scope()).expect("accepted"), 2);
 }
 
+/// DDownload sets cookies with an empty value; their row ends in a tab. Trimming that tab
+/// refused the whole handover as "not a Netscape row" (1.5.0).
+#[test]
+fn a_cookie_with_an_empty_value_is_accepted() {
+    let content = ".ddownload.com\tTRUE\t/\tTRUE\t0\txfss\tabc\n\
+                   ddownload.com\tFALSE\t/\tFALSE\t0\tlang\t\r\n";
+    assert_eq!(cookies_in_scope(content, &scope()).expect("accepted"), 2);
+}
+
 #[test]
 fn one_cookie_of_another_site_refuses_the_whole_set() {
     for foreign in [

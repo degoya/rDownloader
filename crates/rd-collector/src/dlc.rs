@@ -13,7 +13,7 @@ use anyhow::{Context, Result, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use cbc::{
     Decryptor,
-    cipher::{BlockDecryptMut, KeyIvInit, block_padding::NoPadding},
+    cipher::{BlockModeDecrypt, KeyIvInit, block_padding::NoPadding},
 };
 use quick_xml::{Reader, XmlVersion, events::Event};
 use url::Url;
@@ -168,7 +168,7 @@ fn decrypt_cbc_in_place<'a>(
     buffer: &'a mut [u8],
 ) -> Result<&'a [u8]> {
     Decryptor::<Aes128>::new(key.into(), iv.into())
-        .decrypt_padded_mut::<NoPadding>(buffer)
+        .decrypt_padded::<NoPadding>(buffer)
         .map_err(|_| anyhow::anyhow!("DLC ciphertext is not a whole number of AES blocks"))
 }
 
@@ -184,31 +184,31 @@ fn parse_document(input: &[u8]) -> Result<DlcDocument> {
     let mut seen_root = false;
     let mut current_package: Option<DlcPackage> = None;
     let mut current_file: Option<PartialFile> = None;
-    let mut current_element = Vec::new();
+    let mut current_element = String::new();
     loop {
         match reader.read_event()? {
             Event::Start(start) => {
-                current_element = start.name().as_ref().to_vec();
+                current_element = start.name().as_ref().to_owned();
                 match start.name().as_ref() {
-                    b"dlc" => seen_root = true,
-                    b"package" => {
+                    "dlc" => seen_root = true,
+                    "package" => {
                         let mut package = DlcPackage::default();
                         for attribute in start.attributes().with_checks(true) {
                             let attribute = attribute?;
                             let value =
                                 decode_text(&attribute.normalized_value(XmlVersion::Implicit1_0)?);
                             match attribute.key.as_ref() {
-                                b"name" => package.name = value,
-                                b"passwords" | b"password" => {
+                                "name" => package.name = value,
+                                "passwords" | "password" => {
                                     package.password = value.and_then(first_line);
                                 }
-                                b"comment" => package.comment = value,
+                                "comment" => package.comment = value,
                                 _ => {}
                             }
                         }
                         current_package = Some(package);
                     }
-                    b"file" => current_file = Some(PartialFile::default()),
+                    "file" => current_file = Some(PartialFile::default()),
                     _ => {}
                 }
             }
@@ -216,17 +216,17 @@ fn parse_document(input: &[u8]) -> Result<DlcDocument> {
                 let Some(file) = &mut current_file else {
                     continue;
                 };
-                let value = decode_text(&text.decode()?);
-                match current_element.as_slice() {
-                    b"url" => file.url = value,
-                    b"filename" => file.file_name = value,
-                    b"size" => file.size = value,
+                let value = decode_text(&text);
+                match current_element.as_str() {
+                    "url" => file.url = value,
+                    "filename" => file.file_name = value,
+                    "size" => file.size = value,
                     _ => {}
                 }
             }
             Event::End(end) => {
                 match end.name().as_ref() {
-                    b"file" => {
+                    "file" => {
                         if let (Some(package), Some(file)) =
                             (&mut current_package, current_file.take())
                             && let Some(file) = file.into_file()
@@ -234,7 +234,7 @@ fn parse_document(input: &[u8]) -> Result<DlcDocument> {
                             package.files.push(file);
                         }
                     }
-                    b"package" => {
+                    "package" => {
                         if let Some(package) = current_package.take() {
                             document.packages.push(package);
                         }
@@ -314,7 +314,7 @@ mod tests {
     use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
     use cbc::{
         Encryptor,
-        cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7},
+        cipher::{BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7},
     };
 
     use super::{MAX_DLC_BYTES, RC_IV, RC_KEY, decrypt_dlc, split_dlc_container};
@@ -349,7 +349,7 @@ mod tests {
         let mut buffer = vec![0_u8; plaintext.len() + 16];
         buffer[..plaintext.len()].copy_from_slice(plaintext);
         Encryptor::<Aes128>::new(key.into(), iv.into())
-            .encrypt_padded_mut::<Pkcs7>(&mut buffer, plaintext.len())
+            .encrypt_padded::<Pkcs7>(&mut buffer, plaintext.len())
             .expect("encrypt")
             .to_vec()
     }
@@ -362,7 +362,7 @@ mod tests {
         // The service answers with the container key as a single unpadded block.
         let mut wrapped = *CONTAINER_KEY;
         cbc::Encryptor::<Aes128>::new(RC_KEY.into(), RC_IV.into())
-            .encrypt_padded_mut::<cbc::cipher::block_padding::NoPadding>(&mut wrapped, 16)
+            .encrypt_padded::<cbc::cipher::block_padding::NoPadding>(&mut wrapped, 16)
             .expect("wrap key");
         (
             format!("{}{key_blob}", BASE64.encode(&payload)),
@@ -403,7 +403,7 @@ mod tests {
         let parsed = split_dlc_container(container.as_bytes()).expect("split");
         let mut wrong = [0_u8; 16];
         cbc::Encryptor::<Aes128>::new(RC_KEY.into(), RC_IV.into())
-            .encrypt_padded_mut::<cbc::cipher::block_padding::NoPadding>(&mut wrong, 16)
+            .encrypt_padded::<cbc::cipher::block_padding::NoPadding>(&mut wrong, 16)
             .expect("wrap key");
         let error = decrypt_dlc(&parsed, &format!("<rc>{}</rc>", BASE64.encode(wrong)))
             .expect_err("a wrong key must not parse");

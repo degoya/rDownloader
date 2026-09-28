@@ -125,7 +125,6 @@
       "label": "Berechtigungen ändern",
       "hint": "Der Tokenwert bleibt derselbe: Der Client läuft weiter und erreicht die neuen Bereiche ab der nächsten Anfrage. Alles zu entziehen geht hier nicht — dafür das Token widerrufen.",
       "save": "Berechtigungen speichern",
-      "cancel": "Abbrechen",
       "done": "Berechtigungen geändert",
       "empty": "Mindestens einen Bereich auswählen, oder das Token widerrufen."
     },
@@ -167,7 +166,8 @@
     "sensitive": "Sensibel",
     "sensitive_warning": "Dieses Token kann gespeicherte Zugangsdaten lesen oder den Dienst verwalten. Nichts anderes gewährt das — also nur an einen Client geben, der es wirklich braucht.",
     "also_includes": "Enthält außerdem: {areas}",
-    "minted_areas": "Dieses Token umfasst: {areas}"
+    "minted_areas": "Dieses Token umfasst: {areas}",
+    "label_label": "Name des Clients"
   },
   "readiness": {
     "eyebrow": "Einrichtung",
@@ -202,7 +202,7 @@
   "sessions": {
     "eyebrow": "Sicherheit",
     "title": "Angemeldete Geräte",
-    "description": "Jede offene Anmeldung an dieser Installation. Wenn hier etwas steht, das nicht von Ihnen ist, beenden Sie es und ändern Sie das Passwort.",
+    "description": "Jede offene Anmeldung an dieser Installation. Wenn hier etwas steht, das nicht von dir ist, beende es und ändere das Passwort.",
     "loading": "Wird geladen …",
     "current": "Dieses Gerät",
     "unknown_device": "Unbekanntes Gerät",
@@ -213,7 +213,7 @@
     "revoke": {
       "title": "Sitzung beenden?",
       "description": "{device} wird sofort abgemeldet.",
-      "description_current": "Sie werden auf diesem Gerät abgemeldet und müssen sich neu anmelden.",
+      "description_current": "Du wirst auf diesem Gerät abgemeldet und musst dich neu anmelden.",
       "confirm": "Beenden",
       "done": "Sitzung beendet"
     },
@@ -289,7 +289,7 @@
     "eyebrow": "Passkeys",
     "title": "Passkeys",
     "description": "Statt mit dem Passwort mit dem Gerät anmelden. Der Authenticator prüft PIN oder Fingerabdruck, bevor er signiert — ein Schritt deckt damit beides ab. Das Passwort funktioniert weiter: ein Passkey ist ein zusätzlicher Weg hinein, kein Ersatz.",
-    "unsupported": "Dieser Browser kann hier keine Passkeys verwenden. Sie brauchen eine sichere Verbindung: entweder https oder den Dienst über localhost erreichen.",
+    "unsupported": "Dieser Browser kann hier keine Passkeys verwenden. Du brauchst eine sichere Verbindung: entweder https oder den Dienst über localhost erreichen.",
     "add": "Passkey hinzufügen",
     "save": "Speichern",
     "failed": "Der Passkey konnte nicht eingerichtet werden.",
@@ -310,7 +310,7 @@
   "password": {
     "eyebrow": "Passwort",
     "title": "Administratorpasswort",
-    "description": "Ersetzt das Passwort, mit dem Sie sich anmelden. Sie brauchen dafür das aktuelle. Eine Wiederherstellung ohne das aktuelle Passwort gibt es nicht.",
+    "description": "Ersetzt das Passwort, mit dem du dich anmeldest. Du brauchst dafür das aktuelle. Eine Wiederherstellung ohne das aktuelle Passwort gibt es nicht.",
     "current_label": "Aktuelles Passwort",
     "new_label": "Neues Passwort",
     "confirm_label": "Neues Passwort wiederholen",
@@ -319,7 +319,7 @@
     "mismatch": "Die beiden neuen Passwörter stimmen nicht überein.",
     "changed_toast": "Passwort geändert",
     "sessions_hint": "Beim Wechsel werden alle Sitzungen beendet. Dieses Fenster bleibt angemeldet, jedes andere Gerät muss sich neu anmelden.",
-    "tokens_hint": "API-Token bleiben gültig, denn sie hängen nicht am Passwort. Wer das alte Passwort kannte, konnte sich aber welche ausstellen: prüfen Sie die Token-Liste."
+    "tokens_hint": "API-Token bleiben gültig, denn sie hängen nicht am Passwort. Wer das alte Passwort kannte, konnte sich aber welche ausstellen: prüfe die Token-Liste."
   },
   "data_reset": {
     "button": "Leeren",
@@ -351,5 +351,20 @@
     "idle_description": "Stunden ohne Anfrage, nach denen man sich neu anmelden muss. 1 bis 720 (30 Tage).",
     "max_label": "Höchstdauer",
     "max_description": "Stunden ab der Anmeldung, nach denen sie endet, auch mitten in der Arbeit. 1 bis 2160 (90 Tage)."
+  },
+  "extension": {
+    "connected_title": "Browser-Erweiterung verbunden",
+    "connected_description": "Eine Browser-Erweiterung hat sich gerade gemeldet. Konten, die die Anmeldung deines Browsers übernehmen, bekommen die Sitzung über sie.",
+    "missing_title": "Noch keine Browser-Erweiterung gemeldet",
+    "missing_description": "Das wird alle paar Sekunden geprüft; sobald die Erweiterung gekoppelt ist und sich meldet, steht es hier.",
+    "why": "Hoster-Konten, die die Anmeldung deines Browsers übernehmen – zum Beispiel DDownload –, brauchen die rDownloader-Browser-Erweiterung: Nur sie kann die Sitzung aus dem Browser übergeben. Die Kopplung ist optional; ohne Erweiterung bleiben Benutzername und Passwort oder ein API-Schlüssel.",
+    "step_install": "Installiere die rDownloader-Erweiterung in dem Browser, in dem du beim Hoster angemeldet bist.",
+    "step_pair": "Drücke unten „Koppeln“: rDownloader zeigt ein Token einmal an – kopiere es.",
+    "step_options": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge das Token ein, drücke „Verbindung testen“ und dann „Speichern“.",
+    "default_label": "Browser-Erweiterung",
+    "pair_title": "Browser-Erweiterung koppeln",
+    "modal_title": "Browser-Erweiterung koppeln",
+    "modal_description": "Die Anmeldung beim Hoster kommt aus deinem Browser, und nur die Erweiterung kann sie übergeben. Kopple sie hier, ohne die Seite zu verlassen.",
+    "done": "Fertig"
   }
 }

@@ -20,21 +20,6 @@ rd-http = { path = "../rd-http" }
 rd-files = { path = "../rd-files" }
 rd-limits = { path = "../rd-limits" }
 rd-plugin-api = { path = "../rd-plugin-api" }
-rd-plugin-alldebrid = { path = "../../plugins/alldebrid" }
-rd-plugin-ddownload = { path = "../../plugins/ddownload" }
-rd-plugin-debridlink = { path = "../../plugins/debridlink" }
-rd-plugin-filejoker = { path = "../../plugins/filejoker" }
-rd-plugin-hitfile = { path = "../../plugins/hitfile" }
-rd-plugin-katfile = { path = "../../plugins/katfile" }
-rd-plugin-keep2share = { path = "../../plugins/keep2share" }
-rd-plugin-krakenfiles = { path = "../../plugins/krakenfiles" }
-rd-plugin-linksnappy = { path = "../../plugins/linksnappy" }
-rd-plugin-mediafire = { path = "../../plugins/mediafire" }
-rd-plugin-nitroflare = { path = "../../plugins/nitroflare" }
-rd-plugin-onefichier = { path = "../../plugins/onefichier" }
-rd-plugin-premiumize = { path = "../../plugins/premiumize" }
-rd-plugin-rapidgator = { path = "../../plugins/rapidgator" }
-rd-plugin-turbobit = { path = "../../plugins/turbobit" }
 rd-provider-registry = { path = "../rd-provider-registry" }
 rd-secrets = { path = "../rd-secrets" }
 rd-sign = { path = "../rd-sign" }
@@ -62,6 +47,13 @@ zip.workspace = true
 [dev-dependencies]
 rcgen.workspace = true
 tempfile.workspace = true
+# The parity contracts run a plugin's host-side build -- the one its own unit tests run on --
+# beside its component, on the same script. Tests only: nothing is compiled into the service
+# (RD-150-18).
+rd-plugin-hitfile = { path = "../../plugins/hitfile" }
+rd-plugin-krakenfiles = { path = "../../plugins/krakenfiles" }
+rd-plugin-mediafire = { path = "../../plugins/mediafire" }
+rd-plugin-turbobit = { path = "../../plugins/turbobit" }
 
 [lints]
 workspace = true

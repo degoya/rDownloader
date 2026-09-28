@@ -6,7 +6,8 @@
 Three facts move with a release and are read from their source, never from a document:
 
   version  the workspace version, `[workspace.package]` in Cargo.toml
-  plugins  the number of plugins/*/manifest.toml
+  plugins  the number of plugins/*/manifest.toml the bundle ships: the examples
+           (plugins/example-*) are built but not bundled (RD-150-20)
   wit      the plugin contract, `package rdownloader:plugin@X.Y.Z;` in
            crates/rd-plugin-api/wit/rdownloader.wit
 
@@ -67,7 +68,8 @@ def read_facts(repo):
     wit = re.search(r"^package rdownloader:plugin@(\S+);",
                     open(os.path.join(repo, WIT), encoding="utf-8").read(), re.MULTILINE)
     plugins = os.path.join(repo, "plugins")
-    count = sum(os.path.isfile(os.path.join(plugins, d, "manifest.toml")) for d in os.listdir(plugins))
+    count = sum(os.path.isfile(os.path.join(plugins, d, "manifest.toml")) and not d.startswith("example-")
+                for d in os.listdir(plugins))
     if not version or not wit:
         raise SystemExit("could not read the workspace version or the WIT package line")
     return {"version": version.group(1), "plugins": str(count), "wit": wit.group(1)}

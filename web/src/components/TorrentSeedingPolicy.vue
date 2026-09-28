@@ -87,7 +87,8 @@ function save(): void {
       </div>
     </dl>
 
-    <div class="grid gap-2 border-t border-muted pt-2 sm:grid-cols-2">
+    <!-- One override per row, and "unlimited" before the time it locks (RD-150-11). -->
+    <form class="grid gap-2 border-t border-muted pt-2" @submit.prevent="save">
       <UFormField :label="t('torrent.seeding.override_enabled')" size="xs">
         <USelect
           v-model="enabledChoice"
@@ -103,26 +104,25 @@ function save(): void {
       <UFormField :label="t('torrent.seeding.override_ratio')" size="xs">
         <UInput v-model.number="ratio" type="number" min="0" max="100" step="0.1" :disabled="props.busy" />
       </UFormField>
+      <UFormField :label="t('torrent.seeding.override_unlimited')" size="xs" orientation="horizontal">
+        <USwitch v-model="unlimited" :disabled="props.busy" />
+      </UFormField>
       <UFormField :label="t('torrent.seeding.override_time')" size="xs">
         <UInput v-model.number="minutes" type="number" min="1" :disabled="props.busy || unlimited">
           <template #trailing><span class="text-xs text-muted">min</span></template>
         </UInput>
       </UFormField>
-      <UFormField :label="t('torrent.seeding.override_unlimited')" size="xs">
-        <USwitch v-model="unlimited" :disabled="props.busy" />
-      </UFormField>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <UButton size="xs" color="primary" variant="soft" :loading="props.busy" :label="t('torrent.seeding.save')" @click="save" />
-      <UButton
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        :disabled="props.busy || !hasOverride"
-        :label="t('torrent.seeding.clear')"
-        @click="emit('clear')"
-      />
-    </div>
+      <div class="flex items-center gap-2">
+        <UButton type="submit" size="xs" icon="i-lucide-save" :loading="props.busy" :label="t('torrent.seeding.save')" />
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :disabled="props.busy || !hasOverride"
+          :label="t('torrent.seeding.clear')"
+          @click="emit('clear')"
+        />
+      </div>
+    </form>
   </div>
 </template>

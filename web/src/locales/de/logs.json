@@ -33,7 +33,7 @@
   "bundle": {
     "title": "Diagnosepaket",
     "eyebrow": "Support",
-    "intro": "Ein Archiv für eine Supportanfrage: Versionen, Konfigurationsmetadaten, Systemprüfungen und die jüngsten Fehler. Nichts wird hochgeladen; die Datei entsteht auf diesem Rechner, und erst nachdem Sie den Inhalt gesehen und freigegeben haben.",
+    "intro": "Ein Archiv für eine Supportanfrage: Versionen, Konfigurationsmetadaten, Systemprüfungen und die jüngsten Fehler. Nichts wird hochgeladen; die Datei entsteht auf diesem Rechner, und erst nachdem du den Inhalt gesehen und freigegeben hast.",
     "preview": "Inhalt anzeigen",
     "create": "Paket erzeugen",
     "directory": "Abgelegt unter {directory}",

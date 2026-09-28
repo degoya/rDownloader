@@ -14,6 +14,7 @@ import type {
   UpdateAccount
 } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import AccountBrowserSession from '@/components/settings/AccountBrowserSession.vue'
 import { useBrowserSessions } from '@/composables/useBrowserSessions'
@@ -105,7 +106,9 @@ const deletingAccountId = ref<string | null>(null)
 const confirm = useConfirm()
 
 const accountForm = reactive<CreateAccount>({
-  provider: 'ddownload',
+  // Filled with the first installed provider once the list is loaded; there is no default
+  // provider of its own, since which ones exist depends on the installed plugins.
+  provider: '',
   label: '',
   username: null,
   credential_mode: null,
@@ -135,6 +138,12 @@ const providerItems = computed(() =>
     value: provider.slug
   }))
 )
+// A new account starts at the first provider the installed plugins offer, and never keeps one
+// that is not (or no longer) in the list.
+watch(providerItems, (items) => {
+  if (editingAccountId.value) return
+  if (!items.some(item => item.value === accountForm.provider)) accountForm.provider = items[0]?.value ?? ''
+}, { immediate: true })
 const selectedProvider = computed<Provider | undefined>(() => providers.value.find(provider => provider.slug === accountForm.provider))
 
 /**
@@ -144,9 +153,35 @@ const selectedProvider = computed<Provider | undefined>(() => providers.value.fi
  * way to hold an account and asking would be noise.
  */
 const credentialModes = computed<CredentialMode[]>(() => selectedProvider.value?.credential_modes ?? [])
+/**
+ * Each mode named the provider's way when its plugin ships a name, e.g. Real-Debrid's "API token"
+ * where the core only knows the generic "API key".
+ */
 const credentialModeItems = computed(() =>
-  credentialModes.value.map(mode => ({ label: t(`network.account.credential_mode_${mode}`), value: mode }))
+  credentialModes.value.map(mode => ({
+    label:
+      pluginProviderText(accountForm.provider, `mode_label_${mode}`)
+      ?? t(`network.account.credential_mode_${mode}`),
+    value: mode
+  }))
 )
+
+/**
+ * Whether a credential mode signs the account in with a code rather than holding something
+ * typed (RD-150-09, Real-Debrid's "Connect with a code").
+ *
+ * Takes a plain string on purpose: the mode arrives from the generated API types, and a literal
+ * compared against a union that predates it would read as a mistake to the type checker.
+ */
+function signsInWithCode(mode: string | null | undefined): boolean {
+  return mode === 'oauth'
+}
+
+/** The mode an account is held in, filling in the provider's default like the backend does. */
+function accountMode(account: Account): string | null {
+  const provider = providers.value.find(candidate => candidate.slug === account.provider)
+  return account.credential_mode ?? provider?.credential_modes?.[0] ?? null
+}
 
 /**
  * Keeps the form's mode valid for whatever provider is selected.
@@ -225,6 +260,9 @@ let flowTimer: number | null = null
 function canConnect(account: Account): boolean {
   const provider = providers.value.find(candidate => candidate.slug === account.provider)
   if (!provider?.device_flow) return false
+  // A provider offering a sign-in with a code beside a typed key signs in only accounts held in
+  // the first way; one holding the typed key has nothing a sign-in would add (RD-150-09).
+  if (provider.credential_modes?.length) return signsInWithCode(accountMode(account))
   // Premiumize's device flow produces the same API key that can be entered by hand. Once that
   // slot is filled, offering "Connect" again is duplicate UI. OAuth providers are different:
   // their account secret may be the client secret needed to start the flow, so `has_secret`
@@ -315,7 +353,10 @@ onUnmounted(() => {
   }
 })
 
-const showSecretInput = computed(() => selectedProvider.value?.credentials !== 'cookies')
+/** Nothing is typed for a cookie-only provider, nor for an account that signs in with a code. */
+const showSecretInput = computed(
+  () => selectedProvider.value?.credentials !== 'cookies' && !signsInWithCode(accountForm.credential_mode)
+)
 /** Signing in makes the account's own credentials the session, so a username is required. */
 const usernameRequired = computed(
   () => selectedProvider.value?.username_required === true || accountForm.credential_mode === 'login'
@@ -324,9 +365,12 @@ const usernameRequired = computed(
  * Whether to ask for a pasted cookie session at all.
  *
  * In `login` mode there is nothing to paste — that is the entire point of the mode — so the
- * field would only invite the very copy-and-paste it removes.
+ * field would only invite the very copy-and-paste it removes. A sign-in with a code is the same
+ * promise, made by the provider rather than by rDownloader.
  */
-const showCookiesInput = computed(() => accountForm.credential_mode !== 'login')
+const showCookiesInput = computed(
+  () => accountForm.credential_mode !== 'login' && !signsInWithCode(accountForm.credential_mode)
+)
 /** The provider's own word for its secret, used as the field label and in the edit hint. */
 const credentialNoun = computed(() => credentialText('secret', accountForm.provider))
 
@@ -442,8 +486,12 @@ async function createAccount(): Promise<void> {
   pending.value = false
   if (!response.data) return void (error.value = responseError(response))
   accounts.value.push(response.data)
+  // An account that signs in with a code has nothing to check yet: the code is what it needs,
+  // so the sign-in starts at once and the address and code appear on its row (RD-150-09).
+  // Started before the notice is set, because starting one clears the notices it replaces.
+  if (signsInWithCode(response.data.credential_mode) && canConnect(response.data)) void connectAccount(response.data)
+  else checkAfterSaving(response.data)
   message.value = t('network.messages.created')
-  checkAfterSaving(response.data)
   resetAccountForm()
 }
 
@@ -599,10 +647,6 @@ function proxyName(id: string | null | undefined): string {
         level="page"
       />
     </header>
-    <UAlert v-if="error" color="error" variant="subtle" :description="error" />
-    <UAlert v-if="browserSessions.error.value" color="error" variant="subtle" :description="browserSessions.error.value" />
-    <UAlert v-if="message" color="success" variant="subtle" :description="message" />
-
     <section class="border border-muted bg-default p-5">
       <FormListLayout :list-title="t('network.account.title')" :count="accounts.length">
         <template #form>
@@ -610,6 +654,9 @@ function proxyName(id: string | null | undefined): string {
             :eyebrow="t('network.account.eyebrow')"
             :title="editingAccountId ? t('network.account.edit_title') : t('network.account.new_title')"
           />
+          <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
+          <UAlert v-if="browserSessions.error.value" class="mt-4" color="error" variant="subtle" :description="browserSessions.error.value" />
+          <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" />
           <form ref="formElement" class="mt-4 grid gap-3" @submit.prevent="createAccount">
             <!-- A picker whose options are on their way is not drawn (design.md). -->
             <UFormField :label="t('network.account.provider_label')">
@@ -621,6 +668,14 @@ function proxyName(id: string | null | undefined): string {
                 :label="t('network.account.providers_loading')"
                 data-testid="account-providers-loading"
               />
+              <UAlert
+                v-else-if="!providerItems.length"
+                color="warning"
+                variant="subtle"
+                icon="i-lucide-puzzle"
+                :description="t('network.account.no_providers')"
+                data-testid="account-providers-empty"
+              />
               <USelect v-else v-model="accountForm.provider" :items="providerItems" class="w-full" />
             </UFormField>
             <!--
@@ -630,10 +685,13 @@ function proxyName(id: string | null | undefined): string {
               top to bottom must not mean answering three questions before the one that says
               whether they exist (RD-109-35).
             -->
-            <div v-if="credentialModeItems.length">
-              <p class="mb-1 text-xs text-muted">{{ t('network.account.credential_mode') }}</p>
-              <URadioGroup v-model="accountForm.credential_mode" orientation="horizontal" :items="credentialModeItems" />
-            </div>
+            <URadioGroup
+              v-if="credentialModeItems.length"
+              v-model="accountForm.credential_mode"
+              :legend="t('network.account.credential_mode')"
+              orientation="horizontal"
+              :items="credentialModeItems"
+            />
             <UFormField :label="t('network.account.label_label')" required>
               <UInput v-model="accountForm.label" required maxlength="100" class="w-full" :placeholder="t('network.account.label_placeholder')" />
             </UFormField>
@@ -649,13 +707,17 @@ function proxyName(id: string | null | undefined): string {
             <UFormField v-if="showCookiesInput" :label="t('network.account.cookies_label')">
               <UTextarea v-model="accountForm.cookies" :rows="3" autoresize class="w-full font-mono text-xs" :placeholder="cookiesPlaceholder" />
             </UFormField>
-            <label v-if="editingAccountId && showSecretInput" class="flex items-center gap-3 text-xs text-muted"><USwitch v-model="clearSecret" /> {{ t('network.account.clear_secret') }}</label>
-            <label v-if="editingAccountId" class="flex items-center gap-3 text-xs text-muted"><USwitch v-model="clearCookies" /> {{ t('network.account.clear_cookies') }}</label>
-            <label class="flex items-center gap-3 text-sm text-muted"><USwitch v-model="accountForm.enabled" /> {{ t('network.account.enabled') }}</label>
-            <div class="flex gap-2">
-              <UButton type="submit" :icon="editingAccountId ? 'i-lucide-save' : 'i-lucide-user-plus'" :label="editingAccountId ? t('network.account.save_changes') : t('network.account.create')" :loading="pending" />
-              <UButton v-if="editingAccountId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('network.account.cancel_edit')" @click="resetAccountForm" />
-            </div>
+            <USwitch v-if="editingAccountId && showSecretInput" v-model="clearSecret" size="sm" :label="t('network.account.clear_secret')" />
+            <USwitch v-if="editingAccountId" v-model="clearCookies" size="sm" :label="t('network.account.clear_cookies')" />
+            <USwitch v-model="accountForm.enabled" :label="t('network.account.enabled')" />
+            <FormActions
+              :editing="editingAccountId !== null"
+              :create-label="t('network.account.create')"
+              create-icon="i-lucide-user-plus"
+              :save-label="t('network.account.save_changes')"
+              :loading="pending"
+              @cancel="resetAccountForm"
+            />
           </form>
           <UAlert
             class="mt-3"
@@ -714,8 +776,8 @@ function proxyName(id: string | null | undefined): string {
                   @click="browserSessions.begin(account.id)"
                 />
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('network.account.test')" :loading="testingAccountId === account.id" @click="testAccount(account)" />
-                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('network.account.edit')" @click="editAccount(account)" />
-                <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('network.account.delete')" :loading="deletingAccountId === account.id" @click="deleteAccount(account)" />
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('network.account.edit')" :title="t('network.account.edit')" @click="editAccount(account)" />
+                <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('network.account.delete')" :title="t('network.account.delete')" :loading="deletingAccountId === account.id" @click="deleteAccount(account)" />
               </div>
               <div v-if="flowOf(account)" class="mt-2 border border-muted bg-elevated p-3">
                 <template v-if="flowOf(account)!.state === 'waiting_for_user' || flowOf(account)!.state === 'polling'">

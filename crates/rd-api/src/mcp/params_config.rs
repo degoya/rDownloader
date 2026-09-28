@@ -149,6 +149,9 @@ pub(crate) enum CredentialModeParam {
     Login,
     /// The stored secret is a ready-made API key.
     ApiKey,
+    /// Nothing is typed: the account signs in with a code (RD-150-09).
+    #[serde(rename = "oauth")]
+    OAuth,
 }
 
 impl From<CredentialModeParam> for rd_provider_registry::CredentialMode {
@@ -156,6 +159,7 @@ impl From<CredentialModeParam> for rd_provider_registry::CredentialMode {
         match value {
             CredentialModeParam::Login => Self::Login,
             CredentialModeParam::ApiKey => Self::ApiKey,
+            CredentialModeParam::OAuth => Self::OAuth,
         }
     }
 }

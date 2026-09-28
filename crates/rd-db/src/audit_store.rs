@@ -318,7 +318,7 @@ pub(crate) async fn query_audit_records(
     pool: &SqlitePool,
     query: &AuditQuery,
 ) -> Result<Vec<AuditRecord>> {
-    let mut builder: QueryBuilder<'_, Sqlite> =
+    let mut builder: QueryBuilder<Sqlite> =
         QueryBuilder::new(format!("SELECT {COLUMNS} FROM audit_records WHERE 1 = 1"));
     if let Some(action) = query.action {
         builder

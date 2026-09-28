@@ -230,3 +230,17 @@ describe('the site-rule list', () => {
     expect(options.bodySerializer(undefined)).toBe(file)
   })
 })
+
+describe('editing a rule in the form (RD-150-11)', () => {
+  it('marks the row being edited and has no second way to a new rule', async () => {
+    mount()
+    await screen.findByText('scnlog.me')
+    expect(screen.queryByRole('button', { name: 'New rule' })).toBeNull()
+
+    const row = screen.getByText('My board').closest('[data-rule-row]') as HTMLElement
+    await fireEvent.click(within(row).getByLabelText('Edit'))
+    expect(within(row).getByText(common.editing)).toBeTruthy()
+    // The identifier is locked while editing, so the focus lands on the first field it can.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByDisplayValue('My board')))
+  })
+})

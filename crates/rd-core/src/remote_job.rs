@@ -226,6 +226,12 @@ pub struct RemoteJob {
     pub remote_id: Option<String>,
     pub state: RemoteJobState,
     pub source_kind: RemoteJobSourceKind,
+    /// The name the source was handed in under -- a container's file name, as the person's
+    /// browser carried it. The job's LinkGrabber package is named after it: the bytes cross
+    /// the plugin contract without a name, and what a provider calls its transfer can be a
+    /// fixed upload name every job shares.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_name: Option<String>,
     /// How often the provider has been asked to create this job.
     pub submit_attempts: u32,
     /// Whether the provider has already been asked what it holds for this content key.
@@ -328,6 +334,7 @@ mod tests {
             remote_id: None,
             state: RemoteJobState::Submitting,
             source_kind: RemoteJobSourceKind::Magnet,
+            source_name: None,
             submit_attempts: 0,
             adoption_checked: false,
             package_id: None,

@@ -285,6 +285,18 @@ impl ExternalRunner for MediaRunner {
         DownloadKind::Media
     }
 
+    /// yt-dlp continues its own `.part` files (`--continue`) but proves nothing about them, and
+    /// its output template names the file, not the collision policy.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: true,
+            recheck_partial: false,
+            adopt_completed: false,
+            verify_completed: false,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         self.slot_capacity
     }

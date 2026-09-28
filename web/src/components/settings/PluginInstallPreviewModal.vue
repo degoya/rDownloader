@@ -104,7 +104,7 @@ function capabilityLabel(capability: string): string {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('plugins.preview.title')">
+  <UModal v-model:open="open" :title="t('plugins.preview.title')" :ui="{ footer: 'justify-end' }">
     <template #body>
       <div v-if="source" class="space-y-4">
         <p v-if="loading" class="text-sm text-muted">{{ t('common.data.loading') }}</p>
@@ -176,8 +176,8 @@ function capabilityLabel(capability: string): string {
       </div>
     </template>
     <template #footer>
-      <div v-if="source" class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :label="t('plugins.trust.cancel')" @click="open = false" />
+      <template v-if="source">
+        <UButton color="neutral" variant="outline" :label="t('plugins.trust.cancel')" @click="open = false" />
         <UButton
           color="primary"
           :icon="needsTrust ? 'i-lucide-shield-check' : 'i-lucide-package-plus'"
@@ -186,7 +186,7 @@ function capabilityLabel(capability: string): string {
           :loading="installing"
           @click="install"
         />
-      </div>
+      </template>
     </template>
   </UModal>
 </template>

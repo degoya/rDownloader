@@ -94,7 +94,6 @@
     "reset": "{count} Datei zurücksetzen | {count} Dateien zurücksetzen"
   },
   "package": {
-    "enrichment_source": "{name}, von einem Plugin abgefragt am {at}",
     "drag_title": "Ziehen, um die Reihenfolge innerhalb der Prio-Stufe zu ändern",
     "select_aria": "Paket auswählen",
     "hide_files": "Dateien ausblenden",
@@ -128,7 +127,8 @@
     "extracted_title": "Archive wurden erfolgreich entpackt",
     "extract_failed": "Entpacken fehlgeschlagen",
     "actions_aria": "Paketaktionen",
-    "priority_value": "Priorität: {priority}"
+    "priority_value": "Priorität: {priority}",
+    "storage_aria": "Konflikte und Duplikate"
   },
   "transfer": {
     "actions_aria": "Dateiaktionen",
@@ -148,7 +148,28 @@
     "stop_recording": "Aufnahme stoppen",
     "stop_seeding": "Seeding stoppen",
     "drag_title": "Ziehen, um die Reihenfolge im Paket zu ändern",
-    "trial_staged": "Mit {name} v{version} testen"
+    "trial_staged": "Mit {name} v{version} testen",
+    "sources": {
+      "title": "Quellen ({count})",
+      "pieces": "Geprüft in {count} Stücken zu {size} ({algorithm})",
+      "no_pieces": "Keine Stück-Prüfsummen; die Gesamtprüfsumme wird vor dem Abschluss geprüft, wenn es eine gibt.",
+      "priority": "Priorität {value}",
+      "delivered": "{size} geliefert",
+      "failures": "{count} Fehler",
+      "retry_after": "wieder ab {time}",
+      "state": {
+        "ready": "Bereit",
+        "backing_off": "Wartet",
+        "isolated": "Ausgeschlossen",
+        "unsupported": "Noch nicht genutzt"
+      },
+      "isolated_reason": {
+        "piece": "Hat Daten geliefert, die nicht zu ihrer Prüfsumme passen.",
+        "size": "Bietet eine andere Dateigröße an.",
+        "other": "Wird für diese Datei nicht mehr verwendet."
+      },
+      "unsupported_hint": "FTP- und SFTP-Quellen werden angezeigt, aber noch nicht für Teile genutzt."
+    }
   },
   "summary": {
     "eyebrow": "Queue-Status",
@@ -286,5 +307,76 @@
   },
   "list": {
     "aria": "Warteschlange, {count} Zeilen"
+  },
+  "collision": {
+    "policies": {
+      "rename": "Umbenennen",
+      "skip": "Überspringen",
+      "overwrite": "Überschreiben",
+      "compare": "Vergleichen",
+      "ask": "Fragen"
+    },
+    "hints": {
+      "rename": "Die neue Datei landet als „Name (1)“ neben der vorhandenen; nichts geht verloren.",
+      "skip": "Die neue Datei wird nicht geschrieben; die vorhandene bleibt unverändert und der Download endet mit einem Hinweis.",
+      "overwrite": "Die neue Datei ersetzt die vorhandene. Wird im Audit-Log festgehalten und nie über eine Datei ausgeführt, die gerade übertragen oder geseedet wird.",
+      "compare": "Die Inhalte werden verglichen: Gleiche Bytes übernehmen die vorhandene Datei, verschiedene werden umbenannt.",
+      "ask": "Der Download wartet, bis jemand entscheidet. Nur dieser Download wartet, und die Frage übersteht einen Neustart."
+    },
+    "decisions": {
+      "rename": "Umbenennen",
+      "skip": "Überspringen",
+      "overwrite": "Überschreiben"
+    },
+    "prompts": {
+      "title": "„{name}“ ist bereits vorhanden",
+      "before_transfer": "Paket {package}: Am Ziel liegt bereits eine Datei dieses Namens ({size}). Noch wurde nichts heruntergeladen.",
+      "after_transfer": "Paket {package}: Der Name wurde während der Übertragung belegt ({size}). Die geprüfte Datei wartet im Staging-Ordner.",
+      "only_this": "Nur dieser Download wartet; die übrige Warteschlange läuft weiter.",
+      "failed": "Die Entscheidung konnte nicht gespeichert werden."
+    },
+    "inherit": "Erben",
+    "inherit_from": "Erben: {policy} ({level})",
+    "levels": {
+      "package": "Paket",
+      "category": "Kategorie",
+      "global": "global"
+    },
+    "label": "Bei Namenskonflikten",
+    "package_description": "Gilt für die Dateien dieses Pakets vor der Kategorie und der globalen Einstellung.",
+    "effective": "Wirksam: {policy} (Ebene: {level})",
+    "saved": "Gespeichert. Wirksam ist jetzt: {policy}."
+  },
+  "duplicates": {
+    "file": "Datei",
+    "loading": "Duplikate werden gesucht …",
+    "source_title": "Gleiche Quelle",
+    "source_description": "Dasselbe wurde schon einmal angefordert – erkannt an {kind}, bevor ein Byte geladen ist.",
+    "identity": {
+      "url": "die normalisierte Adresse",
+      "magnet": "den Info-Hash",
+      "nzb": "den Hash der NZB und den Dateinamen",
+      "provider": "Hoster und Adresse"
+    },
+    "none": "Keine gefunden.",
+    "location": {
+      "queue": "Warteschlange",
+      "linkgrabber": "LinkGrabber"
+    },
+    "content_title": "Gleicher Inhalt",
+    "basis": {
+      "verified_hash": "Dieselben Bytes liegen bereits auf der Platte – erkannt am geprüften SHA-256 der fertigen Datei.",
+      "stated_checksum": "Noch nicht fertig: verglichen wird mit dem SHA-256, den die Quelle angegeben hat.",
+      "none": "Noch kein Hash bekannt: Inhaltsduplikate zeigen sich, sobald die Datei fertig und geprüft ist."
+    },
+    "missing": "fehlt",
+    "link": "Durch Link ersetzen",
+    "link_title": "Ersetzt die gewählte Datei durch einen Hardlink auf diese identische Datei. Beide werden vorher gehasht.",
+    "other_file_system": "anderes Dateisystem – kein Link möglich",
+    "linked": "Verknüpft; {size} werden nicht mehr doppelt belegt."
+  },
+  "storage_modal": {
+    "title": "Konflikte und Duplikate: {name}",
+    "description": "Was bei belegten Dateinamen geschieht und welche Dateien des Pakets schon vorhanden sind."
   }
 }

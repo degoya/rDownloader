@@ -163,6 +163,13 @@ Rust server
 
 [Building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) in the handbook covers running from source, building for every platform, the plugin components and the quality checks. This repository receives one export per release. Issues and focused pull requests are welcome; [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how a pull request is applied in the development repository and credited, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+## For providers
+
+Run a hosting, debrid, Usenet or cloud service and would like rDownloader to support it? Sponsored
+accounts for testing and integration are very welcome — open a
+[provider support request](https://github.com/degoya/rDownloader/issues/new?template=provider_support.yml). Never post credentials there; the account handover is arranged
+privately.
+
 ## License
 
 rDownloader is developed by Alexander Herling and licensed under the [GNU General Public License v3.0 or later](LICENSE). The version history is in [`CHANGELOG.md`](CHANGELOG.md).

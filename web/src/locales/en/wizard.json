@@ -46,7 +46,9 @@
   "services": {
     "intro": "Optional: premium hoster accounts lift speed and captcha limits, a Usenet server enables NZB downloads.",
     "accounts_tab": "Hoster accounts",
-    "usenet_tab": "Usenet"
+    "usenet_tab": "Usenet",
+    "extension_title": "These accounts need the browser extension",
+    "extension_hint": "{providers} can take over your browser's sign-in — that works only through the paired browser extension, and none has reported in yet. Pair it now, or sign in with a password or an API key."
   },
   "actions": {
     "back": "Back",

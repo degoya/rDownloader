@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use rand::Rng;
+use rand::RngExt;
 use rd_core::{Failure, FailureKind};
 
 /// Upper bound accepted for the configurable retry count.

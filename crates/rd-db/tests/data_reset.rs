@@ -7,7 +7,7 @@
 //! counts rather than inferred.
 //!
 //! The confirmation, the stable error code and the audit self-entry over REST are in
-//! `crates/rd-api/tests/data_reset.rs`.
+//! `crates/rd-api/tests/admin/data_reset.rs`.
 
 use std::collections::BTreeMap;
 

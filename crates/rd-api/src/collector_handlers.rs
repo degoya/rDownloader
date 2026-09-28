@@ -51,6 +51,33 @@ struct CapturedLink {
     request: Option<rd_core::CapturedRequest>,
     /// `vault://` reference of the encrypted request body, when one was stored.
     body_ref: Option<String>,
+    /// Who named the address — decides whether its online check is held to an address rule.
+    origin: LinkOrigin,
+}
+
+/// Who put a link into an intake (RD-150-03).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LinkOrigin {
+    /// Typed, pasted or sent by the person: checked as it always was.
+    Person,
+    /// Proposed by an intake parser out of a document — a Metalink's link among them.
+    Proposed,
+    /// Found by a crawler on a page.
+    Crawled,
+}
+
+impl LinkOrigin {
+    /// Whether the online check of such a link is held to an address rule. A parser's
+    /// proposal always is: the document was written by somebody else even when the person
+    /// pasted it. A crawler's find only when the page did not come from the person's own hand:
+    /// a folder they pointed the crawler at themselves is their own network use.
+    fn guarded(self, own_hand: bool) -> bool {
+        match self {
+            Self::Person => false,
+            Self::Proposed => true,
+            Self::Crawled => !own_hand,
+        }
+    }
 }
 
 impl CapturedLink {
@@ -64,6 +91,7 @@ impl CapturedLink {
             mirror: None,
             request: None,
             body_ref: None,
+            origin: LinkOrigin::Person,
         }
     }
 
@@ -80,6 +108,7 @@ impl CapturedLink {
             mirror: None,
             request: None,
             body_ref: None,
+            origin: LinkOrigin::Proposed,
         }
     }
 
@@ -100,6 +129,7 @@ impl CapturedLink {
             mirror: link.mirror,
             request: None,
             body_ref: None,
+            origin: LinkOrigin::Crawled,
         }
     }
 
@@ -211,6 +241,7 @@ pub(crate) async fn collector_intake_inner(
             mirror: None,
             request,
             body_ref,
+            origin: LinkOrigin::Person,
         });
     }
     let text = request.text.as_deref().unwrap_or_default();
@@ -218,6 +249,9 @@ pub(crate) async fn collector_intake_inner(
     // Installed parsers see the same text and may propose links the native scanner does not
     // recognise. They propose only: everything below — the blocklist, the review, the
     // routing rules — applies to their candidates exactly as it does to a pasted link.
+    // Every source a parser states for a file it proposed (RD-150-03). Kept aside until the
+    // candidates exist, then attached to the one proposed under the same address.
+    let mut source_sets = Vec::new();
     if !state.intake_parsers.is_empty() && !text.trim().is_empty() {
         for candidate in state.intake_parsers.parse(text).await {
             if links.iter().any(|link| link.url == candidate.url) {
@@ -225,6 +259,7 @@ pub(crate) async fn collector_intake_inner(
             }
             links.push(CapturedLink::proposed(candidate.url, candidate.file_name));
         }
+        source_sets = state.intake_parsers.source_sets(text).await;
     }
     if links.is_empty() {
         return Err(ApiError::bad_request(
@@ -237,7 +272,11 @@ pub(crate) async fn collector_intake_inner(
     // promise and nothing performed. What comes back is a proposal like any other: the
     // blocklist below, the disabled-service refusal, the review and the routing rules all
     // apply to it exactly as they do to a pasted link.
-    let crawled = expand_crawled_links(state, links).await?;
+    // Whether the person handed this intake over themselves (RD-150-03). A page a stranger
+    // wrote is crawled without reaching into this machine or the person's network.
+    let own_hand = crate::collector_source_sets::from_own_hand(request.source);
+    let crawl_guard = (!own_hand).then(|| state.scheduler.remote_address_policy(false));
+    let crawled = expand_crawled_links(state, links, crawl_guard.as_ref()).await?;
     let links = crawled.links;
     let excluded = crate::collector_exclusions::blocklist(&state.database).await?;
     let (mut links, skipped): (Vec<_>, Vec<_>) = links.into_iter().partition(|link| {
@@ -290,9 +329,19 @@ pub(crate) async fn collector_intake_inner(
             "Every link needs a transfer service that is switched off",
         ));
     }
+    let guarded_flags: Vec<bool> = links
+        .iter()
+        .map(|link| link.origin.guarded(own_hand))
+        .collect();
     let (mut urls, file_names, sizes, package_hints, mirror_hints, requests, body_refs) =
         CapturedLink::split(links);
     adopt_remote_credentials(&state.database, &state.secrets, &mut urls).await?;
+    let guarded_urls: Vec<url::Url> = urls
+        .iter()
+        .zip(&guarded_flags)
+        .filter(|(_, guarded)| **guarded)
+        .map(|(url, _)| url.clone())
+        .collect();
     let providers = providers_for(&urls, &media_settings, &gallery_settings);
     let (batch, packages, candidates) = state
         .database
@@ -322,6 +371,23 @@ pub(crate) async fn collector_intake_inner(
             source_attributes: Vec::new(),
         })
         .await?;
+    // Before the check starts: an auto-queued package must not reach the queue without the
+    // sources its links came with.
+    crate::collector_source_sets::attach(state, &candidates, source_sets, &excluded, own_hand)
+        .await?;
+    // Also before the check: the online check of a link a document or a page proposed keeps
+    // to the same address rule as the transfer (RD-150-03).
+    let guarded: Vec<rd_core::CandidateId> = candidates
+        .iter()
+        .filter(|candidate| guarded_urls.contains(&candidate.url))
+        .map(|candidate| candidate.id)
+        .collect();
+    if !guarded.is_empty() {
+        state
+            .database
+            .set_candidates_remote_reach(guarded, own_hand)
+            .await?;
+    }
     state.link_check.check_batch(batch.id).await;
     Ok(CollectorIntakeResponse {
         batch,
@@ -504,6 +570,7 @@ pub(crate) async fn submit_plain_links_as(
 async fn expand_crawled_links(
     state: &AppState,
     links: Vec<CapturedLink>,
+    guard: Option<&rd_http::AddressPolicy>,
 ) -> Result<Crawled, ApiError> {
     if state.crawlers.is_empty() {
         return Ok(Crawled::untouched(links));
@@ -550,6 +617,7 @@ async fn expand_crawled_links(
                         &media_settings,
                         &gallery_settings,
                         probe_deadline,
+                        guard,
                     )
                     .await;
                     if verdict.keeps_the_link() {
@@ -789,9 +857,12 @@ pub(crate) fn is_service_disabled(
         Some(rd_core::NZB_PROVIDER) => !settings.usenet_service_enabled,
         Some(rd_core::MEDIA_PROVIDER) => !settings.media_service_enabled,
         Some(rd_core::GALLERY_PROVIDER) => !settings.gallery_service_enabled,
-        Some(rd_core::FTP_PROVIDER | rd_core::SFTP_PROVIDER | rd_core::WEBDAV_PROVIDER) => {
-            !settings.remote_service_enabled
-        }
+        Some(
+            rd_core::FTP_PROVIDER
+            | rd_core::SFTP_PROVIDER
+            | rd_core::WEBDAV_PROVIDER
+            | rd_core::OBJECT_STORAGE_PROVIDER,
+        ) => !settings.remote_service_enabled,
         _ => false,
     }
 }
@@ -810,6 +881,9 @@ pub(crate) fn providers_for(
             }
             // The transfer protocols are decided by the scheme alone: the address names a
             // specific server, so there is nothing to infer from the host.
+            if rd_core::ObjectStorageProvider::from_scheme(url.scheme()).is_some() {
+                return Some(rd_core::OBJECT_STORAGE_PROVIDER.to_owned());
+            }
             if let Some((protocol, _)) = rd_core::RemoteProtocol::from_url_scheme(url.scheme()) {
                 return Some(
                     match protocol.family() {
@@ -862,6 +936,17 @@ pub(crate) async fn adopt_remote_credentials(
     urls: &mut [url::Url],
 ) -> Result<(), ApiError> {
     for url in urls.iter_mut() {
+        // An object storage link authenticates through its profile, so a key pair pasted
+        // into it is dropped rather than adopted: that is not where anybody should keep one,
+        // and it must not reach the candidate row either.
+        if rd_core::ObjectStorageProvider::from_scheme(url.scheme()).is_some() {
+            // Also for a link the parser refuses: it is still stored as a candidate.
+            let _ = url.set_password(None);
+            if let Some(canonical) = rd_core::ObjectAddress::parse(url).and_then(|a| a.url()) {
+                *url = canonical;
+            }
+            continue;
+        }
         let Some(target) = rd_core::RemoteTarget::parse(url) else {
             continue;
         };
@@ -1547,7 +1632,19 @@ fn message(code: &str, text: &str) -> Json<MessageResponse> {
 
 #[cfg(test)]
 mod tests {
-    use super::{for_log, share_password};
+    use super::{LinkOrigin, for_log, share_password};
+
+    /// RD-150-03: what a document or a stranger's page proposed is checked under the address
+    /// rule; what the person gave, and a folder they pointed the crawler at, is not.
+    #[test]
+    fn only_links_somebody_else_proposed_are_checked_under_the_address_rule() {
+        for own_hand in [true, false] {
+            assert!(!LinkOrigin::Person.guarded(own_hand));
+            assert!(LinkOrigin::Proposed.guarded(own_hand));
+        }
+        assert!(!LinkOrigin::Crawled.guarded(true));
+        assert!(LinkOrigin::Crawled.guarded(false));
+    }
 
     /// The fragment of a crawled address is a share password (RD-108-07), and a log line is
     /// the place a credential survives longest. It never goes in one.

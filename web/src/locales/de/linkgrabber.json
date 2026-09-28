@@ -89,7 +89,7 @@
       "headers": "Header"
     },
     "drag_hint": "Ziehen, um die Reihenfolge im Paket zu ändern",
-    "duplicate_hint": "Diese Adresse ist bereits im LinkGrabber oder schon eingereiht. Sie kann bewusst noch einmal übernommen werden.",
+    "duplicate_hint": "Diese Adresse ist bereits im LinkGrabber oder in der Downloadliste. Sie kann bewusst noch einmal übernommen werden.",
     "unresolvable_hint": "Diese Adresse antwortet mit einer Seite, nicht mit einer Datei. Sie lässt sich nicht in die Downloadliste übernehmen.",
     "no_resolver_hint": "Für {host} ist kein Resolver installiert, deshalb lässt sich diese Adresse nicht in die Downloadliste übernehmen. Der Host kann ein hier nicht unterstützter Hoster sein oder auf eine andere Adresse weiterleiten."
   },
@@ -408,9 +408,6 @@
       "post_resume_unsupported": "Der Server unterstützt das Fortsetzen dieses Downloads nicht."
     }
   },
-  "enrichment": {
-    "source": "{name}, von einem Plugin abgefragt am {at}"
-  },
   "notifications": {
     "intake_title": "Neue Links",
     "intake_body": "Kein Link übernommen. | {count} Link im LinkGrabber. | {count} Links im LinkGrabber."
@@ -460,8 +457,8 @@
     "collapse": "Die übrigen Spiegel ausblenden",
     "use": "Diesen Spiegel verwenden",
     "use_hint": "Stattdessen diesen Spiegel laden. Die Wahl bleibt erhalten und die Vorgabe verschiebt diese Gruppe nicht mehr.",
-    "pinned": "Von Ihnen gewählt",
-    "pinned_hint": "Sie haben diesen Spiegel selbst gewählt, deshalb verschiebt die Vorgabe diese Gruppe nicht mehr.",
+    "pinned": "Von dir gewählt",
+    "pinned_hint": "Du hast diesen Spiegel selbst gewählt, deshalb verschiebt die Vorgabe diese Gruppe nicht mehr.",
     "release": "Meine Spiegelwahl aufheben",
     "dissolve": "Gruppe auftrennen"
   },
@@ -478,5 +475,9 @@
     "summary": "{links} von {hosters} ausgeblendet",
     "show_all": "Alle zeigen",
     "hint": "Ausgeblendete Hoster bleiben im LinkGrabber und werden weder übernommen noch geprüft. Als Spiegel eines gezeigten Links gehen sie als Ausweichquelle mit."
+  },
+  "duplicates": {
+    "queued": "{count} × schon in der Warteschlange",
+    "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster."
   }
 }

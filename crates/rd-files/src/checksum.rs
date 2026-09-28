@@ -2,13 +2,11 @@ use std::path::Path;
 
 use anyhow::Result;
 use crc32fast::Hasher as Crc32Hasher;
-// `md-5` implements `digest` 0.11 while `sha1` and `sha2` are still on 0.10, so the MD5 arm
-// streams through its own trait rather than `update_digest`.
-use md5::{Digest as _, Md5};
+use md5::Md5;
 use rd_core::ChecksumAlgorithm;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 /// A computed checksum encoded in lowercase hexadecimal.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -27,13 +25,7 @@ pub async fn compute_checksum(
     let value = match algorithm {
         ChecksumAlgorithm::Md5 => {
             let mut hasher = Md5::new();
-            loop {
-                let read = file.read(&mut buffer).await?;
-                if read == 0 {
-                    break;
-                }
-                hasher.update(&buffer[..read]);
-            }
+            update_digest(&mut file, &mut buffer, &mut hasher).await?;
             hex::encode(hasher.finalize())
         }
         ChecksumAlgorithm::Sha1 => {
@@ -70,6 +62,75 @@ pub async fn compute_checksum(
         }
     };
     Ok(ComputedChecksum { algorithm, value })
+}
+
+/// Lowercase hex digest of `length` bytes of `path` from `offset` on (RD-150-03).
+///
+/// What a piece hash of a Metalink file is checked with: the chunk engine reads back exactly
+/// the range one piece covers, from the part file the bytes were just written to. A file
+/// shorter than the range is an error, never a digest of fewer bytes. Only the digests a
+/// piece list is stated in are offered.
+pub async fn checksum_range(
+    path: &Path,
+    algorithm: ChecksumAlgorithm,
+    offset: u64,
+    length: u64,
+) -> Result<String> {
+    let mut file = tokio::fs::File::open(path).await?;
+    file.seek(std::io::SeekFrom::Start(offset)).await?;
+    let mut reader = file.take(length);
+    let mut buffer = vec![0_u8; 256 * 1024];
+    let mut read_total = 0_u64;
+    let value = match algorithm {
+        ChecksumAlgorithm::Md5 => {
+            let mut hasher = Md5::new();
+            loop {
+                let read = reader.read(&mut buffer).await?;
+                if read == 0 {
+                    break;
+                }
+                read_total += read as u64;
+                hasher.update(&buffer[..read]);
+            }
+            hex::encode(hasher.finalize())
+        }
+        ChecksumAlgorithm::Sha1 => {
+            let mut hasher = Sha1::new();
+            read_total = update_range(&mut reader, &mut buffer, &mut hasher).await?;
+            hex::encode(hasher.finalize())
+        }
+        ChecksumAlgorithm::Sha256 => {
+            let mut hasher = Sha256::new();
+            read_total = update_range(&mut reader, &mut buffer, &mut hasher).await?;
+            hex::encode(hasher.finalize())
+        }
+        ChecksumAlgorithm::Crc32 | ChecksumAlgorithm::DropboxContentHash => {
+            anyhow::bail!("{algorithm:?} is not a piece hash")
+        }
+    };
+    if read_total != length {
+        anyhow::bail!(
+            "the file ends {} bytes before the piece does",
+            length - read_total
+        );
+    }
+    Ok(value)
+}
+
+async fn update_range<D: Digest>(
+    reader: &mut tokio::io::Take<tokio::fs::File>,
+    buffer: &mut [u8],
+    digest: &mut D,
+) -> Result<u64> {
+    let mut total = 0_u64;
+    loop {
+        let read = reader.read(buffer).await?;
+        if read == 0 {
+            return Ok(total);
+        }
+        total += read as u64;
+        digest.update(&buffer[..read]);
+    }
 }
 
 /// The size of one block of Dropbox's `content_hash`.
@@ -152,7 +213,7 @@ mod tests {
     use rd_core::ChecksumAlgorithm;
     use sha2::{Digest, Sha256};
 
-    use super::{DROPBOX_BLOCK_BYTES, compute_checksum};
+    use super::{DROPBOX_BLOCK_BYTES, checksum_range, compute_checksum};
 
     async fn dropbox_hash_of(bytes: &[u8]) -> String {
         let file = tempfile::NamedTempFile::new().expect("a temporary file");
@@ -185,5 +246,25 @@ mod tests {
         outer.update(Sha256::digest(&bytes[..DROPBOX_BLOCK_BYTES]));
         outer.update(Sha256::digest([0xCD_u8]));
         assert_eq!(dropbox_hash_of(&bytes).await, hex::encode(outer.finalize()));
+    }
+
+    #[tokio::test]
+    async fn a_range_is_hashed_exactly_and_a_short_file_is_refused() {
+        let file = tempfile::NamedTempFile::new().expect("a temporary file");
+        std::fs::write(file.path(), b"0123456789").expect("write");
+        let digest = checksum_range(file.path(), ChecksumAlgorithm::Sha256, 3, 4)
+            .await
+            .expect("a digest");
+        assert_eq!(digest, hex::encode(Sha256::digest(b"3456")));
+        assert!(
+            checksum_range(file.path(), ChecksumAlgorithm::Sha256, 8, 4)
+                .await
+                .is_err()
+        );
+        assert!(
+            checksum_range(file.path(), ChecksumAlgorithm::Crc32, 0, 4)
+                .await
+                .is_err()
+        );
     }
 }

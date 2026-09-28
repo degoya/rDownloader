@@ -2,13 +2,17 @@
   "name": "Real-Debrid",
   "description": "Löst Links anderer Hoster über ein Real-Debrid-Konto auf.",
   "account": {
-    "secret_label": "Real-Debrid-Client-Secret",
-    "secret_hint": "Registriere auf real-debrid.com eine Anwendung (Mein Konto → API). Trage ihre Client-ID als Benutzernamen und ihr Client-Secret hier ein und starte dann die Anmeldung: Real-Debrid zeigt einen kurzen Bestätigungscode, und das Token wird danach erneuert."
+    "secret_label": "Real-Debrid-API-Token",
+    "secret_hint": "Wähle, wie sich dieses Konto anmeldet. „Mit Code verbinden“ ist der einfache Weg: Konto speichern, „Verbinden“ drücken und den angezeigten Code auf real-debrid.com/device bestätigen – kein Benutzername, kein Token zum Kopieren, und rDownloader erneuert die Anmeldung selbst. „API-Token“ nimmt stattdessen den privaten Token von real-debrid.com/apitoken.",
+    "mode_label_api_key": "API-Token",
+    "secret_label_api_key": "Real-Debrid-API-Token",
+    "secret_hint_api_key": "Öffne real-debrid.com/apitoken (angemeldet), kopiere den privaten API-Token und trage ihn hier ein. Ein Benutzername ist nicht nötig. Erneuerst du den Token dort, trage den neuen hier ein.",
+    "secret_hint_oauth": "Hier ist nichts einzutragen. Speichere das Konto und drücke „Verbinden“: rDownloader zeigt eine Adresse und einen Code, du bestätigst den Code auf real-debrid.com/device, und das Konto bleibt danach angemeldet."
   },
   "codes": {
     "realdebrid.account_missing": "Real-Debrid-Konto fehlt",
     "realdebrid.api_error": "Real-Debrid-API-Fehler {api_code}",
-    "realdebrid.auth_invalid": "Die Real-Debrid-Anmeldung ist nicht mehr gültig. Melde dich erneut an.",
+    "realdebrid.auth_invalid": "Die Real-Debrid-Anmeldung oder der API-Token gilt nicht mehr. Verbinde das Konto erneut oder trage den aktuellen Token von real-debrid.com/apitoken ein.",
     "realdebrid.file_offline": "Real-Debrid meldet diese Datei als nicht verfügbar",
     "realdebrid.host_unsupported": "Real-Debrid unterstützt diesen Hoster für dieses Konto nicht",
     "realdebrid.http_error": "Real-Debrid-HTTP-Status {status}",
@@ -20,7 +24,7 @@
     "realdebrid.rate_limited": "Das Anfragelimit der Real-Debrid-API wurde erreicht. Es wird gewartet.",
     "realdebrid.server_busy": "Real-Debrid oder der Hoster dahinter ist vorübergehend nicht erreichbar",
     "realdebrid.server_error": "Real-Debrid-Serverfehler",
-    "realdebrid.token_missing": "Dieses Real-Debrid-Konto ist noch nicht angemeldet",
+    "realdebrid.token_missing": "Dieses Real-Debrid-Konto ist noch nicht verbunden oder hat keinen API-Token eingetragen",
     "realdebrid.two_factor": "Real-Debrid hat nach einer Zwei-Faktor-Bestätigung gefragt"
   }
 }

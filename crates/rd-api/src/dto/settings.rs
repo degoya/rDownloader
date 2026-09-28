@@ -20,6 +20,10 @@ pub struct SettingsResponse {
     /// connection busy (RD-130-22). All of them together take one `max_active_files` slot.
     pub nntp_parallel_files: u32,
     pub speed_limit_bytes_per_second: Option<rd_core::ByteCount>,
+    /// Hand-set upload limit for every upload — torrent seeding, object storage, rclone and
+    /// upload destinations; empty = unlimited. The stricter of it and the active bandwidth
+    /// profile's upload limit wins (RD-150-15).
+    pub upload_limit_bytes_per_second: Option<rd_core::ByteCount>,
     pub generate_sha256: bool,
     pub global_proxy_profile_id: Option<rd_core::ProxyProfileId>,
     pub custom_ca_pem: Option<String>,
@@ -304,6 +308,10 @@ pub struct SettingsResponse {
     /// A transfer of unknown size may start while `threshold × factor` bytes are free (1–64).
     #[serde(default = "default_storage_unknown_size_headroom")]
     pub storage_unknown_size_headroom: u32,
+    /// What happens when a finished file meets a name that is taken, for packages and
+    /// categories without a policy of their own (RD-150-01).
+    #[serde(default)]
+    pub storage_collision_policy: rd_core::CollisionPolicy,
     /// Absolute directory searched for yt-dlp/ffmpeg/ffprobe/unrar/7z before `PATH`; empty =
     /// the built-in `vendor` folders next to the executable and in the data directory.
     pub vendor_directory: Option<String>,
@@ -446,6 +454,7 @@ impl Default for SettingsResponse {
             nntp_connections_per_file: 0,
             nntp_parallel_files: 0,
             speed_limit_bytes_per_second: None,
+            upload_limit_bytes_per_second: None,
             generate_sha256: true,
             global_proxy_profile_id: None,
             custom_ca_pem: None,
@@ -545,6 +554,7 @@ impl Default for SettingsResponse {
             storage_minimum_free_bytes: default_storage_minimum_free_bytes(),
             storage_auto_resume: default_storage_auto_resume(),
             storage_unknown_size_headroom: default_storage_unknown_size_headroom(),
+            storage_collision_policy: rd_core::CollisionPolicy::default(),
             byte_display: default_byte_display(),
             byte_unit: default_byte_unit(),
             title_status_enabled: true,

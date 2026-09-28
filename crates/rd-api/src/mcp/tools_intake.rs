@@ -54,7 +54,7 @@ pub(super) async fn refuse_script(
 #[tool_router(router = intake_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the subscriptions that poll feeds, channels, playlists, galleries, indexers and scripts. Stored indexer keys are never included."
+        description = "List the subscriptions that poll feeds, channels, playlists, galleries, indexers and scripts. A script subscription shows its script as `script:<name>` and the arguments it hands it in script_arguments. Stored indexer keys are never included."
     )]
     pub async fn list_subscriptions(&self) -> McpToolResult {
         respond(
@@ -78,6 +78,7 @@ impl RdMcpServer {
             Ok(crate::subscription_handlers::create_subscription(
                 State(self.state.clone()),
                 None,
+                crate::audit::AuditContext::current(),
                 Json(request),
             )
             .await?
@@ -103,6 +104,7 @@ impl RdMcpServer {
             Ok(crate::subscription_handlers::update_subscription(
                 State(self.state.clone()),
                 None,
+                crate::audit::AuditContext::current(),
                 AxumPath(id),
                 Json(request),
             )

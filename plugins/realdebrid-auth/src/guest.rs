@@ -1,4 +1,4 @@
-//! The component: Real-Debrid's OAuth2 device flow, and the renewal that outlives it.
+//! The component: Real-Debrid's open-source device flow, and the renewal that outlives it.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 wit_bindgen::generate!({
@@ -19,27 +19,27 @@ use crate::flow;
 
 /// Where a device sign-in asks for the code the person types.
 const DEVICE_ENDPOINT: &str = "https://api.real-debrid.com/oauth/v2/device/code";
+/// Where a confirmed device code is exchanged for the person's own client credentials.
+const CREDENTIALS_ENDPOINT: &str = "https://api.real-debrid.com/oauth/v2/device/credentials";
 /// Where the device code and the refresh material are exchanged for tokens.
 const TOKEN_ENDPOINT: &str = "https://api.real-debrid.com/oauth/v2/token";
 /// Real-Debrid's device grant, spelled as its documentation spells it. It is not the RFC 8628
 /// URN, and sending that instead is refused.
 const GRANT_TYPE: &str = "http://oauth.net/grant_type/device/1.0";
 
-/// The application is the person's own, and nothing about it is compiled in.
+/// Real-Debrid's public client id for open-source applications (RD-150-09).
 ///
-/// A client id travels as `{{username}}` — it identifies an application rather than a person,
-/// which is what the account's username field is for — and the client secret as the marker
-/// below. Both are substituted by the host on the way out and reach this plugin never.
-///
-/// **Why no pair is shipped.** An OAuth client secret in an open-source repository is not a
-/// secret: it would stand in the git history, in every signed `.rdplug`, and in every release
-/// artefact anybody downloads. Worse than the disclosure is the sharing — Real-Debrid's rate
-/// limits are per application, so one shipped registration would put every installation in the
-/// world into one bucket and let any of them exhaust it for all the others. Registered per
-/// installation means each has its own limits, and its own revocation.
-const CLIENT_ID_TEMPLATE: &str = "{{username}}";
+/// Not a secret, and published as such: it only opens the device flow, and what the person
+/// confirms there is a client id and client secret of their *own*, issued because the request
+/// says `new_credentials=yes`. Rate limits and revocation hang off those personal credentials,
+/// so no installation shares a bucket with another -- the objection RD-106-03 had against a
+/// shipped registration does not apply. No client secret is ever shipped.
+const PUBLIC_CLIENT_ID: &str = "X245A4XAIBGVM";
 
-/// The account's own credential: the client secret of the application the person registered.
+/// The personal client id the flow issued, kept by the host as a named part of the sign-in.
+const CLIENT_ID_REFERENCE: &str = "realdebrid_client_id";
+
+/// The personal client secret the flow issued, kept the same way.
 const CLIENT_SECRET_REFERENCE: &str = "realdebrid_client_secret";
 
 struct Component;
@@ -65,27 +65,9 @@ fn query(pairs: &[(&str, &str)]) -> Vec<RequestQuery> {
         .collect()
 }
 
-/// The marker that stands for the client secret of the person's own application.
-fn client_secret_template() -> String {
-    format!("{{{{secret:{CLIENT_SECRET_REFERENCE}}}}}")
-}
-
-/// Refuses before any request when the account carries no registered application.
-///
-/// `secret-available` reports whether a credential exists and never what it is, which is
-/// exactly the question worth asking here. Asking it first is what turns a puzzle into an
-/// instruction: without it the provider would answer `invalid_client`, which says the
-/// application was refused rather than that there is none, and the person would go looking for
-/// a fault in a registration they never made.
-fn require_registered_application(account_id: &str) -> Result<(), Failure> {
-    if host::secret_available(account_id, CLIENT_SECRET_REFERENCE) {
-        return Ok(());
-    }
-    Err(refuse(
-        "client_not_configured",
-        "this account has no registered Real-Debrid application to sign in with".to_owned(),
-        FailureKind::AuthRequired,
-    ))
+/// The marker the host expands into the value stored under `reference`.
+fn secret_template(reference: &str) -> String {
+    format!("{{{{secret:{reference}}}}}")
 }
 
 fn accept_json() -> Vec<RequestHeader> {
@@ -107,15 +89,18 @@ fn retry_after(headers: &[(String, String)]) -> Option<String> {
 /// time — the device code on a sign-in, the refresh material on a renewal.
 ///
 /// Both calls are the same request with a different `code`, which is Real-Debrid's own design
-/// and not a shortcut taken here: the renewal grant type is the device grant type.
+/// and not a shortcut taken here: the renewal grant type is the device grant type. The client is
+/// the person's own on both, named and never held: the host expands the two parts the sign-in
+/// stored, towards `api.real-debrid.com` and nowhere else.
 fn exchange(account_id: &str, code: &str) -> Result<TokenOutcome, Failure> {
-    let secret = client_secret_template();
+    let client_id = secret_template(CLIENT_ID_REFERENCE);
+    let client_secret = secret_template(CLIENT_SECRET_REFERENCE);
     let response = http::http_request(
         "POST",
         TOKEN_ENDPOINT,
         &query(&[
-            ("client_id", CLIENT_ID_TEMPLATE),
-            ("client_secret", &secret),
+            ("client_id", &client_id),
+            ("client_secret", &client_secret),
             ("code", code),
             ("grant_type", GRANT_TYPE),
         ]),
@@ -128,6 +113,52 @@ fn exchange(account_id: &str, code: &str) -> Result<TokenOutcome, Failure> {
         retry_after(&response.headers).as_deref(),
         &String::from_utf8_lossy(&response.body),
     )
+}
+
+/// A refusal the provider made, as the outcome that ends the flow.
+fn refused(error: &str, api_code: Option<u64>) -> TokenOutcome {
+    TokenOutcome::Failed(refuse(
+        flow::refusal_code(error, api_code),
+        format!(
+            "the provider refused the sign-in: {}",
+            flow::sanitize_error(error)
+        ),
+        FailureKind::AuthRequired,
+    ))
+}
+
+/// Asks whether the device code was confirmed, and keeps the personal client it was issued.
+///
+/// The two values are handed to the host the moment they arrive and are named, never held,
+/// from then on: `store-flow-secret` keeps each as a part of this account's sign-in, and the
+/// token exchange right after names them as markers like every later renewal will. Stored
+/// before the exchange, so a token endpoint that is unreachable for a moment costs a poll and
+/// not the client -- the next poll asks for the credentials again and gets the same pair.
+fn claim_credentials(account_id: &str, device_code: &str) -> Result<TokenOutcome, Failure> {
+    let response = http::http_request(
+        "GET",
+        CREDENTIALS_ENDPOINT,
+        &query(&[("client_id", PUBLIC_CLIENT_ID), ("code", device_code)]),
+        &accept_json(),
+        &[],
+    )?;
+    match flow::read_credentials_answer(
+        response.status,
+        retry_after(&response.headers).as_deref(),
+        &String::from_utf8_lossy(&response.body),
+    ) {
+        flow::CredentialsAnswer::Issued {
+            client_id,
+            client_secret,
+        } => {
+            credentials::store_flow_secret(account_id, CLIENT_ID_REFERENCE, &client_id)?;
+            credentials::store_flow_secret(account_id, CLIENT_SECRET_REFERENCE, &client_secret)?;
+            exchange(account_id, device_code)
+        }
+        flow::CredentialsAnswer::Refused { error, api_code } => Ok(refused(&error, api_code)),
+        // Nobody has confirmed yet, or the request budget is spent: a wait either way.
+        flow::CredentialsAnswer::Busy(seconds) => Ok(TokenOutcome::Pending(seconds)),
+    }
 }
 
 /// Turns a token endpoint's answer into the outcome the host acts on.
@@ -159,17 +190,7 @@ fn outcome(
             )?;
             Ok(TokenOutcome::Authorized)
         }
-        flow::TokenAnswer::Refused { error, api_code } => {
-            let code = flow::refusal_code(&error, api_code);
-            Ok(TokenOutcome::Failed(refuse(
-                code,
-                format!(
-                    "the provider refused the sign-in: {}",
-                    flow::sanitize_error(&error)
-                ),
-                FailureKind::AuthRequired,
-            )))
-        }
+        flow::TokenAnswer::Refused { error, api_code } => Ok(refused(&error, api_code)),
         // Nobody has confirmed yet, or the request budget is spent. Neither says anything
         // about the credential, so both are a wait and not a failure.
         flow::TokenAnswer::Busy(seconds) => Ok(TokenOutcome::Pending(seconds)),
@@ -217,23 +238,33 @@ impl Guest for Component {
     /// redirect to intercept — what binds this exchange is the device code itself, which the
     /// provider issued to this client and nobody else ever sees.
     ///
-    /// `credential_ref` is unused because this plugin already knows what to name: the client
-    /// secret sits in the account's own declared slot, so the marker is the same every time and
-    /// the host resolves it per account. What ties the flow to an account is the device code
-    /// the host stores next to it.
+    /// Nothing has to exist on the account first: the public client id opens the flow and
+    /// `new_credentials=yes` asks Real-Debrid to issue the person a client of their own once
+    /// they confirm. `credential_ref` is unused; what ties the flow to an account is the device
+    /// code the host stores next to it.
     fn device_begin(
-        account_id: String,
+        _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<DeviceAuthorization, Failure> {
-        require_registered_application(&account_id)?;
         let response = http::http_request(
             "GET",
             DEVICE_ENDPOINT,
-            &query(&[("client_id", CLIENT_ID_TEMPLATE)]),
+            &query(&[("client_id", PUBLIC_CLIENT_ID), ("new_credentials", "yes")]),
             &accept_json(),
             &[],
         )?;
         let body = String::from_utf8_lossy(&response.body);
+        // Said as what it is, with the provider's own wait: a spent budget is not an answer
+        // this plugin failed to read, and the person can simply try again a little later.
+        if flow::is_rate_limited(response.status, &body) {
+            return Err(refuse(
+                "rate_limited",
+                "the provider asked for fewer requests before a sign-in can start".to_owned(),
+                FailureKind::RateLimited(
+                    retry_after(&response.headers).and_then(|value| value.trim().parse().ok()),
+                ),
+            ));
+        }
         let Some(code) = flow::read_device_code(&body) else {
             return Err(refuse(
                 "bad_reply",
@@ -258,14 +289,14 @@ impl Guest for Component {
         })
     }
 
-    /// Asks whether the person has confirmed yet, with the device code handed back.
+    /// Asks whether the person has confirmed yet, with the device code handed back; once they
+    /// have, keeps the personal client they were issued and exchanges the code for a token.
     fn device_poll(
         account_id: String,
         flow_state: Option<String>,
     ) -> Result<TokenOutcome, Failure> {
         // Without the device code there is nothing to poll with. Failing says so once instead
         // of asking the provider a question it cannot answer, for ever.
-        require_registered_application(&account_id)?;
         let Some(device_code) = flow_state.filter(|value| !value.is_empty()) else {
             return Ok(TokenOutcome::Failed(refuse(
                 "code_expired",
@@ -273,7 +304,7 @@ impl Guest for Component {
                 FailureKind::AuthRequired,
             )));
         };
-        exchange(&account_id, &device_code)
+        claim_credentials(&account_id, &device_code)
     }
 
     /// Mints a new access token from the stored refresh material.
@@ -282,11 +313,24 @@ impl Guest for Component {
     /// substitutes the value into `{{secret:<reference>}}` on the way out. Real-Debrid takes it
     /// in the same `code` field the device code went into, under the same grant type — which is
     /// why one `exchange` serves both.
+    ///
+    /// A renewal also needs the personal client the sign-in kept. `secret-available` says
+    /// whether it is there without saying what it is, and an account without it refuses here
+    /// rather than sending the provider a request it can only reject.
     fn refresh(
         account_id: String,
         credential_ref: Option<String>,
     ) -> Result<TokenOutcome, Failure> {
-        require_registered_application(&account_id)?;
+        let has_client = [CLIENT_ID_REFERENCE, CLIENT_SECRET_REFERENCE]
+            .into_iter()
+            .all(|reference| host::secret_available(&account_id, reference));
+        if !has_client {
+            return Ok(TokenOutcome::Failed(refuse(
+                "sign_in_refused",
+                "this account keeps no client of its own to renew with".to_owned(),
+                FailureKind::AuthRequired,
+            )));
+        }
         let Some(reference) = credential_ref.filter(|value| !value.is_empty()) else {
             return Ok(TokenOutcome::Failed(refuse(
                 "sign_in_refused",
@@ -294,7 +338,7 @@ impl Guest for Component {
                 FailureKind::AuthRequired,
             )));
         };
-        exchange(&account_id, &format!("{{{{secret:{reference}}}}}"))
+        exchange(&account_id, &secret_template(&reference))
     }
 }
 

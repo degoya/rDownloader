@@ -399,5 +399,37 @@
   },
   "optionsFilesRevoke": {
     "message": "Révoquer"
+  },
+  "handoverRefusedUnreadable": {
+    "message": "rDownloader n'a pas pu lire les cookies de $HOST$, rien n'a été enregistré. Transmets à nouveau la session ; si l'échec se répète, signale-le.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedOutside": {
+    "message": "Un cookie appartient à un autre site que $HOST$, rien n'a été enregistré.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedPublicSuffix": {
+    "message": "Un cookie de $HOST$ vaut pour toute une terminaison de domaine comme .com, rien n'a été enregistré.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedNotWaiting": {
+    "message": "La demande de session pour $HOST$ n'attend plus. Relance la transmission dans rDownloader.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
   }
 }

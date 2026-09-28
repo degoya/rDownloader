@@ -127,3 +127,15 @@ fn a_public_suffix_host_keeps_its_own_cookies_host_only() {
     assert!(sends(&jar, "https://nas/", "session"));
     assert!(!sends(&jar, "https://other.nas/", "session"));
 }
+
+/// A cookie with an empty value ends its row in a tab; the import keeps it and the rows beside
+/// it instead of refusing the set (DDownload, 1.5.0).
+#[test]
+fn a_row_with_an_empty_value_is_imported() {
+    let scope = provider("https://ddownload.com/");
+    let content = ".ddownload.com\tTRUE\t/\tTRUE\t0\txfss\tabc\r\n\
+                   ddownload.com\tFALSE\t/\tTRUE\t0\tlang\t\r\n";
+    let jar = import_cookie_jar(content, &scope).expect("imported");
+    assert!(sends(&jar, "https://ddownload.com/", "xfss"));
+    assert!(sends(&jar, "https://ddownload.com/", "lang"));
+}

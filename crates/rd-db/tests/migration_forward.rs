@@ -75,6 +75,10 @@ const RESERVED_GAPS: &[i64] = &[66, 68, 88];
 /// Refilled a fifth time on 2026-09-25 with `0094`, which a parallel branch of the 1.3 wave
 /// holds while RD-130-07 takes `0095`, and emptied at the 1.3 integration merge that landed
 /// `0094_candidate_cached_by.sql` (RD-130-11).
+///
+/// Refilled a sixth time on 2026-09-27 with `0099` and `0100`, which `feat/1.5-dedupe`
+/// (RD-150-01) holds while the 1.5 wave-1 integration lands `0101` to `0104`. Emptied when that
+/// branch merges; emptied at the 1.5 wave-2 integration merge.
 const PENDING_GAPS: &[i64] = &[];
 
 /// How many migrations a release that stopped at `version` actually shipped.
@@ -341,6 +345,37 @@ async fn a_subscription_from_before_the_card_ratio_gets_two_to_one() {
     );
     assert_eq!(subscriptions[0].view, rd_core::SubscriptionView::Cards);
     assert!(subscriptions[0].autoplay);
+}
+
+/// A script subscription stored before RD-150-08 runs its script with no arguments, as before.
+///
+/// Seeded on the `0098` schema, the last one on this branch below `0103`; `0099`–`0102` belong
+/// to parallel branches and none of them touches the subscriptions table.
+#[tokio::test]
+async fn a_script_subscription_from_before_its_arguments_gets_an_empty_list() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = seeded_at(directory.path(), 98).await.expect("seed at 0098");
+    {
+        let url = format!("sqlite://{}", path.display());
+        let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+        sqlx::query(
+            "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, priority,
+                                        interval_seconds, schedule, created_at, updated_at)
+             VALUES ('019d0000-0000-7000-8000-0000000000e3', 'Daily links',
+                     'script:daily-links.sh', 'script', 1, 'review', 0, 3600, '0 6 * * *',
+                     '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .execute(&mut connection)
+        .await
+        .expect("insert a subscription on the 0098 schema");
+        connection.close().await.expect("close");
+    }
+
+    let database = rd_db::Database::open(&path).await.expect("upgrade");
+    let subscriptions = database.list_subscriptions().await.expect("subscriptions");
+    assert_eq!(subscriptions.len(), 1);
+    assert!(subscriptions[0].script_arguments.is_empty());
+    assert_eq!(subscriptions[0].schedule.as_deref(), Some("0 6 * * *"));
 }
 
 /// RD-130-07: migration `0095` merges `comics` and `magazines` into `ebooks`, leaves `graphics`

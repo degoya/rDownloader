@@ -154,6 +154,28 @@ pub fn component(package: &str) -> Vec<u8> {
     bytes
 }
 
+/// A bundled plugin as a package a [`crate::PluginTypeRegistry`] takes: its own
+/// `manifest.toml` and its built component, unsigned.
+///
+/// For a test that needs the plugin the way the service loads it rather than one resolver of
+/// it -- the resolver chain a scheduler starts with, which since RD-150-18 holds nothing that
+/// was not installed. Fails exactly as [`component`] does.
+#[must_use]
+pub fn bundled_package(package: &str) -> crate::VerifiedPackage {
+    let path = plugin_directory(&workspace_root(), package).join("manifest.toml");
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let manifest =
+        toml::from_str(&text).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    crate::VerifiedPackage {
+        manifest,
+        manifest_bytes: text.into_bytes(),
+        component: component(package),
+        signature: None,
+        locales: Vec::new(),
+    }
+}
+
 /// What to say about a component that has not been built in this checkout.
 fn missing(package: &str, path: &Path) -> String {
     format!(

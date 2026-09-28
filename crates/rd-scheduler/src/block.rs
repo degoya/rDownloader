@@ -25,6 +25,9 @@ pub enum BlockReason {
     RangesRefused,
     /// The operator switched this download kind off.
     KindDisabled,
+    /// The file's name is taken and the collision policy is `ask`; the answer releases it
+    /// (RD-150-01).
+    CollisionAsk,
 }
 
 impl BlockReason {
@@ -39,6 +42,7 @@ impl BlockReason {
             Self::ValidatorsChanged => "validators-changed",
             Self::RangesRefused => "ranges-refused",
             Self::KindDisabled => "kind-disabled",
+            Self::CollisionAsk => "collision-ask",
         }
     }
 }

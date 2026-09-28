@@ -92,6 +92,18 @@ impl ExternalRunner for GalleryRunner {
         DownloadKind::Gallery
     }
 
+    /// gallery-dl skips files that already exist, so a re-run adopts what an earlier one stored;
+    /// nothing is resumed mid-file and nothing is verified against a digest.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: false,
+            recheck_partial: false,
+            adopt_completed: true,
+            verify_completed: false,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         self.slot_capacity
     }

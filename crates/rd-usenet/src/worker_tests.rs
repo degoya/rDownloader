@@ -183,6 +183,7 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
             default_scripts_directory: std::env::temp_dir().join("rd-scripts-test"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     let files = wait_for_files(&database, package.id, &[DownloadState::Completed]).await;

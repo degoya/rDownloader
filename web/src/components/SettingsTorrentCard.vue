@@ -97,31 +97,31 @@ const uploadLimitMiB = byteModel(
         level="sub"
       />
     </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.torrent.sharing.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.torrent.sharing.description') }}</p>
-        <p v-if="!settings.torrent_sharing_enabled" class="mt-1 text-xs leading-5 text-warning">
+    <UFormField :label="t('settings.torrent.sharing.label')" orientation="horizontal">
+      <template #description>
+        {{ t('settings.torrent.sharing.description') }}
+        <span v-if="!settings.torrent_sharing_enabled" class="mt-1 block text-warning">
           {{ t('settings.torrent.sharing.leech_only_warning') }}
-        </p>
-      </div>
-      <USwitch
-        v-model="settings.torrent_sharing_enabled"
-        :aria-label="t('settings.torrent.sharing.label')"
-        data-testid="torrent-sharing"
-      />
-    </div>
-    <div class="flex items-center justify-between gap-5">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('settings.torrent.seeding.label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.torrent.seeding.description') }}</p>
-      </div>
-      <USwitch
-        v-model="settings.torrent_seeding_enabled"
-        :aria-label="t('settings.torrent.seeding.label')"
-        :disabled="!settings.torrent_sharing_enabled"
-      />
-    </div>
+        </span>
+      </template>
+      <USwitch v-model="settings.torrent_sharing_enabled" data-testid="torrent-sharing" />
+    </UFormField>
+    <UFormField :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
+      <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.1" :disabled="!settings.torrent_sharing_enabled" class="w-full">
+        <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
+      </UInput>
+    </UFormField>
+    <UFormField :label="t('settings.torrent.seeding.label')" :description="t('settings.torrent.seeding.description')" orientation="horizontal">
+      <USwitch v-model="settings.torrent_seeding_enabled" :disabled="!settings.torrent_sharing_enabled" />
+    </UFormField>
+    <UFormField :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
+      <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="0.1" :disabled="!seeding" class="w-full" />
+    </UFormField>
+    <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
+      <UInput v-model.number="seedTime" type="number" min="1" :disabled="!seeding" class="w-full">
+        <template #trailing><span class="font-mono text-xs text-muted">min</span></template>
+      </UInput>
+    </UFormField>
     <UFormField
       v-if="capabilities?.interface_binding"
       :label="t('settings.torrent.bind_interface.label')"
@@ -133,6 +133,7 @@ const uploadLimitMiB = byteModel(
       v-if="capabilities?.interface_binding"
       :label="t('settings.torrent.kill_switch.label')"
       :description="t('settings.torrent.kill_switch.description')"
+      orientation="horizontal"
     >
       <USwitch v-model="settings.torrent_kill_switch_enabled" :disabled="!settings.torrent_bind_interface" />
     </UFormField>
@@ -141,6 +142,9 @@ const uploadLimitMiB = byteModel(
       :description="t('settings.torrent.listen_mode.description')"
     >
       <USelect v-model="settings.torrent_listen_mode" :items="listenModeItems" value-key="value" class="w-full" />
+    </UFormField>
+    <UFormField :label="t('settings.torrent.listen_port.label')" :description="t('settings.torrent.listen_port.description')">
+      <UInput v-model.number="listenPort" type="number" min="1" max="65535" icon="i-lucide-ethernet-port" class="w-full" />
     </UFormField>
     <UFormField
       :label="t('settings.torrent.peer_limit.label')"
@@ -159,6 +163,7 @@ const uploadLimitMiB = byteModel(
       v-if="capabilities?.upnp"
       :label="t('settings.torrent.upnp.label')"
       :description="t('settings.torrent.upnp.description')"
+      orientation="horizontal"
     >
       <USwitch v-model="settings.torrent_upnp_enabled" />
     </UFormField>
@@ -178,24 +183,9 @@ const uploadLimitMiB = byteModel(
     <UFormField
       :label="t('settings.torrent.peer_addresses.label')"
       :description="t('settings.torrent.peer_addresses.description')"
+      orientation="horizontal"
     >
       <USwitch v-model="settings.torrent_peer_addresses_visible" />
-    </UFormField>
-    <UFormField :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
-      <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="0.1" :disabled="!seeding" class="w-full" />
-    </UFormField>
-    <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
-      <UInput v-model.number="seedTime" type="number" min="1" :disabled="!seeding" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">min</span></template>
-      </UInput>
-    </UFormField>
-    <UFormField :label="t('settings.torrent.listen_port.label')" :description="t('settings.torrent.listen_port.description')">
-      <UInput v-model.number="listenPort" type="number" min="1" max="65535" icon="i-lucide-ethernet-port" class="w-full" />
-    </UFormField>
-    <UFormField :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
-      <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.1" :disabled="!settings.torrent_sharing_enabled" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
-      </UInput>
     </UFormField>
     <p class="text-xs leading-5 text-muted">{{ t('settings.torrent.restart_hint') }}</p>
   </section>

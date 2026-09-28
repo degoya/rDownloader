@@ -73,7 +73,7 @@ async function submit(): Promise<void> {
       <UFormField :label="t('system.password.current_label')">
         <UInput v-model="currentPassword" type="password" autocomplete="current-password" class="w-full" />
       </UFormField>
-      <UFormField :label="t('system.password.new_label')" :help="t('system.password.new_hint')">
+      <UFormField :label="t('system.password.new_label')" :description="t('system.password.new_hint')">
         <UInput v-model="newPassword" type="password" autocomplete="new-password" class="w-full" />
       </UFormField>
       <UFormField

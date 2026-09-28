@@ -1,5 +1,6 @@
 //! Real-Debrid resolver: Bearer-authenticated JSON API (`api.real-debrid.com/rest/1.0`),
-//! multihoster, signed in through the OAuth2 device flow rather than through a pasted key.
+//! multihoster, signed in with a code by default or holding the person's private API token
+//! (RD-150-09).
 //!
 //! `matches()` accepts any http(s) address the way the other multihosters do, because what a
 //! multihoster covers is decided by the account's catalogue rather than by the address; the
@@ -8,8 +9,9 @@
 //!
 //! The sibling plugins, because a manifest carries exactly one `plugin_type`:
 //!
-//! - `plugins/realdebrid-auth/` signs the account in (`world oauth-plugin`, device entrance)
-//!   and writes the access token into the slot this plugin reads.
+//! - `plugins/realdebrid-auth/` signs an account in "Connect with a code" mode in with
+//!   Real-Debrid's open-source device flow and keeps its token renewed (RD-150-09).
+//! - `plugins/realdebrid-torrents/` runs magnets and torrent files as jobs on the account.
 //! - There is deliberately **no** crawler sibling. A Real-Debrid torrent is not a folder that
 //!   can be listed in one call: it has to be uploaded, waited for, and have its files chosen
 //!   before any address exists at all. `docs/roadmap/jobs/106-03-real-debrid.md` records why

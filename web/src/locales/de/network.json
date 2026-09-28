@@ -19,7 +19,6 @@
     "enabled": "Account aktiv",
     "save_changes": "Änderungen speichern",
     "create": "Account anlegen",
-    "cancel_edit": "Bearbeitung abbrechen",
     "hint_title": "Zugangsdaten richtig importieren",
     "secret_generic": "API-Key oder Passwort",
     "secret_generic_api_key": "API-Key",
@@ -32,8 +31,8 @@
     "empty": "Noch kein Provideraccount angelegt.",
     "last_test": "Letzte Kontoprüfung",
     "connect": "Verbinden",
-    "connect_instructions": "Öffnen Sie diese Adresse und bestätigen Sie die Anmeldung dort. Nichts wird für Sie geöffnet — prüfen Sie die Adresse, bevor Sie hingehen.",
-    "connect_waiting": "Wartet auf Ihre Bestätigung. Sie können diese Seite schließen; die Anmeldung läuft weiter.",
+    "connect_instructions": "Öffne diese Adresse und bestätige die Anmeldung dort. Nichts wird für dich geöffnet — prüfe die Adresse, bevor du hingehst.",
+    "connect_waiting": "Wartet auf deine Bestätigung. Du kannst diese Seite schließen; die Anmeldung läuft weiter.",
     "connect_cancel": "Anmeldung abbrechen",
     "connect_done": "Angemeldet. Die Zugangsdaten sind gespeichert.",
     "connect_failed": "Die Anmeldung wurde nicht abgeschlossen.",
@@ -59,7 +58,9 @@
       "declined": "In der Erweiterung abgelehnt: Die Sitzung bei {host} wurde nicht übergeben.",
       "expired": "Niemand hat die Anfrage rechtzeitig beantwortet; die Sitzung bei {host} wurde nicht übergeben."
     },
-    "providers_loading": "Ich lade die Plugins, aus denen die Anbieter kommen – nach einem Start oder einem Plugin-Update dauert das einen Moment …"
+    "providers_loading": "Ich lade die Plugins, aus denen die Anbieter kommen – nach einem Start oder einem Plugin-Update dauert das einen Moment …",
+    "credential_mode_oauth": "Mit Code verbinden",
+    "no_providers": "Kein Plugin für Konten ist aktiv. Aktiviere Hoster-Plugins unter Einstellungen → Plugins."
   },
   "hosters": {
     "toggle": "Unterstützte Hoster",

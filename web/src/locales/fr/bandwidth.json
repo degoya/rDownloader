@@ -34,7 +34,8 @@
     "daily": "Aujourd'hui ({period})",
     "monthly": "Ce mois-ci ({period})",
     "usage": "{used} sur {limit}",
-    "budget_exhausted": "Le quota de trafic est épuisé. Les transferts en cours se terminent ; rien de nouveau ne démarre avant la période suivante."
+    "budget_exhausted": "Le quota de trafic est épuisé. Les transferts en cours se terminent ; rien de nouveau ne démarre avant la période suivante.",
+    "upload_binding": "Limite d'envoi la plus stricte"
   },
   "capabilities": {
     "title": "Ce qu'une limite n'atteint pas entièrement"
@@ -51,8 +52,8 @@
     "parallel_description": "Plafonne la file tant qu'il est actif ; vide conserve le réglage général.",
     "inherit": "Conserver le réglage",
     "download_label": "Limite de téléchargement",
-    "upload_label": "Limite d'envoi torrent",
-    "upload_description": "Seul le moteur torrent envoie.",
+    "upload_label": "Limite d'envoi",
+    "upload_description": "S'applique à chaque envoi : partage torrent, stockage objet, rclone et destinations d'envoi.",
     "daily_label": "Quota journalier",
     "monthly_label": "Quota mensuel",
     "no_budget": "Aucun quota",
@@ -99,6 +100,8 @@
     "wraps": "Cette fenêtre franchit minuit et se poursuit le lendemain.",
     "empty": "Aucune fenêtre — le profil par défaut s'applique en permanence.",
     "needs_profile": "Créez d'abord un profil.",
-    "windows_title": "Plages horaires"
+    "windows_title": "Plages horaires",
+    "days_label": "Jours",
+    "duplicate_hint": "Ajoute une copie de la fenêtre juste en dessous ; elle est enregistrée avec le planning"
   }
 }

@@ -184,9 +184,13 @@ cp "$ROOT"/scripts/lib/*.sh "$REPO/scripts/lib/"
 git -C "$REPO" init -q -b main
 git -C "$REPO" -c user.name=t -c user.email=t@t add -A
 git -C "$REPO" -c user.name=t -c user.email=t@t commit -qm base
+# worktree.sh installs web/node_modules with pnpm (RD-150-14); a stand-in, nothing to install.
+mkdir -p "$SCRATCH/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$SCRATCH/bin/pnpm"
+chmod +x "$SCRATCH/bin/pnpm"
 for branch in feat/shared "--own-target feat/own"; do
     # shellcheck disable=SC2086 # the flag and the branch are two words on purpose
-    BASE=main "$REPO/scripts/worktree.sh" new $branch > "$SCRATCH/worktree.out" 2>&1 \
+    PATH="$SCRATCH/bin:$PATH" BASE=main "$REPO/scripts/worktree.sh" new $branch > "$SCRATCH/worktree.out" 2>&1 \
         || { echo "FAIL worktree.sh new $branch"; sed 's/^/     /' "$SCRATCH/worktree.out"; exit 1; }
 done
 # Beside the repository, so inside the scratch directory the trap removes.

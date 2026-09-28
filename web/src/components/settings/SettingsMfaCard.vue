@@ -230,7 +230,7 @@ async function copy(value: string): Promise<void> {
             </p>
             <p class="mt-1 text-xs text-muted">{{ t('system.mfa.last_used', { moment: formatMoment(credential.last_used_at) || t('system.mfa.never_used') }) }}</p>
           </div>
-          <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-shield-off" :label="t('system.mfa.remove.action')" @click="removeCredential(credential)" />
+          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('system.mfa.remove.action')" :title="t('system.mfa.remove.action')" @click="removeCredential(credential)" />
         </li>
       </ul>
     </template>
@@ -252,7 +252,7 @@ async function copy(value: string): Promise<void> {
       </div>
 
       <form class="flex flex-wrap items-end gap-2 border-t border-muted pt-4" @submit.prevent="disable">
-        <UFormField class="flex-1" :label="t('system.mfa.disable.label')" :help="t('system.mfa.disable.hint')">
+        <UFormField class="flex-1" :label="t('system.mfa.disable.label')" :description="t('system.mfa.disable.hint')">
           <UInput v-model="disablePassword" type="password" autocomplete="current-password" class="w-full" />
         </UFormField>
         <UButton type="submit" color="neutral" variant="soft" icon="i-lucide-shield-off" :label="t('system.mfa.disable.action')" :loading="busy" :disabled="!disablePassword" />

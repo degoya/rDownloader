@@ -2,13 +2,17 @@
   "name": "Real-Debrid",
   "description": "Resuelve enlaces de otros hosts mediante una cuenta de Real-Debrid.",
   "account": {
-    "secret_label": "Client secret de Real-Debrid",
-    "secret_hint": "Registra una aplicación en real-debrid.com (Mi cuenta → API). Introduce su client ID como nombre de usuario y su client secret aquí, y luego inicia la sesión: Real-Debrid muestra un código corto para confirmar y el token se renueva a partir de ahí."
+    "secret_label": "Token de API de Real-Debrid",
+    "secret_hint": "Elige cómo se conecta esta cuenta. «Conectar con un código» es la forma sencilla: guarda la cuenta, pulsa «Conectar» y confirma el código que aparece en real-debrid.com/device; sin nombre de usuario ni token que copiar, y rDownloader renueva la sesión por sí mismo. «Token de API» usa en su lugar el token privado de real-debrid.com/apitoken.",
+    "mode_label_api_key": "Token de API",
+    "secret_label_api_key": "Token de API de Real-Debrid",
+    "secret_hint_api_key": "Abre real-debrid.com/apitoken (con la sesión iniciada), copia el token de API privado e introdúcelo aquí. No hace falta nombre de usuario. Si renuevas el token allí, introduce aquí el nuevo.",
+    "secret_hint_oauth": "Aquí no hay nada que introducir. Guarda la cuenta y pulsa «Conectar»: rDownloader muestra una dirección y un código, confirmas el código en real-debrid.com/device y la cuenta queda conectada desde entonces."
   },
   "codes": {
     "realdebrid.account_missing": "Falta la cuenta de Real-Debrid",
     "realdebrid.api_error": "Error {api_code} de la API de Real-Debrid",
-    "realdebrid.auth_invalid": "El inicio de sesión de Real-Debrid ya no es válido. Vuelve a iniciar sesión.",
+    "realdebrid.auth_invalid": "La sesión o el token de API de Real-Debrid ya no son válidos. Vuelve a conectar la cuenta o introduce el token actual de real-debrid.com/apitoken.",
     "realdebrid.file_offline": "Real-Debrid indica que este archivo no está disponible",
     "realdebrid.host_unsupported": "Real-Debrid no admite este host para esta cuenta",
     "realdebrid.http_error": "Estado HTTP {status} de Real-Debrid",
@@ -20,7 +24,7 @@
     "realdebrid.rate_limited": "Se alcanzó el límite de peticiones de la API de Real-Debrid. Esperando.",
     "realdebrid.server_busy": "Real-Debrid o el host que hay detrás no está disponible temporalmente",
     "realdebrid.server_error": "Error del servidor de Real-Debrid",
-    "realdebrid.token_missing": "Esta cuenta de Real-Debrid aún no ha iniciado sesión",
+    "realdebrid.token_missing": "Esta cuenta de Real-Debrid aún no está conectada o no tiene un token de API introducido",
     "realdebrid.two_factor": "Real-Debrid pidió una verificación en dos pasos"
   }
 }

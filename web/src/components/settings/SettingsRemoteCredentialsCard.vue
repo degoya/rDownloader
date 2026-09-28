@@ -3,8 +3,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { RemoteCredential, RemoteProtocol, Settings, SshHostKey } from '@/api/types'
+import FormActions from '@/components/FormActions.vue'
+import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useFormFocus } from '@/composables/useFormFocus'
 import {
   DEFAULT_PORTS,
   type RemoteCredentialForm,
@@ -18,19 +21,28 @@ import {
 import { formatMoment } from '@/utils/format'
 
 const props = defineProps<{ settings: Settings }>()
-const emit = defineEmits<{ message: [string], error: [string] }>()
 /** The tunables belong to the parent's settings object, saved with the rest of the tab. */
 const settings = computed(() => props.settings)
 const { t } = useI18n()
 const confirm = useConfirm()
 
+/**
+ * The card's own feedback, shown above its form (RD-150-11). It used to travel up to the
+ * settings view and appear at the foot of the page, far from the button that caused it.
+ */
+const message = ref<string | null>(null)
+const error = ref<string | null>(null)
+function report(event: 'message' | 'error', text: string): void {
+  message.value = event === 'message' ? text : null
+  error.value = event === 'error' ? text : null
+}
+
 const {
   credentials, hostKeys, loading, pending, busyId, incomplete,
   refresh, create, update, test, remove, trustHostKey, forgetHostKey
-} = useRemoteCredentials((event, text) => {
-  if (event === 'message') emit('message', text)
-  else emit('error', text)
-})
+} = useRemoteCredentials(report)
+const formElement = ref<HTMLFormElement | null>(null)
+const focusForm = useFormFocus(formElement)
 
 const form = reactive<RemoteCredentialForm>(emptyForm())
 const editingId = ref<string | null>(null)
@@ -95,19 +107,24 @@ function startEdit(credential: RemoteCredential): void {
   Object.assign(form, formFor(credential))
   editingId.value = credential.id
   clearPrivateKey.value = false
+  message.value = null
+  void focusForm()
 }
 
 async function submit(): Promise<void> {
+  if (!canSubmit.value) return
+  message.value = null
+  error.value = null
   const id = editingId.value
   const ok = id ? await update(id, form, clearPrivateKey.value) : await create(form)
   if (!ok) return
-  emit('message', t(id ? 'remote.credentials.save' : 'remote.credentials.create'))
+  report('message', t(id ? 'remote.credentials.saved' : 'remote.credentials.created'))
   reset()
 }
 
 async function runTest(credential: RemoteCredential): Promise<void> {
   const failure = await test(credential.id)
-  if (!failure) return emit('message', t('remote.credentials.test_ok'))
+  if (!failure) return report('message', t('remote.credentials.test_ok'))
   // An unconfirmed host key is the normal first answer for a new SFTP server, so it opens
   // the confirmation rather than being reported as a plain error.
   const unknown = failure.code === 'sftp.host_key_unknown'
@@ -123,7 +140,7 @@ async function runTest(credential: RemoteCredential): Promise<void> {
     }
     return
   }
-  emit('error', t(`server.codes.${failure.code}`, failure.params))
+  report('error', t(`server.codes.${failure.code}`, failure.params))
 }
 
 async function confirmPendingKey(): Promise<void> {
@@ -163,12 +180,6 @@ async function confirmForget(key: SshHostKey): Promise<void> {
 
 <template>
   <section class="border border-muted bg-default p-5">
-    <div class="mb-4 flex items-start justify-between">
-      <div>
-        <SectionHeader :eyebrow="t('remote.credentials.title')" :title="t('remote.title')" :description="t('remote.description')" level="sub" />
-      </div>
-      <UBadge color="neutral" variant="outline">{{ credentials.length }}</UBadge>
-    </div>
 
     <div v-if="pendingKey" class="mb-4 border p-4" :class="pendingKey.changed ? 'border-error bg-error/5' : 'border-warning bg-warning/5'">
       <p class="text-sm font-medium text-highlighted">
@@ -204,100 +215,136 @@ async function confirmForget(key: SshHostKey): Promise<void> {
       </div>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2">
-      <UFormField :label="t('remote.credentials.name')">
-        <UInput v-model="form.name" maxlength="100" :placeholder="t('remote.credentials.name_placeholder')" icon="i-lucide-server" class="w-full" />
-      </UFormField>
-      <UFormField :label="t('remote.credentials.protocol')">
-        <USelect v-model="form.protocol" :items="protocolItems" class="w-full" @update:model-value="onProtocolChange" />
-      </UFormField>
-      <UFormField :label="t('remote.credentials.host')">
-        <UInput v-model="form.host" class="w-full font-mono" :placeholder="t('remote.credentials.host_placeholder')" />
-      </UFormField>
-      <UFormField :label="t('remote.credentials.port')">
-        <UInput v-model="form.port" inputmode="numeric" class="w-full font-mono" :placeholder="portPlaceholder" />
-      </UFormField>
-      <UFormField :label="t('remote.credentials.auth_mode')">
-        <USelect v-model="form.auth_mode" :items="authModeItems" class="w-full" />
-      </UFormField>
-      <UFormField v-if="needsUsername" :label="t('remote.credentials.username')">
-        <UInput v-model="form.username" class="w-full" />
-      </UFormField>
-      <UFormField
-        v-if="usesPassword"
-        class="sm:col-span-2"
-        :label="t('remote.credentials.password')"
-        :description="editingId ? t('remote.credentials.password_keep') : t('remote.credentials.secrets_note')"
-      >
-        <UInput v-model="form.secret" type="password" class="w-full" />
-      </UFormField>
-      <UFormField
-        v-if="usesKey"
-        class="sm:col-span-2"
-        :label="t('remote.credentials.private_key')"
-        :description="editingId ? t('remote.credentials.private_key_keep') : t('remote.credentials.secrets_note')"
-      >
-        <UTextarea v-model="form.private_key" :rows="4" class="w-full font-mono text-xs" :placeholder="t('remote.credentials.private_key_placeholder')" />
-      </UFormField>
-      <UFormField
-        v-if="usesKey"
-        :label="t('remote.credentials.passphrase')"
-        :description="editingId ? t('remote.credentials.passphrase_keep') : ''"
-      >
-        <UInput v-model="form.passphrase" type="password" class="w-full" />
-      </UFormField>
-      <UCheckbox v-if="usesKey && editingId" v-model="clearPrivateKey" :label="t('remote.credentials.clear_private_key')" />
-      <UCheckbox v-if="isFtp" v-model="form.passive" :label="t('remote.credentials.passive')" :description="t('remote.credentials.passive_hint')" />
-      <UCheckbox v-model="form.enabled" :label="t('remote.credentials.enabled')" />
-      <div class="flex gap-2 sm:col-span-2">
-        <UButton
-          type="button"
-          icon="i-lucide-plus"
-          :label="editingId ? t('remote.credentials.save') : t('remote.credentials.create')"
-          :disabled="!canSubmit"
-          :loading="pending"
-          @click="submit"
+    <FormListLayout :list-title="t('remote.credentials.title')" :count="credentials.length">
+      <template #form>
+        <SectionHeader
+          class="mb-4"
+          :eyebrow="t('remote.title')"
+          :title="editingId ? t('remote.credentials.edit_title') : t('remote.credentials.form_new')"
+          :description="t('remote.description')"
+          level="sub"
         />
-        <UButton v-if="editingId" type="button" color="neutral" variant="ghost" :label="t('remote.credentials.cancel')" @click="reset" />
-      </div>
-    </div>
+        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
+        <!-- The protocol decides the port, the passive mode and which sign-in methods exist; the
+             method then decides the credential fields, which follow it directly (RD-150-11). -->
+        <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
+          <UFormField :label="t('remote.credentials.protocol')" required>
+            <USelect v-model="form.protocol" :items="protocolItems" class="w-full" @update:model-value="onProtocolChange" />
+          </UFormField>
+          <UFormField :label="t('remote.credentials.name')" required>
+            <UInput v-model="form.name" maxlength="100" :placeholder="t('remote.credentials.name_placeholder')" icon="i-lucide-server" class="w-full" />
+          </UFormField>
+          <UFormField :label="t('remote.credentials.host')" required>
+            <UInput v-model="form.host" class="w-full font-mono" :placeholder="t('remote.credentials.host_placeholder')" />
+          </UFormField>
+          <UFormField :label="t('remote.credentials.port')">
+            <UInput v-model="form.port" inputmode="numeric" class="w-full font-mono" :placeholder="portPlaceholder" />
+          </UFormField>
+          <USwitch v-if="isFtp" v-model="form.passive" :label="t('remote.credentials.passive')" :description="t('remote.credentials.passive_hint')" />
+          <UFormField :label="t('remote.credentials.auth_mode')" required>
+            <USelect v-model="form.auth_mode" :items="authModeItems" class="w-full" />
+          </UFormField>
+          <UFormField v-if="needsUsername" :label="t('remote.credentials.username')" required>
+            <UInput v-model="form.username" class="w-full" />
+          </UFormField>
+          <UFormField
+            v-if="usesPassword"
+            :label="t('remote.credentials.password')"
+            :description="editingId ? t('remote.credentials.password_keep') : t('remote.credentials.secrets_note')"
+            :required="!editingId"
+          >
+            <UInput v-model="form.secret" type="password" class="w-full" />
+          </UFormField>
+          <UFormField
+            v-if="usesKey"
+            :label="t('remote.credentials.private_key')"
+            :description="editingId ? t('remote.credentials.private_key_keep') : t('remote.credentials.secrets_note')"
+            :required="!editingId"
+          >
+            <UTextarea v-model="form.private_key" :rows="4" class="w-full font-mono text-xs" :placeholder="t('remote.credentials.private_key_placeholder')" />
+          </UFormField>
+          <UFormField
+            v-if="usesKey"
+            :label="t('remote.credentials.passphrase')"
+            :description="editingId ? t('remote.credentials.passphrase_keep') : ''"
+          >
+            <UInput v-model="form.passphrase" type="password" class="w-full" />
+          </UFormField>
+          <UCheckbox v-if="usesKey && editingId" v-model="clearPrivateKey" :label="t('remote.credentials.clear_private_key')" />
+          <USwitch v-model="form.enabled" :label="t('remote.credentials.enabled')" />
+          <FormActions
+            :editing="editingId !== null"
+            :create-label="t('remote.credentials.create_action')"
+            create-icon="i-lucide-server-cog"
+            :disabled="!canSubmit"
+            :loading="pending"
+            @cancel="reset"
+          />
+        </form>
+      </template>
 
-    <div class="mt-4 divide-y divide-muted border border-muted">
-      <div v-for="credential in credentials" :key="credential.id" class="flex flex-wrap items-center gap-3 p-3">
-        <span class="grid size-8 place-items-center bg-elevated text-primary">
-          <UIcon :name="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" />
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-highlighted">{{ credential.name }}</p>
-          <p class="truncate font-mono text-[11px] text-muted">{{ endpointLabel(credential) }}</p>
+      <template #list>
+        <div class="divide-y divide-muted border border-muted">
+          <div
+            v-for="credential in credentials"
+            :key="credential.id"
+            class="flex flex-wrap items-center gap-3 p-3"
+            :class="editingId === credential.id ? 'outline outline-1 outline-primary' : ''"
+          >
+            <span class="grid size-8 place-items-center bg-elevated text-primary">
+              <UIcon :name="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-highlighted">{{ credential.name }}</p>
+              <p class="truncate font-mono text-[11px] text-muted">{{ endpointLabel(credential) }}</p>
+            </div>
+            <UBadge v-if="editingId === credential.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+            <UBadge color="neutral" variant="subtle">{{ t(`remote.protocols.${credential.protocol}`) }}</UBadge>
+            <UBadge color="neutral" variant="outline">{{ t(`remote.auth_modes.${credential.auth_mode}`) }}</UBadge>
+            <UBadge
+              v-if="incomplete.some(item => item.id === credential.id)"
+              color="warning"
+              variant="subtle"
+            >{{ t('remote.credentials.incomplete') }}</UBadge>
+            <UBadge v-else-if="!credential.enabled" color="neutral" variant="outline">{{ t('remote.credentials.enabled') }}</UBadge>
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('remote.credentials.test')" :loading="busyId === credential.id" @click="runTest(credential)" />
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-pencil"
+              :aria-label="t('remote.credentials.edit_title')"
+              :title="t('remote.credentials.edit_title')"
+              @click="startEdit(credential)"
+            />
+            <UButton
+              size="xs"
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              :aria-label="t('remote.credentials.delete')"
+              :title="t('remote.credentials.delete')"
+              :loading="busyId === credential.id"
+              @click="confirmRemove(credential)"
+            />
+          </div>
+          <p v-if="!loading && !credentials.length" class="p-5 text-center text-sm text-muted">{{ t('remote.credentials.empty') }}</p>
         </div>
-        <UBadge color="neutral" variant="subtle">{{ t(`remote.protocols.${credential.protocol}`) }}</UBadge>
-        <UBadge color="neutral" variant="outline">{{ t(`remote.auth_modes.${credential.auth_mode}`) }}</UBadge>
-        <UBadge
-          v-if="incomplete.some(item => item.id === credential.id)"
-          color="warning"
-          variant="subtle"
-        >{{ t('remote.credentials.incomplete') }}</UBadge>
-        <UBadge v-else-if="!credential.enabled" color="neutral" variant="outline">{{ t('remote.credentials.enabled') }}</UBadge>
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('remote.credentials.test')" :loading="busyId === credential.id" @click="runTest(credential)" />
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :label="t('remote.credentials.edit_title')" @click="startEdit(credential)" />
-        <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('remote.credentials.delete')" :loading="busyId === credential.id" @click="confirmRemove(credential)" />
-      </div>
-      <p v-if="!loading && !credentials.length" class="p-5 text-center text-sm text-muted">{{ t('remote.credentials.empty') }}</p>
-    </div>
+      </template>
+    </FormListLayout>
 
     <div class="mt-6 border-t border-muted pt-4">
       <p class="text-sm font-medium text-highlighted">{{ t('remote.settings.title') }}</p>
-      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+      <div class="mt-3 grid gap-3">
         <UFormField :label="t('remote.settings.max_parallel')" :description="t('remote.settings.max_parallel_hint')">
           <UInput v-model.number="settings.remote_max_parallel" type="number" min="1" max="8" icon="i-lucide-layers" class="w-full" />
         </UFormField>
         <UFormField :label="t('remote.settings.timeout')" :description="t('remote.settings.timeout_hint')">
           <UInput v-model.number="settings.remote_timeout_seconds" type="number" min="5" max="600" icon="i-lucide-timer" class="w-full" />
         </UFormField>
-        <UCheckbox
+        <USwitch
           v-model="settings.remote_ssh_auto_trust"
-          class="sm:col-span-2"
           :label="t('remote.settings.ssh_auto_trust')"
           :description="t('remote.settings.ssh_auto_trust_hint')"
         />

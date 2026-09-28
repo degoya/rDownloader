@@ -393,6 +393,11 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
     ),
     covered(
+        "The mirrors of a download and their health",
+        "Downloads > transfer details",
+        &[any("/api/v1/downloads/{id}/sources")],
+    ),
+    covered(
         "Torrent detail and seeding",
         "Downloads > torrent panel",
         &[
@@ -422,6 +427,42 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Storage capacity",
         "Settings > Storage",
         &[any("/api/v1/storage/capacity")],
+    ),
+    covered(
+        "File collision policies",
+        "Settings > General, Settings > Routing, package editor",
+        &[
+            any("/api/v1/collision-policies"),
+            any("/api/v1/categories/{id}/collision-policy"),
+            any("/api/v1/packages/{id}/collision-policy"),
+        ],
+    ),
+    covered(
+        "Answering a collision prompt",
+        "Downloads",
+        &[
+            any("/api/v1/collision-prompts"),
+            any("/api/v1/downloads/{id}/collision-decision"),
+        ],
+    ),
+    covered(
+        "Source and content duplicates",
+        "Downloads > package, LinkGrabber",
+        &[
+            any("/api/v1/downloads/{id}/duplicates"),
+            any("/api/v1/duplicates/lookup"),
+            any("/api/v1/downloads/{id}/dedupe"),
+        ],
+    ),
+    covered(
+        "Storage history, reuse and the content index",
+        "Settings > Storage",
+        &[
+            any("/api/v1/storage/operations"),
+            any("/api/v1/storage/reuse"),
+            any("/api/v1/storage/link-support"),
+            any("/api/v1/storage/content-index"),
+        ],
     ),
     // The licence list beneath it is claimed too: reading the page is the capability, and a
     // thousand dependency rows are not an answer an agent needs a tool of its own for.
@@ -477,6 +518,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/accounts/{id}/test"),
             any("/api/v1/usenet/servers/{id}/test"),
             any("/api/v1/remote-credentials/{id}/test"),
+            any("/api/v1/object-storage/profiles/{id}/test"),
             any("/api/v1/notifications/targets/{id}/test"),
             any("/api/v1/captcha-config/test"),
             any("/api/v1/auth-profiles/{id}/test"),
@@ -487,6 +529,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Remote logins and trusted host keys",
         "Settings > Remote",
         &[any("/api/v1/remote-credentials")],
+        OWNER_LINE,
+    ),
+    omitted(
+        "Object storage profiles",
+        "Settings > Transfers",
+        &[any("/api/v1/object-storage/profiles")],
         OWNER_LINE,
     ),
     omitted(
@@ -1060,6 +1108,8 @@ mod tests {
                 "Signing in at a provider",
                 "Trying a stored credential or destination",
                 "Remote logins and trusted host keys",
+                // RD-150-04: a profile takes the access key and secret in.
+                "Object storage profiles",
                 "Solving captchas",
                 "Consent to replay a paid link",
                 "Import and export of a whole area",
@@ -1070,7 +1120,7 @@ mod tests {
                 "Reconnecting on demand",
             ],
             "the owner decided nine capabilities on 2026-09-23, and RD-120-55 applied the same \
-             line to three more, with one reason for all of them"
+             line to three more and RD-150-04 to one, with one reason for all of them"
         );
     }
 

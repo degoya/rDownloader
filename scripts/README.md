@@ -11,9 +11,9 @@ and taken WSL down more than once.
 | `integrate.sh` | Integrate a wave: integration worktree from `--base`, each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the generators once, unbumped components refused and stale ones built, then `check.sh --full` and `--windows` detached with logs, PID and status under `/tmp/claude-<uid>/<branch>/`; `--merge-only`, `--no-check`, `--no-windows`; a re-run skips what is merged (RD-140-22) |
 | `public-ci.sh` | Run the public GitHub CI on a branch before its merge: export as `ci/<branch>`, `--platforms linux,windows` starts `ci.yml` for exactly those (the push itself carries `[skip ci]`), wait, delete the public branch on green, keep it and fail on red; shares `lib/public-ci.sh` with the release's `public-ci` step (RD-140-22, RD-140-23) |
 | `ci-log.sh` | Read a failed GitHub run: name the failed jobs, store each log without ANSI codes and timestamps under `/tmp/claude-<uid>/ci/`, print only the `FAIL`, `error[E…]`/`error:`, `panicked`, `failures` and `##[error]` lines with their line numbers; a run id, run or job URL, or `--job <id>` (RD-140-22) |
-| `package-linux.sh` | Linux release build → `artifacts/linux` + tarball, with `VERSION.txt` (version, commit, build time; in `release-pipeline.sh` `Release-Build X.Y.Z (Basis <sha>)` instead of `<sha>-dirty`); verifies the committed site-rule file with the new binary and puts it beside the tarball as `artifacts/rdownloader-site-rules.json` (RD-130-07) |
-| `package-windows.sh` | Windows cross-build from WSL → `artifacts/windows` + zip, with `VERSION.txt`; refuses a tree without a `--full` green |
-| `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned |
+| `package-linux.sh` | Linux release build → `artifacts/linux` + tarball, with `VERSION.txt` (version, commit, build time; in `release-pipeline.sh` `Release-Build X.Y.Z (Basis <sha>)` instead of `<sha>-dirty`; `profile  release` or `profile  release-test (test package, …)`); verifies the committed site-rule file with the new binary and puts it beside the tarball as `artifacts/rdownloader-site-rules.json` (RD-130-07); `--profile release-test` (or `RD_PACKAGE_PROFILE`) builds a test package in the faster profile, default `release` (RD-150-20) |
+| `package-windows.sh` | Windows cross-build from WSL → `artifacts/windows` + zip, with `VERSION.txt`; refuses a tree without a `--full` green; `--profile release-test` as for Linux |
+| `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`, with the packager `rd-pack` in `release-test` rather than the service in `release`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned; `--list-packageable` / `--list-examples` name the bundle and the examples, which are built but not bundled (RD-150-20) |
 | `check-plugin-imports.sh` | Verify a built component imports nothing outside `rdownloader:plugin` |
 | `check-capture-linux-tree.sh` | Hold the resolved Linux dependency tree of `rd-capture` against the window stacks |
 | `web-dist-stale.sh` | Is `web/dist` current? Exit 0 yes, 1 missing or behind a source |
@@ -35,7 +35,7 @@ and taken WSL down more than once.
 | `i18n-key.sh` | Add one translation key to all four catalogues at once |
 | `migration-pin.sh` | Pin a new migration's checksum in `crates/rd-db/migrations.sha384` (appends only) |
 | `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
-| `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/package-lock.json` changed (`--check` to verify) |
+| `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/pnpm-lock.yaml` changed (`--check` to verify); the Rust part is `cargo tree` per shipped target, so it lists what a package contains; needs `pnpm install` in `web/` and asks the npm registry for the packages of other platforms |
 | `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); with nothing due it only recounts a Job Inventory the catalogs contradict; `--check` names what is due, any open job lying in `archive/` and any miscounted inventory row, and exits 1 — `check.sh` runs it on every change (RD-140-24); refuses uncommitted changes under `docs/roadmap/jobs/` |
 | `doc-facts.sh` | Write the release facts the documentation repeats — feature-list date and version, bundled-plugin count, `rdownloader:plugin@X.Y.Z` — from their sources; `--check` writes nothing and exits 1 on a stale value, 2 on a reworded anchor; `--wiki DIR` includes the user wiki; the pipeline's `doc-facts` step and `docs-gate` run it (RD-140-24) |
 | `session-state.sh` | Print the repository's state for a new session: worktrees ahead/behind `development` and dirty, the last greens, running chains under `/tmp/claude-<uid>/*/pid`, tags against `origin`, open GitHub runs; `--brief` for the session-start hook, `--no-network` skips the remote parts (RD-140-26) |
@@ -54,6 +54,17 @@ does not cache incremental output — and `SCCACHE_CACHE_SIZE` (default `40G`) a
 checkout stamp keeps its job: it makes cargo ask rustc again for this checkout's crates, and sccache
 answers an unchanged file from the cache. A `RUSTC_WRAPPER` you set yourself is left alone;
 `RD_NO_SCCACHE=1` switches it off. Nothing installs sccache.
+
+**Build speed on GitHub (RD-150-10).** `ci.yml`'s `rust` job runs sccache over GitHub's cache
+(`mozilla-actions/sccache-action`) beside `Swatinem/rust-cache`, and links with mold on Linux and
+`rust-lld.exe` on Windows. The `components` job and the release's `plugins` job restore the
+plugin components from `actions/cache` under the key `scripts/build-plugins.sh --cache-key`
+prints, then build only what their stamps call stale or missing; the release still signs every
+package. In the release, `binaries` compiles without waiting for `plugins`, a small `packages`
+job lays the signed plugins into the archives, and the macOS Intel binary is cross-compiled on
+the Apple Silicon runner. Locally, Linux links with rust-lld, Rust's default since 1.90; mold is
+a per-machine choice in `~/.cargo/config.toml` (`docs/development.md`), because a repository
+config cannot say "only where it is installed".
 
 **The heavy scripts serialise themselves.** `check.sh`, `build-plugins.sh`, `package-linux.sh`,
 `package-windows.sh`, `release.sh`, `release-pipeline.sh`, `api-contract.sh` and `prune-target.sh` re-run themselves
@@ -96,7 +107,7 @@ leaves the inner call waiting for a lock its own parent holds, up to `RD_LOCK_WA
 variable. The symptom is indistinguishable from a hung job — the lock is held and nothing is
 compiling — so the diagnosis is worth writing down: `fuser -v /tmp/rd-build.lock /tmp/rd-build.lock.*` names the
 holders, and **two `flock` processes on the same file** is the signature. Wrap only bare `cargo`
-and `npm` commands; the scripts need no help.
+and `pnpm` commands; the scripts need no help.
 
 ## What a run checks, and what it does not
 
@@ -104,12 +115,16 @@ and `npm` commands; the scripts need no help.
 change set once — everything since the OLDER of the branch point and the last green run of this
 checkout — and runs what that demands: clippy (all targets) and every test of the touched crates
 under `crates/`; the library and binary tests of **one level** of reverse dependencies; `rd-api
---lib`; and only the `rd-api` integration binaries the change needs, in batches of four. Which
-ones is `scripts/lib/rd-api-tests.map`: a changed test file selects itself, a row per source
-area selects the binaries whose routes that area serves, and a path under `crates/rd-api/`,
-`crates/rd-core/` or a migration that no row matches selects **all of them** — where the mapping
-is not clear the answer is the wide one. The run refuses a map row naming a missing binary and a
-binary no row names, so a new test file needs its row. The crash matrix, sqlx, web and extension
+--lib`; and only the `rd-api` integration suites the change needs. A suite is one module of the
+six integration binaries, one per subject (`crates/rd-api/tests/<subject>/main.rs`, RD-150-10);
+the run builds the binaries holding the selected suites, in batches of four, and with nextest
+filters them to those suites (`-E 'test(/^(mfa|auth)::/)'`). Which suites is
+`scripts/lib/rd-api-tests.map`: a changed suite file selects itself, a binary's `main.rs` its
+suites, a row per source area selects the suites whose routes that area serves, and a path under
+`crates/rd-api/`, `crates/rd-core/` or a migration that no row matches selects **all of them** —
+where the mapping is not clear the answer is the wide one. The run refuses a map row naming a
+missing suite, a suite no row names, a suite file its `main.rs` does not declare and a test file
+directly under `crates/rd-api/tests/`, so a new suite needs its `mod` line and its row. The crash matrix, sqlx, web and extension
 keep their triggers: the matrix for `rd-core`, `rd-http`, `rd-scheduler`, `rd-usenet`,
 `failpoint.rs` or `crates/rd-core/recovery-matrix.md`; sqlx for `rd-db` or a `.sql` file; web and
 extension for `web/` and `extension/`. A change to the toolchain, nextest or deny config runs the workspace
@@ -127,7 +142,8 @@ then every `scripts/tests/*.sh`. They need no build and take seconds together: t
 scope rules, the exports' link guard, the job archive, the scope boundary, and `worktree.sh`,
 `i18n-key.sh`, `migration-pin.sh`, `set-version.sh`, the release pipeline's evidence gate and
 `run_step`, `export-wiki.sh`'s private markers, `integrate.sh`'s merge half, `public-ci.sh` and
-`ci-log.sh` against scratch repositories and a stub `gh`, the documentation's release facts
+`ci-log.sh` against scratch repositories and a stub `gh`, the `rd-api` suite selection
+(`rd-api-suites.sh`) on a scratch tree, the documentation's release facts
 (`doc-facts.sh`) on a fixture tree, the session summary (`session-state.sh`) on a scratch
 repository, and the scope boundary with the release's pre-bump green. A new test is a new
 `scripts/tests/<name>.sh`, sharing the assertions in `scripts/tests/lib/expect.sh`; the loop
@@ -135,8 +151,8 @@ finds it by itself.
 `cargo fmt`, the capture-tree check, the map check and the component checks always run: they
 are seconds.
 
-**`--full` runs everything** — the workspace, all fourteen `rd-api` batches, the crash matrix,
-sqlx, the non-incremental typecheck, web and extension. It belongs at the end of a wave on
+**`--full` runs everything** — the workspace, every `rd-api` suite, the crash matrix,
+sqlx, web and extension. It belongs at the end of a wave on
 `development`, once, after the merges, and in the release chain (`release.sh` and
 `release-pipeline.sh` call it). It records its green per half and by tree in
 `<target>/.rd-verified-full/`, and `tag-release.sh` and `package-windows.sh` refuse a tree
@@ -149,7 +165,7 @@ reminder that `--full` is still due. Without that a branch green looks like a fu
 `--defer` is the deliberate postponement, for text, translations and appearance. It accepts only
 `docs/` and `*.md`, `web/src/locales/**`, `web/src/assets/**`, and a `.vue` or `.css` change that
 does not touch a `<script>` block; anything else is refused by name. It runs `git diff --check`,
-the four-language locale parity test and the incremental typecheck as the diff demands — and it
+the four-language locale parity test and the typecheck as the diff demands — and it
 does **not** record a green. That is the whole mechanism: the change set of the next ordinary run
 is measured against the last recorded green, so the postponed commits come along by themselves,
 and `worktree.sh finish` and the release preflight refuse a branch whose HEAD no green run has
@@ -166,8 +182,10 @@ branch checks what came after its green rather than everything since `developmen
 `RD_LOCK_FILE` are described above — and switching the lock off makes the `target/` stamp yours,
 because `check.sh` only stamps when the checkout changes (`<target>/.rd-checkout`).
 
-`npm run build` no longer type-checks. `typecheck` is incremental (`vue-tsc --build`),
-`typecheck:full` is the non-incremental one that CI, `--full` and both packaging scripts run.
+`pnpm run build` no longer type-checks. `typecheck` is incremental (`vue-tsc --build`),
+`typecheck:full` is the non-incremental one that CI, both packaging scripts and every `check.sh`
+run that touches `web/` use — `--defer` included (RD-150-22: the incremental one let two type
+errors through to GitHub).
 
 ## The three traps worth knowing
 
@@ -195,16 +213,20 @@ and a view together.
 
 It also stopped demanding a *current* `web/dist` that day. It needs a bundle only because
 `rust-embed` reads one at compile time; the `openapi` subcommand serves no assets and
-`npm run generate:api` is a pure transform over the JSON. Since a feature worktree cannot build
+`pnpm run generate:api` is a pure transform over the JSON. Since a feature worktree does not build
 the frontend, insisting on freshness turned a branch that changed a route *and* a view into a
 hard stop with advice it could not follow. A stale bundle is now used as it is, and only a
 missing one is fatal.
 
 `worktree.sh` exists because a fresh worktree has no `web/node_modules` and no `web/dist`, and
-`rust-embed` will not compile without the latter. Symlinking them from the main checkout is the
-fast fix, but the unplugin generators resolve *through* the link, so `npm run build` inside a
-worktree rewrites the tracked `web/components.d.ts` and `web/auto-imports.d.ts` to point at the
-other checkout. `finish` discards that damage before merging; `check` reports it on demand.
+`rust-embed` will not compile without the latter. `web/node_modules` is the worktree's own, a
+`pnpm install --frozen-lockfile` from the shared store in a second or two (RD-150-14); until 1.5
+it was a link to the main checkout's, and the unplugin generators resolved *through* it, so a
+build inside a worktree rewrote the tracked `web/components.d.ts` and `web/auto-imports.d.ts` to
+point at the other checkout. `web/dist` is still linked from the main checkout, the fast way to a
+bundle `rust-embed` can compile; a build in the worktree needs the link removed first
+(`rm web/dist`), or it writes into the main checkout's. `finish` discards a rewrite of the
+declarations before merging; `check` reports it on demand.
 
 `i18n-key.sh` splits a dotted key into a nested group — `plugins.type.oauth` becomes
 `plugins → type → oauth`, which is what `plugins.json` wants and what `server.json` must never
@@ -241,11 +263,12 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   signs, and the index names each by the digest of those bytes — an index built here would
   describe components that were never published. `.github/workflows/release.yml` builds, verifies
   and attaches `rdownloader-plugin-index.json` in its `plugins` job instead (RD-140-01); by hand
-  it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>`, see
+  it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>` (or the
+  same with `rd-pack`), see
   `docs/plugins.md#plugin-repository-index`.
 - **`check.sh` does not run `cargo clippy --workspace --all-targets --all-features` by default.**
   That single command has taken the machine into swap and required a hard restart. Branch level
-  lints the touched crates by itself (`rd-api` only as far as its binaries are selected);
+  lints the touched crates by itself (`rd-api` only the binaries of its selected suites);
   `--clippy <crates>` names others, and `--clippy-all` runs the full sweep at `JOBS=2` when you
   really want it and nothing else is running.
 - **The packaging scripts never touch `artifacts/*/vendor`.** Those are downloaded third-party
@@ -272,6 +295,14 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   leaves, and the two packaging scripts, CI and the release workflow all ask it rather than
   keeping their own copy of the rule — so it clears itself at the version bump. Naming a plugin
   explicitly still tries, and fails with the packager's own message.
+- **The examples are built, never bundled** (RD-150-20). `plugins/example-*` are left out of
+  `--list-packageable` and of a signed sweep, and a signed run removes an example package left in
+  `dist/plugins`; `--development` still packages them. `--list-examples` names them, and CI
+  packages and conformance-checks them unsigned so they stay current.
+- **The packager is `rd-pack`, built in `release-test`** (RD-150-20): the `plugin` commands of
+  `rdownloader` with the same arguments, without `rd-api` and the queue, so signing no longer
+  waits for a release build of the whole service. `release-test` rather than debug, because
+  `plugin package` compiles each component with Wasmtime.
 - **`build-plugins.sh --list-stale` names the built components not built from these sources,**
   and `check.sh` asks it right after `cargo fmt` and refuses to go on. `cargo test` never builds
   components and `target/` is shared, so a merge or another worktree leaves a component beside
@@ -290,6 +321,9 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   on `JOBS`, not on how many plugins are named; if that call fails, the plugins are built one
   at a time up to the first failure, which is named, and the run fails. `--source-hash <name>` prints the hash, and a
   unit test in `artifact.rs` holds the script and the Rust side to the same value.
+  `--cache-key` prints the component cache's key for CI and the release (RD-150-10): `deps=` over
+  the registry half of `Cargo.lock`, the root `Cargo.toml` without the workspace version and
+  `.cargo/config.toml`, and `sources=` over every plugin's source hash.
 - **`build-plugins.sh --list-missing` names the components that were never built here,** which
   `--list-stale` does not: a file that is not there has no content to compare. `check.sh` asks
   this first and refuses to go on, because until RD-108-16 a missing component was the quiet
@@ -401,9 +435,11 @@ other change, and `check.sh --rust --full` runs as before. `release-start.sh` ru
 green first, detached, and skips it when one already covers `HEAD` and its tree.
 
 `public-ci` runs between `evidence-gate` and `tag`, and only with `--push`: it exports the merged
-candidate to the branch `ci/<version>` of the public repository, waits up to 90 minutes
-(`RD_PUBLIC_CI_TIMEOUT`) for GitHub's CI on that commit — Linux, Windows and macOS, which this
-machine cannot run — and refuses the tag when it is red. On green it deletes the branch; on red
+candidate to the branch `ci/<version>` of the public repository, waits for GitHub's CI on that
+commit to end — Linux, Windows and macOS, which this machine cannot run — and refuses the tag
+when it is red. There is no fixed deadline for a run that is going (RD-150-10; every job carries
+its own `timeout-minutes`): only a run that has not appeared after 15 minutes
+(`RD_PUBLIC_CI_TIMEOUT`) or is still going after six hours (`RD_PUBLIC_CI_CEILING`) fails it. On green it deletes the branch; on red
 it keeps it for inspection, and the next run replaces or deletes it. While the branch exists
 the candidate is public before it is a release; that is the price of the check. Needs `gh`,
 signed in to github.com.

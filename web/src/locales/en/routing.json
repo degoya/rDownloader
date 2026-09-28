@@ -1,5 +1,4 @@
 {
-  "cancel_edit": "Cancel editing",
   "tabs": {
     "roots": "Storage roots",
     "categories": "Categories",
@@ -20,7 +19,10 @@
     "confirm_description": "The file contains {categories} categories and {rules} rules. Existing entries with the same name are kept; only new ones are added.",
     "confirm": "Import",
     "import_success": "Routing configuration imported",
-    "import_summary": "{categories} categories and {rules} rules added, {skipped} skipped"
+    "import_summary": "{categories} categories and {rules} rules added, {skipped} skipped",
+    "export_all": "Everything (categories and rules)",
+    "export_categories": "Categories only",
+    "export_rules": "Rules only"
   },
   "root": {
     "eyebrow": "Allowlist",
@@ -129,7 +131,13 @@
     "plugin_steps_override_label": "Override plugin steps",
     "plugin_steps_override_description": "Off inherits the global list. On lets this category choose — including choosing none, which switches a globally enabled step off here.",
     "plugin_steps_none_hint": "No steps here: packages in this category run none, even if the global list has some.",
-    "form_new": "New category"
+    "form_new": "New category",
+    "duplicated": "Copy created — adjust it and save",
+    "group_count": "no categories | {count} category | {count} categories",
+    "collision_label": "On a name collision",
+    "collision_description": "Applies to this category’s packages unless a package has a policy of its own.",
+    "collision_inherit": "Inherit the global setting",
+    "collision_badge": "Collisions: {policy}"
   },
   "rule": {
     "eyebrow": "Classifier",
@@ -203,8 +211,6 @@
       "invalid_pattern": "The pattern is not a valid regular expression."
     },
     "create": "Create rule",
-    "duplicate": "Duplicate rule",
-    "copy_suffix": "copy",
     "empty": "Without a rule the default category applies.",
     "no_category_hint": "Create a category first — a rule always needs a target.",
     "disabled_badge": "OFF",
@@ -214,7 +220,9 @@
     "created": "Rule created",
     "duplicated": "Rule copy created",
     "updated": "Rule updated",
-    "form_new": "New rule"
+    "form_new": "New rule",
+    "duplicate": "Duplicate rule",
+    "copy_suffix": "copy"
   },
   "hotfolder": {
     "eyebrow": "Reconciled intake",
@@ -259,6 +267,8 @@
     "poll_label": "Poll interval",
     "poll_description": "Seconds between two reconciliation passes over every watched folder (5–3600). Running watchers take the value right away.",
     "poll_saved": "Poll interval saved",
-    "poll_save": "Save interval"
-  }
+    "poll_save": "Save interval",
+    "copy_path_hint": "A copy needs a folder of its own: change the path before creating it."
+  },
+  "cancel_edit": "Cancel editing"
 }

@@ -71,6 +71,7 @@ async fn paused_package(
         skipped: false,
         enrichment: Vec::new(),
         secret_fragment: None,
+        source_set: None,
     }];
     let (_package, files) = scheduler
         .enqueue_package(spec, files)

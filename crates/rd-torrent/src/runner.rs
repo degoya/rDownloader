@@ -48,6 +48,19 @@ impl ExternalRunner for TorrentRunner {
         DownloadKind::Torrent
     }
 
+    /// Pieces are hash-checked before they count, so a stopped torrent resumes from what
+    /// verifies and a finished one found on disk is adopted by that same check; the torrent's
+    /// own file tree is kept, so the collision policy does not rename inside it.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: true,
+            recheck_partial: true,
+            adopt_completed: true,
+            verify_completed: true,
+            applies_collision_policy: false,
+        }
+    }
+
     fn slot_capacity(&self) -> usize {
         4
     }

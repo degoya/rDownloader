@@ -11,7 +11,7 @@
 //!   `crates/rdownloader/build.rs` and handed over as [`BuildInfo`];
 //! * the version, the author, the licence and the repository come from `Cargo.toml`;
 //! * the dependency licences are `licenses/third-party.json`, written by `scripts/licenses.sh`
-//!   from `cargo metadata` and `web/package-lock.json` and held to both lockfiles by [`tests`];
+//!   from `cargo metadata` and `web/pnpm-lock.yaml` and held to both lockfiles by [`tests`];
 //! * the helper tools' licence texts are `resources/vendor-licenses/`, which the packaging copies
 //!   into `vendor/licenses/` and [`tests`] holds to [`BUNDLED_TOOLS`].
 
@@ -176,14 +176,14 @@ const BUNDLED_TOOLS: &[(&str, &str, &str, &str)] = &[
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ThirdPartyLicenses {
-    /// Every crate a workspace member depends on as a normal dependency, on any platform —
-    /// what ends up in the binaries and the plugin components.
+    /// Every crate a shipped artefact contains: what the binaries link on Linux, Windows and
+    /// macOS, and what the plugin components link.
     pub rust: Vec<ThirdPartyPackage>,
-    /// The crates of `Cargo.lock` that only tests and build scripts use, as `name@version`.
-    /// They ship nowhere; they are listed so that a crate new to the lockfile can be told
-    /// apart from one this list forgot.
+    /// The other crates of `Cargo.lock`, as `name@version`: proc macros, build scripts, tests,
+    /// and dependencies no shipped target or feature set reaches. They ship nowhere; they are
+    /// listed so that a crate new to the lockfile can be told apart from one this list forgot.
     pub rust_not_shipped: Vec<String>,
-    /// Every package of `web/package-lock.json` that npm does not mark as a development one.
+    /// Every package of `web/pnpm-lock.yaml` the production dependencies reach.
     pub npm: Vec<ThirdPartyPackage>,
 }
 
@@ -275,7 +275,7 @@ pub async fn system_about_licenses() -> Response {
 #[cfg(test)]
 mod tests {
     use std::{
-        collections::BTreeSet,
+        collections::{BTreeMap, BTreeSet},
         path::{Path, PathBuf},
     };
 
@@ -321,24 +321,102 @@ mod tests {
         crates
     }
 
-    /// `name@version` of every package npm installs for production: the same rule the
-    /// generator applies, so a disagreement is a stale list and not two opinions.
+    /// `name@version` of every package the production dependencies reach in
+    /// `web/pnpm-lock.yaml`: the same walk as the generator, so a disagreement is a stale list
+    /// and not two opinions. It starts at the importer's `dependencies` and
+    /// `optionalDependencies` and follows each snapshot's own, except a snapshot's optional
+    /// peers, which resolve only to what something else installs.
     fn locked_npm_packages() -> BTreeSet<String> {
-        let lock: serde_json::Value =
-            serde_json::from_str(&read("web/package-lock.json")).expect("package-lock.json");
-        let packages = lock["packages"].as_object().expect("a v3 lockfile");
-        packages
-            .iter()
-            .filter_map(|(key, entry)| {
-                let path_name = key.rsplit_once("node_modules/")?.1;
-                let flagged = |flag: &str| entry[flag].as_bool().unwrap_or(false);
-                if flagged("dev") || flagged("devOptional") || flagged("link") {
-                    return None;
+        fn unquote(text: &str) -> &str {
+            text.strip_prefix('\'')
+                .and_then(|rest| rest.strip_suffix('\''))
+                .unwrap_or(text)
+        }
+        fn without_peers(key: &str) -> &str {
+            key.split_once('(').map_or(key, |(base, _)| base)
+        }
+        // The snapshot a dependency points at: `name@version(peers)`, or for an alias the
+        // `real-name@version` its value names. A `link:` is a local directory, no package.
+        fn snapshot(name: &str, value: &str) -> Option<String> {
+            if value.starts_with("link:") {
+                None
+            } else if value.starts_with(|c: char| c.is_ascii_digit()) {
+                Some(format!("{name}@{value}"))
+            } else {
+                Some(value.to_owned())
+            }
+        }
+
+        // Two YAML documents, pnpm's own install first and the project second; only the
+        // project's importer has `dependencies`, so a line walk needs no telling them apart.
+        let lockfile = read("web/pnpm-lock.yaml");
+        let mut queue = Vec::new();
+        let mut edges: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut optional_peers: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let (mut section, mut group) = ("", "");
+        let (mut entry, mut dependency) = (String::new(), String::new());
+        for line in lockfile.lines() {
+            let text = line.trim();
+            if text.is_empty() || text.starts_with('#') {
+                continue;
+            }
+            let indent = line.len() - line.trim_start_matches(' ').len();
+            let bare = text.strip_suffix(':').unwrap_or(text);
+            let dependencies = matches!(group, "dependencies" | "optionalDependencies");
+            if indent == 0 {
+                section = bare;
+            } else if indent == 2 {
+                let key = text.strip_suffix(" {}").unwrap_or(text);
+                entry = unquote(key.strip_suffix(':').unwrap_or(key)).to_owned();
+                if section == "snapshots" {
+                    edges.insert(entry.clone(), Vec::new());
                 }
-                let name = entry["name"].as_str().unwrap_or(path_name);
-                let version = entry["version"].as_str()?;
-                Some(format!("{name}@{version}"))
-            })
+            } else if indent == 4 {
+                group = bare;
+            } else if section == "importers" && dependencies {
+                if indent == 6 {
+                    dependency = unquote(bare).to_owned();
+                } else if indent == 8
+                    && let Some(version) = text.strip_prefix("version: ")
+                {
+                    queue.extend(snapshot(&dependency, version));
+                }
+            } else if section == "packages" && group == "peerDependenciesMeta" {
+                if indent == 6 {
+                    dependency = unquote(bare).to_owned();
+                } else if indent == 8 && text == "optional: true" {
+                    optional_peers
+                        .entry(entry.clone())
+                        .or_default()
+                        .insert(dependency.clone());
+                }
+            } else if section == "snapshots" && dependencies && indent == 6 {
+                let (name, value) = text.split_once(": ").unwrap_or((text, ""));
+                let name = unquote(name);
+                let optional_peer = optional_peers
+                    .get(without_peers(&entry))
+                    .is_some_and(|peers| peers.contains(name));
+                if !optional_peer && let Some(key) = snapshot(name, value) {
+                    edges
+                        .get_mut(&entry)
+                        .expect("a snapshot's dependencies follow its key")
+                        .push(key);
+                }
+            }
+        }
+
+        let mut reached = BTreeSet::new();
+        while let Some(key) = queue.pop() {
+            let next = edges
+                .get(&key)
+                .unwrap_or_else(|| panic!("pnpm-lock.yaml has no snapshot {key}"));
+            if reached.insert(key) {
+                queue.extend(next.iter().cloned());
+            }
+        }
+        reached
+            .iter()
+            .map(|key| without_peers(key).to_owned())
             .collect()
     }
 
@@ -370,7 +448,7 @@ mod tests {
             .map(|package| format!("{}@{}", package.name, package.version))
             .collect();
         let locked = locked_npm_packages();
-        assert!(!locked.is_empty(), "package-lock.json names no package");
+        assert!(!locked.is_empty(), "pnpm-lock.yaml names no package");
         assert_eq!(locked, listed, "{}", difference(&locked, &listed));
     }
 

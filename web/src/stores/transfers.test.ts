@@ -79,3 +79,35 @@ describe('transfers store: post-processing progress', () => {
     store.disconnectEvents()
   })
 })
+
+describe('transfers store: a refused removal', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shows the refusal translated by its code, not the raw server text', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ error: 'raw server text', code: 'download.active_must_pause' }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } }
+    )))
+    const store = useTransfersStore()
+
+    expect(await store.remove('dl-1')).toBe(false)
+
+    expect(store.error).toBe('Active downloads must be cancelled or paused before removal')
+  })
+
+  it('falls back to the generic notice when the body says nothing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 500 })))
+    const store = useTransfersStore()
+
+    expect(await store.remove('dl-1')).toBe(false)
+
+    expect(store.error).not.toBe('')
+    expect(store.error).not.toBeNull()
+  })
+})

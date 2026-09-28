@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { BandwidthProfile, BandwidthSchedule, BandwidthScheduleRequest } from '@/api/types'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import TimezoneSelect from '@/components/TimezoneSelect.vue'
@@ -19,6 +20,8 @@ const message = ref<string | null>(null)
 
 /** Monday-first, matching the backend's bitmask. */
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
+const dayItems = computed(() => DAYS.map(day => ({ value: day, label: t(`bandwidth.days.${day}`) })))
+const windowList = ref<HTMLElement | null>(null)
 
 interface WindowDraft {
   profile_id: string
@@ -61,8 +64,13 @@ function minutesOf(value: string): number {
   return Number.isFinite(total) ? Math.min(Math.max(total, 0), 1440) : 0
 }
 
-function toggleDay(window: WindowDraft, day: number): void {
-  window.days ^= 1 << day
+/** The window's bitmask as the list of days a checkbox group holds, and back. */
+function daysOf(window: WindowDraft): number[] {
+  return DAYS.filter(day => (window.days & (1 << day)) !== 0)
+}
+
+function setDays(window: WindowDraft, days: number[]): void {
+  window.days = days.reduce((mask, day) => mask | (1 << day), 0)
 }
 
 function addWindow(): void {
@@ -72,6 +80,22 @@ function addWindow(): void {
     ...windows.value,
     { profile_id: first.id, days: 0b0111_1111, start_minute: 22 * 60, end_minute: 6 * 60, priority: 0, enabled: true }
   ]
+}
+
+/**
+ * Copies a window directly below its original (RD-150-12). A window has no name and no route of
+ * its own — the schedule is stored whole — so the copy is edited in place like every window, and
+ * the focus moves to its first control; it is kept once the schedule is saved.
+ */
+async function duplicateWindow(index: number): Promise<void> {
+  const source = windows.value[index]
+  if (!source) return
+  windows.value = [...windows.value.slice(0, index + 1), { ...source }, ...windows.value.slice(index + 1)]
+  await nextTick()
+  windowList.value
+    ?.querySelectorAll<HTMLElement>('[data-window]')[index + 1]
+    ?.querySelector<HTMLElement>('input, select, [role="combobox"]')
+    ?.focus()
 }
 
 function removeWindow(index: number): void {
@@ -109,7 +133,7 @@ async function save(): Promise<void> {
         <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
         <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
 
-        <div class="grid gap-3">
+        <form class="grid gap-3" @submit.prevent="save">
           <UFormField :label="t('bandwidth.schedule.timezone_label')" :description="t('bandwidth.schedule.timezone_description')">
             <TimezoneSelect v-model="schedule.timezone" :aria-label="t('bandwidth.schedule.timezone_label')" />
           </UFormField>
@@ -121,17 +145,15 @@ async function save(): Promise<void> {
               class="w-full"
             />
           </UFormField>
-          <div class="flex gap-2">
-            <UButton type="button" icon="i-lucide-save" :label="t('common.actions.save')" :loading="pending" @click="save" />
-          </div>
-        </div>
+          <FormActions :create-label="t('common.actions.save')" create-icon="i-lucide-save" :loading="pending" />
+        </form>
       </template>
       <template #list-actions>
         <UButton type="button" size="xs" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!profiles.length" :label="t('bandwidth.schedule.add_window')" @click="addWindow" />
       </template>
       <template #list>
-        <div class="space-y-3">
-          <div v-for="(window, index) in windows" :key="index" class="border border-muted p-3">
+        <div ref="windowList" class="space-y-3">
+          <div v-for="(window, index) in windows" :key="index" class="border border-muted p-3" data-window>
             <div class="flex flex-wrap items-end gap-2">
               <USelect v-model="window.profile_id" :items="profileItems" value-key="value" class="w-44" :aria-label="t('bandwidth.schedule.window_profile')" />
               <UFormField :label="t('bandwidth.schedule.from')">
@@ -144,19 +166,18 @@ async function save(): Promise<void> {
                 <UInput v-model.number="window.priority" type="number" class="w-24" />
               </UFormField>
               <USwitch v-model="window.enabled" :aria-label="t('bandwidth.schedule.enabled')" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" @click="removeWindow(index)" />
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('bandwidth.schedule.duplicate_hint')" @click="duplicateWindow(index)" />
+              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeWindow(index)" />
             </div>
-            <div class="mt-2 flex flex-wrap gap-1">
-              <UButton
-                v-for="day in DAYS"
-                :key="day"
-                size="xs"
-                :color="(window.days & (1 << day)) ? 'primary' : 'neutral'"
-                :variant="(window.days & (1 << day)) ? 'solid' : 'outline'"
-                :label="t(`bandwidth.days.${day}`)"
-                @click="toggleDay(window, day)"
-              />
-            </div>
+            <UCheckboxGroup
+              class="mt-2"
+              :model-value="daysOf(window)"
+              :items="dayItems"
+              :legend="t('bandwidth.schedule.days_label')"
+              orientation="horizontal"
+              size="sm"
+              @update:model-value="(days: number[]) => setDays(window, days)"
+            />
             <p v-if="window.end_minute <= window.start_minute" class="mt-2 text-xs text-muted">
               {{ t('bandwidth.schedule.wraps') }}
             </p>

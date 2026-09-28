@@ -2,6 +2,7 @@
 //! scripts for finished downloads (SABnzbd-style levels per package/category).
 
 mod cleanup_job;
+mod object_upload;
 mod package_job;
 mod par2_job;
 mod par2_refill;
@@ -27,7 +28,9 @@ use rd_db::Database;
 use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
+pub use object_upload::{ObjectUpload, ObjectUploader};
 pub use plugin_step::{PluginStepJob, PluginStepOutcome, PluginStepRunner};
+pub use script_job::BATCH_ARGUMENTS_REFUSED;
 pub use settings::load_postprocess_settings;
 pub use storage_upload::{StorageUpload, StorageUploader, UploadProgress, UploadReport};
 
@@ -44,6 +47,9 @@ pub struct ExtractionConfig {
     /// Raised by the power service while quiet hours defer the resource-intensive steps
     /// (RD-050-13). A running job finishes; only the next one waits.
     pub quiet_hold: PostprocessHold,
+    /// The scheduler's upload limiter (RD-150-15), whose rate follows the hand-set limit and
+    /// the active bandwidth profile; `None` uploads unlimited (tests, a service without one).
+    pub upload_limit: Option<rd_limits::ScopedLimiter>,
 }
 
 /// Why a package extraction was requested.
@@ -87,6 +93,8 @@ struct Inner {
     plugin_steps: Option<Arc<dyn plugin_step::PluginStepRunner>>,
     /// The installed upload destinations, injected for the same reason.
     storage: Option<Arc<dyn storage_upload::StorageUploader>>,
+    /// Object storage uploads (RD-150-04), injected so this crate does not link a cloud SDK.
+    objects: Option<Arc<dyn object_upload::ObjectUploader>>,
 }
 
 impl Inner {
@@ -105,6 +113,14 @@ impl Inner {
             credential.host.eq_ignore_ascii_case(&host)
                 && port.is_none_or(|port| credential.port == port)
         })
+    }
+
+    /// The limiter every upload paces itself with.
+    fn upload_limit(&self) -> rd_limits::ScopedLimiter {
+        self.config
+            .upload_limit
+            .clone()
+            .unwrap_or_else(rd_limits::ScopedLimiter::unlimited)
     }
 
     /// Whether a plugin id names an installed post-processing step.
@@ -138,10 +154,11 @@ impl ExtractionService {
     /// Starts the job loop and the completion listener.
     #[must_use]
     pub fn start(database: Database, config: ExtractionConfig) -> Self {
-        Self::start_with_plugins(database, config, None, None)
+        Self::start_with_plugins(database, config, None, None, None)
     }
 
-    /// The same, with the installed post-processing steps and upload destinations.
+    /// The same, with the installed post-processing steps and upload destinations, and the
+    /// object storage uploader.
     ///
     /// Separate rather than more parameters everywhere: a service without plugins is the
     /// normal case, and the existing callers (tests included) should not have to say `None`.
@@ -150,6 +167,7 @@ impl ExtractionService {
         config: ExtractionConfig,
         plugin_steps: Option<Arc<dyn plugin_step::PluginStepRunner>>,
         storage: Option<Arc<dyn storage_upload::StorageUploader>>,
+        objects: Option<Arc<dyn object_upload::ObjectUploader>>,
     ) -> Self {
         let (sender, receiver) = mpsc::channel(256);
         let service = Self {
@@ -162,6 +180,7 @@ impl ExtractionService {
                 shutdown: CancellationToken::new(),
                 plugin_steps,
                 storage,
+                objects,
             }),
         };
         tokio::spawn(service.clone().run_jobs(receiver));
@@ -248,9 +267,16 @@ impl ExtractionService {
     /// and a non-zero exit as a failure with its reason. The script runs in the scripts
     /// directory and learns `RD_KIND=subscription` and `RD_SCRIPT_DIR`, plus whatever the
     /// caller adds to `environment`.
+    ///
+    /// `arguments` reach the script as its argv, each one whole (RD-150-08): no shell splits,
+    /// expands or redirects them. A batch file on Windows is the exception `cmd.exe` makes --
+    /// it parses its own command line -- so the standard library escapes them for it and
+    /// refuses what it cannot escape; that refusal fails the run with
+    /// [`BATCH_ARGUMENTS_REFUSED`] as its whole message.
     pub async fn run_output_script(
         &self,
         name: &str,
+        arguments: &[String],
         mut environment: Vec<(String, String)>,
     ) -> Result<String> {
         let settings = load_postprocess_settings(&self.inner.database).await?;
@@ -262,7 +288,7 @@ impl ExtractionService {
             directory.to_string_lossy().into_owned(),
         ));
         let timeout = std::time::Duration::from_secs(u64::from(settings.script_timeout_seconds));
-        script_job::execute_for_output(&script, &directory, environment, timeout).await
+        script_job::execute_for_output(&script, &directory, arguments, environment, timeout).await
     }
 
     /// Re-queues packages whose pipeline was interrupted.

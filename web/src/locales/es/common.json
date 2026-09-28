@@ -21,7 +21,9 @@
     "select_all": "Seleccionar todo",
     "clear_selection": "Quitar selección",
     "apply": "Aplicar",
-    "reveal": "Mostrar en la lista"
+    "reveal": "Mostrar en la lista",
+    "cancel_edit": "Cancelar edición",
+    "duplicate": "Duplicar"
   },
   "states": {
     "queued": "En cola",
@@ -133,5 +135,22 @@
     "import_success": "Importación finalizada",
     "import_summary": "{created} importadas, {skipped} omitidas"
   },
-  "editing": "En edición"
+  "editing": "En edición",
+  "duplicate_hint": "Crea una copia y la abre para editarla",
+  "copy_suffix": "copia",
+  "enrichment": {
+    "show": "Mostrar metadatos",
+    "show_hint": "Oculta lo que los plugins encontraron sobre los enlaces; no se borra nada.",
+    "source": "{name}, consultado por un plugin el {at}",
+    "fields": {
+      "title": "Título",
+      "series": "Serie",
+      "season": "Temporada",
+      "episode": "Episodio",
+      "year": "Año",
+      "rating": "Valoración",
+      "genre": "Género",
+      "runtime": "Duración"
+    }
+  }
 }

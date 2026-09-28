@@ -262,7 +262,7 @@ pub(crate) async fn prune(
     // insert only adds `day` rows, which the `hour` filter never sees.
     const STALE_HOURS: &str = "SELECT rowid FROM transfer_stats \
          WHERE resolution = 'hour' AND bucket_start < ? ORDER BY bucket_start LIMIT ?";
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO transfer_stats \
            (resolution, bucket_start, kind, provider, completed, failed, retries, bytes, seconds) \
          SELECT 'day', substr(bucket_start, 1, 10) || 'T00:00:00Z', kind, provider, \
@@ -275,15 +275,15 @@ pub(crate) async fn prune(
            retries = retries + excluded.retries, \
            bytes = bytes + excluded.bytes, \
            seconds = seconds + excluded.seconds"
-    ))
+    )))
     .bind(&hourly_cutoff)
     .bind(PRUNE_BATCH)
     .execute(&mut *transaction)
     .await
     .context("downsample transfer buckets")?;
-    let downsampled = sqlx::query(&format!(
+    let downsampled = sqlx::query(sqlx::AssertSqlSafe(format!(
         "DELETE FROM transfer_stats WHERE rowid IN ({STALE_HOURS})"
-    ))
+    )))
     .bind(&hourly_cutoff)
     .bind(PRUNE_BATCH)
     .execute(&mut *transaction)

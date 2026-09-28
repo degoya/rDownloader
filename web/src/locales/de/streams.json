@@ -30,8 +30,10 @@
     "category_default": "Standardkategorie",
     "enabled_label": "Beobachten",
     "enabled_description": "Kanal prüfen und automatisch aufzeichnen, solange er live ist.",
-    "add": "Kanal hinzufügen",
-    "record_now": "Jetzt aufnehmen"
+    "record_now": "Jetzt aufnehmen",
+    "create": "Kanal anlegen",
+    "form_new": "Neuer Kanal",
+    "form_edit": "Kanal bearbeiten"
   },
   "schedules": {
     "title": "Zeitpläne",
@@ -48,7 +50,6 @@
     "trail": "Länger beobachten (Minuten)",
     "replay": "Von Anfang an aufnehmen",
     "replay_hint": "Wird nur genutzt, wenn der Anbieter es tatsächlich anbietet.",
-    "add": "Zeitplan hinzufügen",
     "empty": "Noch keine Zeitpläne.",
     "needs_channel": "Lege zuerst oben einen Kanal an — ein Zeitplan braucht einen, um aufzunehmen.",
     "replay_used": "von Anfang an aufgenommen",
@@ -68,7 +69,15 @@
       "completed": "Aufgenommen",
       "missed": "Verpasst",
       "failed": "Fehlgeschlagen"
-    }
+    },
+    "delete": {
+      "title": "Zeitplan löschen",
+      "description": "„{name}“ löschen? Bereits gemachte Aufnahmen bleiben erhalten."
+    },
+    "eyebrow": "Zeitfenster",
+    "create": "Zeitplan anlegen",
+    "form_new": "Neuer Zeitplan",
+    "form_edit": "Zeitplan bearbeiten"
   },
   "recording": {
     "split": "Lange Aufnahmen aufteilen",

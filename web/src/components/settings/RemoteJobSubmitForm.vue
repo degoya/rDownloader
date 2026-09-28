@@ -21,6 +21,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { Account, RemoteJob } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import { claimFileDrops } from '@/composables/nzbImportRequest'
 import { formatBytes } from '@/utils/format'
 
@@ -152,7 +153,9 @@ async function sendFile(row: QueuedFile, account: string): Promise<FileState> {
   }
   const response = await api.POST('/api/v1/accounts/{id}/remote-jobs', {
     params: { path: { id: account } },
-    body: { container }
+    // The file's name travels beside its bytes: the finished job's LinkGrabber package is named
+    // after it, where the provider's own name for the transfer may be one every upload shares.
+    body: { container, file_name: row.file.name }
   })
   if (!response.data) {
     setState(row, 'failed', responseError(response))
@@ -193,6 +196,8 @@ async function submitMagnet(): Promise<void> {
 }
 
 async function submit(): Promise<void> {
+  // Enter reaches here as well as the button; the button's condition holds for both.
+  if (!canSubmit.value) return
   submitting.value = true
   try {
     await (files.value.length ? submitFiles() : submitMagnet())
@@ -263,7 +268,7 @@ void loadProviders()
     @dragleave.self="dragging = false"
     @drop.prevent.stop="drop"
   >
-    <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_2fr_auto_auto] sm:items-end">
+    <form class="grid gap-3" data-testid="remote-job-form" @submit.prevent="submit">
       <UFormField :label="t('remote_jobs.account')">
         <USelect v-model="accountId" :items="accountItems" class="w-full" />
       </UFormField>
@@ -297,23 +302,22 @@ void loadProviders()
         data-testid="remote-job-file"
         @change="pickFiles"
       >
-      <UButton
-        type="button"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-file-up"
-        :label="t('remote_jobs.submit.file_action')"
-        @click="fileInput?.click()"
-      />
-      <UButton
-        type="button"
-        icon="i-lucide-cloud-upload"
-        :label="t('remote_jobs.submit.action')"
+      <FormActions
+        :create-label="t('remote_jobs.submit.action')"
+        create-icon="i-lucide-cloud-upload"
         :disabled="!canSubmit"
         :loading="submitting"
-        @click="submit"
-      />
-    </div>
+      >
+        <UButton
+          type="button"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-file-up"
+          :label="t('remote_jobs.submit.file_action')"
+          @click="fileInput?.click()"
+        />
+      </FormActions>
+    </form>
     <p class="mt-2 text-xs text-muted">{{ t('remote_jobs.files.drop_hint') }}</p>
 
     <ul v-if="files.length" class="mt-2 divide-y divide-muted border border-muted" :aria-label="t('remote_jobs.files.list')">

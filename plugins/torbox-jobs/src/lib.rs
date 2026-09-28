@@ -31,13 +31,14 @@
 //!   [`source`] says why.
 //!
 //! Everything that can be tested without a WebAssembly toolchain lives outside the component:
-//! [`source`] derives the kind and the key, [`api`] holds the response shapes, the state
+//! [`source`] derives the kind and the key, [`upload`] names a container's upload, [`api`] holds the response shapes, the state
 //! mapping, the request bodies and the failure classification. `guest` is the thin wrapper
 //! around the two and exists only on `wasm32`.
 
 pub mod api;
 pub mod messages;
 pub mod source;
+pub mod upload;
 
 #[cfg(target_arch = "wasm32")]
 mod guest;

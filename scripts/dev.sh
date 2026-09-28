@@ -30,17 +30,16 @@ for argument in "$@"; do
     esac
 done
 
-# Never in a feature worktree: web/node_modules and web/dist are symlinks into the main
-# checkout there, and a build through them rewrites the tracked web/components.d.ts and
-# web/auto-imports.d.ts with paths from the wrong tree.
+# Never through a feature worktree's web/dist, a symlink into the main checkout: the build
+# would empty and rewrite the main checkout's bundle.
 build_web() {
-    if [[ -L web/node_modules || -L web/dist ]]; then
+    if [[ -L web/dist ]]; then
         echo "web/dist is stale, but this is a feature worktree (web/dist is a symlink)." >&2
-        echo "Build the frontend in the main checkout instead." >&2
+        echo "'rm web/dist' (the link only) to build here, or build in the main checkout." >&2
         exit 1
     fi
-    npm run typecheck:full --prefix web
-    npm run build --prefix web
+    pnpm --dir web run typecheck:full
+    pnpm --dir web run build
 }
 
 # rust-embed pulls web/dist in at compile time, so the frontend has to be there AND current —

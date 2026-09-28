@@ -8,7 +8,7 @@ import type {
   SiteRuleTestResult
 } from '@/api/types'
 import { useFetchState } from '@/composables/useFetchState'
-import { duplicateName } from '@/utils/copyName'
+import type { useCopyName } from '@/composables/useCopyName'
 
 /**
  * The site rules of this installation, and the writes the settings page performs (RD-110-08).
@@ -271,12 +271,16 @@ export function copyId(original: string, existingIds: Iterable<string>): string 
  * Copied from the body rather than through the editor's draft, which would drop a field the
  * form does not draw.
  */
-export function copyBody(rule: SiteRule, existing: SiteRule[], copyLabel: string): Record<string, unknown> {
+export function copyBody(
+  rule: SiteRule,
+  existing: SiteRule[],
+  copyName: ReturnType<typeof useCopyName>
+): Record<string, unknown> {
   const body = isRecord(rule.rule) ? rule.rule : {}
   return {
     ...body,
     id: copyId(rule.id, existing.map(entry => entry.id)),
-    name: duplicateName(rule.name, existing.map(entry => entry.name), copyLabel, MAX_RULE_NAME_LENGTH)
+    name: copyName(rule.name, existing.map(entry => entry.name), MAX_RULE_NAME_LENGTH)
   }
 }
 
@@ -305,8 +309,11 @@ export interface SiteRulesApi {
   setGroupEnabled: (group: string, enabled: boolean) => Promise<boolean>
   save: (draft: RuleDraft, editingId: string | null) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
-  /** Creates a switched-off copy of `rule` and answers with the copy's identifier. */
-  duplicate: (rule: SiteRule, copyLabel: string) => Promise<string | null>
+  /**
+   * Creates a switched-off copy of `rule` and answers with the copy's identifier. The name comes
+   * from `useCopyName()`, the one every list with a duplicate uses (RD-150-12).
+   */
+  duplicate: (rule: SiteRule, copyName: ReturnType<typeof useCopyName>) => Promise<string | null>
   test: (draft: RuleDraft, address: string) => Promise<SiteRuleTestResult | null>
   exportRules: () => Promise<unknown | null>
   /** Sends a file's text exactly as it was read: the signed release file's signature covers
@@ -387,8 +394,8 @@ export function useSiteRules(): SiteRulesApi {
           : api.POST('/api/v1/site-rules', { body })
       }),
     remove: id => write(id, () => api.DELETE('/api/v1/site-rules/{id}', { params: { path: { id } } })),
-    async duplicate(rule, copyLabel) {
-      const body = copyBody(rule, rules.value, copyLabel)
+    async duplicate(rule, copyName) {
+      const body = copyBody(rule, rules.value, copyName)
       // Switched off, like every rule that did not come out of the editor: two rules claiming
       // the same hosts would otherwise both be consulted the moment the copy exists.
       const stored = await write(`copy:${rule.id}`, () =>

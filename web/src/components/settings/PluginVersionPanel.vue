@@ -136,12 +136,13 @@ function setAutomatic(value: boolean): Promise<void> {
       </ul>
     </details>
 
-    <label class="flex items-start gap-2 text-muted">
-      <USwitch :model-value="automatic" :disabled="busy" :aria-label="t('plugins.versions.auto_update')" @update:model-value="setAutomatic" />
-      <span>
-        <span class="text-toned">{{ t('plugins.versions.auto_update') }}</span>
-        <span class="block">{{ t('plugins.versions.auto_update_hint') }}</span>
-      </span>
-    </label>
+    <USwitch
+      :model-value="automatic"
+      :disabled="busy"
+      size="sm"
+      :label="t('plugins.versions.auto_update')"
+      :description="t('plugins.versions.auto_update_hint')"
+      @update:model-value="setAutomatic"
+    />
   </div>
 </template>

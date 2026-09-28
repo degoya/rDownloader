@@ -39,6 +39,8 @@ pub struct StorageUpload<'a> {
     /// nothing is what RD-108-18 was about, and a caller that has nowhere to show it should
     /// have to write that down.
     pub progress: UploadProgress,
+    /// The upload limit the plugin's reads of the package are paced by (RD-150-15).
+    pub bandwidth: rd_limits::ScopedLimiter,
 }
 
 /// What an upload attempt achieved.
@@ -71,7 +73,7 @@ pub trait StorageUploader: Send + Sync {
 /// which is synchronous and must not block, while writing to the database is neither — so the
 /// closure only hands the number to a task that writes it at the pace the display needs. The
 /// task ends by itself when the upload drops the sender.
-fn reporter(
+pub(crate) fn reporter(
     inner: &crate::Inner,
     owner: &str,
     destination: &str,
@@ -179,6 +181,7 @@ pub(crate) async fn run(
                     .as_ref()
                     .and_then(|login| login.secret_ref.as_deref()),
                 progress,
+                bandwidth: inner.upload_limit(),
             },
         )
         .await;
@@ -224,7 +227,7 @@ pub(crate) async fn run(
 /// A file that will not delete is reported by count and nothing more: the upload succeeded,
 /// and failing the package because a leftover could not be removed would be the wrong end of
 /// the trade. The package directory itself is left alone — something else may still be in it.
-async fn remove_local(directory: &Path, files: &[String]) -> usize {
+pub(crate) async fn remove_local(directory: &Path, files: &[String]) -> usize {
     let mut removed = 0;
     for file in files {
         let path = directory.join(file);

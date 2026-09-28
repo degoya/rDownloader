@@ -34,7 +34,8 @@
     "daily": "Heute ({period})",
     "monthly": "Dieser Monat ({period})",
     "usage": "{used} von {limit}",
-    "budget_exhausted": "Das Trafficbudget ist aufgebraucht. Laufende Transfers werden fertig; Neues startet erst im nächsten Zeitraum."
+    "budget_exhausted": "Das Trafficbudget ist aufgebraucht. Laufende Transfers werden fertig; Neues startet erst im nächsten Zeitraum.",
+    "upload_binding": "Strengste Upload-Grenze"
   },
   "capabilities": {
     "title": "Was eine Grenze nicht vollständig erreicht"
@@ -51,8 +52,8 @@
     "parallel_description": "Begrenzt die Queue, solange aktiv; leer behält die allgemeine Einstellung.",
     "inherit": "Einstellung behalten",
     "download_label": "Download-Limit",
-    "upload_label": "Torrent-Upload-Limit",
-    "upload_description": "Nur die Torrent-Engine lädt hoch.",
+    "upload_label": "Upload-Limit",
+    "upload_description": "Gilt für jeden Upload: Torrent-Seeding, Objektspeicher, rclone und Upload-Ziele.",
     "daily_label": "Tagesbudget",
     "monthly_label": "Monatsbudget",
     "no_budget": "Kein Budget",
@@ -99,6 +100,8 @@
     "wraps": "Dieses Fenster läuft über Mitternacht in den Folgetag.",
     "empty": "Noch kein Fenster — das Standardprofil gilt rund um die Uhr.",
     "needs_profile": "Zuerst ein Profil anlegen.",
-    "windows_title": "Zeitfenster"
+    "windows_title": "Zeitfenster",
+    "days_label": "Tage",
+    "duplicate_hint": "Legt eine Kopie des Fensters direkt darunter an; gespeichert wird mit dem Zeitplan"
   }
 }

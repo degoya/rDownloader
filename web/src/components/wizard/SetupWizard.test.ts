@@ -48,4 +48,17 @@ describe('SetupWizard', () => {
     await fireEvent.click(screen.getByRole('button', { name: wizard.actions.continue }))
     expect(screen.getByRole('button', { name: wizard.actions.back })).toBeTruthy()
   })
+
+  it('pairs the client right after the password, long before the services step (RD-150-17)', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useSessionStore().wizardRerun = true
+    render(SetupWizard, { global: { plugins: [pinia, createTestI18n({ wizard })] as never[], stubs: stubs as never } })
+
+    await fireEvent.click(screen.getByRole('button', { name: wizard.actions.continue }))
+
+    // The accounts that need the extension come in the last step; the extension is paired here.
+    expect(screen.getByText(wizard.steps.pairing.lead)).toBeTruthy()
+    expect(screen.queryByText(wizard.steps.services.lead)).toBeNull()
+  })
 })

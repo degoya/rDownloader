@@ -147,6 +147,17 @@ impl ApiError {
     pub fn code(&self) -> &str {
         &self.code
     }
+
+    /// The refusal as a coded message, for a batch that answers `200` and reports each item's
+    /// refusal in its body, so the interface can translate it like any other error.
+    #[must_use]
+    pub(crate) fn into_message(self) -> crate::dto::MessageResponse {
+        crate::dto::MessageResponse {
+            message: rd_core::redact_text(&self.message),
+            code: self.code.into_owned(),
+            params: self.params,
+        }
+    }
 }
 
 impl From<anyhow::Error> for ApiError {

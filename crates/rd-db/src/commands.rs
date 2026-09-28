@@ -27,7 +27,42 @@ pub(crate) enum WriterCommand {
     },
     CreateDownload {
         download: NewDownload,
+        /// Every source of the file and its hashes (RD-150-03), written in the same
+        /// transaction as the row.
+        sources: Option<Box<rd_core::SourceSet>>,
         reply: Reply<DownloadFile>,
+    },
+    /// What an attempt learned about one source of a download (RD-150-03).
+    RecordSourceOutcome {
+        download_id: DownloadId,
+        position: u32,
+        outcome: rd_core::SourceOutcome,
+        reply: Reply<()>,
+    },
+    /// Which source delivered a chunk and whether its pieces were checked.
+    MarkChunk {
+        chunk_id: ChunkId,
+        source_position: Option<u32>,
+        verified: bool,
+        reply: Reply<()>,
+    },
+    /// Moves a chunk's confirmed offset back over bytes a piece hash refused.
+    RewindChunk {
+        chunk_id: ChunkId,
+        committed: u64,
+        reply: Reply<()>,
+    },
+    /// Keeps a checked source set on a LinkGrabber candidate until it is queued.
+    SetCandidateSourceSet {
+        candidate_id: rd_core::CandidateId,
+        set: Box<rd_core::SourceSet>,
+        reply: Reply<()>,
+    },
+    /// Holds LinkGrabber candidates a stranger's document proposed to an address reach.
+    SetCandidateRemoteReach {
+        candidate_ids: Vec<rd_core::CandidateId>,
+        local_network: bool,
+        reply: Reply<()>,
     },
     TransitionDownload {
         id: DownloadId,
@@ -123,6 +158,14 @@ pub(crate) enum WriterCommand {
         access_ref: String,
         key_ref: Option<String>,
         reply: Reply<()>,
+    },
+    /// Records one named part a sign-in keeps beside its token (RD-150-09); answers the vault
+    /// reference it replaced.
+    SetAuthFlowPart {
+        account_id: rd_core::AccountId,
+        name: String,
+        secret_ref: String,
+        reply: Reply<Option<String>>,
     },
     /// Holds a renewal back after a provider asked for more time (RD-103-00).
     DeferAuthFlowRenewal {
@@ -1078,5 +1121,96 @@ pub(crate) enum WriterCommand {
     RecordPluginRepositoryInstall {
         input: crate::PluginRepositoryInstall,
         reply: Reply<crate::PluginRepositoryInstall>,
+    },
+    /// Object storage profiles (RD-150-04).
+    CreateObjectStorageProfile {
+        input: Box<crate::NewObjectStorageProfile>,
+        reply: Reply<rd_core::ObjectStorageProfile>,
+    },
+    UpdateObjectStorageProfile {
+        id: rd_core::ObjectStorageProfileId,
+        input: Box<crate::NewObjectStorageProfile>,
+        /// The profile plus the secret references it stopped using.
+        reply: Reply<(rd_core::ObjectStorageProfile, Vec<String>)>,
+    },
+    DeleteObjectStorageProfile {
+        id: rd_core::ObjectStorageProfileId,
+        /// Secret references orphaned by the deletion.
+        reply: Reply<Vec<String>>,
+    },
+    /// Records a multipart upload about to start, replacing an older one for the same object.
+    BeginObjectUpload {
+        upload: Box<crate::ObjectUpload>,
+        reply: Reply<()>,
+    },
+    RecordObjectUploadPart {
+        id: String,
+        part: crate::ObjectUploadPart,
+        reply: Reply<()>,
+    },
+    CompleteObjectUpload {
+        id: String,
+        reply: Reply<()>,
+    },
+    /// Forgets one upload record by id, or every record of an owner.
+    ForgetObjectUploads {
+        id: Option<String>,
+        owner: Option<String>,
+        reply: Reply<u64>,
+    },
+    /// Sets or clears the collision policy of a category or a package (RD-150-01).
+    SetCollisionPolicy {
+        scope_kind: &'static str,
+        scope_id: String,
+        policy: Option<rd_core::CollisionPolicy>,
+        reply: Reply<()>,
+    },
+    OpenCollisionPrompt {
+        prompt: crate::NewCollisionPrompt,
+        reply: Reply<()>,
+    },
+    DecideCollisionPrompt {
+        download_id: DownloadId,
+        decision: rd_core::CollisionDecision,
+        reply: Reply<bool>,
+    },
+    ClearCollisionPrompt {
+        download_id: DownloadId,
+        reply: Reply<()>,
+    },
+    IndexContent {
+        download_id: DownloadId,
+        algorithm: String,
+        digest: String,
+        size_bytes: u64,
+        path: String,
+        reply: Reply<()>,
+    },
+    MoveIndexedContent {
+        download_id: DownloadId,
+        path: String,
+        reply: Reply<()>,
+    },
+    MarkIndexedContent {
+        changes: Vec<(DownloadId, bool)>,
+        reply: Reply<()>,
+    },
+    ForgetIndexedPath {
+        path: String,
+        except: DownloadId,
+        reply: Reply<u64>,
+    },
+    /// Records the start of a verified move or a dedupe link (RD-150-02).
+    StartStorageOperation {
+        operation: crate::NewStorageOperation,
+        reply: Reply<i64>,
+    },
+    FinishStorageOperation {
+        id: i64,
+        outcome: crate::StorageOperationOutcome,
+        reply: Reply<()>,
+    },
+    InterruptStorageOperations {
+        reply: Reply<u64>,
     },
 }

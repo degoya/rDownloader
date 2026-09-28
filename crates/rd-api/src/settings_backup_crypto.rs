@@ -6,7 +6,7 @@ use chacha20poly1305::{
     KeyInit, XChaCha20Poly1305, XNonce,
     aead::{Aead, Payload},
 };
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -48,7 +48,7 @@ pub async fn encrypt_secrets(
         .map_err(|_| anyhow::anyhow!("invalid settings backup key"))?;
     let ciphertext = cipher
         .encrypt(
-            XNonce::from_slice(&nonce),
+            &XNonce::from(nonce),
             Payload {
                 msg: &plaintext,
                 aad: AAD,
@@ -91,7 +91,8 @@ pub async fn decrypt_secrets(
         .map_err(|_| anyhow::anyhow!("invalid settings backup key"))?;
     let plaintext = cipher
         .decrypt(
-            XNonce::from_slice(&nonce),
+            <&XNonce>::try_from(nonce.as_slice())
+                .map_err(|_| invalid_bundle("Invalid secret encryption nonce length"))?,
             Payload {
                 msg: &ciphertext,
                 aad: AAD,

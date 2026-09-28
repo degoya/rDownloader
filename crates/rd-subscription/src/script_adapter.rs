@@ -145,6 +145,7 @@ mod tests {
             autoplay: false,
             card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
             schedule: Some("0 6 * * *".to_owned()),
+            script_arguments: Vec::new(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

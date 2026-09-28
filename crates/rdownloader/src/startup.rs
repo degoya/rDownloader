@@ -13,7 +13,7 @@ use rd_scheduler::{SchedulerConfig, SchedulerHandle};
 use crate::{
     CommonPaths, ServeArgs, StoredSettings, Telemetry, doctor_site_rules, ensure_paths,
     load_plugin_version_choices, load_trusted_plugin_keys, load_withdrawn_plugin_digests,
-    load_withdrawn_plugin_keys, plugin_cli, site_rules_cli, sync_bundled_plugins,
+    load_withdrawn_plugin_keys, site_rules_cli, sync_bundled_plugins,
 };
 
 /// The data directory with the database and the vault that live in it.
@@ -70,7 +70,7 @@ pub(crate) async fn open_plugins(
     database: &Database,
     stored: &StoredSettings,
 ) -> Result<rd_plugin_host::PluginInstaller> {
-    let plugin_verifier = plugin_cli::build_plugin_verifier(
+    let plugin_verifier = rd_pack::plugin::build_plugin_verifier(
         args.plugin_development_mode,
         &args.trusted_plugin_keys,
         !args.no_default_plugin_key,
@@ -187,6 +187,7 @@ pub(crate) async fn native_runners(
         torrent_runner,
         rd_ftp::build(remote.ftp.clone()),
         rd_sftp::build(remote.sftp.clone()),
+        rd_object_storage::build(remote.object_storage.clone()),
     ];
     // Registered only when something is installed, so an unused kind cannot occupy a queue
     // slot or answer for a scheme nothing serves.
@@ -230,6 +231,7 @@ pub(crate) fn plugin_services(
     data_directory: &Path,
     postprocess_hold: rd_core::PostprocessHold,
     quiet_hold: rd_core::PostprocessHold,
+    object_storage: rd_object_storage::ObjectStorageService,
 ) -> PluginServices {
     let plugin_steps = std::sync::Arc::new(rd_plugin_ext::PluginSteps::from_registry(
         registry,
@@ -255,9 +257,11 @@ pub(crate) fn plugin_services(
             default_scripts_directory: data_directory.join("scripts"),
             hold: postprocess_hold,
             quiet_hold,
+            upload_limit: Some(scheduler.bandwidth().upload_limiter()),
         },
         step_runner,
         uploader,
+        Some(std::sync::Arc::new(object_storage) as std::sync::Arc<dyn rd_extract::ObjectUploader>),
     );
     // Built before the state so a parser that fails to compile costs its own feature and
     // nothing else: intake still works, the failure is logged, the service starts.

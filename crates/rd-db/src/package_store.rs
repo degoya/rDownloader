@@ -119,11 +119,12 @@ pub(crate) async fn update_packages(
     transaction.commit().await?;
     let mut updated = Vec::with_capacity(ids.len());
     for id in ids {
-        if let Some(row) =
-            sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} WHERE packages.id = ?"))
-                .bind(id.to_string())
-                .fetch_optional(&mut *connection)
-                .await?
+        if let Some(row) = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+            "{PACKAGE_COLUMNS} WHERE packages.id = ?"
+        )))
+        .bind(id.to_string())
+        .fetch_optional(&mut *connection)
+        .await?
         {
             updated.push(row.try_into()?);
         }
@@ -211,13 +212,14 @@ pub(crate) async fn rename_package_directory(
     );
     insert_event(&mut transaction, &event).await?;
     transaction.commit().await?;
-    let updated =
-        sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} WHERE packages.id = ?"))
-            .bind(&package)
-            .fetch_optional(&mut *connection)
-            .await?
-            .map(TryInto::try_into)
-            .transpose()?;
+    let updated = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} WHERE packages.id = ?"
+    )))
+    .bind(&package)
+    .fetch_optional(&mut *connection)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()?;
     Ok((updated, event))
 }
 
@@ -259,14 +261,14 @@ async fn rewrite_stored_paths(
         )
     }
 
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "UPDATE postprocess_steps SET source_path = {source}, output_path = {output}, \
          updated_at = ?6 WHERE owner_id = ?7 AND (({source_under}) OR ({output_under}))",
         source = moved("source_path"),
         output = moved("output_path"),
         source_under = under("source_path"),
         output_under = under("output_path"),
-    ))
+    )))
     .bind(width)
     .bind(previous)
     .bind(cut)
@@ -280,11 +282,11 @@ async fn rewrite_stored_paths(
     // A Usenet package records where each assembled file landed. Those rows belong to the
     // import rather than to the package, so they are reached through it.
     if let Some(import_id) = import_id {
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE nzb_files SET output_path = {output} WHERE import_id = ?6 AND ({under})",
             output = moved("output_path"),
             under = under("output_path"),
-        ))
+        )))
         .bind(width)
         .bind(previous)
         .bind(cut)

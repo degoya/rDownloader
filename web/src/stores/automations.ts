@@ -81,7 +81,8 @@ export const useAutomationsStore = defineStore('automations', () => {
     }
   }
 
-  async function save(body: AutomationRequest, id?: string): Promise<boolean> {
+  /** Saves an automation and answers with the stored one, or `null` with `error` set. */
+  async function save(body: AutomationRequest, id?: string): Promise<Automation | null> {
     busy.value = true
     const response = id
       ? await api.PUT('/api/v1/automations/{id}', { params: { path: { id } }, body })
@@ -89,11 +90,11 @@ export const useAutomationsStore = defineStore('automations', () => {
     busy.value = false
     if (!response.data) {
       error.value = responseError(response)
-      return false
+      return null
     }
     error.value = null
     await refresh()
-    return true
+    return response.data
   }
 
   async function setEnabled(id: string, enabled: boolean): Promise<void> {

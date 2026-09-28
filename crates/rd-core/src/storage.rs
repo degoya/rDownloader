@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ByteCount;
+use crate::{ByteCount, CollisionPolicy};
 
 /// Default free space kept on every storage root, matching the reserve the HTTP worker
 /// used before the threshold became configurable.
@@ -28,6 +28,9 @@ pub struct StorageSettings {
     /// `threshold × factor` bytes are free — the documented policy for the case where
     /// no runner can say in advance how much a transfer will write.
     pub storage_unknown_size_headroom: u32,
+    /// What happens when a finished file meets a name that is taken, for packages and
+    /// categories without a policy of their own (RD-150-01).
+    pub storage_collision_policy: CollisionPolicy,
 }
 
 impl Default for StorageSettings {
@@ -37,6 +40,7 @@ impl Default for StorageSettings {
                 .expect("default storage threshold fits"),
             storage_auto_resume: true,
             storage_unknown_size_headroom: DEFAULT_UNKNOWN_SIZE_HEADROOM,
+            storage_collision_policy: CollisionPolicy::Rename,
         }
     }
 }
@@ -53,5 +57,10 @@ mod tests {
             DEFAULT_MINIMUM_FREE_BYTES
         );
         assert!(legacy.storage_auto_resume);
+        // Collisions keep the behaviour they had before there was a policy: rename.
+        assert_eq!(
+            legacy.storage_collision_policy,
+            crate::CollisionPolicy::Rename
+        );
     }
 }

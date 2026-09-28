@@ -22,9 +22,12 @@ import type {
   NotificationTarget
 } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
 import ConditionTree from '@/components/automation/ConditionTree.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCopyName } from '@/composables/useCopyName'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useAutomationsStore } from '@/stores/automations'
 import { usePostprocessStore } from '@/stores/postprocess'
@@ -68,6 +71,10 @@ const editing = ref<string | null>(null)
 const creating = ref(false)
 const formElement = ref<HTMLElement | null>(null)
 const focusForm = useFormFocus(formElement)
+const copyName = useCopyName()
+const duplicatingId = ref<string | null>(null)
+/** Matches the name check in `crates/rd-automation/src/model.rs`. */
+const MAX_AUTOMATION_NAME = 100
 const dryRunResult = ref<AutomationDryRun[] | null>(null)
 const dryRunPackage = ref<string | null>(null)
 
@@ -194,7 +201,7 @@ function changeActionKind(index: number, kind: string): void {
 async function save(): Promise<void> {
   if (!canSave.value) return
   // The one cast, and only after `canSave` has checked every action carries its id.
-  const ok = await store.save(
+  const saved = await store.save(
     {
       name: draft.name,
       enabled: draft.enabled,
@@ -204,7 +211,25 @@ async function save(): Promise<void> {
     },
     editing.value ?? undefined
   )
-  if (ok) cancel()
+  if (saved) cancel()
+}
+
+/**
+ * Copies an automation — trigger, condition, actions — under a free name and opens the copy for
+ * editing (RD-150-12). It is stored switched off: an identical twin that is on would act a
+ * second time on every event its original acts on. The run history stays with the original.
+ */
+async function duplicate(automation: Automation): Promise<void> {
+  duplicatingId.value = automation.id
+  const saved = await store.save({
+    name: copyName(automation.name, store.automations.map(item => item.name), MAX_AUTOMATION_NAME),
+    enabled: false,
+    trigger: (automation.definition?.trigger ?? 'download_completed') as AutomationTrigger,
+    condition: (automation.definition?.condition ?? { type: 'always' }) as AutomationCondition,
+    actions: [...((automation.definition?.actions ?? []) as AutomationAction[])]
+  })
+  duplicatingId.value = null
+  if (saved) startEdit(saved)
 }
 
 async function runDryRun(): Promise<void> {
@@ -232,35 +257,30 @@ function runsOf(id: string) {
 <template>
   <UDashboardPanel id="automation">
     <template #header>
-      <UDashboardNavbar :title="t('automation.title')">
-        <template #right>
-          <UButton icon="i-lucide-plus" :label="t('automation.create')" @click="startCreate" />
-        </template>
-      </UDashboardNavbar>
+      <UDashboardNavbar :title="t('automation.title')" />
     </template>
 
     <template #body>
-      <UAlert
-        v-if="store.error"
-        class="mb-4"
-        color="error"
-        variant="subtle"
-        :description="store.error"
-      />
-
-      <p class="mb-4 text-sm leading-6 text-muted">{{ t('automation.intro') }}</p>
+      <SectionHeader level="page" class="mb-4" :eyebrow="t('automation.eyebrow')" :title="t('automation.title')" :description="t('automation.intro')" />
 
       <FormListLayout :list-title="t('automation.list_title')" :count="store.automations.length">
         <template #form>
-          <h2 class="mb-3 text-sm font-semibold text-highlighted">
-            {{ editing ? t('automation.edit_title') : t('automation.create_title') }}
-          </h2>
-          <section v-if="open" ref="formElement" class="border border-muted bg-default p-5">
+          <SectionHeader
+            class="mb-3"
+            :eyebrow="t('automation.eyebrow')"
+            :title="editing ? t('automation.edit_title') : t('automation.create_title')"
+          />
+          <UAlert
+            v-if="store.error"
+            class="mb-3"
+            color="error"
+            variant="subtle"
+            :description="store.error"
+          />
+          <form v-if="open" ref="formElement" class="border border-muted bg-default p-5" data-testid="automation-form" @submit.prevent="save">
             <div class="grid gap-4">
-              <UFormField :label="t('automation.name')" required>
-                <UInput v-model="draft.name" maxlength="100" class="w-full" />
-              </UFormField>
-              <UFormField :label="t('automation.trigger_label')" :help="t('automation.trigger_help')">
+              <!-- The trigger is the automation's kind, so it comes first, before its name. -->
+              <UFormField :label="t('automation.trigger_label')" :description="t('automation.trigger_help')">
                 <USelectMenu
                   :model-value="draft.trigger"
                   :items="triggerOptions"
@@ -268,6 +288,12 @@ function runsOf(id: string) {
                   class="w-full"
                   @update:model-value="(value: AutomationTrigger) => (draft.trigger = value)"
                 />
+              </UFormField>
+              <UFormField :label="t('automation.name')" required>
+                <UInput v-model="draft.name" required maxlength="100" class="w-full" />
+              </UFormField>
+              <UFormField :label="t('automation.enabled')" orientation="horizontal">
+                <USwitch v-model="draft.enabled" />
               </UFormField>
             </div>
 
@@ -393,20 +419,15 @@ function runsOf(id: string) {
               <li v-if="!dryRunResult.length" class="text-muted">{{ t('automation.dry_run.none') }}</li>
             </ul>
 
-            <div class="mt-5 flex items-center gap-2">
-              <USwitch v-model="draft.enabled" :label="t('automation.enabled')" />
-              <div class="ml-auto flex gap-2">
-                <UButton color="neutral" variant="ghost" :label="t('common.actions.cancel')" @click="cancel" />
-                <UButton
-                  icon="i-lucide-save"
-                  :label="t('common.actions.save')"
-                  :loading="store.busy"
-                  :disabled="!canSave"
-                  @click="save"
-                />
-              </div>
-            </div>
-          </section>
+            <FormActions
+              class="mt-5"
+              :editing="editing !== null"
+              :create-label="t('automation.create_title')"
+              :loading="store.busy"
+              :disabled="!canSave"
+              @cancel="cancel"
+            />
+          </form>
           <!-- Nothing open: the column says what the list on the right is for, and offers the way in. -->
           <section v-else class="border border-dashed border-muted p-5">
             <p class="text-sm leading-6 text-muted">{{ t('automation.pick_or_create') }}</p>
@@ -436,11 +457,22 @@ function runsOf(id: string) {
                   @update:model-value="(value: boolean) => store.setEnabled(automation.id, value)"
                 />
                 <UButton
+                  icon="i-lucide-copy-plus"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :label="t('common.actions.duplicate')"
+                  :title="t('automation.duplicate_hint')"
+                  :loading="duplicatingId === automation.id"
+                  @click="duplicate(automation)"
+                />
+                <UButton
                   icon="i-lucide-pencil"
                   size="xs"
                   color="neutral"
                   variant="ghost"
                   :aria-label="t('common.actions.edit')"
+                  :title="t('common.actions.edit')"
                   @click="startEdit(automation)"
                 />
                 <UButton
@@ -449,6 +481,7 @@ function runsOf(id: string) {
                   color="error"
                   variant="ghost"
                   :aria-label="t('automation.remove.confirm')"
+                  :title="t('automation.remove.confirm')"
                   @click="removeAutomation(automation)"
                 />
               </div>

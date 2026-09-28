@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
 import { useI18n } from 'vue-i18n'
 
@@ -15,9 +15,18 @@ const exporting = ref(false)
 const importing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-async function exportRouting(): Promise<void> {
+type ExportPart = 'all' | 'categories' | 'rules'
+
+/** Everything, or one part on its own: rules can travel without their categories and back. */
+const exportItems = computed(() => [
+  { label: t('routing.backup.export_all'), icon: 'i-lucide-layers', onSelect: () => exportRouting('all') },
+  { label: t('routing.backup.export_categories'), icon: 'i-lucide-folder-tree', onSelect: () => exportRouting('categories') },
+  { label: t('routing.backup.export_rules'), icon: 'i-lucide-list-filter', onSelect: () => exportRouting('rules') }
+])
+
+async function exportRouting(part: ExportPart): Promise<void> {
   exporting.value = true
-  const response = await api.GET('/api/v1/routing/export')
+  const response = await api.GET('/api/v1/routing/export', { params: { query: { part } } })
   exporting.value = false
   if (!response.data) {
     toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
@@ -27,7 +36,8 @@ async function exportRouting(): Promise<void> {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `rdownloader-routing-${new Date().toISOString().slice(0, 10)}.json`
+  const suffix = part === 'all' ? '' : `-${part}`
+  anchor.download = `rdownloader-routing${suffix}-${new Date().toISOString().slice(0, 10)}.json`
   document.body.append(anchor)
   anchor.click()
   anchor.remove()
@@ -98,7 +108,9 @@ function isRoutingBundle(value: unknown): value is RoutingBundle {
 <template>
   <div class="flex items-center gap-2">
     <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
-    <UButton icon="i-lucide-download" :label="t('routing.backup.export')" color="neutral" variant="outline" size="sm" :loading="exporting" @click="exportRouting" />
+    <UDropdownMenu :items="exportItems">
+      <UButton icon="i-lucide-download" trailing-icon="i-lucide-chevron-down" :label="t('routing.backup.export')" color="neutral" variant="outline" size="sm" :loading="exporting" />
+    </UDropdownMenu>
     <UButton icon="i-lucide-file-up" :label="t('routing.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="chooseFile" />
   </div>
 </template>

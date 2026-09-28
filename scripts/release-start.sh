@@ -64,7 +64,7 @@ if [[ "$chain" -eq 1 ]]; then
     source "$ROOT/scripts/lib/verified.sh"
     {
         # rust-embed compiles web/dist into the binary, so the frontend is built before any cargo.
-        run npm run build --prefix web \
+        run pnpm --dir web run build \
             && if rd_verified_gate "$ROOT" "release-start" > /dev/null 2>&1 \
                 && rd_full_gate "$ROOT" "release-start" > /dev/null 2>&1; then
                 echo "==> [release-start] a check.sh --full green already covers HEAD and this tree; not run again"

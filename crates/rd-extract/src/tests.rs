@@ -119,6 +119,7 @@ async fn run_extraction_with(
             default_scripts_directory: std::env::temp_dir().join("rd-scripts-test"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     service.request(package_id, trigger).await.expect("request");
@@ -308,6 +309,7 @@ async fn manual_extraction_uses_package_password_list_and_deletes_originals() {
             default_scripts_directory: std::env::temp_dir().join("rd-scripts-test"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     service
@@ -866,6 +868,7 @@ async fn a_renamed_package_folder_does_not_give_a_second_run_a_second_set_of_ste
             default_scripts_directory: std::env::temp_dir().join("rd-scripts-test"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
     );
     service
@@ -1072,6 +1075,7 @@ fn extraction_inner(database: &Database, temp: &std::path::Path) -> std::sync::A
             default_scripts_directory: temp.join("scripts"),
             hold: rd_core::PostprocessHold::new(),
             quiet_hold: rd_core::PostprocessHold::new(),
+            upload_limit: None,
         },
         hold: rd_core::PostprocessHold::new(),
         jobs,
@@ -1079,6 +1083,7 @@ fn extraction_inner(database: &Database, temp: &std::path::Path) -> std::sync::A
         shutdown: tokio_util::sync::CancellationToken::new(),
         plugin_steps: None,
         storage: None,
+        objects: None,
     })
 }
 

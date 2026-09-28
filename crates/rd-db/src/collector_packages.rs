@@ -39,11 +39,11 @@ const PACKAGE_COLUMNS: &str = "SELECT id, batch_id, name, auto_named, category_i
      FROM collector_packages";
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<CollectorPackage>> {
-    sqlx::query_as::<_, PackageRow>(&format!(
+    sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
         "{PACKAGE_COLUMNS} WHERE EXISTS (SELECT 1 FROM link_candidates c \
          WHERE c.package_id = collector_packages.id AND c.state != 'enqueued') \
          ORDER BY position ASC, created_at ASC"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -55,24 +55,28 @@ pub(crate) async fn get(
     pool: &SqlitePool,
     id: CollectorPackageId,
 ) -> Result<Option<CollectorPackage>> {
-    sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} WHERE id = ?"))
-        .bind(id.to_string())
-        .fetch_optional(pool)
-        .await?
-        .map(TryInto::try_into)
-        .transpose()
+    sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} WHERE id = ?"
+    )))
+    .bind(id.to_string())
+    .fetch_optional(pool)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
 }
 
 pub(crate) async fn get_from_connection(
     connection: &mut SqliteConnection,
     id: CollectorPackageId,
 ) -> Result<Option<CollectorPackage>> {
-    sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} WHERE id = ?"))
-        .bind(id.to_string())
-        .fetch_optional(connection)
-        .await?
-        .map(TryInto::try_into)
-        .transpose()
+    sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} WHERE id = ?"
+    )))
+    .bind(id.to_string())
+    .fetch_optional(connection)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
 }
 
 pub(crate) async fn password(pool: &SqlitePool, id: CollectorPackageId) -> Result<Option<String>> {
@@ -123,7 +127,7 @@ pub(crate) async fn insert(
 /// it interpolates a count and nothing a caller supplied.
 async fn execute_for_ids<'a>(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    mut query: sqlx::query::Query<'a, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'a>>,
+    mut query: sqlx::query::Query<'a, sqlx::Sqlite, sqlx::sqlite::SqliteArguments>,
     ids: &[String],
 ) -> Result<()> {
     for id in ids {
@@ -160,7 +164,9 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(name).bind(now),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
+                    .bind(name)
+                    .bind(now),
                 &bound,
             )
             .await?;
@@ -173,13 +179,20 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(category.clone()).bind(now),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
+                    .bind(category.clone())
+                    .bind(now),
                 &bound,
             )
             .await?;
             let statement =
                 format!("UPDATE link_candidates SET category_id = ? WHERE package_id IN ({list})");
-            execute_for_ids(&mut tx, sqlx::query(&statement).bind(category), &bound).await?;
+            execute_for_ids(
+                &mut tx,
+                sqlx::query(sqlx::AssertSqlSafe(&*statement)).bind(category),
+                &bound,
+            )
+            .await?;
         }
         if let Some(priority) = change.priority {
             let statement = format!(
@@ -187,7 +200,9 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(priority.as_i32()).bind(now),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
+                    .bind(priority.as_i32())
+                    .bind(now),
                 &bound,
             )
             .await?;
@@ -195,7 +210,7 @@ pub(crate) async fn update(
                 format!("UPDATE link_candidates SET priority = ? WHERE package_id IN ({list})");
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(priority.as_i32()),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement)).bind(priority.as_i32()),
                 &bound,
             )
             .await?;
@@ -206,7 +221,9 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(password).bind(now),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
+                    .bind(password)
+                    .bind(now),
                 &bound,
             )
             .await?;
@@ -218,7 +235,7 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement)
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
                     .bind(level.map(crate::writer::level_string))
                     .bind(now),
                 &bound,
@@ -231,7 +248,9 @@ pub(crate) async fn update(
             );
             execute_for_ids(
                 &mut tx,
-                sqlx::query(&statement).bind(script).bind(now),
+                sqlx::query(sqlx::AssertSqlSafe(&*statement))
+                    .bind(script)
+                    .bind(now),
                 &bound,
             )
             .await?;
@@ -245,7 +264,7 @@ pub(crate) async fn update(
     let mut rows = Vec::new();
     if !bound.is_empty() {
         let statement = format!("{PACKAGE_COLUMNS} WHERE id IN ({list})");
-        let mut query = sqlx::query_as::<_, PackageRow>(&statement);
+        let mut query = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(&*statement));
         for id in &bound {
             query = query.bind(id.clone());
         }
@@ -555,11 +574,13 @@ pub(crate) async fn move_candidates(
     );
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let package = sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} WHERE id = ?"))
-        .bind(package_id.to_string())
-        .fetch_one(&mut *connection)
-        .await?
-        .try_into()?;
+    let package = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} WHERE id = ?"
+    )))
+    .bind(package_id.to_string())
+    .fetch_one(&mut *connection)
+    .await?
+    .try_into()?;
     Ok((package, event))
 }
 
@@ -957,10 +978,10 @@ pub(crate) async fn claim_package_for_enqueue(
         .map(|state| Ok(format!("'{}'", crate::enum_string(state)?)))
         .collect::<Result<Vec<_>>>()?
         .join(", ");
-    let rows = sqlx::query_as::<_, CandidateRow>(&format!(
+    let rows = sqlx::query_as::<_, CandidateRow>(sqlx::AssertSqlSafe(format!(
         "{} WHERE package_id = ? AND state IN ({states}) ORDER BY position, created_at",
         crate::collector_store::CANDIDATE_SELECT
-    ))
+    )))
     .bind(package_id.to_string())
     .fetch_all(&mut *tx)
     .await?;

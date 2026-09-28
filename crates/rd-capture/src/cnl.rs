@@ -33,7 +33,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use boa_engine::{Context as JsContext, Source};
 use cbc::{
     Decryptor,
-    cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7},
+    cipher::{BlockModeDecrypt, KeyIvInit, block_padding::Pkcs7},
 };
 use regex::Regex;
 use tokio::sync::Semaphore;
@@ -324,7 +324,7 @@ async fn add_crypted(
     }
     let decrypted = Decryptor::<Aes128>::new_from_slices(&key, &key)
         .map_err(|error| CnlError::new(code::INVALID_KEY, anyhow::Error::new(error)))?
-        .decrypt_padded_mut::<Pkcs7>(&mut payload)
+        .decrypt_padded::<Pkcs7>(&mut payload)
         .map_err(|_| {
             CnlError::new(
                 code::INVALID_PAYLOAD,

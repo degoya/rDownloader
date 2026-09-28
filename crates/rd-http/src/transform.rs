@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 
 use aes::{
     Aes128,
-    cipher::{BlockEncrypt, KeyInit, KeyIvInit, StreamCipher, StreamCipherSeek},
+    cipher::{BlockCipherEncrypt, KeyInit, KeyIvInit, StreamCipher, StreamCipherSeek},
 };
 use rd_core::{
     BLOCK_BYTES, CODE_CHECKPOINT_MISMATCH, CODE_INTEGRITY_MISMATCH, CODE_PARAMETERS_INVALID,

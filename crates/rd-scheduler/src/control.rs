@@ -6,7 +6,10 @@ use std::{
 use anyhow::{Context, Result, bail};
 use rd_core::{DownloadFile, DownloadId, DownloadState, NzbImportId, PackageId, StorageRootId};
 use rd_db::StoreError;
-use rd_files::{StorageRoot, collision_free_path, move_directory, move_file};
+use rd_files::{
+    StorageRoot, VerifiedMoveError, collision_free_path, move_directory, move_file, place_verified,
+    release_source, verified_move_file,
+};
 
 use crate::{SchedulerHandle, StopReason};
 
@@ -72,10 +75,9 @@ impl SchedulerHandle {
             .iter()
             .find(|sibling| crate::mirrors::has_taken_the_turn(sibling.state))
         {
-            bail!(
-                "another link to this file is already downloading: {}",
-                active.source
-            );
+            bail!(crate::mirrors::MirrorTaken {
+                source: active.source.to_string()
+            });
         }
         for sibling in siblings {
             if crate::mirrors::is_contending(sibling.state) {
@@ -97,6 +99,18 @@ impl SchedulerHandle {
         if let Some(token) = token {
             token.cancel();
         } else {
+            let current = self
+                .database
+                .get_download(id)
+                .await?
+                .context(StoreError::not_found("download not found"))?;
+            // Tagged, so the interface can say why instead of reporting an internal error.
+            if !current.state.can_transition_to(DownloadState::Cancelled) {
+                bail!(StoreError::wrong_state(format!(
+                    "a download in state {} cannot be cancelled",
+                    current.state
+                )));
+            }
             self.database
                 .transition_download(id, DownloadState::Cancelled)
                 .await?;
@@ -125,11 +139,31 @@ impl SchedulerHandle {
 
     /// Removes an inactive queue entry and its incomplete staging file.
     pub async fn remove(&self, id: DownloadId) -> Result<()> {
-        let current = self
+        let mut current = self
             .database
             .get_download(id)
             .await?
             .context(StoreError::not_found("download not found"))?;
+        // A Usenet file waiting for its set's PAR2 verdict (RD-108-24) is `Verifying` with no
+        // worker behind it: nothing is running that could be stopped first, and it cannot be
+        // paused, so asking for a cancel before the removal would leave it undeletable.
+        if current.state == DownloadState::Verifying
+            && !self.active.lock().await.tokens.contains_key(&id)
+        {
+            if let Err(error) = self
+                .database
+                .transition_download(id, DownloadState::Cancelled)
+                .await
+            {
+                // The verdict may have been taken in between; the row is read again below.
+                tracing::debug!(download_id = %id, %error, "waiting row was not cancelled");
+            }
+            current = self
+                .database
+                .get_download(id)
+                .await?
+                .context(StoreError::not_found("download not found"))?;
+        }
         if is_active(current.state) {
             bail!(StoreError::wrong_state(
                 "active download must be paused or cancelled before removal"
@@ -358,10 +392,7 @@ impl SchedulerHandle {
         let payload = from.join(&file.file_name);
         if tokio::fs::try_exists(&payload).await? {
             tokio::fs::create_dir_all(to).await?;
-            // A file of the same name may already sit in the new category folder; it belongs to
-            // somebody else and is never overwritten by a move.
-            let target = collision_free_path(to, &file.file_name);
-            move_file(&payload, &target).await?;
+            let target = self.move_payload(file, &payload, to).await?;
             if target.file_name() != payload.file_name()
                 && let Some(name) = target.file_name().and_then(|value| value.to_str())
             {
@@ -369,6 +400,9 @@ impl SchedulerHandle {
                     .set_download_file_name(file.id, name.to_owned())
                     .await?;
             }
+            self.database
+                .move_indexed_content(file.id, target.to_string_lossy().into_owned())
+                .await?;
         }
         // The checkpoint is carried over too, and not as an alternative to the payload: a job
         // that has both would otherwise leave its `.part` behind, which both loses the resume
@@ -388,6 +422,108 @@ impl SchedulerHandle {
         let target_staging = staging_directory(to, staging);
         tokio::fs::create_dir_all(&target_staging).await?;
         move_file(&source, &target_staging.join(&part_name)).await
+    }
+}
+
+impl SchedulerHandle {
+    /// Whether `path` is the payload another download's row names.
+    async fn owned_by_another(&self, path: &Path, this: DownloadId) -> Result<bool> {
+        let destinations = self
+            .database
+            .list_packages()
+            .await?
+            .into_iter()
+            .map(|package| (package.id, PathBuf::from(package.destination)))
+            .collect::<std::collections::HashMap<_, _>>();
+        Ok(self
+            .database
+            .list_downloads()
+            .await?
+            .iter()
+            .filter(|other| other.id != this && !other.file_name.is_empty())
+            .filter_map(|other| {
+                destinations
+                    .get(&other.package_id)
+                    .map(|destination| destination.join(&other.file_name))
+            })
+            .any(|payload| payload == path))
+    }
+
+    /// Carries one finished payload into `to` with a verified move, recorded in the storage
+    /// history (RD-150-02). Answers where it landed.
+    ///
+    /// The name it had is kept when that name is free in `to`, or when the file there is this
+    /// very payload — what a move that stopped after its copy leaves behind. A file of the same
+    /// name with other bytes belongs to somebody else and is never overwritten by a move; the
+    /// payload is filed beside it instead.
+    async fn move_payload(
+        &self,
+        file: &DownloadFile,
+        payload: &Path,
+        to: &Path,
+    ) -> Result<PathBuf> {
+        let mut target = to.join(&file.file_name);
+        // A file there that another download owns is that download's, however identical its
+        // bytes: taking it for this move's own copy would leave two rows naming one file and
+        // remove this payload. It is filed beside it instead, as before.
+        if self.owned_by_another(&target, file.id).await? {
+            target = collision_free_path(to, &file.file_name);
+        }
+        let operation = self
+            .database
+            .start_storage_operation(rd_db::NewStorageOperation {
+                kind: rd_core::StorageOperationKind::Move,
+                package_id: Some(file.package_id),
+                download_id: Some(file.id),
+                source_path: payload.to_string_lossy().into_owned(),
+                target_path: target.to_string_lossy().into_owned(),
+                size_bytes: None,
+            })
+            .await?;
+        let placed = match place_verified(payload, &target).await {
+            Err(VerifiedMoveError::TargetTaken(_)) => {
+                target = collision_free_path(to, &file.file_name);
+                place_verified(payload, &target).await
+            }
+            other => other,
+        };
+        let result = async {
+            let placed = placed?;
+            // The instant between a verified copy and the removal of the original: both are
+            // there, identical. The next pass must finish the move with one copy, not file a
+            // second one as `name (1)` and not lose either.
+            rd_core::failpoint!("scheduler.before_move_source_removed", || {
+                VerifiedMoveError::Io {
+                    from: payload.to_path_buf(),
+                    to: target.clone(),
+                    source: std::io::Error::other(
+                        "crash point: scheduler.before_move_source_removed",
+                    ),
+                }
+            });
+            release_source(payload, &placed).await?;
+            Ok::<_, VerifiedMoveError>(placed)
+        }
+        .await;
+        let outcome = match &result {
+            Ok(placed) => rd_db::StorageOperationOutcome {
+                target_path: Some(target.to_string_lossy().into_owned()),
+                ..rd_db::StorageOperationOutcome::completed(
+                    Some(placed.size_bytes),
+                    placed.digest.clone(),
+                )
+            },
+            Err(error) => rd_db::StorageOperationOutcome::failed(error.code(), error.to_string()),
+        };
+        if let Err(error) = self
+            .database
+            .finish_storage_operation(operation, outcome)
+            .await
+        {
+            tracing::warn!(%error, download_id = %file.id, "the move was not recorded in the history");
+        }
+        result?;
+        Ok(target)
     }
 }
 
@@ -444,7 +580,10 @@ async fn carry_over_remaining(from: &Path, to: &Path) {
         let result = if is_directory {
             move_directory(&path, &target).await
         } else {
-            move_file(&path, &target).await
+            verified_move_file(&path, &target)
+                .await
+                .map(|_| ())
+                .map_err(anyhow::Error::from)
         };
         if let Err(error) = result {
             tracing::warn!(
@@ -594,7 +733,7 @@ async fn remove_empty_package_directory(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use rd_core::DownloadFile;
+    use rd_core::{DownloadFile, DownloadState};
 
     use crate::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
 
@@ -644,6 +783,7 @@ mod tests {
                     skipped: false,
                     enrichment: Vec::new(),
                     secret_fragment: None,
+                    source_set: None,
                 }],
             )
             .await
@@ -890,7 +1030,15 @@ mod tests {
             "a reset does not destroy the only copy by default"
         );
 
-        scheduler.reset(file.id, true).await.expect("reset");
+        // The first reset queued the job again, so the supervisor may already have started it:
+        // it is paused, and the second reset waits until its worker has let go.
+        scheduler.pause(file.id).await.expect("pause");
+        let mut attempts = 0;
+        while let Err(error) = scheduler.reset(file.id, true).await {
+            attempts += 1;
+            assert!(attempts < 200, "the paused job never let go: {error:#}");
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
         assert!(
             !payload.exists(),
             "and removes it when that is what was asked for"
@@ -942,5 +1090,103 @@ mod tests {
         scheduler.remove(file.id).await.expect("remove");
 
         assert!(kept.exists(), "downloaded data is never removed");
+    }
+
+    /// Leaves the file `Verifying` with no worker behind it, the way a Usenet file waiting for
+    /// its set's PAR2 verdict sits in the queue (RD-108-24).
+    async fn waiting_in_verifying(scheduler: &SchedulerHandle, file: &DownloadFile) {
+        for state in [DownloadState::Downloading, DownloadState::Verifying] {
+            scheduler
+                .database
+                .transition_download(file.id, state)
+                .await
+                .expect("on its way");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_verifying_download_without_a_worker_can_be_removed() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+        waiting_in_verifying(&scheduler, &file).await;
+
+        scheduler.remove(file.id).await.expect("remove");
+
+        assert!(
+            scheduler
+                .database
+                .get_download(file.id)
+                .await
+                .expect("lookup")
+                .is_none(),
+            "nothing runs that the removal would have to wait for"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_verifying_download_without_a_worker_can_be_cancelled() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+        waiting_in_verifying(&scheduler, &file).await;
+
+        scheduler.cancel(file.id).await.expect("cancel");
+
+        let cancelled = scheduler
+            .database
+            .get_download(file.id)
+            .await
+            .expect("lookup")
+            .expect("row");
+        assert_eq!(cancelled.state, DownloadState::Cancelled);
+        scheduler
+            .remove(file.id)
+            .await
+            .expect("a cancelled row is removable");
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_finished_download_is_refused_with_a_reason() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+        waiting_in_verifying(&scheduler, &file).await;
+        scheduler
+            .database
+            .complete_download(file.id, file.file_name.clone(), None)
+            .await
+            .expect("complete");
+
+        let error = scheduler
+            .cancel(file.id)
+            .await
+            .expect_err("a finished download has nothing to cancel");
+
+        assert_eq!(
+            rd_db::store_kind(&error),
+            Some(rd_db::StoreErrorKind::WrongState),
+            "tagged, so the interface shows the reason instead of an internal error"
+        );
+    }
+
+    #[tokio::test]
+    async fn resuming_a_finished_download_is_refused_with_a_reason() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+        waiting_in_verifying(&scheduler, &file).await;
+        scheduler
+            .database
+            .complete_download(file.id, file.file_name.clone(), None)
+            .await
+            .expect("complete");
+
+        let error = scheduler
+            .resume(file.id)
+            .await
+            .expect_err("a finished download has nothing to resume");
+
+        assert_eq!(
+            rd_db::store_kind(&error),
+            Some(rd_db::StoreErrorKind::WrongState),
+            "tagged, so a bulk resume names the reason instead of an internal error (RD-150-22)"
+        );
     }
 }

@@ -1,5 +1,9 @@
-//! The KrakenFiles plugin's native fallback and its WebAssembly component answer the same
+//! The KrakenFiles plugin's host-side build and its WebAssembly component answer the same
 //! scripted host the same way (RD-103-08, acceptance criterion 3).
+//!
+//! The host-side build is not a fallback any more -- since RD-150-18 nothing is compiled into
+//! the service -- but it is what the plugin crate's own unit tests run on, so this is what
+//! makes those tests speak for the component that is shipped.
 //!
 //! Both builds compile `plugins/krakenfiles/src/resolver.rs`; what differs is the adapter
 //! around it - `plugin_common::native` on one side, `plugin_guest` and the sandbox on the
@@ -398,7 +402,7 @@ async fn run(resolver: &dyn Resolver, ask: &Ask) -> Outcome {
 }
 
 #[tokio::test]
-async fn the_native_fallback_and_the_component_agree_on_every_scenario() {
+async fn the_host_side_build_and_the_component_agree_on_every_scenario() {
     let component = rd_plugin_host::artifact::component("rd-plugin-krakenfiles");
     for scenario in scenarios() {
         let native_host = ScriptedHost::new((scenario.responses)());

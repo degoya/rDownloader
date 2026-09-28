@@ -14,7 +14,7 @@
 //! | Case | Fixture | Outcome |
 //! | --- | --- | --- |
 //! | A magnet is submitted | `create.json` | a handle carrying the transfer's id |
-//! | A container is submitted | `create.json` | one multipart upload naming `source.torrent` |
+//! | A container is submitted | `create.json` | one multipart upload naming `rdownloader [<tag>].torrent`, the tag from the key |
 //! | A plain address is submitted | `create.json` | one form body carrying `src` |
 //! | `queued` | `list_queued.json` | `Preparing`, with a wait |
 //! | `running` | `list_running.json` | `Working`, 425 permille |
@@ -481,8 +481,13 @@ async fn a_container_is_submitted_as_a_multipart_upload_that_names_its_format() 
         .to_owned();
     let text = submitted.text();
     assert!(text.starts_with(&format!("--{boundary}\r\n")), "{text}");
+    // Named apart from every other upload: Premiumize names the transfer and its folder after
+    // the file name, and two uploads under one name shared a folder (owner report 2026-09-27).
+    let tag = &content_key["file:".len().."file:".len() + 12];
     assert!(
-        text.contains(r#"Content-Disposition: form-data; name="src"; filename="source.torrent""#),
+        text.contains(&format!(
+            r#"Content-Disposition: form-data; name="src"; filename="rdownloader [{tag}].torrent""#
+        )),
         "{text}"
     );
     assert!(
@@ -513,7 +518,35 @@ async fn a_container_is_submitted_as_a_multipart_upload_that_names_its_format() 
             .last()
             .expect("the second submit")
             .text()
-            .contains(r#"filename="source.dlc""#)
+            .contains(&format!(
+                r#"filename="rdownloader [{}].dlc""#,
+                &content_key["file:".len().."file:".len() + 12]
+            ))
+    );
+
+    // Added under a name, a container goes up under that name, as it would by hand: the
+    // plugin reads it through `job-context` during `submit` (owner report 2026-09-27).
+    let nzb = br#"<?xml version="1.0"?><nzb xmlns="http://www.newzbin.com/DTD/2003/nzb"><file></file></nzb>"#.to_vec();
+    let StartOutcome::Identified { content_key, .. } = runners
+        .identify("premiumize", &RemoteJobSource::Container(nzb.clone()))
+        .await
+    else {
+        panic!("an nzb is claimed");
+    };
+    runners
+        .submit_named(
+            PLUGIN_ID,
+            account,
+            &RemoteJobSource::Container(nzb),
+            &content_key,
+            Some("ACES.Der.Club.der.Tennisgiganten.S01.nzb"),
+        )
+        .await
+        .expect("submitted");
+    let text = host.requests().last().expect("the third submit").text();
+    assert!(
+        text.contains(r#"filename="ACES.Der.Club.der.Tennisgiganten.S01.nzb""#),
+        "{text}"
     );
 }
 

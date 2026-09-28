@@ -25,6 +25,8 @@ import {
   type PluginRepository
 } from '@/api/pluginRepositories'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
+import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { subscribeEvents } from '@/composables/useEventStream'
@@ -203,89 +205,105 @@ function lastError(repository: PluginRepository): string {
 
 <template>
   <section class="border border-muted bg-default p-5">
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <SectionHeader :eyebrow="t('plugins.repositories.eyebrow')" :title="t('plugins.repositories.title')" level="sub" />
-      <UButton
-        size="xs"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :label="t('plugins.repositories.refresh')"
-        :loading="busy === 'refresh'"
-        :disabled="busy !== null"
-        @click="refresh"
-      />
-    </div>
-    <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.repositories.description') }}</p>
-    <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
-    <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
+    <FormListLayout :list-title="t('plugins.repositories.title')" :count="repositories.length">
+      <template #list-actions>
+        <UButton
+          size="xs"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :label="t('plugins.repositories.refresh')"
+          :loading="busy === 'refresh'"
+          :disabled="busy !== null"
+          @click="refresh"
+        />
+      </template>
 
-    <div class="space-y-2" data-plugin-repositories>
-      <div v-for="repository in repositories" :key="repository.id" class="flex flex-wrap items-start justify-between gap-4 border border-muted p-3">
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-medium text-highlighted">{{ repository.name }}</p>
-            <UBadge v-if="repository.kind === 'official'" color="primary" variant="subtle">{{ t('plugins.repositories.official') }}</UBadge>
+      <template #form>
+        <SectionHeader
+          class="mb-4"
+          :eyebrow="t('plugins.repositories.eyebrow')"
+          :title="t('plugins.repositories.add_title')"
+          :description="t('plugins.repositories.description')"
+          level="sub"
+        />
+        <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
+        <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
+        <!-- A repository is registered, not made here, so the action says "Add" rather than
+             "Create"; there is no edit state, so the row carries no cancel. -->
+        <form class="space-y-3" @submit.prevent="add()">
+          <UFormField :label="t('plugins.repositories.url_label')" required>
+            <UInput v-model="form.url" class="w-full" type="url" placeholder="https://" required />
+          </UFormField>
+          <UFormField :label="t('plugins.repositories.key_label')" :description="t('plugins.repositories.key_hint')" required>
+            <UInput v-model="form.publicKey" class="w-full font-mono" required />
+          </UFormField>
+          <UFormField :label="t('plugins.repositories.name_label')">
+            <UInput v-model="form.name" class="w-full" :maxlength="120" />
+          </UFormField>
+          <FormActions
+            :create-label="t('plugins.repositories.add')"
+            :loading="busy === 'add'"
+            :disabled="!canAdd || busy !== null"
+          />
+        </form>
+      </template>
+
+      <template #list>
+        <div class="space-y-2" data-plugin-repositories>
+          <div v-for="repository in repositories" :key="repository.id" class="flex flex-wrap items-start justify-between gap-4 border border-muted p-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium text-highlighted">{{ repository.name }}</p>
+                <UBadge v-if="repository.kind === 'official'" color="primary" variant="subtle">{{ t('plugins.repositories.official') }}</UBadge>
+              </div>
+              <p class="mt-1 truncate font-mono text-[11px] text-muted" :title="repository.url">{{ repository.url }}</p>
+              <template v-if="repository.key_id && repository.fingerprint">
+                <p class="mt-1 text-xs text-muted">{{ t('plugins.repositories.key', { key_id: repository.key_id }) }}</p>
+                <p class="break-all font-mono text-[11px] text-muted">{{ groupFingerprint(repository.fingerprint) }}</p>
+              </template>
+              <p v-if="repository.last_error" class="mt-1 text-xs leading-5 text-error">
+                {{ t('plugins.repositories.last_error', { reason: lastError(repository) }) }}
+              </p>
+              <p class="mt-1 text-xs text-muted">
+                {{ repository.last_success_at ? t('plugins.repositories.checked', { when: formatMoment(repository.last_success_at) }) : t('plugins.repositories.never_checked') }}
+              </p>
+              <p v-if="repository.expires_at" class="text-xs text-muted">{{ t('plugins.repositories.expires', { when: formatMoment(repository.expires_at) }) }}</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <USwitch
+                :model-value="repository.enabled"
+                :aria-label="t('plugins.repositories.enabled_label', { name: repository.name })"
+                :disabled="busy !== null"
+                @update:model-value="(value: boolean) => setEnabled(repository, value)"
+              />
+              <UButton
+                v-if="repository.kind !== 'official'"
+                size="xs"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :aria-label="t('plugins.repositories.remove')"
+                :title="t('plugins.repositories.remove')"
+                :disabled="busy !== null"
+                @click="remove(repository)"
+              />
+            </div>
           </div>
-          <p class="mt-1 truncate font-mono text-[11px] text-muted" :title="repository.url">{{ repository.url }}</p>
-          <template v-if="repository.key_id && repository.fingerprint">
-            <p class="mt-1 text-xs text-muted">{{ t('plugins.repositories.key', { key_id: repository.key_id }) }}</p>
-            <p class="break-all font-mono text-[11px] text-muted">{{ groupFingerprint(repository.fingerprint) }}</p>
-          </template>
-          <p v-if="repository.last_error" class="mt-1 text-xs leading-5 text-error">
-            {{ t('plugins.repositories.last_error', { reason: lastError(repository) }) }}
-          </p>
-          <p class="mt-1 text-xs text-muted">
-            {{ repository.last_success_at ? t('plugins.repositories.checked', { when: formatMoment(repository.last_success_at) }) : t('plugins.repositories.never_checked') }}
-          </p>
-          <p v-if="repository.expires_at" class="text-xs text-muted">{{ t('plugins.repositories.expires', { when: formatMoment(repository.expires_at) }) }}</p>
+          <DataState :loading="loading" :error="null" :empty="!repositories.length">
+            <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('plugins.repositories.empty') }}</p>
+          </DataState>
         </div>
-        <div class="flex shrink-0 items-center gap-2">
-          <USwitch
-            :model-value="repository.enabled"
-            :aria-label="t('plugins.repositories.enabled_label', { name: repository.name })"
-            :disabled="busy !== null"
-            @update:model-value="(value: boolean) => setEnabled(repository, value)"
-          />
-          <UButton
-            v-if="repository.kind !== 'official'"
-            size="xs"
-            color="error"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            :aria-label="t('plugins.repositories.remove')"
-            :title="t('plugins.repositories.remove')"
-            :disabled="busy !== null"
-            @click="remove(repository)"
-          />
-        </div>
-      </div>
-      <DataState :loading="loading" :error="null" :empty="!repositories.length">
-        <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('plugins.repositories.empty') }}</p>
-      </DataState>
-    </div>
 
-    <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="saveInterval">
-      <UFormField class="sm:w-64" :label="t('plugins.repositories.interval_label')" :description="t('plugins.repositories.interval_hint')">
-        <UInput v-model="hoursDraft" class="mt-2 w-full" type="number" min="1" max="168" />
-      </UFormField>
-      <UButton type="submit" variant="outline" :label="t('common.actions.save')" :loading="busy === 'interval'" :disabled="busy !== null || hoursDraft === String(refreshHours)" />
-    </form>
+        <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="saveInterval">
+          <UFormField class="sm:w-64" :label="t('plugins.repositories.interval_label')" :description="t('plugins.repositories.interval_hint')">
+            <UInput v-model="hoursDraft" class="w-full" type="number" min="1" max="168" />
+          </UFormField>
+          <UButton type="submit" variant="outline" icon="i-lucide-save" :label="t('common.actions.save')" :loading="busy === 'interval'" :disabled="busy !== null || hoursDraft === String(refreshHours)" />
+        </form>
+      </template>
+    </FormListLayout>
 
-    <form class="mt-6 space-y-3 border-t border-muted pt-4" @submit.prevent="add()">
-      <p class="text-xs font-medium text-highlighted">{{ t('plugins.repositories.add_title') }}</p>
-      <UFormField :label="t('plugins.repositories.url_label')">
-        <UInput v-model="form.url" class="mt-2 w-full" type="url" placeholder="https://" />
-      </UFormField>
-      <UFormField :label="t('plugins.repositories.key_label')" :description="t('plugins.repositories.key_hint')">
-        <UInput v-model="form.publicKey" class="mt-2 w-full font-mono" />
-      </UFormField>
-      <UFormField :label="t('plugins.repositories.name_label')">
-        <UInput v-model="form.name" class="mt-2 w-full" :maxlength="120" />
-      </UFormField>
-      <UButton type="submit" icon="i-lucide-plus" :label="t('plugins.repositories.add')" :loading="busy === 'add'" :disabled="!canAdd || busy !== null" />
-    </form>
-
-    <UModal v-model:open="approvalOpen" :title="t('plugins.repositories.approve_title')">
+    <UModal v-model:open="approvalOpen" :title="t('plugins.repositories.approve_title')" :ui="{ footer: 'justify-end' }">
       <template #body>
         <div v-if="pending" class="space-y-4" data-repository-approval>
           <p class="break-words text-sm leading-6 text-toned">{{ t('plugins.repositories.approve_intro', { url: pending.url, count: pending.packages }) }}</p>
@@ -299,10 +317,10 @@ function lastError(repository: PluginRepository): string {
         </div>
       </template>
       <template #footer>
-        <div v-if="pending" class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.actions.cancel')" @click="pending = null" />
+        <template v-if="pending">
+          <UButton color="neutral" variant="outline" :label="t('common.actions.cancel')" @click="pending = null" />
           <UButton color="primary" icon="i-lucide-shield-check" :label="t('plugins.repositories.approve')" :loading="busy === 'add'" @click="approve" />
-        </div>
+        </template>
       </template>
     </UModal>
   </section>

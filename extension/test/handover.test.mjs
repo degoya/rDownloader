@@ -237,6 +237,17 @@ test('a browser without cookies for the scope says so and sends nothing', async 
   assert.ok(names(calls).includes('remove'), 'the grant is given back on this path too')
 })
 
+test('a refused delivery names the refusal in its own words, not the bare code', async () => {
+  const calls = []
+  const api = browser(calls)
+  const deliver = async () => ({ ok: false, status: 400, code: 'browser_session.cookies_invalid' })
+  const { handover } = setup({ calls, api, deliver })
+  const result = await handover.consent(HANDOVER)
+  assert.equal(result.ok, false)
+  assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'handoverRefusedUnreadable:ddownload.com'))
+  assert.ok(!calls.some(([name, body]) => name === 'notify' && String(body).includes('browser_session.')))
+})
+
 test('declining from the popup tells the server and reads nothing', async () => {
   const calls = []
   const api = browser(calls)
@@ -264,9 +275,16 @@ test('the popup has its own words for each outcome', () => {
   assert.deepEqual(handoverOutcome({ ok: true }, 'ddownload.com'), { key: 'handoverDone', substitutions: ['ddownload.com'], ok: true })
   assert.equal(handoverOutcome({ ok: false, code: 'denied' }, 'h').key, 'handoverDenied')
   assert.equal(handoverOutcome({ ok: false, code: 'empty' }, 'h').key, 'handoverEmpty')
+  // The service's refusals have sentences of their own; a bare code was what people saw (1.5.0).
   assert.deepEqual(handoverOutcome({ ok: false, code: 'browser_session.cookie_outside_scope' }, 'h'), {
+    key: 'handoverRefusedOutside',
+    substitutions: ['h'],
+    ok: false
+  })
+  assert.equal(handoverOutcome({ ok: false, code: 'browser_session.cookies_invalid' }, 'h').key, 'handoverRefusedUnreadable')
+  assert.deepEqual(handoverOutcome({ ok: false, code: 'something.else', message: 'Why' }, 'h'), {
     key: 'handoverFailed',
-    substitutions: ['h', 'browser_session.cookie_outside_scope'],
+    substitutions: ['h', 'Why'],
     ok: false
   })
 })

@@ -138,3 +138,55 @@ async fn a_parser_cannot_reach_anything_its_manifest_did_not_ask_for() {
     }
     assert!(IntakeParser::new(metalink_manifest(), &bytes, None).is_ok());
 }
+
+/// RD-150-03: the proposal is one link, and the set beside it is every mirror of the file.
+#[tokio::test]
+async fn the_metalink_parser_states_every_mirror_of_a_file() {
+    let bytes = component("rd-plugin-metalink-intake");
+    let parser = IntakeParser::new(metalink_manifest(), &bytes, None).expect("compile parser");
+    assert!(parser.states_sources());
+
+    let document = r#"<metalink xmlns="urn:ietf:params:xml:ns:metalink">
+  <file name="example.iso">
+    <size>14471447</size>
+    <hash type="sha-256">0000000000000000000000000000000000000000000000000000000000000000</hash>
+    <url priority="2" location="fr">https://other.example/example.iso</url>
+    <url priority="1" location="de">https://mirror.example/example.iso</url>
+    <url priority="3">ftp://ftp.example/example.iso</url>
+  </file>
+</metalink>"#;
+    let proposals = parser.parse(document).await.expect("parse");
+    assert_eq!(proposals[0].url, "https://mirror.example/example.iso");
+    let sets = parser.source_sets(document).await.expect("sets");
+    assert_eq!(sets.len(), 1, "{sets:?}");
+    assert_eq!(sets[0].primary_url, proposals[0].url);
+    let urls: Vec<_> = sets[0]
+        .sources
+        .iter()
+        .map(|source| source.0.as_str())
+        .collect();
+    assert_eq!(
+        urls,
+        [
+            "https://mirror.example/example.iso",
+            "https://other.example/example.iso",
+            "ftp://ftp.example/example.iso",
+        ]
+    );
+    assert_eq!(sets[0].hashes.len(), 1);
+}
+
+#[tokio::test]
+async fn a_parser_without_mirror_sets_keeps_its_plain_world() {
+    // Crawljob exports `intake` only. It must still load, and must simply state nothing.
+    let bytes = component("rd-plugin-crawljob-intake");
+    let parser = IntakeParser::new(crawljob_manifest(), &bytes, None).expect("compile parser");
+    assert!(!parser.states_sources());
+    assert!(
+        parser
+            .source_sets("text=https://example.com/one.bin\n")
+            .await
+            .expect("sets")
+            .is_empty()
+    );
+}

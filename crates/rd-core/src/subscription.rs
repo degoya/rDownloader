@@ -52,6 +52,10 @@ pub const MAX_ITEM_KEY: usize = 512;
 pub const MAX_FILTER_PATTERNS: usize = 32;
 /// Most category mappings one subscription may carry (RD-080-11).
 pub const MAX_CATEGORY_MAPPINGS: usize = 200;
+/// Most arguments a script subscription hands its script (RD-150-08).
+pub const MAX_SCRIPT_ARGUMENTS: usize = 32;
+/// Longest single script argument, in characters (RD-150-08).
+pub const MAX_SCRIPT_ARGUMENT_CHARS: usize = 1_024;
 
 /// Where a subscription's items come from.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
@@ -325,6 +329,11 @@ pub struct Subscription {
     /// when set (RD-130-19). Only a script subscription carries one.
     #[serde(default)]
     pub schedule: Option<String>,
+    /// The arguments a script subscription hands its script, each one as it arrives in the
+    /// script's argv -- no shell splits or expands them (RD-150-08). Empty for every other kind.
+    /// Stored and shown in plain text, so never a secret.
+    #[serde(default)]
+    pub script_arguments: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -434,6 +443,7 @@ mod tests {
             autoplay: false,
             card_ratio: super::SubscriptionCardRatio::TwoOne,
             schedule: None,
+            script_arguments: Vec::new(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

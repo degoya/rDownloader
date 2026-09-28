@@ -393,6 +393,7 @@ mod tests {
             autoplay: false,
             card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
             schedule: None,
+            script_arguments: Vec::new(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

@@ -311,6 +311,7 @@ pub async fn import_subscriptions(
             autoplay: entry.autoplay,
             card_ratio: entry.card_ratio.as_str().to_owned(),
             schedule: None,
+            script_arguments: Vec::new(),
             api_key: None,
         };
         let Ok(input) = crate::subscription_handlers::subscription_input(&request, None) else {

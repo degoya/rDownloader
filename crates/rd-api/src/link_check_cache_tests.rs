@@ -306,6 +306,7 @@ fn each_link_is_asked_as_what_the_host_knows_it_to_be() {
         ("ftp://files.example/a.bin", Some("ftp")),
         ("sftp://files.example/a.bin", Some("sftp")),
         ("https://dav.example/a.bin", Some("webdav")),
+        ("s3://media-bucket/a.bin", Some("object_storage")),
     ] {
         assert_eq!(
             cache_query(&candidate(url, provider), None),

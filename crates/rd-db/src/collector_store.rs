@@ -129,9 +129,16 @@ pub(crate) async fn add_batch(
         let mut package_category = None;
         for (position, index) in group.members.iter().enumerate() {
             let url = &intake.urls[*index];
+            // A duplicate is an address that is still here: in the LinkGrabber, or in the download
+            // list, finished or not. An `enqueued` candidate row only records that the address
+            // was handed over once; if its download was deleted since, the address is new again
+            // (a DLC imported, queued, deleted and imported again was reported as a duplicate).
             let duplicate = sqlx::query_scalar::<_, i64>(
-                "SELECT EXISTS(SELECT 1 FROM link_candidates WHERE url = ? AND state != 'duplicate')",
+                "SELECT EXISTS(SELECT 1 FROM link_candidates \
+                     WHERE url = ? AND state NOT IN ('duplicate', 'enqueued')) \
+                 OR EXISTS(SELECT 1 FROM downloads WHERE source_url = ?)",
             )
+            .bind(url.as_str())
             .bind(url.as_str())
             .fetch_one(&mut *transaction)
             .await?
@@ -399,11 +406,11 @@ pub(crate) async fn list_batches(pool: &SqlitePool) -> Result<Vec<CollectorBatch
 }
 
 pub(crate) async fn list_candidates(pool: &SqlitePool) -> Result<Vec<LinkCandidate>> {
-    sqlx::query_as::<_, CandidateRow>(&format!(
+    sqlx::query_as::<_, CandidateRow>(sqlx::AssertSqlSafe(format!(
         "{CANDIDATE_SELECT} WHERE state != 'enqueued' ORDER BY \
          COALESCE((SELECT p.position FROM collector_packages p WHERE p.id = link_candidates.package_id), 0) ASC, \
          position ASC, created_at ASC"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -444,7 +451,7 @@ async fn secret_fragment_refs_where(
     let sql = format!(
         "SELECT secret_fragment_ref FROM link_candidates WHERE secret_fragment_ref IS NOT NULL AND {predicate}"
     );
-    let mut query = sqlx::query(&sql);
+    let mut query = sqlx::query(sqlx::AssertSqlSafe(&*sql));
     if let Some(value) = bind {
         query = query.bind(value);
     }

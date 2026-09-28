@@ -88,7 +88,8 @@ describe('transfers store: clearing the download list', () => {
 
     await store.clear('all')
 
-    expect(store.error).toBe('Files in this package are still running')
+    // The refusal is read through its code, so it arrives in the reader's language.
+    expect(store.error).toBe('Files in this package are still running or waiting')
   })
 
   it('removes packages without forcing unless the caller says so', async () => {

@@ -70,7 +70,7 @@ pub fn item_key(identity: &ItemIdentity<'_>) -> String {
     hasher.update(identity.title.unwrap_or_default().trim().as_bytes());
     hasher.update([0]);
     hasher.update(identity.published.unwrap_or_default().trim().as_bytes());
-    format!("hash:{:x}", hasher.finalize())
+    format!("hash:{}", hex::encode(hasher.finalize()))
 }
 
 /// Normalises a URL so cosmetic differences do not create a second identity.
@@ -138,7 +138,7 @@ fn truncate(value: &str) -> String {
     // replaced by a hash of the whole thing rather than simply cut off.
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());
-    let digest = format!("{:x}", hasher.finalize());
+    let digest = hex::encode(hasher.finalize());
     let head_len = MAX_ITEM_KEY - digest.len() - 1;
     let mut head = value[..head_len].to_owned();
     head.push('#');

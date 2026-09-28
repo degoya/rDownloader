@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 # See the resolver template: a guest needs only the contract, which ships in `wit/`.
-wit-bindgen = "0.57"
+wit-bindgen = "0.61"
 
 [lib]
 crate-type = ["cdylib"]

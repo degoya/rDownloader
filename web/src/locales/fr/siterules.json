@@ -25,7 +25,6 @@
     "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Importez le fichier de règles signé d’une version pour partir des règles du projet.",
     "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée."
   },
-  "new": "Nouvelle règle",
   "editor": {
     "eyebrow": "Règle personnelle",
     "title_new": "Écrire une règle",
@@ -58,7 +57,8 @@
     "package_from": "Lire depuis la variable",
     "package_name": "Variable",
     "enabled": "Consulter cette règle immédiatement",
-    "incomplete": "Il faut un identifiant, un nom, un groupe, un hôte, une étape et une adresse de contrôle."
+    "incomplete": "Il faut un identifiant, un nom, un groupe, un hôte, une étape et une adresse de contrôle.",
+    "create": "Créer la règle"
   },
   "steps": {
     "heading": "Étapes",
@@ -132,8 +132,5 @@
     "title": "Supprimer cette règle ?",
     "description": "{name} sera supprimée de cette installation. Exportez-la d’abord si vous souhaitez la conserver."
   },
-  "duplicate": "Dupliquer",
-  "duplicate_hint": "Crée une copie désactivée sous un nouvel identifiant et l’ouvre dans l’éditeur",
-  "copy_suffix": "copie",
   "duplicated": "{name} a été créée, désactivée, et ouverte pour modification."
 }

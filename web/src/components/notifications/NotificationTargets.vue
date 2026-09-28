@@ -5,8 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { NotificationDestination, NotificationTarget, NotificationTargetRequest } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFormFocus } from '@/composables/useFormFocus'
@@ -26,6 +28,12 @@ const message = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 const recipients = ref('')
+const copyName = useCopyName()
+const duplicatingId = ref<string | null>(null)
+/** The copy whose original held a secret; its form says the secret has to be entered again. */
+const secretMissingId = ref<string | null>(null)
+/** Matches the name check in `crates/rd-api/src/notify_handlers.rs`. */
+const MAX_TARGET_NAME = 100
 
 function emptyForm(): NotificationTargetRequest {
   return { name: '', kind: 'webhook', enabled: true, endpoint: '', config: {}, secret: null, clear_secret: false }
@@ -40,6 +48,7 @@ const list = useEditableList<NotificationTarget, NotificationTargetRequest>({
   destroy: id => api.DELETE('/api/v1/notifications/targets/{id}', { params: { path: { id } } }),
   reset: () => {
     recipients.value = ''
+    secretMissingId.value = null
     Object.assign(form, emptyForm())
   },
   confirmDelete: target => ({
@@ -137,6 +146,11 @@ function setConfig(key: string, value: unknown): void {
   config.value = { ...config.value, [key]: value }
 }
 
+const secretDescription = computed(() => {
+  if (editingId.value !== null && editingId.value === secretMissingId.value) return t('notifications.target.secret_copy')
+  return editingId.value ? t('notifications.target.secret_keep') : t(`notifications.target.secret_${form.kind}_description`)
+})
+
 async function submit(): Promise<void> {
   message.value = null
   if (form.kind === 'smtp') {
@@ -148,6 +162,7 @@ async function submit(): Promise<void> {
 
 function edit(target: NotificationTarget): void {
   message.value = null
+  secretMissingId.value = null
   list.edit(target)
   Object.assign(form, {
     name: target.name,
@@ -183,6 +198,36 @@ async function test(target: NotificationTarget): Promise<void> {
   }
 }
 
+/**
+ * Copies a target — kind, address, settings — under a free name and opens the copy for editing
+ * (RD-150-12). The secret is never copied: the browser never sees it, and two targets quietly
+ * sharing one credential would be a surprise. The route takes a target without one, so the copy
+ * is created as it is and its form says the secret has to be entered again. The rules that
+ * point at the original stay with it.
+ */
+async function duplicate(target: NotificationTarget): Promise<void> {
+  duplicatingId.value = target.id
+  error.value = null
+  message.value = null
+  const response = await api.POST('/api/v1/notifications/targets', {
+    body: {
+      name: copyName(target.name, targets.value.map(entry => entry.name), MAX_TARGET_NAME),
+      kind: target.kind,
+      enabled: target.enabled,
+      endpoint: target.endpoint,
+      config: target.config ?? {},
+      secret: null,
+      clear_secret: false
+    }
+  })
+  duplicatingId.value = null
+  if (!response.data) return void (error.value = responseError(response))
+  targets.value = [...targets.value, response.data]
+  emit('changed')
+  edit(response.data)
+  if (target.has_secret) secretMissingId.value = response.data.id
+}
+
 async function remove(target: NotificationTarget): Promise<void> {
   if ((await list.remove(target)).removed) emit('changed')
 }
@@ -201,16 +246,16 @@ async function remove(target: NotificationTarget): Promise<void> {
         <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
 
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
-          <UFormField :label="t('notifications.target.name_label')">
-            <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-bell" />
-          </UFormField>
           <UFormField :label="t('notifications.target.kind_label')">
             <USelect v-model="form.kind" :items="kinds" value-key="value" class="w-full" />
           </UFormField>
-          <UFormField :label="t(`notifications.target.endpoint_${form.kind}`)" :description="t(`notifications.target.endpoint_${form.kind}_description`)">
+          <UFormField :label="t('notifications.target.name_label')" required>
+            <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-bell" />
+          </UFormField>
+          <UFormField :label="t(`notifications.target.endpoint_${form.kind}`)" :description="t(`notifications.target.endpoint_${form.kind}_description`)" required>
             <UInput v-model="form.endpoint" required class="w-full font-mono" icon="i-lucide-link" />
           </UFormField>
-          <UFormField :label="t(`notifications.target.secret_${form.kind}`)" :description="editingId ? t('notifications.target.secret_keep') : t(`notifications.target.secret_${form.kind}_description`)">
+          <UFormField :label="t(`notifications.target.secret_${form.kind}`)" :description="secretDescription">
             <UInput v-model="form.secret" type="password" class="w-full font-mono" autocomplete="new-password" />
           </UFormField>
 
@@ -247,14 +292,10 @@ async function remove(target: NotificationTarget): Promise<void> {
             </UFormField>
           </template>
 
-          <div class="flex items-center justify-between gap-5">
-            <p class="text-sm text-highlighted">{{ t('notifications.target.enabled') }}</p>
-            <USwitch v-model="form.enabled" :aria-label="t('notifications.target.enabled')" />
-          </div>
-          <div class="flex gap-2">
-            <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-plus'" :label="editingId ? t('common.actions.save') : t('notifications.target.create')" :loading="pending" />
-            <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('routing.cancel_edit')" @click="list.reset" />
-          </div>
+          <UFormField :label="t('notifications.target.enabled')" orientation="horizontal">
+            <USwitch v-model="form.enabled" />
+          </UFormField>
+          <FormActions :editing="editingId !== null" :create-label="t('notifications.target.create')" :loading="pending" @cancel="list.reset" />
         </form>
       </template>
       <template #list>
@@ -268,9 +309,10 @@ async function remove(target: NotificationTarget): Promise<void> {
             <UBadge v-if="editingId === target.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge color="neutral" variant="subtle">{{ t(`notifications.kind.${target.kind}`) }}</UBadge>
             <UBadge v-if="!target.enabled" color="neutral" variant="outline">{{ t('notifications.target.disabled') }}</UBadge>
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-send-horizontal" :aria-label="t('notifications.target.test')" :loading="testing === target.id" @click="test(target)" />
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" @click="edit(target)" />
-            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" @click="remove(target)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-send-horizontal" :label="t('common.actions.test')" :title="t('notifications.target.test')" :loading="testing === target.id" @click="test(target)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" :loading="duplicatingId === target.id" @click="duplicate(target)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(target)" />
+            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(target)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!targets.length" variant="inline" class="p-5">
             <p class="text-center text-sm text-muted">{{ t('notifications.target.empty') }}</p>

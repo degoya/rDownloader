@@ -37,9 +37,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
-      # The packager (`cargo run -p rdownloader`) builds rd-api, whose `#[derive(RustEmbed)]`
-      # refuses to compile without `web/dist`; it never serves the interface, so empty will do.
-      - run: mkdir -p web/dist
+      # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
+      # rd-api and its `#[derive(RustEmbed)]`.
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.98.0
@@ -48,11 +47,14 @@ jobs:
         with:
           key: release-plugins
       - run: cargo install cargo-component --version 0.21.1 --locked
+      # For the import check scripts/build-plugins.sh runs on every component it builds, and the
+      # one below over all of them.
+      - uses: taiki-e/install-action@wasm-tools
       - name: Collect the bundled plugins
         id: plugins
         shell: bash
         run: |
-          # Every plugins/ directory with a manifest.toml is a shipped package; xfs-common
+          # Every plugins/ directory with a manifest.toml is a plugin and built here; xfs-common
           # has none because it is a shared library. Deriving the list means adding a plugin
           # is one directory, not five identical loops to keep in step.
           names=$(find plugins -mindepth 2 -maxdepth 2 -name manifest.toml -printf '%h\n' \
@@ -62,16 +64,46 @@ jobs:
           # Building proves a plugin compiles; packaging additionally checks its
           # `min_app_version` against this build, and a plugin written for the release being
           # prepared cannot be packaged until the version bump. scripts/build-plugins.sh owns
-          # that rule so it lives in one place and clears itself at the bump.
+          # that rule so it lives in one place and clears itself at the bump. It also leaves
+          # out the examples (`plugins/example-*`), which are built but not bundled (RD-150-20).
           packageable=$(scripts/build-plugins.sh --list-packageable | sort | tr '\n' ' ')
           echo "packageable=${packageable}" >> "$GITHUB_OUTPUT"
           echo "packaging: ${packageable}"
+      # Components are built only when their content changed (RD-150-10). The cache is the one
+      # ci.yml's `components` job fills on `main` — a tag's run may read the default branch's
+      # caches and nothing else — keyed by what goes into a component: toolchain, cargo-component,
+      # the registry half of Cargo.lock and the root Cargo.toml (`deps`), and every plugin's source
+      # hash (`sources`). A miss on `sources` restores the newest set with the same `deps`, and
+      # build-plugins.sh rebuilds what its stamps call stale or missing. Every package is still
+      # signed below, cached component or not.
+      - name: Work out the component cache key
+        id: component-key
+        shell: bash
+        run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: |
+            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
+            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
+          key: components-1.98.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.98.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
       - name: Build plugin components
         shell: bash
+        run: scripts/build-plugins.sh --components-only
+      - name: Reject accidental WASI capabilities
+        shell: bash
         run: |
+          components=()
           for plugin in ${{ steps.plugins.outputs.names }}; do
-            cargo component build --release --target wasm32-unknown-unknown -p "rd-plugin-${plugin}"
+            components+=("target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm")
           done
+          scripts/check-plugin-imports.sh "${components[@]}"
+      # The packager, `rd-pack` (RD-150-20): the `plugin` and `site-rules` commands of
+      # `rdownloader` without building the service. `release-test` because it compiles every
+      # component with Wasmtime; `release`'s single code unit and LTO buy a tool nothing. The
+      # packages it writes are the same bytes either way, and the embedded roots are the same.
+      - name: Build the packager
+        run: cargo build --locked --profile release-test -p rd-pack
       - name: Package and sign bundled plugins
         env:
           RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
@@ -80,12 +112,12 @@ jobs:
           mkdir -p dist/plugins
           for plugin in ${{ steps.plugins.outputs.packageable }}; do
             version=$(sed -n 's/^version = "\(.*\)"/\1/p' "plugins/${plugin}/manifest.toml" | head -n 1)
-            cargo run --locked --release -p rdownloader -- plugin package \
+            target/release-test/rd-pack plugin package \
               --manifest "plugins/${plugin}/manifest.toml" \
               --component "target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm" \
               --locales "plugins/${plugin}/locales" \
               --output "dist/plugins/${plugin}-${version}.rdplug"
-            cargo run --locked --release -p rdownloader -- plugin verify "dist/plugins/${plugin}-${version}.rdplug"
+            target/release-test/rd-pack plugin verify "dist/plugins/${plugin}-${version}.rdplug"
           done
       - uses: actions/upload-artifact@v7
         with:
@@ -106,11 +138,11 @@ jobs:
             exit 0
           fi
           mkdir -p dist/plugin-index
-          cargo run --locked --release -p rdownloader -- plugin index build dist/plugins \
+          target/release-test/rd-pack plugin index build dist/plugins \
             --out dist/plugin-index/rdownloader-plugin-index.json \
             --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
             --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json
-          cargo run --locked --release -p rdownloader -- plugin index verify \
+          target/release-test/rd-pack plugin index verify \
             dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
       - uses: actions/upload-artifact@v7
         with:
@@ -126,15 +158,20 @@ jobs:
         run: |
           mkdir -p dist/site-rules
           cp crates/rd-siterules/resources/site-rules.json dist/site-rules/rdownloader-site-rules.json
-          cargo run --locked --release -p rdownloader -- site-rules verify dist/site-rules/rdownloader-site-rules.json
+          target/release-test/rd-pack site-rules verify dist/site-rules/rdownloader-site-rules.json
       - uses: actions/upload-artifact@v7
         with:
           name: site-rules
           path: dist/site-rules/rdownloader-site-rules.json
           if-no-files-found: error
 
-  binaries:
-    needs: plugins
+  # Compiles at once instead of waiting for `plugins` (RD-150-10): the packages come in only when
+  # `packages` below lays them into the archives, so the two longest jobs run side by side.
+  #
+  # The two Linux legs are a job of their own, `binaries` below the other three, so `container`
+  # waits for Linux alone and not for Windows and macOS (RD-150-10). Both jobs run the same steps,
+  # written once here and taken over by the YAML anchor `binary-steps`.
+  linux-binaries:
     strategy:
       fail-fast: false
       matrix:
@@ -148,24 +185,19 @@ jobs:
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact: rdownloader-linux-aarch64
-          - os: windows-2025
-            target: x86_64-pc-windows-msvc
-            artifact: rdownloader-windows-x86_64
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            artifact: rdownloader-macos-x86_64
-          - os: macos-15
-            target: aarch64-apple-darwin
-            artifact: rdownloader-macos-aarch64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
-    steps:
+    steps: &binary-steps
       - uses: actions/checkout@v7
+      # The version is the `packageManager` pin in web/package.json (RD-150-14).
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.98.0
@@ -173,15 +205,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
-      - run: npm ci --prefix web
-      # `npm run build` stopped type-checking in RD-120-25; named here so it still does.
-      - run: npm run typecheck:full --prefix web
-      - run: npm run build --prefix web
+      - run: pnpm --dir web install --frozen-lockfile
+      # `run build` stopped type-checking in RD-120-25; named here so it still does.
+      - run: pnpm --dir web run typecheck:full
+      - run: pnpm --dir web run build
       - run: cargo build --locked --release --target ${{ matrix.target }} -p rdownloader -p rd-capture
-      - uses: actions/download-artifact@v8
-        with:
-          name: plugins
-          path: stage/plugins
+      - run: mkdir stage
+        shell: bash
       - name: Smoke-test Windows executables
         if: runner.os == 'Windows'
         shell: pwsh
@@ -199,39 +229,112 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
           plutil -lint "stage/rDownloader Capture.app/Contents/Info.plist"
           codesign --force --deep --sign - "stage/rDownloader Capture.app"
+      # Everything but the plugins, which `packages` adds: an uncompressed tar, so the executable
+      # bits survive the artifact store and the entries stay the ones made here.
       - name: Package Unix binaries
         if: runner.os != 'Windows'
         shell: bash
+        env:
+          # No AppleDouble `._` entries from macOS's tar for the helper app's attributes.
+          COPYFILE_DISABLE: "1"
         run: |
-          mkdir -p stage/plugins
           cp "target/${{ matrix.target }}/release/rdownloader" stage/
           cp "target/${{ matrix.target }}/release/rdownloader-capture" stage/
           cp LICENSE README.md stage/
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh stage/
+            cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
+              scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/
           else
-            cp scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command stage/
+            cp scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command \
+              scripts/macos/start-capture.command scripts/macos/stop-capture.command stage/
           fi
-          chmod +x stage/start-rdownloader.* stage/stop-rdownloader.*
-          tar --directory stage --create --gzip --file "${{ matrix.artifact }}.tar.gz" .
+          chmod +x stage/start-rdownloader.* stage/stop-rdownloader.* stage/start-capture.* stage/stop-capture.*
+          tar --directory stage --create --file "${{ matrix.artifact }}.unpacked.tar" .
       - name: Package Windows binaries
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path stage/plugins | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/rdownloader.exe" stage/
           Copy-Item "target/${{ matrix.target }}/release/rdownloader-capture.exe" stage/
-          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat stage/
+          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat,scripts/windows/start-capture.bat,scripts/windows/stop-capture.bat stage/
           Copy-Item LICENSE, README.md stage/
-          Compress-Archive -Path stage/* -DestinationPath "${{ matrix.artifact }}.zip"
+          Compress-Archive -Path stage/* -DestinationPath "${{ matrix.artifact }}.unpacked.zip"
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.*
+          name: unpacked-${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.unpacked.*
+          if-no-files-found: error
+          retention-days: 3
+
+  binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            artifact: rdownloader-windows-x86_64
+          # Cross-compiled on the Apple Silicon runner (RD-150-10): Apple's toolchain builds
+          # both architectures, and the Intel runner took 53 minutes for the same binary.
+          - os: macos-15
+            target: x86_64-apple-darwin
+            artifact: rdownloader-macos-x86_64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            artifact: rdownloader-macos-aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps: *binary-steps
+
+  # The signed plugin packages into every archive the two binary jobs made, under plugins/ as before: the
+  # tar gets them appended and is compressed, the zip gets them added. Nothing is extracted and
+  # repacked, so every other entry is byte for byte the one the platform's runner wrote.
+  packages:
+    needs: [plugins, linux-binaries, binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: plugins
+          path: layer/plugins
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: unpacked-*
+          path: unpacked
+          merge-multiple: true
+      - name: Add the plugins to every archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages
+          count=0
+          for archive in unpacked/*.unpacked.tar unpacked/*.unpacked.zip; do
+            [[ -f "${archive}" ]] || continue
+            name="$(basename "${archive}")"
+            case "${name}" in
+              *.tar)
+                tar --directory layer --append --file "${archive}" ./plugins
+                gzip --no-name --stdout "${archive}" > "packages/${name%.unpacked.tar}.tar.gz"
+                ;;
+              *.zip)
+                cp "${archive}" "packages/${name%.unpacked.zip}.zip"
+                (cd layer && zip -q -r "../packages/${name%.unpacked.zip}.zip" plugins)
+                ;;
+            esac
+            count=$((count + 1))
+          done
+          # One archive per binary target; fewer means a platform is missing from the release.
+          [[ ${count} -eq 5 ]] || { echo "::error::expected 5 archives, found ${count}"; exit 1; }
+          ls -l packages
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-packages
+          path: packages/*
           if-no-files-found: error
 
   publish:
-    needs: [extensions, plugins, binaries]
+    needs: [extensions, plugins, packages]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -243,6 +346,9 @@ jobs:
         with:
           path: release-assets
           merge-multiple: true
+      # The archives without their plugins are `packages`' input, not something to publish.
+      - name: Drop the intermediate archives
+        run: rm -f release-assets/*.unpacked.*
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -271,8 +377,12 @@ jobs:
   # The image is built from the binaries above, not compiled again (owner, 2026-09-26): the arm64
   # half runs only apt, pip and the `--version` guard under QEMU. Nothing is pushed before the
   # amd64 image has passed the same smoke test as CI.
+  #
+  # It waits for `plugins` and the two Linux legs alone (RD-150-10), not for Windows and macOS: the
+  # executable it copies is the one in the Linux archives, taken from them before `packages` adds
+  # the plugins, which changes no other entry.
   container:
-    needs: [plugins, binaries]
+    needs: [plugins, linux-binaries]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -292,7 +402,7 @@ jobs:
           path: dist/plugins
       - uses: actions/download-artifact@v8
         with:
-          pattern: rdownloader-linux-*
+          pattern: unpacked-rdownloader-linux-*
           path: release-binaries
           merge-multiple: true
       # docker/Dockerfile's `prebuilt` target reads dist/docker/linux-$TARGETARCH/rdownloader.
@@ -305,7 +415,7 @@ jobs:
             arch="${pair%%:*}"
             docker_arch="${pair##*:}"
             mkdir -p "dist/docker/linux-${docker_arch}"
-            tar --extract --gzip --file "release-binaries/rdownloader-linux-${arch}.tar.gz" \
+            tar --extract --file "release-binaries/rdownloader-linux-${arch}.unpacked.tar" \
               --directory "dist/docker/linux-${docker_arch}" ./rdownloader
             file "dist/docker/linux-${docker_arch}/rdownloader"
           done

@@ -27,7 +27,8 @@
     "enabled": "Server aktiv",
     "clear_password": "Gespeichertes Passwort löschen",
     "save_changes": "Änderungen speichern",
-    "save_server": "NNTP-Server speichern"
+    "create_server": "NNTP-Server anlegen",
+    "password_copy": "Die Kopie von {name} hat kein Passwort: bitte neu eintragen, der Server nimmt den Benutzernamen nur zusammen mit ihm."
   },
   "messages": {
     "updated": "NNTP-Server wurde aktualisiert.",

@@ -1096,6 +1096,9 @@ pub(crate) fn validate_settings(
         speed_limit_bytes_per_second: settings
             .speed_limit_bytes_per_second
             .map(rd_core::ByteCount::get),
+        upload_limit_bytes_per_second: settings
+            .upload_limit_bytes_per_second
+            .map(rd_core::ByteCount::get),
         generate_sha256: settings.generate_sha256,
         global_proxy_profile_id: settings.global_proxy_profile_id,
         custom_ca_pem: settings.custom_ca_pem.clone(),
@@ -1210,7 +1213,7 @@ pub async fn capture_summary(
     let downloads = state.database.list_downloads().await?;
     Ok(Json(capture_figures(
         &downloads,
-        &state.scheduler.transfer_rates(),
+        &crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads),
     )))
 }
 

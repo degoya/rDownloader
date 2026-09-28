@@ -99,23 +99,23 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
     let mut document = NzbDocument::default();
     let mut current_file: Option<NzbFile> = None;
     let mut current_segment: Option<(u32, u64)> = None;
-    let mut current_element = Vec::new();
+    let mut current_element = String::new();
     let mut in_head = false;
     let mut password_meta: Option<String> = None;
     loop {
         match reader.read_event()? {
             Event::Start(start) => {
-                current_element = start.name().as_ref().to_vec();
+                current_element = start.name().as_ref().to_owned();
                 match start.name().as_ref() {
-                    b"head" => in_head = true,
-                    b"meta" if in_head => {
+                    "head" => in_head = true,
+                    "meta" if in_head => {
                         let is_password = start.attributes().with_checks(true).try_fold(
                             false,
                             |is_password, attribute| {
                                 let attribute = attribute?;
                                 Ok::<_, quick_xml::Error>(
                                     is_password
-                                        || (attribute.key.as_ref() == b"type"
+                                        || (attribute.key.as_ref() == "type"
                                             && attribute
                                                 .normalized_value(XmlVersion::Implicit1_0)?
                                                 .eq_ignore_ascii_case("password")),
@@ -124,17 +124,17 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
                         )?;
                         password_meta = is_password.then(String::new);
                     }
-                    b"file" => {
+                    "file" => {
                         let mut file = NzbFile::default();
                         for attribute in start.attributes().with_checks(true) {
                             let attribute = attribute?;
                             match attribute.key.as_ref() {
-                                b"subject" => {
+                                "subject" => {
                                     file.subject = attribute
                                         .normalized_value(XmlVersion::Implicit1_0)?
                                         .into_owned()
                                 }
-                                b"poster" => {
+                                "poster" => {
                                     file.poster = attribute
                                         .normalized_value(XmlVersion::Implicit1_0)?
                                         .into_owned()
@@ -144,20 +144,20 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
                         }
                         current_file = Some(file);
                     }
-                    b"segment" => {
+                    "segment" => {
                         let mut number = None;
                         let mut bytes = None;
                         for attribute in start.attributes().with_checks(true) {
                             let attribute = attribute?;
                             match attribute.key.as_ref() {
-                                b"number" => {
+                                "number" => {
                                     number = Some(
                                         attribute
                                             .normalized_value(XmlVersion::Implicit1_0)?
                                             .parse()?,
                                     )
                                 }
-                                b"bytes" => {
+                                "bytes" => {
                                     bytes = Some(
                                         attribute
                                             .normalized_value(XmlVersion::Implicit1_0)?
@@ -176,18 +176,17 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
                 }
             }
             Event::Text(text) => {
-                let decoded = text.decode()?;
-                let value = quick_xml::escape::unescape(&decoded)?.into_owned();
+                let value = quick_xml::escape::unescape(&text)?.into_owned();
                 if let Some(password) = &mut password_meta {
                     password.push_str(&value);
                 }
-                match current_element.as_slice() {
-                    b"group" => {
+                match current_element.as_str() {
+                    "group" => {
                         if let Some(file) = &mut current_file {
                             file.groups.push(value);
                         }
                     }
-                    b"segment" => {
+                    "segment" => {
                         if let (Some(file), Some((number, bytes))) =
                             (&mut current_file, current_segment.take())
                         {
@@ -203,7 +202,7 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
             }
             Event::CData(text) => {
                 if let Some(password) = &mut password_meta {
-                    password.push_str(&text.decode()?);
+                    password.push_str(&text);
                 }
             }
             Event::GeneralRef(reference) => {
@@ -211,8 +210,7 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
                     if let Some(character) = reference.resolve_char_ref()? {
                         password.push(character);
                     } else {
-                        let entity = reference.decode()?;
-                        let value = quick_xml::escape::resolve_xml_entity(&entity)
+                        let value = quick_xml::escape::resolve_xml_entity(&reference)
                             .context("NZB password contains an unknown XML entity")?;
                         password.push_str(value);
                     }
@@ -220,13 +218,13 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
             }
             Event::End(end) => {
                 match end.name().as_ref() {
-                    b"meta" => {
+                    "meta" => {
                         if let Some(password) = password_meta.take() {
                             remember_password(&mut document, &password)?;
                         }
                     }
-                    b"head" => in_head = false,
-                    b"file" => {
+                    "head" => in_head = false,
+                    "file" => {
                         if let Some(mut file) = current_file.take() {
                             file.segments.sort_by_key(|segment| segment.number);
                             // Real-world NZBs occasionally repeat a segment or count from 0;
@@ -250,7 +248,7 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
                 current_element.clear();
             }
             Event::Eof => break,
-            Event::DocType(doctype) => validate_doctype(&doctype.decode()?)?,
+            Event::DocType(doctype) => validate_doctype(&doctype)?,
             _ => {}
         }
     }

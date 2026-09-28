@@ -59,7 +59,8 @@
     "secret_plugin_description": "The token this destination authenticates with. It goes into the vault and the plugin never sees it — only the request it builds carries it.",
     "destination_label": "Plugin",
     "destination_description": "Which installed destination delivers this target.",
-    "form_new": "New target"
+    "form_new": "New target",
+    "secret_copy": "Not copied — enter it again; until then the copy has none."
   },
   "smtp": {
     "from": "Sender",

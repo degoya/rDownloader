@@ -5,7 +5,7 @@
 #
 # Two levels (RD-120-58). Without --full a run is BRANCH level: clippy and all tests of the
 # touched crates, the library and binary tests of one level of reverse dependencies, rd-api's
-# library, and only the rd-api integration binaries the change needs (scripts/lib/rd-api-tests.map).
+# library, and only the rd-api integration suites the change needs (scripts/lib/rd-api-tests.map).
 # --full runs everything, and belongs at the end of a wave on `development` and in the release
 # chain; a tag and a Windows package refuse a tree without one. Nothing is dropped — the branch
 # level moves the wide tests to the one run per wave that has to happen anyway. Of eight
@@ -16,9 +16,10 @@
 #
 #   * A run checks what the change touches, not everything, every time. The honest limit: the
 #     reverse-dependency step is ONE level, not a transitive hull.
-#   * The rd-api tests run in batches of four binaries. Each of its 55 integration tests links
-#     the whole dependency graph, so a plain `--workspace` run builds them all at once and has
-#     OOM-killed WSL even at JOBS=2. Fewer binaries at a time is the fix; a lower job count is
+#   * The rd-api tests run in batches of four binaries. Each of its integration binaries links
+#     the whole dependency graph; when there were 55 of them, a plain `--workspace` run built
+#     them all at once and OOM-killed WSL even at JOBS=2. Fewer binaries at a time is the fix,
+#     and since RD-150-10 there are six (the suites are their modules); a lower job count is
 #     not, because it does not make a single link cheaper.
 #   * `cargo clippy --workspace --all-targets --all-features` is NOT run by default: it has
 #     taken WSL into swap and required a hard restart more than once. Lint what you touched:
@@ -203,11 +204,11 @@ if [[ "$defer" -eq 1 ]]; then
 
     if printf '%s\n' "${classes[@]+"${classes[@]}"}" | grep -qx locales; then
         step "the four locale catalogues agree"
-        npm run test --prefix web -- src/i18n/locales.test.ts
+        pnpm --dir web test src/i18n/locales.test.ts
     fi
     if printf '%s\n' "${classes[@]+"${classes[@]}"}" | grep -qx appearance; then
-        step "npm run typecheck"
-        npm run typecheck --prefix web
+        step "pnpm run typecheck:full"
+        pnpm --dir web run typecheck:full
     fi
 
     echo
@@ -255,11 +256,11 @@ if touches '^plugins/|^crates/rd-plugin-api/wit/'; then
     packages+=(rd-plugin-ext rd-plugin-host)
 fi
 
-# rd-api's library tests hold the About page's licence list to web/package-lock.json and to the
+# rd-api's library tests hold the About page's licence list to web/pnpm-lock.yaml and to the
 # helper tools' licence texts (RD-130-12), so an npm dependency or a vendor text is a Rust change
 # here: without this a new npm package would reach development with no licence entry. Setting
 # the flag is enough — every Rust run includes rd-api's library.
-if touches '^web/package-lock\.json$|^resources/vendor-licenses/'; then
+if touches '^web/pnpm-lock\.yaml$|^resources/vendor-licenses/'; then
     rust_touched=1
 fi
 
@@ -317,9 +318,10 @@ if [[ -z "$wide_reason" && ${#packages[@]} -gt 0 ]]; then
         | sort -u | grep -vxF -f <(printf '%s\n' "${packages[@]}" rd-api) || true)
 fi
 
-# The rd-api integration binaries: all of them in a wide run, otherwise what the map demands.
+# The rd-api integration suites: all of them in a wide run, otherwise what the map demands.
+# They run as the binaries holding them (RD-150-10), filtered to them when not all are selected.
 RD_API_MAP="scripts/lib/rd-api-tests.map"
-mapfile -t rd_api_all < <(rd_api_test_binaries)
+mapfile -t rd_api_all < <(rd_api_test_suites | cut -d' ' -f1)
 rd_api_selected=()
 rd_api_reason=""
 if [[ -n "$wide_reason" ]]; then
@@ -329,17 +331,24 @@ elif [[ -n "$changed" ]]; then
     rd_api_demands="$(rd_api_test_demands "$RD_API_MAP" <<< "$changed"$'\n'"$lock_paths")"
     if grep -q '^all ' <<< "$rd_api_demands"; then
         rd_api_selected=("${rd_api_all[@]}")
-        rd_api_reason="every binary, for $(grep '^all ' <<< "$rd_api_demands" | head -1 | cut -d' ' -f2-)"
+        rd_api_reason="every suite, for $(grep '^all ' <<< "$rd_api_demands" | head -1 | cut -d' ' -f2-)"
     elif [[ -n "$rd_api_demands" ]]; then
         mapfile -t rd_api_selected < <(cut -d' ' -f1 <<< "$rd_api_demands" | LC_ALL=C sort -u)
         rd_api_reason="mapped from the change ($RD_API_MAP)"
     fi
 fi
+mapfile -t rd_api_binaries < <(rd_api_test_binaries_of "${rd_api_selected[@]+"${rd_api_selected[@]}"}")
+# With nextest, a partial selection runs only the selected suites' tests of those binaries.
+rd_api_filter=()
+if [[ ${#rd_api_selected[@]} -gt 0 && ${#rd_api_selected[@]} -lt ${#rd_api_all[@]} ]] \
+    && command -v cargo-nextest > /dev/null; then
+    rd_api_filter=(-E "$(rd_api_test_filter "${rd_api_selected[@]}")")
+fi
 
 failpoints=0
 if [[ "$full" -eq 1 ]] \
     || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet'; then
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage'; then
     failpoints=1
 fi
 
@@ -413,16 +422,17 @@ if [[ "$run_rust" -eq 1 ]]; then
     step "the headless Linux tree of the capture agent"
     scripts/check-capture-linux-tree.sh
 
-    # The rd-api test map is only as good as its upkeep, so its two failure modes stop the run
-    # here, in a second: a row naming a binary that is gone, a binary that no row names.
-    step "the rd-api test map against the test binaries"
+    # The rd-api test map is only as good as its upkeep, so its failure modes stop the run here,
+    # in a second: a row naming a suite that is gone, a suite that no row names, a suite its
+    # binary does not declare, a test file outside the binaries.
+    step "the rd-api test map against the test suites"
     map_problems="$(rd_api_test_map_problems "$RD_API_MAP")"
     if [[ -n "$map_problems" ]]; then
         printf '!! %s\n' "$map_problems" >&2
-        echo "   Give each rd-api integration test file its row in $RD_API_MAP." >&2
+        echo "   Give each rd-api integration suite its row in $RD_API_MAP." >&2
         exit 1
     fi
-    echo "    ${#rd_api_all[@]} binaries, every one mapped"
+    echo "    ${#rd_api_all[@]} suites in $(rd_api_test_binaries | wc -l) binaries, every one mapped"
 
     # shellcheck source=lib/components.sh
     source "$ROOT/scripts/lib/components.sh"
@@ -456,7 +466,7 @@ if [[ "$run_rust" -eq 1 ]]; then
         if printf '%s\n' "${clippy_auto[@]}" | grep -qx rd-api; then
             args=(-p rd-api --lib)
             if [[ ${#rd_api_selected[@]} -lt ${#rd_api_all[@]} ]]; then
-                for binary in "${rd_api_selected[@]+"${rd_api_selected[@]}"}"; do args+=(--test "$binary"); done
+                for binary in "${rd_api_binaries[@]+"${rd_api_binaries[@]}"}"; do args+=(--test "$binary"); done
             else
                 skip "clippy on rd-api's integration binaries" "every one is selected, and linting all at once is what AGENTS.md forbids"
             fi
@@ -510,19 +520,19 @@ if [[ "$run_rust" -eq 1 ]]; then
 
         if [[ ${#rd_api_selected[@]} -gt 0 ]]; then
             echo
-            echo "==> rd-api integration: ${#rd_api_selected[@]} of ${#rd_api_all[@]} binaries — $rd_api_reason"
+            echo "==> rd-api integration: ${#rd_api_selected[@]} of ${#rd_api_all[@]} suites in ${#rd_api_binaries[@]} binaries — $rd_api_reason"
             batch=()
             names=()
             batch_index=0
-            batch_count=$(( (${#rd_api_selected[@]} + 3) / 4 ))
-            for binary in "${rd_api_selected[@]}"; do
+            batch_count=$(( (${#rd_api_binaries[@]} + 3) / 4 ))
+            for binary in "${rd_api_binaries[@]}"; do
                 batch+=(--test "$binary")
                 names+=("$binary")
                 # Four binaries per batch: eight entries, each contributing `--test NAME`.
                 if [[ ${#batch[@]} -ge 8 ]]; then
                     batch_index=$((batch_index + 1))
                     step "tests (rd-api integration, batch $batch_index of $batch_count: ${names[*]})"
-                    run_tests -p rd-api "${batch[@]}"
+                    run_tests -p rd-api "${batch[@]}" "${rd_api_filter[@]+"${rd_api_filter[@]}"}"
                     batch=()
                     names=()
                 fi
@@ -530,11 +540,11 @@ if [[ "$run_rust" -eq 1 ]]; then
             if [[ ${#batch[@]} -gt 0 ]]; then
                 batch_index=$((batch_index + 1))
                 step "tests (rd-api integration, batch $batch_index of $batch_count: ${names[*]})"
-                run_tests -p rd-api "${batch[@]}"
+                run_tests -p rd-api "${batch[@]}" "${rd_api_filter[@]+"${rd_api_filter[@]}"}"
             fi
         fi
         if [[ ${#rd_api_selected[@]} -lt ${#rd_api_all[@]} ]]; then
-            skip "$(( ${#rd_api_all[@]} - ${#rd_api_selected[@]} )) of ${#rd_api_all[@]} rd-api integration binaries" \
+            skip "$(( ${#rd_api_all[@]} - ${#rd_api_selected[@]} )) of ${#rd_api_all[@]} rd-api integration suites" \
                 "the change does not map to them ($RD_API_MAP)"
         fi
 
@@ -546,18 +556,20 @@ if [[ "$run_rust" -eq 1 ]]; then
             # Every owning crate's own feature, not just rd-core's: each crash-test file is
             # gated on the feature of the crate that owns the point, and rd-core/failpoints does
             # not turn those on — a binary compiled to nothing reports success.
-            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints \
-                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet
+            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints \
+                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage
         else
-            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, failpoint.rs or the recovery matrix changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then
             step "sqlx offline data"
             if cargo sqlx --version > /dev/null 2>&1; then
-                SQLX_OFFLINE=true cargo sqlx prepare --check --workspace
+                # sqlx-cli 0.9 wants a database URL even offline; see .github/workflows/ci.yml.
+                SQLX_OFFLINE=true DATABASE_URL="${DATABASE_URL:-sqlite::memory:}" \
+                    cargo sqlx prepare --check --workspace
             else
-                echo "    sqlx-cli not installed; skipping (install: cargo install sqlx-cli --version 0.8.6 \\"
+                echo "    sqlx-cli not installed; skipping (install: cargo install sqlx-cli --version 0.9.0 \\"
                 echo "      --locked --no-default-features --features sqlite-unbundled)"
             fi
         else
@@ -573,32 +585,27 @@ fi
 # ---------------------------------------------------------------------------------------------
 
 if [[ "$run_web" -eq 1 && "$web_changed" -eq 1 ]]; then
-    # Incremental by default — vue-tsc keeps web/tsconfig.*.tsbuildinfo and --force throws it
-    # away. --full asks for the non-incremental one, which is what CI and the release chain run.
-    if [[ "$full" -eq 1 ]]; then
-        step "npm run typecheck:full"
-        npm run typecheck:full --prefix web
-    else
-        step "npm run typecheck"
-        npm run typecheck --prefix web
-    fi
-    step "npm run test"
-    npm run test --prefix web
-    # Refused rather than run-and-warn. The unplugin generators resolve through
-    # web/node_modules, so building in a worktree that links it rewrites the tracked
-    # web/components.d.ts and web/auto-imports.d.ts with paths from the *other* checkout.
-    # The previous version built first and complained afterwards, by which point the damage
-    # was already in the working tree and one `git add -A` away from a commit.
-    if [[ -L web/node_modules || -L web/dist ]]; then
-        skip "npm run build" "this is a feature worktree — web/node_modules or web/dist is a symlink"
+    # Non-incremental on every run, the one CI and the release chain run: the incremental
+    # `typecheck` trusts web/tsconfig.*.tsbuildinfo, and two type errors it passed reached
+    # GitHub on 2026-09-27 (RD-150-22).
+    step "pnpm run typecheck:full"
+    pnpm --dir web run typecheck:full
+    step "pnpm run test"
+    pnpm --dir web run test
+    # Refused rather than run-and-warn. A feature worktree links web/dist to the main checkout's
+    # (scripts/worktree.sh), and a build would empty and rewrite that one. Its own
+    # web/node_modules (RD-150-14) is no longer a hazard: until 1.5 that was a link too, and the
+    # unplugin generators wrote the other checkout's paths into the tracked declarations.
+    if [[ -L web/dist ]]; then
+        skip "pnpm run build" "this is a feature worktree — web/dist is a symlink"
         echo
-        echo "    npm run build is refused here: it would rewrite web/components.d.ts and"
-        echo "    web/auto-imports.d.ts with paths from the main checkout. Build there instead."
+        echo "    pnpm run build is refused here: it would write into the main checkout's web/dist."
+        echo "    'rm web/dist' (the link only) first to build in this worktree."
     elif scripts/web-dist-stale.sh > /dev/null; then
-        skip "npm run build" "web/dist is newer than every source that goes into it"
+        skip "pnpm run build" "web/dist is newer than every source that goes into it"
     else
-        step "npm run build"
-        npm run build --prefix web
+        step "pnpm run build"
+        pnpm --dir web run build
         # Belt and braces: these are generated and tracked, so a surprise diff is worth naming
         # even outside a worktree — it usually means the component inventory really did change
         # and the regenerated files belong in the commit.

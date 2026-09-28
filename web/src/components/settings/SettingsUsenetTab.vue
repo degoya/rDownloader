@@ -10,7 +10,9 @@ import type {
   UsenetServer
 } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
@@ -19,6 +21,8 @@ import SectionHeader from '@/components/SectionHeader.vue'
 
 /** Gap between generated priorities so manual values keep room in between. */
 const PRIORITY_STEP = 10
+/** Matches `validate_name` in `crates/rd-api/src/usenet_handlers.rs`. */
+const MAX_SERVER_NAME = 100
 
 /** The setup wizard embeds this tab under its own step heading. */
 defineProps<{ hideHeader?: boolean }>()
@@ -35,6 +39,12 @@ const focusForm = useFormFocus(formElement)
 const reorderingId = ref<string | null>(null)
 const clearPassword = ref(false)
 const message = ref<string | null>(null)
+const copyName = useCopyName()
+/**
+ * The server the form was filled from while that copy is still unsaved (RD-150-12). The copy
+ * carries no password — the browser never holds one — so the form asks for it again.
+ */
+const copiedFrom = ref<string | null>(null)
 const form = reactive<CreateUsenetServer>({
   name: '',
   host: '',
@@ -91,6 +101,7 @@ const list = useEditableList<UsenetServer, CreateUsenetServer>({
     form.max_connections = 8
     form.enabled = true
     clearPassword.value = false
+    copiedFrom.value = null
   },
   confirmDelete: server => ({
     title: t('usenet.delete.title'),
@@ -147,6 +158,32 @@ function editServer(server: UsenetServer): void {
   form.max_connections = server.max_connections
   form.enabled = server.enabled
   clearPassword.value = false
+  void focusForm()
+}
+
+/**
+ * Fills the form with a copy of `server`, unsaved (RD-150-12).
+ *
+ * A duplicate is otherwise a create through the existing route, but this one cannot be: the
+ * server takes a username only together with its password, and the password is never sent to
+ * the browser, so a copy of a server that signs in would be refused. The form therefore holds
+ * the copy — every setting, a free copy name, the username, an empty password with a sentence
+ * that says so — and the reader's own save creates it. Priority and position in the chain are
+ * the original's and stay with it; the copy joins at the end like any new server.
+ */
+function duplicateServer(server: UsenetServer): void {
+  message.value = null
+  list.reset()
+  form.name = copyName(server.name, servers.value.map(entry => entry.name), MAX_SERVER_NAME)
+  form.host = server.host
+  form.port = server.port
+  form.tls = server.tls
+  form.username = server.username ?? null
+  form.password = null
+  form.proxy_profile_id = server.proxy_profile_id ?? null
+  form.max_connections = server.max_connections
+  form.enabled = server.enabled
+  copiedFrom.value = server.name
   void focusForm()
 }
 
@@ -232,13 +269,12 @@ function proxyName(id: string | null | undefined): string {
         level="page"
       />
     </header>
-    <UAlert v-if="error" color="error" variant="subtle" :description="error" />
-    <UAlert v-if="message" color="success" variant="subtle" :description="message" />
-
     <FormListLayout>
       <template #form>
         <section class="border border-muted bg-default p-5">
           <SectionHeader :eyebrow="t('usenet.form.eyebrow')" :title="editingId ? t('usenet.form.title_edit') : t('usenet.form.title_add')" />
+          <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
+          <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" />
           <form ref="formElement" class="mt-4 grid gap-3" @submit.prevent="createServer">
             <UFormField :label="t('usenet.form.server_name')" name="name" required>
               <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('usenet.form.name')" />
@@ -246,6 +282,8 @@ function proxyName(id: string | null | undefined): string {
             <UFormField :label="t('usenet.form.host')" name="host" required>
               <UInput v-model="form.host" required class="w-full font-mono" placeholder="news.provider.example" />
             </UFormField>
+            <!-- TLS moves the port between 563 and 119, so it stands before it (RD-150-11). -->
+            <USwitch v-model="form.tls" :label="t('usenet.form.tls')" />
             <UFormField :label="t('usenet.form.port')" name="port" required>
               <UInput v-model.number="form.port" required type="number" min="1" max="65535" class="w-full" />
             </UFormField>
@@ -255,19 +293,27 @@ function proxyName(id: string | null | undefined): string {
             <UFormField :label="t('usenet.form.username')" name="username">
               <UInput v-model="form.username" class="w-full" autocomplete="username" />
             </UFormField>
-            <UFormField :label="t('usenet.form.password')" name="password">
+            <UFormField
+              :label="t('usenet.form.password')"
+              name="password"
+              :description="copiedFrom && form.username ? t('usenet.form.password_copy', { name: copiedFrom }) : undefined"
+              :required="Boolean(copiedFrom && form.username)"
+            >
               <UInput v-model="form.password" type="password" class="w-full" :placeholder="editingId ? t('usenet.form.password_keep') : ''" autocomplete="new-password" />
             </UFormField>
+            <USwitch v-if="editingId" v-model="clearPassword" size="sm" :label="t('usenet.form.clear_password')" />
             <UFormField :label="t('usenet.form.proxy')" name="proxy">
               <USelect v-model="proxySelection" :items="proxyItems" class="w-full" />
             </UFormField>
-            <label class="flex items-center gap-3 text-sm text-muted"><USwitch v-model="form.tls" /> {{ t('usenet.form.tls') }}</label>
-            <label class="flex items-center gap-3 text-sm text-muted"><USwitch v-model="form.enabled" /> {{ t('usenet.form.enabled') }}</label>
-            <label v-if="editingId" class="flex items-center gap-3 text-xs text-muted"><USwitch v-model="clearPassword" /> {{ t('usenet.form.clear_password') }}</label>
-            <div class="flex gap-2">
-              <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-server-cog'" :label="editingId ? t('usenet.form.save_changes') : t('usenet.form.save_server')" :loading="pending" />
-              <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.actions.cancel')" @click="list.reset" />
-            </div>
+            <USwitch v-model="form.enabled" :label="t('usenet.form.enabled')" />
+            <FormActions
+              :editing="editingId !== null"
+              :create-label="t('usenet.form.create_server')"
+              create-icon="i-lucide-server-cog"
+              :save-label="t('usenet.form.save_changes')"
+              :loading="pending"
+              @cancel="list.reset"
+            />
           </form>
         </section>
       </template>
@@ -318,8 +364,17 @@ function proxyName(id: string | null | undefined): string {
                   <UBadge :color="server.tls ? 'success' : 'warning'" variant="subtle">{{ server.tls ? 'TLS' : 'PLAIN' }}</UBadge>
                   <UIcon v-if="server.has_password" name="i-lucide-key-round" class="text-primary" />
                   <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="testingId === server.id" @click="testServer(server.id)" />
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('usenet.chain.edit')" @click="editServer(server)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('usenet.chain.delete')" :loading="deletingId === server.id" @click="deleteServer(server)" />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-copy-plus"
+                    :label="t('common.actions.duplicate')"
+                    :title="t('common.duplicate_hint')"
+                    @click="duplicateServer(server)"
+                  />
+                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('usenet.chain.edit')" :title="t('usenet.chain.edit')" @click="editServer(server)" />
+                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('usenet.chain.delete')" :title="t('usenet.chain.delete')" :loading="deletingId === server.id" @click="deleteServer(server)" />
                 </div>
               </div>
               <div class="transfer-stripe mt-4 h-1" :class="reorderingId === server.id ? 'animate-pulse opacity-80' : 'opacity-40'" />

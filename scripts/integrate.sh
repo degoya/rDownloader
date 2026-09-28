@@ -112,7 +112,7 @@ cd "$tree"
 echo "==> the generators"
 scripts/api-contract.sh
 scripts/mcp-coverage.sh
-if ! git diff --quiet "$base" HEAD -- Cargo.lock web/package-lock.json; then
+if ! git diff --quiet "$base" HEAD -- Cargo.lock web/pnpm-lock.yaml; then
     scripts/licenses.sh
 else
     echo "    licences: neither lock file differs from $base"

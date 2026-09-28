@@ -146,7 +146,7 @@ function submit(): void {
               </div>
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('routing.rule.regex_editor.add_condition')" @click="addCondition" />
-                <label class="flex items-center gap-2 text-xs text-muted"><USwitch v-model="builder.caseInsensitive" /> {{ t('routing.rule.regex_editor.case_insensitive') }}</label>
+                <USwitch v-model="builder.caseInsensitive" size="sm" :label="t('routing.rule.regex_editor.case_insensitive')" />
               </div>
               <div class="border border-muted p-3">
                 <p class="eyebrow">{{ t('routing.rule.regex_editor.generated_pattern') }}</p>

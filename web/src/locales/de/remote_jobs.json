@@ -54,7 +54,7 @@
   "page": {
     "eyebrow": "Beim Anbieter",
     "title": "Entfernte Aufträge",
-    "description": "An ein Anbieterkonto übergebene Magnets laufen dort, nicht hier. Verfolgen Sie sie, beantworten Sie die Fragen, für die sie anhalten, und beenden Sie sie — beim Anbieter oder nur in dieser Liste."
+    "description": "An ein Anbieterkonto übergebene Magnets laufen dort, nicht hier. Verfolge sie, beantworte die Fragen, für die sie anhalten, und beende sie — beim Anbieter oder nur in dieser Liste."
   },
   "no_remote_job_accounts": "Keines deiner Konten gehört zu einem Dienst, für den ein Remote-Job-Plugin installiert ist. Installiere eines, oder lege ein Konto bei einem passenden Dienst an.",
   "accounts_unavailable": "Die Liste der möglichen Dienste konnte nicht gelesen werden.",

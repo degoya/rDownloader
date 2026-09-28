@@ -22,6 +22,8 @@ use crate::{
 
 #[path = "worker_phases.rs"]
 mod phases;
+#[path = "worker_sources.rs"]
+mod sources;
 
 pub(crate) async fn run(
     scheduler: &SchedulerHandle,
@@ -33,6 +35,24 @@ pub(crate) async fn run(
     else {
         return Ok(());
     };
+    // A file with several sources (RD-150-03) is fetched from them, unless a resolver or a
+    // transform plugin claimed its address: then the address is a hoster's, not a mirror's.
+    // Its own address is one of the set's, so the single path below keeps to the set's
+    // address rule as well.
+    let mut address_policy = None;
+    if resolved.is_none() && transform.is_none() && file.kind == rd_core::DownloadKind::Http {
+        let listed = scheduler.database.download_sources(file.id).await?;
+        if !listed.is_empty() {
+            address_policy = Some(sources::address_policy(scheduler, &listed));
+        }
+        if listed.iter().any(|source| source.protocol.serves_chunks())
+            && sources::run(scheduler, file, listed, cancellation.clone())
+                .await?
+                .is_break()
+        {
+            return Ok(());
+        }
+    }
 
     let mut working_file = file.clone();
     // A plugin-resolved link points at a transfer URL; anything else is a plain direct link
@@ -93,7 +113,7 @@ pub(crate) async fn run(
 
     let network = tokio::select! {
         () = cancellation.cancelled() => return transition_stopped(scheduler, file).await,
-        result = build_replay_client(scheduler, file, replay.as_ref()) => result?,
+        result = build_replay_client(scheduler, file, replay.as_ref(), address_policy) => result?,
     };
     let NetworkClient {
         client,
@@ -320,6 +340,7 @@ pub(crate) async fn build_client(
     proxy_profile_id: Option<rd_core::ProxyProfileId>,
     auth_profile: rd_core::AuthProfileSelection,
     scope: &url::Url,
+    address_policy: Option<rd_http::AddressPolicy>,
 ) -> Result<NetworkClient> {
     let defaults = scheduler.network_defaults.read().await.clone();
     let config = scheduler
@@ -332,15 +353,17 @@ pub(crate) async fn build_client(
             scope,
         )
         .await?;
-    assemble_client(scheduler, config, defaults, scope, None).await
+    assemble_client(scheduler, config, defaults, scope, None, address_policy).await
 }
 
 /// The transfer client for a download, confined to the replay's approved origins when it
-/// has a consented template.
+/// has a consented template, and to `address_policy` when its addresses came from a source
+/// set (RD-150-03).
 pub(crate) async fn build_replay_client(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
     replay: Option<&crate::replay::ReplayContext>,
+    address_policy: Option<rd_http::AddressPolicy>,
 ) -> Result<NetworkClient> {
     let defaults = scheduler.network_defaults.read().await.clone();
     let config = scheduler
@@ -356,7 +379,15 @@ pub(crate) async fn build_replay_client(
     let scope = replay
         .and_then(crate::replay::ReplayContext::scope)
         .map(Arc::new);
-    assemble_client(scheduler, config, defaults, &file.source, scope).await
+    assemble_client(
+        scheduler,
+        config,
+        defaults,
+        &file.source,
+        scope,
+        address_policy,
+    )
+    .await
 }
 
 /// Builds a client for one specific profile without consulting the selection rules, so a
@@ -378,7 +409,7 @@ pub(crate) async fn build_test_client(
         )
         .await?;
     config.auth = Some(profile);
-    assemble_client(scheduler, config, defaults, scope, None).await
+    assemble_client(scheduler, config, defaults, scope, None, None).await
 }
 
 /// Turns a resolved network configuration into a pooled client plus its credential headers.
@@ -388,6 +419,7 @@ async fn assemble_client(
     defaults: rd_http::NetworkDefaults,
     scope: &url::Url,
     replay_scope: Option<Arc<rd_http::ReplayScope>>,
+    address_policy: Option<rd_http::AddressPolicy>,
 ) -> Result<NetworkClient> {
     // Read before `config` is taken apart below; the header itself is built later, and only
     // once the address the transfer actually goes to is known.
@@ -472,6 +504,7 @@ async fn assemble_client(
                 auth_revision: client_wide.map_or(0, |(_, revision)| revision),
                 replay_scope: replay_scope.as_ref().map(|scope| scope.key()),
                 tls_revision: defaults.tls_revision,
+                address_policy,
             },
             proxy: config.proxy,
             proxy_credentials,

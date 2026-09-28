@@ -10,13 +10,18 @@
  * The view starts an edit through `edit()` and learns which row is being edited through the
  * `editing` model, which it highlights in the list.
  */
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, CategoryMapping, IndexerCaps, IndexerCategory, Subscription, SubscriptionRequest } from '@/api/types'
+import FormActions from '@/components/FormActions.vue'
+import SectionHeader from '@/components/SectionHeader.vue'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
+import { translateServerMessage } from '@/i18n/server'
+import { usePostprocessStore } from '@/stores/postprocess'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
+import { argumentsProblem, joinArguments, splitArguments } from '@/utils/scriptArguments'
 import { CARD_RATIOS, type CardRatio, cardRatio, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
 
 const props = defineProps<{ categories: Category[] }>()
@@ -28,6 +33,7 @@ const NONE = '__none__'
 
 const { t } = useI18n()
 const store = useSubscriptionsStore()
+const postprocess = usePostprocessStore()
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 const editRegex = useRegexEditor()
@@ -54,6 +60,10 @@ interface Form {
   cardRatio: CardRatio
   /** A cron expression; only a script subscription sends one (RD-130-19). */
   schedule: string
+  /** The script's file name, kept apart from `url` so an address typed first never becomes one. */
+  script: string
+  /** The parameter line, split into the arguments the script receives (RD-150-08). */
+  scriptArguments: string
 }
 
 /** The address scheme a script subscription's name is stored under, as the server writes it. */
@@ -77,7 +87,9 @@ function emptyForm(): Form {
     view: 'list',
     autoplay: false,
     cardRatio: DEFAULT_CARD_RATIO,
-    schedule: ''
+    schedule: '',
+    script: '',
+    scriptArguments: ''
   }
 }
 
@@ -103,6 +115,42 @@ const kindItems = computed(() => [
   { value: 'site_rule', label: t('subscriptions.kinds.site_rule') },
   { value: 'script', label: t('subscriptions.kinds.script') }
 ])
+
+/**
+ * The scripts to choose from: the scripts folder, the same list the automation offers (RD-150-08).
+ * A saved script that is no longer there stays in the list, marked, so an edit does not quietly
+ * point the subscription somewhere else.
+ */
+const scriptItems = computed(() => {
+  const available = postprocess.scripts ?? []
+  const items = available.map(name => ({ value: name, label: name }))
+  if (form.script && !available.includes(form.script)) {
+    items.unshift({ value: form.script, label: t('subscriptions.form.script_missing', { name: form.script }) })
+  }
+  return items
+})
+
+/** The arguments the parameter line becomes, or `null` while a quote is open. */
+const scriptArgumentList = computed(() => splitArguments(form.scriptArguments))
+
+/** What is wrong with the parameter line, in the words the server would use for it. */
+const scriptArgumentsError = computed(() => {
+  const list = scriptArgumentList.value
+  if (list === null) return t('subscriptions.form.script_arguments_unclosed')
+  const problem = argumentsProblem(list)
+  return problem ? translateServerMessage(problem) : null
+})
+
+// Loaded when a script is first wanted, not with the page: most subscriptions are not scripts.
+// A new script subscription starts on the first script there is, as an automation action does.
+watch(
+  () => form.kind,
+  async kind => {
+    if (kind !== 'script') return
+    const scripts = await postprocess.loadScripts()
+    if (form.kind === 'script' && !form.script) form.script = scripts[0] ?? ''
+  }
+)
 
 /** The floor the server enforces per kind, in minutes: a board page is not an indexer. */
 const minimumMinutes = computed(() => (form.kind === 'site_rule' ? 30 : 5))
@@ -133,7 +181,7 @@ function patterns(value: string): string[] {
 function body(): SubscriptionRequest {
   return {
     name: form.name.trim(),
-    url: form.url.trim(),
+    url: form.kind === 'script' ? form.script : form.url.trim(),
     kind: form.kind,
     enabled: true,
     mode: form.mode,
@@ -163,6 +211,8 @@ function body(): SubscriptionRequest {
     // The server refuses a schedule on any other kind, so one typed before switching away is
     // not sent along with it.
     schedule: form.kind === 'script' ? (form.schedule.trim() || null) : null,
+    // The list, never the line: the server gets exactly what the preview shows.
+    script_arguments: form.kind === 'script' ? (scriptArgumentList.value ?? []) : [],
     // Omitted rather than cleared when left blank, so an edit that does not retype the key
     // keeps the stored one.
     api_key: form.apiKey.trim() || null
@@ -175,6 +225,8 @@ function reset(): void {
 }
 
 async function submit(): Promise<void> {
+  // The field says what is wrong; a line that would not arrive as shown is not sent.
+  if (form.kind === 'script' && scriptArgumentsError.value) return
   const saved = editing.value ? await store.update(editing.value, body()) : await store.create(body())
   if (saved) reset()
 }
@@ -183,9 +235,10 @@ function edit(subscription: Subscription): void {
   editing.value = subscription.id
   form.name = subscription.name
   // A script is edited by its name; the server stores it as `script:<name>` and takes either.
-  form.url = subscription.kind === 'script' && subscription.url.startsWith(SCRIPT_PREFIX)
-    ? subscription.url.slice(SCRIPT_PREFIX.length)
-    : subscription.url
+  const script = subscription.kind === 'script' && subscription.url.startsWith(SCRIPT_PREFIX)
+  form.script = script ? subscription.url.slice(SCRIPT_PREFIX.length) : ''
+  form.url = script ? '' : subscription.url
+  form.scriptArguments = joinArguments(subscription.script_arguments ?? [])
   form.kind = subscription.kind
   form.mode = subscription.mode
   form.categoryId = subscription.category_id ?? NONE
@@ -284,10 +337,16 @@ defineExpose({ edit, reset })
 
 <template>
   <section class="border border-muted bg-default p-5">
-    <h2 class="mb-3 text-sm font-semibold">
-      {{ editing ? t('subscriptions.form.edit') : t('subscriptions.form.add') }}
-    </h2>
+    <SectionHeader
+      class="mb-4"
+      :eyebrow="t('subscriptions.title')"
+      :title="editing ? t('subscriptions.form.edit') : t('subscriptions.form.form_new')"
+    />
     <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
+      <!-- First: the type decides which fields follow (script, address, schedule, filters). -->
+      <UFormField :label="t('subscriptions.form.kind')">
+        <USelect v-model="form.kind" class="w-full" :items="kindItems" value-key="value" />
+      </UFormField>
       <UFormField :label="t('subscriptions.form.name')">
         <UInput v-model="form.name" required class="w-full" data-testid="subscription-name" />
       </UFormField>
@@ -296,7 +355,46 @@ defineExpose({ edit, reset })
         :label="t('subscriptions.form.script')"
         :description="t('subscriptions.form.script_description')"
       >
-        <UInput v-model="form.url" required class="w-full" placeholder="daily-links.sh" data-testid="subscription-script" />
+        <USelect
+          v-if="scriptItems.length"
+          v-model="form.script"
+          class="w-full font-mono"
+          :items="scriptItems"
+          value-key="value"
+          data-testid="subscription-script"
+        />
+        <p v-else class="text-xs text-error" data-testid="subscription-no-scripts">
+          {{ t('automation.action.no_scripts') }}
+        </p>
+      </UFormField>
+      <UFormField
+        v-if="form.kind === 'script'"
+        :label="t('subscriptions.form.script_arguments')"
+        :description="t('subscriptions.form.script_arguments_description')"
+      >
+        <UInput
+          v-model="form.scriptArguments"
+          class="w-full font-mono"
+          autocomplete="off"
+          spellcheck="false"
+          data-testid="subscription-script-arguments"
+        />
+        <p v-if="scriptArgumentsError" class="mt-1 text-xs text-error" data-testid="subscription-script-arguments-error">
+          {{ scriptArgumentsError }}
+        </p>
+        <ul
+          v-else-if="scriptArgumentList?.length"
+          class="mt-2 flex flex-wrap gap-1"
+          :aria-label="t('subscriptions.form.script_arguments_preview')"
+          data-testid="subscription-script-arguments-preview"
+        >
+          <li v-for="(argument, index) in scriptArgumentList" :key="index">
+            <UBadge color="neutral" variant="subtle" class="whitespace-pre font-mono">
+              <template v-if="argument">{{ argument }}</template>
+              <em v-else>{{ t('subscriptions.form.script_arguments_empty') }}</em>
+            </UBadge>
+          </li>
+        </ul>
       </UFormField>
       <UFormField
         v-else
@@ -304,9 +402,6 @@ defineExpose({ edit, reset })
         :description="form.kind === 'site_rule' ? t('subscriptions.form.site_rule_description') : undefined"
       >
         <UInput v-model="form.url" type="url" required class="w-full" data-testid="subscription-url" />
-      </UFormField>
-      <UFormField :label="t('subscriptions.form.kind')">
-        <USelect v-model="form.kind" class="w-full" :items="kindItems" value-key="value" />
       </UFormField>
       <UFormField
         v-if="form.kind === 'script'"
@@ -466,20 +561,17 @@ defineExpose({ edit, reset })
             :items="props.categories.map(category => ({ value: category.id, label: category.name }))"
             value-key="value"
           />
-          <UButton size="xs" color="error" variant="ghost" @click="removeMapping(index)">
-            {{ t('common.actions.delete') }}
-          </UButton>
+          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeMapping(index)" />
         </div>
       </div>
 
-      <div class="flex gap-2">
-        <UButton type="submit" :loading="store.busy" data-testid="subscription-submit">
-          {{ editing ? t('common.actions.save') : t('subscriptions.form.add') }}
-        </UButton>
-        <UButton v-if="editing" color="neutral" variant="ghost" @click="reset">
-          {{ t('common.actions.cancel') }}
-        </UButton>
-      </div>
+      <FormActions
+        :editing="editing !== null"
+        :create-label="t('subscriptions.form.create')"
+        :loading="store.busy"
+        data-testid="subscription-actions"
+        @cancel="reset"
+      />
     </form>
   </section>
 </template>

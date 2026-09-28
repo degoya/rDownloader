@@ -58,6 +58,12 @@ pub struct SubmitRemoteJobRequest {
     /// decoded (RD-120-31). The plugin reads the format from the bytes.
     #[serde(default)]
     pub container: Option<String>,
+    /// The name the source was added under -- a container's file name, as the browser carried
+    /// it. Optional; the finished job's LinkGrabber package is named after it (`Show.S01.nzb`
+    /// becomes `Show.S01`). Only the last path segment is kept, control characters are
+    /// dropped and it is cut at 255 characters.
+    #[serde(default)]
+    pub file_name: Option<String>,
 }
 
 /// What handing a source over produced.
@@ -155,7 +161,10 @@ pub async fn submit_remote_job(
     if !usable {
         return Err(invalid());
     }
-    let outcome = state.remote_jobs.submit(id, source).await?;
+    let outcome = state
+        .remote_jobs
+        .submit_named(id, source, source_name(request.file_name.as_deref()))
+        .await?;
     match outcome {
         SubmitOutcome::Started(job) => Ok(Json(SubmitRemoteJobResponse {
             job,
@@ -171,6 +180,25 @@ pub async fn submit_remote_job(
         )),
         SubmitOutcome::Refused(refusal) => Err(refused(refusal)),
     }
+}
+
+/// Longest source name kept, in characters.
+const MAX_SOURCE_NAME: usize = 255;
+
+/// The name a source was added under, reduced to a label: the last path segment, without
+/// control characters, trimmed and cut. `None` when nothing is left.
+///
+/// A label and never a path: it names a LinkGrabber package, and the package name goes through
+/// the same file-name rules as every other one before anything is written to disk.
+fn source_name(raw: Option<&str>) -> Option<String> {
+    let last = raw?.rsplit(['/', '\\']).next().unwrap_or_default();
+    let name: String = last
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(MAX_SOURCE_NAME)
+        .collect();
+    let name = name.trim();
+    (!name.is_empty()).then(|| name.to_owned())
 }
 
 /// Answers the question a job in `awaiting_choice` asked.
@@ -254,7 +282,7 @@ fn refused(refusal: RemoteJobRefused) -> ApiError {
 mod tests {
     use axum::http::StatusCode;
 
-    use super::{DiscardRemoteJobRequest, refused};
+    use super::{DiscardRemoteJobRequest, MAX_SOURCE_NAME, refused, source_name};
     use crate::remote_job_service::RemoteJobRefused;
 
     fn status(code: &str) -> StatusCode {
@@ -302,5 +330,30 @@ mod tests {
         let confirmed: DiscardRemoteJobRequest =
             serde_json::from_str(r#"{"confirmed":true}"#).expect("confirmed");
         assert!(confirmed.confirmed);
+    }
+
+    /// The name a container was added under is a label for its package, never a path.
+    #[test]
+    fn a_source_name_is_the_last_segment_without_control_characters() {
+        assert_eq!(
+            source_name(Some("Show.S01.nzb")).as_deref(),
+            Some("Show.S01.nzb")
+        );
+        assert_eq!(
+            source_name(Some("C:\\Users\\me\\Show.S01.nzb")).as_deref(),
+            Some("Show.S01.nzb")
+        );
+        assert_eq!(
+            source_name(Some("../../etc/Show\u{0}\nS01.nzb ")).as_deref(),
+            Some("ShowS01.nzb")
+        );
+        assert_eq!(source_name(Some("  ")), None);
+        assert_eq!(source_name(Some("folder/")), None);
+        assert_eq!(source_name(None), None);
+        let long = "a".repeat(MAX_SOURCE_NAME + 40);
+        assert_eq!(
+            source_name(Some(long.as_str())).map(|name| name.chars().count()),
+            Some(MAX_SOURCE_NAME)
+        );
     }
 }

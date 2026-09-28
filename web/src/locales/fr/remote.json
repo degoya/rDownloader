@@ -25,15 +25,16 @@
     "passive": "Mode passif (PASV/EPSV)",
     "passive_hint": "À désactiver uniquement si le serveur exige le mode actif.",
     "enabled": "Activé",
-    "save": "Enregistrer",
-    "create": "Créer",
-    "cancel": "Annuler",
     "test": "Tester",
     "delete": "Supprimer",
     "delete_confirm": "Supprimer cet accès ? Les téléchargements qui l'utilisent reviendront à la correspondance par hôte et port.",
     "incomplete": "Aucun identifiant n'est encore enregistré pour cet accès",
     "test_ok": "Le serveur a accepté la connexion",
-    "secrets_note": "Les mots de passe et les clés sont chiffrés et ne sont plus jamais affichés."
+    "secrets_note": "Les mots de passe et les clés sont chiffrés et ne sont plus jamais affichés.",
+    "form_new": "Nouvel accès",
+    "create_action": "Créer l'accès",
+    "created": "Accès créé",
+    "saved": "Accès enregistré"
   },
   "protocols": {
     "ftp": "FTP (sans chiffrement)",
@@ -85,5 +86,90 @@
     "timeout_hint": "S'applique à la connexion, à l'authentification et à l'attente des données.",
     "ssh_auto_trust": "Approuver une clé d'hôte SSH inconnue à la première utilisation",
     "ssh_auto_trust_hint": "Désactivé par défaut. Même activé, une clé modifiée est toujours bloquée et jamais acceptée automatiquement."
+  },
+  "object_storage": {
+    "eyebrow": "Stockage objet",
+    "title": "Stockage objet",
+    "description": "Profils pour Amazon S3 et les services compatibles S3 comme MinIO, Ceph, Wasabi, Backblaze B2 ou Cloudflare R2, pour Azure Blob Storage et pour Google Cloud Storage.",
+    "usage_links": "Collez des liens comme {link} dans le LinkGrabber. Un lien utilise le profil lié à son bucket, sinon le seul profil actif sans bucket ; {named} désigne un profil explicitement (par nom ou identifiant).",
+    "usage_upload": "Comme cible d'envoi du post-traitement : {target}.",
+    "list_title": "Profils",
+    "form_new": "Nouveau profil",
+    "form_edit": "Modifier le profil",
+    "credential_source": "Identifiants",
+    "sources": {
+      "static": "Clés enregistrées",
+      "ambient": "Environnement de cette machine",
+      "anonymous": "Anonyme (bucket public)",
+      "shared_access_signature": "Signature d'accès partagé (SAS)"
+    },
+    "source_hints": {
+      "static": "Un identifiant de clé d'accès et une clé d'accès secrète, avec un jeton de session en option.",
+      "ambient": "Utilise les identifiants de la machine sur laquelle tourne rDownloader : variables d'environnement, identité web, conteneur (ECS/EKS) ou métadonnées d'instance EC2. Rien n'est enregistré ici.",
+      "anonymous": "Requêtes non signées, uniquement pour les buckets lisibles publiquement."
+    },
+    "name": "Nom",
+    "name_placeholder": "Bucket de sauvegarde",
+    "endpoint": "Point de terminaison",
+    "endpoint_description": "Vide pour AWS S3 dans la région ci-dessous. Les certificats TLS sont toujours vérifiés ; une autorité de certification privée se règle comme CA personnalisée sous Réseau. http:// uniquement pour un point de terminaison local.",
+    "region": "Région",
+    "region_description": "Obligatoire pour AWS ; de nombreux services compatibles S3 acceptent n'importe quelle valeur ou us-east-1.",
+    "bucket": "Bucket",
+    "bucket_description": "Facultatif. Les liens vers ce bucket utilisent ce profil ; vide, le profil sert n'importe quel bucket.",
+    "any_bucket": "tout bucket",
+    "addressing": "Adressage",
+    "addressing_description": "Automatique : style virtual-host pour AWS, style chemin avec un point de terminaison personnalisé.",
+    "addressing_modes": {
+      "auto": "Automatique",
+      "path": "Style chemin (point/bucket/clé)",
+      "virtual_host": "Style virtual-host (bucket.point/clé)"
+    },
+    "access_key_id": "Identifiant de clé d'accès",
+    "secret_access_key": "Clé d'accès secrète",
+    "secret_keep": "Enregistrée. Laisser vide pour conserver la clé enregistrée.",
+    "secrets_note": "Les secrets sont enregistrés chiffrés et ne sont plus jamais affichés.",
+    "session_token": "Jeton de session",
+    "session_token_description": "Facultatif, pour des identifiants temporaires.",
+    "session_token_keep": "Enregistré. Laisser vide pour conserver le jeton enregistré.",
+    "clear_session_token": "Supprimer le jeton de session enregistré",
+    "checksums": "Envoyer les sommes de contrôle lors de l’envoi",
+    "checksums_description": "Chaque partie envoyée porte une somme SHA-256 que le service vérifie à la réception. À désactiver seulement si un service compatible la refuse.",
+    "enabled": "Actif",
+    "disabled": "Désactivé",
+    "incomplete": "Aucune clé enregistrée",
+    "create": "Créer le profil",
+    "created": "Profil créé",
+    "saved": "Profil enregistré",
+    "test": "Tester",
+    "test_ok": "{name} : le service a répondu et accepté la requête.",
+    "delete_title": "Supprimer le profil",
+    "delete_description": "Supprimer {name} ? Les liens et cibles d'envoi qui utilisent ce profil ne fonctionneront plus tant qu'un autre profil ne les servira pas.",
+    "empty": "Aucun profil de stockage objet pour l'instant.",
+    "provider": "Service",
+    "providers": {
+      "s3": "Amazon S3 et services compatibles S3",
+      "azure": "Azure Blob Storage",
+      "gcs": "Google Cloud Storage"
+    },
+    "azure_hints": {
+      "static": "La clé d'accès du compte de stockage.",
+      "shared_access_signature": "Un jeton SAS ou l'URL SAS complète. Quand il expire, saisissez-en un nouveau ici ; les téléchargements commencés reprennent là où ils se sont arrêtés.",
+      "ambient": "Utilise l'identité de la machine sur laquelle tourne rDownloader : un principal de service (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID), une identité de charge de travail ou une identité managée. Rien n'est enregistré ici.",
+      "anonymous": "Requêtes non signées, uniquement pour les conteneurs lisibles publiquement."
+    },
+    "gcs_hints": {
+      "static": "Le contenu du fichier de clé JSON d'un compte de service.",
+      "ambient": "Utilise les identifiants par défaut de l'application de la machine (GOOGLE_APPLICATION_CREDENTIALS ou gcloud auth application-default login) ou son serveur de métadonnées. Rien n'est enregistré ici.",
+      "anonymous": "Requêtes non signées, uniquement pour les buckets lisibles publiquement."
+    },
+    "account": "Compte de stockage",
+    "account_description": "Le nom du compte : 3 à 24 lettres minuscules et chiffres.",
+    "container": "Conteneur",
+    "container_description": "Facultatif. Les liens vers ce conteneur utilisent ce profil ; vide, le profil sert n'importe quel conteneur du compte.",
+    "endpoint_description_azure": "Vide pour le service blob du compte (<compte>.blob.core.windows.net). Une adresse propre pour Azurite ou un autre cloud Azure, par exemple http://127.0.0.1:10000/devstoreaccount1. Les certificats TLS sont toujours vérifiés.",
+    "endpoint_description_gcs": "Vide pour storage.googleapis.com. Une adresse propre uniquement pour un émulateur ou un service intermédiaire. Les certificats TLS sont toujours vérifiés.",
+    "account_key": "Clé du compte",
+    "sas": "Signature d'accès partagé",
+    "service_account_key": "Clé de compte de service (JSON)"
   }
 }

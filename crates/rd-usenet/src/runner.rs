@@ -127,6 +127,19 @@ impl ExternalRunner for UsenetRunner {
         DownloadKind::Usenet
     }
 
+    /// Article ranges already in the part file are proven by their checksums before they are
+    /// kept, an already renamed output file is recognised after a restart, and yEnc checksums
+    /// verify every article; the names come from the NZB, so they keep their own rule.
+    fn reuse(&self) -> rd_core::ReuseCapability {
+        rd_core::ReuseCapability {
+            resume_partial: true,
+            recheck_partial: true,
+            adopt_completed: true,
+            verify_completed: true,
+            applies_collision_policy: false,
+        }
+    }
+
     /// The most files the runner ever works on at once; how many it takes right now is
     /// [`Self::dispatch_capacity`].
     fn slot_capacity(&self) -> usize {

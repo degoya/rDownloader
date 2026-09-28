@@ -34,8 +34,8 @@ Every case asserts all four. They are not interchangeable, and each has its own 
 Axis A only exists when it is asked for, and it is each *owning* crate's feature that asks:
 
 ```bash
-cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints \
-    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet
+cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints \
+    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage
 ```
 
 `rd-core/failpoints` on its own is not enough, however plausible it looks. Every crash-test
@@ -66,12 +66,32 @@ row for a point that does not exist.
 | `http.after_chunk_write` | rd-http | bytes written but not recorded are re-fetched, never counted as confirmed |
 | `http.after_db_checkpoint` | rd-http | a recorded checkpoint is resumed from exactly, re-fetching nothing before it |
 | `http.after_part_sync` | rd-http | a durable write without its commit falls back to the older checkpoint |
+| `http.before_piece_check` | rd-http | a chunk confirmed but not checked against its piece hashes is checked before anything builds on it, and a piece that fails isolates the source named for it |
+
+| `object_storage.after_part_upload` | rd-object-storage | a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
+| `scheduler.before_move_source_removed` | rd-scheduler | a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it |
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
 | `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
+
+`http.before_piece_check` belongs to the multi-source transfer (RD-150-03). A chunk fetched
+from one mirror of a Metalink file is confirmed by its checkpoints like any other, and only
+then read back and compared with the piece hashes the document stated. A stop between the two
+leaves bytes the database calls confirmed that nothing has checked. The source a chunk is
+fetched from is written down before its first byte arrives, so its case asserts that the next
+run checks every complete, unchecked chunk first, moves a failed one back to the start of the
+refused piece, isolates the mirror that sent it and reaches the right bytes from another one.
+
+`object_storage.after_part_upload` is the upload side's two-phase step (RD-150-04): the
+service confirms a part of a multipart upload, and only then is the part recorded with the
+identifier the completion has to name it by. A stop in that window leaves a part in the bucket
+that nothing here vouches for. Its case asserts that the next run uploads that part again under
+the same number — which replaces it at the service — and none of the parts recorded before, and
+that the completed object is the local file byte for byte. The case runs with
+`rd-object-storage/failpoints`.
 
 `scheduler.before_promote` is the other two-phase step in the scheduler: a finished `.part`
 is renamed into the package folder and the row is only then marked complete. A stop in that
@@ -105,6 +125,16 @@ written first and the disk follows, so the interesting instant is the one where 
 already names the new folder and nothing has moved yet. Its case therefore asserts the
 folder-level form of invariants 3 and 4 — the data is all reachable under the new folder, and
 the old one is gone — rather than the byte-level four, which have no meaning for a move.
+
+`scheduler.before_move_source_removed` is the second half of the same move, one file at a
+time (RD-150-02). Across devices a file is copied under a temporary name, both sides are
+hashed, the verified copy is renamed into place, and only then is the original removed; the
+point sits right before that removal, where both copies exist and are identical. Its case
+asserts that the next pass recognises the identical target as this file, removes the original
+and records the move, rather than filing the payload a second time as `name (1)`. A stop
+earlier than that leaves the original and at most a temporary file, which the next copy
+discards; the unit tests of `rd_files::place_verified` walk those states one by one, because a
+test cannot make `rename` answer `EXDEV`.
 
 `scheduler.before_mirror_promoted` is the mirror fallback's own two-phase step (RD-110-20).
 When the link that held a mirror group's turn fails for a reason that lies at the hoster, the

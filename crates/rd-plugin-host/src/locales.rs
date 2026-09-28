@@ -38,7 +38,7 @@ pub struct PluginLocale {
 ///
 /// A provider offering a choice of credential modes needs one label and hint per mode: the
 /// same field holds a password in one and an API key in the other, and a form that called it
-/// both at once would help nobody. The plain `secret_label`/`secret_hint` stay the fallback,
+/// both at once would help nobody (and one that signs in with a code, none at all). The plain `secret_label`/`secret_hint` stay the fallback,
 /// and are all a single-mode provider ever needs.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -55,6 +55,21 @@ pub struct PluginLocaleAccount {
     pub secret_label_api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secret_hint_api_key: Option<String>,
+    /// The sign-in-with-a-code mode (RD-150-09): nothing is typed there, so this is the one
+    /// place the form can say what pressing "Connect" will do.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret_label_oauth: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret_hint_oauth: Option<String>,
+    /// The name of each mode in the sign-in method picker. The core's generic "API key" is
+    /// wrong for a provider whose own term is "API token" (Real-Debrid), so the provider
+    /// names its modes; a mode without one keeps the core's label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode_label_login: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode_label_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode_label_oauth: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username_label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -189,5 +204,14 @@ mod tests {
         let account = locale.account.expect("account");
         assert_eq!(account.secret_label.as_deref(), Some("Cl\u{e9} API"));
         assert_eq!(account.secret_hint.as_deref(), Some("Depuis votre compte"));
+    }
+
+    #[test]
+    fn mode_labels_parse() {
+        let raw = bytes(r#"{"account":{"mode_label_api_key":"Jeton d'API"}}"#);
+        let locale = parse_locale("fixture", "fr", &raw).expect("parse");
+        let account = locale.account.expect("account");
+        assert_eq!(account.mode_label_api_key.as_deref(), Some("Jeton d'API"));
+        assert_eq!(account.mode_label_login, None);
     }
 }

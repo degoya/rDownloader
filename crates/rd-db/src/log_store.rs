@@ -240,7 +240,7 @@ pub(crate) async fn query_log_records(
     pool: &SqlitePool,
     query: &LogQuery,
 ) -> Result<Vec<LogRecord>> {
-    let mut builder: QueryBuilder<'_, Sqlite> =
+    let mut builder: QueryBuilder<Sqlite> =
         QueryBuilder::new(format!("SELECT {COLUMNS} FROM log_records WHERE 1 = 1"));
     if let Some(min_level) = query.min_level {
         builder.push(" AND level IN (");

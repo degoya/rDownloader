@@ -27,7 +27,7 @@ pub(crate) use granted::GrantedHost;
 use host::NativeHost;
 pub use transfer_auth::{provider_download_authorization, provider_download_carries_credential};
 
-/// Native resolver chain backed by the same constrained host capabilities as Components.
+/// The resolver chain: the installed resolver components, on the application's own host.
 #[derive(Clone)]
 pub struct ResolverService {
     database: rd_db::Database,
@@ -55,59 +55,11 @@ impl ResolverService {
             network_defaults,
             captcha,
         ));
-        // Each built-in resolver sees the shared host only through its own manifest, so it
-        // is confined exactly as the packaged component of the same plugin would be.
-        let granted = |manifest: &str| GrantedHost::wrap(host.clone(), manifest);
-        let resolvers: Vec<Arc<dyn Resolver>> = vec![
-            Arc::new(rd_plugin_alldebrid::AllDebridResolver::new(granted(
-                rd_plugin_alldebrid::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_ddownload::DdownloadResolver::new(granted(
-                rd_plugin_ddownload::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_debridlink::DebridLinkResolver::new(granted(
-                rd_plugin_debridlink::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_filejoker::FilejokerResolver::new(granted(
-                rd_plugin_filejoker::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_hitfile::HitfileResolver::new(granted(
-                rd_plugin_hitfile::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_katfile::KatfileResolver::new(granted(
-                rd_plugin_katfile::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_keep2share::Keep2ShareResolver::new(granted(
-                rd_plugin_keep2share::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_krakenfiles::KrakenfilesResolver::new(granted(
-                rd_plugin_krakenfiles::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_linksnappy::LinkSnappyResolver::new(granted(
-                rd_plugin_linksnappy::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_mediafire::MediafireResolver::new(granted(
-                rd_plugin_mediafire::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_nitroflare::NitroflareResolver::new(granted(
-                rd_plugin_nitroflare::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_onefichier::OneFichierResolver::new(granted(
-                rd_plugin_onefichier::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_premiumize::PremiumizeResolver::new(granted(
-                rd_plugin_premiumize::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_rapidgator::RapidgatorResolver::new(granted(
-                rd_plugin_rapidgator::MANIFEST,
-            ))),
-            Arc::new(rd_plugin_turbobit::TurbobitResolver::new(granted(
-                rd_plugin_turbobit::MANIFEST,
-            ))),
-        ];
         Self {
             database,
-            resolvers: Arc::new(resolvers),
+            // Nothing is compiled in (RD-150-18): the chain is the installed resolver
+            // components, and it is empty until `load_components_from_registry` fills it.
+            resolvers: Arc::default(),
             pin_only: Arc::default(),
             host,
         }
@@ -145,7 +97,7 @@ impl ResolverService {
         );
         let count = components.len();
         let mut pin_only = std::collections::HashSet::new();
-        let mut loaded = Vec::with_capacity(count + self.resolvers.len());
+        let mut loaded = Vec::with_capacity(count);
         for (resolver, role) in components {
             if role != crate::VersionRole::Default {
                 let metadata = resolver.metadata();
@@ -153,7 +105,6 @@ impl ResolverService {
             }
             loaded.push(resolver);
         }
-        loaded.extend(self.resolvers.iter().cloned());
         self.resolvers = Arc::new(loaded);
         self.pin_only = Arc::new(pin_only);
         self.release_unsatisfiable_pins().await;
@@ -218,7 +169,7 @@ impl ResolverService {
         proxy_profile_id: Option<ProxyProfileId>,
         pin: Option<&ResolverPin>,
     ) -> Result<Option<ResolvedDownload>, Failure> {
-        // Before any resolver, built in or installed, sees the link: a marker inside it would
+        // Before any installed resolver sees the link: a marker inside it would
         // be expanded with the account's credential (RD-120-66).
         if crate::foreign_address::carries_marker(url.as_str()) {
             return Err(crate::foreign_address::refused());
@@ -465,6 +416,14 @@ pub(crate) fn register_bundled_providers_for_tests() {
             .filter(|path| path.is_file())
             .filter_map(|path| std::fs::read_to_string(path).ok())
             .filter_map(|text| toml::from_str::<crate::PluginManifest>(&text).ok())
+            // The registered-application OAuth shape no bundled plugin has since 1.5.0; its host
+            // mechanics are tested against this fixture.
+            .chain(std::iter::once(
+                toml::from_str::<crate::PluginManifest>(include_str!(
+                    "fixtures/oauth_registered_app.toml"
+                ))
+                .expect("the registered-application fixture"),
+            ))
             .collect::<Vec<_>>();
         rd_provider_registry::replace_secret_fragment_hosts(
             rows.iter()
@@ -562,10 +521,16 @@ mod tests {
 
     use async_trait::async_trait;
     use rd_core::{AccountId, Failure};
-    use rd_plugin_api::{ClientIdentity, HostHttpRequest, HostHttpResponse, ResolverHost};
+    use rd_plugin_api::{
+        AccountStatus, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
+        ResolvedDownload, Resolver, ResolverHost, ResolverMetadata,
+    };
 
     use super::compatible_components;
     use crate::{PluginManifest, VerifiedPackage};
+
+    const MULTIHOSTER: &str = "019d0000-0000-7000-8000-000000001801";
+    const FREE_HOSTER: &str = "019d0000-0000-7000-8000-000000001802";
 
     struct UnusedHost;
 
@@ -676,103 +641,96 @@ credentials = "api_key"
         }
     }
 
-    /// Resolver dispatch matches `metadata.provider_slug` against the account's provider
-    /// slug, so a built-in resolver and its registry row must agree on that slug. A typo on
-    /// either side would silently fall back to direct HTTP (`resolve()` returns `Ok(None)`)
-    /// instead of erroring.
-    ///
-    /// Only one direction is asserted here: every registered resolver needs a registry row.
-    /// The reverse used to hold as well, back when the rows were the eleven compiled into the
-    /// binary and each had a native resolver beside it. Since RD-101-13 the rows come from
-    /// plugin manifests, and a provider may legitimately be served by a component alone —
-    /// `xfs_generic` is exactly that and has no native build. That every bundled manifest
-    /// still contributes its row is asserted in `tests/bundled_providers.rs`.
-    #[tokio::test]
-    async fn every_registered_resolver_agrees_with_the_provider_registry() {
-        super::register_bundled_providers_for_tests();
-        let directory = tempfile::tempdir().expect("tempdir");
-        let database = rd_db::Database::open(directory.path().join("db.sqlite"))
-            .await
-            .expect("database");
-        let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
-            .await
-            .expect("secret store");
-        let service = super::ResolverService::new(
-            database,
-            rd_http::ClientPool::default(),
-            secrets,
-            Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
-            None,
-        );
+    /// A resolver that claims hosts by name, or every host like a multihoster's `*`.
+    struct Claims {
+        metadata: ResolverMetadata,
+        hosts: Vec<&'static str>,
+    }
 
-        for resolver in service.resolvers.iter() {
-            let metadata = resolver.metadata();
-            assert!(
-                rd_provider_registry::by_slug(&metadata.provider_slug).is_some(),
-                "resolver {:?} declares provider slug {:?}, which has no registry row",
-                metadata.name,
-                metadata.provider_slug
-            );
+    impl Claims {
+        fn resolver(
+            plugin_id: &str,
+            slug: &str,
+            hosts: Vec<&'static str>,
+            requires_account: bool,
+        ) -> Arc<dyn Resolver> {
+            Arc::new(Self {
+                metadata: ResolverMetadata {
+                    plugin_id: plugin_id.parse().expect("plugin id"),
+                    name: slug.to_owned(),
+                    version: "1.0.0".to_owned(),
+                    provider_slug: slug.to_owned(),
+                    domains: hosts.iter().map(|host| (*host).to_owned()).collect(),
+                    max_concurrent_downloads: 1,
+                    requires_account,
+                },
+                hosts,
+            })
         }
     }
 
-    /// Every built-in resolver must report exactly what its own bundled manifest says.
-    ///
-    /// The two builds of a plugin used to describe themselves separately — a
-    /// `ResolverMetadata` literal in `native.rs` and the `manifest.toml` the component ships
-    /// — and they had already drifted: ddownload's native domain list was missing the CDN
-    /// wildcard its manifest grants, and the native build reported the *workspace* version,
-    /// so every core release invalidated each `ResolverPin` pointing at a native resolver.
-    /// Both now read one file; this test is what keeps a stray `include_str!` or a renamed
-    /// manifest field from quietly reintroducing the split.
-    #[tokio::test]
-    async fn every_built_in_resolver_reports_its_own_bundled_manifest() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let database = rd_db::Database::open(directory.path().join("db.sqlite"))
+    #[async_trait]
+    impl Resolver for Claims {
+        fn metadata(&self) -> &ResolverMetadata {
+            &self.metadata
+        }
+
+        fn matches(&self, url: &url::Url) -> bool {
+            url.host_str().is_some_and(|host| {
+                self.hosts
+                    .iter()
+                    .any(|claimed| *claimed == "*" || *claimed == host)
+            })
+        }
+
+        async fn check_account(&self, _account_id: AccountId) -> Result<AccountStatus, Failure> {
+            Err(Failure::new(rd_core::FailureKind::Permanent, "unused"))
+        }
+
+        async fn resolve(&self, _request: ResolveRequest) -> Result<ResolvedDownload, Failure> {
+            Err(Failure::new(
+                rd_core::FailureKind::Permanent,
+                "resolved by the stub",
+            ))
+        }
+    }
+
+    async fn service(directory: &std::path::Path) -> super::ResolverService {
+        let database = rd_db::Database::open(directory.join("db.sqlite"))
             .await
             .expect("database");
-        let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
+        let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
             .await
             .expect("secret store");
-        let service = super::ResolverService::new(
+        super::ResolverService::new(
             database,
             rd_http::ClientPool::default(),
             secrets,
             Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
             None,
-        );
+        )
+    }
 
-        let plugins = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
-        let mut checked = 0;
-        for resolver in service.resolvers.iter() {
-            let metadata = resolver.metadata();
-            let manifest_path = std::fs::read_dir(&plugins)
-                .expect("plugins directory")
-                .filter_map(Result::ok)
-                .map(|entry| entry.path().join("manifest.toml"))
-                .filter(|path| path.is_file())
-                .find(|path| {
-                    let text = std::fs::read_to_string(path).expect("manifest");
-                    let manifest: crate::PluginManifest = toml::from_str(&text).expect("parse");
-                    manifest.message_slug() == metadata.provider_slug
-                })
-                .unwrap_or_else(|| {
-                    panic!(
-                        "no bundled manifest for provider {}",
-                        metadata.provider_slug
-                    )
-                });
-            let text = std::fs::read_to_string(&manifest_path).expect("manifest");
-            let expected = rd_plugin_api::metadata_from_manifest(&text);
-            assert_eq!(
-                metadata,
-                &expected,
-                "{} does not report its own manifest",
-                manifest_path.display()
-            );
-            checked += 1;
-        }
-        assert_eq!(checked, service.resolvers.len());
+    /// Nothing is compiled in (RD-150-18): until the installed components are loaded the chain
+    /// is empty, and a hoster link fails with "account required" instead of reaching a
+    /// resolver nobody installed.
+    #[tokio::test]
+    async fn a_fresh_service_has_no_resolver_until_components_are_loaded() {
+        super::register_bundled_providers_for_tests();
+        let directory = tempfile::tempdir().expect("tempdir");
+        let service = service(directory.path()).await;
+        let hoster: url::Url = "https://rapidgator.net/file/abc/x.rar"
+            .parse()
+            .expect("URL");
+
+        assert!(service.resolvers.is_empty());
+        assert!(!service.has_resolver(&hoster));
+        assert!(!service.has_free_resolver(&hoster));
+        let failure = service
+            .resolve(hoster, None, None, None)
+            .await
+            .expect_err("a hoster link needs a resolver");
+        assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
     }
 
     /// The end of the wiring an account-less download depends on: a hoster whose resolver
@@ -782,26 +740,19 @@ credentials = "api_key"
     #[tokio::test]
     async fn a_free_capable_hoster_is_found_without_an_account() {
         let directory = tempfile::tempdir().expect("tempdir");
-        let database = rd_db::Database::open(directory.path().join("db.sqlite"))
-            .await
-            .expect("database");
-        let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
-            .await
-            .expect("secret store");
-        let service = super::ResolverService::new(
-            database,
-            rd_http::ClientPool::default(),
-            secrets,
-            Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
-            None,
-        );
+        let mut service = service(directory.path()).await;
+        service.resolvers = Arc::new(vec![
+            Claims::resolver(MULTIHOSTER, "premiumize", vec!["*"], true),
+            Claims::resolver(FREE_HOSTER, "katfile", vec!["katfile.biz"], false),
+        ]);
 
         let katfile: url::Url = "https://katfile.biz/abc123xyz/release.rar"
             .parse()
             .expect("URL");
-        assert!(
-            service.has_free_resolver(&katfile),
-            "KatFile declares requires_account = false and must be reachable without an account"
+        assert_eq!(
+            service.free_resolver_plugin(&katfile),
+            Some(FREE_HOSTER.parse::<rd_core::PluginId>().expect("plugin id")),
+            "a resolver with requires_account = false must be reachable without an account"
         );
 
         let direct: url::Url = "https://cdn.example.test/tool.bin".parse().expect("URL");
@@ -811,27 +762,21 @@ credentials = "api_key"
         );
     }
 
-    /// `resolve()` against the real resolver chain, which includes multihosters whose `*`
-    /// domain matches every URL. A plain link must come back as "not resolved" so the
-    /// scheduler downloads it directly; anything else breaks every direct download, which
-    /// a unit test over an empty resolver list cannot show.
+    /// `resolve()` against a chain with a multihoster whose `*` domain matches every URL. A
+    /// plain link must come back as "not resolved" so the scheduler downloads it directly;
+    /// anything else breaks every direct download, which a chain without such a resolver
+    /// cannot show.
     #[tokio::test]
     async fn a_plain_link_resolves_to_nothing_even_though_multihosters_match_every_host() {
         super::register_bundled_providers_for_tests();
         let directory = tempfile::tempdir().expect("tempdir");
-        let database = rd_db::Database::open(directory.path().join("db.sqlite"))
-            .await
-            .expect("database");
-        let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
-            .await
-            .expect("secret store");
-        let service = super::ResolverService::new(
-            database,
-            rd_http::ClientPool::default(),
-            secrets,
-            Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
-            None,
-        );
+        let mut service = service(directory.path()).await;
+        service.resolvers = Arc::new(vec![Claims::resolver(
+            MULTIHOSTER,
+            "premiumize",
+            vec!["*"],
+            true,
+        )]);
 
         for direct in [
             "http://127.0.0.1:8792/payload.bin",

@@ -20,10 +20,13 @@
 #   scripts/build-plugins.sh --development      # unsigned, into dist/dev-plugins
 #   scripts/build-plugins.sh --components-only  # build (no signing) what is stale or missing
 #   scripts/build-plugins.sh --components-only ddownload  # build (no signing) exactly these
+#   scripts/build-plugins.sh --list-packageable # names the plugins the bundle ships
+#   scripts/build-plugins.sh --list-examples    # names the example plugins, built but never bundled
 #   scripts/build-plugins.sh --list-stale       # names the components not built from these sources
 #   scripts/build-plugins.sh --list-missing     # names the components that were never built here
 #   scripts/build-plugins.sh --list-unbumped    # names the plugins changed under a signed version
 #   scripts/build-plugins.sh --source-hash ddownload  # the source hash a stamp records
+#   scripts/build-plugins.sh --cache-key        # deps=… and sources=… for CI's component cache
 #
 # Staleness by content, not by file time (RD-120-58). Every component this script builds gets a
 # stamp beside it, `rd_plugin_<name>.wasm.src-sha256`: the hash of the sources it was built from
@@ -84,18 +87,22 @@ list_only=0
 stale_only=0
 missing_only=0
 unbumped_only=0
+examples_only=0
 components_only=0
 hash_only=0
+cache_key_only=0
 selected=()
 for argument in "$@"; do
     case "$argument" in
         --development) development=1 ;;
         --components-only) components_only=1 ;;
         --list-packageable) list_only=1 ;;
+        --list-examples) examples_only=1 ;;
         --list-stale) stale_only=1 ;;
         --list-missing) missing_only=1 ;;
         --list-unbumped) unbumped_only=1 ;;
         --source-hash) hash_only=1 ;;
+        --cache-key) cache_key_only=1 ;;
         -*) echo "unknown argument: $argument" >&2; exit 2 ;;
         *) selected+=("$argument") ;;
     esac
@@ -119,11 +126,23 @@ packageable() {
     [[ "$(printf '%s\n%s\n' "$minimum" "$APP_VERSION" | sort -V | head -1)" == "$minimum" ]]
 }
 
+# Whether plugin $1 is an example (RD-150-20). `plugins/example-*` show authors a plugin type;
+# they are built, tested and checked like every other plugin, so they stay current, but no
+# installation needs them, so a signed build never packages them and the bundle does not carry
+# them. They move to sdk/templates with RD-160-04.
+example() { [[ "$1" == example-* ]]; }
+
 # The plugins this build can actually package, for the release scripts and CI, so the rule
-# above lives in exactly one place.
-if [[ "$list_only" -eq 1 ]]; then
+# above lives in exactly one place: --list-packageable the bundle, --list-examples the examples,
+# which CI packages unsigned to check them.
+if [[ "$list_only" -eq 1 || "$examples_only" -eq 1 ]]; then
     for manifest in plugins/*/manifest.toml; do
         name="$(basename "$(dirname "$manifest")")"
+        if example "$name"; then
+            [[ "$examples_only" -eq 1 ]] || continue
+        else
+            [[ "$list_only" -eq 1 ]] || continue
+        fi
         packageable "$name" && echo "$name"
     done
     exit 0
@@ -216,6 +235,27 @@ if [[ "$hash_only" -eq 1 ]]; then
         [[ -f "plugins/$name/manifest.toml" ]] || { echo "no plugin named $name" >&2; exit 2; }
         source_hash "$name"
     done
+    exit 0
+fi
+
+# The key of the component cache in CI and the release (RD-150-10), as two `name=value` lines
+# for $GITHUB_OUTPUT. `sources` covers every plugin's source hash, so an exact hit is a set of
+# components built from exactly these sources. `deps` covers what a stamp deliberately leaves
+# out and a component still depends on: the registry packages in Cargo.lock, the root Cargo.toml
+# (workspace dependencies, features, the release profile) and .cargo/config.toml. The workspace
+# version is taken out of both files first — every release moves it, and no component reads it.
+# The workflow restores by `deps` alone when `sources` misses, and this script's staleness check
+# then rebuilds exactly the plugins whose stamps no longer match.
+if [[ "$cache_key_only" -eq 1 ]]; then
+    {
+        awk 'BEGIN { RS = "" } /\nsource = / { print; print "" }' Cargo.lock
+        sed '/^\[workspace\.package\]/,/^\[/{/^version = /d;}' Cargo.toml
+        [[ ! -f .cargo/config.toml ]] || cat .cargo/config.toml
+    } | sha256_files - | cut -c1-64 | sed 's/^/deps=/'
+    for manifest in plugins/*/manifest.toml; do
+        name="$(basename "$(dirname "$manifest")")"
+        printf '%s %s\n' "$name" "$(source_hash "$name")"
+    done | sha256_files - | cut -c1-64 | sed 's/^/sources=/'
     exit 0
 fi
 
@@ -427,23 +467,39 @@ if [[ ${#selected[@]} -eq 0 ]]; then
             echo "    skipping $name: it needs a newer application version than $APP_VERSION" >&2
             continue
         fi
+        # The development set keeps the examples: it is what a plugin author runs.
+        if [[ "$development" -eq 0 ]] && example "$name"; then
+            continue
+        fi
         selected+=("$name")
     done
 fi
 
 refused=()
-# The packager is the host binary, built once here and called directly below. `cargo run` per
-# plugin rebuilt it every time: `build_components` touches the shared plugin libraries, and
-# rdownloader links the native fallbacks that depend on them, so each package paid a full
-# release link of the host (2026-09-24: 12 packages in 43 minutes).
-echo "==> building the packager (rdownloader, release)"
-CARGO_BUILD_JOBS="$JOBS" cargo build --quiet --release -j "$JOBS" -p rdownloader
-PACKAGER="$TARGET_DIR/release/rdownloader"
+# The packager is built once here and called directly below. `cargo run` per plugin rebuilt it
+# every time: `build_components` touched the shared plugin libraries, and rdownloader linked the
+# native fallbacks that depended on them, so each package paid a full release link of the host
+# (2026-09-24: 12 packages in 43 minutes).
+#
+# It is `rd-pack`, not the service (RD-150-20): the same `plugin package` command, without
+# rd-api, the queue or the web assets. And it is built in `release-test`, not `release`:
+# `plugin package` compiles every component with Wasmtime to validate it, which a debug build of
+# Cranelift makes slow, while `release`'s single code unit and thin LTO buy a tool nothing and
+# cost the build the most. The owner's test packages use the same profile, so the plugin host
+# and Wasmtime are compiled once for both.
+PACKAGER_PROFILE="release-test"
+echo "==> building the packager (rd-pack, $PACKAGER_PROFILE)"
+CARGO_BUILD_JOBS="$JOBS" cargo build --quiet --profile "$PACKAGER_PROFILE" -j "$JOBS" -p rd-pack
+PACKAGER="$TARGET_DIR/$PACKAGER_PROFILE/rd-pack"
 [[ -x "$PACKAGER" ]] || { echo "!! $PACKAGER was not produced" >&2; exit 1; }
 
 buildable=()
 for name in "${selected[@]}"; do
     [[ -f "plugins/$name/manifest.toml" ]] || { echo "!! $name has no manifest.toml — skipped" >&2; continue; }
+    if [[ "$development" -eq 0 ]] && example "$name"; then
+        echo "!! $name is an example and never signed into the bundle — skipped (--development packages it)" >&2
+        continue
+    fi
     buildable+=("$name")
 done
 echo "==> building ${#buildable[@]} plugin(s) for $TARGET (jobs: $JOBS)"
@@ -491,6 +547,16 @@ for name in "${buildable[@]}"; do
     prune_superseded "$name" "$output"
     echo "    $output"
 done
+
+# A signed example package from before RD-150-20 would still ship with the bundle, and the count
+# check of the packaging scripts would stop on it; dist/plugins holds the bundle and nothing else.
+if [[ "$development" -eq 0 ]]; then
+    for existing in "$OUT"/example-*.rdplug; do
+        [[ -f "$existing" ]] || continue
+        rm -f "$existing"
+        echo "    removed ${existing##*/}: examples are not bundled"
+    done
+fi
 
 echo "==> done — $(ls -1 "$OUT"/*.rdplug 2>/dev/null | wc -l) package(s) in $OUT"
 

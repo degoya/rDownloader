@@ -13,7 +13,7 @@
 //!   log and a log.
 //! * **Redacted.** Every string a caller passes goes through `rd_core::redact_text`, and a
 //!   detail whose *name* says it holds a credential is replaced whole, exactly as the capture
-//!   layer does it. A canary test in `tests/audit.rs` holds the line.
+//!   layer does it. A canary test in `tests/access/audit.rs` holds the line.
 //! * **Never a secret.** There is no field on [`AuditEvent`] that could hold a password, a
 //!   token or a digest, because the only way to add one would be to add a field here.
 

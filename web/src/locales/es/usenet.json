@@ -27,7 +27,8 @@
     "enabled": "Servidor activo",
     "clear_password": "Borrar la contraseña guardada",
     "save_changes": "Guardar cambios",
-    "save_server": "Guardar servidor NNTP"
+    "create_server": "Crear servidor NNTP",
+    "password_copy": "La copia de {name} no tiene contraseña: introdúcela de nuevo, el servidor solo acepta el usuario junto con ella."
   },
   "messages": {
     "updated": "El servidor NNTP se ha actualizado.",

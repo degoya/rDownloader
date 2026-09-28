@@ -11,10 +11,13 @@
 
 FROM node:24-bookworm-slim AS web
 WORKDIR /src/web
-COPY web/package.json web/package-lock.json ./
-RUN npm ci
+# pnpm in the version web/package.json pins (`packageManager`), through Corepack (RD-150-14).
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY web/ ./
-RUN npm run build
+RUN pnpm run build
 
 FROM rust:1.98-bookworm AS builder
 WORKDIR /src

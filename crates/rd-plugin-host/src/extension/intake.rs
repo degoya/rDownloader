@@ -5,13 +5,19 @@ use std::sync::Arc;
 use anyhow::Result;
 use rd_plugin_api::ResolverHost;
 
-use super::{ExtensionRuntime, bindings::intake};
+use super::{
+    ExtensionRuntime,
+    bindings::{intake, intake_mirrors},
+};
 use crate::{PluginManifest, runtime::PluginStoreState};
 
 /// A compiled intake parser, pinned to one installed manifest version.
 pub struct IntakeParser {
     runtime: ExtensionRuntime,
     pre: intake::IntakePluginPre<PluginStoreState>,
+    /// The same component seen through `intake-mirrors-plugin`, when it exports
+    /// `mirror-sets` (RD-150-03). `None` for every parser that states no sources.
+    mirrors: Option<intake_mirrors::IntakeMirrorsPluginPre<PluginStoreState>>,
 }
 
 impl IntakeParser {
@@ -22,9 +28,13 @@ impl IntakeParser {
         host: Option<Arc<dyn ResolverHost>>,
     ) -> Result<Self> {
         let (runtime, pre) = ExtensionRuntime::build(manifest, component_bytes, host)?;
+        // Typing the pre-instance is what checks the exports, so a component without
+        // `mirror-sets` fails here and is simply a parser without sources.
+        let mirrors = intake_mirrors::IntakeMirrorsPluginPre::new(pre.clone()).ok();
         Ok(Self {
             runtime,
             pre: intake::IntakePluginPre::new(pre)?,
+            mirrors,
         })
     }
 
@@ -59,6 +69,60 @@ impl IntakeParser {
         }
     }
 
+    /// Whether this parser states the sources of the files it proposes.
+    #[must_use]
+    pub fn states_sources(&self) -> bool {
+        self.mirrors.is_some()
+    }
+
+    /// Asks the plugin for every source of every file in `input` (RD-150-03).
+    ///
+    /// Empty for a parser without `mirror-sets` and for input it does not claim. What comes
+    /// back is unchecked; `rd_core::SourceSet::checked` is where it becomes something the
+    /// queue may use.
+    pub async fn source_sets(&self, input: &str) -> Result<Vec<SourceSetProposal>> {
+        let Some(pre) = &self.mirrors else {
+            return Ok(Vec::new());
+        };
+        let mut store = self.runtime.store(None)?;
+        let instance = pre.instantiate_async(&mut store).await?;
+        if !instance
+            .rdownloader_plugin_intake()
+            .call_claims(&mut store, input)
+            .await?
+        {
+            return Ok(Vec::new());
+        }
+        match instance
+            .rdownloader_plugin_mirror_sets()
+            .call_sets(&mut store, input)
+            .await?
+        {
+            Ok(sets) => Ok(sets
+                .into_iter()
+                .map(|set| SourceSetProposal {
+                    primary_url: set.primary_url,
+                    file_name: set.file_name,
+                    size: set.size,
+                    sources: set
+                        .sources
+                        .into_iter()
+                        .map(|source| (source.url, source.priority, source.location))
+                        .collect(),
+                    hashes: set
+                        .hashes
+                        .into_iter()
+                        .map(|hash| (hash.algorithm, hash.value))
+                        .collect(),
+                    pieces: set
+                        .pieces
+                        .map(|pieces| (pieces.algorithm, pieces.length, pieces.hashes)),
+                })
+                .collect()),
+            Err(failure) => anyhow::bail!("{}", failure.message),
+        }
+    }
+
     /// Offers one URL for normalisation.
     pub async fn normalize(&self, url: &str) -> Result<Option<String>> {
         // Left as it is: the resolver refuses it with its own code (RD-120-66).
@@ -85,4 +149,19 @@ pub struct IntakeProposal {
     pub file_name: Option<String>,
     pub size: Option<u64>,
     pub package_hint: Option<String>,
+}
+
+/// What a parser stated about one file's sources, before the core has checked any of it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceSetProposal {
+    /// The address the same parser proposed for this file through `parse`.
+    pub primary_url: String,
+    pub file_name: Option<String>,
+    pub size: Option<u64>,
+    /// `(url, priority, location)` in document order.
+    pub sources: Vec<(String, Option<u32>, Option<String>)>,
+    /// `(algorithm, value)` as the document spelled them.
+    pub hashes: Vec<(String, String)>,
+    /// `(algorithm, piece length, hashes)`.
+    pub pieces: Option<(String, u64, Vec<String>)>,
 }

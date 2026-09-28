@@ -3,11 +3,13 @@ import { useToast } from '@nuxt/ui/composables'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Download, TorrentPlanRequest } from '@/api/types'
+import { api } from '@/api/client'
+import type { Download, DownloadSourcesResponse, TorrentPlanRequest } from '@/api/types'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
 import TorrentPeerList from '@/components/TorrentPeerList.vue'
 import TorrentSeedingPolicy from '@/components/TorrentSeedingPolicy.vue'
 import TorrentTrackerList from '@/components/TorrentTrackerList.vue'
+import TransferSourceList from '@/components/TransferSourceList.vue'
 import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfiles'
 import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { useTorrentsStore } from '@/stores/torrents'
@@ -98,8 +100,28 @@ async function openTab(tab: 'files' | 'trackers' | 'peers' | 'seeding'): Promise
   }
 }
 
+/**
+ * The mirrors of a Metalink download (RD-150-03), read again at every opening: their health
+ * changes while the transfer runs. A download with a single address answers with none.
+ */
+const sources = ref<DownloadSourcesResponse | null>(null)
+
+async function loadSources(): Promise<void> {
+  try {
+    const response = await api.GET('/api/v1/downloads/{id}/sources', {
+      params: { path: { id: props.download.id } }
+    })
+    const data = response.data as DownloadSourcesResponse | undefined
+    sources.value = data && Array.isArray(data.sources) ? data : null
+  } catch {
+    // The list is extra detail; the card works without it.
+    sources.value = null
+  }
+}
+
 async function openDetails(): Promise<void> {
   expanded.value = !expanded.value
+  if (expanded.value && props.download.kind === 'http') await loadSources()
   if (!expanded.value || !isTorrent.value || torrentDetail.value) return
   await Promise.all([
     torrents.load('download', props.download.id),
@@ -178,6 +200,7 @@ const kindIcon = computed(() => {
   if (props.download.kind === 'ftp') return 'i-lucide-folder-symlink'
   if (props.download.kind === 'sftp') return 'i-lucide-shield'
   if (props.download.kind === 'plugin') return 'i-lucide-blocks'
+  if (props.download.kind === 'object_storage') return 'i-lucide-cylinder'
   return 'i-lucide-file-down'
 })
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
@@ -243,6 +266,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
         <span class="numeric w-9 text-right text-[11px] text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
       </div>
       <p class="min-w-0 truncate font-mono" :title="props.download.source">{{ props.download.source }}</p>
+      <TransferSourceList v-if="sources" :sources="sources" />
       <div v-if="isTorrent" class="grid gap-2 border-t border-muted pt-2">
         <div class="flex items-center gap-1">
           <UButton

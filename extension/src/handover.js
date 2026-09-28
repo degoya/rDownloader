@@ -19,6 +19,18 @@
 
 import { declineHandover, deliverHandover, listHandovers } from './handover-api.js'
 import { holdsCookieConsent } from './files.js'
+
+/**
+ * The service's refusals of a delivered session, each with a sentence of its own. Without this
+ * the notification showed the bare code — "browser_session.cookies_invalid" (1.5.0).
+ */
+export const HANDOVER_REFUSALS = {
+  'browser_session.cookies_invalid': 'handoverRefusedUnreadable',
+  'browser_session.cookies_empty': 'handoverEmpty',
+  'browser_session.cookie_outside_scope': 'handoverRefusedOutside',
+  'browser_session.cookie_public_suffix': 'handoverRefusedPublicSuffix',
+  'browser_session.not_waiting': 'handoverRefusedNotWaiting'
+}
 import { toNetscape } from './session.js'
 
 export { declineHandover, deliverHandover, listHandovers }
@@ -158,6 +170,12 @@ export function createHandover({
     return result?.message || result?.code || ''
   }
 
+  /** The words for a failed delivery: the service's refusal in its own sentence where one exists. */
+  function failureNotice(result, host) {
+    const own = HANDOVER_REFUSALS[result?.code]
+    return own ? message(own, [host]) : message('handoverFailed', [host, reasonOf(result)])
+  }
+
   /**
    * Gives the grant back: `cookies` unless a site allowed to hand files over stands on it
    * (RD-130-16), the origin only if this consent brought it.
@@ -292,7 +310,7 @@ export function createHandover({
       await release(taken)
     }
     if (result.ok) await notify?.(message('handoverDone', [host]))
-    else await notify?.(message('handoverFailed', [host, reasonOf(result)]))
+    else await notify?.(failureNotice(result, host))
     return { ok: result.ok, code: result.code }
   }
 

@@ -5,7 +5,7 @@
 # Everything used to ask `[[ -f web/dist/index.html ]]` — existence, not freshness. So a stale
 # bundle from three days ago counted as present and got embedded into the binary, while
 # api-contract.sh, which needs web/dist only because rust-embed reads it at compile time, forced
-# a full `npm run build` whenever it happened to be absent. Both answers were wrong in
+# a full `run build` whenever it happened to be absent. Both answers were wrong in
 # different directions.
 #
 # Same `find -newer` shape build-plugins.sh uses for plugin components, and it costs the same:
@@ -13,7 +13,7 @@
 #
 # Exit status is the answer, so it reads as a condition:
 #
-#   scripts/web-dist-stale.sh || npm run build --prefix web
+#   scripts/web-dist-stale.sh || pnpm --dir web run build
 #
 #   0  web/dist is up to date
 #   1  web/dist is missing or older than a source that goes into it
@@ -44,7 +44,7 @@ fi
 # Everything vite reads. A path that does not exist is dropped rather than making find fail —
 # web/openapi.json is generated and tsconfig is a glob.
 sources=()
-for path in web/src web/public web/index.html web/package.json web/package-lock.json \
+for path in web/src web/public web/index.html web/package.json web/pnpm-lock.yaml \
             web/vite.config.ts web/openapi.json web/tsconfig*.json; do
     [[ -e "$path" ]] && sources+=("$path")
 done

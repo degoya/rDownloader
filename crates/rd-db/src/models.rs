@@ -311,18 +311,20 @@ pub(crate) const PACKAGE_COLUMNS: &str = "SELECT packages.id, packages.name, pac
      FROM packages";
 
 pub(crate) async fn list_packages(pool: &SqlitePool) -> Result<Vec<DownloadPackage>> {
-    sqlx::query_as::<_, PackageRow>(&format!("{PACKAGE_COLUMNS} {PACKAGE_ORDER}"))
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+    sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} {PACKAGE_ORDER}"
+    )))
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
 }
 
 pub(crate) async fn list_downloads(pool: &SqlitePool) -> Result<Vec<DownloadFile>> {
-    sqlx::query_as::<_, DownloadRow>(&format!(
+    sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
         "{DOWNLOAD_COLUMNS} {PACKAGE_ORDER}, downloads.position ASC, downloads.created_at ASC"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -339,10 +341,10 @@ pub(crate) async fn downloads_for_package(
     pool: &SqlitePool,
     package_id: PackageId,
 ) -> Result<Vec<DownloadFile>> {
-    sqlx::query_as::<_, DownloadRow>(&format!(
+    sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
         "{DOWNLOAD_COLUMNS} WHERE downloads.package_id = ? \
          ORDER BY downloads.position ASC, downloads.created_at ASC"
-    ))
+    )))
     .bind(package_id.to_string())
     .fetch_all(pool)
     .await?

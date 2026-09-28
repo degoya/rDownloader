@@ -8,7 +8,7 @@
 //! could be replayed, not a signed URL. An actor is a *kind* and an opaque id; a target is a
 //! kind and an id, with the name a person gave it, and that name goes through
 //! `rd_core::redact_text` on the way in like everything else. The rule has a canary test in
-//! `crates/rd-api/tests/audit.rs`.
+//! `crates/rd-api/tests/access/audit.rs`.
 
 use std::ops::RangeInclusive;
 
@@ -82,11 +82,22 @@ pub enum AuditAction {
     /// The notification history was emptied; deliveries still owed an attempt stayed
     /// (RD-130-08).
     NotificationsCleared,
+    /// A script subscription was created or changed (RD-150-08): which script runs on this
+    /// machine, when, and with which arguments. The `change`, `script`, `arguments` and
+    /// `schedule` details say what it is now.
+    ScriptSubscriptionChanged,
+    /// A finished file replaced an existing one because the effective collision policy, or a
+    /// person answering a prompt, said `overwrite` (RD-150-01).
+    FileOverwritten,
+    /// Somebody answered a collision prompt; the `decision` detail names the answer.
+    CollisionDecided,
+    /// A duplicate file was replaced by a link to its verified identical original (RD-150-02).
+    DuplicateLinked,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 32] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -115,6 +126,10 @@ impl AuditAction {
         Self::AuditCleared,
         Self::StatsCleared,
         Self::NotificationsCleared,
+        Self::ScriptSubscriptionChanged,
+        Self::FileOverwritten,
+        Self::CollisionDecided,
+        Self::DuplicateLinked,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -149,6 +164,10 @@ impl AuditAction {
             Self::AuditCleared => "audit_cleared",
             Self::StatsCleared => "stats_cleared",
             Self::NotificationsCleared => "notifications_cleared",
+            Self::ScriptSubscriptionChanged => "script_subscription_changed",
+            Self::FileOverwritten => "file_overwritten",
+            Self::CollisionDecided => "collision_decided",
+            Self::DuplicateLinked => "duplicate_linked",
         }
     }
 

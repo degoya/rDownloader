@@ -106,7 +106,7 @@ pub fn parse_feed(body: &str, base: &Url) -> Result<Feed> {
                 }
                 break;
             }
-            Event::DocType(doctype) => validate_doctype(&doctype.decode()?)?,
+            Event::DocType(doctype) => validate_doctype(&doctype)?,
             Event::Start(element) => {
                 let name = local_name(element.name().as_ref());
                 if is_item_element(&name) {
@@ -127,10 +127,10 @@ pub fn parse_feed(body: &str, base: &Url) -> Result<Feed> {
             Event::Text(value) => {
                 // Appended rather than assigned: a value split by an entity reference arrives
                 // as several text events and would otherwise be truncated at the first one.
-                text.push_str(&value.decode()?);
+                text.push_str(&value);
             }
             Event::CData(value) => {
-                text.push_str(&String::from_utf8_lossy(value.as_ref()));
+                text.push_str(&value);
             }
             Event::End(element) => {
                 let name = local_name(element.name().as_ref());
@@ -179,8 +179,7 @@ fn is_item_element(name: &str) -> bool {
     name == "item" || name == "entry"
 }
 
-fn local_name(raw: &[u8]) -> String {
-    let name = String::from_utf8_lossy(raw);
+fn local_name(name: &str) -> String {
     // The prefix matters for `itunes:duration`, so it is kept rather than stripped; only the
     // namespace *declaration* is irrelevant here.
     name.to_ascii_lowercase()
@@ -246,7 +245,7 @@ fn apply_item_attributes(
                 value
                     .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                     .map_or_else(
-                        |_| String::from_utf8_lossy(value.value.as_ref()).into_owned(),
+                        |_| value.value.to_string(),
                         |unescaped| unescaped.into_owned(),
                     )
             })

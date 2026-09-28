@@ -6,7 +6,10 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, download_handlers, package_clear, package_handlers, postprocess_handlers};
+use crate::{
+    AppState, download_handlers, download_sources, package_clear, package_handlers,
+    postprocess_handlers,
+};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -120,6 +123,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/downloads/{id}/auth-profile",
             axum::routing::put(download_handlers::set_download_auth_profile),
         )
+        .route(
+            "/api/v1/downloads/{id}/sources",
+            get(download_sources::list_download_sources),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -155,5 +162,6 @@ pub(crate) fn routes() -> Router<AppState> {
     postprocess_handlers::list_upload_destinations,
     postprocess_handlers::update_category_postprocess,
     download_handlers::set_download_auth_profile,
+    download_sources::list_download_sources,
 ))]
 pub(crate) struct Doc;

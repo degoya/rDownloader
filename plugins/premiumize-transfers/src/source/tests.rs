@@ -1,4 +1,4 @@
-use super::{address_key, container_key, magnet_key, normalise_info_hash};
+use super::{address_key, container_key, magnet_key, normalise_info_hash, upload_tag};
 
 const HEX: &str = "magnet:?xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709&dn=Example.Release";
 const BASE32: &str = "magnet:?xt=urn:btih:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ&dn=Other.Name";
@@ -66,4 +66,20 @@ fn a_torrent_file_and_its_magnet_are_deliberately_not_one_key() {
         container_key(TORRENT).as_deref(),
         magnet_key(HEX).as_deref()
     );
+}
+
+/// The tag an upload's name carries is the start of the key's own digest: stable for one
+/// container, different for two, so two uploads never share a transfer name at Premiumize.
+#[test]
+fn an_upload_tag_is_the_start_of_the_container_key() {
+    let tag = upload_tag(TORRENT);
+    assert_eq!(tag.len(), 12);
+    assert!(
+        container_key(TORRENT)
+            .expect("a key")
+            .starts_with(&format!("file:{tag}"))
+    );
+    let mut other = TORRENT.to_vec();
+    other[20] = b'x';
+    assert_ne!(upload_tag(&other), tag);
 }

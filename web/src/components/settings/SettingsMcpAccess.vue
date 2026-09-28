@@ -7,6 +7,8 @@ import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
 import type { components } from '@/api/schema'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
+import FormListLayout from '@/components/FormListLayout.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { withBase } from '@/basePath'
@@ -88,15 +90,22 @@ async function loadAreas(): Promise<void> {
   if (response.data) areas.value = response.data
 }
 
+/// The areas as `UCheckboxGroup` items: the group carries the fieldset, the legend and the
+/// checked state that the hand-built rows of labels had to assemble themselves (RD-150-11).
+const scopeItems = computed(() => areas.value.map((area) => ({
+  label: areaName(area.scope),
+  value: area.scope,
+  description: t(`system.mcp.areas.${area.scope.replace('api:', '')}.description`),
+  sensitive: area.sensitive,
+  operations: area.operations,
+  implied: impliedBy(area)
+})))
+/// The same areas under a token's row, where the hint above the group replaces the long texts.
+const editScopeItems = computed(() => scopeItems.value.map(({ description: _description, ...item }) => item))
+
 /// The areas a chosen one confers on top of itself, named for the preview.
 function impliedBy(area: ScopeDescriptor): string[] {
   return area.implies.filter((implied) => !chosen.value.includes(implied))
-}
-
-function toggle(scope: string, on: boolean): void {
-  chosen.value = on
-    ? [...chosen.value, scope]
-    : chosen.value.filter((entry) => entry !== scope)
 }
 
 function areaName(scope: string): string {
@@ -141,12 +150,6 @@ function cancelEdit(): void {
   editingId.value = null
   editScopes.value = []
   editError.value = null
-}
-
-function toggleEdit(scope: string, on: boolean): void {
-  editScopes.value = on
-    ? [...editScopes.value, scope]
-    : editScopes.value.filter((entry) => entry !== scope)
 }
 
 async function saveScopes(token: CaptureToken): Promise<void> {
@@ -213,53 +216,38 @@ function scopeLabel(token: CaptureToken): string {
 
 <template>
   <section :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
-    <div class="grid gap-6 lg:grid-cols-[minmax(280px,0.7fr)_minmax(360px,1.3fr)]">
-      <div>
-        <SectionHeader :eyebrow="t('system.mcp.eyebrow')" :title="t('system.mcp.title')" />
-        <i18n-t keypath="system.mcp.description" tag="p" class="mt-2 text-sm leading-6 text-muted">
-          <template #endpoint><span class="font-mono">{{ mcpEndpoint }}</span></template>
-          <template #scope><span class="font-mono">api:*</span></template>
-        </i18n-t>
+    <FormListLayout :list-title="t('system.mcp.tokens_eyebrow')" :count="tokens.length">
+      <template #form>
+        <SectionHeader :eyebrow="t('system.mcp.eyebrow')" :title="t('system.mcp.title')">
+          <template #description>
+            <i18n-t keypath="system.mcp.description" tag="span">
+              <template #endpoint><span class="font-mono">{{ mcpEndpoint }}</span></template>
+              <template #scope><span class="font-mono">api:*</span></template>
+            </i18n-t>
+          </template>
+        </SectionHeader>
+        <UAlert v-if="pairError" class="mt-4" color="error" variant="subtle" :description="pairError" />
         <form class="mt-4 space-y-3" @submit.prevent="pair">
-          <div class="flex gap-2">
-            <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor-cog" class="flex-1" :placeholder="t('system.mcp.label_placeholder')" />
-            <UButton type="submit" icon="i-lucide-key-round" :label="t('system.mcp.submit')" :loading="pairing" :disabled="!chosen.length" />
-          </div>
-          <fieldset class="space-y-2">
-            <legend class="text-sm font-medium text-highlighted">{{ t('system.mcp.scopes_label') }}</legend>
+          <UFormField :label="t('system.mcp.label_label')" required>
+            <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor-cog" class="w-full" :placeholder="t('system.mcp.label_placeholder')" />
+          </UFormField>
+          <div class="space-y-2">
             <p class="text-xs leading-5 text-muted">{{ t('system.mcp.scopes_hint') }}</p>
-            <div class="divide-y divide-muted border border-muted">
-              <label
-                v-for="area in areas"
-                :key="area.scope"
-                class="flex cursor-pointer items-start gap-3 p-3"
-              >
-                <UCheckbox
-                  :model-value="chosen.includes(area.scope)"
-                  @update:model-value="toggle(area.scope, $event === true)"
-                />
-                <span class="min-w-0 flex-1">
-                  <span class="flex flex-wrap items-center gap-2">
-                    <span class="text-sm font-medium text-highlighted">{{ areaName(area.scope) }}</span>
-                    <UBadge v-if="area.sensitive" color="warning" variant="subtle" size="sm">
-                      {{ t('system.mcp.sensitive') }}
-                    </UBadge>
-                    <span class="numeric text-[11px] text-muted">
-                      {{ t('system.mcp.scope_operations', { count: area.operations }) }}
-                    </span>
-                  </span>
-                  <span class="mt-1 block text-xs leading-5 text-muted">
-                    {{ t(`system.mcp.areas.${area.scope.replace('api:', '')}.description`) }}
-                  </span>
-                  <span
-                    v-if="chosen.includes(area.scope) && impliedBy(area).length"
-                    class="mt-1 block text-xs text-muted"
-                  >
-                    {{ t('system.mcp.also_includes', { areas: impliedBy(area).map(areaName).join(', ') }) }}
-                  </span>
+            <UCheckboxGroup v-model="chosen" :items="scopeItems" :legend="t('system.mcp.scopes_label')" variant="table">
+              <template #label="{ item }">
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-medium text-highlighted">{{ item.label }}</span>
+                  <UBadge v-if="item.sensitive" color="warning" variant="subtle" size="sm">{{ t('system.mcp.sensitive') }}</UBadge>
+                  <span class="numeric text-[11px] text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
                 </span>
-              </label>
-            </div>
+              </template>
+              <template #description="{ item }">
+                <span class="block text-xs leading-5 text-muted">{{ item.description }}</span>
+                <span v-if="chosen.includes(item.value) && item.implied.length" class="mt-1 block text-xs text-muted">
+                  {{ t('system.mcp.also_includes', { areas: item.implied.map(areaName).join(', ') }) }}
+                </span>
+              </template>
+            </UCheckboxGroup>
             <UAlert
               v-if="grantsSensitive"
               color="warning"
@@ -268,9 +256,9 @@ function scopeLabel(token: CaptureToken): string {
               :description="t('system.mcp.sensitive_warning')"
             />
             <p v-if="!chosen.length" class="text-xs text-warning">{{ t('system.mcp.scopes_empty') }}</p>
-          </fieldset>
+          </div>
+          <FormActions :create-label="t('system.mcp.submit')" create-icon="i-lucide-key-round" :loading="pairing" :disabled="!chosen.length" />
         </form>
-        <UAlert v-if="pairError" class="mt-3" color="error" variant="subtle" :description="pairError" />
         <div v-if="bearer" class="mt-3 border border-warning/40 bg-warning/10 p-3">
           <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.copy_hint') }}</p>
           <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.token_hint') }}</p>
@@ -315,9 +303,8 @@ function scopeLabel(token: CaptureToken): string {
             </div>
           </div>
         </div>
-      </div>
-      <div>
-        <p class="eyebrow mb-3">{{ t('system.mcp.tokens_eyebrow') }}</p>
+      </template>
+      <template #list>
         <div v-if="tokens.length" class="divide-y divide-muted border border-muted">
           <div v-for="token in tokens" :key="token.id">
             <div class="flex items-center gap-3 p-3">
@@ -344,31 +331,27 @@ function scopeLabel(token: CaptureToken): string {
                 @click="revokeToken(token)"
               />
             </div>
-            <div v-if="editingId === token.id" class="border-t border-muted bg-elevated/40 p-3">
+            <!-- The areas are edited under the row rather than in the form beside the list: the
+                 form mints a new token, and a change here keeps the token's value, which the
+                 two places make visible. -->
+            <form v-if="editingId === token.id" class="border-t border-muted bg-elevated/40 p-3" @submit.prevent="saveScopes(token)">
               <p class="text-xs leading-5 text-muted">{{ t('system.mcp.edit.hint') }}</p>
-              <div class="mt-2 divide-y divide-muted border border-muted bg-default">
-                <label
-                  v-for="area in areas"
-                  :key="area.scope"
-                  class="flex cursor-pointer items-start gap-3 p-2"
-                >
-                  <UCheckbox
-                    :model-value="editScopes.includes(area.scope)"
-                    @update:model-value="toggleEdit(area.scope, $event === true)"
-                  />
-                  <span class="min-w-0 flex-1">
-                    <span class="flex flex-wrap items-center gap-2">
-                      <span class="text-sm font-medium text-highlighted">{{ areaName(area.scope) }}</span>
-                      <UBadge v-if="area.sensitive" color="warning" variant="subtle" size="sm">
-                        {{ t('system.mcp.sensitive') }}
-                      </UBadge>
-                      <span class="numeric text-[11px] text-muted">
-                        {{ t('system.mcp.scope_operations', { count: area.operations }) }}
-                      </span>
-                    </span>
+              <UCheckboxGroup
+                v-model="editScopes"
+                class="mt-2"
+                :items="editScopeItems"
+                :legend="t('system.mcp.scopes_label')"
+                variant="table"
+                size="sm"
+              >
+                <template #label="{ item }">
+                  <span class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-medium text-highlighted">{{ item.label }}</span>
+                    <UBadge v-if="item.sensitive" color="warning" variant="subtle" size="sm">{{ t('system.mcp.sensitive') }}</UBadge>
+                    <span class="numeric text-[11px] text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
                   </span>
-                </label>
-              </div>
+                </template>
+              </UCheckboxGroup>
               <UAlert
                 v-if="editGrantsSensitive"
                 class="mt-2"
@@ -379,30 +362,22 @@ function scopeLabel(token: CaptureToken): string {
               />
               <p v-if="!editScopes.length" class="mt-2 text-xs text-warning">{{ t('system.mcp.edit.empty') }}</p>
               <UAlert v-if="editError" class="mt-2" color="error" variant="subtle" :description="editError" />
-              <div class="mt-3 flex gap-2">
-                <UButton
-                  size="xs"
-                  icon="i-lucide-shield-check"
-                  :label="t('system.mcp.edit.save')"
-                  :loading="savingId === token.id"
-                  :disabled="!editScopes.length"
-                  @click="saveScopes(token)"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :label="t('system.mcp.edit.cancel')"
-                  @click="cancelEdit()"
-                />
-              </div>
-            </div>
+              <FormActions
+                class="mt-3"
+                editing
+                :create-label="t('system.mcp.edit.save')"
+                :save-label="t('system.mcp.edit.save')"
+                :loading="savingId === token.id"
+                :disabled="!editScopes.length"
+                @cancel="cancelEdit()"
+              />
+            </form>
           </div>
         </div>
         <DataState v-else :loading="loading" :error="loadError" :empty="true" :rows="2">
           <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('system.mcp.empty') }}</p>
         </DataState>
-      </div>
-    </div>
+      </template>
+    </FormListLayout>
   </section>
 </template>

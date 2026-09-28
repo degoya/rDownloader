@@ -32,17 +32,18 @@ export const useStreamsStore = defineStore('streams', () => {
     if (runResponse.data) runs.value = runResponse.data
   }
 
-  async function saveSchedule(body: StreamScheduleRequest, id?: string): Promise<boolean> {
+  /** Saves a schedule and answers with the stored one, or `null` with `error` set. */
+  async function saveSchedule(body: StreamScheduleRequest, id?: string): Promise<StreamSchedule | null> {
     const response = id
       ? await api.PUT('/api/v1/streams/schedules/{id}', { params: { path: { id } }, body })
       : await api.POST('/api/v1/streams/schedules', { body })
     if (!response.data) {
       error.value = responseError(response)
-      return false
+      return null
     }
     error.value = null
     await refreshSchedules()
-    return true
+    return response.data
   }
 
   async function removeSchedule(id: string): Promise<void> {

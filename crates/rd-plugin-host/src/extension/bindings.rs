@@ -24,6 +24,9 @@ macro_rules! extension_world {
 }
 
 extension_world!(intake, "intake-plugin");
+// The intake world plus `mirror-sets` (RD-150-03). A world of its own, so an intake plugin
+// that does not state sources keeps satisfying `intake-plugin` unchanged.
+extension_world!(intake_mirrors, "intake-mirrors-plugin");
 extension_world!(auth, "auth-plugin");
 extension_world!(oauth, "oauth-plugin");
 

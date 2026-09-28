@@ -41,8 +41,8 @@ const warning = computed(() => {
   <section class="mt-6 border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('system.proxy.eyebrow')" :title="t('system.proxy.title')" :description="t('system.proxy.description')" />
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
-      <UFormField :label="t('system.proxy.external_url')" :help="t('system.proxy.external_url_hint')">
+    <div class="mt-4 grid gap-4">
+      <UFormField :label="t('system.proxy.external_url')" :description="t('system.proxy.external_url_hint')">
         <UInput
           :model-value="modelValue.external_url ?? ''"
           placeholder="https://rd.example.com/downloads"
@@ -50,14 +50,10 @@ const warning = computed(() => {
           @update:model-value="modelValue.external_url = String($event).trim() || null"
         />
       </UFormField>
-      <UFormField :label="t('system.proxy.cookie_label')" :help="t('system.proxy.cookie_hint')">
+      <UFormField :label="t('system.proxy.cookie_label')" :description="t('system.proxy.cookie_hint')">
         <USelect v-model="modelValue.cookie_security" :items="cookieOptions" class="w-full" />
       </UFormField>
-      <UFormField
-        class="lg:col-span-2"
-        :label="t('system.proxy.trusted')"
-        :help="t('system.proxy.trusted_hint')"
-      >
+      <UFormField :label="t('system.proxy.trusted')" :description="t('system.proxy.trusted_hint')">
         <UTextarea v-model="trustedText" :rows="3" placeholder="127.0.0.1&#10;10.0.0.0/8" class="w-full font-mono" />
       </UFormField>
     </div>

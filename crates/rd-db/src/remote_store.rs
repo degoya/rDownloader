@@ -59,9 +59,9 @@ fn changed_event() -> EventEnvelope {
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<RemoteCredential>> {
-    sqlx::query_as::<_, CredentialRow>(&format!(
+    sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials ORDER BY host, port, name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -73,9 +73,9 @@ pub(crate) async fn get(
     pool: &SqlitePool,
     id: RemoteCredentialId,
 ) -> Result<Option<RemoteCredential>> {
-    sqlx::query_as::<_, CredentialRow>(&format!(
+    sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(pool)
     .await?
@@ -93,9 +93,9 @@ pub(crate) async fn match_for_target(
     target: &RemoteTarget,
 ) -> Result<Option<RemoteCredential>> {
     // SQL narrows by endpoint; the family and user rules stay in one place in rd-core.
-    let candidates = sqlx::query_as::<_, CredentialRow>(&format!(
+    let candidates = sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials WHERE enabled = 1 AND host = ? AND port = ?"
-    ))
+    )))
     .bind(&target.host)
     .bind(i64::from(target.port))
     .fetch_all(pool)
@@ -186,9 +186,9 @@ pub(crate) async fn update(
 ) -> Result<(RemoteCredential, Vec<String>, EventEnvelope)> {
     let event = changed_event();
     let mut tx = connection.begin().await?;
-    let previous = sqlx::query_as::<_, CredentialRow>(&format!(
+    let previous = sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(&mut *tx)
     .await?
@@ -229,9 +229,9 @@ pub(crate) async fn update(
     .into_iter()
     .filter_map(|(old, new)| old.filter(|old| Some(old) != new.as_ref()))
     .collect();
-    let value = sqlx::query_as::<_, CredentialRow>(&format!(
+    let value = sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?
@@ -246,9 +246,9 @@ pub(crate) async fn delete(
 ) -> Result<(Vec<String>, EventEnvelope)> {
     let event = changed_event();
     let mut tx = connection.begin().await?;
-    let existing = sqlx::query_as::<_, CredentialRow>(&format!(
+    let existing = sqlx::query_as::<_, CredentialRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM remote_credentials WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(&mut *tx)
     .await?

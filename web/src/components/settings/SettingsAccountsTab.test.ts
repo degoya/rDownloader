@@ -10,14 +10,16 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { i18n } from '@/i18n'
 import network from '@/locales/en/network.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
+const post = vi.fn()
 vi.mock('@/api/client', () => ({
   api: {
     GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
+    POST: (...args: unknown[]) => post(...args),
     PUT: vi.fn(),
     PATCH: vi.fn(),
     DELETE: vi.fn()
@@ -26,6 +28,8 @@ vi.mock('@/api/client', () => ({
   resultMessage: vi.fn(() => '')
 }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+// The pairing dialog behind a waiting browser session reaches Nuxt UI's toast (RD-150-17).
+vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
 /** The shared event stream, reduced to the one handler this tab registers. */
 let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
@@ -113,6 +117,15 @@ describe('SettingsAccountsTab', () => {
     mount()
 
     await waitFor(() => expect(screen.queryByTestId('account-providers-loading')).toBeNull())
+  })
+
+  it('says no account plugin is active instead of offering a provider nobody installed', async () => {
+    get.mockResolvedValue({ data: [] })
+
+    mount()
+
+    await waitFor(() => expect(screen.getByTestId('account-providers-empty').textContent).toContain(network.account.no_providers))
+    expect(screen.queryByText(/ddownload/i)).toBeNull()
   })
 
   it('shows the empty state once the fetch came back with nothing', async () => {
@@ -441,5 +454,137 @@ describe('SettingsAccountsTab sign-in method', () => {
       expect(secret().getAttribute('aria-label')).toBe(network.account.secret_generic_api_key)
     )
     expect(secret().getAttribute('aria-label')).not.toBe(network.account.secret_generic)
+  })
+
+  it('names a mode the provider’s way when its plugin ships a name, and the core’s way otherwise', async () => {
+    // Real-Debrid calls it an "API token" (real-debrid.com/apitoken); DDownload ships no name
+    // and keeps the core's "API key", which is what it really uses.
+    i18n.global.mergeLocaleMessage('en', { providers: { realdebrid: { mode_label_api_key: 'API token' } } })
+    serve([{ ...withChoice, slug: 'realdebrid', display_name: 'Real-Debrid', credential_modes: ['oauth', 'api_key'] }])
+
+    mount()
+
+    await screen.findByRole('radio', { name: 'API token' })
+    expect(screen.queryByRole('radio', { name: network.account.credential_mode_api_key })).toBeNull()
+    expect(screen.getByRole('radio', { name: network.account.credential_mode_oauth })).toBeTruthy()
+  })
+})
+
+/**
+ * A provider that signs in with a code or holds a typed API token (RD-150-09): Real-Debrid.
+ *
+ * "Connect with a code" is the default and asks for nothing to be typed, so neither the secret
+ * nor a cookie session is on the form; saving the account starts the sign-in, whose address and
+ * code then appear on its row. The typed token stays the second way, and an account held that
+ * way is never offered a sign-in.
+ */
+describe('SettingsAccountsTab sign-in with a code', () => {
+  const realDebrid = {
+    slug: 'ddownload',
+    display_name: 'Real-Debrid',
+    kind: 'multihoster',
+    credentials: 'oauth_or_api_key',
+    credential_modes: ['oauth', 'api_key'],
+    username_required: false,
+    device_flow: true
+  }
+  const signedIn = {
+    ...ACCOUNT,
+    id: 'rd-code',
+    label: 'Real-Debrid by code',
+    provider: 'ddownload',
+    username: null,
+    has_secret: false,
+    credential_mode: 'oauth'
+  }
+  const typed = {
+    ...signedIn,
+    id: 'rd-token',
+    label: 'Real-Debrid by token',
+    has_secret: true,
+    credential_mode: 'api_key'
+  }
+  /** Stored before the provider offered a choice: the first mode is what it is held in. */
+  const unmarked = { ...signedIn, id: 'rd-unmarked', label: 'Real-Debrid unmarked', credential_mode: null }
+
+  function serve(accounts: unknown[]) {
+    get.mockImplementation(async (path: string) => {
+      if (path === '/api/v1/providers') return { data: [realDebrid] }
+      if (path === '/api/v1/accounts') return { data: accounts }
+      if (path.includes('/auth')) return { data: null }
+      return { data: [] }
+    })
+  }
+
+  const radio = (name: string) => screen.getByRole('radio', { name }) as HTMLInputElement
+
+  beforeEach(() => {
+    get.mockReset()
+    post.mockReset()
+  })
+
+  it('asks for nothing to type while signing in with a code, and for the token otherwise', async () => {
+    serve([])
+
+    const { container } = mount()
+
+    await waitFor(() => expect(radio(network.account.credential_mode_oauth).checked).toBe(true))
+    const secret = () => container.querySelector('input[type="password"]')
+    const cookies = () => container.querySelector('textarea')
+    expect(secret()).toBeNull()
+    expect(cookies()).toBeNull()
+
+    await fireEvent.update(radio(network.account.credential_mode_api_key))
+
+    await waitFor(() => expect(secret()).not.toBeNull())
+  })
+
+  it('offers the sign-in only to accounts held by a code', async () => {
+    serve([signedIn, typed, unmarked])
+
+    mount()
+
+    const codeRow = (await screen.findByText('Real-Debrid by code')).closest('.border') as HTMLElement
+    const tokenRow = screen.getByText('Real-Debrid by token').closest('.border') as HTMLElement
+    const unmarkedRow = screen.getByText('Real-Debrid unmarked').closest('.border') as HTMLElement
+    await waitFor(() => expect(within(codeRow).getByRole('button', { name: network.account.connect })).toBeTruthy())
+    expect(within(tokenRow).queryByRole('button', { name: network.account.connect })).toBeNull()
+    expect(within(unmarkedRow).getByRole('button', { name: network.account.connect })).toBeTruthy()
+  })
+
+  it('starts the sign-in as soon as an account held by a code is saved', async () => {
+    serve([])
+    post.mockImplementation(async (path: string) => {
+      if (path === '/api/v1/accounts') return { data: signedIn }
+      if (path === '/api/v1/accounts/{id}/auth/begin') {
+        return {
+          data: {
+            account_id: signedIn.id,
+            plugin_id: 'realdebrid-auth',
+            state: 'waiting_for_user',
+            verification_url: 'https://real-debrid.com/device',
+            user_code: 'WXYZ1234',
+            started_at: '2026-09-27T00:00:00Z'
+          }
+        }
+      }
+      return { data: null }
+    })
+
+    const { container } = mount()
+
+    await waitFor(() => expect(radio(network.account.credential_mode_oauth).checked).toBe(true))
+    const label = container.querySelector(
+      `input[placeholder="${network.account.label_placeholder}"]`
+    ) as HTMLInputElement
+    await fireEvent.update(label, 'Real-Debrid by code')
+    await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    await waitFor(() => expect(screen.getByText('WXYZ1234')).toBeTruthy())
+    const paths = post.mock.calls.map(([path]) => path)
+    expect(paths).toContain('/api/v1/accounts/{id}/auth/begin')
+    expect(paths).not.toContain('/api/v1/accounts/{id}/test')
+    const created = post.mock.calls.find(([path]) => path === '/api/v1/accounts')
+    expect(created?.[1]).toMatchObject({ body: { credential_mode: 'oauth', secret: null } })
   })
 })

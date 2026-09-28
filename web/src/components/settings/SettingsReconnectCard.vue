@@ -93,11 +93,16 @@ function removeWindow(index: number): void {
     .filter((_, position) => position !== index)
 }
 
-function toggleDay(index: number, day: number): void {
+/** The window's bitmask as the list of days a checkbox group holds, Monday first. */
+function daysOf(mask: number): number[] {
+  return [0, 1, 2, 3, 4, 5, 6].filter(day => (mask & (1 << day)) !== 0)
+}
+
+function setDays(index: number, days: number[]): void {
   const windows = [...(settings.value.reconnect_windows ?? [])]
   const window = windows[index]
   if (!window) return
-  windows[index] = { ...window, days: window.days ^ (1 << day) }
+  windows[index] = { ...window, days: days.reduce((mask, day) => mask | (1 << day), 0) }
   settings.value.reconnect_windows = windows
 }
 
@@ -116,30 +121,20 @@ function setTime(index: number, key: 'start_minute' | 'end_minute', value: strin
   settings.value.reconnect_windows = windows
 }
 
-const dayLabels = computed(() => [
-  t('reconnect.days.mon'),
-  t('reconnect.days.tue'),
-  t('reconnect.days.wed'),
-  t('reconnect.days.thu'),
-  t('reconnect.days.fri'),
-  t('reconnect.days.sat'),
-  t('reconnect.days.sun')
-])
+const dayItems = computed(() =>
+  (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((day, index) => ({ value: index, label: t(`reconnect.days.${day}`) }))
+)
 </script>
 
 <template>
   <section class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('reconnect.eyebrow')" :title="t('reconnect.title')" :description="t('reconnect.description')" />
 
-    <div class="mt-4 flex items-center justify-between gap-5 border-t border-muted pt-4">
-      <div>
-        <p class="text-sm font-medium text-highlighted">{{ t('reconnect.enabled_label') }}</p>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('reconnect.enabled_description') }}</p>
-      </div>
-      <USwitch v-model="settings.reconnect_enabled" :aria-label="t('reconnect.enabled_label')" />
-    </div>
+    <UFormField :label="t('reconnect.enabled_label')" :description="t('reconnect.enabled_description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+      <USwitch v-model="settings.reconnect_enabled" />
+    </UFormField>
 
-    <div v-if="settings.reconnect_enabled" class="mt-4 grid gap-4 sm:grid-cols-2">
+    <div v-if="settings.reconnect_enabled" class="mt-4 grid gap-4">
       <UFormField :label="t('reconnect.script_label')" :description="t('reconnect.script_description')">
         <UInput v-model="settings.reconnect_script" class="mt-2 w-full font-mono" placeholder="reconnect.sh" />
       </UFormField>
@@ -156,34 +151,30 @@ const dayLabels = computed(() => [
       <UFormField :label="t('reconnect.checks_label')" :description="t('reconnect.checks_description')">
         <UTextarea v-model="addressChecks" :rows="3" autoresize class="mt-2 w-full font-mono text-xs" :placeholder="t('reconnect.checks_placeholder')" />
       </UFormField>
-      <div class="flex items-center justify-between gap-5 sm:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('reconnect.abort_label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('reconnect.abort_description') }}</p>
-        </div>
-        <USwitch v-model="settings.reconnect_abort_active" :aria-label="t('reconnect.abort_label')" />
-      </div>
+      <UFormField :label="t('reconnect.abort_label')" :description="t('reconnect.abort_description')" orientation="horizontal">
+        <USwitch v-model="settings.reconnect_abort_active" />
+      </UFormField>
 
-      <div class="sm:col-span-2">
+      <div>
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm font-medium text-highlighted">{{ t('reconnect.windows_label') }}</p>
           <UButton icon="i-lucide-plus" size="xs" color="neutral" variant="soft" :label="t('reconnect.window_add')" @click="addWindow" />
         </div>
         <p class="mt-1 text-xs leading-5 text-muted">{{ t('reconnect.windows_description') }}</p>
         <div v-for="(window, index) in settings.reconnect_windows ?? []" :key="index" class="mt-3 flex flex-wrap items-center gap-2 border border-muted p-3">
-          <UButton
-            v-for="(label, day) in dayLabels"
-            :key="day"
-            size="xs"
-            :color="(window.days & (1 << day)) ? 'primary' : 'neutral'"
-            :variant="(window.days & (1 << day)) ? 'solid' : 'outline'"
-            :label="label"
-            @click="toggleDay(index, day)"
+          <UCheckboxGroup
+            class="basis-full"
+            :model-value="daysOf(window.days)"
+            :items="dayItems"
+            :legend="t('bandwidth.schedule.days_label')"
+            orientation="horizontal"
+            size="sm"
+            @update:model-value="(days: number[]) => setDays(index, days)"
           />
           <UInput :model-value="timeOf(window.start_minute)" type="time" class="w-32" @update:model-value="(value: string | number) => setTime(index, 'start_minute', String(value))" />
           <span class="text-xs text-muted">&ndash;</span>
           <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-32" @update:model-value="(value: string | number) => setTime(index, 'end_minute', String(value))" />
-          <UButton icon="i-lucide-x" size="xs" color="error" variant="ghost" :aria-label="t('reconnect.window_remove')" @click="removeWindow(index)" />
+          <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('reconnect.window_remove')" :title="t('reconnect.window_remove')" @click="removeWindow(index)" />
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 //! Two vault references in one request, each filled with its own value (RD-120-39).
 //!
 //! The host tests run through the real `NativeHost`: a real database, a real vault and the
-//! bundled Real-Debrid provider rows, and the same `request_secrets` + `expand_request` wiring
+//! registered-application fixture provider (`fixtures/oauth_registered_app.toml`, Real-Debrid's
+//! shape until 1.5.0), and the same `request_secrets` + `expand_request` wiring
 //! `http_request` uses before it sends. The two values are canaries, so a test can say not only
 //! that each field holds the right value but that neither value is anywhere it was not named.
 
@@ -21,7 +22,7 @@ use super::*;
 const CLIENT_SECRET: &str = "CANARY-A-client-secret-5d1e";
 const REFRESH_TOKEN: &str = "CANARY-B-refresh-token-8c47";
 const CLIENT_ID: &str = "the-client-id";
-const TOKEN_ENDPOINT: &str = "https://api.real-debrid.com/oauth/v2/token";
+const TOKEN_ENDPOINT: &str = "https://api.oauthapp.test/oauth/v2/token";
 /// `plugins/realdebrid-auth`'s grant type, copied so the replay is the request it sends.
 const GRANT_TYPE: &str = "http://oauth.net/grant_type/device/1.0";
 
@@ -70,7 +71,8 @@ async fn test_host(dir: &std::path::Path) -> NativeHost {
     )
 }
 
-/// A Real-Debrid account whose person registered their own application and has signed in:
+/// An account of the registered-application fixture provider (the shape Real-Debrid had until
+/// 1.5.0) whose person registered their own application and has signed in:
 /// the account's secret is the client secret, the flow row holds the refresh material. That
 /// is the state in which `realdebrid-auth` renews, and the request it renews with names both.
 async fn registered_and_signed_in(host: &NativeHost, refresh_token: &str) -> (AccountId, String) {
@@ -82,7 +84,7 @@ async fn registered_and_signed_in(host: &NativeHost, refresh_token: &str) -> (Ac
     let account_id = host
         .database
         .create_account(NewAccount {
-            provider: "realdebrid".to_owned(),
+            provider: "oauthapp".to_owned(),
             label: "Test".to_owned(),
             username: Some(CLIENT_ID.to_owned()),
             credential_mode: None,
@@ -181,7 +183,7 @@ async fn the_real_debrid_renewal_carries_each_credential_in_its_own_field() {
     let mut renewal = request(
         vec![
             value("client_id", "{{username}}"),
-            value("client_secret", &secret("realdebrid_client_secret")),
+            value("client_secret", &secret("oauthapp_client_secret")),
             value("code", &secret(&refresh_ref)),
             value("grant_type", GRANT_TYPE),
         ],
@@ -208,7 +210,7 @@ async fn each_canary_appears_only_where_its_reference_was_named() {
     let directory = tempfile::tempdir().expect("tempdir");
     let host = test_host(directory.path()).await;
     let (account_id, refresh_ref) = registered_and_signed_in(&host, REFRESH_TOKEN).await;
-    let a = secret("realdebrid_client_secret");
+    let a = secret("oauthapp_client_secret");
     let b = secret(&refresh_ref);
     let mut scattered = request(
         vec![value("first", &a), value("second", &b)],
@@ -259,7 +261,7 @@ async fn the_same_reference_twice_is_filled_twice() {
     let directory = tempfile::tempdir().expect("tempdir");
     let host = test_host(directory.path()).await;
     let (account_id, _) = registered_and_signed_in(&host, REFRESH_TOKEN).await;
-    let a = secret("realdebrid_client_secret");
+    let a = secret("oauthapp_client_secret");
     let mut twice = request(
         vec![value("one", &a)],
         vec![value("Authorization", &format!("Basic {a}:{a}"))],
@@ -267,7 +269,7 @@ async fn the_same_reference_twice_is_filled_twice() {
     );
     assert_eq!(
         secret_references(&twice).expect("within the cap"),
-        ["realdebrid_client_secret"]
+        ["oauthapp_client_secret"]
     );
 
     expand(&host, &identity(account_id), &mut twice)
@@ -292,7 +294,7 @@ async fn one_reference_failing_its_gate_refuses_the_whole_request() {
     let (_, foreign_refresh_ref) = registered_and_signed_in(&host, "CANARY-C-foreign").await;
     let mut request = request(
         vec![
-            value("client_secret", &secret("realdebrid_client_secret")),
+            value("client_secret", &secret("oauthapp_client_secret")),
             value("code", &secret(&foreign_refresh_ref)),
         ],
         Vec::new(),
@@ -323,11 +325,11 @@ async fn more_references_than_the_cap_are_refused_before_any_is_loaded() {
     let host = test_host(directory.path()).await;
     let (account_id, refresh_ref) = registered_and_signed_in(&host, REFRESH_TOKEN).await;
     let mut query = vec![
-        value("a", &secret("realdebrid_client_secret")),
+        value("a", &secret("oauthapp_client_secret")),
         value("b", &secret(&refresh_ref)),
     ];
     for extra in 0..MAX_SECRET_REFERENCES - 1 {
-        query.push(value("x", &secret(&format!("realdebrid_extra_{extra}"))));
+        query.push(value("x", &secret(&format!("oauthapp_extra_{extra}"))));
     }
     let request = request(query, Vec::new(), "");
 

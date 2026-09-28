@@ -26,8 +26,7 @@
 //! `poll` knows which endpoints to use without a lookup, an `adopt` knows which list to read,
 //! and the account's unique index cannot collide an NZB's digest with a link's.
 
-// `md-5` implements `digest` 0.11 and `sha1` still 0.10, so each brings its own `Digest`.
-use md5::{Digest as _, Md5};
+use md5::Md5;
 use sha1::{Digest, Sha1};
 
 /// Longest container this plugin will read. A `.torrent` is kilobytes and an `.nzb` for a
@@ -157,7 +156,7 @@ pub fn split_key(key: &str) -> Option<(Kind, &str)> {
 }
 
 /// Which kind a container is, and its digest.
-fn container_kind_and_digest(bytes: &[u8]) -> Option<(Kind, String)> {
+pub(crate) fn container_kind_and_digest(bytes: &[u8]) -> Option<(Kind, String)> {
     if bytes.len() > MAX_CONTAINER_BYTES || bytes.is_empty() {
         return None;
     }
@@ -270,7 +269,7 @@ fn md5_hex(bytes: &[u8]) -> String {
 }
 
 /// The encoded bytes of the top-level `info` value.
-fn info_slice(bytes: &[u8]) -> Option<&[u8]> {
+pub(crate) fn info_slice(bytes: &[u8]) -> Option<&[u8]> {
     if bytes.len() > MAX_CONTAINER_BYTES || bytes.first() != Some(&b'd') {
         return None;
     }
@@ -287,7 +286,7 @@ fn info_slice(bytes: &[u8]) -> Option<&[u8]> {
 }
 
 /// Reads `<length>:<bytes>` at `at`, answering the bytes and the offset just past them.
-fn read_byte_string(bytes: &[u8], at: usize) -> Option<(&[u8], usize)> {
+pub(crate) fn read_byte_string(bytes: &[u8], at: usize) -> Option<(&[u8], usize)> {
     let colon = bytes.iter().skip(at).position(|byte| *byte == b':')? + at;
     let digits = bytes.get(at..colon)?;
     if digits.is_empty() || !digits.iter().all(u8::is_ascii_digit) {
@@ -302,7 +301,7 @@ fn read_byte_string(bytes: &[u8], at: usize) -> Option<(&[u8], usize)> {
 }
 
 /// The offset just past the bencoded value starting at `at`.
-fn skip_value(bytes: &[u8], at: usize, depth: u32) -> Option<usize> {
+pub(crate) fn skip_value(bytes: &[u8], at: usize, depth: u32) -> Option<usize> {
     if depth > MAX_BENCODE_DEPTH {
         return None;
     }

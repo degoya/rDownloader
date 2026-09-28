@@ -90,22 +90,17 @@ async function toggleNotifications(value: boolean): Promise<void> {
           <USelect v-model="settings.byte_unit" :items="byteUnitItems" value-key="value" icon="i-lucide-ruler" class="w-full" />
         </UFormField>
       </div>
-      <div class="mt-4 flex items-start justify-between gap-5 border-t border-muted pt-4">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.appearance.title_status.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.appearance.title_status.description') }}</p>
-        </div>
-        <USwitch v-model="settings.title_status_enabled" :aria-label="t('settings.appearance.title_status.label')" />
-      </div>
-      <div class="mt-4 flex items-start justify-between gap-5 border-t border-muted pt-4">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.notifications.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.notifications.description') }}</p>
-          <p v-if="!notifications.supported" class="mt-1 text-xs leading-5 text-warning">{{ t('settings.notifications.unsupported') }}</p>
-          <p v-else-if="notificationsDenied || notifications.permission.value === 'denied'" class="mt-1 text-xs leading-5 text-warning">{{ t('settings.notifications.denied') }}</p>
-        </div>
-        <USwitch v-model="notificationsModel" :disabled="!notifications.supported" :aria-label="t('settings.notifications.label')" />
-      </div>
+      <UFormField :label="t('settings.appearance.title_status.label')" :description="t('settings.appearance.title_status.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+        <USwitch v-model="settings.title_status_enabled" />
+      </UFormField>
+      <UFormField :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+        <template #description>
+          {{ t('settings.notifications.description') }}
+          <span v-if="!notifications.supported" class="mt-1 block text-warning">{{ t('settings.notifications.unsupported') }}</span>
+          <span v-else-if="notificationsDenied || notifications.permission.value === 'denied'" class="mt-1 block text-warning">{{ t('settings.notifications.denied') }}</span>
+        </template>
+        <USwitch v-model="notificationsModel" :disabled="!notifications.supported" />
+      </UFormField>
     </section>
 
   </div>

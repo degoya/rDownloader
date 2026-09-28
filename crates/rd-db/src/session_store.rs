@@ -86,7 +86,7 @@ pub(crate) async fn session_for_digest(
          FROM sessions WHERE token_sha256 = ? AND {LIVE}"
     );
     let [now, signed_in_after, used_after] = live_bounds(limits);
-    let row = sqlx::query_as::<_, SessionRow>(&query)
+    let row = sqlx::query_as::<_, SessionRow>(sqlx::AssertSqlSafe(&*query))
         .bind(token_sha256)
         .bind(now)
         .bind(signed_in_after)
@@ -123,7 +123,7 @@ pub(crate) async fn list_sessions(
          FROM sessions WHERE {LIVE} ORDER BY last_used_at DESC"
     );
     let [now, signed_in_after, used_after] = live_bounds(limits);
-    let rows = sqlx::query_as::<_, SessionRow>(&query)
+    let rows = sqlx::query_as::<_, SessionRow>(sqlx::AssertSqlSafe(&*query))
         .bind(now)
         .bind(signed_in_after)
         .bind(used_after)

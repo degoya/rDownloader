@@ -164,9 +164,9 @@ const DELIVERY_COLUMNS: &str = "id, rule_id, target_id, idempotency_key, event, 
      state, attempt, next_attempt_at, response_status, response_excerpt, created_at, updated_at";
 
 pub(crate) async fn list_targets(pool: &SqlitePool) -> Result<Vec<NotificationTarget>> {
-    sqlx::query_as::<_, TargetRow>(&format!(
+    sqlx::query_as::<_, TargetRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {TARGET_COLUMNS} FROM notification_targets ORDER BY name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -175,9 +175,9 @@ pub(crate) async fn list_targets(pool: &SqlitePool) -> Result<Vec<NotificationTa
 }
 
 pub(crate) async fn list_rules(pool: &SqlitePool) -> Result<Vec<NotificationRule>> {
-    sqlx::query_as::<_, RuleRow>(&format!(
+    sqlx::query_as::<_, RuleRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {RULE_COLUMNS} FROM notification_rules ORDER BY name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -188,9 +188,9 @@ pub(crate) async fn list_rules(pool: &SqlitePool) -> Result<Vec<NotificationRule
 /// Newest deliveries first; the read is paginated, and the history itself is bounded by
 /// [`MAX_DELIVERIES_PER_RULE`].
 pub(crate) async fn list_deliveries(pool: &SqlitePool, limit: u32) -> Result<Vec<Delivery>> {
-    sqlx::query_as::<_, DeliveryRow>(&format!(
+    sqlx::query_as::<_, DeliveryRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries ORDER BY created_at DESC LIMIT ?"
-    ))
+    )))
     .bind(i64::from(limit))
     .fetch_all(pool)
     .await?
@@ -212,11 +212,11 @@ pub(crate) async fn count_clearable_deliveries(pool: &SqlitePool) -> Result<u64>
 
 /// Deliveries the worker should attempt now.
 pub(crate) async fn due_deliveries(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Delivery>> {
-    sqlx::query_as::<_, DeliveryRow>(&format!(
+    sqlx::query_as::<_, DeliveryRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries \
          WHERE state IN ('queued', 'retrying') AND (next_attempt_at IS NULL OR next_attempt_at <= ?) \
          ORDER BY created_at LIMIT 50"
-    ))
+    )))
     .bind(now)
     .fetch_all(pool)
     .await?
@@ -246,7 +246,7 @@ pub(crate) async fn upsert_target(
                 "UPDATE notification_targets SET name = ?, kind = ?, enabled = ?, endpoint = ?, \
                  config_json = ?, {secret_sql}, updated_at = ? WHERE id = ?"
             );
-            let mut query = sqlx::query(&statement)
+            let mut query = sqlx::query(sqlx::AssertSqlSafe(&*statement))
                 .bind(&input.name)
                 .bind(to_name(&input.kind)?)
                 .bind(input.enabled)
@@ -287,9 +287,9 @@ pub(crate) async fn upsert_target(
             id
         }
     };
-    let row = sqlx::query_as::<_, TargetRow>(&format!(
+    let row = sqlx::query_as::<_, TargetRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {TARGET_COLUMNS} FROM notification_targets WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *tx)
     .await?;

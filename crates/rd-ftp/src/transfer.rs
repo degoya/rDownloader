@@ -45,7 +45,7 @@ where
     // The data connection has to be closed and its control response read either way;
     // skipping it on a stop would leave the control channel out of step for the next
     // command on this connection.
-    let finalized = stream.finalize_retr_stream(data).await;
+    let finalized = data.finish().await;
     match (&outcome, finalized) {
         // A stopped transfer ends with an "aborted" control response, which is expected
         // and must not be reported as a failure.

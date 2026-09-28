@@ -36,6 +36,7 @@ use premiumize_common::{
 };
 use rdownloader::plugin::{
     http::{self, RequestHeader, RequestQuery},
+    job_context,
     types::{Failure, FailureKind},
 };
 
@@ -286,14 +287,19 @@ impl Guest for Component {
                 api::form_body("src", address),
             ),
             JobSource::Container(bytes) => {
-                let Some(file_name) = container::file_name(bytes) else {
+                // The person's own file name when the host knows it: Premiumize names the
+                // transfer and its folder after the upload, as it would for a file added by hand.
+                let source_name = job_context::source_name();
+                let Some(file_name) =
+                    container::file_name(bytes, source_name.as_deref(), &source::upload_tag(bytes))
+                else {
                     return Err(refuse(
                         messages::CONTAINER_UNKNOWN,
                         FailureKind::Unsupported,
                     ));
                 };
                 let boundary = api::boundary_for(&sanitised(&request.content_key));
-                let Some(body) = api::multipart_body(&boundary, file_name, bytes) else {
+                let Some(body) = api::multipart_body(&boundary, &file_name, bytes) else {
                     return Err(refuse(messages::CONTAINER_UNKNOWN, FailureKind::Permanent));
                 };
                 (api::multipart_content_type(&boundary), body)

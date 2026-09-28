@@ -89,7 +89,7 @@
       "headers": "Headers"
     },
     "drag_hint": "Drag to change the order inside the package",
-    "duplicate_hint": "This address is already in the LinkGrabber or has already been enqueued. It can deliberately be added again.",
+    "duplicate_hint": "This address is already in the LinkGrabber or in the download list. It can deliberately be added again.",
     "unresolvable_hint": "This address answers with a page, not with a file. It cannot be added to the download list.",
     "no_resolver_hint": "No resolver is installed for {host}, so this address cannot be added to the download list. It may be a hoster this installation does not support, or a forwarder to another address."
   },
@@ -408,9 +408,6 @@
       "post_resume_unsupported": "The server does not support resuming this download."
     }
   },
-  "enrichment": {
-    "source": "{name}, looked up by a plugin on {at}"
-  },
   "notifications": {
     "intake_title": "New links",
     "intake_body": "No links added. | {count} link in the LinkGrabber. | {count} links in the LinkGrabber."
@@ -478,5 +475,9 @@
     "summary": "{links} from {hosters} hidden",
     "show_all": "Show all",
     "hint": "Hidden hosters stay in the LinkGrabber and are neither queued nor checked. As a mirror of a shown link they go along as its fallback."
+  },
+  "duplicates": {
+    "queued": "{count} × already queued",
+    "queued_hint": "The same source is already queued {count} time(s) – recognised by the normalised address, the info-hash or the hoster."
   }
 }

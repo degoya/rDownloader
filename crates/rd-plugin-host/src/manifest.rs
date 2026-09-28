@@ -442,6 +442,12 @@ pub enum CredentialKindManifest {
     /// manifest author would ever guess that.
     #[serde(rename = "oauth")]
     OAuth,
+    /// Sign in with a code, or paste a ready-made API key, chosen per account (RD-150-09).
+    /// Written `credentials = "oauth_or_api_key"`. Every `[[provider.secrets]]` entry names a
+    /// mode: the `api_key` one is the slot the person fills, the `oauth` ones are filled by the
+    /// sign-in -- the access token first, then the named parts it keeps beside the token.
+    #[serde(rename = "oauth_or_api_key")]
+    OAuthOrApiKey,
     /// The provider takes no account at all: it resolves the free flow and nothing else.
     ///
     /// Written `credentials = "none"` in a manifest. Spelled `NoneRequired` here rather than
@@ -476,6 +482,9 @@ fn is_no_transfer_auth(value: &TransferAuthManifest) -> bool {
 pub enum CredentialModeManifest {
     Login,
     ApiKey,
+    /// Signed in with a code; only on a `credentials = "oauth_or_api_key"` provider.
+    #[serde(rename = "oauth")]
+    OAuth,
 }
 
 /// Who puts a value into a credential slot (RD-106-03).
@@ -1018,8 +1027,23 @@ fn validate_capabilities(
         .secret_slots()
         .iter()
         .any(|slot| slot.filled_by == SecretFilledByManifest::Flow);
+    // The parts a sign-in keeps beside its token (RD-150-09) belong to the sign-in plugin the
+    // same way: Real-Debrid's personal client secret is expanded by `realdebrid-auth` alone, and
+    // the resolver that owns the row has no business holding it. The token's slot -- the first
+    // flow slot -- is still the resolver's to grant, because the resolver is what sends it.
+    let token_slot = provider
+        .secret_slots()
+        .into_iter()
+        .find(|slot| slot.filled_by == SecretFilledByManifest::Flow)
+        .map(|slot| slot.reference);
     for slot in provider.secret_slots() {
         if sign_in_slot_is_a_siblings && slot.filled_by == SecretFilledByManifest::Person {
+            continue;
+        }
+        let is_flow_part = provider.credentials == CredentialKindManifest::OAuthOrApiKey
+            && slot.filled_by == SecretFilledByManifest::Flow
+            && token_slot.as_ref() != Some(&slot.reference);
+        if is_flow_part {
             continue;
         }
         if !capabilities.secrets.contains(&slot.reference) {
@@ -1169,8 +1193,20 @@ fn validate_provider(provider: &ProviderManifest, domains: &[String]) -> Result<
                 );
             }
         }
+        if slots
+            .iter()
+            .any(|slot| slot.mode == Some(CredentialModeManifest::OAuth))
+        {
+            bail!(
+                "provider.credentials = \"login_or_api_key\" offers the modes login and api_key only"
+            );
+        }
+    } else if provider.credentials == CredentialKindManifest::OAuthOrApiKey {
+        validate_oauth_or_api_key(&slots)?;
     } else if slots.iter().any(|slot| slot.mode.is_some()) {
-        bail!("provider.secrets may only declare a mode when credentials = \"login_or_api_key\"");
+        bail!(
+            "provider.secrets may only declare a mode when credentials = \"login_or_api_key\" or \"oauth_or_api_key\""
+        );
     }
     // A slot the flow fills only makes sense where a flow fills one, and only beside a slot
     // the person fills -- otherwise the account would have a credential nobody can enter, or
@@ -1184,7 +1220,7 @@ fn validate_provider(provider: &ProviderManifest, domains: &[String]) -> Result<
         .iter()
         .filter(|slot| slot.filled_by == SecretFilledByManifest::Flow)
         .count();
-    if flow_slots > 0 {
+    if flow_slots > 0 && provider.credentials != CredentialKindManifest::OAuthOrApiKey {
         if !matches!(
             provider.credentials,
             CredentialKindManifest::OAuth | CredentialKindManifest::UsernamePassword
@@ -1221,6 +1257,52 @@ fn validate_provider(provider: &ProviderManifest, domains: &[String]) -> Result<
     }
     if provider.kind == ProviderKindManifest::Multihoster && !provider.host_aliases.is_empty() {
         bail!("multihoster providers cannot declare host_aliases");
+    }
+    Ok(())
+}
+
+/// The slots of a provider that signs in with a code or takes an API key (RD-150-09).
+///
+/// Each mode has to be complete on its own, and neither may borrow from the other: the API key
+/// is one slot the person fills, and signing in fills everything of its mode -- the token
+/// first, then any named part the renewal needs beside it. A typed value in the sign-in mode
+/// would be a credential the form never asks for, and a flow slot in the key mode a sign-in
+/// that mode never runs.
+fn validate_oauth_or_api_key(slots: &[SecretSlotManifest]) -> Result<()> {
+    if slots.iter().any(|slot| slot.mode.is_none()) {
+        bail!(
+            "provider.credentials = \"oauth_or_api_key\" requires a mode on every provider.secrets entry"
+        );
+    }
+    if slots
+        .iter()
+        .any(|slot| slot.mode == Some(CredentialModeManifest::Login))
+    {
+        bail!(
+            "provider.credentials = \"oauth_or_api_key\" offers the modes oauth and api_key only"
+        );
+    }
+    let api_key: Vec<_> = slots
+        .iter()
+        .filter(|slot| slot.mode == Some(CredentialModeManifest::ApiKey))
+        .collect();
+    if api_key.len() != 1 || api_key[0].filled_by != SecretFilledByManifest::Person {
+        bail!(
+            "provider.credentials = \"oauth_or_api_key\" needs exactly one api_key entry, filled by the person"
+        );
+    }
+    let sign_in: Vec<_> = slots
+        .iter()
+        .filter(|slot| slot.mode == Some(CredentialModeManifest::OAuth))
+        .collect();
+    if sign_in.is_empty()
+        || sign_in
+            .iter()
+            .any(|slot| slot.filled_by != SecretFilledByManifest::Flow)
+    {
+        bail!(
+            "provider.credentials = \"oauth_or_api_key\" needs oauth entries, each with filled_by = \"flow\""
+        );
     }
     Ok(())
 }
@@ -1320,6 +1402,9 @@ pub fn provider_spec_from_manifest(
                     rd_provider_registry::CredentialKind::LoginOrApiKey
                 }
                 CredentialKindManifest::OAuth => rd_provider_registry::CredentialKind::OAuth,
+                CredentialKindManifest::OAuthOrApiKey => {
+                    rd_provider_registry::CredentialKind::OAuthOrApiKey
+                }
             },
             username_required: provider.username_required,
             transfer_auth: match provider.transfer_auth {
@@ -1338,6 +1423,9 @@ pub fn provider_spec_from_manifest(
                         }
                         CredentialModeManifest::ApiKey => {
                             rd_provider_registry::CredentialMode::ApiKey
+                        }
+                        CredentialModeManifest::OAuth => {
+                            rd_provider_registry::CredentialMode::OAuth
                         }
                     }),
                     filled_by: match slot.filled_by {

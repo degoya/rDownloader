@@ -5,10 +5,13 @@
 //! The import loops over the regular facade creates (which emit `CategoryChanged` events
 //! themselves), so it is not atomic — but a re-import of the same bundle is idempotent.
 
-use axum::{Json, extract::State};
+use axum::{
+    Json,
+    extract::{Query, State},
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     ApiError, AppState,
@@ -88,15 +91,37 @@ pub struct ImportRoutingSummary {
     pub rules_skipped: u32,
 }
 
+/// Which part of the routing configuration an export carries.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingExportPart {
+    /// Categories and their rules together — what the export always was.
+    #[default]
+    All,
+    /// The categories alone.
+    Categories,
+    /// The rules alone; an import matches their categories by name on the target.
+    Rules,
+}
+
+/// `GET /api/v1/routing/export?part=…`; without `part` the export carries everything.
+#[derive(Debug, Default, Deserialize, IntoParams)]
+pub struct RoutingExportParams {
+    pub part: Option<RoutingExportPart>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/v1/routing/export",
     tag = "configuration",
+    params(RoutingExportParams),
     responses((status = 200, body = RoutingBundle))
 )]
 pub async fn export_routing(
     State(state): State<AppState>,
+    Query(params): Query<RoutingExportParams>,
 ) -> Result<Json<RoutingBundle>, ApiError> {
+    let part = params.part.unwrap_or_default();
     let (roots, categories, rules) = tokio::try_join!(
         async { Ok::<_, ApiError>(state.database.list_storage_roots().await?) },
         async { Ok::<_, ApiError>(state.database.list_categories().await?) },
@@ -157,8 +182,16 @@ pub async fn export_routing(
         version: BUNDLE_VERSION,
         exported_at: Utc::now(),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
-        categories: bundled_categories,
-        rules: bundled_rules,
+        categories: if part == RoutingExportPart::Rules {
+            Vec::new()
+        } else {
+            bundled_categories
+        },
+        rules: if part == RoutingExportPart::Categories {
+            Vec::new()
+        } else {
+            bundled_rules
+        },
     }))
 }
 

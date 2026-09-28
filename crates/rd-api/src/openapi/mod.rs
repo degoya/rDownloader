@@ -35,9 +35,45 @@ pub fn document() -> utoipa::openapi::OpenApi {
     doc.merge(routes::torrent::Doc::openapi());
     doc.merge(routes::usenet::Doc::openapi());
     doc.merge(routes::stats::Doc::openapi());
+    doc.merge(routes::storage::Doc::openapi());
     doc.merge(routes::diagnostics::Doc::openapi());
     doc.merge(routes::audit::Doc::openapi());
+    describe_bare_responses(&mut doc);
     doc
+}
+
+/// Gives every response declared without a description its status's reason phrase.
+///
+/// OpenAPI 3.1 requires `description` on a response object. utoipa 5 wrote an empty string for
+/// a response a handler declared without one; utoipa 6 leaves the empty field out, which would
+/// make the document invalid 3.1 for every client generator that checks it.
+fn describe_bare_responses(doc: &mut utoipa::openapi::OpenApi) {
+    for item in doc.paths.paths.values_mut() {
+        let operations = [
+            &mut item.get,
+            &mut item.put,
+            &mut item.post,
+            &mut item.delete,
+            &mut item.options,
+            &mut item.head,
+            &mut item.patch,
+            &mut item.trace,
+            &mut item.query,
+        ];
+        for operation in operations.into_iter().flatten() {
+            for (status, response) in &mut operation.responses.responses {
+                if let utoipa::openapi::RefOr::T(response) = response
+                    && response.description.is_empty()
+                {
+                    response.description = axum::http::StatusCode::from_bytes(status.as_bytes())
+                        .ok()
+                        .and_then(|code| code.canonical_reason())
+                        .unwrap_or("Response")
+                        .to_owned();
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

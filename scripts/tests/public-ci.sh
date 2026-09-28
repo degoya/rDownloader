@@ -4,7 +4,8 @@
 # that answers from files, the export a script that commits into a scratch clone whose origin is
 # a bare repository. What is tested is the flow — the platforms become ci.yml's JSON input, a
 # dispatched run is watched by its event and its push run skipped, green deletes the public
-# branch, red and a timeout keep it and fail — not GitHub.
+# branch, red, a run that never appears and one past the ceiling keep it and fail, and a long
+# run is waited for past the start deadline — not GitHub.
 #
 #   scripts/tests/public-ci.sh
 set -euo pipefail
@@ -25,13 +26,18 @@ export FAKE="$SCRATCH/fake"
 mkdir -p "$FAKE" "$SCRATCH/bin"
 
 # gh: every call is logged; `run list` prints $FAKE/runs, and fails while it does not exist.
+# A $FAKE/runs.next replaces $FAKE/runs after one look, so a run can finish while it is watched.
 cat > "$SCRATCH/bin/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE/gh.calls"
 case "$1 $2" in
     "auth status") exit 0 ;;
     "workflow run") exit 0 ;;
-    "run list") [[ -f "$FAKE/runs" ]] && cat "$FAKE/runs" ;;
+    "run list")
+        [[ -f "$FAKE/runs" ]] || exit 1
+        cat "$FAKE/runs"
+        [[ ! -f "$FAKE/runs.next" ]] || mv "$FAKE/runs.next" "$FAKE/runs"
+        ;;
     *) echo "fake gh: unexpected $*" >&2; exit 1 ;;
 esac
 EOF
@@ -118,8 +124,20 @@ public_ci integration/1.4-w4 --platforms windows
 expect_status "a cancelled run is not green" 1
 
 echo "in_progress  CI https://example.invalid/runs/5" > "$FAKE/runs"
+echo "completed success CI https://example.invalid/runs/5" > "$FAKE/runs.next"
 RD_PUBLIC_CI_TIMEOUT=0 public_ci integration/1.4-w4 --platforms windows
-expect_status "a run past the deadline fails" 1
+expect_status "a run still going is waited for past the start deadline" 0
+expect_true "and looked at until it finished" '[[ $(grep -c "^run list" "$FAKE/gh.calls") -eq 2 ]]'
+
+echo "in_progress  CI https://example.invalid/runs/6" > "$FAKE/runs"
+RD_PUBLIC_CI_CEILING=0 public_ci integration/1.4-w4 --platforms windows
+expect_status "a run past the ceiling fails" 1
 expect_output "saying so" "did not finish within 0s"
+expect_true "the public branch is kept" 'remote_has ci/integration-1.4-w4'
+
+rm -f "$FAKE/runs"
+RD_PUBLIC_CI_TIMEOUT=0 public_ci integration/1.4-w4 --platforms windows
+expect_status "no run at all fails at the start deadline" 1
+expect_output "saying so" "no CI run appeared within 0s"
 
 finish_tests public-ci

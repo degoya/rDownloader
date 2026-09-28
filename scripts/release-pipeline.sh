@@ -334,10 +334,9 @@ step_preflight() {
         return 1
     fi
 
-    # A worktree links web/node_modules and web/dist into the main checkout, and a build here
-    # rewrites the tracked declaration files with paths from the wrong tree.
-    if [[ -L web/node_modules || -L web/dist ]]; then
-        echo "web/node_modules or web/dist is a symlink — this is a feature worktree." >&2
+    # A worktree links web/dist into the main checkout, and a build here would rewrite that one.
+    if [[ -L web/dist ]]; then
+        echo "web/dist is a symlink — this is a feature worktree." >&2
         echo "release from the main checkout instead." >&2
         return 1
     fi
@@ -348,7 +347,7 @@ step_preflight() {
     fi
 
     local tool
-    for tool in cargo cargo-nextest node npm python3 zip; do
+    for tool in cargo cargo-nextest node pnpm python3 zip; do
         command -v "$tool" > /dev/null || { echo "missing tool: $tool" >&2; return 1; }
     done
     cargo xwin --version > /dev/null 2>&1 || { echo "missing: cargo xwin" >&2; return 1; }
@@ -379,9 +378,9 @@ step_version_bump() {
 }
 
 # The full Rust suite, through check.sh because it owns the one thing a naive `cargo test
-# --workspace` gets fatally wrong here: rd-api's 55 integration binaries each link the whole
-# dependency graph, and building them at once has OOM-killed WSL even at JOBS=2. check.sh runs
-# them four binaries at a time. This also covers fmt, the failpoint crash matrix and sqlx offline.
+# --workspace` gets fatally wrong here: rd-api's integration binaries each link the whole
+# dependency graph, and building all 55 of them at once OOM-killed WSL even at JOBS=2. check.sh
+# runs them four binaries at a time (six since RD-150-10). This also covers fmt, the failpoint crash matrix and sqlx offline.
 # --full, because a branch-level run leaves out what a release must not (RD-120-58), and because
 # tag-release.sh and package-windows.sh refuse a tree without a --full green of both halves.
 #
@@ -429,7 +428,10 @@ step_sign_plugins() {
 # --skip-web reuses the web/dist the web step just built and type-checked (check.sh --web --full);
 # web-dist-stale.sh still refuses one that is behind. Needed since RD-140-06 rather than merely
 # faster: building web/dist here while the Windows package embeds it would race.
-step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh --skip-web; }
+#
+# `--profile release` is spelled out in both package steps (RD-150-20): a RD_PACKAGE_PROFILE
+# left in the environment for a test package must never build the release.
+step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh --skip-web --profile release; }
 
 # cargo xwin, straight from WSL. Not the Docker cross-build: it is slower, and the artifact stage
 # drops the COPY'd asset directories. --skip-web reuses the web/dist the web step just built.
@@ -441,9 +443,9 @@ step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh --skip-web; }
 step_build_windows() {
     if [[ "$LANES" -gt 1 ]]; then
         env -u RD_LOCK_HELD -u RD_LOCK_LANE RD_LANE_TARGET_DIR="$WINDOWS_LANE" JOBS="$JOBS" \
-            scripts/package-windows.sh --skip-web
+            scripts/package-windows.sh --skip-web --profile release
     else
-        JOBS="$JOBS" scripts/package-windows.sh --skip-web
+        JOBS="$JOBS" scripts/package-windows.sh --skip-web --profile release
     fi
 }
 
@@ -466,6 +468,15 @@ step_verify_artifacts() {
     windows_plugins="$(ls -1 artifacts/windows/plugins/*.rdplug 2>/dev/null | wc -l)"
     echo "plugins: linux $linux_plugins, windows $windows_plugins, expected $expected"
     [[ "$linux_plugins" -eq "$expected" && "$windows_plugins" -eq "$expected" ]] || absent=1
+
+    # Built with the release profile, not a test package's (RD-150-20).
+    for path in artifacts/linux/VERSION.txt artifacts/windows/VERSION.txt; do
+        if grep -qx 'profile  release' "$path" 2>/dev/null; then
+            echo "ok   $path names the release profile"
+        else
+            echo "!! $path does not name the release profile" >&2; absent=1
+        fi
+    done
 
     local built; built="$(artifacts/linux/rdownloader --version 2>&1 || true)"
     echo "built binary reports: $built"

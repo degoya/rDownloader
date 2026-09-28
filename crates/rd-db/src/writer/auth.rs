@@ -43,6 +43,21 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
+            WriterCommand::SetAuthFlowPart {
+                account_id,
+                name,
+                secret_ref,
+                reply,
+            } => {
+                let result = crate::auth_flow_store::set_part(
+                    &mut self.connection,
+                    account_id,
+                    &name,
+                    &secret_ref,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
             WriterCommand::DeferAuthFlowRenewal {
                 account_id,
                 next_poll_at,

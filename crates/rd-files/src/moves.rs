@@ -3,6 +3,7 @@
 use std::{io::ErrorKind, path::Path};
 
 use anyhow::{Context, Result};
+use rd_core::ChecksumAlgorithm;
 
 /// Moves `from` to `to`, falling back to copy-and-remove across filesystem boundaries.
 ///
@@ -22,12 +23,29 @@ pub async fn move_file(from: &Path, to: &Path) -> Result<()> {
 /// Moves a directory with its whole subtree, falling back to a recursive copy across devices.
 ///
 /// Same contract as [`move_file`]: the caller creates the parent of `to`, and a cross-device
-/// move copies before it removes, so a failure leaves the source intact.
+/// move copies before it removes, so a failure leaves the source intact. Since RD-150-02 the
+/// copy is also verified — every file hashed on both sides — before the source goes, and a copy
+/// that failed or did not verify is removed again when this call created it.
 pub async fn move_directory(from: &Path, to: &Path) -> Result<()> {
     match tokio::fs::rename(from, to).await {
         Ok(()) => Ok(()),
         Err(error) if is_cross_device(&error) => {
-            copy_tree(from, to).await?;
+            let created = !tokio::fs::try_exists(to).await.unwrap_or(true);
+            let copied = async {
+                copy_tree(from, to).await?;
+                verify_tree(from, to).await
+            }
+            .await;
+            if let Err(error) = copied {
+                if created && let Err(cleanup) = tokio::fs::remove_dir_all(to).await {
+                    tracing::warn!(
+                        path = %to.display(),
+                        error = %cleanup,
+                        "partial directory copy was left behind after a failed move"
+                    );
+                }
+                return Err(error);
+            }
             tokio::fs::remove_dir_all(from)
                 .await
                 .with_context(|| format!("remove {} after copying it", from.display()))
@@ -72,6 +90,37 @@ async fn copy_tree(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Proves that every file below `from` arrived below `to` with the same SHA-256.
+async fn verify_tree(from: &Path, to: &Path) -> Result<()> {
+    let mut pending = vec![(from.to_path_buf(), to.to_path_buf())];
+    while let Some((source, target)) = pending.pop() {
+        let mut entries = tokio::fs::read_dir(&source)
+            .await
+            .with_context(|| format!("read {}", source.display()))?;
+        while let Some(entry) = entries.next_entry().await? {
+            let child_source = entry.path();
+            let child_target = target.join(entry.file_name());
+            if entry.file_type().await?.is_dir() {
+                pending.push((child_source, child_target));
+                continue;
+            }
+            let original =
+                crate::compute_checksum(&child_source, ChecksumAlgorithm::Sha256).await?;
+            let copy = crate::compute_checksum(&child_target, ChecksumAlgorithm::Sha256)
+                .await
+                .with_context(|| format!("hash the copy {}", child_target.display()))?;
+            if original.value != copy.value {
+                anyhow::bail!(
+                    "the copy {} did not verify against {}",
+                    child_target.display(),
+                    child_source.display()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The cross-device fallback.
 ///
 /// A failed copy leaves no half-written file behind, and the source is never dropped until its
@@ -104,7 +153,7 @@ async fn copy_and_remove(from: &Path, to: &Path) -> Result<()> {
 /// Windows and `EEXIST` on Unix. Accepting both everywhere meant a Unix `rename` refused with
 /// `EEXIST` fell into the copy-then-delete path, which merges a directory into an existing one
 /// and then removes the source — a destructive answer to an error that is not cross-device.
-fn is_cross_device(error: &std::io::Error) -> bool {
+pub(crate) fn is_cross_device(error: &std::io::Error) -> bool {
     #[cfg(unix)]
     const RAW_CROSS_DEVICE: i32 = 18; // EXDEV
     #[cfg(windows)]
@@ -127,7 +176,7 @@ fn is_cross_device(error: &std::io::Error) -> bool {
 mod tests {
     use std::io::ErrorKind;
 
-    use super::{copy_and_remove, is_cross_device, move_file};
+    use super::{copy_and_remove, copy_tree, is_cross_device, move_file, verify_tree};
 
     #[tokio::test]
     async fn a_move_within_one_filesystem_carries_the_content_over() {
@@ -174,6 +223,34 @@ mod tests {
             .expect_err("copying a file that is not there must fail");
 
         assert!(!target.exists(), "no partial target survives a failed copy");
+    }
+
+    #[tokio::test]
+    async fn a_copied_tree_verifies_and_a_changed_copy_does_not() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let from = temporary.path().join("release");
+        let to = temporary.path().join("copy");
+        tokio::fs::create_dir_all(from.join("sub"))
+            .await
+            .expect("tree");
+        tokio::fs::write(from.join("a.rar"), b"one")
+            .await
+            .expect("write");
+        tokio::fs::write(from.join("sub").join("b.nfo"), b"two")
+            .await
+            .expect("write");
+
+        copy_tree(&from, &to).await.expect("copy");
+        verify_tree(&from, &to)
+            .await
+            .expect("an exact copy verifies");
+
+        tokio::fs::write(to.join("sub").join("b.nfo"), b"TWO")
+            .await
+            .expect("corrupt");
+        verify_tree(&from, &to)
+            .await
+            .expect_err("a copy with different bytes must not verify");
     }
 
     /// The raw fallback is the platform's own code, never the other platform's.

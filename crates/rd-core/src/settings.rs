@@ -130,9 +130,9 @@ pub struct ServiceSwitches {
     pub media: bool,
     pub gallery: bool,
     pub recording: bool,
-    /// FTP, FTPS and SFTP together. They are one thing to the person using them — remote file
-    /// transfer — and splitting the control three ways would be a distinction only the code
-    /// cares about.
+    /// FTP, FTPS, SFTP and object storage together. They are one thing to the person using
+    /// them — remote file transfer — and splitting the control four ways would be a
+    /// distinction only the code cares about.
     pub remote: bool,
 }
 
@@ -165,7 +165,14 @@ impl ServiceSwitches {
             (self.media, &[DownloadKind::Media][..]),
             (self.gallery, &[DownloadKind::Gallery][..]),
             (self.recording, &[DownloadKind::Record][..]),
-            (self.remote, &[DownloadKind::Ftp, DownloadKind::Sftp][..]),
+            (
+                self.remote,
+                &[
+                    DownloadKind::Ftp,
+                    DownloadKind::Sftp,
+                    DownloadKind::ObjectStorage,
+                ][..],
+            ),
         ] {
             if !on {
                 disabled.extend_from_slice(kinds);
@@ -223,7 +230,12 @@ mod tests {
         // them; WebDAV has no kind and is refused at intake instead.
         assert_eq!(
             off.disabled_kinds(),
-            vec![DownloadKind::Torrent, DownloadKind::Ftp, DownloadKind::Sftp]
+            vec![
+                DownloadKind::Torrent,
+                DownloadKind::Ftp,
+                DownloadKind::Sftp,
+                DownloadKind::ObjectStorage
+            ]
         );
     }
 

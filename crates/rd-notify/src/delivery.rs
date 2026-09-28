@@ -6,7 +6,7 @@
 //! in the process list. What comes back is truncated and redacted before it is stored.
 
 use anyhow::{Context, Result};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit as _, Mac};
 use secrecy::ExposeSecret;
 use sha2::Sha256;
 

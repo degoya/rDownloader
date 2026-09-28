@@ -212,6 +212,11 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/categories", Method::POST, CONFIG),
     entry("/api/v1/categories/{id}", Method::DELETE, CONFIG),
     entry("/api/v1/categories/{id}", Method::PUT, CONFIG),
+    entry(
+        "/api/v1/categories/{id}/collision-policy",
+        Method::PUT,
+        CONFIG,
+    ),
     entry("/api/v1/categories/{id}/postprocess", Method::PATCH, CONFIG),
     entry("/api/v1/categories/{id}/seeding", Method::DELETE, CONFIG),
     entry("/api/v1/categories/{id}/seeding", Method::PUT, CONFIG),
@@ -329,6 +334,8 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::POST,
         QUEUE,
     ),
+    entry("/api/v1/collision-policies", Method::GET, READ),
+    entry("/api/v1/collision-prompts", Method::GET, READ),
     entry("/api/v1/containers/import", Method::POST, INTAKE),
     // Diagnostics are the service itself (RD-110-02): the log store names hosts, files and
     // failures across the whole installation, and the bundle carries the configuration.
@@ -349,10 +356,18 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/downloads/{id}", Method::PATCH, QUEUE),
     entry("/api/v1/downloads/{id}/auth-profile", Method::PUT, QUEUE),
     entry("/api/v1/downloads/{id}/cancel", Method::POST, QUEUE),
+    entry(
+        "/api/v1/downloads/{id}/collision-decision",
+        Method::POST,
+        QUEUE,
+    ),
+    entry("/api/v1/downloads/{id}/dedupe", Method::POST, QUEUE),
+    entry("/api/v1/downloads/{id}/duplicates", Method::GET, READ),
     entry("/api/v1/downloads/{id}/pause", Method::POST, QUEUE),
     entry("/api/v1/downloads/{id}/reset", Method::POST, QUEUE),
     entry("/api/v1/downloads/{id}/resume", Method::POST, QUEUE),
     entry("/api/v1/downloads/{id}/seeding/stop", Method::POST, QUEUE),
+    entry("/api/v1/downloads/{id}/sources", Method::GET, READ),
     entry("/api/v1/downloads/{id}/torrent", Method::GET, READ),
     entry("/api/v1/downloads/{id}/torrent/peers", Method::GET, READ),
     entry("/api/v1/downloads/{id}/torrent/pieces", Method::GET, READ),
@@ -381,6 +396,7 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::POST,
         QUEUE,
     ),
+    entry("/api/v1/duplicates/lookup", Method::POST, QUEUE),
     entry("/api/v1/events", Method::GET, READ),
     entry("/api/v1/health", Method::GET, PUBLIC),
     entry("/api/v1/hotfolders", Method::GET, CONFIG),
@@ -436,6 +452,20 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     // it public would put an unauthenticated token exchange in the surface for a convenience
     // nobody usually needs, and a lost code costs one more press of the sign-in button.
     entry("/api/v1/oauth/callback", Method::GET, SECRETS),
+    // Object storage profiles hold key pairs, like the remote logins beside them (RD-150-04).
+    entry("/api/v1/object-storage/profiles", Method::GET, SECRETS),
+    entry("/api/v1/object-storage/profiles", Method::POST, SECRETS),
+    entry(
+        "/api/v1/object-storage/profiles/{id}",
+        Method::DELETE,
+        SECRETS,
+    ),
+    entry("/api/v1/object-storage/profiles/{id}", Method::PUT, SECRETS),
+    entry(
+        "/api/v1/object-storage/profiles/{id}/test",
+        Method::POST,
+        SECRETS,
+    ),
     entry("/api/v1/openapi.json", Method::GET, PUBLIC),
     entry("/api/v1/packages", Method::GET, READ),
     entry("/api/v1/packages/bulk", Method::POST, QUEUE),
@@ -445,6 +475,8 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/reorder", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}", Method::DELETE, QUEUE),
     entry("/api/v1/packages/{id}", Method::PATCH, QUEUE),
+    entry("/api/v1/packages/{id}/collision-policy", Method::GET, READ),
+    entry("/api/v1/packages/{id}/collision-policy", Method::PUT, QUEUE),
     entry("/api/v1/packages/{id}/extract", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/extract/force", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/folder", Method::POST, QUEUE),
@@ -605,6 +637,10 @@ pub(crate) const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::POST,
         QUEUE,
     ),
+    entry("/api/v1/storage/content-index/check", Method::POST, QUEUE),
+    entry("/api/v1/storage/link-support", Method::GET, READ),
+    entry("/api/v1/storage/operations", Method::GET, READ),
+    entry("/api/v1/storage/reuse", Method::GET, READ),
     entry("/api/v1/streams/channels", Method::GET, CONFIG),
     entry("/api/v1/streams/channels", Method::POST, CONFIG),
     entry("/api/v1/streams/channels/{id}", Method::DELETE, CONFIG),
@@ -681,7 +717,7 @@ pub(crate) fn requirement(path: &str, method: &Method) -> Option<Requirement> {
 
 /// The scope string a route costs, or `None` for a route that needs no credential.
 ///
-/// Exposed for the conformance test in `crates/rd-api/tests/scope_matrix.rs`, which walks the
+/// Exposed for the conformance test in `crates/rd-api/tests/access/scope_matrix.rs`, which walks the
 /// whole API and proves that a token holding every scope *except* the required one is refused.
 /// That test has to derive its expectations from this table rather than restate them, or it
 /// would only prove that two hand-written lists agree with each other.
@@ -1019,6 +1055,7 @@ mod tests {
             "/api/v1/auth-profiles",
             "/api/v1/proxy-profiles",
             "/api/v1/remote-credentials",
+            "/api/v1/object-storage/profiles",
             "/api/v1/usenet/servers",
             "/api/v1/api-tokens",
             "/api/v1/captcha-config",

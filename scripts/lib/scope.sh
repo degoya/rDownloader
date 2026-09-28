@@ -220,20 +220,52 @@ rd_vue_script_touched() {
     return 1
 }
 
-# --- rd-api integration binaries (RD-120-58) ------------------------------------------------
+# --- rd-api integration suites (RD-120-58, RD-150-10) ----------------------------------------
 #
-# At branch level only the binaries the change needs run; `--full` runs all of them. The
-# mapping is the table in scripts/lib/rd-api-tests.map, whose header states the rules.
+# At branch level only the suites the change needs run; `--full` runs all of them. The mapping
+# is the table in scripts/lib/rd-api-tests.map, whose header states the rules. A suite is one
+# module of a test binary: crates/rd-api/tests/<binary>/main.rs declares it, and
+# crates/rd-api/tests/<binary>/<suite>.rs holds it (its own submodules, if any, in
+# crates/rd-api/tests/<binary>/<suite>/). Six binaries, one per subject, since RD-150-10 — every
+# binary links the whole service, so the map selects suites and check.sh runs the binaries
+# holding them, filtered to them.
 
-# The paths whose unmapped changes select every binary rather than none.
+# The paths whose unmapped changes select every suite rather than none.
 RD_API_TEST_DOMAIN='^crates/rd-api/|^crates/rd-core/|^crates/rd-db/migrations/'
 
 # Every rd-api integration test binary, one per line, sorted bytewise.
 rd_api_test_binaries() {
-    local file
-    for file in crates/rd-api/tests/*.rs; do
-        [[ -f "$file" ]] && basename "$file" .rs
+    local main
+    for main in crates/rd-api/tests/*/main.rs; do
+        [[ -f "$main" ]] && basename "$(dirname "$main")"
     done | LC_ALL=C sort
+}
+
+# Every suite as `<suite> <binary>`, one per line, sorted bytewise.
+rd_api_test_suites() {
+    local file binary
+    for file in crates/rd-api/tests/*/*.rs; do
+        binary="$(basename "$(dirname "$file")")"
+        [[ -f "crates/rd-api/tests/$binary/main.rs" && "${file##*/}" != main.rs ]] || continue
+        printf '%s %s\n' "$(basename "$file" .rs)" "$binary"
+    done | LC_ALL=C sort
+}
+
+# The binaries holding the suites named as arguments, one per line, sorted bytewise.
+rd_api_test_binaries_of() {
+    local suite binary
+    local -A wanted=()
+    for suite in "$@"; do wanted["$suite"]=1; done
+    rd_api_test_suites | while read -r suite binary; do
+        [[ -z "${wanted[$suite]:-}" ]] || printf '%s\n' "$binary"
+    done | LC_ALL=C sort -u
+}
+
+# The nextest filterset that runs exactly the suites named as arguments: a suite's tests are
+# named after its module, `<suite>::…`, in whichever binary holds it.
+rd_api_test_filter() {
+    local IFS='|'
+    printf 'test(/^(%s)::/)\n' "$*"
 }
 
 # The rows of the map file $1, comments and blank lines removed.
@@ -241,31 +273,42 @@ rd_api_test_rows() {
     grep -vE '^[[:space:]]*(#|$)' "$1"
 }
 
-# What each changed path on stdin demands, as `<binary> <path>` lines — `all` for every binary.
+# What each changed path on stdin demands, as `<suite> <path>` lines — `all` for every suite.
 # Pure bash matching, no process per row: a change set of a few hundred paths against seventy
 # rows would otherwise cost seconds in forks alone.
 rd_api_test_demands() {
-    local map="$1" path pattern names name matched row rows=()
+    local map="$1" path pattern names name matched row rows=() parts=() suite binary
     mapfile -t rows < <(rd_api_test_rows "$map")
     while read -r path; do
         [[ -n "$path" ]] || continue
-        case "$path" in
-            crates/rd-api/tests/common/*) printf 'all %s\n' "$path"; continue ;;
-            crates/rd-api/tests/mcp/*) printf 'mcp %s\n' "$path"; continue ;;
-            crates/rd-api/tests/*.rs)
-                name="${path#crates/rd-api/tests/}"
-                if [[ "$name" != */* ]]; then
-                    # A deleted test file selects nothing: there is no binary left to run.
-                    [[ -f "$path" ]] && printf '%s %s\n' "${name%.rs}" "$path"
-                    continue
-                fi
-                ;;
-        esac
+        if [[ "$path" == crates/rd-api/tests/common/* ]]; then
+            printf 'all %s\n' "$path"
+            continue
+        fi
+        if [[ "$path" == crates/rd-api/tests/*/* ]]; then
+            IFS='/' read -r -a parts <<< "${path#crates/rd-api/tests/}"
+            binary="${parts[0]}"
+            suite="${parts[1]%.rs}"
+            # A binary's main.rs declares its suites: all of them. A suite file, or a file of its
+            # own submodules, selects that suite. A deleted one selects nothing — there is nothing
+            # left to run — and a path the layout does not know falls through to the rows below.
+            if [[ ${#parts[@]} -eq 2 && "$suite" == main ]]; then
+                while read -r name row; do
+                    [[ "$row" != "$binary" ]] || printf '%s %s\n' "$name" "$path"
+                done < <(rd_api_test_suites)
+                continue
+            fi
+            if [[ ${#parts[@]} -eq 2 && "${parts[1]}" == *.rs ]] \
+                || [[ ${#parts[@]} -gt 2 && -f "crates/rd-api/tests/$binary/$suite.rs" ]]; then
+                [[ ! -f "crates/rd-api/tests/$binary/$suite.rs" ]] || printf '%s %s\n' "$suite" "$path"
+                continue
+            fi
+        fi
         matched=0
         for row in "${rows[@]}"; do
             read -r pattern names <<< "$row"
             [[ "$path" =~ $pattern ]] || continue
-            # `+` adds binaries without being a mapping; see the header of the map.
+            # `+` adds suites without being a mapping; see the header of the map.
             [[ "$names" == "+ "* ]] || matched=1
             for name in $names; do
                 [[ "$name" == - || "$name" == + ]] || printf '%s %s\n' "$name" "$path"
@@ -277,18 +320,27 @@ rd_api_test_demands() {
     done
 }
 
-# What is wrong with the map file $1, one finding per line; nothing when it is sound. A row
-# naming a binary that does not exist would fail the run obscurely inside nextest, and a binary
-# that no row names would only ever run at --full or by accident — so both are refused.
+# What is wrong with the map file $1 and the suites, one finding per line; nothing when it is
+# sound. A row naming a suite that does not exist would select nothing and say so nowhere, a
+# suite that no row names would only ever run at --full or by accident, a suite file its
+# binary's main.rs does not declare would never compile at all, and a test file directly under
+# crates/rd-api/tests/ is a binary of its own that check.sh never selects — so all are refused.
 rd_api_test_map_problems() {
-    local map="$1" binaries named
-    binaries="$(rd_api_test_binaries)"
+    local map="$1" suites named suite binary file
+    suites="$(rd_api_test_suites | cut -d' ' -f1)"
     named="$(rd_api_test_rows "$map" | while read -r _ names; do
         # shellcheck disable=SC2086 # the names are words by design
         printf '%s\n' $names
     done | grep -vxE 'all|-|\+' | LC_ALL=C sort -u)"
-    LC_ALL=C comm -13 <(printf '%s\n' "$binaries") <(printf '%s\n' "$named") \
-        | sed '/^$/d; s/^/a row names a binary that does not exist: /'
-    LC_ALL=C comm -23 <(printf '%s\n' "$binaries") <(printf '%s\n' "$named") \
-        | sed '/^$/d; s/^/no row names the binary: /'
+    LC_ALL=C comm -13 <(printf '%s\n' "$suites") <(printf '%s\n' "$named") \
+        | sed '/^$/d; s/^/a row names a suite that does not exist: /'
+    LC_ALL=C comm -23 <(printf '%s\n' "$suites") <(printf '%s\n' "$named") \
+        | sed '/^$/d; s/^/no row names the suite: /'
+    rd_api_test_suites | while read -r suite binary; do
+        grep -qE "^mod ${suite};\$" "crates/rd-api/tests/$binary/main.rs" \
+            || printf 'crates/rd-api/tests/%s/main.rs does not declare the suite: %s\n' "$binary" "$suite"
+    done
+    for file in crates/rd-api/tests/*.rs; do
+        [[ ! -f "$file" ]] || printf 'a test file outside the binaries (make it a suite of one): %s\n' "$file"
+    done
 }

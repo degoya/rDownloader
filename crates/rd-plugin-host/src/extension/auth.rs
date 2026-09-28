@@ -195,4 +195,43 @@ impl auth::rdownloader::plugin::credentials::Host for PluginStoreState {
         .await
         .map_err(crate::component::to_wit_failure)
     }
+
+    /// One named part of a sign-in (RD-150-09), under the same three confinements: linked into
+    /// the authentication worlds only, for this invocation's own account only, and into a slot
+    /// the host looks up rather than one the plugin could aim at.
+    async fn store_flow_secret(
+        &mut self,
+        account_id: String,
+        name: String,
+        value: String,
+    ) -> Result<(), crate::component::rdownloader::plugin::types::Failure> {
+        let refused = |code: &str, message: &str| {
+            crate::component::to_wit_failure(rd_core::Failure::coded(
+                rd_core::FailureKind::Permanent,
+                code,
+                message.to_owned(),
+            ))
+        };
+        let Ok(account_id) = account_id.parse::<AccountId>() else {
+            return Err(refused("plugin.account_unavailable", "Unknown account"));
+        };
+        if self.identity().account_id != Some(account_id) {
+            return Err(refused(
+                "plugin.store_token_not_allowed",
+                "A flow may only store a credential for its own account",
+            ));
+        }
+        let Some(host) = self.host() else {
+            return Err(refused(
+                "plugin.store_token_unsupported",
+                "Storing a credential is not supported by this host",
+            ));
+        };
+        // A client secret is as much a credential as the token it mints, so it is kept out of
+        // every log line the plugin writes after this call.
+        self.remember_redactions(std::iter::once(value.clone()));
+        host.store_flow_secret(account_id, &name, &value)
+            .await
+            .map_err(crate::component::to_wit_failure)
+    }
 }

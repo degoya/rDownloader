@@ -10,32 +10,32 @@
 //! it — the exact combination this provider needs, and the combination
 //! `docs/adr/0002-a-device-sign-in-that-can-be-renewed.md` was written for.
 //!
-//! **The application is the person's own, and nothing about it is compiled in.** Real-Debrid
-//! runs its device flow against a registered application: a client id and a client secret that
-//! belong to whoever registered them. This plugin ships neither. An OAuth client secret in an
-//! open-source repository is not a secret — it would stand in the git history, in every signed
-//! `.rdplug` and in every release artefact anybody downloads — and worse than the disclosure is
-//! the sharing: Real-Debrid's rate limits are per application, so one shipped registration
-//! would put every installation in the world into one bucket and let any of them exhaust it for
-//! all the others. Registered per installation means own limits and own revocation.
+//! **The client is the person's own, and nothing secret is compiled in (RD-150-09).**
+//! Real-Debrid offers open-source applications a flow of their own: the device code is asked
+//! for with a public client id (`X245A4XAIBGVM`) and `new_credentials=yes`, the person confirms
+//! it on real-debrid.com/device, and the confirmed code is exchanged at
+//! `/oauth/v2/device/credentials` for a client id and client secret that belong to that person
+//! alone. Those two and the device code then buy the token at `/oauth/v2/token`, and those two
+//! and the refresh material renew it. Rate limits and revocation hang off the personal pair, so
+//! no installation shares a bucket with another, and no client secret is ever shipped.
 //!
-//! So the person registers an application at Real-Debrid and enters it with the account: the
-//! client id as the username, the client secret as the credential. The plugin only ever names
-//! them — `{{username}}` and `{{secret:realdebrid_client_secret}}` — and the host substitutes
-//! the values on the way out, towards `api.real-debrid.com` and nowhere else. An account with
-//! no registration is refused before a request is made, with a code that says what to do rather
-//! than that something is missing.
+//! Until 1.4.2 this plugin ran against an application the person had to register themselves,
+//! which nobody could be asked to do; 1.4.3 parked it behind the private API token, which stays
+//! as the provider's second mode.
 //!
-//! **Two credentials have to exist at once, so the provider declares two slots.** The client
-//! secret is what the person typed; the access token is what the sign-in obtained. Writing the
-//! second over the first would destroy the value every later renewal needs, which is exactly
-//! what `store-oauth-token` used to do — so the manifest marks the token's slot
-//! `filled_by = "flow"`, and the host keeps it beside the flow instead of on the account.
+//! **A renewal needs three stored values, so the host keeps parts.** The personal client id and
+//! client secret go to the host through `store-flow-secret`, each kept as a named part of this
+//! account's sign-in; the tokens through `store-oauth-token`. Every later request names them --
+//! `{{secret:realdebrid_client_id}}`, `{{secret:realdebrid_client_secret}}` and the refresh
+//! reference -- and the host expands each on the way out, towards `api.real-debrid.com` alone.
+//! One joined value would not do: the host percent-encodes what it substitutes, so a composite
+//! could never be split back apart.
 //!
 //! Three things the host guarantees, which shape how this is written:
 //!
-//! - **You never see a credential.** What the exchange produces goes back through
-//!   `store-oauth-token`; there is no call that reads one back. Later requests reach the stored
+//! - **You never see a stored credential.** What an exchange produces is read once off the
+//!   provider's answer and goes straight back through `store-oauth-token` or
+//!   `store-flow-secret`; there is no call that reads one back. Later requests reach the stored
 //!   value only as `{{secret:<reference>}}`, expanded on the way out.
 //! - **You do not choose where the person is sent.** The `verification_url` must be on a domain
 //!   this plugin's manifest declares, or the host refuses it — rather than letting a signed,

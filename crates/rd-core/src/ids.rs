@@ -92,6 +92,7 @@ domain_id!(MfaCredentialId);
 domain_id!(NzbFileId);
 domain_id!(NzbImportId);
 domain_id!(NzbSegmentId);
+domain_id!(ObjectStorageProfileId);
 domain_id!(PackageId);
 domain_id!(PluginId);
 domain_id!(ProxyProfileId);

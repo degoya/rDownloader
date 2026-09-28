@@ -399,5 +399,37 @@
   },
   "optionsFilesRevoke": {
     "message": "Revoke"
+  },
+  "handoverRefusedUnreadable": {
+    "message": "rDownloader could not read the cookies for $HOST$, so nothing was stored. Hand the session over again; if it keeps failing, report it.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedOutside": {
+    "message": "A cookie belongs to a site other than $HOST$, so nothing was stored.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedPublicSuffix": {
+    "message": "A cookie for $HOST$ is set for a whole domain ending such as .com, so nothing was stored.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedNotWaiting": {
+    "message": "The request for the $HOST$ session is no longer waiting. Start the handover again in rDownloader.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
   }
 }

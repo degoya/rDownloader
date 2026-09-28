@@ -11,12 +11,19 @@
 # Environment:
 #   RD_PUBLIC_DIR         the local clone of the public repository (~/projects/rDownloader-public)
 #   RD_PUBLIC_REPO        the GitHub repository (degoya/rDownloader)
-#   RD_PUBLIC_CI_TIMEOUT  seconds to wait for the runs (5400)
+#   RD_PUBLIC_CI_TIMEOUT  seconds to wait for a run to appear at all (900)
+#   RD_PUBLIC_CI_CEILING  seconds after which a run that is still going is given up (21600)
 #   RD_PUBLIC_CI_POLL     seconds between two looks (60)
+#
+# No fixed deadline for a run that is going (RD-150-10): the 1.4.2 chain stopped after 5400 s
+# with every job green and `docker` still running. Every job in ci.yml carries its own
+# `timeout-minutes`, so GitHub ends a run by itself; the ceiling is the six hours a hosted job
+# may run at most, and only catches a run whose jobs never leave the queue.
 
 PUBLIC_DIR="${RD_PUBLIC_DIR:-$HOME/projects/rDownloader-public}"
 PUBLIC_REPO="${RD_PUBLIC_REPO:-degoya/rDownloader}"
-PUBLIC_CI_TIMEOUT="${RD_PUBLIC_CI_TIMEOUT:-5400}"
+PUBLIC_CI_TIMEOUT="${RD_PUBLIC_CI_TIMEOUT:-900}"
+PUBLIC_CI_CEILING="${RD_PUBLIC_CI_CEILING:-21600}"
 PUBLIC_CI_POLL="${RD_PUBLIC_CI_POLL:-60}"
 
 rd_public_ci_gh_ready() {
@@ -65,13 +72,15 @@ rd_public_ci_dispatch() {
 
 # Waits for every run on branch $1 at commit $2 — only those of event $3 when given — to
 # finish, and prints them. Returns 0 when all of them succeeded (or were skipped), 1 when one
-# did not or the deadline passed.
+# did not, when no run appeared within RD_PUBLIC_CI_TIMEOUT, or when one was still going at
+# RD_PUBLIC_CI_CEILING.
 rd_public_ci_wait() {
-    local branch="$1" sha="$2" event="${3:-}" runs failed deadline
+    local branch="$1" sha="$2" event="${3:-}" runs failed deadline ceiling
     local -a filter=()
     [[ -z "$event" ]] || filter=(--event "$event")
-    echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (at most ${PUBLIC_CI_TIMEOUT}s)"
+    echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (for as long as it runs)"
     deadline=$(( SECONDS + PUBLIC_CI_TIMEOUT ))
+    ceiling=$(( SECONDS + PUBLIC_CI_CEILING ))
     while :; do
         # A failed query is a network hiccup until the deadline says otherwise.
         runs="$(gh run list --repo "$PUBLIC_REPO" --branch "$branch" --commit "$sha" "${filter[@]}" \
@@ -80,8 +89,12 @@ rd_public_ci_wait() {
         if [[ -n "$runs" ]] && ! grep -qv '^completed ' <<< "$runs"; then
             break
         fi
-        if (( SECONDS >= deadline )); then
-            echo "the public CI did not finish within ${PUBLIC_CI_TIMEOUT}s; $branch is kept" >&2
+        if [[ -z "$runs" ]] && (( SECONDS >= deadline )); then
+            echo "no CI run appeared within ${PUBLIC_CI_TIMEOUT}s; $branch is kept" >&2
+            return 1
+        fi
+        if (( SECONDS >= ceiling )); then
+            echo "the public CI did not finish within ${PUBLIC_CI_CEILING}s; $branch is kept" >&2
             [[ -z "$runs" ]] || echo "$runs" >&2
             return 1
         fi

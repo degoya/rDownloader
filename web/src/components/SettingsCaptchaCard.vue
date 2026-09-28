@@ -119,7 +119,7 @@ defineExpose({ save })
       </UBadge>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2">
+    <div class="grid gap-3">
       <UFormField :label="t('captcha.settings.solver.label')" :description="t('captcha.settings.solver.description')">
         <USelect v-model="form.solver" :items="solverItems" value-key="value" :disabled="loading" class="w-full" />
       </UFormField>
@@ -131,8 +131,8 @@ defineExpose({ save })
           class="w-full font-mono"
         />
       </UFormField>
+      <USwitch v-if="form.has_api_key" v-model="clearApiKey" size="sm" :label="t('captcha.settings.api_key.clear')" />
       <UFormField
-        class="sm:col-span-2"
         :label="t('captcha.settings.api_key.label')"
         :description="form.has_api_key ? t('captcha.settings.api_key.stored') : t('captcha.settings.api_key.description')"
       >
@@ -146,20 +146,12 @@ defineExpose({ save })
           class="w-full font-mono"
         />
       </UFormField>
-      <label v-if="form.has_api_key" class="flex items-center gap-3 text-xs text-muted sm:col-span-2">
-        <USwitch v-model="clearApiKey" />
-        {{ t('captcha.settings.api_key.clear') }}
-      </label>
     </div>
 
-    <div class="mt-4 grid gap-3 border-t border-muted pt-4 sm:grid-cols-2">
-      <div class="flex items-center justify-between gap-5">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('captcha.settings.manual.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('captcha.settings.manual.description') }}</p>
-        </div>
-        <USwitch v-model="form.manual_enabled" :disabled="loading" :aria-label="t('captcha.settings.manual.label')" />
-      </div>
+    <div class="mt-4 grid gap-3 border-t border-muted pt-4">
+      <UFormField :label="t('captcha.settings.manual.label')" :description="t('captcha.settings.manual.description')" orientation="horizontal">
+        <USwitch v-model="form.manual_enabled" :disabled="loading" />
+      </UFormField>
       <UFormField :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
         <UInput
           v-model.number="form.manual_timeout_seconds"
@@ -184,7 +176,7 @@ defineExpose({ save })
     />
 
     <p class="mt-4 text-xs leading-5 text-muted">{{ t('captcha.settings.hint') }}</p>
-    <div class="mt-3 flex justify-end">
+    <div class="mt-3 flex gap-2">
       <UButton
         type="button"
         icon="i-lucide-plug-zap"

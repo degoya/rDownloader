@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
 import CapturePairingCard from '@/components/settings/CapturePairingCard.vue'
+import ExtensionPairingGuide from '@/components/settings/ExtensionPairingGuide.vue'
 import { useFetchState } from '@/composables/useFetchState'
 
 const { t } = useI18n()
@@ -26,6 +27,9 @@ async function load(): Promise<void> {
 <template>
   <div class="space-y-5">
     <p class="max-w-3xl text-sm leading-6 text-muted">{{ t('wizard.pairing.intro') }}</p>
+    <!-- Accounts come later in the wizard; the one kind that needs the extension is named here,
+         where it is paired, with the live answer whether it has reported in (RD-150-17). -->
+    <ExtensionPairingGuide />
     <CapturePairingCard v-model="agents" :loading="loading" :load-error="loadError" />
   </div>
 </template>

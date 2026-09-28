@@ -94,7 +94,7 @@ function submit(): void {
 <template>
   <UModal :title="t('linkgrabber.nzb.modal.title')" :description="t('linkgrabber.nzb.modal.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
     <template #body>
-      <div class="space-y-3">
+      <form id="nzb-import-form" class="space-y-3" @submit.prevent="submit">
         <div class="grid min-h-40 place-items-center border border-dashed border-muted p-6 text-center" @dragover.prevent @drop="drop">
           <input ref="fileInput" hidden type="file" multiple accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,application/x-nzb,application/x-bittorrent,application/x-dlc,application/xml,text/xml,text/plain" @change="pick">
           <div v-if="!files.length">
@@ -122,19 +122,17 @@ function submit(): void {
         <UFormField :label="t('linkgrabber.nzb.modal.name')" :description="files.length === 1 ? t('linkgrabber.nzb.modal.name_hint') : t('linkgrabber.nzb.modal.name_single_only')">
           <UInput v-model="name" maxlength="200" class="w-full" :disabled="files.length !== 1" />
         </UFormField>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('linkgrabber.nzb.modal.category')">
-            <USelect v-model="category" :items="categoryItems" value-key="value" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('linkgrabber.nzb.modal.priority')">
-            <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" class="w-full" />
-          </UFormField>
-        </div>
-      </div>
+        <UFormField :label="t('linkgrabber.nzb.modal.category')">
+          <USelect v-model="category" :items="categoryItems" value-key="value" class="w-full" />
+        </UFormField>
+        <UFormField :label="t('linkgrabber.nzb.modal.priority')">
+          <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" class="w-full" />
+        </UFormField>
+      </form>
     </template>
     <template #footer>
       <UButton :label="t('common.actions.cancel')" color="neutral" variant="outline" @click="emit('close', null)" />
-      <UButton :label="t('linkgrabber.nzb.modal.submit')" icon="i-lucide-file-up" :disabled="!files.length" @click="submit" />
+      <UButton :label="t('linkgrabber.nzb.modal.submit')" icon="i-lucide-file-up" type="submit" form="nzb-import-form" :disabled="!files.length" />
     </template>
   </UModal>
 </template>

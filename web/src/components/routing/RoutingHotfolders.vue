@@ -5,13 +5,18 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError, resultMessage } from '@/api/client'
 import type { Category, CreateHotFolder, HotFolder, Settings } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 
 type ImportMode = HotFolder['import_mode']
+
+/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+const MAX_HOTFOLDER_NAME = 100
 
 const hotfolders = defineModel<HotFolder[]>({ required: true })
 /** The settings document, for the one value of it this tab owns: the poll interval (RD-110-31). */
@@ -24,7 +29,10 @@ const props = defineProps<{
   loadError?: string | null | undefined
 }>()
 const { t } = useI18n()
+const copyName = useCopyName()
 const message = ref<string | null>(null)
+/** The folder the form holds a copy of, while that copy is not created yet. */
+const copyOf = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 const deletingId = ref<string | null>(null)
@@ -46,6 +54,7 @@ const list = useEditableList<HotFolder, CreateHotFolder>({
   update: (id, body) => api.PUT('/api/v1/hotfolders/{id}', { params: { path: { id } }, body }),
   destroy: id => api.DELETE('/api/v1/hotfolders/{id}', { params: { path: { id } } }),
   reset: () => {
+    copyOf.value = null
     form.name = ''
     form.executor = { kind: 'daemon' }
     form.path = '/config/watch'
@@ -133,7 +142,13 @@ async function submit(): Promise<void> {
 
 function edit(folder: HotFolder): void {
   message.value = null
+  copyOf.value = null
   list.edit(folder)
+  fill(folder)
+  void focusForm()
+}
+
+function fill(folder: HotFolder): void {
   form.name = folder.name
   form.executor = folder.executor
   form.path = folder.path
@@ -143,6 +158,22 @@ function edit(folder: HotFolder): void {
   form.processed_path = folder.processed_path
   form.failed_path = folder.failed_path
   form.enabled = folder.enabled
+}
+
+/**
+ * Fills the form with a copy of a folder, not yet created (RD-150-12).
+ *
+ * Two hot folders may not watch one path on one executor (`UNIQUE(executor_json, path)`), so
+ * a copy cannot be stored first and changed afterwards the way other lists copy: it would be
+ * refused. The form takes the original's settings under a free name instead, as a new entry,
+ * and the path field says that the folder has to change before the copy is created.
+ */
+function duplicate(folder: HotFolder): void {
+  message.value = null
+  list.reset()
+  fill(folder)
+  form.name = copyName(folder.name, hotfolders.value.map(item => item.name), MAX_HOTFOLDER_NAME)
+  copyOf.value = folder.id
   void focusForm()
 }
 
@@ -168,10 +199,15 @@ async function remove(folder: HotFolder): Promise<void> {
         <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
         <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
-          <UFormField :label="t('routing.hotfolder.name_label')" :description="t('routing.hotfolder.name_description')">
+          <UFormField required :label="t('routing.hotfolder.name_label')" :description="t('routing.hotfolder.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.hotfolder.name_placeholder')" />
           </UFormField>
-          <UFormField :label="t('routing.hotfolder.path_label')" :description="t('routing.hotfolder.path_description')">
+          <UFormField
+            required
+            :label="t('routing.hotfolder.path_label')"
+            :description="copyOf ? t('routing.hotfolder.copy_path_hint') : t('routing.hotfolder.path_description')"
+            :ui="copyOf ? { description: 'text-warning' } : undefined"
+          >
             <UInput v-model="form.path" required class="w-full font-mono" :placeholder="t('routing.hotfolder.path_placeholder')" icon="i-lucide-folder-search" />
           </UFormField>
           <UFormField :label="t('routing.hotfolder.category_label')" :description="t('routing.hotfolder.category_description')">
@@ -180,22 +216,26 @@ async function remove(folder: HotFolder): Promise<void> {
           <UFormField :label="t('routing.hotfolder.mode_label')" :description="t('routing.hotfolder.mode_description')">
             <USelect v-model="importMode" :items="importModeItems" value-key="value" class="w-full" />
           </UFormField>
-          <UFormField :label="t('routing.hotfolder.processed_label')" :description="t('routing.hotfolder.processed_description')">
+          <UFormField required :label="t('routing.hotfolder.processed_label')" :description="t('routing.hotfolder.processed_description')">
             <UInput v-model="form.processed_path" required class="w-full font-mono" :placeholder="t('routing.hotfolder.processed_placeholder')" />
           </UFormField>
-          <UFormField :label="t('routing.hotfolder.failed_label')" :description="t('routing.hotfolder.failed_description')">
+          <UFormField required :label="t('routing.hotfolder.failed_label')" :description="t('routing.hotfolder.failed_description')">
             <UInput v-model="form.failed_path" required class="w-full font-mono" :placeholder="t('routing.hotfolder.failed_placeholder')" />
           </UFormField>
-          <UFormField :label="t('routing.hotfolder.recursive_label')" :description="t('routing.hotfolder.recursive_description')">
+          <UFormField orientation="horizontal" :label="t('routing.hotfolder.recursive_label')" :description="t('routing.hotfolder.recursive_description')">
             <USwitch v-model="form.recursive" :aria-label="t('routing.hotfolder.recursive_label')" />
           </UFormField>
-          <UFormField :label="t('routing.hotfolder.enabled_label')" :description="t('routing.hotfolder.enabled_description')">
+          <UFormField orientation="horizontal" :label="t('routing.hotfolder.enabled_label')" :description="t('routing.hotfolder.enabled_description')">
             <USwitch v-model="form.enabled" :aria-label="t('routing.hotfolder.enabled_label')" />
           </UFormField>
-          <div class="flex gap-2">
-            <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-folder-plus'" :label="editingId ? t('common.actions.save') : t('routing.hotfolder.create')" :loading="pending" />
-            <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('routing.cancel_edit')" @click="list.reset" />
-          </div>
+          <FormActions
+            :editing="editingId !== null"
+            :cancellable="editingId !== null || copyOf !== null"
+            :create-label="t('routing.hotfolder.create')"
+            create-icon="i-lucide-folder-plus"
+            :loading="pending"
+            @cancel="list.reset"
+          />
           <p v-if="editingId" class="text-xs leading-5 text-muted">{{ t('routing.hotfolder.restart_hint') }}</p>
         </form>
       </template>
@@ -222,8 +262,9 @@ async function remove(folder: HotFolder): Promise<void> {
               </div>
               <UBadge v-if="editingId === folder.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
               <UBadge color="neutral" variant="outline">{{ folder.import_mode === 'enqueue' ? t('routing.hotfolder.mode_enqueue') : t('routing.hotfolder.mode_review') }}</UBadge>
-              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" @click="edit(folder)" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :loading="deletingId === folder.id" @click="remove(folder)" />
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" @click="duplicate(folder)" />
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(folder)" />
+              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="deletingId === folder.id" @click="remove(folder)" />
             </div>
             <p class="mt-2 text-xs text-muted">{{ executorLabel(folder) }} · {{ t('routing.hotfolder.reconciliation', { seconds: settings.hotfolder_poll_seconds, category: categoryName(folder.category_id) }) }}</p>
             <p class="mt-1 truncate font-mono text-[10px] text-muted">{{ t('routing.hotfolder.paths', { processed: folder.processed_path, failed: folder.failed_path }) }}</p>

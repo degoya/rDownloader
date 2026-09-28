@@ -3,9 +3,10 @@ import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, Download, DownloadPackage, DownloadPriority, PostprocessStep } from '@/api/types'
+import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
-import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 
 const PRIORITY_ITEMS = computed(() => priorityItems())
@@ -37,12 +38,16 @@ const props = defineProps<{
   canPause: boolean
   canResume: boolean
   controlBusy: 'pause' | 'resume' | null
+  /** The view's "Show metadata" switch is off: the enricher chips stay stored, only unshown (RD-150-19). */
+  hideMetadata?: boolean
 }>()
 const emit = defineEmits<{
   select: [id: string, selected: boolean]
   category: [id: string, categoryId: string | null]
   priority: [id: string, priority: DownloadPriority]
   rename: [id: string]
+  /** The collision policy and the files' duplicates (RD-150-01). */
+  storage: [id: string]
   extract: [id: string]
   forceExtract: [id: string]
   dragstart: [id: string]
@@ -210,7 +215,8 @@ const actions = computed(() => [[
     ? [{ label: t('downloads.package.segments_aria'), icon: 'i-lucide-layers', onSelect: () => { showSegments.value = !showSegments.value } }]
     : []),
   { label: t('downloads.package.postprocess_aria'), icon: 'i-lucide-list-checks', onSelect: () => { void toggleSteps() } },
-  { label: t('downloads.package.edit_aria'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.package.id) }
+  { label: t('downloads.package.edit_aria'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.package.id) },
+  { label: t('downloads.package.storage_aria'), icon: 'i-lucide-files', onSelect: () => emit('storage', props.package.id) }
 ], [
   {
     label: t('downloads.package.delete_aria'),
@@ -303,16 +309,8 @@ function controlPackage(): void {
         </UDropdownMenu>
       </div>
     </header>
-    <div v-if="enrichment.length" class="flex flex-wrap items-center gap-2 border-b border-muted px-3 py-1.5">
-      <UBadge
-        v-for="field in enrichment"
-        :key="`${field.plugin_id}:${field.name}`"
-        color="neutral"
-        variant="subtle"
-        size="sm"
-        class="font-mono"
-        :title="t('downloads.package.enrichment_source', { name: field.name, at: formatMoment(field.fetched_at) })"
-      >{{ field.name.split('.').pop() }}: {{ field.value }}</UBadge>
+    <div v-if="enrichment.length && !props.hideMetadata" class="flex flex-wrap items-center gap-2 border-b border-muted px-3 py-1.5">
+      <EnrichmentChips :fields="enrichment" />
     </div>
     <div v-if="showSteps" class="border-b border-muted px-3 py-2">
       <PostprocessSteps :steps="steps" :loading="stepsLoading" />

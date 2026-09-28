@@ -34,7 +34,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rand::RngCore;
+use rand::Rng;
 use webauthn_rs::prelude::{Url, Webauthn, WebauthnBuilder};
 
 use crate::ProxyConfig;

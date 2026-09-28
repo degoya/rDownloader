@@ -14,7 +14,7 @@ use chacha20poly1305::{
     KeyInit, XChaCha20Poly1305, XNonce,
     aead::{Aead, Payload},
 };
-use rand::RngCore;
+use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -79,7 +79,7 @@ impl SecretStore {
             .map_err(|_| anyhow::anyhow!("invalid vault master key"))?;
         let ciphertext = cipher
             .encrypt(
-                XNonce::from_slice(&nonce_bytes),
+                &XNonce::from(nonce_bytes),
                 Payload {
                     msg: secret.expose_secret().as_bytes(),
                     aad: AAD,
@@ -135,7 +135,8 @@ impl SecretStore {
             .map_err(|_| anyhow::anyhow!("invalid vault master key"))?;
         let plaintext = cipher
             .decrypt(
-                XNonce::from_slice(&nonce),
+                <&XNonce>::try_from(nonce.as_slice())
+                    .map_err(|_| anyhow::anyhow!("invalid secret nonce"))?,
                 Payload {
                     msg: &ciphertext,
                     aad: AAD,

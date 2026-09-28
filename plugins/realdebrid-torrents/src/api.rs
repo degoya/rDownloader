@@ -31,9 +31,11 @@ use serde::Deserialize;
 
 use crate::messages;
 
-/// The vault reference the Real-Debrid provider keeps its access token under. The value never
-/// reaches this plugin.
-pub const TOKEN_REFERENCE: &str = "realdebrid_access_token";
+/// The vault references the Real-Debrid provider keeps an account's token under, one per mode
+/// (RD-150-09): the access token a sign-in with a code stored, and the private API token the
+/// person typed. Asked about in this order; the host admits at most one of them for an
+/// account. The value never reaches this plugin.
+pub const TOKEN_REFERENCES: [&str; 2] = ["realdebrid_access_token", "realdebrid_api_token"];
 
 pub const API_BASE: &str = "https://api.real-debrid.com/rest/1.0";
 

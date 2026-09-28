@@ -8,7 +8,7 @@ use ed25519_dalek::{
     Signer, SigningKey,
     pkcs8::{DecodePrivateKey, EncodePrivateKey, spki::der::pem::LineEnding},
 };
-use rand::RngCore;
+use rand::Rng;
 
 use crate::{
     PluginManifest, PluginVerifier, SandboxEngine, VerifyError, manifest::validate_manifest,

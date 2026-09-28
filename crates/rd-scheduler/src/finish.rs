@@ -1,11 +1,11 @@
-//! Promotion of a finished transfer: checksum verification, collision-free naming and the
-//! move out of the staging directory into the package destination.
+//! Promotion of a finished transfer: checksum verification and the move out of the staging
+//! directory into the package destination. The name it lands under is `collision`'s to decide.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use rd_core::{ChecksumAlgorithm, DownloadFile, DownloadState, ExpectedChecksum, StorageRootId};
-use rd_files::{StorageRoot, collision_free_path, compute_checksum};
+use rd_files::{StorageRoot, compute_checksum};
 
 use crate::SchedulerHandle;
 
@@ -30,36 +30,42 @@ pub(crate) async fn current_destination(
     Ok(Some(root.path().to_path_buf()))
 }
 
-pub(crate) async fn prepare_final_path(
-    scheduler: &SchedulerHandle,
-    file: &DownloadFile,
-    destination: &Path,
-) -> Result<PathBuf> {
-    let current = destination.join(&file.file_name);
-    if !current.exists() {
-        return Ok(current);
-    }
-    let collision = collision_free_path(destination, &file.file_name);
-    let name = collision
-        .file_name()
-        .and_then(|value| value.to_str())
-        .context("collision filename is not Unicode")?
-        .to_owned();
-    scheduler
-        .database
-        .set_download_file_name(file.id, name)
-        .await?;
-    Ok(collision)
-}
-
+/// Verify and promote in one step, for the crash case that drives the promote window without
+/// a live host; the worker decides the name in between (`finish_download`).
+#[cfg(feature = "failpoints")]
 pub(crate) async fn verify_part_and_promote(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
     part_path: &Path,
     final_path: &Path,
 ) -> Result<()> {
+    let computed = verify_part(scheduler, file, part_path).await?;
+    promote(scheduler, file, part_path, final_path, computed).await
+}
+
+/// Computes the configured digest of a completely fetched part file and holds it against the
+/// one the source stated.
+pub(crate) async fn verify_part(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    part_path: &Path,
+) -> Result<Option<ExpectedChecksum>> {
     let computed = compute_configured_checksum(scheduler, file, part_path).await?;
     verify_expected(file, computed.as_ref())?;
+    Ok(computed)
+}
+
+/// Renames a verified part file into `final_path` and records the completion.
+///
+/// `rename` replaces a file that is there, which is what an audited `overwrite` wants and the
+/// reason every other caller decides the name through `collision::after_transfer` first.
+pub(crate) async fn promote(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    part_path: &Path,
+    final_path: &Path,
+    computed: Option<ExpectedChecksum>,
+) -> Result<()> {
     tokio::fs::rename(part_path, final_path).await?;
     // The instant the recovery matrix is about: the payload is already in its final place and
     // the row still says the transfer is running. Stopping here is the worse half of the two
@@ -75,8 +81,9 @@ pub(crate) async fn verify_part_and_promote(
         .to_owned();
     scheduler
         .database
-        .complete_download(file.id, final_name, computed)
+        .complete_download(file.id, final_name, computed.clone())
         .await?;
+    crate::collision::index_finished(scheduler, file.id, final_path, computed.as_ref()).await;
     Ok(())
 }
 
@@ -93,8 +100,9 @@ pub(crate) async fn verify_and_complete(
     verify_expected(file, computed.as_ref())?;
     scheduler
         .database
-        .complete_download(file.id, file.file_name.clone(), computed)
+        .complete_download(file.id, file.file_name.clone(), computed.clone())
         .await?;
+    crate::collision::index_finished(scheduler, file.id, final_path, computed.as_ref()).await;
     Ok(())
 }
 

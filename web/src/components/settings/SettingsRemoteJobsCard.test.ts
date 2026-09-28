@@ -203,6 +203,7 @@ describe('SettingsRemoteJobsCard', () => {
   /**
    * RD-120-31: a provider plugin took a container, and nothing ever handed it one. The file
    * goes as base64 in the same request, and it replaces the magnet rather than riding along.
+   * Its name goes with it, because the finished job's package is named after it (2026-09-27).
    */
   it('hands a .torrent over as base64 instead of a magnet', async () => {
     jobs.value = []
@@ -218,8 +219,25 @@ describe('SettingsRemoteJobsCard', () => {
 
     await waitFor(() => expect(posts.length).toBe(1))
     expect(posts[0]?.path).toBe('/api/v1/accounts/{id}/remote-jobs')
-    expect(posts[0]?.init).toMatchObject({ params: { path: { id: 'a1' } }, body: { container: btoa('d4:infoe') } })
+    expect(posts[0]?.init).toMatchObject({ params: { path: { id: 'a1' } }, body: { container: btoa('d4:infoe'), file_name: 'bbb.torrent' } })
     expect((posts[0]?.init as { body: object }).body).not.toHaveProperty('magnet')
+  })
+
+  /** RD-150-11: the submit row sits in a real `<form>`, so Enter in the magnet field sends it. */
+  it('sends a magnet when its form is submitted, which is what Enter does', async () => {
+    jobs.value = []
+    mount()
+    const select = await waitFor(() => screen.getByRole('combobox'))
+    await waitFor(() => screen.getByRole('option', { name: 'Real-Debrid · realdebrid' }))
+    await fireEvent.update(select, 'a1')
+    const form = screen.getByTestId('remote-job-form')
+    const magnet = form.querySelector('input:not([type="file"])') as HTMLInputElement
+    await fireEvent.update(magnet, 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567')
+    expect(screen.getByRole('button', { name: en.submit.action }).getAttribute('type')).toBe('submit')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(posts.length).toBe(1))
+    expect(posts[0]?.init).toMatchObject({ body: { magnet: 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567' } })
   })
 
   it('refuses a file too large for a remote job before reading or sending it', async () => {

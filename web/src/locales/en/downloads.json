@@ -94,7 +94,6 @@
     "reset": "Reset {count} file | Reset {count} files"
   },
   "package": {
-    "enrichment_source": "{name}, looked up by a plugin on {at}",
     "drag_title": "Drag to change the order within the priority level",
     "select_aria": "Select package",
     "hide_files": "Hide files",
@@ -128,7 +127,8 @@
     "extracted_title": "Archives were extracted successfully",
     "extract_failed": "Extraction failed",
     "actions_aria": "Package actions",
-    "priority_value": "Priority: {priority}"
+    "priority_value": "Priority: {priority}",
+    "storage_aria": "Collisions and duplicates"
   },
   "transfer": {
     "actions_aria": "File actions",
@@ -148,7 +148,28 @@
     "stop_recording": "Stop recording",
     "stop_seeding": "Stop seeding",
     "drag_title": "Drag to change the order inside the package",
-    "trial_staged": "Test with {name} v{version}"
+    "trial_staged": "Test with {name} v{version}",
+    "sources": {
+      "title": "Sources ({count})",
+      "pieces": "Checked in {count} pieces of {size} ({algorithm})",
+      "no_pieces": "No piece hashes; the whole-file hash is checked before completion when there is one.",
+      "priority": "Priority {value}",
+      "delivered": "{size} delivered",
+      "failures": "{count} failures",
+      "retry_after": "again from {time}",
+      "state": {
+        "ready": "Ready",
+        "backing_off": "Waiting",
+        "isolated": "Excluded",
+        "unsupported": "Not used yet"
+      },
+      "isolated_reason": {
+        "piece": "Delivered data that did not match its hash.",
+        "size": "Offers a different file size.",
+        "other": "No longer used for this file."
+      },
+      "unsupported_hint": "FTP and SFTP sources are shown but not yet used for chunks."
+    }
   },
   "summary": {
     "eyebrow": "Queue status",
@@ -286,5 +307,76 @@
   },
   "list": {
     "aria": "Download queue, {count} rows"
+  },
+  "collision": {
+    "policies": {
+      "rename": "Rename",
+      "skip": "Skip",
+      "overwrite": "Overwrite",
+      "compare": "Compare",
+      "ask": "Ask"
+    },
+    "hints": {
+      "rename": "The new file lands beside the existing one as “name (1)”; nothing is lost.",
+      "skip": "The new file is not written; the existing one stays as it is and the download ends with a note.",
+      "overwrite": "The new file replaces the existing one. Recorded in the audit log, and never done over a file that is being transferred or seeded.",
+      "compare": "The contents are compared: identical bytes adopt the existing file, different ones are renamed.",
+      "ask": "The download waits until somebody decides. Only this download waits, and the question survives a restart."
+    },
+    "decisions": {
+      "rename": "Rename",
+      "skip": "Skip",
+      "overwrite": "Overwrite"
+    },
+    "prompts": {
+      "title": "“{name}” already exists",
+      "before_transfer": "Package {package}: a file of this name is already at the destination ({size}). Nothing has been downloaded yet.",
+      "after_transfer": "Package {package}: the name was taken while the transfer ran ({size}). The verified file waits in the staging folder.",
+      "only_this": "Only this download waits; the rest of the queue keeps running.",
+      "failed": "The decision could not be saved."
+    },
+    "inherit": "Inherit",
+    "inherit_from": "Inherit: {policy} ({level})",
+    "levels": {
+      "package": "package",
+      "category": "category",
+      "global": "global"
+    },
+    "label": "On a name collision",
+    "package_description": "Applies to this package’s files before the category and the global setting.",
+    "effective": "In effect: {policy} (level: {level})",
+    "saved": "Saved. In effect now: {policy}."
+  },
+  "duplicates": {
+    "file": "File",
+    "loading": "Looking for duplicates …",
+    "source_title": "Same source",
+    "source_description": "The same thing was asked for before – recognised by {kind}, before a byte is fetched.",
+    "identity": {
+      "url": "the normalised address",
+      "magnet": "the info-hash",
+      "nzb": "the NZB’s hash and the file name",
+      "provider": "hoster and address"
+    },
+    "none": "None found.",
+    "location": {
+      "queue": "Queue",
+      "linkgrabber": "LinkGrabber"
+    },
+    "content_title": "Same content",
+    "basis": {
+      "verified_hash": "The same bytes are already on disk – recognised by the verified SHA-256 of the finished file.",
+      "stated_checksum": "Not finished yet: compared with the SHA-256 the source stated.",
+      "none": "No hash known yet: content duplicates show once the file is finished and verified."
+    },
+    "missing": "missing",
+    "link": "Replace with a link",
+    "link_title": "Replaces the chosen file by a hard link to this identical file. Both are hashed first.",
+    "other_file_system": "another file system – no link possible",
+    "linked": "Linked; {size} are no longer stored twice."
+  },
+  "storage_modal": {
+    "title": "Collisions and duplicates: {name}",
+    "description": "What happens when a file name is taken, and which of the package’s files already exist."
   }
 }

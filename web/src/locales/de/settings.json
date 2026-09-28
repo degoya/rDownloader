@@ -49,7 +49,7 @@
     "services": {
       "eyebrow": "Übertragungen",
       "title": "Dienste",
-      "description": "Schalten Sie ab, was diese Installation nicht tun soll. Ein abgeschalteter Dienst nimmt keine neuen Links an und stoppt die vorhandenen."
+      "description": "Schalte ab, was diese Installation nicht tun soll. Ein abgeschalteter Dienst nimmt keine neuen Links an und stoppt die vorhandenen."
     },
     "desktop": {
       "eyebrow": "Erfassungsdienst",
@@ -69,7 +69,7 @@
     "mcp": {
       "eyebrow": "Externer Zugriff",
       "title": "API & MCP",
-      "description": "API-Tokens für REST, CLI, SABnzbd- und qBittorrent-kompatible Clients und den MCP-Server, jedes auf die Bereiche begrenzt, die Sie wählen."
+      "description": "API-Tokens für REST, CLI, SABnzbd- und qBittorrent-kompatible Clients und den MCP-Server, jedes auf die Bereiche begrenzt, die du wählst."
     },
     "hotfolders": {
       "eyebrow": "Überwachte Ordner",
@@ -84,7 +84,7 @@
     "captcha": {
       "eyebrow": "Freie Downloads",
       "title": "Captcha & Löser",
-      "description": "Ob ein Captcha an einen Löserdienst geht oder Ihnen im Browser gestellt wird, und wie lange ein unbeantwortetes wartet."
+      "description": "Ob ein Captcha an einen Löserdienst geht oder dir im Browser gestellt wird, und wie lange ein unbeantwortetes wartet."
     },
     "torrent": {
       "eyebrow": "Peer-to-Peer",
@@ -93,8 +93,8 @@
     },
     "transfers": {
       "eyebrow": "Entfernte Server",
-      "title": "FTP, SFTP & WebDAV",
-      "description": "Gespeicherte Zugänge für FTP-, FTPS- und SFTP-Server, die von Ihnen bestätigten SSH-Hostschlüssel und die Grenzen für entfernte Übertragungen."
+      "title": "FTP, SFTP, WebDAV & S3",
+      "description": "Gespeicherte Zugänge für FTP-, FTPS- und SFTP-Server, die von dir bestätigten SSH-Hostschlüssel, die Grenzen für entfernte Übertragungen und die Profile für S3-kompatiblen Objektspeicher."
     },
     "tools": {
       "eyebrow": "Externe Helfer",
@@ -179,7 +179,8 @@
     "username_label": "Benutzer",
     "username_description": "Nur bei Proxys mit Anmeldung nötig.",
     "password_label": "Passwort",
-    "password_description": "Wird verschlüsselt gespeichert und nie von der API zurückgegeben."
+    "password_description": "Wird verschlüsselt gespeichert und nie von der API zurückgegeben.",
+    "list_title": "Proxyprofile"
   },
   "global_proxy": {
     "eyebrow": "Netzwerk-Fallback",
@@ -234,7 +235,7 @@
     },
     "plugin_steps": {
       "label": "Plugin-Schritte",
-      "description": "Zusätzliche Schritte aus installierten Plugins. Sie laufen nach dem Aufräumen und vor einem Nutzerskript, in der Reihenfolge, in der Sie sie einschalten; eine Kategorie kann diese Liste überschreiben."
+      "description": "Zusätzliche Schritte aus installierten Plugins. Sie laufen nach dem Aufräumen und vor einem Nutzerskript, in der Reihenfolge, in der du sie einschaltest; eine Kategorie kann diese Liste überschreiben."
     },
     "sample_max": {
       "label": "Sample-Größenlimit",
@@ -278,11 +279,12 @@
       "description": "Optionaler absoluter Pfad zu rclone; leer = Vendor-Ordner und PATH."
     },
     "upload_destinations": {
-      "hint": "Ein Plugin-Ziel verwenden:"
+      "hint": "Ein Plugin-Ziel verwenden:",
+      "object_storage_hint": "Objektspeicher-Profil als Ziel:"
     },
     "enrichment": {
       "label": "Enricher-Plugins zu Links befragen",
-      "description": "Standardmäßig aus. Ein Enricher fragt einen Dienst außerhalb dieses Rechners — etwa SponsorBlock —, deshalb wird ohne Ihre Zustimmung nichts gefragt. Gesendet werden nur Links, die ein Plugin beansprucht; die Antwort steht neben den Kerndaten, nie an deren Stelle."
+      "description": "Standardmäßig aus. Ein Enricher fragt einen Dienst außerhalb dieses Rechners — etwa SponsorBlock —, deshalb wird ohne deine Zustimmung nichts gefragt. Gesendet werden nur Links, die ein Plugin beansprucht; die Antwort steht neben den Kerndaten, nie an deren Stelle."
     }
   },
   "appearance": {
@@ -411,7 +413,7 @@
     "system": "System",
     "tools": "Werkzeuge",
     "torrent": "BitTorrent",
-    "transfers": "FTP, SFTP & WebDAV",
+    "transfers": "FTP, SFTP, WebDAV & S3",
     "unattended": "Unbeaufsichtigter Betrieb",
     "usenet": "Usenet",
     "about": "Über rDownloader"
@@ -619,18 +621,16 @@
     }
   },
   "auth_profiles": {
-    "approval_description": "Diese Sitzungen wurden von der Browsererweiterung gesendet. Sie werden erst nach Ihrer Freigabe verwendet.",
+    "approval_description": "Diese Sitzungen wurden von der Browsererweiterung gesendet. Sie werden erst nach deiner Freigabe verwendet.",
     "approval_title": "Wartet auf Freigabe",
     "approve": "Freigeben",
     "badge_captured": "Aus dem Browser",
     "badge_certificate": "Clientzertifikat",
     "badge_disabled": "Inaktiv",
     "badge_expired": "Abgelaufen",
-    "cancel": "Abbrechen",
     "certificate_clear": "Gespeichertes Zertifikat entfernen",
     "certificate_description": "Privater Schlüssel und Zertifikatskette als ein entschlüsseltes PEM-Bündel. Passphrasengeschützte Schlüssel werden nicht unterstützt.",
     "certificate_label": "Clientzertifikat (optional)",
-    "create": "Profil hinzufügen",
     "created": "Authentifizierungsprofil erstellt",
     "delete": "Löschen",
     "delete_description": "Die gespeicherten Zugangsdaten werden mitgelöscht. Jobs, die es fest zugewiesen haben, fallen auf die automatische Zuordnung zurück.",
@@ -648,7 +648,6 @@
     "method_label": "Verfahren",
     "name_label": "Name",
     "name_placeholder": "Intranet",
-    "save": "Speichern",
     "saved": "Authentifizierungsprofil gespeichert",
     "scope_description": "Host, optional mit Pfadpräfix. Der Pfad entscheidet, welches Profil passt; er begrenzt die Zugangsdaten nicht.",
     "scope_label": "Domain",
@@ -660,7 +659,10 @@
     "subdomains_label": "Subdomains einschließen",
     "test": "Testen",
     "title": "Authentifizierungsprofile",
-    "username_label": "Benutzername"
+    "username_label": "Benutzername",
+    "form_new": "Neues Authentifizierungsprofil",
+    "form_edit": "Authentifizierungsprofil bearbeiten",
+    "create_action": "Profil anlegen"
   },
   "storage": {
     "title": "Speicherkapazität",
@@ -676,12 +678,64 @@
     "auto_resume": {
       "label": "Automatisch fortsetzen",
       "description": "Gibt ein blockiertes Ziel frei, sobald wieder Platz ist; aus erfordert die manuelle Aktion."
+    },
+    "collision": {
+      "label": "Bei Namenskonflikten",
+      "description": "Was geschieht, wenn eine fertige Datei auf einen belegten Namen trifft – für Pakete und Kategorien ohne eigene Regel."
+    },
+    "activity": {
+      "eyebrow": "Speicher",
+      "title": "Verschiebungen, Links und Wiederverwendung",
+      "description": "Geprüfte Verschiebungen zwischen Ordnern, Duplikat-Links und was jede Übertragungsart von vorhandenen Daten wiederverwendet.",
+      "index_checked": "Inhaltsindex geprüft: {checked} Einträge, {missing} fehlen, {restored} wiedergefunden, {backfilled} ergänzt.",
+      "links_title": "Hardlinks je Speicherort",
+      "links_description": "Durch Ausprobieren ermittelt. Reflinks legt diese Version nicht an.",
+      "hardlink_yes": "Hardlinks möglich",
+      "hardlink_no": "keine Hardlinks",
+      "reuse_title": "Wiederverwendung je Übertragungsart",
+      "reuse_description": "Von jedem Runner selbst erklärt: fortsetzen, prüfen, übernehmen, verifizieren und ob die Konfliktregel für ihn gilt.",
+      "kind": "Art",
+      "yes": "ja",
+      "no": "nein",
+      "reuse": {
+        "resume_partial": "setzt fort",
+        "recheck_partial": "prüft Teildaten",
+        "adopt_completed": "übernimmt Fertiges",
+        "verify_completed": "verifiziert",
+        "applies_collision_policy": "Konfliktregel"
+      },
+      "runner": {
+        "http": "HTTP",
+        "usenet": "Usenet",
+        "media": "Medien (yt-dlp)",
+        "gallery": "Galerie",
+        "record": "Aufnahme",
+        "torrent": "Torrent",
+        "ftp": "FTP",
+        "sftp": "SFTP",
+        "plugin": "Plugin-Übertragung"
+      },
+      "history_title": "Verlauf",
+      "history_description": "Neueste zuerst. Eine Verschiebung zwischen Geräten wird per SHA-256 geprüft, bevor das Original gelöscht wird.",
+      "check_index": "Inhaltsindex prüfen",
+      "history_empty": "Noch keine Verschiebungen oder Links.",
+      "verified": "geprüft",
+      "operation": {
+        "move": "Verschiebung",
+        "dedupe": "Duplikat-Link"
+      },
+      "states": {
+        "running": "läuft",
+        "completed": "abgeschlossen",
+        "failed": "fehlgeschlagen",
+        "interrupted": "unterbrochen"
+      }
     }
   },
   "services": {
     "eyebrow": "Verfügbarkeit",
     "title": "Übertragungsdienste",
-    "description": "Jeder Dienst ist an, bis Sie ihn hier abschalten. Was aus ist, lehnt passende Links schon bei der Aufnahme ab und blockiert bereits eingereihte Einträge dieser Art mit einer Begründung.",
+    "description": "Jeder Dienst ist an, bis du ihn hier abschaltest. Was aus ist, lehnt passende Links schon bei der Aufnahme ab und blockiert bereits eingereihte Einträge dieser Art mit einer Begründung.",
     "hint": "Wird ein Dienst wieder eingeschaltet, kehren seine blockierten Einträge in die Warteschlange zurück.",
     "torrent": {
       "label": "BitTorrent",
@@ -754,7 +808,7 @@
   "audit": {
     "eyebrow": "Audit und Tracing",
     "title": "Auditprotokoll und Trace-Export",
-    "description": "Wie lange das nur anhängende Auditprotokoll aufbewahrt wird und ob abgeschlossene Spans an einen OpenTelemetry-Kollektor gehen. Der Export ist aus, bis Sie ihn einschalten.",
+    "description": "Wie lange das nur anhängende Auditprotokoll aufbewahrt wird und ob abgeschlossene Spans an einen OpenTelemetry-Kollektor gehen. Der Export ist aus, bis du ihn einschaltest.",
     "records_label": "Aufbewahrte Auditeinträge",
     "records_description": "Die ältesten ganzen Einträge gehen zuerst (10000-2000000).",
     "days_label": "Aufbewahrte Tage",
@@ -770,7 +824,7 @@
   "overview": {
     "eyebrow": "Übersicht",
     "title": "Einstellungen",
-    "description": "Jede Seite, gruppiert nach ihrem Thema. Öffnen Sie eine hier oder wählen Sie sie in der Seitenleiste."
+    "description": "Jede Seite, gruppiert nach ihrem Thema. Öffne eine hier oder wähle sie in der Seitenleiste."
   },
   "about": {
     "build": {
@@ -807,7 +861,7 @@
       "tools": "Mitgelieferte Werkzeuge",
       "tools_hint": "Die Pakete für Linux und Windows bringen sie unter vendor/ mit, ihre Lizenztexte unter vendor/licenses/.",
       "dependencies": "Abhängigkeiten",
-      "dependencies_hint": "Beim Bau aus Cargo.lock und package-lock.json erzeugt, nicht von Hand gepflegt.",
+      "dependencies_hint": "Alles, was ein ausgeliefertes Paket enthält: die Crates, die Dienst, Capture-Agent und Plugins unter Linux, Windows und macOS einbinden, und die Pakete der Oberfläche. Beim Bau aus Cargo.lock und pnpm-lock.yaml erzeugt, nicht von Hand gepflegt.",
       "rust": "Rust-Crates",
       "npm": "npm-Pakete der Oberfläche",
       "show": "Alle {count} zeigen",
@@ -823,5 +877,9 @@
   "nntp_parallel_files": {
     "label": "Usenet-Dateien gleichzeitig",
     "description": "0 = automatisch: so viele, dass jede Verbindung beschäftigt bleibt (2 bis 8). Zusammen belegen sie einen einzigen Platz der parallelen Dateien."
+  },
+  "upload_limit": {
+    "label": "Upload-Limit",
+    "description": "Gilt für jeden Upload: Torrent-Seeding, Objektspeicher, rclone und Upload-Ziele. Leer bedeutet unbegrenzt"
   }
 }

@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt, BlockEncrypt, KeyInit},
+    cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit},
 };
 use async_trait::async_trait;
 use mega_common::crypto;

@@ -152,11 +152,12 @@ function defaultLabel(): string {
           </p>
         </div>
         <UButton
-          size="sm"
-          color="neutral"
+          size="xs"
+          color="error"
           variant="ghost"
           icon="i-lucide-trash-2"
-          :label="t('system.passkeys.remove.action')"
+          :aria-label="t('system.passkeys.remove.action')"
+          :title="t('system.passkeys.remove.action')"
           @click="remove(credential)"
         />
       </li>
@@ -164,7 +165,7 @@ function defaultLabel(): string {
 
     <!-- The ceremony is done; all that is left is a name for the list. -->
     <form v-if="naming" class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="save">
-      <UFormField class="flex-1" :label="t('system.passkeys.name_label')" :help="t('system.passkeys.name_hint')">
+      <UFormField class="flex-1" :label="t('system.passkeys.name_label')" :description="t('system.passkeys.name_hint')">
         <UInput v-model="label" maxlength="60" autofocus class="w-full" />
       </UFormField>
       <UButton type="submit" icon="i-lucide-check" :label="t('system.passkeys.save')" :loading="busy" />

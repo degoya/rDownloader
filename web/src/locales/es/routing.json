@@ -1,5 +1,4 @@
 {
-  "cancel_edit": "Cancelar edición",
   "tabs": {
     "roots": "Raíces de almacenamiento",
     "categories": "Categorías",
@@ -20,7 +19,10 @@
     "confirm_description": "El archivo contiene {categories} categorías y {rules} reglas. Las entradas existentes con el mismo nombre se conservan; solo se añaden las nuevas.",
     "confirm": "Importar",
     "import_success": "Configuración de enrutamiento importada",
-    "import_summary": "{categories} categorías y {rules} reglas añadidas, {skipped} omitidas"
+    "import_summary": "{categories} categorías y {rules} reglas añadidas, {skipped} omitidas",
+    "export_all": "Todo (categorías y reglas)",
+    "export_categories": "Solo categorías",
+    "export_rules": "Solo reglas"
   },
   "root": {
     "eyebrow": "Lista blanca",
@@ -129,7 +131,13 @@
     "plugin_steps_override_label": "Sustituir los pasos de plugin",
     "plugin_steps_override_description": "Desactivado hereda la lista global. Activado permite que esta categoría elija, incluido «ninguno», lo que desactiva aquí un paso habilitado globalmente.",
     "plugin_steps_none_hint": "Ningún paso aquí: los paquetes de esta categoría no ejecutan ninguno, aunque la lista global tenga alguno.",
-    "form_new": "Nueva categoría"
+    "form_new": "Nueva categoría",
+    "duplicated": "Copia creada: ajústala y guárdala",
+    "group_count": "ninguna categoría | {count} categoría | {count} categorías",
+    "collision_label": "Ante una colisión de nombres",
+    "collision_description": "Se aplica a los paquetes de esta categoría salvo que un paquete tenga regla propia.",
+    "collision_inherit": "Heredar el ajuste global",
+    "collision_badge": "Colisiones: {policy}"
   },
   "rule": {
     "eyebrow": "Clasificador",
@@ -203,8 +211,6 @@
       "invalid_pattern": "El patrón no es una expresión regular válida."
     },
     "create": "Crear regla",
-    "duplicate": "Duplicar regla",
-    "copy_suffix": "copia",
     "empty": "Sin reglas se aplica la categoría por defecto.",
     "no_category_hint": "Crea primero una categoría: una regla siempre necesita un destino.",
     "disabled_badge": "INACTIVA",
@@ -214,7 +220,9 @@
     "created": "Regla creada",
     "duplicated": "Copia de la regla creada",
     "updated": "Regla actualizada",
-    "form_new": "Nueva regla"
+    "form_new": "Nueva regla",
+    "duplicate": "Duplicar regla",
+    "copy_suffix": "copia"
   },
   "hotfolder": {
     "eyebrow": "Entrada conciliada",
@@ -259,6 +267,8 @@
     "poll_label": "Intervalo de sondeo",
     "poll_description": "Segundos entre dos pasadas de conciliación por todas las carpetas vigiladas (5–3600). Las vigilancias en curso adoptan el valor de inmediato.",
     "poll_saved": "Intervalo de sondeo guardado",
-    "poll_save": "Guardar intervalo"
-  }
+    "poll_save": "Guardar intervalo",
+    "copy_path_hint": "Una copia necesita su propia carpeta: cambia la ruta antes de crearla."
+  },
+  "cancel_edit": "Cancelar edición"
 }

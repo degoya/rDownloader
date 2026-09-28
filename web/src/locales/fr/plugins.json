@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Versions installées",
     "title": "Inventaire local",
-    "empty": "Aucune version de plugin externe installée pour le moment. Les résolveurs natifs v1 restent disponibles.",
+    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : ceux fournis sont installés au prochain démarrage, les autres viennent d’un dépôt.",
     "filter_label": "Filtrer par groupe de plugins"
   },
   "card": {

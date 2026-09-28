@@ -7,18 +7,20 @@
  * field, hid them entirely. A select that names its options by the wrong key looks exactly
  * like one with nothing to offer.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import common from '@/locales/en/common.json'
 import automation from '@/locales/en/automation.json'
 import { mountComponent } from '@/test/mount'
 import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
+const post = vi.fn()
 vi.mock('@/api/client', () => ({
   api: {
     GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
+    POST: (...args: unknown[]) => post(...args),
     PUT: vi.fn(),
     PATCH: vi.fn(),
     DELETE: vi.fn()
@@ -74,8 +76,6 @@ function mount() {
     messages: { automation },
     stubs: {
       USelectMenu: selectMenu,
-      // The shared stub renders only the default slot; the create button sits in `#right`.
-      UDashboardNavbar: { template: '<div><slot /><slot name="right" /></div>' },
       ConditionTree: true,
       AreaBackupButtons: true
     }
@@ -85,6 +85,7 @@ function mount() {
 describe('AutomationView', () => {
   beforeEach(() => {
     get.mockReset()
+    post.mockReset()
     get.mockImplementation(async (path: string) => {
       if (path === '/api/v1/automations/vocabulary') return { data: VOCABULARY }
       if (path === '/api/v1/notifications/targets') return { data: TARGETS }
@@ -96,8 +97,9 @@ describe('AutomationView', () => {
     mount()
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/targets'))
 
-    // Two ways in — the navbar and the empty form column — and either opens the editor.
-    await fireEvent.click(screen.getAllByRole('button', { name: automation.create })[0]!)
+    // One way in: the empty form column offers it (RD-150-11 removed the second in the navbar).
+    expect(screen.getAllByRole('button', { name: automation.create })).toHaveLength(1)
+    await fireEvent.click(screen.getByRole('button', { name: automation.create }))
     const kind = await screen.findByLabelText(automation.action.kind)
     await fireEvent.update(kind, 'webhook')
 
@@ -109,12 +111,63 @@ describe('AutomationView', () => {
 
   it('keeps the form heading above both the empty and open cards', async () => {
     mount()
-    const heading = await screen.findByRole('heading', { name: automation.create_title })
+    const heading = (await screen.findByRole('heading', { name: automation.create_title })).parentElement as HTMLElement
 
     expect(heading.nextElementSibling?.className).toContain('border-dashed')
-    await fireEvent.click(screen.getAllByRole('button', { name: automation.create })[0]!)
+    await fireEvent.click(screen.getByRole('button', { name: automation.create }))
     expect(heading.nextElementSibling?.className).toContain('bg-default')
     expect(heading.nextElementSibling?.className).not.toContain('border-dashed')
+  })
+
+  it('asks for the trigger first and ends the form with one action row', async () => {
+    mount()
+    await fireEvent.click(await screen.findByRole('button', { name: automation.create }))
+    const form = await screen.findByTestId('automation-form')
+    expect(form.tagName).toBe('FORM')
+    // The trigger is the automation's kind; the first field the form asks for.
+    expect(form.querySelector('label')?.textContent).toContain(automation.trigger_label)
+    // Primary action first, no cancel while creating, and the Active switch is a field, not a
+    // member of the row.
+    const row = form.querySelector('[data-form-actions]') as HTMLElement
+    const buttons = within(row).getAllByRole('button')
+    expect(buttons.map(button => button.textContent)).toEqual([automation.create_title])
+    expect(buttons[0]?.getAttribute('type')).toBe('submit')
+    expect(within(row).queryByRole('switch')).toBeNull()
+  })
+
+  it('duplicates an automation switched off, under a new name, and opens the copy for editing', async () => {
+    const original = {
+      id: 'a1', name: 'Pause big', enabled: true, version: 3, created_at: '', updated_at: '',
+      definition: { trigger: 'download_completed', condition: { type: 'always' }, actions: [{ kind: 'pause_package' }] }
+    }
+    const copy = { ...original, id: 'a2', name: `Pause big (${common.copy_suffix})`, enabled: false, version: 1 }
+    let listed: unknown[] = [original]
+    get.mockImplementation(async (path: string) => {
+      if (path === '/api/v1/automations/vocabulary') return { data: VOCABULARY }
+      if (path === '/api/v1/notifications/targets') return { data: TARGETS }
+      if (path === '/api/v1/automations') return { data: listed }
+      return { data: [] }
+    })
+    post.mockImplementation(async () => {
+      listed = [original, copy]
+      return { data: copy }
+    })
+    mount()
+
+    await fireEvent.click(await screen.findByRole('button', { name: common.actions.duplicate }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/automations', expect.anything()))
+    const body = post.mock.calls[0]?.[1]?.body
+    expect(body).toEqual({
+      name: `Pause big (${common.copy_suffix})`,
+      enabled: false,
+      trigger: 'download_completed',
+      condition: { type: 'always' },
+      actions: [{ kind: 'pause_package' }]
+    })
+    await screen.findByRole('heading', { name: automation.edit_title })
+    expect((screen.getByDisplayValue(copy.name) as HTMLInputElement).value).toBe(copy.name)
+    expect(screen.getByText(common.editing)).toBeTruthy()
   })
 
   it('renders without an axe violation', async () => {

@@ -23,6 +23,8 @@ members = [
   "crates/rd-http",
   "crates/rd-limits",
   "crates/rd-notify",
+  "crates/rd-object-storage",
+  "crates/rd-pack",
   "crates/rd-plugin-api",
   "crates/rd-plugin-ext",
   "crates/rd-plugin-host",
@@ -133,7 +135,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.4.2"
+version = "1.5.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.98"
@@ -141,25 +143,25 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/degoya/rDownloader"
 
 [workspace.dependencies]
-aes = "0.8"
+aes = "0.9"
 anyhow = "1"
 arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
-argon2 = "0.5"
+argon2 = "0.6"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["http1", "json", "macros", "multipart", "tokio"] }
-base64 = "0.22"
+base64 = "0.23"
 boa_engine = { version = "0.22", default-features = false, features = ["fuzz"] }
 bytes = "1"
-cbc = "0.1"
-chacha20poly1305 = "0.10"
+cbc = "0.2"
+chacha20poly1305 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = { version = "0.10", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
 crc32fast = "1"
 # Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
 # patterns, which is what people copy out of a crontab.
-croner = "3.0.1"
-ctr = "0.9"
+croner = "4"
+ctr = "0.10"
 dunce = "1"
 directories = "6"
 ed25519-dalek = { version = "3", features = ["pem", "pkcs8"] }
@@ -169,7 +171,7 @@ futures-util = "0.3"
 fs4 = { version = "1.1", default-features = false }
 governor = "0.10"
 hex = "0.4"
-hmac = "0.12"
+hmac = "0.13"
 httpdate = "1"
 # The provider is pinned to aws-lc-rs on purpose: lettre's `rustls-tls` would pull in
 # `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
@@ -178,7 +180,7 @@ lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", 
 keyring = "4.1.6"
 # XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
 # unpacking bytes fetched from a release host is exactly the place not to link liblzma.
-lzma-rust2 = { version = "0.20", default-features = false, features = ["std", "xz"] }
+lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz"] }
 md-5 = "0.11"
 mime_guess = "2"
 # Interface enumeration for torrent binding; librqbit links the same crate for UPnP.
@@ -186,11 +188,15 @@ network-interface = "2"
 notify = "8"
 # Arbitrary-precision integers for the guest-side RSA of `plugins/mega-auth` (`src/rsa.rs`),
 # and for `plugins/mega-login-probe`, which measures what that private operation costs.
-num-bigint = "0.4"
+num-bigint = "0.5"
 # Desktop toasts for the capture agent. `z` selects the pure-Rust zbus backend on Linux
 # instead of the default libdbus binding, so no C library has to be present for the
 # cross-builds; Windows and macOS use their own backends regardless.
 notify-rust = { version = "4", default-features = false, features = ["z"] }
+# S3-compatible object storage (RD-150-04): signing, multipart and the credential providers of
+# the Apache Arrow project, on the reqwest, rustls and aws-lc-rs this workspace already links.
+# Azure and GCS are features of the same crate, which RD-150-05 switches on.
+object_store = { version = "0.14", default-features = false, features = ["aws"] }
 open = "5.4.2"
 percent-encoding = "2.3"
 # Decodes the capture agent's tray icon; replaces `image`, which wrapped this same crate. On macOS
@@ -199,8 +205,8 @@ png = "0.18"
 # Mozilla's Public Suffix List, compiled in: an imported cookie for `com` or `co.uk` is refused
 # (RD-120-49). No runtime fetch; a list update is a dependency update.
 psl = "2.1"
-quick-xml = "0.41"
-rand = "0.9"
+quick-xml = "0.42"
+rand = "0.10"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["cookies", "gzip", "http2", "json", "multipart", "rustls", "socks", "stream"] }
 rmcp = { version = "3.2", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
@@ -215,16 +221,16 @@ secrecy = { version = "0.10", features = ["serde"] }
 subtle = "2.6"
 zeroize = "1.9"
 semver = "1"
-sevenz-rust2 = "0.22.2"
+sevenz-rust2 = "0.23"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_path_to_error = "0.1.20"
-sha1 = "0.10"
-sha2 = "0.10"
-sqlx = { version = "0.8", default-features = false, features = ["chrono", "macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
+sha1 = "0.11"
+sha2 = "0.11"
+sqlx = { version = "0.9", default-features = false, features = ["chrono", "macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
 # `deprecated` is what gates `connect_secure_implicit`, i.e. implicit FTPS on port 990.
 # It is deprecated as a protocol, not as an API, and RD-060-01 requires it.
-suppaftp = { version = "11", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
+suppaftp = { version = "12", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
 tao = "0.37.0"
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
@@ -234,26 +240,28 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-rustls = "0.26"
 tokio-util = "0.7"
 toml = "1"
-tower-http = { version = "0.6", features = ["cors", "limit", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tray-icon = "0.24.2"
+tray-icon = "0.25"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
-utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa = { version = "6", features = ["axum_extras", "chrono", "uuid"] }
 uuid = { version = "1", features = ["serde", "v7"] }
-wasmparser = "0.254"
+# The version wasmtime brings (wasmtime 49: 0.258), so the pre-validation adds no second copy;
+# raise it together with wasmtime (RD-150-21).
+wasmparser = "0.258"
 # `cache` keeps compiled plugins on disk between starts and `parallel-compilation` spreads the
 # compile a cache miss still costs over the cores (RD-130-06; `rd-plugin-host/src/compile_cache.rs`).
-wasmtime = { version = "48.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
+wasmtime = { version = "49.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
 webauthn-rs = "0.6.1-dev"
 # Test-only: a software authenticator, so the passkey ceremonies can be driven end to end
 # rather than mocked. Pinned to the same line as webauthn-rs so the two share their
 # protocol types; a version skew here would compare structurally identical types that the
 # compiler considers unrelated.
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
-wit-bindgen = "0.57.1"
-zip = { version = "6", default-features = false, features = ["deflate", "aes-crypto"] }
+wit-bindgen = "0.61"
+zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -268,6 +276,15 @@ unwrap_used = "warn"
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
+
+# Test packages and the host tools (RD-150-20): optimised like a release, but in parallel code
+# units and without LTO, which is what made a release build wait on one core. Published releases
+# keep `release`; `scripts/package-*.sh --profile release-test` builds the owner's test packages
+# and `scripts/build-plugins.sh` its packager `rd-pack` with this one.
+[profile.release-test]
+inherits = "release"
+codegen-units = 16
+lto = false
 
 [profile.dev]
 debug = "line-tables-only"          # Backtraces bleiben, DWARF schrumpft massiv

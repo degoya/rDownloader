@@ -1030,6 +1030,11 @@ pub enum ProviderCredentialsResponse {
     /// `o_auth`, which is nobody's idea of what this is called.
     #[serde(rename = "oauth")]
     OAuth,
+    /// Signed in with a code, or holding a pasted API key, chosen per account (RD-150-09); the
+    /// choices are in `credential_modes`, and in the `oauth` one the form offers a sign-in
+    /// rather than a field.
+    #[serde(rename = "oauth_or_api_key")]
+    OAuthOrApiKey,
     /// Takes no account; the accounts settings leave such a provider out of the list.
     #[serde(rename = "none")]
     NoneRequired,
@@ -1044,6 +1049,7 @@ impl From<rd_provider_registry::CredentialKind> for ProviderCredentialsResponse 
             rd_provider_registry::CredentialKind::Cookies => Self::Cookies,
             rd_provider_registry::CredentialKind::LoginOrApiKey => Self::LoginOrApiKey,
             rd_provider_registry::CredentialKind::OAuth => Self::OAuth,
+            rd_provider_registry::CredentialKind::OAuthOrApiKey => Self::OAuthOrApiKey,
             rd_provider_registry::CredentialKind::NoneRequired => Self::NoneRequired,
         }
     }
@@ -1384,6 +1390,9 @@ pub struct DownloadBulkRequest {
 pub struct DownloadBulkResponse {
     pub affected: u32,
     pub errors: Vec<String>,
+    /// The same refusals as `errors`, coded and in the same order, for the interface to
+    /// translate; `errors` stays for the clients that read the English text.
+    pub refusals: Vec<MessageResponse>,
 }
 
 /// Options for resetting a single file.

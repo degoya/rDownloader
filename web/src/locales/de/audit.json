@@ -54,7 +54,11 @@
     "plugin_repository_added": "Plugin-Repository hinzugefügt",
     "plugin_repository_changed": "Plugin-Repository geändert",
     "plugin_repository_removed": "Plugin-Repository entfernt",
-    "plugin_version_chosen": "Plugin-Version gewählt"
+    "plugin_version_chosen": "Plugin-Version gewählt",
+    "script_subscription_changed": "Skript-Abo angelegt oder geändert",
+    "file_overwritten": "Datei überschrieben",
+    "collision_decided": "Namenskonflikt entschieden",
+    "duplicate_linked": "Duplikat verknüpft"
   },
   "list": {
     "title": "Einträge",

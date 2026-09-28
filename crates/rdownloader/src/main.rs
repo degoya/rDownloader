@@ -13,7 +13,6 @@ use tracing_subscriber::EnvFilter;
 
 mod doctor_site_rules;
 mod plugin_cli;
-mod plugin_index_cli;
 mod remote;
 mod site_rules_cli;
 mod startup;
@@ -44,7 +43,8 @@ enum Command {
     /// Signs the manifest that drives the managed external tools.
     Tools(tools_cli::ToolsArgs),
     /// Signs and verifies the rule file that recognises release pages.
-    SiteRules(site_rules_cli::SiteRulesArgs),
+    #[command(subcommand)]
+    SiteRules(rd_pack::site_rules::SiteRulesCommand),
     /// Installs or removes per-user service autostart.
     Autostart(IntegrationArgs),
     /// Lists and controls the download queue of a local or remote server.
@@ -154,7 +154,7 @@ async fn main() -> Result<()> {
         }
         Command::Plugin(args) => plugin_cli::run(args).await,
         Command::Tools(args) => tools_cli::run(args).await,
-        Command::SiteRules(args) => site_rules_cli::run(args).await,
+        Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
         Command::Autostart(args) => autostart(args),
         // Remote commands end the process themselves so a script can branch on why they
         // failed rather than on a single catch-all exit code.
@@ -209,6 +209,7 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     scheduler_config.max_connections_per_host = runtime.max_connections_per_host;
     scheduler_config.external_parallel_files = runtime.external_parallel_files;
     scheduler_config.speed_limit_bytes_per_second = runtime.speed_limit_bytes_per_second;
+    scheduler_config.own_address = Some(listen);
     let plugins = startup::open_plugins(&args, &database, &stored).await?;
     let startup::NativeRunners {
         runners,
@@ -262,6 +263,7 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         &data_directory,
         postprocess_hold,
         quiet_hold.clone(),
+        remote.object_storage.clone(),
     );
     // The registry holds every installed component's bytes; nothing below needs them, and a
     // local in `serve` would otherwise keep them for the life of the process.
@@ -281,6 +283,20 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     if let Err(error) = torrent_service.recover().await {
         tracing::warn!(%error, "could not resume seeding torrents");
     }
+    // Multipart uploads nobody continued within a week are aborted rather than left in the
+    // bucket as billed parts nothing lists (RD-150-04). In the background: it talks to the
+    // services, and a slow endpoint must not delay the start.
+    let sweeper = remote.object_storage.clone();
+    tokio::spawn(async move {
+        match sweeper
+            .sweep_stale_uploads(rd_object_storage::STALE_UPLOAD_AGE)
+            .await
+        {
+            Ok(0) => {}
+            Ok(aborted) => tracing::info!(aborted, "aborted abandoned object storage uploads"),
+            Err(error) => tracing::warn!(%error, "abandoned object storage uploads not swept"),
+        }
+    });
     let state = AppState::new(
         database,
         scheduler.clone(),
@@ -340,6 +356,7 @@ struct StoredSettings {
     /// NZB files at once; `0` is automatic (RD-130-22). Absent in older blobs, hence zero.
     nntp_parallel_files: u32,
     speed_limit_bytes_per_second: Option<rd_core::ByteCount>,
+    upload_limit_bytes_per_second: Option<rd_core::ByteCount>,
     generate_sha256: bool,
     global_proxy_profile_id: Option<rd_core::ProxyProfileId>,
     custom_ca_pem: Option<String>,
@@ -391,6 +408,7 @@ impl Default for StoredSettings {
             nntp_connections_per_file: 0,
             nntp_parallel_files: 0,
             speed_limit_bytes_per_second: None,
+            upload_limit_bytes_per_second: None,
             generate_sha256: true,
             global_proxy_profile_id: None,
             custom_ca_pem: None,
@@ -438,6 +456,9 @@ fn runtime_settings(stored: &StoredSettings) -> Result<rd_scheduler::RuntimeSett
         external_parallel_files: stored.nntp_parallel_files as usize,
         speed_limit_bytes_per_second: stored
             .speed_limit_bytes_per_second
+            .map(rd_core::ByteCount::get),
+        upload_limit_bytes_per_second: stored
+            .upload_limit_bytes_per_second
             .map(rd_core::ByteCount::get),
         generate_sha256: stored.generate_sha256,
         global_proxy_profile_id: stored.global_proxy_profile_id,

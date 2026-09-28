@@ -11,6 +11,9 @@ async-trait.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-files = { path = "../rd-files" }
+# The upload limit every upload path keeps (RD-150-15): paced here for S3 and the plugins,
+# handed to rclone as `--bwlimit`.
+rd-limits = { path = "../rd-limits" }
 dunce.workspace = true
 rd-postprocess = { path = "../rd-postprocess" }
 serde_json.workspace = true

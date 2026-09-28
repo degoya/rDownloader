@@ -1,7 +1,7 @@
 import { api, loadConfig, message } from './browser.js'
 import { DECLINE_MESSAGE, createCaptchaAnswerer, hostOf } from './captcha.js'
 import { allowSite, revokeSite, siteConsented, siteHost } from './files.js'
-import { createHandover, scopeHost, scopeOrigin } from './handover.js'
+import { HANDOVER_REFUSALS, createHandover, scopeHost, scopeOrigin } from './handover.js'
 
 /**
  * What the clipboard button should do with what the clipboard gave it.
@@ -65,6 +65,8 @@ export function handoverOutcome(result, host) {
   if (result?.ok) return { key: 'handoverDone', substitutions: [host], ok: true }
   if (result?.code === 'denied') return { key: 'handoverDenied', substitutions: [host], ok: false }
   if (result?.code === 'empty') return { key: 'handoverEmpty', substitutions: [host], ok: false }
+  const own = HANDOVER_REFUSALS[result?.code]
+  if (own) return { key: own, substitutions: [host], ok: false }
   return { key: 'handoverFailed', substitutions: [host, result?.message || result?.code || ''], ok: false }
 }
 

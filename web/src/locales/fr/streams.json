@@ -30,8 +30,10 @@
     "category_default": "Catégorie par défaut",
     "enabled_label": "Surveiller",
     "enabled_description": "Sonder cette chaîne et enregistrer automatiquement tant qu’elle est en direct.",
-    "add": "Ajouter la chaîne",
-    "record_now": "Enregistrer maintenant"
+    "record_now": "Enregistrer maintenant",
+    "create": "Créer la chaîne",
+    "form_new": "Nouvelle chaîne",
+    "form_edit": "Modifier la chaîne"
   },
   "schedules": {
     "title": "Programmations",
@@ -48,7 +50,6 @@
     "trail": "Surveiller après (minutes)",
     "replay": "Enregistrer depuis le début",
     "replay_hint": "Utilisé uniquement si le fournisseur le propose vraiment.",
-    "add": "Ajouter une programmation",
     "empty": "Aucune programmation.",
     "needs_channel": "Ajoutez d'abord une chaîne ci-dessus : une programmation en a besoin pour enregistrer.",
     "replay_used": "enregistré depuis le début",
@@ -68,7 +69,15 @@
       "completed": "Enregistré",
       "missed": "Manqué",
       "failed": "Échec"
-    }
+    },
+    "delete": {
+      "title": "Supprimer la planification",
+      "description": "Supprimer « {name} » ? Les enregistrements déjà faits sont conservés."
+    },
+    "eyebrow": "Créneaux",
+    "create": "Créer la programmation",
+    "form_new": "Nouvelle programmation",
+    "form_edit": "Modifier la programmation"
   },
   "recording": {
     "split": "Découper les longs enregistrements",

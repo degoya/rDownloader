@@ -25,7 +25,6 @@
     "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Importa el archivo de reglas firmado de una versión para empezar con las reglas del proyecto.",
     "group_off": "El grupo está desactivado, por lo que no se consulta esta regla."
   },
-  "new": "Regla nueva",
   "editor": {
     "eyebrow": "Regla propia",
     "title_new": "Escribir una regla",
@@ -58,7 +57,8 @@
     "package_from": "Leer de la variable",
     "package_name": "Variable",
     "enabled": "Consultar esta regla de inmediato",
-    "incomplete": "Se necesitan identificador, nombre, grupo, un host, un paso y una dirección de prueba."
+    "incomplete": "Se necesitan identificador, nombre, grupo, un host, un paso y una dirección de prueba.",
+    "create": "Crear regla"
   },
   "steps": {
     "heading": "Pasos",
@@ -132,8 +132,5 @@
     "title": "¿Eliminar esta regla?",
     "description": "{name} se eliminará de esta instalación. Expórtala antes si quieres conservarla."
   },
-  "duplicate": "Duplicar",
-  "duplicate_hint": "Crea una copia desactivada con un identificador nuevo y la abre en el editor",
-  "copy_suffix": "copia",
   "duplicated": "{name} se creó desactivada y se abrió para editarla."
 }

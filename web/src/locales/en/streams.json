@@ -30,8 +30,10 @@
     "category_default": "Default category",
     "enabled_label": "Monitor",
     "enabled_description": "Probe this channel and record automatically while live.",
-    "add": "Add channel",
-    "record_now": "Record now"
+    "record_now": "Record now",
+    "create": "Create channel",
+    "form_new": "New channel",
+    "form_edit": "Edit channel"
   },
   "schedules": {
     "title": "Schedules",
@@ -48,7 +50,6 @@
     "trail": "Keep watching after (minutes)",
     "replay": "Record from the beginning",
     "replay_hint": "Only used where the provider actually offers it.",
-    "add": "Add schedule",
     "empty": "No schedules yet.",
     "needs_channel": "Add a channel above first — a schedule needs one to record.",
     "replay_used": "recorded from the beginning",
@@ -68,7 +69,15 @@
       "completed": "Recorded",
       "missed": "Missed",
       "failed": "Failed"
-    }
+    },
+    "delete": {
+      "title": "Delete schedule",
+      "description": "Delete \"{name}\"? Recordings already made are kept."
+    },
+    "eyebrow": "Time windows",
+    "create": "Create schedule",
+    "form_new": "New schedule",
+    "form_edit": "Edit schedule"
   },
   "recording": {
     "split": "Split long recordings",

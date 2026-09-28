@@ -21,6 +21,7 @@ network-interface.workspace = true
 librqbit = { version = "9", default-features = false, features = ["rust-tls", "disable-upload"] }
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
+rd-http = { path = "../rd-http" }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 reqwest.workspace = true

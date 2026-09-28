@@ -46,7 +46,9 @@
   "services": {
     "intro": "Optional: Premium-Hoster-Konten heben Geschwindigkeits- und Captcha-Limits auf, ein Usenet-Server ermöglicht NZB-Downloads.",
     "accounts_tab": "Hoster-Konten",
-    "usenet_tab": "Usenet"
+    "usenet_tab": "Usenet",
+    "extension_title": "Für diese Konten braucht es die Browser-Erweiterung",
+    "extension_hint": "{providers} können die Anmeldung deines Browsers übernehmen – das geht nur über die gekoppelte Browser-Erweiterung, und es hat sich noch keine gemeldet. Kopple sie jetzt, oder melde dich per Passwort oder API-Schlüssel an."
   },
   "actions": {
     "back": "Zurück",

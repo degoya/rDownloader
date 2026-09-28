@@ -595,8 +595,14 @@ async fn an_nzb_and_a_web_link_run_on_their_own_endpoints() {
             );
             assert!(submitted.body.contains(WEB_ADDRESS), "{}", submitted.body);
         } else {
+            // Never the fixed `upload.nzb` again: a provider that names its job after the
+            // upload would name every job alike (2026-09-27). Nameless, the NZB goes up as
+            // `rdownloader [<12 hex of its digest>].nzb`.
+            let digest = key.strip_prefix("usenet:").expect("a usenet key");
             assert!(
-                submitted.body.contains("filename=\"upload.nzb\""),
+                submitted
+                    .body
+                    .contains(&format!("filename=\"rdownloader [{}].nzb\"", &digest[..12])),
                 "{}",
                 submitted.body
             );

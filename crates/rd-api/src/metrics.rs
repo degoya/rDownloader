@@ -9,7 +9,7 @@
 //!
 //! Label values come only from closed sets: the download kind and state enums, the outcome,
 //! the provider id an account carries, and the id of a storage root. Never a URL, a file or
-//! package name, an account label, a user name or a host. `tests/metrics.rs` grows a queue by
+//! package name, an account label, a user name or a host. `tests/admin/metrics.rs` grows a queue by
 //! hundreds of rows and checks that the number of series does not move, and that none of the
 //! names it used appear in the text.
 
@@ -107,7 +107,8 @@ fn counter(name: &'static str, help: &'static str, samples: Vec<Sample>) -> Fami
 /// Every family, in the order they are exposed.
 pub(crate) async fn collect(state: &AppState) -> Result<Vec<Family>, ApiError> {
     let downloads = state.database.list_downloads().await?;
-    let rates = state.scheduler.transfer_rates();
+    let rates =
+        crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads);
     let totals = state.database.list_transfer_totals().await?;
     let accounts = state.database.list_accounts().await?;
     let now = chrono::Utc::now();

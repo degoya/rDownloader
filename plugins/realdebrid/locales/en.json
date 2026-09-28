@@ -2,13 +2,17 @@
   "name": "Real-Debrid",
   "description": "Resolves links of other hosters through a Real-Debrid account.",
   "account": {
-    "secret_label": "Real-Debrid client secret",
-    "secret_hint": "Register an application at real-debrid.com (My account → API). Enter its client ID as the username and its client secret here, then start the sign-in: Real-Debrid shows a short code to confirm, and the token is renewed from then on."
+    "secret_label": "Real-Debrid API token",
+    "secret_hint": "Pick how this account signs in. Connect with a code is the simple way: save the account, press Connect and confirm the code it shows at real-debrid.com/device — no username, no token to copy, and rDownloader keeps the sign-in renewed. API token takes the private token from real-debrid.com/apitoken instead.",
+    "mode_label_api_key": "API token",
+    "secret_label_api_key": "Real-Debrid API token",
+    "secret_hint_api_key": "Open real-debrid.com/apitoken (signed in), copy the private API token and enter it here. No username is needed. If you renew the token there, enter the new one here.",
+    "secret_hint_oauth": "Nothing to enter here. Save the account and press Connect: rDownloader shows an address and a code, you confirm the code at real-debrid.com/device, and the account stays signed in from then on."
   },
   "codes": {
     "realdebrid.account_missing": "Real-Debrid account is missing",
     "realdebrid.api_error": "Real-Debrid API error {api_code}",
-    "realdebrid.auth_invalid": "The Real-Debrid sign-in is no longer valid. Sign in again.",
+    "realdebrid.auth_invalid": "The Real-Debrid sign-in or API token is no longer valid. Connect the account again, or enter the current token from real-debrid.com/apitoken.",
     "realdebrid.file_offline": "Real-Debrid reports this file as unavailable",
     "realdebrid.host_unsupported": "Real-Debrid does not support this host for this account",
     "realdebrid.http_error": "Real-Debrid HTTP status {status}",
@@ -20,7 +24,7 @@
     "realdebrid.rate_limited": "The Real-Debrid API rate limit was reached. Waiting.",
     "realdebrid.server_busy": "Real-Debrid or the hoster behind it is temporarily unavailable",
     "realdebrid.server_error": "Real-Debrid server error",
-    "realdebrid.token_missing": "This Real-Debrid account is not signed in yet",
+    "realdebrid.token_missing": "This Real-Debrid account is not connected yet, or has no API token entered",
     "realdebrid.two_factor": "Real-Debrid asked for two-factor authentication"
   }
 }

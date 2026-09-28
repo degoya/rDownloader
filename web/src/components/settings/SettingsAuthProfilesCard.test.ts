@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import common from '@/locales/en/common.json'
 import settings from '@/locales/en/settings.json'
+import { mountComponent } from '@/test/mount'
 
 import SettingsAuthProfilesCard from './SettingsAuthProfilesCard.vue'
 
@@ -17,45 +18,7 @@ vi.mock('@/api/client', () => ({
 const confirmed = vi.fn(async () => true)
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { settings } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const model = {
-  props: ['modelValue'],
-  emits: ['update:modelValue'],
-  template:
-    '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-}
-const components = {
-  UButton: {
-    props: ['label', 'disabled', 'loading'],
-    template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'
-  },
-  UInput: model,
-  UTextarea: model,
-  USelect: {
-    props: ['modelValue', 'items'],
-    emits: ['update:modelValue'],
-    template:
-      '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
-  },
-  UCheckbox: {
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template:
-      '<label>{{ label }}<input type="checkbox" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
-  },
-  USwitch: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
-  },
-  UAlert: { props: ['description'], template: '<div role="alert">{{ description }}</div>' },
-  UFormField: passthrough,
-  UBadge: passthrough,
-  UIcon: { template: '<span />' }
-}
+const en = settings.auth_profiles
 
 const STORED = {
   id: 'profile-1',
@@ -85,14 +48,22 @@ const CAPTURED = {
 }
 
 function renderCard() {
-  return render(SettingsAuthProfilesCard, { global: { plugins: [i18n], components } })
+  return mountComponent(SettingsAuthProfilesCard, { messages: { settings } })
 }
 
-/** The card's text inputs in DOM order: name, scope, secret, certificate. */
-function input(index: number): HTMLInputElement {
-  const element = (screen.getAllByRole('textbox') as HTMLInputElement[])[index]
-  if (!element) throw new Error(`no text input at index ${index}`)
-  return element
+/** A field of the form, found by the label it is announced with. */
+function field(label: string): HTMLInputElement {
+  return screen.getByLabelText(label) as HTMLInputElement
+}
+
+/** The feedback of one colour; the card shows it above its form. */
+function alert(color: 'error' | 'success'): HTMLElement | null {
+  return document.querySelector(`[color="${color}"][variant="subtle"]`)
+}
+
+/** The list row that names a profile. */
+function rowOf(name: string): HTMLElement {
+  return screen.getByText(name).closest('[data-profile-row]') as HTMLElement
 }
 
 /** First recorded call of a mocked API method, with a readable failure if there is none. */
@@ -143,28 +114,28 @@ describe('creating', () => {
   it('stays disabled until a name, a scope and a credential are given', async () => {
     renderCard()
     await screen.findByText('Intranet')
-    const create = screen.getByRole('button', { name: 'Add profile' })
+    const create = screen.getByRole('button', { name: en.create_action })
     expect(create.hasAttribute('disabled')).toBe(true)
 
-    await fireEvent.update(input(0), 'Reports')
-    await fireEvent.update(input(1), 'files.example.com/reports')
-    expect(screen.getByRole('button', { name: 'Add profile' }).hasAttribute('disabled')).toBe(true)
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'files.example.com/reports')
+    expect(screen.getByRole('button', { name: en.create_action }).hasAttribute('disabled')).toBe(true)
 
-    await fireEvent.update(input(2), 'session=abc')
+    await fireEvent.update(field(en.secret_cookies), 'session=abc')
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Add profile' }).hasAttribute('disabled')).toBe(false)
+      expect(screen.getByRole('button', { name: en.create_action }).hasAttribute('disabled')).toBe(false)
     })
   })
 
   it('posts the form and clears the credential fields afterwards', async () => {
     vi.mocked(api.POST).mockResolvedValue({ data: { ...STORED, id: 'profile-3', name: 'Reports' } } as never)
-    const { emitted } = renderCard()
+    renderCard()
     await screen.findByText('Intranet')
 
-    await fireEvent.update(input(0), 'Reports')
-    await fireEvent.update(input(1), 'files.example.com/reports')
-    await fireEvent.update(input(2), 'session=abc')
-    await fireEvent.click(screen.getByRole('button', { name: 'Add profile' }))
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'files.example.com/reports')
+    await fireEvent.update(field(en.secret_cookies), 'session=abc')
+    await fireEvent.click(screen.getByRole('button', { name: en.create_action }))
 
     await waitFor(() => expect(api.POST).toHaveBeenCalled())
     const posted = bodyOf(vi.mocked(api.POST).mock.calls)
@@ -176,25 +147,25 @@ describe('creating', () => {
       secret: 'session=abc',
       username: null
     })
-    await waitFor(() => expect(emitted().message).toBeTruthy())
+    expect(await screen.findByText(en.created)).toBeTruthy()
     // The form must not keep a credential lying around after a successful save.
-    await waitFor(() => expect(input(2).value).toBe(''))
+    await waitFor(() => expect(field(en.secret_cookies).value).toBe(''))
   })
 
   it('surfaces a rejected credential at the form instead of pretending it worked', async () => {
     vi.mocked(api.POST).mockResolvedValue({ error: { code: 'authprofile.certificate_invalid' } } as never)
-    const { emitted } = renderCard()
+    renderCard()
     await screen.findByText('Intranet')
 
-    await fireEvent.update(input(0), 'Reports')
-    await fireEvent.update(input(1), 'example.org')
-    await fireEvent.update(input(2), 'token')
-    await fireEvent.click(screen.getByRole('button', { name: 'Add profile' }))
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'example.org')
+    await fireEvent.update(field(en.secret_cookies), 'token')
+    await fireEvent.click(screen.getByRole('button', { name: en.create_action }))
 
-    expect((await screen.findByRole('alert')).textContent).toBe('The domain rejected the credential')
-    expect(emitted().message).toBeFalsy()
+    await waitFor(() => expect(alert('error')?.textContent).toBe('The domain rejected the credential'))
+    expect(alert('success')).toBeNull()
     // The input stays, so the refused cookie row can be corrected where it is.
-    expect(input(2).value).toBe('token')
+    expect(field(en.secret_cookies).value).toBe('token')
   })
 })
 
@@ -202,47 +173,46 @@ describe('editing', () => {
   it('loads the profile without its stored credential', async () => {
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
 
-    await waitFor(() => expect(input(0).value).toBe('Intranet'))
-    expect(input(1).value).toBe('files.example.com')
+    await waitFor(() => expect(field(en.name_label).value).toBe('Intranet'))
+    expect(field(en.scope_label).value).toBe('files.example.com')
     // Editing must never show or resend what is stored.
-    expect(input(2).value).toBe('')
+    expect(field(en.secret_bearer).value).toBe('')
     // Saving is allowed without retyping the credential.
-    expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: common.actions.save }).hasAttribute('disabled')).toBe(false)
   })
 
   it('puts the changed fields and leaves edit mode', async () => {
     vi.mocked(api.PUT).mockResolvedValue({ data: { ...STORED, name: 'Renamed' } } as never)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    await fireEvent.update(input(0), 'Renamed')
-    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.update(field(en.name_label), 'Renamed')
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
 
     await waitFor(() => expect(api.PUT).toHaveBeenCalled())
     const saved = bodyOf(vi.mocked(api.PUT).mock.calls)
     expect(saved.path).toBe('/api/v1/auth-profiles/{id}')
     expect(saved.body).toMatchObject({ name: 'Renamed', secret: null, clear_certificate: false })
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('button', { name: common.actions.save })).toBeNull())
   })
 
   it('keeps a refused change in edit mode with the reason beside it', async () => {
     vi.mocked(api.PUT).mockResolvedValue({
       error: { code: 'authprofile.cookie_outside_scope', params: { host: 'files.example.com' } }
     } as never)
-    const { emitted } = renderCard()
+    renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    await fireEvent.update(input(2), '.evil.tld\tTRUE\t/\tTRUE\t0\tsid\tx')
-    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.update(field(en.secret_bearer), '.evil.tld\tTRUE\t/\tTRUE\t0\tsid\tx')
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
 
-    expect((await screen.findByRole('alert')).textContent).toBe('The domain rejected the credential')
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
-    expect(emitted().error).toBeFalsy()
+    await waitFor(() => expect(alert('error')?.textContent).toBe('The domain rejected the credential'))
+    expect(screen.getByRole('button', { name: common.actions.save })).toBeTruthy()
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.cancel_edit }))
+    await waitFor(() => expect(alert('error')).toBeNull())
   })
 })
 
@@ -251,7 +221,7 @@ describe('activating, testing and deleting', () => {
     vi.mocked(api.POST).mockResolvedValue({ data: { ...STORED, enabled: false } } as never)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('switch'))
+    await fireEvent.click(within(rowOf('Intranet')).getByRole('switch'))
 
     await waitFor(() => {
       expect(api.POST).toHaveBeenCalledWith('/api/v1/auth-profiles/{id}/disable', {
@@ -264,30 +234,75 @@ describe('activating, testing and deleting', () => {
     vi.mocked(api.POST).mockResolvedValue({
       data: { reachable: true, authenticated: false, status: 401, url: 'https://files.example.com/' }
     } as never)
-    const { emitted } = renderCard()
+    renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.test }))
 
-    await waitFor(() => expect(emitted().error).toBeTruthy())
-    expect(emitted().message).toBeFalsy()
+    await waitFor(() => expect(alert('error')?.textContent).toBe('401'))
+    expect(alert('success')).toBeNull()
   })
 
   it('deletes only after confirmation', async () => {
     confirmed.mockResolvedValue(false)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.delete }))
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     expect(api.DELETE).not.toHaveBeenCalled()
 
     confirmed.mockResolvedValue(true)
     vi.mocked(api.DELETE).mockResolvedValue({ data: { code: 'authprofile.deleted', message: 'gone' } } as never)
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await fireEvent.click(screen.getByRole('button', { name: en.delete }))
     await waitFor(() => {
       expect(api.DELETE).toHaveBeenCalledWith('/api/v1/auth-profiles/{id}', {
         params: { path: { id: 'profile-1' } }
       })
     })
     await waitFor(() => expect(screen.queryByText('Intranet')).toBeNull())
+  })
+})
+
+describe('the form follows the shared shape (RD-150-11)', () => {
+  it('asks for the method first, and its credential fields follow it directly', async () => {
+    renderCard()
+    await screen.findByText('Intranet')
+    const form = document.querySelector('form') as HTMLFormElement
+    const labels = Array.from(form.querySelectorAll('label')).map(label => label.textContent?.trim() ?? '')
+    expect(labels[0]).toContain(en.method_label)
+    expect(labels[1]).toContain(en.secret_cookies)
+    expect(labels[2]).toContain(en.name_label)
+  })
+
+  it('submits with Enter, because the fields sit in a real form', async () => {
+    vi.mocked(api.POST).mockResolvedValue({ data: { ...STORED, id: 'profile-3', name: 'Reports' } } as never)
+    renderCard()
+    await screen.findByText('Intranet')
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'example.org')
+    await fireEvent.update(field(en.secret_cookies), 'session=abc')
+    await fireEvent.submit(field(en.name_label).closest('form') as HTMLFormElement)
+    await waitFor(() => expect(api.POST).toHaveBeenCalled())
+  })
+
+  it('shows its feedback above its own form, not somewhere down the page', async () => {
+    vi.mocked(api.POST).mockResolvedValue({ data: { ...STORED, id: 'profile-3', name: 'Reports' } } as never)
+    renderCard()
+    await screen.findByText('Intranet')
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'example.org')
+    await fireEvent.update(field(en.secret_cookies), 'session=abc')
+    await fireEvent.click(screen.getByRole('button', { name: en.create_action }))
+    const success = await screen.findByText(en.created)
+    const form = document.querySelector('form') as HTMLFormElement
+    expect(success.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('marks the row being edited and names the form for it', async () => {
+    renderCard()
+    await screen.findByText('Intranet')
+    expect(screen.getByRole('heading', { name: en.form_new })).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    expect(screen.getByRole('heading', { name: en.form_edit })).toBeTruthy()
+    expect(within(rowOf('Intranet')).getByText(common.editing)).toBeTruthy()
   })
 })

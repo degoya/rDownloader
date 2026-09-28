@@ -73,10 +73,10 @@ fn an_expired_code_and_a_refused_renewal_are_told_apart() {
     assert_eq!(refusal_code("", Some(8)), "sign_in_refused");
 }
 
-/// The refusal that is about this build rather than about the person. Sending somebody back to
-/// sign in again on `invalid_client` would be a loop with no end in it.
+/// The refusal that is about the client rather than the code: the personal pair was revoked,
+/// which a fresh connection answers and waiting never does.
 #[test]
-fn a_rejected_application_registration_gets_its_own_code() {
+fn a_rejected_client_gets_its_own_code() {
     assert_eq!(refusal_code("invalid_client", None), "client_rejected");
     assert_eq!(refusal_code("unauthorized_client", None), "client_rejected");
 }
@@ -153,4 +153,92 @@ fn a_providers_error_text_never_travels_verbatim() {
     assert_eq!(sanitize_error("<html>500</html>"), "refused");
     assert_eq!(sanitize_error(""), "refused");
     assert_eq!(sanitize_error(&"x".repeat(200)), "refused");
+}
+
+/// The confirmed device code buys the person's own client, both halves or nothing (RD-150-09).
+#[test]
+fn a_confirmed_code_issues_the_personal_client() {
+    assert_eq!(
+        read_credentials_answer(
+            200,
+            None,
+            r#"{"client_id":"PERSONAL-ID","client_secret":"PERSONAL-SECRET"}"#
+        ),
+        CredentialsAnswer::Issued {
+            client_id: "PERSONAL-ID".to_owned(),
+            client_secret: "PERSONAL-SECRET".to_owned(),
+        }
+    );
+    // Half a client is no client: it is still waiting, never stored.
+    assert_eq!(
+        read_credentials_answer(200, None, r#"{"client_id":"PERSONAL-ID"}"#),
+        CredentialsAnswer::Busy(5)
+    );
+}
+
+/// Real-Debrid answers "an error message" until the code is confirmed and names no word for it,
+/// so an unknown error is a wait -- the window the device code came with bounds it.
+#[test]
+fn an_unconfirmed_code_at_the_credentials_endpoint_is_a_wait() {
+    assert_eq!(
+        read_credentials_answer(403, None, r#"{"error":"unknown_ressource","error_code":7}"#),
+        CredentialsAnswer::Busy(5)
+    );
+    assert_eq!(
+        read_credentials_answer(
+            400,
+            None,
+            r#"{"error":"authorization_pending","interval":7}"#
+        ),
+        CredentialsAnswer::Busy(7)
+    );
+}
+
+/// Refused, expired and rate-limited are three answers, each told apart.
+#[test]
+fn the_credentials_endpoint_refuses_expires_and_rate_limits_apart() {
+    let denied = read_credentials_answer(403, None, r#"{"error":"access_denied"}"#);
+    assert_eq!(
+        denied,
+        CredentialsAnswer::Refused {
+            error: "access_denied".to_owned(),
+            api_code: None,
+        }
+    );
+    assert_eq!(refusal_code("access_denied", None), "consent_denied");
+    let expired = read_credentials_answer(400, None, r#"{"error":"expired_token"}"#);
+    assert_eq!(
+        expired,
+        CredentialsAnswer::Refused {
+            error: "expired_token".to_owned(),
+            api_code: None,
+        }
+    );
+    assert_eq!(refusal_code("expired_token", None), "code_expired");
+    // A spent budget waits the provider's own time, even when it arrives with a refusing word.
+    assert_eq!(
+        read_credentials_answer(
+            429,
+            Some("60"),
+            r#"{"error":"access_denied","error_code":34}"#
+        ),
+        CredentialsAnswer::Busy(60)
+    );
+    assert_eq!(
+        read_credentials_answer(400, None, r#"{"error":"slow_down","error_code":5}"#),
+        CredentialsAnswer::Busy(5)
+    );
+}
+
+#[test]
+fn a_spent_budget_at_the_device_endpoint_is_recognised() {
+    assert!(is_rate_limited(429, ""));
+    assert!(is_rate_limited(
+        400,
+        r#"{"error":"too_many_requests","error_code":34}"#
+    ));
+    assert!(!is_rate_limited(
+        200,
+        r#"{"device_code":"DC-1","interval":5}"#
+    ));
 }

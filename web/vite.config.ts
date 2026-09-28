@@ -45,13 +45,19 @@ export default defineConfig({
     ]
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        // One chunk per language rather than one per catalogue file, so switching language is a
-        // single request; English stays in the main chunk as the fallback (RD-140-27).
-        manualChunks(id) {
-          const locale = /\/src\/locales\/(de|es|fr)\//.exec(id)?.[1]
-          return locale ? `locale-${locale}` : undefined
+        codeSplitting: {
+          groups: [
+            {
+              // One chunk per language rather than one per catalogue file, so switching language
+              // is a single request; English stays in the main chunk as the fallback (RD-140-27).
+              name(id) {
+                const locale = /\/src\/locales\/(de|es|fr)\//.exec(id)?.[1]
+                return locale ? `locale-${locale}` : null
+              }
+            }
+          ]
         }
       }
     }

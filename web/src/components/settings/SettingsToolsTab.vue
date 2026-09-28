@@ -44,13 +44,9 @@ const COMPATIBILITY_OVERRIDE_TOOLS = ['yt-dlp', 'gallery-dl', 'streamlink', 'ffm
       >
         <UInput v-model="settings.vendor_directory" icon="i-lucide-folder-tree" :placeholder="t('settings.vendor.directory.placeholder')" class="w-full font-mono" />
       </UFormField>
-      <div class="mt-4 flex items-start justify-between gap-5 border-t border-muted pt-4">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.managed_tools.enabled_label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.managed_tools.enabled_description') }}</p>
-        </div>
-        <USwitch v-model="settings.managed_tools_enabled" :aria-label="t('settings.managed_tools.enabled_label')" />
-      </div>
+      <UFormField :label="t('settings.managed_tools.enabled_label')" :description="t('settings.managed_tools.enabled_description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+        <USwitch v-model="settings.managed_tools_enabled" />
+      </UFormField>
       <UFormField
         class="mt-4"
         :label="t('settings.managed_tools.manifest_url_label')"

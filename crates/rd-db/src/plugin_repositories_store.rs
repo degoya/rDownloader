@@ -91,10 +91,10 @@ const COLUMNS: &str = "id, kind, name, url, key_id, public_key, fingerprint, ena
 
 pub(crate) async fn list_plugin_repositories(pool: &SqlitePool) -> Result<Vec<PluginRepository>> {
     // The official repository first, then the others in the order they were added.
-    let rows = sqlx::query_as::<_, PluginRepository>(&format!(
+    let rows = sqlx::query_as::<_, PluginRepository>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM plugin_repositories \
          ORDER BY kind = 'official' DESC, created_at, id"
-    ))
+    )))
     .fetch_all(pool)
     .await?;
     Ok(rows)
@@ -104,9 +104,9 @@ pub(crate) async fn plugin_repository(
     pool: &SqlitePool,
     id: &str,
 ) -> Result<Option<PluginRepository>> {
-    let row = sqlx::query_as::<_, PluginRepository>(&format!(
+    let row = sqlx::query_as::<_, PluginRepository>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM plugin_repositories WHERE id = ?"
-    ))
+    )))
     .bind(id)
     .fetch_optional(pool)
     .await?;
@@ -159,9 +159,9 @@ pub(crate) async fn insert_plugin_repository(
     .bind(&created_at)
     .execute(&mut *transaction)
     .await?;
-    let value = sqlx::query_as::<_, PluginRepository>(&format!(
+    let value = sqlx::query_as::<_, PluginRepository>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM plugin_repositories WHERE id = ?"
-    ))
+    )))
     .bind(&input.id)
     .fetch_one(&mut *transaction)
     .await?;

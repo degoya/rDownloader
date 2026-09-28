@@ -138,7 +138,8 @@ pub(crate) fn cache_query(
         | rd_core::RECORD_PROVIDER
         | rd_core::FTP_PROVIDER
         | rd_core::SFTP_PROVIDER
-        | rd_core::WEBDAV_PROVIDER => None,
+        | rd_core::WEBDAV_PROVIDER
+        | rd_core::OBJECT_STORAGE_PROVIDER => None,
         _ => http.then(|| CacheQuery {
             source: RemoteJobSource::Address(url.as_str().to_owned()),
             kind: CacheKind::Hoster,

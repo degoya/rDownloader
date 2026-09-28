@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installed versions",
     "title": "Local inventory",
-    "empty": "No external plugin versions installed yet. The native v1 resolvers remain available.",
+    "empty": "No plugins installed yet. Hoster links need a resolver plugin: the bundled ones are installed at the next start, the others come from a repository.",
     "filter_label": "Filter by plugin group"
   },
   "card": {

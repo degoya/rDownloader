@@ -18,6 +18,11 @@ use crate::{
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
 
+/// The whole message of a run the standard library refused to start because it could not
+/// escape an argument for a batch file (RD-150-08). A stable code, so the interface can say
+/// it in the reader's language; `cmd.exe` would otherwise have read the argument as syntax.
+pub const BATCH_ARGUMENTS_REFUSED: &str = "script.batch_arguments_refused";
+
 /// What the script learns about the finished package.
 #[derive(Clone, Debug)]
 pub(crate) struct ScriptContext {
@@ -63,11 +68,11 @@ pub(crate) fn command_for(script: &Path) -> tokio::process::Command {
     #[cfg(windows)]
     {
         let mut command = match extension.as_str() {
-            "bat" | "cmd" => {
-                let mut c = tokio::process::Command::new("cmd");
-                c.arg("/C").arg(script);
-                c
-            }
+            // Started as the program itself rather than through `cmd /C`: only then does the
+            // standard library know it is a batch file, escape every argument for `cmd.exe`
+            // and refuse one it cannot escape (RD-150-08). Through `cmd /C` an argument is
+            // quoted for an ordinary program, and `cmd.exe` reads `&` or `%` in it as syntax.
+            "bat" | "cmd" => tokio::process::Command::new(script),
             "ps1" => {
                 let mut c = tokio::process::Command::new("powershell");
                 c.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
@@ -109,6 +114,16 @@ pub(crate) fn command_for(script: &Path) -> tokio::process::Command {
             _ => tokio::process::Command::new(script),
         }
     }
+}
+
+/// Whether `cmd.exe` runs the script, which parses its command line itself.
+fn is_batch(script: &Path) -> bool {
+    script
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("bat") || extension.eq_ignore_ascii_case("cmd")
+        })
 }
 
 /// SABnzbd-compatible positional arguments.
@@ -227,18 +242,28 @@ const REASON_LIMIT: usize = 300;
 pub(crate) async fn execute_for_output(
     script: &Path,
     scripts_dir: &Path,
+    arguments: &[String],
     environment: Vec<(String, String)>,
     timeout: Duration,
 ) -> Result<String> {
     let mut command = command_for(script);
     command
+        .args(arguments)
         .envs(environment)
         .current_dir(scripts_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let mut child = command.spawn().context("spawn script")?;
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        // The standard library's refusal to build a batch file's command line. The script's
+        // own name cannot be the cause -- `resolve_script` admits no quote and no backslash.
+        Err(error) if is_batch(script) && error.kind() == std::io::ErrorKind::InvalidInput => {
+            bail!(BATCH_ARGUMENTS_REFUSED)
+        }
+        Err(error) => return Err(anyhow::Error::new(error).context("spawn script")),
+    };
     let stdout = child.stdout.take().context("script stdout")?;
     let stderr = child.stderr.take().context("script stderr")?;
     let errors = tokio::spawn(async move {
@@ -402,6 +427,7 @@ mod tests {
                 execute_for_output(
                     &script,
                     scripts,
+                    &[],
                     vec![("RD_KIND".to_owned(), "subscription".to_owned())],
                     Duration::from_secs(10),
                 )
@@ -455,6 +481,7 @@ mod tests {
         let error = execute_for_output(
             &scripts.join("slow.sh"),
             scripts,
+            &[],
             Vec::new(),
             Duration::from_millis(300),
         )
@@ -462,6 +489,94 @@ mod tests {
         .expect_err("timeout");
         assert!(error.to_string().contains("timed out"), "{error}");
         assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    /// RD-150-08: every argument arrives whole and as it was written -- a space, `&`, `;`, a
+    /// `$` and an empty one included -- because no shell stands between them and the script.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_output_script_gets_each_argument_whole() {
+        use std::time::Duration;
+
+        use super::execute_for_output;
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let scripts = temp.path();
+        std::fs::write(
+            scripts.join("args.sh"),
+            "printf '%s\\n' \"count=$#\"\nfor a in \"$@\"; do printf '[%s]\\n' \"$a\"; done\n",
+        )
+        .expect("script");
+        let arguments = [
+            "--since",
+            "two words",
+            "a&b;c",
+            "$HOME `id` > out",
+            "it's \"quoted\"",
+            "",
+        ]
+        .map(str::to_owned);
+        let output = execute_for_output(
+            &scripts.join("args.sh"),
+            scripts,
+            &arguments,
+            Vec::new(),
+            Duration::from_secs(10),
+        )
+        .await
+        .expect("run");
+        assert_eq!(
+            output,
+            "count=6\n[--since]\n[two words]\n[a&b;c]\n[$HOME `id` > out]\n\
+             [it's \"quoted\"]\n[]\n"
+        );
+        assert!(!scripts.join("out").exists(), "nothing was redirected");
+    }
+
+    /// RD-150-08 on Windows: a batch file gets each argument as one, quoted where `cmd.exe`
+    /// would otherwise read it as syntax, and one the standard library cannot escape is refused
+    /// with the stable code rather than handed to `cmd.exe`.
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_batch_file_gets_each_argument_whole_or_is_refused() {
+        use std::time::Duration;
+
+        use super::{BATCH_ARGUMENTS_REFUSED, execute_for_output};
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let scripts = temp.path();
+        std::fs::write(
+            scripts.join("args.bat"),
+            "@echo off\r\necho 1=%1\r\necho 2=%2\r\necho 3=%3\r\necho 4=%4\r\n",
+        )
+        .expect("script");
+        let run = |arguments: Vec<String>| {
+            let script = scripts.join("args.bat");
+            async move {
+                execute_for_output(
+                    &script,
+                    scripts,
+                    &arguments,
+                    Vec::new(),
+                    Duration::from_secs(20),
+                )
+                .await
+            }
+        };
+        let output = run(["plain", "two words", "a&b;c"].map(str::to_owned).to_vec())
+            .await
+            .expect("run");
+        let lines: Vec<&str> = output.lines().map(str::trim_end).collect();
+        assert_eq!(
+            lines,
+            ["1=plain", "2=\"two words\"", "3=\"a&b;c\"", "4="],
+            "{output}"
+        );
+
+        let error = run(vec!["line\nbreak".to_owned()])
+            .await
+            .expect_err("a line break cannot be escaped for cmd.exe");
+        assert_eq!(error.to_string(), BATCH_ARGUMENTS_REFUSED);
     }
 
     #[cfg(unix)]

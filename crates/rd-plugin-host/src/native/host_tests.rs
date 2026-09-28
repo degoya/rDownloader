@@ -718,13 +718,14 @@ fn a_secret_in_an_address_may_lengthen_the_path_but_not_move_the_host() {
 // this branch existed the marker was refused as a target the provider does not declare, so
 // every OAuth renewal failed and nobody could stay signed in.
 
-/// An account of the Real-Debrid provider with a stored renewal reference, and the reference.
+/// An account of the registered-application OAuth fixture provider (`fixtures/oauth_registered_app.toml`,
+/// the shape Real-Debrid had until 1.5.0) with a stored renewal reference, and the reference.
 async fn signed_in_account(host: &NativeHost) -> (AccountId, String) {
     crate::native::register_bundled_providers_for_tests();
     let account_id = host
         .database
         .create_account(NewAccount {
-            provider: "realdebrid".to_owned(),
+            provider: "oauthapp".to_owned(),
             label: "Test".to_owned(),
             username: None,
             credential_mode: None,
@@ -770,7 +771,7 @@ async fn signed_in_account(host: &NativeHost) -> (AccountId, String) {
 
 fn renewal_request(reference: &str) -> HostHttpRequest {
     let mut request = request(
-        url("https://api.real-debrid.com/oauth/v2/token"),
+        url("https://api.oauthapp.test/oauth/v2/token"),
         Vec::new(),
         false,
     );
@@ -847,7 +848,7 @@ async fn the_renewal_material_may_not_be_sent_outside_the_providers_hosts() {
 // token the sign-in obtained. They used to be the same stored value, so the first successful
 // sign-in destroyed the registration that every later renewal needs.
 
-/// A Real-Debrid account carrying the application the person registered, and a started flow.
+/// An account of the registered-application fixture provider carrying the application the person registered, and a started flow.
 async fn account_with_a_registered_application(host: &NativeHost) -> AccountId {
     // The provider rows come from the bundled manifests, and `store_oauth_token` reads this
     // account's row to learn that its token has a slot of its own. Registering here rather
@@ -861,7 +862,7 @@ async fn account_with_a_registered_application(host: &NativeHost) -> AccountId {
     let account_id = host
         .database
         .create_account(NewAccount {
-            provider: "realdebrid".to_owned(),
+            provider: "oauthapp".to_owned(),
             label: "Test".to_owned(),
             username: Some("the-client-id".to_owned()),
             credential_mode: None,
@@ -878,7 +879,7 @@ async fn account_with_a_registered_application(host: &NativeHost) -> AccountId {
             account_id,
             plugin_id: "019d0000-0000-7000-8000-000000000113".to_owned(),
             state: rd_core::AuthFlowState::WaitingForUser,
-            verification_url: Some("https://real-debrid.com/device".to_owned()),
+            verification_url: Some("https://oauthapp.test/device".to_owned()),
             user_code: Some("WXYZ1234".to_owned()),
             expires_at: None,
             next_poll_at: None,
@@ -898,7 +899,7 @@ async fn account_with_a_registered_application(host: &NativeHost) -> AccountId {
 /// What one marker expands to for this account, through the real resolution pipeline.
 async fn expanded(host: &NativeHost, account_id: AccountId, template: &str) -> String {
     let mut request = request(
-        url("https://api.real-debrid.com/oauth/v2/token"),
+        url("https://api.oauthapp.test/oauth/v2/token"),
         Vec::new(),
         false,
     );
@@ -932,12 +933,12 @@ async fn an_oauth_sign_in_keeps_the_registration_and_the_token_apart() {
     // The registration survived. Before RD-106-03 this line read "the-access-token", and the
     // next renewal had nothing to sign itself with.
     assert_eq!(
-        expanded(&host, account_id, "{{secret:realdebrid_client_secret}}").await,
+        expanded(&host, account_id, "{{secret:oauthapp_client_secret}}").await,
         "the-client-secret"
     );
     // And the token is reachable under its own slot, which is what the resolver asks for.
     assert_eq!(
-        expanded(&host, account_id, "{{secret:realdebrid_access_token}}").await,
+        expanded(&host, account_id, "{{secret:oauthapp_access_token}}").await,
         "the-access-token"
     );
     // The client id is an identifier rather than a secret, so it travels as the username —
@@ -960,13 +961,13 @@ async fn a_flow_filled_slot_is_unavailable_until_the_flow_has_filled_it() {
     let account_id = account_with_a_registered_application(&host).await;
 
     assert!(
-        host.secret_available(account_id, "realdebrid_client_secret")
+        host.secret_available(account_id, "oauthapp_client_secret")
             .await,
         "the registration is there from the start"
     );
     assert!(
         !host
-            .secret_available(account_id, "realdebrid_access_token")
+            .secret_available(account_id, "oauthapp_access_token")
             .await,
         "nothing has signed in yet"
     );
@@ -976,7 +977,7 @@ async fn a_flow_filled_slot_is_unavailable_until_the_flow_has_filled_it() {
         .expect("store what the exchange produced");
 
     assert!(
-        host.secret_available(account_id, "realdebrid_access_token")
+        host.secret_available(account_id, "oauthapp_access_token")
             .await
     );
 }
@@ -998,11 +999,11 @@ async fn signing_in_again_replaces_the_token_and_nothing_else() {
     }
 
     assert_eq!(
-        expanded(&host, account_id, "{{secret:realdebrid_access_token}}").await,
+        expanded(&host, account_id, "{{secret:oauthapp_access_token}}").await,
         "second-token"
     );
     assert_eq!(
-        expanded(&host, account_id, "{{secret:realdebrid_client_secret}}").await,
+        expanded(&host, account_id, "{{secret:oauthapp_client_secret}}").await,
         "the-client-secret"
     );
 }

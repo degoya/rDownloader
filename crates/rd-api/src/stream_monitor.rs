@@ -378,6 +378,7 @@ pub async fn start_recording(
                 // Nothing looked at this: it is started from what the person chose.
                 enrichment: Vec::new(),
                 secret_fragment: None,
+                source_set: None,
             }],
         )
         .await?;

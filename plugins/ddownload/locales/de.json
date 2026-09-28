@@ -25,7 +25,7 @@
     "ddownload.invalid_response": "Ungültige DDownload-Antwort",
     "ddownload.invalid_url": "Ungültige Provider-URL: {error}",
     "ddownload.login_blocked": "DDownload hat die Anmeldung von dieser IP-Adresse abgewiesen",
-    "ddownload.login_captcha": "Das Anmeldeformular von DDownload ist durch {challenge} geschützt; rDownloader kann diese Prüfung nicht beantworten. Stellen Sie das Konto auf API-Key um oder fügen Sie eine Cookie-Sitzung aus einem angemeldeten Browser ein.",
+    "ddownload.login_captcha": "Das Anmeldeformular von DDownload ist durch {challenge} geschützt; rDownloader kann diese Prüfung nicht beantworten. Stelle das Konto auf API-Key um oder füge eine Cookie-Sitzung aus einem angemeldeten Browser ein.",
     "ddownload.login_credentials_required": "DDownload-Downloads brauchen entweder Zugangsdaten oder eine importierte Cookie-Session",
     "ddownload.login_failed": "DDownload hat Benutzernamen oder Passwort des Kontos abgelehnt",
     "ddownload.login_form_missing": "Die Anmeldeseite von DDownload enthielt nicht das erwartete Anmeldeformular: {diagnosis}",

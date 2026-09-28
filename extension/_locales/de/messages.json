@@ -156,7 +156,7 @@
     "message": "Ablehnen"
   },
   "captchaWaiting": {
-    "message": "Ein Captcha für $HOST$ wartet. Öffnen Sie die rDownloader-Erweiterung, um es in diesem Browser zu beantworten.",
+    "message": "Ein Captcha für $HOST$ wartet. Öffne die rDownloader-Erweiterung, um es in diesem Browser zu beantworten.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -164,7 +164,7 @@
     }
   },
   "captchaOpened": {
-    "message": "Die Hosterseite wird geöffnet. Lösen Sie das Captcha dort; rDownloader meldet anschließend, was der Server geantwortet hat."
+    "message": "Die Hosterseite wird geöffnet. Löse das Captcha dort; rDownloader meldet anschließend, was der Server geantwortet hat."
   },
   "captchaPermissionDenied": {
     "message": "Die Berechtigung für $HOST$ wurde nicht erteilt, die Seite kann nicht geöffnet werden.",
@@ -399,5 +399,37 @@
   },
   "optionsFilesRevoke": {
     "message": "Zurücknehmen"
+  },
+  "handoverRefusedUnreadable": {
+    "message": "rDownloader konnte die Cookies für $HOST$ nicht lesen, es wurde nichts gespeichert. Übergib die Sitzung erneut; scheitert es wieder, melde es bitte.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedOutside": {
+    "message": "Ein Cookie gehört zu einer anderen Seite als $HOST$, es wurde nichts gespeichert.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedPublicSuffix": {
+    "message": "Ein Cookie für $HOST$ gilt für eine ganze Domain-Endung wie .com, es wurde nichts gespeichert.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "handoverRefusedNotWaiting": {
+    "message": "Die Anfrage nach der Sitzung bei $HOST$ wartet nicht mehr. Starte die Übergabe in rDownloader erneut.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
   }
 }

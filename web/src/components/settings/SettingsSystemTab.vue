@@ -178,7 +178,7 @@ const systems = computed(() => [
         />
       </div>
       <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
+      <div class="mt-4 grid gap-4">
         <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
           <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1000" icon="i-lucide-database" class="mt-2 w-full" />
         </UFormField>
@@ -203,7 +203,7 @@ const systems = computed(() => [
           to="/audit"
         />
       </div>
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
+      <div class="mt-4 grid gap-4">
         <UFormField :label="t('settings.audit.records_label')" :description="t('settings.audit.records_description')">
           <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="10000" icon="i-lucide-database" class="mt-2 w-full" />
         </UFormField>
@@ -212,10 +212,10 @@ const systems = computed(() => [
         </UFormField>
       </div>
       <div class="mt-4 border-t border-muted pt-4">
-        <UFormField :label="t('settings.audit.otlp_enabled_label')" :description="t('settings.audit.otlp_enabled_description')">
-          <USwitch v-model="settings.otlp_enabled" class="mt-2" data-testid="otlp-enabled" />
+        <UFormField :label="t('settings.audit.otlp_enabled_label')" :description="t('settings.audit.otlp_enabled_description')" orientation="horizontal">
+          <USwitch v-model="settings.otlp_enabled" data-testid="otlp-enabled" />
         </UFormField>
-        <div class="mt-4 grid gap-4 md:grid-cols-2">
+        <div class="mt-4 grid gap-4">
           <UFormField :label="t('settings.audit.otlp_endpoint_label')" :description="t('settings.audit.otlp_endpoint_description')">
             <UInput v-model="settings.otlp_endpoint" placeholder="http://127.0.0.1:4318/v1/traces" icon="i-lucide-waypoints" class="mt-2 w-full" data-testid="otlp-endpoint" />
           </UFormField>
@@ -231,7 +231,7 @@ const systems = computed(() => [
 
     <section class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
       <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
+      <div class="mt-4 grid gap-4">
         <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
           <UInput v-model.number="settings.stats_hourly_days" type="number" min="1" max="3650" icon="i-lucide-timer" class="mt-2 w-full">
             <template #trailing><span class="font-mono text-xs text-muted">d</span></template>

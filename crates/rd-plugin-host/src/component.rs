@@ -3,7 +3,7 @@
 use std::{str::FromStr, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use rand::RngCore;
+use rand::Rng;
 use rd_core::{
     AccountId, ByteCount, ChecksumAlgorithm, Failure, FailureKind, LinkCheckResult, LinkStatus,
     ProxyProfileId,

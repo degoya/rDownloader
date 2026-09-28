@@ -9,7 +9,7 @@ license = "MIT"
 # ships with this scaffold, and wit-bindgen turns it into the types below. That is what makes
 # the plugin buildable without a checkout of the application.
 url = "2"
-wit-bindgen = "0.57"
+wit-bindgen = "0.61"
 
 [lib]
 crate-type = ["cdylib"]

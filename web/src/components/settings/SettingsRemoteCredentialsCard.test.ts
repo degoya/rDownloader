@@ -11,6 +11,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Settings } from '@/api/types'
+import common from '@/locales/en/common.json'
 import en from '@/locales/en/remote.json'
 import server from '@/locales/en/server.json'
 import { mountComponent } from '@/test/mount'
@@ -109,5 +110,37 @@ describe('SettingsRemoteCredentialsCard host keys', () => {
     await runTest()
     await waitFor(() => expect(screen.queryByText(en.host_keys.unknown_title)).toBeNull())
     expect(screen.queryByText(en.host_keys.changed_title)).toBeNull()
+  })
+})
+
+describe('SettingsRemoteCredentialsCard form (RD-150-11)', () => {
+  it('asks for the protocol before the name, and the method right before its fields', async () => {
+    mount()
+    await screen.findByText('Backup box')
+    const form = document.querySelector('form') as HTMLFormElement
+    const labels = Array.from(form.querySelectorAll('label')).map(label => label.textContent?.trim() ?? '')
+    expect(labels[0]).toContain(en.credentials.protocol)
+    expect(labels[1]).toContain(en.credentials.name)
+    const method = labels.findIndex(label => label.includes(en.credentials.auth_mode))
+    expect(labels[method + 1]).toContain(en.credentials.username)
+  })
+
+  it('reports a passed test above its own form', async () => {
+    testResult.value = { authenticated: true }
+    await runTest()
+    const success = await screen.findByText(en.credentials.test_ok)
+    const form = document.querySelector('form') as HTMLFormElement
+    expect(success.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('opens a row in the form with the edit signal and leaves it with the cross', async () => {
+    mount()
+    await screen.findByText('Backup box')
+    expect(screen.getByRole('heading', { name: en.credentials.form_new })).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: en.credentials.edit_title }))
+    expect(screen.getByRole('heading', { name: en.credentials.edit_title })).toBeTruthy()
+    expect(screen.getByText(common.editing)).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.cancel_edit }))
+    expect(screen.getByRole('heading', { name: en.credentials.form_new })).toBeTruthy()
   })
 })

@@ -257,6 +257,7 @@ async fn download(
         skipped: false,
         enrichment: Vec::new(),
         secret_fragment: None,
+        source_set: None,
     }];
     let (_, files) = scheduler
         .enqueue_package(spec, files)

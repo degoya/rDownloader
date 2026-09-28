@@ -145,7 +145,7 @@ fn migration(version: i64, description: &'static str, sql: &'static str) -> Migr
         version,
         Cow::Borrowed(description),
         MigrationType::Simple,
-        Cow::Borrowed(sql),
+        sqlx::SqlSafeStr::into_sql_str(sql),
         false,
     )
 }

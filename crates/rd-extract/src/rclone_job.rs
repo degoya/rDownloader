@@ -1,5 +1,10 @@
 //! rclone upload of a finished package folder to a configured remote
 //! (`remote:path/<package>`), with progress parsed from rclone's JSON log.
+//!
+//! The upload limit (RD-150-15) reaches rclone as `--bwlimit`, the rate in force when the run
+//! starts. A profile switch during a run applies from the next run on: rclone can change its
+//! rate live only through its remote-control server — a listening port per upload — and
+//! restarting it mid-file throws away the partial file, which costs more than a stale rate.
 
 use std::{path::Path, process::Stdio, time::Duration};
 
@@ -45,6 +50,8 @@ pub(crate) struct UploadContext<'a> {
     pub directory: &'a Path,
     pub executable: Option<&'a str>,
     pub vendor_directory: Option<&'a str>,
+    /// The upload limit in bytes per second when the run starts; `None` = unlimited.
+    pub bwlimit: Option<u64>,
 }
 
 /// `remote:path/<sanitized package name>` — the package keeps its own folder remotely.
@@ -54,6 +61,37 @@ pub(crate) fn destination(remote: &str, package_name: &str) -> String {
         remote.trim_end_matches('/'),
         rd_files::sanitize_file_name(package_name)
     )
+}
+
+/// The `--bwlimit` value for a rate in bytes per second; rclone reads a bare number as KiB/s,
+/// so the `B` suffix is what keeps the rate exact.
+pub(crate) fn bwlimit(bytes_per_second: Option<u64>) -> Option<String> {
+    bytes_per_second
+        .filter(|rate| *rate > 0)
+        .map(|rate| format!("{rate}B"))
+}
+
+/// The rclone invocation for one upload.
+fn command(tool: &Path, context: &UploadContext<'_>, target: &str) -> tokio::process::Command {
+    let mut command = tokio::process::Command::new(tool);
+    command
+        .arg(context.mode.verb())
+        .args(["--use-json-log", "--stats", "1s", "-v"]);
+    if let Some(rate) = bwlimit(context.bwlimit) {
+        command.args(["--bwlimit", &rate]);
+    }
+    if context.mode == UploadMode::Move {
+        command.arg("--delete-empty-src-dirs");
+    }
+    command
+        // `--` before the positionals, as every other external invocation in the tree does:
+        // a configured remote or a package directory beginning with `-` is otherwise read by
+        // rclone as a flag rather than as a path. Every flag comes first, since a flag after
+        // `--` is read as a third path.
+        .arg("--")
+        .arg(context.directory)
+        .arg(target);
+    command
 }
 
 /// Transferred/total bytes from one rclone `--use-json-log` stats line.
@@ -124,19 +162,7 @@ async fn execute(
     else {
         anyhow::bail!("rclone not found (settings, vendor folder or PATH)");
     };
-    let mut command = tokio::process::Command::new(&tool.path);
-    command
-        .arg(context.mode.verb())
-        .args(["--use-json-log", "--stats", "1s", "-v"])
-        // `--` before the positionals, as every other external invocation in the tree does:
-        // a configured remote or a package directory beginning with `-` is otherwise read by
-        // rclone as a flag rather than as a path.
-        .arg("--")
-        .arg(context.directory)
-        .arg(target);
-    if context.mode == UploadMode::Move {
-        command.arg("--delete-empty-src-dirs");
-    }
+    let mut command = command(&tool.path, context, target);
     command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -188,7 +214,9 @@ async fn execute(
 
 #[cfg(test)]
 mod tests {
-    use super::{UploadMode, destination, parse_stats_line, percent};
+    use super::{
+        UploadContext, UploadMode, bwlimit, command, destination, parse_stats_line, percent,
+    };
 
     #[test]
     fn parses_json_log_stats_lines() {
@@ -214,5 +242,79 @@ mod tests {
         );
         assert_eq!(UploadMode::from_setting("MOVE"), UploadMode::Move);
         assert_eq!(UploadMode::from_setting("weird"), UploadMode::Copy);
+    }
+
+    fn arguments(bwlimit: Option<u64>) -> Vec<String> {
+        args_of(
+            UploadMode::Copy,
+            std::path::Path::new("/downloads/Release"),
+            bwlimit,
+            "gdrive:downloads/Release",
+        )
+    }
+
+    fn args_of(
+        mode: UploadMode,
+        directory: &std::path::Path,
+        bwlimit: Option<u64>,
+        target: &str,
+    ) -> Vec<String> {
+        let context = UploadContext {
+            remote: "gdrive:downloads",
+            mode,
+            package_name: "Release",
+            directory,
+            executable: None,
+            vendor_directory: None,
+            bwlimit,
+        };
+        command(std::path::Path::new("rclone"), &context, target)
+            .as_std()
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn the_upload_limit_reaches_rclone_as_bwlimit_in_bytes() {
+        let arguments = arguments(Some(1_500_000));
+        let at = arguments
+            .iter()
+            .position(|argument| argument == "--bwlimit")
+            .expect("--bwlimit is passed");
+        assert_eq!(arguments[at + 1], "1500000B");
+        // A flag, so it has to come before the `--` that ends them.
+        let end = arguments
+            .iter()
+            .position(|argument| argument == "--")
+            .expect("--");
+        assert!(at < end, "{arguments:?}");
+    }
+
+    #[test]
+    fn an_unlimited_upload_passes_no_bwlimit() {
+        assert!(
+            !arguments(None)
+                .iter()
+                .any(|argument| argument == "--bwlimit")
+        );
+        assert_eq!(bwlimit(Some(0)), None);
+    }
+
+    #[test]
+    fn every_flag_comes_before_the_paths() {
+        let directory = std::path::Path::new("-release");
+        let moved = args_of(UploadMode::Move, directory, None, "gdrive:-x");
+        let separator = moved.iter().position(|a| a == "--").expect("separator");
+        assert_eq!(moved[separator + 1..], ["-release", "gdrive:-x"]);
+        assert!(
+            moved[..separator]
+                .iter()
+                .any(|a| a == "--delete-empty-src-dirs")
+        );
+        assert_eq!(moved[0], "move");
+        let copied = args_of(UploadMode::Copy, directory, None, "gdrive:x");
+        assert!(!copied.iter().any(|a| a == "--delete-empty-src-dirs"));
+        assert_eq!(copied[0], "copy");
     }
 }

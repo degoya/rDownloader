@@ -7,8 +7,10 @@
  * neither is visible on screen: a block account is asked before the unmetered one, or two servers
  * end up sharing a priority and the order becomes whatever the backend's tiebreak is.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+
+import { api } from '@/api/client'
 
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/usenet.json'
@@ -45,7 +47,16 @@ vi.mock('@nuxt/ui/composables', () => ({
 }))
 
 async function mount() {
-  const view = mountComponent(SettingsUsenetTab, { messages: { usenet: en, common } })
+  const view = mountComponent(SettingsUsenetTab, {
+    messages: { usenet: en, common },
+    // The shared field stub drops the description, and the copy's password hint lives there.
+    stubs: {
+      UFormField: {
+        props: ['label', 'description'],
+        template: '<div><label v-if="label">{{ label }}<slot /></label><slot v-else /><p v-if="description">{{ description }}</p></div>'
+      }
+    }
+  })
   await waitFor(() => expect(screen.getAllByLabelText(en.chain.move_down).length).toBeGreaterThan(0))
   return view
 }
@@ -80,5 +91,64 @@ describe('SettingsUsenetTab chain order', () => {
     await mount()
     expect(screen.getByTitle(en.chain.priority.replace('{priority}', '10')).textContent?.trim()).toBe('1')
     expect(screen.getByTitle(en.chain.priority.replace('{priority}', '30')).textContent?.trim()).toBe('3')
+  })
+})
+
+/**
+ * A copy of a server is a backup of the same provider: same host, port, TLS and connections, a
+ * new name — and never the password, which the browser does not hold (RD-150-12). The service
+ * takes a username only together with a password, so the copy waits in the form for it.
+ */
+describe('SettingsUsenetTab duplicate', () => {
+  function field(label: string): HTMLInputElement {
+    return screen.getByLabelText(label) as HTMLInputElement
+  }
+
+  it('fills the form with the settings, a free name and no password, and sends nothing yet', async () => {
+    vi.mocked(api.POST).mockClear()
+    await mount()
+    const row = screen.getByText('Block').closest('article') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.duplicate }))
+
+    expect(field(en.form.server_name).value).toBe('Block (copy)')
+    expect(field(en.form.host).value).toBe('b.invalid')
+    expect(field(en.form.username).value).toBe('u')
+    expect(field(en.form.password).value).toBe('')
+    expect(screen.getByText(en.form.password_copy.replace('{name}', 'Block'))).toBeTruthy()
+    // Not an edit of the original: the form creates, and nothing was written yet.
+    expect(screen.getByRole('heading', { name: en.form.title_add })).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.form.create_server })).toBeTruthy()
+    expect(api.POST).not.toHaveBeenCalled()
+    await waitFor(() => expect(document.activeElement).toBe(field(en.form.server_name)))
+  })
+
+  it('creates the copy through the ordinary route once the password is typed', async () => {
+    vi.mocked(api.POST).mockClear()
+    await mount()
+    const row = screen.getByText('Block').closest('article') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.duplicate }))
+    await fireEvent.update(field(en.form.password), 'secret')
+    await fireEvent.submit(field(en.form.password).closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(api.POST).toHaveBeenCalled())
+    const [path, init] = vi.mocked(api.POST).mock.calls[0] as unknown as [string, { body: Record<string, unknown> }]
+    expect(path).toBe('/api/v1/usenet/servers')
+    expect(init.body).toMatchObject({ name: 'Block (copy)', host: 'b.invalid', username: 'u', password: 'secret', priority: 40 })
+  })
+})
+
+describe('SettingsUsenetTab form (RD-150-11)', () => {
+  it('puts TLS before the port it decides, and ends with save and the icon-only cross while editing', async () => {
+    await mount()
+    const form = document.querySelector('form') as HTMLFormElement
+    const tls = within(form).getByRole('switch', { name: en.form.tls })
+    const port = within(form).getByLabelText(en.form.port)
+    expect(tls.compareDocumentPosition(port) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const row = screen.getByText('Block').closest('article') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: en.chain.edit }))
+    const actions = Array.from(form.querySelectorAll('[data-form-actions] button'))
+    expect(actions.map(button => button.textContent || button.getAttribute('aria-label')))
+      .toEqual([en.form.save_changes, common.actions.cancel_edit])
   })
 })

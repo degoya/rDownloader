@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { SiteRule } from '@/api/types'
+import { duplicateName } from '@/utils/copyName'
 import {
   STEP_KINDS,
   copyBody,
@@ -157,7 +158,10 @@ describe('a copy of a rule (RD-130-07)', () => {
       rule: body as never,
       check: null
     }
-    const copy = copyBody(rule, [rule], 'copy')
+    // The shared copy name, as `useCopyName()` builds it with the English suffix.
+    const copyName = (original: string, existing: Iterable<string>, maxLength: number) =>
+      duplicateName(original, existing, 'copy', maxLength)
+    const copy = copyBody(rule, [rule], copyName)
     expect(copy).toEqual({ ...body, id: 'my-board-copy', name: 'My board (copy)' })
     // The original's body is not the copy's: editing one leaves the other.
     expect(body.id).toBe('my-board')

@@ -476,6 +476,24 @@ pub trait ResolverHost: Send + Sync {
         ))
     }
 
+    /// Stores one named part of what a sign-in produced, beside its token (RD-150-09).
+    ///
+    /// `name` is a slot the account's provider declares as filled by the flow; the host checks
+    /// that and keeps the part as its own vault entry. Like its siblings there is no way to
+    /// read it back, and a host without a vault refuses.
+    async fn store_flow_secret(
+        &self,
+        _account_id: AccountId,
+        _name: &str,
+        _value: &str,
+    ) -> Result<(), Failure> {
+        Err(Failure::coded(
+            FailureKind::Unsupported,
+            "plugin.store_token_unsupported",
+            "Storing a credential is not supported by this host",
+        ))
+    }
+
     /// Waits out a hoster countdown on the host's clock. Hosts that cannot wait report
     /// `Unsupported`, which keeps a resolver from silently skipping a mandatory delay.
     async fn wait(&self, _client: &ClientIdentity, _seconds: u32) -> Result<(), Failure> {

@@ -53,6 +53,7 @@ fn claim(account_id: AccountId, content_key: &str) -> ClaimRemoteJob {
         content_key: content_key.to_owned(),
         source_kind: RemoteJobSourceKind::Magnet,
         source: MAGNET.as_bytes().to_vec(),
+        source_name: None,
         package_id: None,
     }
 }

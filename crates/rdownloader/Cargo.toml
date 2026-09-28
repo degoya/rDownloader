@@ -26,6 +26,8 @@ rd-plugin-host = { path = "../rd-plugin-host" }
 rd-plugin-transfer = { path = "../rd-plugin-transfer" }
 rd-power = { path = "../rd-power" }
 rd-scheduler = { path = "../rd-scheduler" }
+rd-object-storage = { path = "../rd-object-storage" }
+rd-pack = { path = "../rd-pack" }
 rd-sftp = { path = "../rd-sftp" }
 rd-secrets = { path = "../rd-secrets" }
 rd-sign = { path = "../rd-sign" }

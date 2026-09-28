@@ -71,7 +71,11 @@ impl Writer {
         })
     }
 
-    pub(super) async fn create_download(&mut self, download: NewDownload) -> Result<DownloadFile> {
+    pub(super) async fn create_download(
+        &mut self,
+        download: NewDownload,
+        sources: Option<Box<rd_core::SourceSet>>,
+    ) -> Result<DownloadFile> {
         if !matches!(
             download.initial_state,
             // Skipped joins these two because a mirror is held back from the moment it is
@@ -176,6 +180,12 @@ impl Writer {
                 .await?;
         }
 
+        // The sources of a Metalink file belong to the row from its first moment (RD-150-03):
+        // a transfer that started between two writes would take one mirror for the whole set.
+        if let Some(set) = &sources {
+            crate::download_sources_store::insert_set(&mut tx, download.id, set, now).await?;
+        }
+
         tx.commit().await?;
 
         Ok(DownloadFile {
@@ -248,8 +258,12 @@ impl Writer {
             .await?
             .context(StoreError::not_found("download not found"))?;
         let current: DownloadState = row.get::<String, _>("state").parse()?;
+        // Tagged, so a pause or resume the state does not allow reaches the interface as a
+        // refusal instead of an internal error (RD-150-22).
         if !current.can_transition_to(next) {
-            bail!("invalid download transition {current} -> {next}");
+            bail!(StoreError::wrong_state(format!(
+                "invalid download transition {current} -> {next}"
+            )));
         }
 
         let event = EventEnvelope::new(

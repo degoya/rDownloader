@@ -721,3 +721,78 @@ fn a_provider_that_takes_no_account_may_not_describe_one() {
         assert!(validate_manifest(&manifest).is_err(), "{extra}");
     }
 }
+
+/// RD-150-09: a provider that signs in with a code or takes a pasted API key. The shipped
+/// Real-Debrid row is the example; each rule below refuses one way of getting it wrong.
+#[test]
+fn a_code_or_api_key_provider_describes_each_mode_completely() {
+    const REAL_DEBRID: &str = include_str!("../../../plugins/realdebrid/manifest.toml");
+    const GRANTS: &str = "secrets = [\"realdebrid_access_token\", \"realdebrid_api_token\"]";
+    /// Every slot granted, so a rule of the provider row is what answers and not the grant.
+    const ALL_GRANTED: &str = "secrets = [\"realdebrid_access_token\", \"realdebrid_api_token\", \"realdebrid_client_id\", \"realdebrid_client_secret\"]";
+    let manifest: PluginManifest = toml::from_str(REAL_DEBRID).expect("parse");
+    validate_manifest(&manifest).expect("the Real-Debrid row is valid");
+    // The resolver is not granted the parts the sign-in keeps for itself.
+    assert!(
+        !manifest
+            .capabilities
+            .secrets
+            .iter()
+            .any(|reference| reference.starts_with("realdebrid_client_")),
+    );
+
+    let refused = |changes: &[(&str, &str)], expected: &str| {
+        let mut changed = REAL_DEBRID.to_owned();
+        for (from, to) in changes {
+            assert!(changed.contains(from), "{from} is not in the manifest");
+            changed = changed.replacen(from, to, 1);
+        }
+        let manifest: PluginManifest = toml::from_str(&changed).expect("parse");
+        let error = validate_manifest(&manifest).expect_err(expected);
+        assert!(
+            format!("{error}").contains(expected),
+            "{changes:?}: {error}"
+        );
+    };
+    // The typed token belongs to the key mode and is typed by the person.
+    refused(
+        &[(
+            "mode = \"api_key\"",
+            "mode = \"api_key\"\nfilled_by = \"flow\"",
+        )],
+        "exactly one api_key entry",
+    );
+    // Nothing in the sign-in mode is typed.
+    refused(
+        &[
+            (GRANTS, ALL_GRANTED),
+            (
+                "reference = \"realdebrid_client_secret\"\ndomains = [\"api.real-debrid.com\"]\nmode = \"oauth\"\nfilled_by = \"flow\"",
+                "reference = \"realdebrid_client_secret\"\ndomains = [\"api.real-debrid.com\"]\nmode = \"oauth\"",
+            ),
+        ],
+        "filled_by = \"flow\"",
+    );
+    // No third way in, and no slot without a mode.
+    refused(
+        &[("mode = \"api_key\"", "mode = \"login\"")],
+        "oauth and api_key only",
+    );
+    refused(&[("mode = \"api_key\"\n", "")], "requires a mode");
+    // The sign-in mode is this kind's alone.
+    refused(
+        &[
+            (GRANTS, ALL_GRANTED),
+            (
+                "credentials = \"oauth_or_api_key\"",
+                "credentials = \"login_or_api_key\"",
+            ),
+        ],
+        "login_or_api_key",
+    );
+    // The resolver must be granted the token it sends in either mode.
+    refused(
+        &[(GRANTS, "secrets = [\"realdebrid_api_token\"]")],
+        "realdebrid_access_token is not granted",
+    );
+}

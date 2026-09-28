@@ -100,8 +100,7 @@ pub fn parse_caps(body: &str) -> Result<IndexerCaps> {
                 break;
             }
             Event::DocType(doctype) => {
-                let value = doctype.decode()?;
-                let trimmed = value.trim();
+                let trimmed = doctype.trim();
                 if trimmed.contains(['[', ']']) || trimmed.to_ascii_lowercase().contains("<!entity")
                 {
                     bail!("caps doctype declares an internal subset");
@@ -140,7 +139,7 @@ fn apply(
             .attributes()
             .filter_map(Result::ok)
             .find(|value| local_name(value.key.as_ref()) == key)
-            .map(|value| String::from_utf8_lossy(value.value.as_ref()).into_owned())
+            .map(|value| value.value.into_owned())
     };
     match name {
         "server" => caps.server = attribute("title").or_else(|| attribute("appversion")),
@@ -181,8 +180,8 @@ fn apply(
     }
 }
 
-fn local_name(raw: &[u8]) -> String {
-    String::from_utf8_lossy(raw).to_ascii_lowercase()
+fn local_name(raw: &str) -> String {
+    raw.to_ascii_lowercase()
 }
 
 #[cfg(test)]

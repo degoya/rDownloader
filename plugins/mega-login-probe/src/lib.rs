@@ -32,7 +32,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt, BlockEncrypt, KeyInit},
+    cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit},
 };
 use hmac::{Hmac, Mac};
 use num_bigint::BigUint;
@@ -119,7 +119,7 @@ pub extern "C" fn probe_rsa_csid() -> u32 {
 /// PBKDF2-HMAC-SHA512 for a derived key of at most one hash block.
 fn pbkdf2_hmac_sha512(password: &[u8], salt: &[u8], rounds: u32) -> [u8; 32] {
     let round = |data: &[u8]| -> Vec<u8> {
-        let mut mac = <Hmac<Sha512> as Mac>::new_from_slice(password)
+        let mut mac = <Hmac<Sha512> as KeyInit>::new_from_slice(password)
             .expect("HMAC takes a key of any length");
         mac.update(data);
         mac.finalize().into_bytes().to_vec()
@@ -216,7 +216,7 @@ mod tests {
     fn one_round_of_pbkdf2_is_the_bare_hmac() {
         let derived = pbkdf2_hmac_sha512(b"password", b"salt", 1);
         let mut mac =
-            <Hmac<Sha512> as Mac>::new_from_slice(b"password").expect("a key of any length");
+            <Hmac<Sha512> as KeyInit>::new_from_slice(b"password").expect("a key of any length");
         mac.update(b"salt");
         mac.update(&1_u32.to_be_bytes());
         let expected = mac.finalize().into_bytes();

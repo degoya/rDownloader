@@ -75,6 +75,18 @@ pub fn container_key(bytes: &[u8]) -> Option<String> {
     Some(format!("file:{}", digest(bytes)))
 }
 
+/// The token a container's upload name carries: the first twelve hex digits of the digest its
+/// key is made of.
+///
+/// Premiumize names a transfer, and the folder it finishes into, after the uploaded file's
+/// name, so two uploads under one name share a folder and each job reads the other's files
+/// back (owner report, 2026-09-27). Derived from the bytes, so two containers never share a
+/// name and a container sent again is named as it was the first time.
+#[must_use]
+pub fn upload_tag(bytes: &[u8]) -> String {
+    digest(bytes).chars().take(12).collect()
+}
+
 /// The BitTorrent info hash a magnet's query names, as lower-case hex.
 fn info_hash(query: &str) -> Option<String> {
     for pair in query.split('&') {

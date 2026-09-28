@@ -25,15 +25,16 @@
     "passive": "Passive mode (PASV/EPSV)",
     "passive_hint": "Turn this off only if the server requires active mode.",
     "enabled": "Enabled",
-    "save": "Save",
-    "create": "Create",
-    "cancel": "Cancel",
     "test": "Test",
     "delete": "Delete",
     "delete_confirm": "Delete this login? Downloads using it will fall back to matching by host and port.",
     "incomplete": "This login has no stored credential yet",
     "test_ok": "The server accepted the login",
-    "secrets_note": "Passwords and keys are stored encrypted and are never shown again."
+    "secrets_note": "Passwords and keys are stored encrypted and are never shown again.",
+    "form_new": "New login",
+    "create_action": "Create login",
+    "created": "Login created",
+    "saved": "Login saved"
   },
   "protocols": {
     "ftp": "FTP (no encryption)",
@@ -85,5 +86,90 @@
     "timeout_hint": "Applies to connecting, logging in and waiting for data.",
     "ssh_auto_trust": "Trust an unknown SSH host key on first use",
     "ssh_auto_trust_hint": "Off by default. Even when on, a key that changed is always blocked and never accepted automatically."
+  },
+  "object_storage": {
+    "eyebrow": "Object storage",
+    "title": "Object storage",
+    "description": "Profiles for Amazon S3 and S3-compatible services such as MinIO, Ceph, Wasabi, Backblaze B2 or Cloudflare R2, for Azure Blob Storage and for Google Cloud Storage.",
+    "usage_links": "Paste links such as {link} into the LinkGrabber. A link uses the profile bound to its bucket, otherwise the only enabled profile without a bucket; {named} names one profile explicitly (by name or id).",
+    "usage_upload": "As the post-processing upload target: {target}.",
+    "list_title": "Profiles",
+    "form_new": "New profile",
+    "form_edit": "Edit profile",
+    "credential_source": "Credentials",
+    "sources": {
+      "static": "Stored keys",
+      "ambient": "This machine's environment",
+      "anonymous": "Anonymous (public bucket)",
+      "shared_access_signature": "Shared access signature (SAS)"
+    },
+    "source_hints": {
+      "static": "An access key ID and secret access key, optionally with a session token.",
+      "ambient": "Uses the credentials of the machine rDownloader runs on: environment variables, web identity, the container (ECS/EKS) or EC2 instance metadata. Nothing is stored here.",
+      "anonymous": "Unsigned requests, for publicly readable buckets only."
+    },
+    "name": "Name",
+    "name_placeholder": "Backup bucket",
+    "endpoint": "Endpoint",
+    "endpoint_description": "Empty for AWS S3 in the region below. TLS certificates are always validated; a private certificate authority goes into the custom CA under Network. http:// only for a local endpoint.",
+    "region": "Region",
+    "region_description": "Required for AWS; many S3-compatible services accept any value or us-east-1.",
+    "bucket": "Bucket",
+    "bucket_description": "Optional. Links to this bucket use this profile; left empty, the profile serves any bucket.",
+    "any_bucket": "any bucket",
+    "addressing": "Addressing",
+    "addressing_description": "Automatic: virtual-host style for AWS, path style with a custom endpoint.",
+    "addressing_modes": {
+      "auto": "Automatic",
+      "path": "Path style (endpoint/bucket/key)",
+      "virtual_host": "Virtual-host style (bucket.endpoint/key)"
+    },
+    "access_key_id": "Access key ID",
+    "secret_access_key": "Secret access key",
+    "secret_keep": "Stored. Leave empty to keep the stored secret.",
+    "secrets_note": "Secrets are stored encrypted and are never shown again.",
+    "session_token": "Session token",
+    "session_token_description": "Optional, for temporary credentials.",
+    "session_token_keep": "Stored. Leave empty to keep the stored token.",
+    "clear_session_token": "Remove the stored session token",
+    "checksums": "Send checksums with uploads",
+    "checksums_description": "Every uploaded part carries a SHA-256 checksum the service verifies on receipt. Switch off only for a compatible service that refuses it.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "incomplete": "No secret stored",
+    "create": "Create profile",
+    "created": "Profile created",
+    "saved": "Profile saved",
+    "test": "Test",
+    "test_ok": "{name}: the service answered and accepted the request.",
+    "delete_title": "Delete profile",
+    "delete_description": "Delete {name}? Links and upload targets that use this profile stop working until another profile serves them.",
+    "empty": "No object storage profiles yet.",
+    "provider": "Service",
+    "providers": {
+      "s3": "Amazon S3 and S3-compatible services",
+      "azure": "Azure Blob Storage",
+      "gcs": "Google Cloud Storage"
+    },
+    "azure_hints": {
+      "static": "The storage account's access key.",
+      "shared_access_signature": "A SAS token or the whole SAS URL. When it expires, enter a new one here; downloads already started continue where they stopped.",
+      "ambient": "Uses the identity of the machine rDownloader runs on: a service principal (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID), a workload identity or a managed identity. Nothing is stored here.",
+      "anonymous": "Unsigned requests, for publicly readable containers only."
+    },
+    "gcs_hints": {
+      "static": "The content of a service account's JSON key file.",
+      "ambient": "Uses the machine's application default credentials (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login) or its metadata server. Nothing is stored here.",
+      "anonymous": "Unsigned requests, for publicly readable buckets only."
+    },
+    "account": "Storage account",
+    "account_description": "The account's name: 3 to 24 lowercase letters and digits.",
+    "container": "Container",
+    "container_description": "Optional. Links into this container use this profile; left empty, the profile serves any container of the account.",
+    "endpoint_description_azure": "Empty for the account's blob service (<account>.blob.core.windows.net). An address of its own for Azurite or another Azure cloud, such as http://127.0.0.1:10000/devstoreaccount1. TLS certificates are always validated.",
+    "endpoint_description_gcs": "Empty for storage.googleapis.com. An address of its own only for an emulator or a service in front of it. TLS certificates are always validated.",
+    "account_key": "Account key",
+    "sas": "Shared access signature",
+    "service_account_key": "Service account key (JSON)"
   }
 }

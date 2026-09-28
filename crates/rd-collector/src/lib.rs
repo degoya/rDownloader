@@ -17,7 +17,7 @@ pub use dlc::{
     DLCRYPT_DEST_TYPE, DlcContainer, DlcDocument, DlcFile, DlcPackage, MAX_DLC_BYTES, decrypt_dlc,
     split_dlc_container,
 };
-pub use grouping::{Group, GroupInput, common_stem, group_links};
+pub use grouping::{Group, GroupInput, common_stem, container_name, group_links};
 pub use links::{canonical_url, extract_urls};
 pub use mirror_separations::MirrorSeparations;
 pub use mirrors::{MirrorInput, group_mirrors, language_of, quality_of};

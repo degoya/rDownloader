@@ -125,7 +125,6 @@
       "label": "Change permissions",
       "hint": "The token value stays the same: the client keeps working and reaches the new areas from its next request onwards. Removing everything is not possible here — revoke the token for that.",
       "save": "Save permissions",
-      "cancel": "Cancel",
       "done": "Permissions changed",
       "empty": "Choose at least one area, or revoke the token."
     },
@@ -167,7 +166,8 @@
     "sensitive": "Sensitive",
     "sensitive_warning": "This token will be able to read stored credentials or administer the service. Nothing else grants either, so give it only to a client that genuinely needs it.",
     "also_includes": "Also includes: {areas}",
-    "minted_areas": "This token holds: {areas}"
+    "minted_areas": "This token holds: {areas}",
+    "label_label": "Client name"
   },
   "readiness": {
     "eyebrow": "Setup",
@@ -351,5 +351,20 @@
     "idle_description": "Hours without a request before you have to sign in again. 1 to 720 (30 days).",
     "max_label": "Maximum lifetime",
     "max_description": "Hours from signing in after which it ends, even in the middle of work. 1 to 2160 (90 days)."
+  },
+  "extension": {
+    "connected_title": "Browser extension connected",
+    "connected_description": "A browser extension has just reported in. Accounts that take over your browser's sign-in receive the session through it.",
+    "missing_title": "No browser extension has reported in yet",
+    "missing_description": "Checked every few seconds; once the extension is paired and reports in, it shows here.",
+    "why": "Hoster accounts that take over your browser's sign-in — DDownload, for example — need the rDownloader browser extension: only it can hand the session over from the browser. Pairing is optional; without the extension, a username and password or an API key remain.",
+    "step_install": "Install the rDownloader extension in the browser you are signed in to the hoster with.",
+    "step_pair": "Press “Pair” below: rDownloader shows a token once — copy it.",
+    "step_options": "In the extension options enter {origin} as the server URL, paste the token, press “Test connection”, then “Save”.",
+    "default_label": "Browser extension",
+    "pair_title": "Pair the browser extension",
+    "modal_title": "Pair the browser extension",
+    "modal_description": "The sign-in at the hoster comes from your browser, and only the extension can hand it over. Pair it here without leaving the page.",
+    "done": "Done"
   }
 }

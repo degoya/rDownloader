@@ -17,9 +17,10 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SubscriptionArchive from '@/components/SubscriptionArchive.vue'
 import SubscriptionForm from '@/components/SubscriptionForm.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { duplicateName } from '@/utils/copyName'
+import { useCopyName } from '@/composables/useCopyName'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import { formatMoment } from '@/utils/format'
+import { translateServerMessage } from '@/i18n/server'
 
 /** Matches `MAX_NAME` in `crates/rd-api/src/subscription_handlers.rs`. */
 const MAX_SUBSCRIPTION_NAME = 200
@@ -27,6 +28,7 @@ const MAX_SUBSCRIPTION_NAME = 200
 const { t } = useI18n()
 const store = useSubscriptionsStore()
 const confirm = useConfirm()
+const copyName = useCopyName()
 const categories = ref<Category[]>([])
 const editing = ref<string | null>(null)
 const subscriptionForm = ref<InstanceType<typeof SubscriptionForm> | null>(null)
@@ -103,7 +105,7 @@ function toggleDetails(subscription: Subscription): void {
   expanded.value = expanded.value === subscription.id ? null : subscription.id
 }
 
-/// Copies a subscription as the starting point for a similar one.
+/// Copies a subscription as the starting point for a similar one, and opens the copy in the form.
 ///
 /// Client-side, on the ordinary create endpoint, the way category rules have done it for a
 /// while — there is nothing a server-side clone would do better.
@@ -114,12 +116,7 @@ function toggleDetails(subscription: Subscription): void {
 /// seen, when it last ran, its failure count — belongs to the original and is not copied.
 async function duplicate(subscription: Subscription): Promise<void> {
   const body: SubscriptionRequest = {
-    name: duplicateName(
-      subscription.name,
-      store.subscriptions.map(entry => entry.name),
-      t('subscriptions.list.copy_suffix'),
-      MAX_SUBSCRIPTION_NAME
-    ),
+    name: copyName(subscription.name, store.subscriptions.map(entry => entry.name), MAX_SUBSCRIPTION_NAME),
     url: subscription.url,
     kind: subscription.kind,
     enabled: false,
@@ -142,11 +139,21 @@ async function duplicate(subscription: Subscription): Promise<void> {
     category_map: [...(subscription.category_map ?? [])],
     source_categories: [...(subscription.source_categories ?? [])],
     schedule: subscription.schedule ?? null,
+    script_arguments: [...(subscription.script_arguments ?? [])],
     api_key: null
   }
-  // The new row appearing in the list is the feedback; a failure surfaces through the store's
-  // own error, the same way creating one from the form does.
-  await store.create(body)
+  // A failure surfaces through the store's own error, the same way creating one from the form
+  // does. The copy is made to be changed, so it opens in the form like every other list's copy
+  // (RD-150-12); the copy name is free, which is what finds it in the refreshed list.
+  if (!await store.create(body)) return
+  const copy = store.subscriptions.find(entry => entry.name === body.name)
+  if (copy) edit(copy)
+}
+
+/// A poll's error is free text, except where a run reports a stable code, such as a batch file
+/// Windows refused to start with the arguments it was given (RD-150-08).
+function pollError(value: string): string {
+  return translateServerMessage({ code: value, message: value })
 }
 
 /// Deletes a subscription, after asking.
@@ -193,7 +200,7 @@ const MODE_ICONS: Record<Subscription['mode'], string> = {
 function rowActions(subscription: Subscription) {
   return [[
     { label: t('common.actions.edit'), icon: 'i-lucide-pencil', onSelect: () => edit(subscription) },
-    { label: t('subscriptions.actions.duplicate'), icon: 'i-lucide-copy', onSelect: () => { void duplicate(subscription) } }
+    { label: t('subscriptions.actions.duplicate'), icon: 'i-lucide-copy-plus', onSelect: () => { void duplicate(subscription) } }
   ], [
     { label: t('common.actions.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { void removeSubscription(subscription) } }
   ]]
@@ -216,16 +223,15 @@ function rowActions(subscription: Subscription) {
           :description="notice.text"
         />
 
-        <FormListLayout>
+        <FormListLayout :list-title="t('subscriptions.list.title')" :count="store.subscriptions.length">
           <template #form>
             <SubscriptionForm ref="subscriptionForm" v-model:editing="editing" :categories="categories" />
           </template>
+          <template #list-actions>
+            <AreaBackupButtons area="subscriptions" @imported="store.refresh()" />
+          </template>
           <template #list>
             <section class="border border-muted bg-default p-5">
-              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 class="text-sm font-semibold">{{ t('subscriptions.list.title') }}</h2>
-                <AreaBackupButtons area="subscriptions" @imported="store.refresh()" />
-              </div>
               <DataState :loading="store.loading" :empty="!store.error && !store.subscriptions.length" variant="inline" :rows="3">
                 <p class="text-sm text-muted">{{ t('subscriptions.list.empty') }}</p>
               </DataState>
@@ -277,7 +283,7 @@ function rowActions(subscription: Subscription) {
                     </div>
                   </div>
                   <p class="truncate text-xs text-muted">{{ subscription.url }}</p>
-                  <p v-if="subscription.last_error" class="text-xs text-error">{{ subscription.last_error }}</p>
+                  <p v-if="subscription.last_error" class="text-xs text-error">{{ pollError(subscription.last_error) }}</p>
                   <p v-else-if="subscription.last_run_at" class="text-xs text-muted">
                     {{ t('subscriptions.list.last_run', { at: formatMoment(subscription.last_run_at) }) }}
                   </p>

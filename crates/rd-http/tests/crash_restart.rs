@@ -586,3 +586,237 @@ fn every_http_crash_point_is_exercised_by_a_case() {
         );
     }
 }
+
+/// A range server over a small payload for the multi-source case, lying on request: with
+/// `flip` every byte it sends is inverted, which is what a mirror serving a different file
+/// looks like to a piece hash.
+async fn serve_mirror(payload: Arc<Vec<u8>>, flip: bool) -> SocketAddr {
+    async fn handler(
+        State((payload, flip)): State<(Arc<Vec<u8>>, bool)>,
+        headers: HeaderMap,
+    ) -> Response {
+        let (start, end) = headers
+            .get(axum::http::header::RANGE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("bytes="))
+            .and_then(|value| value.split_once('-'))
+            .map(|(start, end)| {
+                (
+                    start.parse::<usize>().expect("range start"),
+                    end.parse::<usize>().expect("range end"),
+                )
+            })
+            .expect("the multi-source engine always asks for a bounded range");
+        let mut slice = payload[start..=end].to_vec();
+        if flip {
+            slice.iter_mut().for_each(|byte| *byte = !*byte);
+        }
+        Response::builder()
+            .status(axum::http::StatusCode::PARTIAL_CONTENT)
+            .header(
+                axum::http::header::CONTENT_RANGE,
+                format!("bytes {start}-{end}/{}", payload.len()),
+            )
+            .body(axum::body::Body::from(slice))
+            .expect("response")
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let address = listener.local_addr().expect("addr");
+    let app = Router::new()
+        .route("/payload", get(handler))
+        .with_state((payload, flip));
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    address
+}
+
+/// What a multi-source run told its ledger, kept the way the database would keep it.
+#[derive(Default)]
+struct RecordingLedger {
+    committed: Mutex<std::collections::HashMap<ChunkId, u64>>,
+    marks: Mutex<std::collections::HashMap<ChunkId, (Option<u32>, bool)>>,
+    isolated: Mutex<Vec<u32>>,
+}
+
+#[async_trait::async_trait]
+impl CheckpointSink for RecordingLedger {
+    async fn commit(&self, chunk_id: ChunkId, committed_offset: u64) -> anyhow::Result<()> {
+        self.committed
+            .lock()
+            .expect("lock")
+            .insert(chunk_id, committed_offset);
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl rd_http::SourceLedger for RecordingLedger {
+    async fn source_delivered(&self, _position: u32, _bytes: u64) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn source_failed(
+        &self,
+        _position: u32,
+        _code: &str,
+        _retry_after_seconds: Option<u64>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn source_isolated(&self, position: u32, _code: &str) -> anyhow::Result<()> {
+        self.isolated.lock().expect("lock").push(position);
+        Ok(())
+    }
+
+    async fn chunk_marked(
+        &self,
+        chunk_id: ChunkId,
+        position: Option<u32>,
+        verified: bool,
+    ) -> anyhow::Result<()> {
+        let mut marks = self.marks.lock().expect("lock");
+        let entry = marks.entry(chunk_id).or_insert((None, false));
+        *entry = (position.or(entry.0), verified);
+        Ok(())
+    }
+
+    async fn chunk_rewound(&self, chunk_id: ChunkId, committed: u64) -> anyhow::Result<()> {
+        self.committed
+            .lock()
+            .expect("lock")
+            .insert(chunk_id, committed);
+        if let Some(mark) = self.marks.lock().expect("lock").get_mut(&chunk_id) {
+            mark.1 = false;
+        }
+        Ok(())
+    }
+}
+
+/// `http.before_piece_check`: a chunk of a Metalink file was confirmed and not yet checked.
+///
+/// The first run fetches from a mirror that sends wrong bytes and stops at the first chunk it
+/// completes, before the check. The restart is handed what the database would hold — the
+/// confirmed offsets and, for every complete chunk, the source named for it — and only an
+/// honest mirror. It must check the complete chunk before building on it, isolate the mirror
+/// that sent it, fetch the refused pieces again and end with the payload's exact bytes.
+#[tokio::test]
+async fn a_chunk_confirmed_but_unchecked_is_checked_before_the_file_completes() {
+    const PIECE: u64 = 16 * 1024;
+    let bytes: Vec<u8> = (0..4 * PIECE as usize)
+        .map(|index| (index % 251) as u8)
+        .collect();
+    let payload = Arc::new(bytes);
+    let liar = serve_mirror(Arc::clone(&payload), true).await;
+    let honest = serve_mirror(Arc::clone(&payload), false).await;
+    let pieces = Arc::new(rd_core::PieceHashes {
+        algorithm: rd_core::ChecksumAlgorithm::Sha256,
+        length: PIECE,
+        hashes: payload.chunks(PIECE as usize).map(sha256).collect(),
+    });
+    let total = payload.len() as u64;
+    let layout: Vec<ChunkSpec> = [0, 2 * PIECE]
+        .into_iter()
+        .map(|start| ChunkSpec {
+            id: ChunkId::new(),
+            start,
+            end: Some(start + 2 * PIECE),
+            committed: start,
+        })
+        .collect();
+    let directory = tempfile::tempdir().expect("tempdir");
+    let part_path = directory.path().join("payload.part");
+    let ledger = Arc::new(RecordingLedger::default());
+    let source = |position: u32, address: SocketAddr| rd_http::SourceEndpoint {
+        position,
+        url: format!("http://{address}/payload").parse().expect("url"),
+        headers: Vec::new(),
+    };
+    let engine = DownloadEngine::new(reqwest::Client::new(), ScopedLimiter::unlimited());
+
+    let guard = FailpointGuard::once("http.before_piece_check");
+    let first = engine
+        .download_from_sources(
+            rd_http::MultiSourceRequest {
+                part_path: part_path.clone(),
+                total_bytes: total,
+                chunks: layout.clone(),
+                sources: vec![source(0, liar)],
+                parallel_sources: 1,
+                pieces: Some(Arc::clone(&pieces)),
+                unverified: std::collections::HashMap::new(),
+            },
+            ledger.clone(),
+            CancellationToken::new(),
+        )
+        .await;
+    assert!(guard.fired(), "the crash point was never reached");
+    assert!(
+        first.is_err(),
+        "the interrupted run must not report success"
+    );
+
+    // What a restart reads back: the confirmed offsets and the marks.
+    let committed = ledger.committed.lock().expect("lock").clone();
+    let marks = ledger.marks.lock().expect("lock").clone();
+    // The first run may already have refused the other chunk before the crash stopped it; the
+    // case asks that the restart isolates the liar itself, once.
+    ledger.isolated.lock().expect("lock").clear();
+    let resumed: Vec<ChunkSpec> = layout
+        .iter()
+        .map(|chunk| ChunkSpec {
+            committed: committed.get(&chunk.id).copied().unwrap_or(chunk.start),
+            ..chunk.clone()
+        })
+        .collect();
+    assert!(
+        resumed.iter().any(ChunkSpec::is_complete),
+        "the crash left no complete chunk to check"
+    );
+    let unverified = resumed
+        .iter()
+        .filter(|chunk| chunk.is_complete())
+        .map(|chunk| {
+            let (position, verified) = marks.get(&chunk.id).copied().unwrap_or((None, false));
+            assert!(!verified, "a chunk was checked before the crash point");
+            assert_eq!(position, Some(0), "the complete chunk names no source");
+            (chunk.id, position)
+        })
+        .collect();
+
+    let outcome = engine
+        .download_from_sources(
+            rd_http::MultiSourceRequest {
+                part_path: part_path.clone(),
+                total_bytes: total,
+                chunks: resumed,
+                sources: vec![source(1, honest)],
+                parallel_sources: 1,
+                pieces: Some(pieces),
+                unverified,
+            },
+            ledger.clone(),
+            CancellationToken::new(),
+        )
+        .await
+        .expect("the honest mirror completes the file");
+
+    assert_eq!(outcome, DownloadOutcome::Complete);
+    // 1 and 2: nothing the liar sent survives as confirmed. 3: the exact bytes.
+    assert_eq!(
+        sha256(&std::fs::read(&part_path).expect("part file")),
+        sha256(&payload)
+    );
+    assert_eq!(*ledger.isolated.lock().expect("lock"), vec![0]);
+    // 4: nothing but the part file in the working directory.
+    let strays: Vec<_> = std::fs::read_dir(directory.path())
+        .expect("read the working directory")
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name != "payload.part")
+        .collect();
+    assert!(strays.is_empty(), "files left behind: {strays:?}");
+}

@@ -17,6 +17,20 @@ export const TARGETS = ['chrome', 'firefox']
 export const FIREFOX_MIN_VERSION = '156.0'
 export const CHROME_MIN_VERSION = '153'
 
+/**
+ * What the add-on sends off the device, as AMO asks every new add-on to declare it. Everything
+ * goes only to the rDownloader the person configured, never to us, but Mozilla's categories
+ * do not distinguish a self-hosted server, so the declaration names what travels:
+ * - always: the addresses of links and downloads handed over (`browsingActivity`) and the
+ *   downloads the add-on takes over (`websiteActivity`);
+ * - only with the optional `cookies` grant: cookies and headers of a session handover or a
+ *   protected download (`websiteContent`).
+ */
+export const FIREFOX_DATA_COLLECTION = {
+  required: ['browsingActivity', 'websiteActivity'],
+  optional: ['websiteContent']
+}
+
 /** Permissions only the Firefox build carries: what copying a response takes (RD-130-16). */
 export const FIREFOX_ONLY_PERMISSIONS = ['webRequestBlocking', 'webRequestFilterResponse']
 
@@ -35,7 +49,13 @@ export function manifestFor(target, base) {
     // probably work. 115 was an ESR guess nobody tested; the project develops against the
     // current release and says so, so a browser below it refuses the install instead of
     // running untested (RD-109-47). Raise it when the supported version moves.
-    manifest.browser_specific_settings = { gecko: { id: 'rdownloader@degoya.de', strict_min_version: FIREFOX_MIN_VERSION } }
+    manifest.browser_specific_settings = {
+      gecko: {
+        id: 'rdownloader@degoya.de',
+        strict_min_version: FIREFOX_MIN_VERSION,
+        data_collection_permissions: FIREFOX_DATA_COLLECTION
+      }
+    }
     // The response copy of RD-130-16: `filterResponseData` needs both, and a Manifest V3 add-on
     // the second one as well. Neither reaches a page without the host grant the person gives per
     // site. Chrome has no such API and refuses `webRequestBlocking` outside a policy install.

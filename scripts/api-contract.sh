@@ -33,14 +33,13 @@ done
 
 # rust-embed pulls web/dist in at compile time, so the binary cannot build without it. But
 # nothing this script produces depends on the bundle's *contents*: the `openapi` subcommand
-# serves no assets, and `npm run generate:api` is a pure transform over the JSON. So a bundle
+# serves no assets, and `pnpm run generate:api` is a pure transform over the JSON. So a bundle
 # has to exist; it does not have to be current.
 #
 # That distinction is the whole point of this function. Refusing a stale one used to lock the
-# door on exactly the branches that need it most: a feature worktree cannot build the frontend
-# (web/node_modules and web/dist are symlinks into the main checkout, and a build through them
-# rewrites the tracked web/components.d.ts and web/auto-imports.d.ts with paths from the wrong
-# tree), so any branch that touched web/src *and* changed a route hit a hard stop here and got
+# door on exactly the branches that need it most: a feature worktree does not build the frontend
+# (web/dist is a symlink into the main checkout, and a build would rewrite that one; until 1.5
+# web/node_modules was one too), so any branch that touched web/src *and* changed a route hit a hard stop here and got
 # "build it in the main checkout" for a build it did not need. Both halves of that guard were
 # right on their own and wrong together. Found on 2026-09-23 by the branch that added
 # GET /api/v1/remote-jobs/providers.
@@ -48,7 +47,7 @@ ensure_web_dist() {
     if scripts/web-dist-stale.sh; then
         return
     fi
-    if [[ -L web/node_modules || -L web/dist ]]; then
+    if [[ -L web/dist ]]; then
         if [[ -f web/dist/index.html ]]; then
             echo "==> web/dist is stale; generating against it anyway"
             echo "    (this script needs a bundle to compile against, not a current one)"
@@ -67,7 +66,7 @@ ensure_web_dist() {
     # predated a new route, the view using that route failed to typecheck, and the regeneration
     # that would have fixed the schema never ran because the typecheck stopped it first. The
     # typecheck belongs after generation, and `check.sh` runs it there.
-    npm run build --prefix web
+    pnpm --dir web run build
 }
 
 ensure_web_dist
@@ -78,7 +77,7 @@ CARGO_BUILD_JOBS="$JOBS" cargo run -j "$JOBS" -p rdownloader --quiet -- openapi 
 printf '\n' >> web/openapi.json
 
 echo "==> generating web/src/api/schema.d.ts"
-npm run generate:api --prefix web
+pnpm --dir web run generate:api
 
 if [[ "$check_only" -eq 1 ]]; then
     if git diff --quiet -- web/openapi.json web/src/api/schema.d.ts; then

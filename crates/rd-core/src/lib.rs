@@ -7,6 +7,7 @@ mod bandwidth;
 mod capture;
 mod collector;
 mod cookie_file;
+mod dedupe;
 mod diagnostics;
 mod download;
 mod error;
@@ -18,6 +19,7 @@ mod ids;
 mod media;
 mod mfa;
 mod network;
+mod object_storage;
 mod postprocess;
 mod recording;
 mod redact;
@@ -26,6 +28,8 @@ mod remote_job;
 mod request_template;
 mod session;
 mod settings;
+mod source_identity;
+mod source_set;
 mod storage;
 mod stream;
 mod stream_schedule;
@@ -66,6 +70,11 @@ pub use cookie_file::{
     CookieFileError, CookieRow, MAX_COOKIE_FILE, earliest_expiry as cookie_earliest_expiry,
     parse as parse_cookie_file, to_netscape_file,
 };
+pub use dedupe::{
+    CODE_COLLISION_SKIPPED, CollisionDecision, CollisionPhase, CollisionPolicy,
+    CollisionPolicySource, EffectiveCollisionPolicy, ReuseCapability, StorageOperationKind,
+    StorageOperationState, effective_collision_policy,
+};
 pub use diagnostics::{
     DEFAULT_LOG_RETENTION_DAYS, DEFAULT_LOG_RETENTION_RECORDS, LOG_RETENTION_DAYS_RANGE,
     LOG_RETENTION_RECORDS_RANGE, LogLevel, LogRetentionSettings,
@@ -85,9 +94,10 @@ pub use ids::{
     BandwidthProfileId, BandwidthWindowId, BatchId, CandidateId, CaptchaId, CaptureAgentId,
     CaptureTokenId, CategoryId, CategoryRuleId, ChunkId, CollectorPackageId, DownloadId, EventId,
     HotFolderId, MfaCredentialId, NotificationDeliveryId, NotificationRuleId, NotificationTargetId,
-    NzbFileId, NzbImportId, NzbSegmentId, PackageId, PluginId, ProxyProfileId, RemoteCredentialId,
-    RemoteJobId, SessionId, StorageRootId, StreamChannelId, StreamScheduleId, StreamScheduledRunId,
-    SubscriptionId, SubscriptionItemId, SubscriptionRunId, UsenetServerId,
+    NzbFileId, NzbImportId, NzbSegmentId, ObjectStorageProfileId, PackageId, PluginId,
+    ProxyProfileId, RemoteCredentialId, RemoteJobId, SessionId, StorageRootId, StreamChannelId,
+    StreamScheduleId, StreamScheduledRunId, SubscriptionId, SubscriptionItemId, SubscriptionRunId,
+    UsenetServerId,
 };
 pub use media::{
     AudioCodecFamily, AudioTrack, AudioTrackPolicy, CONTAINERS, ContainerCapabilities,
@@ -106,6 +116,12 @@ pub use media::{
 };
 pub use mfa::{MfaCredential, MfaKind, MfaStatus};
 pub use network::{Account, ProxyKind, ProxyProfile, ResolverPin, ResolverRoute};
+pub use object_storage::{
+    MAX_OBJECT_ACCESS_KEY, MAX_OBJECT_ENDPOINT, MAX_OBJECT_KEY, MAX_OBJECT_SECRET,
+    OBJECT_STORAGE_PROVIDER, ObjectAddress, ObjectAddressing, ObjectCredentialSource,
+    ObjectStorageProfile, ObjectStorageProvider, ProfileChoiceError, is_valid_bucket_name,
+    is_valid_container_name, is_valid_gcs_bucket_name, select_profile,
+};
 pub use postprocess::{
     ExtractionResult, PackageState, PostprocessHold, PostprocessHoldGuard, PostprocessLevel,
     PostprocessStage, PostprocessStatus, is_par2_index, is_par2_volume, par2_volume_belongs_to,
@@ -144,6 +160,15 @@ pub use session::{
     SESSION_IDLE_HOURS_RANGE, SESSION_MAX_HOURS_RANGE, Session, SessionLimits, truncate_user_agent,
 };
 pub use settings::{PostprocessSettings, ServiceSwitches};
+pub use source_identity::{
+    SourceIdentity, SourceIdentityKind, magnet_info_hash, normalized_url as normalized_source_url,
+};
+pub use source_set::{
+    CODE_INTERNAL_ADDRESS, CODE_NO_USABLE_SOURCE, CODE_PIECE_MISMATCH, CODE_SOURCE_SIZE_MISMATCH,
+    DownloadSource, MAX_PIECE_LENGTH, MAX_PIECES, MAX_SOURCE_URL, MAX_SOURCES, MIN_PIECE_LENGTH,
+    PieceHashes, SetSource, SourceOutcome, SourceProtocol, SourceSet, SourceState, StatedHash,
+    metalink_algorithm, source_backoff,
+};
 pub use storage::{
     DEFAULT_MINIMUM_FREE_BYTES, DEFAULT_UNKNOWN_SIZE_HEADROOM, MAX_UNKNOWN_SIZE_HEADROOM,
     StorageSettings,
@@ -156,12 +181,13 @@ pub use stream_schedule::{
 pub use subscription::{
     BacklogPolicy, CategoryMapping, DEFAULT_POLL_INTERVAL_SECONDS, FilterReason,
     MAX_CATEGORY_MAPPINGS, MAX_FILTER_PATTERNS, MAX_ITEM_KEY, MAX_ITEMS_PER_POLL,
-    MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS, SCRIPT_URL_SCHEME,
-    SITE_RULE_MIN_POLL_INTERVAL_SECONDS, Subscription, SubscriptionBulkStateResponse,
-    SubscriptionCardRatio, SubscriptionFilters, SubscriptionHistoryClearResponse, SubscriptionItem,
-    SubscriptionItemCounts, SubscriptionItemPage, SubscriptionItemState, SubscriptionKind,
-    SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun,
-    SubscriptionSettings, SubscriptionView,
+    MAX_POLL_INTERVAL_SECONDS, MAX_SCRIPT_ARGUMENT_CHARS, MAX_SCRIPT_ARGUMENTS,
+    MIN_POLL_INTERVAL_SECONDS, SCRIPT_URL_SCHEME, SITE_RULE_MIN_POLL_INTERVAL_SECONDS,
+    Subscription, SubscriptionBulkStateResponse, SubscriptionCardRatio, SubscriptionFilters,
+    SubscriptionHistoryClearResponse, SubscriptionItem, SubscriptionItemCounts,
+    SubscriptionItemPage, SubscriptionItemState, SubscriptionKind, SubscriptionMode,
+    SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun, SubscriptionSettings,
+    SubscriptionView,
 };
 pub use toolpath::{
     ManagedTool, ManagedToolResolver, ManagedToolSettings, ResolvedTool, ToolLease, ToolSource,

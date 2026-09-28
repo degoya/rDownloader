@@ -52,8 +52,8 @@ www.tracker.example
 ads.example.org</pre>
       </div>
     </section>
-    <section class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
-      <div class="space-y-4 md:col-span-2">
+    <section class="border border-muted bg-default p-5">
+      <div class="space-y-4">
         <div>
           <SectionHeader
             :eyebrow="t('settings.collector.dlc.eyebrow')"
@@ -62,14 +62,13 @@ ads.example.org</pre>
             level="sub"
           />
         </div>
-        <div class="flex items-center justify-between gap-5 border-t border-muted pt-4">
-          <div>
-            <p class="text-sm font-medium text-highlighted">{{ t('settings.collector.dlc.enabled.label') }}</p>
-            <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.collector.dlc.enabled.description') }}</p>
-            <p v-if="settings.dlc_service_enabled" class="mt-1 text-xs leading-5 text-warning">{{ t('settings.collector.dlc.enabled.warning') }}</p>
-          </div>
-          <USwitch v-model="settings.dlc_service_enabled" :aria-label="t('settings.collector.dlc.enabled.label')" />
-        </div>
+        <UFormField :label="t('settings.collector.dlc.enabled.label')" orientation="horizontal" class="border-t border-muted pt-4">
+          <template #description>
+            {{ t('settings.collector.dlc.enabled.description') }}
+            <span v-if="settings.dlc_service_enabled" class="mt-1 block text-warning">{{ t('settings.collector.dlc.enabled.warning') }}</span>
+          </template>
+          <USwitch v-model="settings.dlc_service_enabled" />
+        </UFormField>
         <UFormField
           :label="t('settings.collector.dlc.endpoint.label')"
           :description="t('settings.collector.dlc.endpoint.description')"
@@ -85,8 +84,8 @@ ads.example.org</pre>
       </div>
     </section>
 
-    <section class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
-      <div class="space-y-4 md:col-span-2">
+    <section class="border border-muted bg-default p-5">
+      <div class="space-y-4">
         <div>
           <SectionHeader
             :eyebrow="t('settings.collector.indexer_images.eyebrow')"
@@ -95,16 +94,9 @@ ads.example.org</pre>
             level="sub"
           />
         </div>
-        <div class="flex items-center justify-between gap-5 border-t border-muted pt-4">
-          <div>
-            <p class="text-sm font-medium text-highlighted">{{ t('settings.collector.indexer_images.enabled.label') }}</p>
-            <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.collector.indexer_images.enabled.description') }}</p>
-          </div>
-          <USwitch
-            v-model="settings.subscription_item_images_enabled"
-            :aria-label="t('settings.collector.indexer_images.enabled.label')"
-          />
-        </div>
+        <UFormField :label="t('settings.collector.indexer_images.enabled.label')" :description="t('settings.collector.indexer_images.enabled.description')" orientation="horizontal" class="border-t border-muted pt-4">
+          <USwitch v-model="settings.subscription_item_images_enabled" />
+        </UFormField>
       </div>
     </section>
   </div>

@@ -16,7 +16,7 @@
     "dropbox.is_a_folder": "Diese Dropbox-Adresse ist ein Ordner. Füge sie erneut hinzu, damit der Ordner aufgelistet wird",
     "dropbox.link_access_denied": "Dropbox verweigert den Zugriff auf diesen geteilten Link. Ist er passwortgeschützt, hänge ?link_password=… an die Adresse an; sonst wurde er für jemand anderen freigegeben",
     "dropbox.not_a_dropbox_link": "Dies ist keine Dropbox-Dateiadresse",
-    "dropbox.rate_limited": "Dropbox drosselt diese App. Ihre anderen Links warten so lange, wie Dropbox verlangt",
+    "dropbox.rate_limited": "Dropbox drosselt diese App. Deine anderen Links warten so lange, wie Dropbox verlangt",
     "dropbox.sign_in_required": "Dieses Dropbox-Konto muss erneut angemeldet werden",
     "dropbox.unavailable": "Dropbox ist vorübergehend nicht erreichbar"
   }

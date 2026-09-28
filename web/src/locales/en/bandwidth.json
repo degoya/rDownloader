@@ -34,7 +34,8 @@
     "daily": "Today ({period})",
     "monthly": "This month ({period})",
     "usage": "{used} of {limit}",
-    "budget_exhausted": "The traffic budget is used up. Running transfers finish; nothing new starts until the period rolls over."
+    "budget_exhausted": "The traffic budget is used up. Running transfers finish; nothing new starts until the period rolls over.",
+    "upload_binding": "Strictest upload limit"
   },
   "capabilities": {
     "title": "What a limit cannot fully reach"
@@ -51,8 +52,8 @@
     "parallel_description": "Caps the queue while active; empty keeps the general setting.",
     "inherit": "Keep setting",
     "download_label": "Download limit",
-    "upload_label": "Torrent upload limit",
-    "upload_description": "Only the torrent engine uploads.",
+    "upload_label": "Upload limit",
+    "upload_description": "Applies to every upload: torrent seeding, object storage, rclone and upload destinations.",
     "daily_label": "Daily budget",
     "monthly_label": "Monthly budget",
     "no_budget": "No budget",
@@ -99,6 +100,8 @@
     "wraps": "This window runs past midnight into the next day.",
     "empty": "No window yet — the default profile applies around the clock.",
     "needs_profile": "Create a profile first.",
-    "windows_title": "Time windows"
+    "windows_title": "Time windows",
+    "days_label": "Days",
+    "duplicate_hint": "Adds a copy of the window right below it; it is stored with the schedule"
   }
 }

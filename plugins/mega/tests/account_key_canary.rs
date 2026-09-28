@@ -18,7 +18,7 @@
 
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt, BlockEncrypt, KeyInit},
+    cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit},
 };
 use mega_common::{Target, api, crypto};
 use rd_plugin_mega::{messages, plan};

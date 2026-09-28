@@ -6,7 +6,7 @@ use url::Url;
 /// Compiled once. `parse_link_list` calls `extract_urls` per line, so rebuilding this made a
 /// large pasted list pay for tens of thousands of regex compilations to run as many matches.
 static URL_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(https?://|magnet:\?|ftps?://|sftp://|webdavs?://|davs?://)[^\s<>\"]+"#)
+    Regex::new(r#"(https?://|magnet:\?|ftps?://|sftp://|webdavs?://|davs?://|s3://|az://|gs://)[^\s<>\"]+"#)
         .expect("static URL regex")
 });
 
@@ -45,7 +45,9 @@ pub fn canonical_url(mut url: Url) -> Url {
     // Hoster aliasing rewrites the host *and* forces https, which would turn an `ftp://`
     // link into an HTTP one. The remote transfer schemes address a specific server and are
     // never aliases of a filehoster, so they are left exactly as typed.
-    if rd_core::RemoteProtocol::from_url_scheme(url.scheme()).is_some() {
+    if rd_core::RemoteProtocol::from_url_scheme(url.scheme()).is_some()
+        || rd_core::ObjectStorageProvider::from_scheme(url.scheme()).is_some()
+    {
         return url;
     }
     let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
@@ -164,6 +166,30 @@ pub(crate) mod tests {
         );
         let schemes: Vec<&str> = urls.iter().map(Url::scheme).collect();
         assert_eq!(schemes, ["ftp", "sftp", "davs", "ftps"]);
+    }
+
+    #[test]
+    fn object_storage_links_are_picked_up() {
+        let urls = extract_urls("see s3://media-bucket/shows/e01.mkv, and s3://media-bucket/b/");
+        let found: Vec<&str> = urls.iter().map(Url::as_str).collect();
+        assert_eq!(
+            found,
+            ["s3://media-bucket/shows/e01.mkv", "s3://media-bucket/b/"]
+        );
+    }
+
+    #[test]
+    fn azure_and_google_links_are_picked_up_as_typed() {
+        let urls = extract_urls("az://media/shows/e01.mkv gs://media_bucket/b/ (gs://x-y/z.bin)");
+        let found: Vec<&str> = urls.iter().map(Url::as_str).collect();
+        assert_eq!(
+            found,
+            [
+                "az://media/shows/e01.mkv",
+                "gs://media_bucket/b/",
+                "gs://x-y/z.bin"
+            ]
+        );
     }
 
     #[test]

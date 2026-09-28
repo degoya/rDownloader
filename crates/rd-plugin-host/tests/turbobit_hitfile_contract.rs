@@ -1,5 +1,7 @@
-//! Criterion 3 of RD-103-10 and RD-103-11: the native fallback and the signed component of
+//! Criterion 3 of RD-103-10 and RD-103-11: the host-side build and the signed component of
 //! each brand pass the same contract, on the same fixtures, against the same scripted host.
+//! The host-side build is not a fallback any more (RD-150-18: nothing is compiled into the
+//! service); it is what each plugin crate's own unit tests run on.
 //!
 //! Every scenario is run twice — once through `TurbobitResolver`/`HitfileResolver` and once
 //! through `ComponentResolver` over the built `.wasm` — and the two runs must agree on the

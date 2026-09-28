@@ -78,6 +78,12 @@ pub struct SubscriptionRequest {
     /// one; empty or absent keeps the interval.
     #[serde(default)]
     pub schedule: Option<String>,
+    /// The arguments a `script` subscription hands its script, one entry per argument, each
+    /// reaching the script whole as one argv entry -- no shell splits or expands them
+    /// (RD-150-08). At most 32, each at most 1024 characters, without NUL or line breaks;
+    /// every other kind takes none. Stored and returned in plain text: never a secret.
+    #[serde(default)]
+    pub script_arguments: Vec<String>,
     /// Indexer API key (RD-080-11); write-only, and stored in the vault. Omitting it on an
     /// edit keeps the existing key rather than clearing it.
     #[serde(default)]
@@ -221,6 +227,86 @@ fn schedule_input(request: &SubscriptionRequest) -> Result<Option<String>, ApiEr
     Ok(Some(expression.to_owned()))
 }
 
+/// The arguments a script subscription hands its script (RD-150-08), checked one by one.
+///
+/// Nothing is trimmed or dropped: each entry is an argument exactly as the script will see
+/// it, an empty one and a trailing space included. A line break is refused because a batch
+/// file on Windows would end its command line there, and a NUL because no argv can carry one.
+fn script_arguments_input(request: &SubscriptionRequest) -> Result<Vec<String>, ApiError> {
+    let arguments = &request.script_arguments;
+    if arguments.is_empty() {
+        return Ok(Vec::new());
+    }
+    if request.kind != SubscriptionKind::Script {
+        return Err(ApiError::unprocessable(
+            "subscription.script_arguments_kind",
+            "Only a script subscription takes arguments",
+        ));
+    }
+    if arguments.len() > rd_core::MAX_SCRIPT_ARGUMENTS {
+        return Err(ApiError::unprocessable(
+            "subscription.script_arguments_too_many",
+            "Too many script arguments",
+        )
+        .with_param("maximum", rd_core::MAX_SCRIPT_ARGUMENTS.to_string()));
+    }
+    for (index, argument) in arguments.iter().enumerate() {
+        let position = (index + 1).to_string();
+        if argument.chars().count() > rd_core::MAX_SCRIPT_ARGUMENT_CHARS {
+            return Err(ApiError::unprocessable(
+                "subscription.script_argument_too_long",
+                "A script argument is too long",
+            )
+            .with_param("position", position)
+            .with_param("maximum", rd_core::MAX_SCRIPT_ARGUMENT_CHARS.to_string()));
+        }
+        if argument.contains(['\0', '\n', '\r']) {
+            return Err(ApiError::unprocessable(
+                "subscription.script_argument_invalid",
+                "A script argument may not contain a line break or a NUL character",
+            )
+            .with_param("position", position));
+        }
+    }
+    Ok(arguments.clone())
+}
+
+/// Records that a script subscription was created or changed (RD-150-08).
+///
+/// Which script runs on this machine, when, and with which arguments is the administrator's
+/// decision, so every such change is kept -- the arguments included, which is one more reason
+/// they must never hold a secret. `involved` is whether a script was on either side of it; a
+/// script turned into another kind is recorded with an empty `script`.
+async fn audit_script_change(
+    state: &AppState,
+    audit: &crate::audit::AuditContext,
+    subscription: &Subscription,
+    change: &str,
+    involved: bool,
+) {
+    if !involved {
+        return;
+    }
+    crate::audit::record(
+        state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::ScriptSubscriptionChanged)
+            .by(audit)
+            .target("subscription", subscription.id)
+            .named(subscription.name.clone())
+            .detail("change", change)
+            .detail("script", subscription.script_name().unwrap_or_default())
+            .detail(
+                "arguments",
+                serde_json::to_string(&subscription.script_arguments).unwrap_or_default(),
+            )
+            .detail(
+                "schedule",
+                subscription.schedule.as_deref().unwrap_or_default(),
+            ),
+    )
+    .await;
+}
+
 /// A script subscription starts code on this machine, so creating one, changing one, or
 /// turning one into something else costs the administration scope (RD-130-19) -- whatever
 /// the route itself costs. `kinds` are the kinds involved: the requested one, and on an edit
@@ -317,6 +403,7 @@ pub(crate) fn subscription_input(
         url
     };
     let schedule = schedule_input(request)?;
+    let script_arguments = script_arguments_input(request)?;
     // Refused rather than clamped: a person who typed 30 seconds should be told the limit,
     // not silently given something twenty times slower than they asked for. The floor is the
     // kind's (RD-110-21), because a board page is not an indexer -- `effective_interval`
@@ -362,6 +449,7 @@ pub(crate) fn subscription_input(
         autoplay: request.autoplay,
         card_ratio,
         schedule,
+        script_arguments,
         secret_ref,
     })
 }
@@ -477,6 +565,7 @@ pub async fn list_subscriptions(
 pub async fn create_subscription(
     State(state): State<AppState>,
     granted: Option<axum::Extension<crate::auth::Granted>>,
+    audit: crate::audit::AuditContext,
     Json(request): Json<SubscriptionRequest>,
 ) -> Result<(StatusCode, Json<Subscription>), ApiError> {
     require_admin_for_script(
@@ -489,7 +578,11 @@ pub async fn create_subscription(
         crate::config_handlers::store_optional(&state.secrets, request.api_key.clone()).await?;
     let input = subscription_input(&request, secret_ref.clone())?;
     match state.database.create_subscription(input).await {
-        Ok(created) => Ok((StatusCode::CREATED, Json(created))),
+        Ok(created) => {
+            let involved = created.kind == SubscriptionKind::Script;
+            audit_script_change(&state, &audit, &created, "created", involved).await;
+            Ok((StatusCode::CREATED, Json(created)))
+        }
         Err(error) => {
             // A reference nothing points at would never be cleaned up.
             crate::config_handlers::cleanup_secrets(&state.secrets, [secret_ref]).await;
@@ -514,6 +607,7 @@ pub async fn create_subscription(
 pub async fn update_subscription(
     State(state): State<AppState>,
     granted: Option<axum::Extension<crate::auth::Granted>>,
+    audit: crate::audit::AuditContext,
     Path(id): Path<SubscriptionId>,
     Json(request): Json<SubscriptionRequest>,
 ) -> Result<Json<Subscription>, ApiError> {
@@ -539,6 +633,9 @@ pub async fn update_subscription(
             // Only the reference this edit replaced is dropped; an unchanged key survives a
             // form that did not resend it.
             crate::config_handlers::cleanup_secrets(&state.secrets, [orphan]).await;
+            let involved = updated.kind == SubscriptionKind::Script
+                || stored == Some(SubscriptionKind::Script);
+            audit_script_change(&state, &audit, &updated, "updated", involved).await;
             Ok(Json(updated))
         }
         Err(error) => {

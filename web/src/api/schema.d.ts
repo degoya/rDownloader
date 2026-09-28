@@ -1128,6 +1128,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories/{id}/collision-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_category_collision_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories/{id}/postprocess": {
         parameters: {
             query?: never;
@@ -1758,6 +1774,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collision-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_collision_policies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collision-prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_collision_prompts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/containers/import": {
         parameters: {
             query?: never;
@@ -2023,6 +2071,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/downloads/{id}/collision-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answers a prompt and lets the download go on. The answer is recorded before anything is
+         *     carried out, and carried out by the download's next attempt, which re-checks it: an
+         *     `overwrite` of a file that is in use by then is asked again rather than performed.
+         */
+        post: operations["decide_collision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/{id}/dedupe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replaces a download's finished file by a hard link to an identical original. */
+        post: operations["dedupe_download"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/{id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source and content duplicates of one download. */
+        get: operations["download_duplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downloads/{id}/pause": {
         parameters: {
             query?: never;
@@ -2081,6 +2184,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["stop_seeding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_download_sources"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2237,6 +2356,23 @@ export interface paths {
         put?: never;
         /** Refreshes the scrape counters of every tracker. */
         post: operations["scrape_trackers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/duplicates/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The queue's downloads of each address, for the LinkGrabber's "already queued" mark. */
+        post: operations["lookup_duplicates"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2692,6 +2828,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/object-storage/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_object_storage_profiles"];
+        put?: never;
+        post: operations["create_object_storage_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/object-storage/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_object_storage_profile"];
+        post?: never;
+        delete: operations["delete_object_storage_profile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/object-storage/profiles/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["test_object_storage_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/packages": {
         parameters: {
             query?: never;
@@ -2802,6 +2986,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["update_package"];
+        trace?: never;
+    };
+    "/api/v1/packages/{id}/collision-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_package_collision_policy"];
+        put: operations["set_package_collision_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/packages/{id}/extract": {
@@ -4078,6 +4278,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/content-index/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Checks the content index against the disk and the queue now, rather than at the next start. */
+        post: operations["check_content_index"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/link-support": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["link_support"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The history of verified moves and dedupe links, newest first. */
+        get: operations["list_storage_operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/reuse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What every transfer kind this service runs can reuse of data on disk. */
+        get: operations["reuse_capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/streams/channels": {
         parameters: {
             query?: never;
@@ -4785,14 +5052,14 @@ export interface components {
         };
         /** @description Public account metadata. Secret values remain in the secret store. */
         Account: {
-            credential_mode?: null | components["schemas"]["CredentialMode"];
+            credential_mode?: components["schemas"]["CredentialMode"] | null;
             enabled: boolean;
             has_cookies: boolean;
             has_secret: boolean;
             id: components["schemas"]["AccountId"];
             label: string;
             provider: string;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             username?: string | null;
         };
         /** @description Hoster domains an account's provider can download from. */
@@ -4825,7 +5092,7 @@ export interface components {
              */
             label: components["schemas"]["AccountLabelPart"][];
             premium: boolean;
-            traffic_left?: null | components["schemas"]["ByteCount"];
+            traffic_left?: components["schemas"]["ByteCount"] | null;
             valid: boolean;
         };
         /**
@@ -4934,7 +5201,7 @@ export interface components {
              */
             bitrate_kbps: number | null;
             /** @default null */
-            codec: null | components["schemas"]["AudioCodecFamily"];
+            codec: components["schemas"]["AudioCodecFamily"] | null;
             /**
              * @description Extractor format id of the underlying audio stream.
              * @default
@@ -4964,7 +5231,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -5195,7 +5462,7 @@ export interface components {
          *     definition of every listed automation is the kind of thing that makes a list page slow.
          */
         AutomationResponse: components["schemas"]["Automation"] & {
-            definition?: null | components["schemas"]["AutomationVersion"];
+            definition?: components["schemas"]["AutomationVersion"] | null;
         };
         /** Format: uuid */
         AutomationRunId: string;
@@ -5248,44 +5515,45 @@ export interface components {
         };
         /** @description A named set of limits — "Day", "Night", "Unlimited". */
         BandwidthProfile: {
-            daily_budget_bytes?: null | components["schemas"]["ByteCount"];
-            download_bytes_per_second?: null | components["schemas"]["ByteCount"];
+            daily_budget_bytes?: components["schemas"]["ByteCount"] | null;
+            download_bytes_per_second?: components["schemas"]["ByteCount"] | null;
             id: components["schemas"]["BandwidthProfileId"];
             /**
              * Format: int32
              * @description Overrides the queue's parallelism while the profile is active; `None` keeps it.
              */
             max_active_files?: number | null;
-            monthly_budget_bytes?: null | components["schemas"]["ByteCount"];
+            monthly_budget_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
             scopes: components["schemas"]["ScopeLimit"][];
-            upload_bytes_per_second?: null | components["schemas"]["ByteCount"];
+            upload_bytes_per_second?: components["schemas"]["ByteCount"] | null;
         };
         /** Format: uuid */
         BandwidthProfileId: string;
         BandwidthProfileRequest: {
-            daily_budget_bytes?: null | components["schemas"]["ByteCount"];
-            download_bytes_per_second?: null | components["schemas"]["ByteCount"];
+            daily_budget_bytes?: components["schemas"]["ByteCount"] | null;
+            download_bytes_per_second?: components["schemas"]["ByteCount"] | null;
             /**
              * Format: int32
              * @description Caps the queue's parallelism while the profile is active; empty keeps the setting.
              */
             max_active_files?: number | null;
-            monthly_budget_bytes?: null | components["schemas"]["ByteCount"];
+            monthly_budget_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
             scopes?: components["schemas"]["ScopeLimit"][];
-            upload_bytes_per_second?: null | components["schemas"]["ByteCount"];
+            upload_bytes_per_second?: components["schemas"]["ByteCount"] | null;
         };
         BandwidthStatusResponse: {
-            active_profile?: null | components["schemas"]["BandwidthProfile"];
-            binding_limit?: null | components["schemas"]["BindingLimitResponse"];
+            active_profile?: components["schemas"]["BandwidthProfile"] | null;
+            binding_limit?: components["schemas"]["BindingLimitResponse"] | null;
             /** @description Set while the budget holds back new transfers; running ones finish. */
             budget_exhausted: boolean;
-            daily?: null | components["schemas"]["BudgetUsageResponse"];
-            monthly?: null | components["schemas"]["BudgetUsageResponse"];
+            daily?: components["schemas"]["BudgetUsageResponse"] | null;
+            monthly?: components["schemas"]["BudgetUsageResponse"] | null;
             /** Format: date-time */
             next_switch_at?: string | null;
             timezone: string;
+            upload_binding_limit?: components["schemas"]["BindingLimitResponse"] | null;
         };
         /** Format: uuid */
         BandwidthWindowId: string;
@@ -5316,18 +5584,18 @@ export interface components {
          */
         BrowserSessionState: "waiting" | "delivered" | "declined" | "expired";
         BudgetUsageResponse: {
-            limit_bytes?: null | components["schemas"]["ByteCount"];
+            limit_bytes?: components["schemas"]["ByteCount"] | null;
             period_key: string;
             used_bytes: components["schemas"]["ByteCount"];
         };
         BundleAccount: {
             cookies_slot?: string | null;
-            credential_mode?: null | components["schemas"]["CredentialMode"];
+            credential_mode?: components["schemas"]["CredentialMode"] | null;
             enabled: boolean;
             id: components["schemas"]["AccountId"];
             label: string;
             provider: string;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             secret_slot?: string | null;
             username?: string | null;
         };
@@ -5475,7 +5743,7 @@ export interface components {
             delete_par2?: boolean | null;
             is_default: boolean;
             name: string;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             recursive_unpack?: boolean | null;
             relative_path: string;
             safe_postproc?: boolean | null;
@@ -5497,10 +5765,10 @@ export interface components {
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
-            source?: null | components["schemas"]["IngressSource"];
+            source?: components["schemas"]["IngressSource"] | null;
         };
         BundleStreamChannel: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
             id: components["schemas"]["StreamChannelId"];
             name: string;
@@ -5525,7 +5793,7 @@ export interface components {
              *     existed, which restores as the `2:1` every card had then.
              */
             card_ratio?: components["schemas"]["SubscriptionCardRatio"];
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /**
              * @description Where an indexer's own categories are routed, and which of them are asked for.
              *
@@ -5554,6 +5822,11 @@ export interface components {
              *     configuration, restored only by the administrator.
              */
             schedule?: string | null;
+            /**
+             * @description The arguments a script subscription hands its script (RD-150-08). Absent from a bundle
+             *     written before they existed, which restores the empty list every script ran with then.
+             */
+            script_arguments?: string[];
             /** @description Slot of the indexer API key inside the encrypted section, if the subscription has one. */
             secret_slot?: string | null;
             source_categories?: string[];
@@ -5576,7 +5849,7 @@ export interface components {
             port: number;
             /** Format: int32 */
             priority: number;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             tls: boolean;
             username?: string | null;
         };
@@ -5608,7 +5881,7 @@ export interface components {
         CandidateAuthProfileRequest: {
             /** @description `auto`, `none`, or `pinned` together with `profile_id`. */
             mode: components["schemas"]["CandidateAuthProfileMode"];
-            profile_id?: null | components["schemas"]["AuthProfileId"];
+            profile_id?: components["schemas"]["AuthProfileId"] | null;
         };
         /** @description Links to check; empty = every open link. */
         CandidateCheckRequest: {
@@ -5653,7 +5926,7 @@ export interface components {
         CandidateMoveRequest: {
             ids: components["schemas"]["CandidateId"][];
             new_package_name?: string | null;
-            package_id?: null | components["schemas"]["CollectorPackageId"];
+            package_id?: components["schemas"]["CollectorPackageId"] | null;
         };
         CandidateRenameRequest: {
             file_name?: string | null;
@@ -5799,12 +6072,12 @@ export interface components {
             kind: components["schemas"]["CaptureFileKind"];
             /** @description The NZB imports, one per NZB; empty for a torrent. */
             nzb_imports: components["schemas"]["NzbImport"][];
-            torrent?: null | components["schemas"]["CollectorIntakeResponse"];
+            torrent?: components["schemas"]["CollectorIntakeResponse"] | null;
         };
         /** @description One structured link of a capture batch, optionally with the request that produced it. */
         CaptureLinkRequest: {
             file_name?: string | null;
-            request?: null | components["schemas"]["CapturedRequest"];
+            request?: components["schemas"]["CapturedRequest"] | null;
             /** Format: uri */
             url: string;
         };
@@ -5919,8 +6192,8 @@ export interface components {
         CapturedRequest: {
             /** @description Origins this request may be replayed against. Server-derived. */
             approved_origins?: string[];
-            blocked_reason?: null | components["schemas"]["ReplayBlockReason"];
-            body?: null | components["schemas"]["CapturedBody"];
+            readonly blocked_reason?: components["schemas"]["ReplayBlockReason"] | null;
+            body?: components["schemas"]["CapturedBody"] | null;
             content_disposition?: string | null;
             /**
              * Format: uri
@@ -5968,7 +6241,7 @@ export interface components {
              *     how a category switches a globally enabled step off.
              */
             plugin_steps?: string[] | null;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             /** @description Whether packages in this category unpack nested archives recursively; `None` = global default. */
             recursive_unpack?: boolean | null;
             relative_path: string;
@@ -5979,7 +6252,7 @@ export interface components {
             safe_postproc?: boolean | null;
             /** @description Default post-processing script for packages in this category. */
             script?: string | null;
-            seeding?: null | components["schemas"]["SeedingPolicyOverride"];
+            seeding?: components["schemas"]["SeedingPolicyOverride"] | null;
             /** @description Whether packages in this category verify `.sfv` checksums; `None` = global default. */
             sfv_verify?: boolean | null;
             storage_root_id: components["schemas"]["StorageRootId"];
@@ -6016,7 +6289,7 @@ export interface components {
              *     category switches a globally enabled step off.
              */
             plugin_steps?: string[] | null;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             /** @description Whether packages of this category unpack nested archives recursively (`null` = global default). */
             recursive_unpack?: boolean | null;
             /**
@@ -6045,7 +6318,7 @@ export interface components {
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
-            source?: null | components["schemas"]["IngressSource"];
+            source?: components["schemas"]["IngressSource"] | null;
         };
         /** Format: uuid */
         CategoryRuleId: string;
@@ -6154,7 +6427,7 @@ export interface components {
             /** @description `true` while the name was derived automatically (regrouping may rename it). */
             auto_named: boolean;
             batch_id: components["schemas"]["BatchId"];
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /** Format: date-time */
             created_at: string;
             has_password: boolean;
@@ -6164,18 +6437,18 @@ export interface components {
             password?: string | null;
             /** Format: int64 */
             position: number;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             priority: components["schemas"]["DownloadPriority"];
             script?: string | null;
         };
         CollectorPackageBulkRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             clear_category?: boolean;
             clear_postprocess_level?: boolean;
             clear_script?: boolean;
             ids: components["schemas"]["CollectorPackageId"][];
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
-            priority?: null | components["schemas"]["DownloadPriority"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
+            priority?: components["schemas"]["DownloadPriority"] | null;
             script?: string | null;
         };
         /** @description Packages to enqueue in the given (displayed) order. */
@@ -6197,7 +6470,7 @@ export interface components {
         };
         /** @description Editable LinkGrabber package fields. */
         CollectorPackageUpdateRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             clear_category?: boolean;
             clear_password?: boolean;
             clear_postprocess_level?: boolean;
@@ -6205,9 +6478,59 @@ export interface components {
             name?: string | null;
             /** @description Archive password; readable again on the package (RD-104-04). */
             password?: string | null;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
-            priority?: null | components["schemas"]["DownloadPriority"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
+            priority?: components["schemas"]["DownloadPriority"] | null;
             script?: string | null;
+        };
+        /**
+         * @description An answer to an `ask` prompt. `compare` and `ask` are not answers: a person who is asked
+         *     decides what happens, rather than handing the question back.
+         * @enum {string}
+         */
+        CollisionDecision: "rename" | "skip" | "overwrite";
+        CollisionDecisionRequest: {
+            decision: components["schemas"]["CollisionDecision"];
+        };
+        /**
+         * @description When the collision was found: before any byte was fetched, or with the verified file
+         *     waiting in staging because the name was taken while the transfer ran.
+         * @enum {string}
+         */
+        CollisionPhase: "before_transfer" | "after_transfer";
+        CollisionPoliciesResponse: {
+            categories: components["schemas"]["ScopedCollisionPolicy"][];
+            /** @description The settings document's `storage_collision_policy`. */
+            global: components["schemas"]["CollisionPolicy"];
+            packages: components["schemas"]["ScopedCollisionPolicy"][];
+        };
+        /**
+         * @description What the queue does when a file is about to be put where a file of that name already is.
+         *
+         *     One policy is effective per collision, and it is always the one [`effective_collision_policy`]
+         *     names: the package's own, else its category's, else the global one from the settings.
+         * @enum {string}
+         */
+        CollisionPolicy: "rename" | "skip" | "overwrite" | "compare" | "ask";
+        /**
+         * @description Where the effective policy came from.
+         * @enum {string}
+         */
+        CollisionPolicySource: "package" | "category" | "global";
+        /** @description A download waiting for an answer, or holding one until its next attempt. */
+        CollisionPromptResponse: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            decided_at?: string | null;
+            decision?: components["schemas"]["CollisionDecision"] | null;
+            download_id: components["schemas"]["DownloadId"];
+            /** Format: int64 */
+            existing_bytes?: number | null;
+            package_id?: components["schemas"]["PackageId"] | null;
+            package_name?: string | null;
+            phase: components["schemas"]["CollisionPhase"];
+            /** @description The name that was taken, inside the package folder. */
+            target_name: string;
         };
         /**
          * @description What runs once the queue and post-processing have drained.
@@ -6279,6 +6602,38 @@ export interface components {
             priority?: string | null;
         };
         /**
+         * @description What a content duplicate is known from.
+         * @enum {string}
+         */
+        ContentBasis: "verified_hash" | "stated_checksum";
+        /** @description The same bytes, in another finished file. */
+        ContentDuplicate: {
+            download_id: components["schemas"]["DownloadId"];
+            file_name: string;
+            /** @description The file is not where the index says, as of the last check. */
+            missing: boolean;
+            package_id: components["schemas"]["PackageId"];
+            package_name: string;
+            path: string;
+            /**
+             * @description Whether it lies on the same file system as this download's file — the precondition of a
+             *     hard link; `None` where the platform cannot say or this download has no file yet.
+             */
+            same_file_system?: boolean | null;
+            /** Format: int64 */
+            size_bytes: number;
+        };
+        ContentIndexCheckResponse: {
+            /** Format: int64 */
+            backfilled: number;
+            /** Format: int64 */
+            checked: number;
+            /** Format: int64 */
+            missing: number;
+            /** Format: int64 */
+            restored: number;
+        };
+        /**
          * @description When the session cookie carries the `Secure` attribute.
          * @enum {string}
          */
@@ -6286,11 +6641,11 @@ export interface components {
         /** @description Account metadata with write-only secret material. */
         CreateAccountRequest: {
             cookies?: string | null;
-            credential_mode?: null | components["schemas"]["CredentialMode"];
+            credential_mode?: components["schemas"]["CredentialMode"] | null;
             enabled: boolean;
             label: string;
             provider: string;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             secret?: string | null;
             username?: string | null;
         };
@@ -6337,7 +6692,7 @@ export interface components {
             delete_par2?: boolean | null;
             is_default: boolean;
             name: string;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             /** @description Whether packages of this category unpack nested archives recursively (`null` = global default). */
             recursive_unpack?: boolean | null;
             relative_path: string;
@@ -6367,21 +6722,21 @@ export interface components {
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
-            source?: null | components["schemas"]["IngressSource"];
+            source?: components["schemas"]["IngressSource"] | null;
         };
         /** @description Direct URL queue request. */
         CreateDownloadRequest: {
-            account_id?: null | components["schemas"]["AccountId"];
-            category_id?: null | components["schemas"]["CategoryId"];
+            account_id?: components["schemas"]["AccountId"] | null;
+            category_id?: components["schemas"]["CategoryId"] | null;
             file_name?: string | null;
             package_name?: string | null;
-            priority?: null | components["schemas"]["DownloadPriority"];
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            priority?: components["schemas"]["DownloadPriority"] | null;
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             /** Format: uri */
             url: string;
         };
         CreateHotFolderRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
             executor: components["schemas"]["HotFolderExecutor"];
             failed_path: string;
@@ -6390,6 +6745,36 @@ export interface components {
             path: string;
             processed_path: string;
             recursive: boolean;
+        };
+        /** @description A new object storage profile. The key fields are write-only. */
+        CreateObjectStorageProfileRequest: {
+            /** @description S3 only. */
+            access_key_id?: string | null;
+            /** @description The Azure storage account; required for Azure, ignored otherwise. */
+            account?: string | null;
+            addressing?: components["schemas"]["ObjectAddressing"] | null;
+            /** @description Binds the profile to one bucket (an Azure container): links into it use this profile. */
+            bucket?: string | null;
+            checksums?: boolean;
+            credential_source: components["schemas"]["ObjectCredentialSource"];
+            enabled?: boolean;
+            /**
+             * @description `http(s)://host[:port][/path]` of a compatible service or an emulator; empty for the
+             *     provider's own service (AWS S3 in `region`, the Azure account's blob host, Google).
+             */
+            endpoint?: string | null;
+            name: string;
+            provider?: components["schemas"]["ObjectStorageProvider"];
+            /** @description S3 only. */
+            region?: string | null;
+            /**
+             * @description The secret of a `static` or `shared_access_signature` source: the S3 secret access
+             *     key, the Azure account key or shared access signature, the Google service account key
+             *     (the JSON key file's content).
+             */
+            secret_access_key?: string | null;
+            /** @description S3 only. */
+            session_token?: string | null;
         };
         /** @description Network proxy profile with a write-only password. */
         CreateProxyProfileRequest: {
@@ -6430,7 +6815,7 @@ export interface components {
         };
         CreateStorageRootRequest: {
             is_default: boolean;
-            minimum_free_bytes?: null | components["schemas"]["ByteCount"];
+            minimum_free_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
             path: string;
         };
@@ -6446,7 +6831,7 @@ export interface components {
             port: number;
             /** Format: int32 */
             priority: number;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             tls: boolean;
             username?: string | null;
         };
@@ -6458,11 +6843,11 @@ export interface components {
         /**
          * @description Which of a provider's credential modes an account uses.
          *
-         *     Only meaningful for [`CredentialKind::LoginOrApiKey`]; every other kind has exactly one way
-         *     to hold an account and stores `None`.
+         *     Only meaningful for [`CredentialKind::LoginOrApiKey`] and [`CredentialKind::OAuthOrApiKey`];
+         *     every other kind has exactly one way to hold an account and stores `None`.
          * @enum {string}
          */
-        CredentialMode: "login" | "api_key";
+        CredentialMode: "login" | "api_key" | "oauth";
         /**
          * @description One filter of [`super::MediaFormatCriteria`], named so it can be reported and relaxed.
          * @enum {string}
@@ -6517,6 +6902,27 @@ export interface components {
          * @description Days a window applies to, as a Monday-first bitmask (bit 0 = Monday).
          */
         DaySet: number;
+        /**
+         * @description How a duplicate is replaced.
+         * @enum {string}
+         */
+        DedupeMode: "hardlink" | "reflink";
+        DedupeRequest: {
+            mode: components["schemas"]["DedupeMode"];
+            /** @description The download whose file stays; the one in the path becomes a link to it. */
+            original_download_id: components["schemas"]["DownloadId"];
+        };
+        DedupeResponse: {
+            /** @description SHA-256 both files were verified to share. */
+            digest: string;
+            /**
+             * Format: int64
+             * @description Bytes the duplicate no longer occupies on its own.
+             */
+            freed_bytes: number;
+            /** Format: int64 */
+            operation_id: number;
+        };
         /**
          * @description The cookies the extension read for a waiting request, in Netscape format.
          *
@@ -6577,6 +6983,11 @@ export interface components {
             /** Format: int32 */
             affected: number;
             errors: string[];
+            /**
+             * @description The same refusals as `errors`, coded and in the same order, for the interface to
+             *     translate; `errors` stays for the clients that read the English text.
+             */
+            refusals: components["schemas"]["MessageResponse"][];
         };
         /** @description Files whose packages should be extracted. */
         DownloadExtractRequest: {
@@ -6584,11 +6995,11 @@ export interface components {
         };
         /** @description One downloadable file within a package. */
         DownloadFile: {
-            account_id?: null | components["schemas"]["AccountId"];
+            account_id?: components["schemas"]["AccountId"] | null;
             /** @description Which auth profile this job uses: auto-match by scope, none, or a pinned one. */
             auth_profile?: components["schemas"]["AuthProfileSelection"];
             committed_bytes: components["schemas"]["ByteCount"];
-            computed_checksum?: null | components["schemas"]["ExpectedChecksum"];
+            computed_checksum?: components["schemas"]["ExpectedChecksum"] | null;
             /** Format: date-time */
             created_at: string;
             /**
@@ -6598,12 +7009,12 @@ export interface components {
              *     follows, so what a plugin said stays distinguishable from what the core resolved.
              */
             enrichment?: components["schemas"]["EnrichmentField"][];
-            expected_checksum?: null | components["schemas"]["ExpectedChecksum"];
+            expected_checksum?: components["schemas"]["ExpectedChecksum"] | null;
             file_name: string;
             id: components["schemas"]["DownloadId"];
             kind?: components["schemas"]["DownloadKind"];
-            last_error?: null | components["schemas"]["Failure"];
-            media?: null | components["schemas"]["MediaSelection"];
+            last_error?: components["schemas"]["Failure"] | null;
+            media?: components["schemas"]["MediaSelection"] | null;
             /**
              * @description Key shared by links in the same package that point at the same file.
              *
@@ -6613,15 +7024,15 @@ export interface components {
             mirror_group?: string | null;
             /** Format: date-time */
             next_retry_at?: string | null;
-            nzb_file_id?: null | components["schemas"]["NzbFileId"];
+            nzb_file_id?: components["schemas"]["NzbFileId"] | null;
             package_id: components["schemas"]["PackageId"];
             /**
              * Format: int64
              * @description Order inside the package (lower first).
              */
             position?: number;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
-            recording?: null | components["schemas"]["RecordingState"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
+            recording?: components["schemas"]["RecordingState"] | null;
             /**
              * @description PAR2 repair data rather than payload, decided when the NZB is queued.
              *
@@ -6630,13 +7041,13 @@ export interface components {
              *     on disk, in post-processing, so the queue had to treat every lost volume as a failure.
              */
             recovery?: boolean;
-            remote_credential_id?: null | components["schemas"]["RemoteCredentialId"];
+            remote_credential_id?: components["schemas"]["RemoteCredentialId"] | null;
             /** Format: int32 */
             retry_count: number;
             /** Format: uri */
             source: string;
             state: components["schemas"]["DownloadState"];
-            total_bytes?: null | components["schemas"]["ByteCount"];
+            total_bytes?: components["schemas"]["ByteCount"] | null;
             /** Format: date-time */
             updated_at: string;
         };
@@ -6647,10 +7058,10 @@ export interface components {
          *     media fetched through an external extractor (yt-dlp).
          * @enum {string}
          */
-        DownloadKind: "http" | "usenet" | "media" | "gallery" | "record" | "torrent" | "ftp" | "sftp" | "plugin";
+        DownloadKind: "http" | "usenet" | "media" | "gallery" | "record" | "torrent" | "ftp" | "sftp" | "plugin" | "object_storage";
         /** @description A logical package grouping one or more files. */
         DownloadPackage: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /**
              * Format: date-time
              * @description When the package reached `Completed`, for the automatic removal of finished packages.
@@ -6670,13 +7081,13 @@ export interface components {
              *     an auto-queueing subscription is a few seconds.
              */
             enrichment?: components["schemas"]["EnrichmentField"][];
-            extraction_result?: null | components["schemas"]["ExtractionResult"];
+            extraction_result?: components["schemas"]["ExtractionResult"] | null;
             /** @description Whether an archive password is stored. */
             has_password?: boolean;
             id: components["schemas"]["PackageId"];
             kind?: components["schemas"]["DownloadKind"];
             name: string;
-            nzb_import_id?: null | components["schemas"]["NzbImportId"];
+            nzb_import_id?: components["schemas"]["NzbImportId"] | null;
             /**
              * @description The stored archive password, in clear.
              *
@@ -6694,7 +7105,7 @@ export interface components {
             position: number;
             /** @description Live stage/progress while `state == postprocessing`. */
             postprocess?: components["schemas"]["PostprocessStatus"];
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             priority: components["schemas"]["DownloadPriority"];
             /** @description Post-processing script file name (inside the scripts directory); `None` inherits. */
             script?: string | null;
@@ -6731,7 +7142,7 @@ export interface components {
              * @description Seconds until the queue is through, or `None` when no honest figure exists.
              */
             eta_seconds?: number | null;
-            transferring_remaining_bytes?: null | components["schemas"]["ByteCount"];
+            transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
         };
         /** @description New file name for a queued, paused or failed download. */
         DownloadRenameRequest: {
@@ -6749,6 +7160,42 @@ export interface components {
              *     fresh attempt land beside it instead of destroying the only copy.
              */
             delete_completed_files?: boolean;
+        };
+        /** @description One source of a download, as the interface shows it. */
+        DownloadSourceView: {
+            /** Format: date-time */
+            backoff_until?: string | null;
+            /** Format: int64 */
+            delivered_bytes: number;
+            /** Format: int32 */
+            failures: number;
+            host?: string | null;
+            /** @description Stable code of why the source is out for good. */
+            isolated_code?: string | null;
+            /** @description Stable code of the most recent failure. */
+            last_error_code?: string | null;
+            /** @description ISO 3166-1 alpha-2 country code the document gave. */
+            location?: string | null;
+            /**
+             * Format: int32
+             * @description Place in the order the sources are tried, from zero.
+             */
+            position: number;
+            /**
+             * Format: int32
+             * @description Lower is preferred; absent when the document ranked it not at all.
+             */
+            priority?: number | null;
+            protocol: components["schemas"]["SourceProtocol"];
+            state: components["schemas"]["SourceState"];
+            /** @description The address, with credentials and signed query values replaced. */
+            url: string;
+        };
+        /** @description Every source of a download and what its bytes are checked against. */
+        DownloadSourcesResponse: {
+            piece_hashes?: components["schemas"]["PieceHashSummary"] | null;
+            /** @description Empty for a download that came with a single address. */
+            sources: components["schemas"]["DownloadSourceView"][];
         };
         /**
          * @description Persistent lifecycle of a download.
@@ -6795,7 +7242,7 @@ export interface components {
             remaining_bytes: components["schemas"]["ByteCount"];
             storage: components["schemas"]["StorageSpace"][];
             total_bytes: components["schemas"]["ByteCount"];
-            transferring_remaining_bytes?: null | components["schemas"]["ByteCount"];
+            transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
         };
         /** @description What a dry run found for one automation. */
         DryRunMatch: {
@@ -6806,14 +7253,46 @@ export interface components {
             trigger_matches: boolean;
         };
         DryRunRequest: {
-            package_id?: null | components["schemas"]["PackageId"];
+            package_id?: components["schemas"]["PackageId"] | null;
             trigger: components["schemas"]["Trigger"];
+        };
+        /**
+         * @description Where a source duplicate was found.
+         * @enum {string}
+         */
+        DuplicateLocation: "queue" | "linkgrabber";
+        DuplicateLookupEntry: {
+            identity: components["schemas"]["SourceIdentity"];
+            /**
+             * @description Queue downloads of the same source. The LinkGrabber marks duplicates among its own links
+             *     already; this is the part it cannot see.
+             */
+            queue: components["schemas"]["SourceDuplicate"][];
+            url: string;
+        };
+        DuplicateLookupRequest: {
+            /** @description Addresses to look up, as the LinkGrabber shows them (at most 500). */
+            urls: string[];
+        };
+        DuplicateReport: {
+            content: components["schemas"]["ContentDuplicate"][];
+            content_basis?: components["schemas"]["ContentBasis"] | null;
+            /** @description SHA-256 the content comparison used. */
+            digest?: string | null;
+            download_id: components["schemas"]["DownloadId"];
+            identity: components["schemas"]["SourceIdentity"];
+            source: components["schemas"]["SourceDuplicate"][];
         };
         /**
          * @description High dynamic range signalling as reported by the extractor.
          * @enum {string}
          */
         DynamicRange: "sdr" | "hdr10" | "hdr10_plus" | "hlg" | "dolby_vision" | "unknown";
+        /** @description The one policy a collision follows, and which level set it. */
+        EffectiveCollisionPolicy: {
+            policy: components["schemas"]["CollisionPolicy"];
+            source: components["schemas"]["CollisionPolicySource"];
+        };
         /** @description The resolved policy applied to one torrent, with the origin of every field. */
         EffectiveSeedingPolicy: {
             enabled: boolean;
@@ -6983,12 +7462,12 @@ export interface components {
          *     every entry has to name a row that exists under the kind it claims.
          */
         GrabberEntryReorderRequest: {
-            after?: null | components["schemas"]["GrabberEntryRef"];
+            after?: components["schemas"]["GrabberEntryRef"] | null;
             entries: components["schemas"]["GrabberEntryRef"][];
         };
         /** @description Persisted hotfolder configuration. */
         HotFolderConfig: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
             executor: components["schemas"]["HotFolderExecutor"];
             failed_path: string;
@@ -7244,7 +7723,7 @@ export interface components {
              *     rather than guessing.
              */
             cached_by?: string | null;
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /**
              * Format: date-time
              * @description When the last online check finished.
@@ -7281,10 +7760,10 @@ export interface components {
              */
             file_name_declared?: boolean;
             id: components["schemas"]["CandidateId"];
-            listing?: null | components["schemas"]["RemoteListingSummary"];
-            media?: null | components["schemas"]["MediaInfo"];
-            mirror?: null | components["schemas"]["CandidateMirror"];
-            package_id?: null | components["schemas"]["CollectorPackageId"];
+            listing?: components["schemas"]["RemoteListingSummary"] | null;
+            media?: components["schemas"]["MediaInfo"] | null;
+            mirror?: components["schemas"]["CandidateMirror"] | null;
+            package_id?: components["schemas"]["CollectorPackageId"] | null;
             /**
              * Format: int64
              * @description Manual order inside the package.
@@ -7292,10 +7771,10 @@ export interface components {
             position?: number;
             priority?: components["schemas"]["DownloadPriority"];
             provider?: string | null;
-            remote_credential_id?: null | components["schemas"]["RemoteCredentialId"];
-            replay_consent?: null | components["schemas"]["ReplayConsent"];
-            request?: null | components["schemas"]["CapturedRequest"];
-            route?: null | components["schemas"]["ResolverRoute"];
+            remote_credential_id?: components["schemas"]["RemoteCredentialId"] | null;
+            replay_consent?: components["schemas"]["ReplayConsent"] | null;
+            request?: components["schemas"]["CapturedRequest"] | null;
+            route?: components["schemas"]["ResolverRoute"] | null;
             /**
              * @description Whether the vault holds the fragment this link's address arrived with (RD-110-38).
              *
@@ -7306,9 +7785,9 @@ export interface components {
              *     being kept for this link, and that is exactly what this says.
              */
             secret_fragment?: boolean;
-            size?: null | components["schemas"]["ByteCount"];
+            size?: components["schemas"]["ByteCount"] | null;
             state: components["schemas"]["LinkCandidateState"];
-            torrent?: null | components["schemas"]["TorrentCandidateSummary"];
+            torrent?: components["schemas"]["TorrentCandidateSummary"] | null;
             /** Format: uri */
             url: string;
         };
@@ -7320,8 +7799,8 @@ export interface components {
         /** @description Result of probing one link without downloading it. */
         LinkCheckResult: {
             file_name?: string | null;
-            media?: null | components["schemas"]["MediaInfo"];
-            size?: null | components["schemas"]["ByteCount"];
+            media?: components["schemas"]["MediaInfo"] | null;
+            size?: components["schemas"]["ByteCount"] | null;
             status: components["schemas"]["LinkStatus"];
             /** Format: uri */
             url: string;
@@ -7331,6 +7810,15 @@ export interface components {
          * @enum {string}
          */
         LinkStatus: "online" | "offline" | "unknown" | "unresolvable" | "cached";
+        /** @description One storage root's link capabilities, probed by trying. */
+        LinkSupportEntry: {
+            hardlink: boolean;
+            name: string;
+            path: string;
+            /** @description Always `false` in this build: no reflink is created without `unsafe` code. */
+            reflink: boolean;
+            storage_root_id?: components["schemas"]["StorageRootId"] | null;
+        };
         /**
          * @description Why a listing stopped early.
          * @enum {string}
@@ -7522,7 +8010,7 @@ export interface components {
              */
             audio_bitrate_kbps: number | null;
             /** @default null */
-            audio_codec: null | components["schemas"]["AudioCodecFamily"];
+            audio_codec: components["schemas"]["AudioCodecFamily"] | null;
             /** @default null */
             audio_codec_raw: string | null;
             /**
@@ -7581,7 +8069,7 @@ export interface components {
              */
             video_bitrate_kbps: number | null;
             /** @default null */
-            video_codec: null | components["schemas"]["VideoCodecFamily"];
+            video_codec: components["schemas"]["VideoCodecFamily"] | null;
             /**
              * @description The codec string as reported, kept for display and diagnostics.
              * @default null
@@ -7620,6 +8108,8 @@ export interface components {
             /** @default [] */
             dynamic_range: components["schemas"]["DynamicRange"][];
             /**
+             * @description What to write into the finished file and what to cut out of it (RD-080-03).
+             *     Always serialised, for the same reason as `tracks`.
              * @default {
              *       "chapters": false,
              *       "info_json": false,
@@ -7689,6 +8179,10 @@ export interface components {
             /** @default video */
             target: components["schemas"]["MediaTarget"];
             /**
+             * @description Extra audio tracks and subtitles (RD-080-02). Empty for a plain download.
+             *
+             *     Always serialised, unlike the optional fields around it: the generated client type
+             *     declares it required, and omitting it would hand the UI an `undefined` to trip over.
              * @default {
              *       "audio": {
              *         "extra_languages": []
@@ -7730,7 +8224,7 @@ export interface components {
             /** @description The criteria currently stored for this candidate. */
             criteria: components["schemas"]["MediaFormatCriteria"];
             inventory: components["schemas"]["MediaFormatInventory"];
-            resolved?: null | components["schemas"]["MediaResolutionResponse"];
+            resolved?: components["schemas"]["MediaResolutionResponse"] | null;
             /** @description Subtitle tracks the page offers, manual and automatic kept apart (RD-080-02). */
             subtitles: components["schemas"]["SubtitleTrack"][];
             /**
@@ -7851,20 +8345,20 @@ export interface components {
              * @description [`MEDIA_CONTRACT_VERSION`] of the writer; `0` for a row that predates the selector.
              */
             contract_version?: number;
-            criteria?: null | components["schemas"]["MediaFormatCriteria"];
+            criteria?: components["schemas"]["MediaFormatCriteria"] | null;
             ext: string;
             /** @description Extractor format expression, or a streamlink quality for a recording. Kept verbatim. */
             format: string;
             kind: components["schemas"]["MediaKind"];
             /** Format: uri */
             page_url: string;
-            resolved?: null | components["schemas"]["ResolvedFormatPlan"];
+            resolved?: components["schemas"]["ResolvedFormatPlan"] | null;
             title?: string;
             variant_id: string;
         };
         /** @description A selection to apply, or to preview without applying. */
         MediaSelectionRequest: {
-            criteria?: null | components["schemas"]["MediaFormatCriteria"];
+            criteria?: components["schemas"]["MediaFormatCriteria"] | null;
             /** @description A preset id (`best`, `1080p`, `audio_mp3`). Ignored when `criteria` is given. */
             preset?: string | null;
         };
@@ -7921,7 +8415,7 @@ export interface components {
             managed: boolean;
             name: string;
             path?: string | null;
-            source?: null | components["schemas"]["ToolSource"];
+            source?: components["schemas"]["ToolSource"] | null;
             version?: string | null;
         };
         /**
@@ -7938,8 +8432,8 @@ export interface components {
              * @description Audio bitrate in kbit/s when known.
              */
             abr?: number | null;
-            audio_codec?: null | components["schemas"]["AudioCodecFamily"];
-            criteria?: null | components["schemas"]["MediaFormatCriteria"];
+            audio_codec?: components["schemas"]["AudioCodecFamily"] | null;
+            criteria?: components["schemas"]["MediaFormatCriteria"] | null;
             dynamic_range?: components["schemas"]["DynamicRange"];
             /** @description Container/extension of the resulting file. */
             ext: string;
@@ -7958,7 +8452,7 @@ export interface components {
             label: string;
             /** @description Whether producing this variant needs ffmpeg to merge two streams. */
             requires_merge?: boolean;
-            video_codec?: null | components["schemas"]["VideoCodecFamily"];
+            video_codec?: components["schemas"]["VideoCodecFamily"] | null;
             /** @description What this variant cannot honour, if anything. */
             warnings?: components["schemas"]["MediaCompatibilityWarning"][];
         };
@@ -8105,7 +8599,7 @@ export interface components {
         NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending";
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
             /** @description Empty means every event. */
             events: components["schemas"]["NotificationEvent"][];
@@ -8117,7 +8611,7 @@ export interface components {
         /** Format: uuid */
         NotificationRuleId: string;
         NotificationRuleRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled?: boolean;
             /** @description Empty means every event. */
             events?: components["schemas"]["NotificationEvent"][];
@@ -8166,7 +8660,7 @@ export interface components {
         /** @description One NZB file with all persistent segment states. */
         NzbFileStatus: {
             assembly_name?: string | null;
-            declared_size?: null | components["schemas"]["ByteCount"];
+            declared_size?: components["schemas"]["ByteCount"] | null;
             groups: string[];
             id: components["schemas"]["NzbFileId"];
             import_id: components["schemas"]["NzbImportId"];
@@ -8180,7 +8674,7 @@ export interface components {
         };
         /** @description Summary stored after a bounded, entity-free NZB parse. */
         NzbImport: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /** Format: date-time */
             created_at: string;
             duplicate: boolean;
@@ -8206,7 +8700,7 @@ export interface components {
              *     there.
              */
             position: number;
-            priority?: null | components["schemas"]["DownloadPriority"];
+            priority?: components["schemas"]["DownloadPriority"] | null;
             /** Format: int32 */
             segment_count: number;
             sha256: string;
@@ -8233,9 +8727,9 @@ export interface components {
         NzbImportState: "imported" | "enqueued" | "failed";
         /** @description Editable routing metadata of an NZB waiting in the LinkGrabber. */
         NzbImportUpdateRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             clear_category?: boolean;
-            priority?: null | components["schemas"]["DownloadPriority"];
+            priority?: components["schemas"]["DownloadPriority"] | null;
         };
         /** Format: uuid */
         NzbSegmentId: string;
@@ -8252,11 +8746,75 @@ export interface components {
             message_id: string;
             /** Format: int32 */
             number: number;
-            part_begin?: null | components["schemas"]["ByteCount"];
-            part_end?: null | components["schemas"]["ByteCount"];
+            part_begin?: components["schemas"]["ByteCount"] | null;
+            part_end?: components["schemas"]["ByteCount"] | null;
             /** Format: int32 */
             server_attempts: number;
             state: components["schemas"]["NzbSegmentState"];
+        };
+        /**
+         * @description How the bucket appears in the request URL.
+         * @enum {string}
+         */
+        ObjectAddressing: "path" | "virtual_host";
+        /**
+         * @description Where a profile's credentials come from.
+         * @enum {string}
+         */
+        ObjectCredentialSource: "static" | "ambient" | "anonymous" | "shared_access_signature";
+        /**
+         * @description A configured object storage endpoint with its credentials.
+         *
+         *     Secret values live in the secret store; this struct carries only opaque `vault://`
+         *     references, and those are never serialized.
+         */
+        ObjectStorageProfile: {
+            /** @description Not a secret — AWS documents the key id as an identifier, like a user name. S3 only. */
+            access_key_id?: string | null;
+            /** @description The Azure storage account the containers live in; an identifier, not a secret. */
+            account?: string | null;
+            /** @description S3 only; the other providers have one addressing style. */
+            addressing: components["schemas"]["ObjectAddressing"];
+            /** @description A bucket this profile is bound to: links into it use this profile. */
+            bucket?: string | null;
+            /**
+             * @description Whether uploads carry a SHA-256 checksum per request, which the service verifies on
+             *     receipt. Off for the few compatible services that refuse the header. S3 only.
+             */
+            checksums: boolean;
+            /** Format: date-time */
+            created_at: string;
+            credential_source: components["schemas"]["ObjectCredentialSource"];
+            enabled: boolean;
+            /**
+             * @description `None` is the provider's own service: AWS S3 for the region, the account's
+             *     `blob.core.windows.net` host, `storage.googleapis.com`.
+             */
+            endpoint?: string | null;
+            has_secret: boolean;
+            has_session_token: boolean;
+            id: components["schemas"]["ObjectStorageProfileId"];
+            name: string;
+            provider: components["schemas"]["ObjectStorageProvider"];
+            /** @description S3 only. */
+            region?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** Format: uuid */
+        ObjectStorageProfileId: string;
+        /**
+         * @description Which object storage service a profile talks to.
+         * @enum {string}
+         */
+        ObjectStorageProvider: "s3" | "azure" | "gcs";
+        /** @description Redaction-safe result of a live profile check. */
+        ObjectStorageTestResponse: {
+            authenticated: boolean;
+            /** @description Stable failure code when the check did not succeed. */
+            code?: string | null;
+            params?: components["schemas"]["BTreeMap"];
+            reachable: boolean;
         };
         /**
          * @description How a field is compared to a value.
@@ -8265,13 +8823,13 @@ export interface components {
         Operator: "equals" | "contains" | "starts_with" | "ends_with" | "matches" | "greater_than" | "less_than";
         /** @description Category and/or priority change for several packages. */
         PackageBulkRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             clear_category?: boolean;
             clear_postprocess_level?: boolean;
             clear_script?: boolean;
             ids: components["schemas"]["PackageId"][];
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
-            priority?: null | components["schemas"]["DownloadPriority"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
+            priority?: components["schemas"]["DownloadPriority"] | null;
             script?: string | null;
         };
         /** @description Bulk removal of finished packages. */
@@ -8297,6 +8855,14 @@ export interface components {
             code: string;
             /** @description The package name, so the reader can find it without looking up the id. */
             name: string;
+            package_id: components["schemas"]["PackageId"];
+        };
+        /** @description Every level of one package, and the one that decides. */
+        PackageCollisionPolicyResponse: {
+            category?: components["schemas"]["CollisionPolicy"] | null;
+            effective: components["schemas"]["EffectiveCollisionPolicy"];
+            global: components["schemas"]["CollisionPolicy"];
+            own?: components["schemas"]["CollisionPolicy"] | null;
             package_id: components["schemas"]["PackageId"];
         };
         /**
@@ -8336,7 +8902,7 @@ export interface components {
         PackageState: "queued" | "downloading" | "postprocessing" | "completed" | "failed";
         /** @description Category and/or priority change for one package. */
         PackageUpdateRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /** @description Removes the category (default destination) when `true`. */
             clear_category?: boolean;
             /** @description Removes the stored archive password when `true`. */
@@ -8351,8 +8917,8 @@ export interface components {
              *     Readable again on the package (RD-104-04); see `DownloadPackage::password`.
              */
             password?: string | null;
-            postprocess_level?: null | components["schemas"]["PostprocessLevel"];
-            priority?: null | components["schemas"]["DownloadPriority"];
+            postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
+            priority?: components["schemas"]["DownloadPriority"] | null;
             /** @description Post-processing script file name inside the scripts directory. */
             script?: string | null;
         };
@@ -8443,6 +9009,13 @@ export interface components {
             /** @description The hoster page the WebView must load; the token is only valid for this origin. */
             page_url: string;
             site_key: string;
+        };
+        /** @description What the piece hashes of a download cover, without the hashes. */
+        PieceHashSummary: {
+            algorithm: components["schemas"]["ChecksumAlgorithm"];
+            /** Format: int64 */
+            piece_length: number;
+            pieces: number;
         };
         /**
          * @description Which package to withdraw: the digest itself, or the installed version to hash.
@@ -8593,12 +9166,12 @@ export interface components {
             permissions: components["schemas"]["PluginPermissionsResponse"];
             plugin_id: string;
             plugin_type: string;
-            publisher?: null | components["schemas"]["PluginPublisherResponse"];
+            publisher?: components["schemas"]["PluginPublisherResponse"] | null;
             /** @description The index's notes for this version; a package on its own carries none. */
             release_notes?: string | null;
             /** Format: int64 */
             size: number;
-            source?: null | components["schemas"]["PluginPreviewSourceResponse"];
+            source?: components["schemas"]["PluginPreviewSourceResponse"] | null;
             version: string;
             /** @description Whether this exact package was withdrawn by its digest. */
             withdrawn: boolean;
@@ -8729,7 +9302,7 @@ export interface components {
             pending: boolean;
             /** Format: int32 */
             percent?: number | null;
-            stage?: null | components["schemas"]["PostprocessStage"];
+            stage?: components["schemas"]["PostprocessStage"] | null;
             state: components["schemas"]["PackageState"];
         };
         /** @description Script files available in the configured scripts directory. */
@@ -8756,7 +9329,7 @@ export interface components {
              * @description 0–100 for the current stage when known.
              */
             percent?: number | null;
-            stage?: null | components["schemas"]["PostprocessStage"];
+            stage?: components["schemas"]["PostprocessStage"] | null;
         };
         /** @description Persistent, redaction-safe postprocessing checkpoint. */
         PostprocessStep: {
@@ -8823,7 +9396,7 @@ export interface components {
             inhibiting: boolean;
             /** @description Why the queue is paused by the network context, if it is. */
             paused_reason?: string | null;
-            pending?: null | components["schemas"]["PendingAction"];
+            pending?: components["schemas"]["PendingAction"] | null;
             quiet: boolean;
             /** Format: date-time */
             quiet_until?: string | null;
@@ -8840,7 +9413,7 @@ export interface components {
          *     `rd_provider_registry::CredentialKind`).
          * @enum {string}
          */
-        ProviderCredentialsResponse: "api_key" | "username_password" | "api_key_or_cookies" | "cookies" | "login_or_api_key" | "oauth" | "none";
+        ProviderCredentialsResponse: "api_key" | "username_password" | "api_key_or_cookies" | "cookies" | "login_or_api_key" | "oauth" | "oauth_or_api_key" | "none";
         /**
          * @description Whether a provider resolves links for its own domains or other hosters' domains
          *     (mirrors `rd_provider_registry::ProviderKind`).
@@ -8941,7 +9514,7 @@ export interface components {
             /** @description Hosters currently held back by an address limit. */
             blocked_hosts: components["schemas"]["BlockedHost"][];
             enabled: boolean;
-            last?: null | components["schemas"]["ReconnectAttempt"];
+            last?: components["schemas"]["ReconnectAttempt"] | null;
             /**
              * Format: date-time
              * @description Earliest time another attempt may run.
@@ -8951,7 +9524,7 @@ export interface components {
         };
         /** @description Immediate one-off recording of a livestream URL. */
         RecordNowRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             name?: string | null;
             quality?: string | null;
             /** Format: uri */
@@ -9073,7 +9646,7 @@ export interface components {
             modified?: string | null;
             /** @description Path relative to the listing root, using `/` separators and never starting with one. */
             path: string;
-            size?: null | components["schemas"]["ByteCount"];
+            size?: components["schemas"]["ByteCount"] | null;
         };
         /** @description One job running at a provider, as the row holds it. */
         RemoteJob: {
@@ -9104,7 +9677,7 @@ export interface components {
             message?: string | null;
             /** Format: date-time */
             next_poll_at?: string | null;
-            package_id?: null | components["schemas"]["CollectorPackageId"];
+            package_id?: components["schemas"]["CollectorPackageId"] | null;
             /**
              * @description Which plugin runs it. Read from the row rather than guessed: only one plugin claims a
              *     provider in this world, and which one a due row belongs to is not a search.
@@ -9115,6 +9688,13 @@ export interface components {
             /** @description The provider's own identifier, written the moment `submit` answers. */
             remote_id?: string | null;
             source_kind: components["schemas"]["RemoteJobSourceKind"];
+            /**
+             * @description The name the source was handed in under -- a container's file name, as the person's
+             *     browser carried it. The job's LinkGrabber package is named after it: the bytes cross
+             *     the plugin contract without a name, and what a provider calls its transfer can be a
+             *     fixed upload name every job shares.
+             */
+            source_name?: string | null;
             state: components["schemas"]["RemoteJobState"];
             /**
              * Format: int32
@@ -9180,7 +9760,7 @@ export interface components {
              */
             supports_resume: boolean;
             /** @default null */
-            truncated: null | components["schemas"]["ListingLimit"];
+            truncated: components["schemas"]["ListingLimit"] | null;
         };
         /** @description The file selection of one remote directory candidate. */
         RemoteListingPlanRequest: {
@@ -9194,7 +9774,7 @@ export interface components {
             single_file: boolean;
             supports_resume?: boolean;
             total_bytes: components["schemas"]["ByteCount"];
-            truncated?: null | components["schemas"]["ListingLimit"];
+            truncated?: components["schemas"]["ListingLimit"] | null;
         };
         /**
          * @description Transfer protocol a credential and a link belong to.
@@ -9257,11 +9837,11 @@ export interface components {
         ReplayPreviewResponse: {
             /** @description Origins the replay may follow redirects into. */
             approved_origins: string[];
-            auth_profile?: null | components["schemas"]["AuthProfileSummary"];
-            blocked_reason?: null | components["schemas"]["ReplayBlockReason"];
-            body?: null | components["schemas"]["CapturedBody"];
+            auth_profile?: components["schemas"]["AuthProfileSummary"] | null;
+            blocked_reason?: components["schemas"]["ReplayBlockReason"] | null;
+            body?: components["schemas"]["CapturedBody"] | null;
             candidate_id: components["schemas"]["CandidateId"];
-            consent?: null | components["schemas"]["ReplayConsent"];
+            consent?: components["schemas"]["ReplayConsent"] | null;
             content_type?: string | null;
             /** @description Which categories of credential this replay would send. */
             credential_categories: components["schemas"]["CredentialCategory"][];
@@ -9286,7 +9866,7 @@ export interface components {
          *     summary while the full template stays behind an explicit database read.
          */
         ReplaySummary: {
-            blocked_reason?: null | components["schemas"]["ReplayBlockReason"];
+            blocked_reason?: components["schemas"]["ReplayBlockReason"] | null;
             /** Format: date-time */
             expires_at?: string | null;
             has_body: boolean;
@@ -9332,7 +9912,7 @@ export interface components {
             /** Format: date-time */
             modified?: string | null;
             path: string;
-            size?: null | components["schemas"]["ByteCount"];
+            size?: components["schemas"]["ByteCount"] | null;
         };
         /** @description A listing plus its selection, as handed to the UI and used at enqueue time. */
         ResolvedRemoteListing: {
@@ -9342,7 +9922,7 @@ export interface components {
             selected_files: number;
             single_file: boolean;
             supports_resume?: boolean;
-            truncated?: null | components["schemas"]["ListingLimit"];
+            truncated?: components["schemas"]["ListingLimit"] | null;
         };
         /** @description The full resolution result for one torrent. */
         ResolvedTorrentPlan: {
@@ -9353,11 +9933,41 @@ export interface components {
         };
         /** @description Resolver selected for a link. */
         ResolverRoute: {
-            account_id?: null | components["schemas"]["AccountId"];
+            account_id?: components["schemas"]["AccountId"] | null;
             label: string;
-            plugin_id?: null | components["schemas"]["PluginId"];
+            plugin_id?: components["schemas"]["PluginId"] | null;
             /** Format: int32 */
             priority: number;
+        };
+        /**
+         * @description What a runner can do with data that is already on disk (RD-150-02).
+         *
+         *     Declared by every runner rather than inferred, so the interface can say why one kind of
+         *     transfer picks up where it stopped and another starts over, and so a runner added later has
+         *     to say it too: `rd_scheduler::ExternalRunner::reuse` has no default.
+         */
+        ReuseCapability: {
+            /**
+             * @description A finished file already in its final place is recognised and adopted instead of being
+             *     fetched a second time.
+             */
+            adopt_completed: boolean;
+            /**
+             * @description A finished file that meets a taken name follows the collision policy. `false` for a
+             *     runner whose tool names and places its own files (a torrent's tree, yt-dlp's template,
+             *     an NZB's articles): those keep their own rule, which the interface states beside the
+             *     policy instead of pretending the policy decides.
+             */
+            applies_collision_policy: boolean;
+            /**
+             * @description That data is checked against the source (piece hashes, article checksums, validators)
+             *     before it is trusted, rather than taken on the length alone.
+             */
+            recheck_partial: boolean;
+            /** @description A stopped transfer continues from the data it already wrote. */
+            resume_partial: boolean;
+            /** @description The finished payload is verified against a digest before it counts as complete. */
+            verify_completed: boolean;
         };
         RoutingBundle: {
             app_version: string;
@@ -9369,6 +9979,11 @@ export interface components {
             /** Format: int32 */
             version: number;
         };
+        /**
+         * @description Which part of the routing configuration an export carries.
+         * @enum {string}
+         */
+        RoutingExportPart: "all" | "categories" | "rules";
         /** @description One execution of one automation version against one event. */
         Run: {
             /**
@@ -9389,7 +10004,7 @@ export interface components {
             message?: string | null;
             /** Format: date-time */
             next_attempt_at?: string | null;
-            package_id?: null | components["schemas"]["PackageId"];
+            package_id?: components["schemas"]["PackageId"] | null;
             /** Format: date-time */
             started_at: string;
             state: components["schemas"]["RunState"];
@@ -9410,6 +10025,10 @@ export interface components {
              *     whole. External helper processes only take one rate for the whole job.
              */
             scoped_enforced: boolean;
+        };
+        RunnerReuseResponse: {
+            capability: components["schemas"]["ReuseCapability"];
+            kind: components["schemas"]["DownloadKind"];
         };
         /** @description Writing one of the person's own rules. */
         SaveSiteRuleRequest: {
@@ -9443,13 +10062,13 @@ export interface components {
             start_minute: number;
         };
         ScheduleRequest: {
-            default_profile_id?: null | components["schemas"]["BandwidthProfileId"];
+            default_profile_id?: components["schemas"]["BandwidthProfileId"] | null;
             /** @description IANA timezone the windows and budget periods are read in. */
             timezone: string;
             windows: components["schemas"]["ScheduleWindowRequest"][];
         };
         ScheduleResponse: {
-            default_profile_id?: null | components["schemas"]["BandwidthProfileId"];
+            default_profile_id?: components["schemas"]["BandwidthProfileId"] | null;
             timezone: string;
             windows: components["schemas"]["ScheduleWindow"][];
         };
@@ -9532,6 +10151,11 @@ export interface components {
              */
             bytes_per_second: number;
         };
+        /** @description One category's or package's own policy. */
+        ScopedCollisionPolicy: {
+            id: string;
+            policy: components["schemas"]["CollisionPolicy"];
+        };
         SecretKdf: {
             algorithm: string;
             /** Format: int32 */
@@ -9558,7 +10182,7 @@ export interface components {
              */
             ratio_milli: number | null;
             /** @default null */
-            time: null | components["schemas"]["SeedTimeLimit"];
+            time: components["schemas"]["SeedTimeLimit"] | null;
         };
         /**
          * @description A seeding override as the API takes it.
@@ -9590,7 +10214,7 @@ export interface components {
         /** @description The effective policy of one torrent, with the source of every field. */
         SeedingPolicyResponse: {
             effective: components["schemas"]["EffectiveSeedingPolicy"];
-            torrent_override?: null | components["schemas"]["SeedingPolicyOverride"];
+            torrent_override?: components["schemas"]["SeedingPolicyOverride"] | null;
         };
         /**
          * @description Why a segment ended.
@@ -9626,6 +10250,9 @@ export interface components {
         };
         /** Format: uuid */
         SessionId: string;
+        SetCollisionPolicyRequest: {
+            policy?: components["schemas"]["CollisionPolicy"] | null;
+        };
         /** @description Which profile a single download uses. */
         SetDownloadAuthProfileRequest: {
             auth_profile: components["schemas"]["AuthProfileSelection"];
@@ -9641,7 +10268,7 @@ export interface components {
             format: string;
             hotfolders?: components["schemas"]["HotFolderConfig"][];
             proxy_profiles?: components["schemas"]["BundleProxyProfile"][];
-            secrets?: null | components["schemas"]["EncryptedSecrets"];
+            secrets?: components["schemas"]["EncryptedSecrets"] | null;
             settings: components["schemas"]["SettingsResponse"];
             storage_roots?: components["schemas"]["StorageRootConfig"][];
             stream_channels?: components["schemas"]["BundleStreamChannel"][];
@@ -9694,7 +10321,7 @@ export interface components {
              */
             auto_remove_keep_failed: boolean;
             /** @default null */
-            bandwidth_default_profile_id: null | components["schemas"]["BandwidthProfileId"];
+            bandwidth_default_profile_id: components["schemas"]["BandwidthProfileId"] | null;
             /**
              * @description IANA timezone the bandwidth schedule and its budget periods are read in.
              * @default Europe/Berlin
@@ -9727,7 +10354,10 @@ export interface components {
              *     ]
              */
             cleanup_extensions: string[];
-            /** @default none */
+            /**
+             * @description What runs once the queue and post-processing have drained.
+             * @default none
+             */
             completion_action: components["schemas"]["CompletionAction"];
             /**
              * Format: int32
@@ -9740,12 +10370,15 @@ export interface components {
              * @default null
              */
             completion_script: string | null;
-            /** @default auto */
+            /**
+             * @description When the session cookie is marked `Secure`.
+             * @default auto
+             */
             cookie_security: components["schemas"]["CookieSecurity"];
             /** @default null */
             custom_ca_pem: string | null;
             /** @default unpack */
-            default_level: null | components["schemas"]["PostprocessLevel"];
+            default_level: components["schemas"]["PostprocessLevel"] | null;
             /**
              * @description Delete the PAR2 recovery set once repair and extraction have both succeeded. Off by
              *     default: it is the only thing that can rescue a damaged package.
@@ -9824,7 +10457,7 @@ export interface components {
             /** @default true */
             generate_sha256: boolean;
             /** @default null */
-            global_proxy_profile_id: null | components["schemas"]["ProxyProfileId"];
+            global_proxy_profile_id: components["schemas"]["ProxyProfileId"] | null;
             /**
              * Format: int32
              * @description Seconds between two reconciliation scans of every watched folder (RD-110-31); 5 to
@@ -9898,7 +10531,7 @@ export interface components {
              */
             media_check_timeout_seconds: number;
             /** @default null */
-            media_default_criteria: null | components["schemas"]["MediaFormatCriteria"];
+            media_default_criteria: components["schemas"]["MediaFormatCriteria"] | null;
             /**
              * @description Variant preselected for new media links (`best`, `1080p`, `720p`, `audio_mp3`, …).
              * @default best
@@ -10074,6 +10707,7 @@ export interface components {
              */
             prevent_standby: boolean;
             /**
+             * @description Weekly windows during which resource-intensive work waits.
              * @default {
              *       "enabled": false,
              *       "windows": []
@@ -10195,7 +10829,10 @@ export interface components {
              * @default true
              */
             safe_postproc: boolean;
-            /** @default 314572800 */
+            /**
+             * @description Files containing "sample" in their name count as samples only below this size.
+             * @default 314572800
+             */
             sample_max_bytes: components["schemas"]["ByteCount"];
             /**
              * Format: int32
@@ -10229,7 +10866,7 @@ export interface components {
              */
             sfv_verify: boolean;
             /** @default null */
-            speed_limit_bytes_per_second: null | components["schemas"]["ByteCount"];
+            speed_limit_bytes_per_second: components["schemas"]["ByteCount"] | null;
             /**
              * Format: int32
              * @description Days the transfer statistics keep hourly buckets before folding them into daily ones
@@ -10249,7 +10886,16 @@ export interface components {
              * @default true
              */
             storage_auto_resume: boolean;
-            /** @default 268435456 */
+            /**
+             * @description What happens when a finished file meets a name that is taken, for packages and
+             *     categories without a policy of their own (RD-150-01).
+             * @default rename
+             */
+            storage_collision_policy: components["schemas"]["CollisionPolicy"];
+            /**
+             * @description Free space that must remain on a storage root without an own threshold.
+             * @default 268435456
+             */
             storage_minimum_free_bytes: components["schemas"]["ByteCount"];
             /**
              * Format: int32
@@ -10296,7 +10942,7 @@ export interface components {
              */
             torrent_bind_interface: string | null;
             /** @default null */
-            torrent_download_limit_bytes_per_second: null | components["schemas"]["ByteCount"];
+            torrent_download_limit_bytes_per_second: components["schemas"]["ByteCount"] | null;
             /**
              * @description HTTP(S) URL of an IP blocklist the torrent engine loads at startup.
              * @default null
@@ -10326,7 +10972,7 @@ export interface components {
              */
             torrent_peer_limit: number | null;
             /** @default null */
-            torrent_proxy_profile_id: null | components["schemas"]["ProxyProfileId"];
+            torrent_proxy_profile_id: components["schemas"]["ProxyProfileId"] | null;
             /**
              * Format: double
              * @description Seed until uploaded/downloaded reaches this ratio (0 disables the ratio stop).
@@ -10362,7 +11008,7 @@ export interface components {
              */
             torrent_sharing_enabled: boolean;
             /** @default null */
-            torrent_upload_limit_bytes_per_second: null | components["schemas"]["ByteCount"];
+            torrent_upload_limit_bytes_per_second: components["schemas"]["ByteCount"] | null;
             /**
              * @description Ask the router to forward the listen port via UPnP.
              * @default false
@@ -10388,6 +11034,8 @@ export interface components {
              * @default false
              */
             upload_enabled: boolean;
+            /** @default null */
+            upload_limit_bytes_per_second: components["schemas"]["ByteCount"] | null;
             /**
              * @description `copy` keeps the local files, `move` removes them after a successful upload.
              * @default copy
@@ -10553,7 +11201,7 @@ export interface components {
         SiteRuleResponse: {
             /** @description Whether the rule is actually consulted: its own switch **and** its group's. */
             active: boolean;
-            check?: null | components["schemas"]["SiteRuleCheckResponse"];
+            check?: components["schemas"]["SiteRuleCheckResponse"] | null;
             /** @description The switch on the rule itself. */
             enabled: boolean;
             group: string;
@@ -10588,6 +11236,36 @@ export interface components {
          * @enum {string}
          */
         SolverKind: "none" | "two_captcha_compatible";
+        /** @description The same source, somewhere else. */
+        SourceDuplicate: {
+            /** @description LinkGrabber candidate id, for a link that is not queued yet. */
+            candidate_id?: string | null;
+            download_id?: components["schemas"]["DownloadId"] | null;
+            file_name?: string | null;
+            location: components["schemas"]["DuplicateLocation"];
+            package_name?: string | null;
+            state?: components["schemas"]["DownloadState"] | null;
+        };
+        /** @description A source, normalised. Two links with equal identities ask for the same thing. */
+        SourceIdentity: {
+            key: string;
+            kind: components["schemas"]["SourceIdentityKind"];
+        };
+        /**
+         * @description Which rule produced the identity.
+         * @enum {string}
+         */
+        SourceIdentityKind: "url" | "magnet" | "nzb" | "provider";
+        /**
+         * @description How the host reaches a source.
+         * @enum {string}
+         */
+        SourceProtocol: "http" | "https" | "ftp" | "ftps" | "sftp";
+        /**
+         * @description What a source is, for the queue and the interface.
+         * @enum {string}
+         */
+        SourceState: "ready" | "backing_off" | "isolated" | "unsupported";
         /** @description How a long recording is cut up. */
         SplitPolicy: {
             /** @enum {string} */
@@ -10656,16 +11334,16 @@ export interface components {
         StatsRange: "day" | "week" | "month" | "year";
         StorageCapacityEntry: {
             blocked: boolean;
-            free_bytes?: null | components["schemas"]["ByteCount"];
+            free_bytes?: components["schemas"]["ByteCount"] | null;
             /** @description Effective threshold: the root's own value, else the global default. */
             minimum_free_bytes: components["schemas"]["ByteCount"];
             name: string;
             path: string;
-            shortfall?: null | components["schemas"]["CapacityShortfallResponse"];
-            storage_root_id?: null | components["schemas"]["StorageRootId"];
+            shortfall?: components["schemas"]["CapacityShortfallResponse"] | null;
+            storage_root_id?: components["schemas"]["StorageRootId"] | null;
             /** @description Path segment for the resume action. */
             target: string;
-            total_bytes?: null | components["schemas"]["ByteCount"];
+            total_bytes?: components["schemas"]["ByteCount"] | null;
         };
         StorageCapacityResponse: {
             auto_resume: boolean;
@@ -10673,6 +11351,37 @@ export interface components {
             /** Format: int32 */
             unknown_size_headroom: number;
         };
+        /**
+         * @description What kind of storage work a history row describes.
+         * @enum {string}
+         */
+        StorageOperationKind: "move" | "dedupe";
+        StorageOperationResponse: {
+            download_id?: components["schemas"]["DownloadId"] | null;
+            /** @description Stable code of a failure. */
+            error_code?: string | null;
+            error_message?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            /** Format: int64 */
+            id: number;
+            kind: components["schemas"]["StorageOperationKind"];
+            package_id?: components["schemas"]["PackageId"] | null;
+            /** Format: int64 */
+            size_bytes?: number | null;
+            source_path: string;
+            /** Format: date-time */
+            started_at: string;
+            state: components["schemas"]["StorageOperationState"];
+            target_path: string;
+            /** @description SHA-256 both copies were verified to share. */
+            verified_digest?: string | null;
+        };
+        /**
+         * @description How a storage operation ended, or that it has not.
+         * @enum {string}
+         */
+        StorageOperationState: "running" | "completed" | "failed" | "interrupted";
         /**
          * @description Whether writes below a storage root outlive the container.
          * @enum {string}
@@ -10682,7 +11391,7 @@ export interface components {
         StorageRootConfig: {
             id: components["schemas"]["StorageRootId"];
             is_default: boolean;
-            minimum_free_bytes?: null | components["schemas"]["ByteCount"];
+            minimum_free_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
             path: string;
         };
@@ -10700,16 +11409,16 @@ export interface components {
         };
         /** @description Free and total capacity of one storage root. */
         StorageSpace: {
-            free_bytes?: null | components["schemas"]["ByteCount"];
+            free_bytes?: components["schemas"]["ByteCount"] | null;
             id: components["schemas"]["StorageRootId"];
             is_default: boolean;
             name: string;
             path: string;
-            total_bytes?: null | components["schemas"]["ByteCount"];
+            total_bytes?: components["schemas"]["ByteCount"] | null;
         };
         /** @description A channel watched by the monitor; recordings start automatically while it is live. */
         StreamChannel: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /** Format: date-time */
             created_at: string;
             enabled: boolean;
@@ -10734,7 +11443,7 @@ export interface components {
         StreamChannelId: string;
         /** @description Editable fields of a monitored livestream channel. */
         StreamChannelRequest: {
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             enabled?: boolean;
             /** @description Display name; defaults to the URL host. Doubles as the recording file prefix. */
             name?: string | null;
@@ -10814,7 +11523,7 @@ export interface components {
             channel_id: components["schemas"]["StreamChannelId"];
             /** Format: date-time */
             created_at: string;
-            download_id?: null | components["schemas"]["DownloadId"];
+            download_id?: components["schemas"]["DownloadId"] | null;
             /**
              * Format: date-time
              * @description Nominal end, before the post-roll.
@@ -10855,6 +11564,13 @@ export interface components {
              *     decoded (RD-120-31). The plugin reads the format from the bytes.
              */
             container?: string | null;
+            /**
+             * @description The name the source was added under -- a container's file name, as the browser carried
+             *     it. Optional; the finished job's LinkGrabber package is named after it (`Show.S01.nzb`
+             *     becomes `Show.S01`). Only the last path segment is kept, control characters are
+             *     dropped and it is cut at 255 characters.
+             */
+            file_name?: string | null;
             /** @description The `magnet:` address to hand over. */
             magnet?: string | null;
         };
@@ -10877,7 +11593,7 @@ export interface components {
             backlog?: components["schemas"]["BacklogPolicy"];
             /** @description The shape of a card's image area in the card view (RD-120-42); `2:1` by default. */
             card_ratio?: components["schemas"]["SubscriptionCardRatio"];
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /**
              * @description Indexer categories routed to categories of ours (RD-080-11). Empty means every item
              *     lands in `category_id`.
@@ -10933,6 +11649,12 @@ export interface components {
              *     when set (RD-130-19). Only a script subscription carries one.
              */
             schedule?: string | null;
+            /**
+             * @description The arguments a script subscription hands its script, each one as it arrives in the
+             *     script's argv -- no shell splits or expands them (RD-150-08). Empty for every other kind.
+             *     Stored and shown in plain text, so never a secret.
+             */
+            script_arguments?: string[];
             /**
              * @description The indexer categories to ask for, sent as `cat`. Empty means "everything", which is
              *     what every subscription written before this field did.
@@ -11070,7 +11792,7 @@ export interface components {
             password?: string | null;
             /** Format: date-time */
             published_at?: string | null;
-            reason?: null | components["schemas"]["FilterReason"];
+            reason?: components["schemas"]["FilterReason"] | null;
             /**
              * @description The category the source assigned, kept raw so a mapping added later still applies to
              *     items that were archived before it existed.
@@ -11154,7 +11876,7 @@ export interface components {
              *     `subscription.card_ratio_unknown` rather than drawn as the default.
              */
             card_ratio?: components["schemas"]["SubscriptionCardRatio"];
-            category_id?: null | components["schemas"]["CategoryId"];
+            category_id?: components["schemas"]["CategoryId"] | null;
             /** @description Indexer categories routed to categories of ours (RD-080-11). */
             category_map?: components["schemas"]["CategoryMapping"][];
             enabled?: boolean;
@@ -11176,6 +11898,13 @@ export interface components {
              *     one; empty or absent keeps the interval.
              */
             schedule?: string | null;
+            /**
+             * @description The arguments a `script` subscription hands its script, one entry per argument, each
+             *     reaching the script whole as one argv entry -- no shell splits or expands them
+             *     (RD-150-08). At most 32, each at most 1024 characters, without NUL or line breaks;
+             *     every other kind takes none. Stored and returned in plain text: never a secret.
+             */
+            script_arguments?: string[];
             /** @description Indexer categories to ask for. Empty asks for everything, as before. */
             source_categories?: string[];
             /** Format: uri */
@@ -11369,17 +12098,17 @@ export interface components {
         };
         /** @description The dependency licences, as `scripts/licenses.sh` writes them. */
         ThirdPartyLicenses: {
-            /** @description Every package of `web/package-lock.json` that npm does not mark as a development one. */
+            /** @description Every package of `web/pnpm-lock.yaml` the production dependencies reach. */
             npm: components["schemas"]["ThirdPartyPackage"][];
             /**
-             * @description Every crate a workspace member depends on as a normal dependency, on any platform —
-             *     what ends up in the binaries and the plugin components.
+             * @description Every crate a shipped artefact contains: what the binaries link on Linux, Windows and
+             *     macOS, and what the plugin components link.
              */
             rust: components["schemas"]["ThirdPartyPackage"][];
             /**
-             * @description The crates of `Cargo.lock` that only tests and build scripts use, as `name@version`.
-             *     They ship nowhere; they are listed so that a crate new to the lockfile can be told
-             *     apart from one this list forgot.
+             * @description The other crates of `Cargo.lock`, as `name@version`: proc macros, build scripts, tests,
+             *     and dependencies no shipped target or feature set reaches. They ship nowhere; they are
+             *     listed so that a crate new to the lockfile can be told apart from one this list forgot.
              */
             rust_not_shipped: string[];
         };
@@ -11490,7 +12219,7 @@ export interface components {
             name?: string | null;
             /** Format: int32 */
             piece_count: number;
-            plan?: null | components["schemas"]["ResolvedTorrentPlan"];
+            plan?: components["schemas"]["ResolvedTorrentPlan"] | null;
             /** @description Private torrents may not use DHT, PEX or LSD. */
             private: boolean;
             /**
@@ -11699,7 +12428,10 @@ export interface components {
              * @default []
              */
             priorities: components["schemas"]["TorrentFilePriorityEntry"][];
-            /** @default off */
+            /**
+             * @description Streaming-oriented piece ordering; rejected unless the engine supports it.
+             * @default off
+             */
             sequential: components["schemas"]["TorrentSequentialMode"];
         };
         /**
@@ -11816,7 +12548,7 @@ export interface components {
             /** @description Redaction-safe reason of the last failure. */
             last_error?: string | null;
             origin: components["schemas"]["TrackerOrigin"];
-            scrape?: null | components["schemas"]["TrackerScrape"];
+            scrape?: components["schemas"]["TrackerScrape"] | null;
             /**
              * @description Whether the scrape counters are older than the freshness window. Stale counters are
              *     still returned, but never presented as current.
@@ -11897,11 +12629,11 @@ export interface components {
             clear_cookies: boolean;
             clear_secret: boolean;
             cookies?: string | null;
-            credential_mode?: null | components["schemas"]["CredentialMode"];
+            credential_mode?: components["schemas"]["CredentialMode"] | null;
             enabled: boolean;
             label: string;
             provider: string;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             secret?: string | null;
             username?: string | null;
         };
@@ -11929,7 +12661,28 @@ export interface components {
             manual_enabled?: boolean | null;
             /** Format: int64 */
             manual_timeout_seconds?: number | null;
-            solver?: null | components["schemas"]["SolverKind"];
+            solver?: components["schemas"]["SolverKind"] | null;
+        };
+        /**
+         * @description Editable profile fields. An empty secret or session token keeps the stored one while the
+         *     provider and the credential source stay what they were.
+         */
+        UpdateObjectStorageProfileRequest: {
+            access_key_id?: string | null;
+            account?: string | null;
+            addressing?: components["schemas"]["ObjectAddressing"] | null;
+            bucket?: string | null;
+            checksums?: boolean;
+            /** @description Drops a stored session token without replacing it. */
+            clear_session_token?: boolean;
+            credential_source: components["schemas"]["ObjectCredentialSource"];
+            enabled?: boolean;
+            endpoint?: string | null;
+            name: string;
+            provider?: components["schemas"]["ObjectStorageProvider"];
+            region?: string | null;
+            secret_access_key?: string | null;
+            session_token?: string | null;
         };
         /** @description Body of `PATCH /api/v1/plugins/repositories/{id}`. */
         UpdatePluginRepositoryRequest: {
@@ -11966,7 +12719,7 @@ export interface components {
             port: number;
             /** Format: int32 */
             priority: number;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             tls: boolean;
             username?: string | null;
         };
@@ -11990,7 +12743,7 @@ export interface components {
             port: number;
             /** Format: int32 */
             priority: number;
-            proxy_profile_id?: null | components["schemas"]["ProxyProfileId"];
+            proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             tls: boolean;
             username?: string | null;
         };
@@ -12024,6 +12777,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12047,6 +12801,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -12072,6 +12827,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12080,6 +12836,7 @@ export interface operations {
                     "application/json": components["schemas"]["Account"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12099,6 +12856,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12107,12 +12865,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12132,14 +12892,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null | components["schemas"]["AuthFlow"];
+                    "application/json": components["schemas"]["AuthFlow"] | null;
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12159,6 +12921,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12167,6 +12930,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12186,6 +12950,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12194,18 +12959,21 @@ export interface operations {
                     "application/json": components["schemas"]["AuthFlow"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -12225,6 +12993,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12233,6 +13002,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrowserSessionResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12254,6 +13024,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -12262,6 +13033,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrowserSessionResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -12270,6 +13042,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12291,6 +13064,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12299,6 +13073,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12320,6 +13095,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12328,6 +13104,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccountHostersResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12351,6 +13128,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12359,12 +13137,14 @@ export interface operations {
                     "application/json": components["schemas"]["SubmitRemoteJobResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12378,6 +13158,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -12397,6 +13178,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12405,12 +13187,14 @@ export interface operations {
                     "application/json": components["schemas"]["AccountTestResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -12428,6 +13212,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12451,6 +13236,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -12470,6 +13256,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12491,6 +13278,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12499,6 +13287,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12522,6 +13311,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12530,12 +13320,14 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureToken"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12626,6 +13418,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12656,6 +13449,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12682,6 +13476,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12705,6 +13500,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -12713,6 +13509,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -12736,6 +13533,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12744,12 +13542,14 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12769,6 +13569,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12777,6 +13578,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12796,6 +13598,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12804,6 +13607,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12823,6 +13627,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12831,6 +13636,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12850,6 +13656,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12858,12 +13665,14 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfileTestResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -12885,6 +13694,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12913,6 +13723,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12932,6 +13743,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12973,6 +13785,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13005,6 +13818,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13055,6 +13869,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13074,6 +13889,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13093,6 +13909,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13116,6 +13933,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -13124,6 +13942,7 @@ export interface operations {
                     "application/json": components["schemas"]["Automation"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13145,6 +13964,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13153,6 +13973,7 @@ export interface operations {
                     "application/json": components["schemas"]["DryRunMatch"][];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13170,6 +13991,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13193,6 +14015,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13201,6 +14024,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportAreaSummary"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13220,6 +14044,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13239,6 +14064,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13264,6 +14090,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13272,12 +14099,14 @@ export interface operations {
                     "application/json": components["schemas"]["Automation"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13297,6 +14126,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13305,6 +14135,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13328,6 +14159,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13336,6 +14168,7 @@ export interface operations {
                     "application/json": components["schemas"]["Automation"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13355,6 +14188,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13374,6 +14208,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13393,6 +14228,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13416,6 +14252,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -13441,6 +14278,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13449,6 +14287,7 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthProfile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13468,6 +14307,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13476,6 +14316,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13493,6 +14334,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13516,6 +14358,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13524,6 +14367,7 @@ export interface operations {
                     "application/json": components["schemas"]["ScheduleResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13543,6 +14387,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13562,6 +14407,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13581,6 +14427,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13604,6 +14451,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13612,6 +14460,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptchaConfigResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13635,6 +14484,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13643,6 +14493,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptchaSolverTestResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13651,6 +14502,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -13670,6 +14522,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13695,6 +14548,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13703,6 +14557,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13711,6 +14566,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13732,6 +14588,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13740,6 +14597,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13765,6 +14623,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13773,6 +14632,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13781,6 +14641,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13800,6 +14661,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13821,6 +14683,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13829,6 +14692,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13850,6 +14714,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -13883,6 +14748,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13891,6 +14757,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureBrowserSession"][];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -13914,6 +14781,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13922,6 +14790,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13930,12 +14799,14 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13957,6 +14828,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13965,12 +14837,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -13985,7 +14859,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description The polling client, when it wants its presence known. */
-                client?: null | components["schemas"]["CaptureCaptchaClient"];
+                client?: components["schemas"]["CaptureCaptchaClient"] | null;
             };
             header?: never;
             path?: never;
@@ -13993,6 +14867,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14001,6 +14876,7 @@ export interface operations {
                     "application/json": components["schemas"]["PendingWidget"][];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -14020,6 +14896,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14028,6 +14905,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14036,12 +14914,14 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14063,6 +14943,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14071,12 +14952,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14102,6 +14985,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14110,6 +14994,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14118,12 +15003,14 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14147,6 +15034,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14155,6 +15043,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14177,6 +15066,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14228,6 +15118,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14247,6 +15138,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14255,6 +15147,7 @@ export interface operations {
                     "application/json": Record<string, never>;
                 };
             };
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -14272,6 +15165,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14291,6 +15185,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14314,6 +15209,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14339,6 +15235,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14347,6 +15244,7 @@ export interface operations {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14366,6 +15264,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14374,13 +15273,48 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_category_collision_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCollisionPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14403,6 +15337,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14411,6 +15346,7 @@ export interface operations {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14434,6 +15370,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14442,6 +15379,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14450,6 +15388,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14471,6 +15410,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14479,6 +15419,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14498,6 +15439,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14521,6 +15463,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14544,6 +15487,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14569,6 +15513,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14577,6 +15522,7 @@ export interface operations {
                     "application/json": components["schemas"]["CategoryRule"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14596,6 +15542,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14604,6 +15551,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14621,6 +15569,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14644,6 +15593,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14663,6 +15613,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14682,6 +15633,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14705,6 +15657,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -14728,6 +15681,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14751,6 +15705,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14759,6 +15714,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14778,6 +15734,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14786,12 +15743,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14815,6 +15774,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14823,6 +15783,7 @@ export interface operations {
                     "application/json": components["schemas"]["LinkCandidate"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14846,6 +15807,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14854,6 +15816,7 @@ export interface operations {
                     "application/json": components["schemas"]["LinkCandidate"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14862,6 +15825,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14870,6 +15834,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14878,6 +15843,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14899,6 +15865,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -14907,6 +15874,7 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14926,6 +15894,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14934,6 +15903,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResolvedRemoteListing"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14959,6 +15929,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14967,6 +15938,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResolvedRemoteListing"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14975,6 +15947,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -14996,6 +15969,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15004,6 +15978,7 @@ export interface operations {
                     "application/json": components["schemas"]["MediaFormatsResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15012,6 +15987,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15037,6 +16013,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15045,6 +16022,7 @@ export interface operations {
                     "application/json": components["schemas"]["MediaOutputPreviewResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15053,6 +16031,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15078,6 +16057,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15086,6 +16066,7 @@ export interface operations {
                     "application/json": components["schemas"]["MediaResolutionResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15094,6 +16075,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15102,6 +16084,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -15127,6 +16110,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15135,6 +16119,7 @@ export interface operations {
                     "application/json": components["schemas"]["LinkCandidate"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15143,6 +16128,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15151,6 +16137,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15159,6 +16146,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -15180,6 +16168,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15188,6 +16177,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15207,6 +16197,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15215,6 +16206,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15234,6 +16226,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15242,12 +16235,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15272,6 +16267,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15315,6 +16311,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15344,6 +16341,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15379,6 +16377,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15387,6 +16386,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15412,6 +16412,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15420,6 +16421,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15428,6 +16430,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15449,6 +16452,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15457,6 +16461,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15465,6 +16470,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15488,6 +16494,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15496,18 +16503,21 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15525,6 +16535,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15548,6 +16559,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15567,6 +16579,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15590,6 +16603,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15613,6 +16627,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -15632,6 +16647,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15655,6 +16671,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15676,6 +16693,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15684,12 +16702,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15713,6 +16733,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15721,6 +16742,7 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPackage"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -15740,6 +16762,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -15748,11 +16771,52 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_collision_policies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollisionPoliciesResponse"];
+                };
+            };
+        };
+    };
+    list_collision_prompts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollisionPromptResponse"][];
+                };
             };
         };
     };
@@ -15770,6 +16834,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -15814,6 +16879,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15847,6 +16913,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15915,6 +16982,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15938,6 +17006,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15969,6 +17038,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -16009,6 +17079,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16032,6 +17103,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -16055,6 +17127,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16078,6 +17151,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -16086,6 +17160,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16103,6 +17178,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16126,6 +17202,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16134,6 +17211,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16151,6 +17229,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16172,6 +17251,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16180,6 +17260,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16203,6 +17284,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16211,12 +17293,14 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadFile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16240,6 +17324,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16248,6 +17333,7 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadFile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16267,6 +17353,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16274,6 +17361,136 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decide_collision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollisionDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dedupe_download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DedupeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DedupeResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    download_duplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateReport"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16288,6 +17505,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16295,6 +17513,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16313,6 +17545,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16321,12 +17554,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16346,6 +17581,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16353,6 +17589,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16367,6 +17617,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16375,6 +17626,36 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_download_sources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["DownloadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadSourcesResponse"];
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16394,6 +17675,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16402,6 +17684,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16428,6 +17711,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16436,6 +17720,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentPeerPage"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16444,6 +17729,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16465,6 +17751,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16473,6 +17760,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentPieceAvailability"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16481,6 +17769,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16506,6 +17795,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16514,6 +17804,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16522,6 +17813,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16543,6 +17835,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16551,6 +17844,7 @@ export interface operations {
                     "application/json": components["schemas"]["SeedingPolicyResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16576,6 +17870,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16584,6 +17879,7 @@ export interface operations {
                     "application/json": components["schemas"]["SeedingPolicyResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16592,6 +17888,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16613,6 +17910,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16621,6 +17919,7 @@ export interface operations {
                     "application/json": components["schemas"]["SeedingPolicyResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16642,6 +17941,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16650,6 +17950,7 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentAggregateStats"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16671,6 +17972,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16679,6 +17981,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrackerListResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16704,6 +18007,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16712,6 +18016,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrackerListResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16720,6 +18025,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16728,6 +18034,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16749,6 +18056,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16757,6 +18065,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16765,6 +18074,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Too Many Requests */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -16786,6 +18096,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16794,6 +18105,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrackerListResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -16802,6 +18114,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16809,6 +18122,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    lookup_duplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DuplicateLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateLookupEntry"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16821,6 +18165,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16840,6 +18185,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16863,6 +18209,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -16888,6 +18235,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16896,6 +18244,7 @@ export interface operations {
                     "application/json": components["schemas"]["HotFolderConfig"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16915,6 +18264,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16923,6 +18273,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16960,6 +18311,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16981,6 +18333,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17004,6 +18357,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17032,6 +18386,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17064,6 +18419,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17092,6 +18448,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17115,6 +18472,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17140,6 +18498,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17171,6 +18530,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17194,6 +18554,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17220,6 +18581,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17239,6 +18601,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17262,6 +18625,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17287,6 +18651,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17295,6 +18660,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRule"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17314,6 +18680,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17322,6 +18689,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17339,6 +18707,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17362,6 +18731,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17387,6 +18757,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17395,6 +18766,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationTarget"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17414,6 +18786,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17422,6 +18795,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17441,6 +18815,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17449,6 +18824,7 @@ export interface operations {
                     "application/json": components["schemas"]["TargetTestResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17466,6 +18842,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17490,6 +18867,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17525,6 +18903,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17533,12 +18912,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17562,6 +18943,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17570,18 +18952,21 @@ export interface operations {
                     "application/json": components["schemas"]["NzbImport"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17601,10 +18986,11 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": null | components["schemas"]["NzbImportEnqueueRequest"];
+                "application/json": components["schemas"]["NzbImportEnqueueRequest"] | null;
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -17613,12 +18999,14 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17638,6 +19026,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17659,6 +19048,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17681,7 +19071,171 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description See Other */
             303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_object_storage_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageProfile"][];
+                };
+            };
+        };
+    };
+    create_object_storage_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObjectStorageProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageProfile"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_object_storage_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ObjectStorageProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObjectStorageProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageProfile"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_object_storage_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ObjectStorageProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    test_object_storage_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["ObjectStorageProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageTestResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17698,6 +19252,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17721,6 +19276,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17729,6 +19285,7 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"][];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17750,6 +19307,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17773,6 +19331,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17781,6 +19340,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17802,6 +19362,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -17810,6 +19371,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17831,6 +19393,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17854,6 +19417,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17862,12 +19426,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17891,6 +19457,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17899,13 +19466,77 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_package_collision_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageCollisionPolicyResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_package_collision_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCollisionPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageCollisionPolicyResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17924,6 +19555,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -17932,6 +19564,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17951,6 +19584,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -17959,6 +19593,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17982,6 +19617,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17990,12 +19626,14 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -18015,6 +19653,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18034,6 +19673,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18055,6 +19695,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18081,6 +19722,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -18109,6 +19751,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18130,6 +19773,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18153,6 +19797,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18161,6 +19806,7 @@ export interface operations {
                     "application/json": components["schemas"]["PluginPreviewResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18180,6 +19826,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18206,6 +19853,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -18234,6 +19882,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18257,6 +19906,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18265,6 +19915,7 @@ export interface operations {
                     "application/json": components["schemas"]["PluginRepositoriesResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18287,6 +19938,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18295,6 +19947,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18303,6 +19956,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18329,6 +19983,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18337,6 +19992,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18363,6 +20019,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -18380,6 +20037,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -18406,6 +20064,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18414,6 +20073,7 @@ export interface operations {
                     "application/json": components["schemas"]["PluginPreviewResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18422,6 +20082,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -18441,6 +20102,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18464,6 +20126,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18472,12 +20135,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18497,6 +20162,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18505,12 +20171,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18528,6 +20196,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18554,6 +20223,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18576,6 +20246,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18602,6 +20273,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18610,6 +20282,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18645,6 +20318,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18653,6 +20327,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18675,6 +20350,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18683,6 +20359,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18718,6 +20395,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18726,6 +20404,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18757,6 +20436,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18765,6 +20445,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18791,6 +20472,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18799,6 +20481,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18832,6 +20515,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18840,6 +20524,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -18868,6 +20553,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18887,6 +20573,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18906,6 +20593,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18925,6 +20613,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18944,6 +20633,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18963,6 +20653,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18982,6 +20673,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19001,6 +20693,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19024,6 +20717,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -19049,6 +20743,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19057,6 +20752,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProxyProfile"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -19076,6 +20772,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19084,12 +20781,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19107,6 +20806,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19126,6 +20826,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -19134,6 +20835,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19142,6 +20844,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19161,6 +20864,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19184,6 +20888,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -19192,12 +20897,14 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteCredential"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19215,6 +20922,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19238,6 +20946,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19246,6 +20955,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19267,6 +20977,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19292,6 +21003,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19300,18 +21012,21 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteCredential"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19331,6 +21046,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19339,6 +21055,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -19358,6 +21075,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19366,6 +21084,7 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteCredentialTestResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -19383,6 +21102,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19402,6 +21122,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19423,6 +21144,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19431,6 +21153,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -19454,6 +21177,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19462,18 +21186,21 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteJob"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -19497,6 +21224,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19505,18 +21233,21 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteJob"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -19527,13 +21258,16 @@ export interface operations {
     };
     export_routing: {
         parameters: {
-            query?: never;
+            query?: {
+                part?: components["schemas"]["RoutingExportPart"] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19557,6 +21291,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19565,6 +21300,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportRoutingSummary"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19584,6 +21320,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19603,6 +21340,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19624,6 +21362,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19652,6 +21391,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19675,6 +21415,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19698,6 +21439,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19706,6 +21448,7 @@ export interface operations {
                     "application/json": components["schemas"]["SettingsBundle"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19729,6 +21472,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19737,6 +21481,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportSummaryResponse"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19756,6 +21501,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19775,6 +21521,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19794,6 +21541,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19820,6 +21568,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19839,6 +21588,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19862,6 +21612,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19881,6 +21632,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19904,6 +21656,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19927,6 +21680,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19953,6 +21707,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -19975,6 +21730,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20001,6 +21757,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20023,6 +21780,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20046,6 +21804,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20072,6 +21831,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20095,6 +21855,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -20120,6 +21881,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20128,6 +21890,7 @@ export interface operations {
                     "application/json": components["schemas"]["StorageRootResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20147,6 +21910,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20155,12 +21919,14 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -20178,6 +21944,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20200,6 +21967,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20208,11 +21976,102 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    check_content_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentIndexCheckResponse"];
+                };
+            };
+        };
+    };
+    link_support: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkSupportEntry"][];
+                };
+            };
+        };
+    };
+    list_storage_operations: {
+        parameters: {
+            query?: {
+                /** @description Newest rows to return (1-1000, default 100). */
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageOperationResponse"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reuse_capabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunnerReuseResponse"][];
+                };
             };
         };
     };
@@ -20225,6 +22084,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20248,6 +22108,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -20273,6 +22134,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20281,6 +22143,7 @@ export interface operations {
                     "application/json": components["schemas"]["StreamChannel"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20300,12 +22163,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20323,6 +22188,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20346,6 +22212,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20354,6 +22221,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportAreaSummary"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20377,6 +22245,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -20390,7 +22259,7 @@ export interface operations {
     list_stream_runs: {
         parameters: {
             query?: {
-                schedule_id?: null | components["schemas"]["StreamScheduleId"];
+                schedule_id?: components["schemas"]["StreamScheduleId"] | null;
                 limit?: number | null;
             };
             header?: never;
@@ -20399,6 +22268,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20418,6 +22288,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20441,6 +22312,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -20449,6 +22321,7 @@ export interface operations {
                     "application/json": components["schemas"]["StreamSchedule"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20457,6 +22330,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20482,6 +22356,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20490,6 +22365,7 @@ export interface operations {
                     "application/json": components["schemas"]["StreamSchedule"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20498,6 +22374,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20519,12 +22396,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20544,6 +22423,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20567,6 +22447,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -20575,6 +22456,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20583,6 +22465,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -20591,6 +22474,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20614,6 +22498,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20622,6 +22507,7 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerCaps"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20630,6 +22516,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -20649,6 +22536,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20672,6 +22560,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20680,6 +22569,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportAreaSummary"];
                 };
             };
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20705,12 +22595,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20719,6 +22611,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -20738,6 +22631,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20763,6 +22657,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20771,6 +22666,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -20779,6 +22675,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20787,6 +22684,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20808,12 +22706,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20835,6 +22735,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20843,6 +22744,7 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerCaps"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20851,6 +22753,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20859,6 +22762,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -20880,6 +22784,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20888,6 +22793,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -20896,6 +22802,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20917,6 +22824,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20925,6 +22833,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -20933,6 +22842,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20954,6 +22864,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20962,6 +22873,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionHistoryClearResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -20987,6 +22899,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20995,6 +22908,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionItemPage"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -21020,6 +22934,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21028,6 +22943,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionBulkStateResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -21036,6 +22952,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -21057,12 +22974,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -21071,6 +22990,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -21094,6 +23014,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21113,6 +23034,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21132,6 +23054,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21151,6 +23074,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21170,6 +23094,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21189,6 +23114,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21208,6 +23134,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21234,6 +23161,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21260,6 +23188,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21282,6 +23211,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21301,6 +23231,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21325,6 +23256,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -21358,6 +23290,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21377,6 +23310,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21396,6 +23330,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21419,6 +23354,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -21444,6 +23380,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21452,6 +23389,7 @@ export interface operations {
                     "application/json": components["schemas"]["UsenetServer"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -21471,6 +23409,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -21479,6 +23418,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -21498,6 +23438,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;

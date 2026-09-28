@@ -3,9 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import type { CollisionPolicy } from '@/api/storage'
 import type { Settings, UsenetServer } from '@/api/types'
-import { GIB, byteModel } from '@/utils/format'
+import { GIB, MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
+import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 
 const settings = defineModel<Settings>({ required: true })
 const speedMiB = defineModel<number | null>('speedMib', { required: true })
@@ -51,6 +53,18 @@ const minimumFreeGiB = byteModel(
   '0'
 )
 
+/** The global level always has a policy; the select's `null` (inherit) is never offered here. */
+const collisionPolicy = computed<CollisionPolicy | null>({
+  get: () => settings.value.storage_collision_policy,
+  set: (value) => { if (value) settings.value.storage_collision_policy = value }
+})
+/** The hand-set upload limit (RD-150-15), entered in MiB/s; empty is unlimited. */
+const uploadLimitMiB = byteModel(
+  () => settings.value.upload_limit_bytes_per_second,
+  (raw) => { settings.value.upload_limit_bytes_per_second = raw },
+  MIB
+)
+
 /** Empty input clears the override; the backend then keeps the built-in default port. */
 const uiPort = computed<number | null>({
   get: () => settings.value.ui_port ?? null,
@@ -71,7 +85,7 @@ const uiPort = computed<number | null>({
         level="page"
       />
     </header>
-    <section class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
+    <section class="grid gap-4 border border-muted bg-default p-5">
       <UFormField :label="t('settings.active_files.label')" :description="t('settings.active_files.description')">
         <UInput v-model.number="settings.max_active_files" type="number" min="1" max="32" icon="i-lucide-files" class="mt-2 w-full" />
       </UFormField>
@@ -98,6 +112,11 @@ const uiPort = computed<number | null>({
           <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
         </UInput>
       </UFormField>
+      <UFormField :label="t('settings.upload_limit.label')" :description="t('settings.upload_limit.description')">
+        <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.5" icon="i-lucide-upload" class="mt-2 w-full" data-testid="upload-limit">
+          <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
+        </UInput>
+      </UFormField>
       <UFormField :label="t('settings.retries.label')" :description="t('settings.retries.description')">
         <UInput v-model.number="settings.max_retries" type="number" min="0" max="100" icon="i-lucide-repeat" class="mt-2 w-full" />
       </UFormField>
@@ -110,51 +129,31 @@ const uiPort = computed<number | null>({
           <span>{{ t('settings.ui_port.restart_hint') }}</span>
         </p>
       </div>
-      <div class="flex items-center justify-between gap-5 border-t border-muted pt-4 md:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.mirrors.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.mirrors.description') }}</p>
-        </div>
-        <USwitch v-model="settings.mirror_detection" :aria-label="t('settings.mirrors.label')" />
-      </div>
-      <div class="border-t border-muted pt-4 md:col-span-2">
-        <div class="flex items-center justify-between gap-5">
-          <div>
-            <p class="text-sm font-medium text-highlighted">{{ t('settings.auto_remove.label') }}</p>
-            <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.auto_remove.description') }}</p>
-          </div>
-          <USwitch v-model="settings.auto_remove_finished" :aria-label="t('settings.auto_remove.label')" />
-        </div>
-        <div v-if="settings.auto_remove_finished" class="mt-4 grid gap-4 md:grid-cols-2">
+      <UFormField :label="t('settings.mirrors.label')" :description="t('settings.mirrors.description')" orientation="horizontal" class="border-t border-muted pt-4">
+        <USwitch v-model="settings.mirror_detection" />
+      </UFormField>
+      <div class="border-t border-muted pt-4">
+        <UFormField :label="t('settings.auto_remove.label')" :description="t('settings.auto_remove.description')" orientation="horizontal">
+          <USwitch v-model="settings.auto_remove_finished" />
+        </UFormField>
+        <div v-if="settings.auto_remove_finished" class="mt-4 grid gap-4">
           <UFormField :label="t('settings.auto_remove.delay_label')" :description="t('settings.auto_remove.delay_description')">
             <UInput v-model.number="settings.auto_remove_delay_hours" type="number" min="1" max="720" icon="i-lucide-timer" class="mt-2 w-full">
               <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
             </UInput>
           </UFormField>
-          <div class="flex items-center justify-between gap-5 self-end pb-1">
-            <div>
-              <p class="text-sm font-medium text-highlighted">{{ t('settings.auto_remove.keep_failed_label') }}</p>
-              <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.auto_remove.keep_failed_description') }}</p>
-            </div>
-            <USwitch v-model="settings.auto_remove_keep_failed" :aria-label="t('settings.auto_remove.keep_failed_label')" />
-          </div>
+          <UFormField :label="t('settings.auto_remove.keep_failed_label')" :description="t('settings.auto_remove.keep_failed_description')" orientation="horizontal">
+            <USwitch v-model="settings.auto_remove_keep_failed" />
+          </UFormField>
         </div>
       </div>
-      <div class="flex items-center justify-between gap-5 border-t border-muted pt-4 md:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.import_history.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.import_history.description') }}</p>
-        </div>
-        <USwitch v-model="settings.keep_import_history" :aria-label="t('settings.import_history.label')" />
-      </div>
-      <div class="flex items-center justify-between gap-5 border-t border-muted pt-4 md:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.sha256.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.sha256.description') }}</p>
-        </div>
-        <USwitch v-model="settings.generate_sha256" :aria-label="t('settings.sha256.label')" />
-      </div>
-      <div class="border-t border-muted pt-4 md:col-span-2">
+      <UFormField :label="t('settings.import_history.label')" :description="t('settings.import_history.description')" orientation="horizontal" class="border-t border-muted pt-4">
+        <USwitch v-model="settings.keep_import_history" />
+      </UFormField>
+      <UFormField :label="t('settings.sha256.label')" :description="t('settings.sha256.description')" orientation="horizontal" class="border-t border-muted pt-4">
+        <USwitch v-model="settings.generate_sha256" />
+      </UFormField>
+      <div class="border-t border-muted pt-4">
         <p class="text-sm font-medium text-highlighted">{{ t('settings.storage.title') }}</p>
         <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.storage.description') }}</p>
       </div>
@@ -166,21 +165,19 @@ const uiPort = computed<number | null>({
       <UFormField :label="t('settings.storage.headroom.label')" :description="t('settings.storage.headroom.description')">
         <UInput v-model.number="settings.storage_unknown_size_headroom" type="number" min="1" max="64" icon="i-lucide-scaling" class="mt-2 w-full" />
       </UFormField>
-      <div class="flex items-center justify-between gap-5 md:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.storage.auto_resume.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.storage.auto_resume.description') }}</p>
-        </div>
-        <USwitch v-model="settings.storage_auto_resume" :aria-label="t('settings.storage.auto_resume.label')" />
-      </div>
-      <div class="flex items-center justify-between gap-5 border-t border-muted pt-4 md:col-span-2">
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('settings.admin_login.label') }}</p>
-          <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.admin_login.description') }}</p>
-          <p v-if="settings.admin_login_disabled" class="mt-1 text-xs leading-5 text-warning">{{ t('settings.admin_login.warning') }}</p>
-        </div>
-        <USwitch v-model="settings.admin_login_disabled" :aria-label="t('settings.admin_login.label')" />
-      </div>
+      <UFormField :label="t('settings.storage.collision.label')" :description="t('settings.storage.collision.description')">
+        <CollisionPolicySelect v-model="collisionPolicy" class="mt-2" />
+      </UFormField>
+      <UFormField :label="t('settings.storage.auto_resume.label')" :description="t('settings.storage.auto_resume.description')" orientation="horizontal">
+        <USwitch v-model="settings.storage_auto_resume" />
+      </UFormField>
+      <UFormField :label="t('settings.admin_login.label')" orientation="horizontal" class="border-t border-muted pt-4">
+        <template #description>
+          {{ t('settings.admin_login.description') }}
+          <span v-if="settings.admin_login_disabled" class="mt-1 block text-warning">{{ t('settings.admin_login.warning') }}</span>
+        </template>
+        <USwitch v-model="settings.admin_login_disabled" />
+      </UFormField>
     </section>
   </div>
 </template>

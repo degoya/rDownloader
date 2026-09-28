@@ -34,7 +34,8 @@
     "daily": "Hoy ({period})",
     "monthly": "Este mes ({period})",
     "usage": "{used} de {limit}",
-    "budget_exhausted": "El presupuesto de tráfico se agotó. Las transferencias en curso terminan; nada nuevo empieza hasta el siguiente periodo."
+    "budget_exhausted": "El presupuesto de tráfico se agotó. Las transferencias en curso terminan; nada nuevo empieza hasta el siguiente periodo.",
+    "upload_binding": "Límite de subida más estricto"
   },
   "capabilities": {
     "title": "Lo que un límite no alcanza del todo"
@@ -51,8 +52,8 @@
     "parallel_description": "Limita la cola mientras está activo; vacío mantiene el ajuste general.",
     "inherit": "Mantener el ajuste",
     "download_label": "Límite de descarga",
-    "upload_label": "Límite de subida torrent",
-    "upload_description": "Solo el motor de torrent sube.",
+    "upload_label": "Límite de subida",
+    "upload_description": "Se aplica a cada subida: siembra de torrents, almacenamiento de objetos, rclone y destinos de subida.",
     "daily_label": "Presupuesto diario",
     "monthly_label": "Presupuesto mensual",
     "no_budget": "Sin presupuesto",
@@ -99,6 +100,8 @@
     "wraps": "Esta ventana cruza la medianoche hacia el día siguiente.",
     "empty": "Aún no hay ventanas: el perfil por defecto se aplica todo el día.",
     "needs_profile": "Cree primero un perfil.",
-    "windows_title": "Ventanas horarias"
+    "windows_title": "Ventanas horarias",
+    "days_label": "Días",
+    "duplicate_hint": "Añade una copia de la ventana justo debajo; se guarda con la programación"
   }
 }

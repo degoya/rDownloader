@@ -1,5 +1,4 @@
 {
-  "cancel_edit": "Bearbeitung abbrechen",
   "tabs": {
     "roots": "Storage-Roots",
     "categories": "Kategorien",
@@ -20,7 +19,10 @@
     "confirm_description": "Die Datei enthält {categories} Kategorien und {rules} Regeln. Bestehende Einträge mit gleichem Namen bleiben erhalten; nur neue werden angelegt.",
     "confirm": "Importieren",
     "import_success": "Routing-Konfiguration importiert",
-    "import_summary": "{categories} Kategorien und {rules} Regeln angelegt, {skipped} übersprungen"
+    "import_summary": "{categories} Kategorien und {rules} Regeln angelegt, {skipped} übersprungen",
+    "export_all": "Alles (Kategorien und Regeln)",
+    "export_categories": "Nur Kategorien",
+    "export_rules": "Nur Regeln"
   },
   "root": {
     "eyebrow": "Allowlist",
@@ -129,7 +131,13 @@
     "plugin_steps_override_label": "Plugin-Schritte überschreiben",
     "plugin_steps_override_description": "Aus übernimmt die globale Liste. An lässt diese Kategorie wählen — auch „keine\", womit ein global aktivierter Schritt hier abgeschaltet wird.",
     "plugin_steps_none_hint": "Keine Schritte hier: Pakete dieser Kategorie führen keinen aus, auch wenn die globale Liste welche enthält.",
-    "form_new": "Neue Kategorie"
+    "form_new": "Neue Kategorie",
+    "duplicated": "Kopie angelegt – anpassen und speichern",
+    "group_count": "keine Kategorien | {count} Kategorie | {count} Kategorien",
+    "collision_label": "Bei Namenskonflikten",
+    "collision_description": "Gilt für die Pakete dieser Kategorie, sofern ein Paket keine eigene Regel hat.",
+    "collision_inherit": "Globale Einstellung erben",
+    "collision_badge": "Konflikte: {policy}"
   },
   "rule": {
     "eyebrow": "Klassifizierer",
@@ -203,8 +211,6 @@
       "invalid_pattern": "Das Muster ist kein gültiger regulärer Ausdruck."
     },
     "create": "Regel anlegen",
-    "duplicate": "Regel duplizieren",
-    "copy_suffix": "Kopie",
     "empty": "Ohne Regel greift die Standardkategorie.",
     "no_category_hint": "Lege zuerst eine Kategorie an — eine Regel braucht immer ein Ziel.",
     "disabled_badge": "AUS",
@@ -214,7 +220,9 @@
     "created": "Regel angelegt",
     "duplicated": "Regelkopie angelegt",
     "updated": "Regel aktualisiert",
-    "form_new": "Neue Regel"
+    "form_new": "Neue Regel",
+    "duplicate": "Regel duplizieren",
+    "copy_suffix": "Kopie"
   },
   "hotfolder": {
     "eyebrow": "Abgeglichener Eingang",
@@ -259,6 +267,8 @@
     "poll_label": "Abfrageintervall",
     "poll_description": "Sekunden zwischen zwei Abgleich-Durchläufen über alle überwachten Ordner (5–3600). Laufende Überwachungen übernehmen den Wert sofort.",
     "poll_saved": "Abfrageintervall gespeichert",
-    "poll_save": "Intervall speichern"
-  }
+    "poll_save": "Intervall speichern",
+    "copy_path_hint": "Eine Kopie braucht einen eigenen Ordner: vor dem Anlegen den Pfad ändern."
+  },
+  "cancel_edit": "Bearbeitung abbrechen"
 }

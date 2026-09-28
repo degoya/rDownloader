@@ -77,9 +77,9 @@ fn changed_event() -> EventEnvelope {
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<AuthProfile>> {
-    sqlx::query_as::<_, ProfileRow>(&format!(
+    sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles ORDER BY host, name"
-    ))
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -88,12 +88,14 @@ pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<AuthProfile>> {
 }
 
 pub(crate) async fn get(pool: &SqlitePool, id: AuthProfileId) -> Result<Option<AuthProfile>> {
-    sqlx::query_as::<_, ProfileRow>(&format!("SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"))
-        .bind(id.to_string())
-        .fetch_optional(pool)
-        .await?
-        .map(TryInto::try_into)
-        .transpose()
+    sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"
+    )))
+    .bind(id.to_string())
+    .fetch_optional(pool)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
 }
 
 /// Returns the most specific enabled, unexpired profile covering `url`.
@@ -108,10 +110,10 @@ pub(crate) async fn match_for_url(pool: &SqlitePool, url: &Url) -> Result<Option
     let now = Utc::now();
     // Candidate set is narrowed by SQL to the host and its parent domains; the precise
     // subdomain and path rules live in AuthScope so they stay testable in one place.
-    let candidates = sqlx::query_as::<_, ProfileRow>(&format!(
+    let candidates = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles \
          WHERE enabled = 1 AND (expires_at IS NULL OR expires_at > ?)"
-    ))
+    )))
     .bind(now)
     .fetch_all(pool)
     .await?;
@@ -202,9 +204,9 @@ pub(crate) async fn update(
 ) -> Result<(AuthProfile, Vec<String>, EventEnvelope)> {
     let event = changed_event();
     let mut tx = connection.begin().await?;
-    let previous = sqlx::query_as::<_, ProfileRow>(&format!(
+    let previous = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(&mut *tx)
     .await?
@@ -240,9 +242,9 @@ pub(crate) async fn update(
     .into_iter()
     .filter_map(|(old, new)| old.filter(|old| Some(old) != new.as_ref()))
     .collect();
-    let value = sqlx::query_as::<_, ProfileRow>(&format!(
+    let value = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?
@@ -269,9 +271,9 @@ pub(crate) async fn set_enabled(
     }
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let value = sqlx::query_as::<_, ProfileRow>(&format!(
+    let value = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_one(&mut *connection)
     .await?
@@ -286,9 +288,9 @@ pub(crate) async fn delete(
 ) -> Result<(Vec<String>, EventEnvelope)> {
     let event = changed_event();
     let mut tx = connection.begin().await?;
-    let existing = sqlx::query_as::<_, ProfileRow>(&format!(
+    let existing = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM auth_profiles WHERE id = ?"
-    ))
+    )))
     .bind(id.to_string())
     .fetch_optional(&mut *tx)
     .await?

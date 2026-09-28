@@ -11,7 +11,7 @@ use rd_core::{
 use rd_postprocess::{group_archive_sets, is_sfv, load_password_file, password_candidates};
 
 use crate::{
-    ExtractionTrigger, Inner, cleanup_job, par2_job, par2_refill,
+    ExtractionTrigger, Inner, cleanup_job, object_upload, par2_job, par2_refill,
     pipeline::{self, PlanInput},
     plugin_step, rar_test_job, rclone_job, script_job, settings, sfv_job, storage_upload,
     unpack_job,
@@ -325,11 +325,24 @@ pub(crate) async fn run_package(
         } else {
             rclone_job::UploadMode::from_setting(&settings.upload_mode)
         };
-        // `plugin:<id>/<destination>` goes to an installed destination, anything else to
-        // rclone. The two paths differ in one way that matters: the plugin one asks the
+        // `object-storage:<profile>/<bucket>/<prefix>` goes to object storage,
+        // `plugin:<id>/<destination>` to an installed destination, anything else to rclone. The two paths differ in one way that matters: the plugin one asks the
         // destination to confirm what it holds before anything local is deleted, which
         // `rclone move` cannot offer.
-        if let Some(plugin) = storage_upload::parse_plugin_remote(remote) {
+        if let Some(target) = object_upload::parse_object_remote(remote) {
+            let names = package_file_names(&directory).await;
+            upload_ok = object_upload::run(
+                inner,
+                &owner,
+                remote,
+                target,
+                &package.name,
+                &directory,
+                &names,
+                mode,
+            )
+            .await?;
+        } else if let Some(plugin) = storage_upload::parse_plugin_remote(remote) {
             let names = package_file_names(&directory).await;
             upload_ok = storage_upload::run(
                 inner,
@@ -349,6 +362,10 @@ pub(crate) async fn run_package(
                 directory: &directory,
                 executable: settings.rclone_executable.as_deref(),
                 vendor_directory: settings.vendor_directory.as_deref(),
+                bwlimit: inner
+                    .upload_limit()
+                    .binding_limit()
+                    .map(|limit| limit.bytes_per_second),
             };
             upload_ok = rclone_job::run(inner, &owner, &context).await?;
         }

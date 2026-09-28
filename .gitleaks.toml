@@ -53,7 +53,7 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 paths = [
     '''(^|/)crates/rd-captcha/(src|tests)/''',
-    '''(^|/)crates/rd-api/tests/captcha\.rs$''',
+    '''(^|/)crates/rd-api/tests/(intake/)?captcha\.rs$''',
 ]
 regexes = ['''a1488b66da00bf332a1488993a5443c79047e''']
 
@@ -84,3 +84,17 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 paths = ['''(^|/)crates/rd-plugin-host/src/diagnostics\.rs$''']
 regexes = ['''^abcdef123456$''']
+
+[[allowlists]]
+description = "An invented download token in a mirror-set test (RD-150-03)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)crates/rd-api/tests/intake/source_sets\.rs$''']
+regexes = ['''^abcdef0123456789$''']
+
+[[allowlists]]
+description = "A truncated placeholder service-account key in the Google key-shape test (RD-150-05)"
+targetRules = ["private-key"]
+condition = "AND"
+paths = ['''(^|/)crates/rd-object-storage/src/connect/gcs\.rs$''']
+regexes = ['''MIIE\\n-----END PRIVATE KEY-----''']

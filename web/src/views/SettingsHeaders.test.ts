@@ -86,14 +86,13 @@ describe('the settings page headers', () => {
 
   // The navbar said "Settings" on all twenty-four pages; it names the page now, with the label
   // of the sidebar entry beside it, in every language (RD-120-53).
-  it('names the page in the navbar, as the sidebar entry does, in all four languages', async () => {
-    for (const locale of SUPPORTED_LOCALES) {
-      for (const section of SETTINGS_SECTIONS) {
-        const container = await mountPage(section.value, locale)
-        const title = container.querySelector('[data-testid=navbar] h1')?.textContent?.trim()
-        expect(title, `${locale}/${section.value}`).toBe(i18n.global.t(section.labelKey))
-        expect(title, `${locale}/${section.value}`).not.toBe(i18n.global.t('settings.title'))
-      }
+  // One test per language: all pages in all four at once took over 20 s on a CI runner.
+  it.each(SUPPORTED_LOCALES)('names the page in the navbar, as the sidebar entry does, in %s', async (locale) => {
+    for (const section of SETTINGS_SECTIONS) {
+      const container = await mountPage(section.value, locale)
+      const title = container.querySelector('[data-testid=navbar] h1')?.textContent?.trim()
+      expect(title, `${locale}/${section.value}`).toBe(i18n.global.t(section.labelKey))
+      expect(title, `${locale}/${section.value}`).not.toBe(i18n.global.t('settings.title'))
     }
     i18n.global.locale.value = 'en'
   })

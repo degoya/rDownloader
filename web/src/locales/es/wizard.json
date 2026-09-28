@@ -46,7 +46,9 @@
   "services": {
     "intro": "Opcional: las cuentas premium eliminan los límites de velocidad y captcha, y un servidor Usenet habilita las descargas NZB.",
     "accounts_tab": "Cuentas de hosters",
-    "usenet_tab": "Usenet"
+    "usenet_tab": "Usenet",
+    "extension_title": "Estas cuentas necesitan la extensión del navegador",
+    "extension_hint": "{providers} pueden tomar el inicio de sesión de tu navegador; eso solo funciona con la extensión del navegador emparejada, y todavía no se ha conectado ninguna. Emparéjala ahora o inicia sesión con contraseña o clave de API."
   },
   "actions": {
     "back": "Atrás",

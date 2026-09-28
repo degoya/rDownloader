@@ -28,11 +28,13 @@ run() { python3 "$SCRIPT" "$TREE" "$@" > "$SCRATCH/out" 2>&1 && status=0 || stat
 has() { grep -qF -- "$2" "$1"; }
 
 mkdir -p "$TREE/docs" "$TREE/sdk" "$TREE/crates/rd-plugin-api/wit" "$TREE/plugins/a" \
-    "$TREE/plugins/b" "$TREE/plugins/common" "$WIKI/plugins"
+    "$TREE/plugins/b" "$TREE/plugins/common" "$TREE/plugins/example-a" "$WIKI/plugins"
 printf '[workspace]\nmembers = []\n\n[workspace.package]\nedition = "2024"\nversion = "1.3.1"\n\n[workspace.dependencies]\nx = { version = "9.9.9" }\n' \
     > "$TREE/Cargo.toml"
 printf 'package rdownloader:plugin@0.9.0;\n' > "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
 touch "$TREE/plugins/a/manifest.toml" "$TREE/plugins/b/manifest.toml" "$TREE/plugins/common/Cargo.toml"
+# An example has a manifest and is not bundled (RD-150-20): the count stays 2.
+touch "$TREE/plugins/example-a/manifest.toml"
 cat > "$TREE/docs/feature-list.md" <<'EOF'
 # Features
 

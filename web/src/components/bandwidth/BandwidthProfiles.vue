@@ -2,11 +2,13 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api } from '@/api/client'
+import { api, responseError } from '@/api/client'
 import type { BandwidthProfile, BandwidthProfileRequest, BandwidthScopeLimit } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { GIB, MIB, byteModel, formatBytes } from '@/utils/format'
@@ -25,6 +27,10 @@ const focusForm = useFormFocus(formElement)
 const scopeKind = ref<'protocol' | 'host' | 'account' | 'category'>('protocol')
 const scopeValue = ref('')
 const scopeMiB = ref<number | null>(null)
+const copyName = useCopyName()
+const duplicatingId = ref<string | null>(null)
+/** Matches the name check in `crates/rd-api/src/bandwidth_handlers.rs`. */
+const MAX_PROFILE_NAME = 100
 
 function emptyForm(): BandwidthProfileRequest {
   return {
@@ -111,6 +117,31 @@ async function submit(): Promise<void> {
   if (saved) emit('changed')
 }
 
+/**
+ * Copies a profile's limits under a free name and opens the copy for editing (RD-150-12). The
+ * schedule windows that point at the original stay with it; the copy is used by nothing yet.
+ */
+async function duplicate(profile: BandwidthProfile): Promise<void> {
+  duplicatingId.value = profile.id
+  error.value = null
+  const response = await api.POST('/api/v1/bandwidth/profiles', {
+    body: {
+      name: copyName(profile.name, profiles.value.map(entry => entry.name), MAX_PROFILE_NAME),
+      download_bytes_per_second: profile.download_bytes_per_second ?? null,
+      upload_bytes_per_second: profile.upload_bytes_per_second ?? null,
+      max_active_files: profile.max_active_files ?? null,
+      daily_budget_bytes: profile.daily_budget_bytes ?? null,
+      monthly_budget_bytes: profile.monthly_budget_bytes ?? null,
+      scopes: [...(profile.scopes ?? [])]
+    }
+  })
+  duplicatingId.value = null
+  if (!response.data) return void (error.value = responseError(response))
+  profiles.value = [...profiles.value, response.data]
+  emit('changed')
+  edit(response.data)
+}
+
 async function remove(profile: BandwidthProfile): Promise<void> {
   if ((await list.remove(profile)).removed) emit('changed')
 }
@@ -148,7 +179,7 @@ function summary(profile: BandwidthProfile): string {
         <p class="mt-2 mb-4 text-xs leading-5 text-muted">{{ t('bandwidth.profile.description') }}</p>
         <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
-          <UFormField :label="t('bandwidth.profile.name_label')">
+          <UFormField :label="t('bandwidth.profile.name_label')" required>
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-gauge" :placeholder="t('bandwidth.profile.name_placeholder')" />
           </UFormField>
           <UFormField :label="t('bandwidth.profile.parallel_label')" :description="t('bandwidth.profile.parallel_description')">
@@ -196,10 +227,7 @@ function summary(profile: BandwidthProfile): string {
             </ul>
           </div>
 
-          <div class="flex gap-2">
-            <UButton type="submit" :icon="editingId ? 'i-lucide-save' : 'i-lucide-plus'" :label="editingId ? t('common.actions.save') : t('bandwidth.profile.create')" :loading="pending" />
-            <UButton v-if="editingId" type="button" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('routing.cancel_edit')" @click="list.reset" />
-          </div>
+          <FormActions :editing="editingId !== null" :create-label="t('bandwidth.profile.create')" :loading="pending" @cancel="list.reset" />
         </form>
       </template>
       <template #list>
@@ -213,8 +241,9 @@ function summary(profile: BandwidthProfile): string {
               </p>
             </div>
             <UBadge v-if="editingId === profile.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" @click="edit(profile)" />
-            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" @click="remove(profile)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" :loading="duplicatingId === profile.id" @click="duplicate(profile)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(profile)" />
+            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(profile)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!profiles.length" variant="inline" class="p-5">
             <p class="text-center text-sm text-muted">{{ t('bandwidth.profile.empty') }}</p>

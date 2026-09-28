@@ -225,8 +225,9 @@ pub(crate) fn cookies_in_scope(content: &str, scope: &Url) -> Result<usize, ApiE
     let scope = rd_http::CookieScope::provider(scope).map_err(|_| refused(Refusal::NotWaiting))?;
     let host = scope.host();
     let mut rows = 0_usize;
-    for line in content.lines().map(str::trim_end) {
-        if line.is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
+    // Only the line ending: a cookie with an empty value ends its row in a tab (DDownload, 1.5.0).
+    for line in content.lines().map(|line| line.trim_end_matches('\r')) {
+        if line.trim().is_empty() || (line.starts_with('#') && !line.starts_with("#HttpOnly_")) {
             continue;
         }
         let line = line.strip_prefix("#HttpOnly_").unwrap_or(line);

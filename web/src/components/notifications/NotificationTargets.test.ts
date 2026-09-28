@@ -5,15 +5,17 @@
  * offering it after the last one was removed, which produces a target that fails on its first
  * delivery.
  */
-import { screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import common from '@/locales/en/common.json'
 import notifications from '@/locales/en/notifications.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
+const post = vi.fn()
 vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
+  api: { GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args), PUT: vi.fn(), DELETE: vi.fn() },
   responseError: vi.fn(() => 'The service did not answer')
 }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
@@ -111,5 +113,54 @@ describe('NotificationTargets reacting to plugin_catalog.changed', () => {
 
     await waitFor(() => expect(get.mock.calls.length).toBe(1), { timeout: 2000 })
     expect(get.mock.calls.length).toBe(1)
+  })
+})
+
+/** RD-150-11 and RD-150-12: the kind leads the form, and a copy never carries the secret. */
+describe('NotificationTargets form and duplicate', () => {
+  const SMTP = {
+    id: 't1', name: 'Mail', kind: 'smtp', enabled: true, endpoint: 'smtp.example:587',
+    config: { from: 'rd@example', to: ['me@example'], tls: 'starttls' }, has_secret: true
+  }
+
+  beforeEach(() => {
+    get.mockReset()
+    get.mockResolvedValue({ data: [] })
+    post.mockReset()
+  })
+
+  it('asks for the kind before the name, because the kind decides every field after it', () => {
+    mountComponent(NotificationTargets, { messages: { notifications }, props: { modelValue: [], loading: false, loadError: null } })
+    const labels = Array.from(document.querySelectorAll('form label')).map(label => label.textContent?.trim() ?? '')
+    expect(labels[0]).toContain(notifications.target.kind_label)
+    expect(labels[1]).toContain(notifications.target.name_label)
+  })
+
+  it('copies a target without its secret, opens the copy and says the secret is to be entered again', async () => {
+    const copy = { ...SMTP, id: 't2', name: `Mail (${common.copy_suffix})`, has_secret: false }
+    post.mockResolvedValueOnce({ data: copy })
+    mountComponent(NotificationTargets, {
+      messages: { notifications },
+      props: { modelValue: [SMTP], loading: false, loadError: null },
+      // The shared field stub drops the description, which is where the form says it.
+      stubs: { UFormField: { props: ['label', 'description'], template: '<div><label v-if="label">{{ label }}<slot /></label><slot v-else /><p>{{ description }}</p></div>' } }
+    })
+
+    const row = screen.getByText('Mail').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.duplicate }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/notifications/targets', expect.anything()))
+    expect(post.mock.calls[0]?.[1]?.body).toEqual({
+      name: `Mail (${common.copy_suffix})`,
+      kind: 'smtp',
+      enabled: true,
+      endpoint: 'smtp.example:587',
+      config: SMTP.config,
+      secret: null,
+      clear_secret: false
+    })
+    await screen.findByRole('heading', { name: notifications.target.form_edit })
+    expect(screen.getByText(notifications.target.secret_copy)).toBeTruthy()
+    expect(screen.getByText(common.editing)).toBeTruthy()
   })
 })

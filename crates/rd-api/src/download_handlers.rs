@@ -72,7 +72,10 @@ pub(crate) async fn summarize_downloads(
                 .map(|total| total.get().saturating_sub(download.committed_bytes.get()))
         })
         .fold(0, u64::saturating_add);
-    let queue_rate = queue_rate(&state.scheduler.transfer_rates(), &downloads);
+    let queue_rate = queue_rate(
+        &moving_rates(state.scheduler.transfer_rates(), &downloads),
+        &downloads,
+    );
     let mut storage = Vec::new();
     for root in state.database.list_storage_roots().await? {
         let path = root.path.clone();
@@ -161,6 +164,28 @@ pub(crate) struct QueueRate {
     pub eta_seconds: Option<u64>,
 }
 
+/// The rates of the downloads that are moving bytes right now.
+///
+/// The scheduler's rates are smoothed and sampled every other tick, so a transfer that just
+/// finished still carries its last rate for a few seconds. Without this filter the page, which
+/// reads the rates once more when the finish is announced and then hears nothing further, kept
+/// showing that last speed on a finished package until it was reloaded (1.5, Premiumize remote
+/// job).
+pub(crate) fn moving_rates(
+    rates: std::collections::HashMap<rd_core::DownloadId, u64>,
+    downloads: &[rd_core::DownloadFile],
+) -> std::collections::HashMap<rd_core::DownloadId, u64> {
+    let moving = downloads
+        .iter()
+        .filter(|download| download.state == rd_core::DownloadState::Downloading)
+        .map(|download| download.id)
+        .collect::<std::collections::HashSet<_>>();
+    rates
+        .into_iter()
+        .filter(|(id, _)| moving.contains(id))
+        .collect()
+}
+
 pub(crate) fn queue_rate(
     rates: &std::collections::HashMap<rd_core::DownloadId, u64>,
     downloads: &[rd_core::DownloadFile],
@@ -188,7 +213,7 @@ pub async fn download_rates(
     State(state): State<AppState>,
 ) -> Result<Json<DownloadRatesResponse>, ApiError> {
     let downloads = state.database.list_downloads().await?;
-    let rates = state.scheduler.transfer_rates();
+    let rates = moving_rates(state.scheduler.transfer_rates(), &downloads);
     let queue = queue_rate(&rates, &downloads);
     let entries = downloads
         .iter()
@@ -400,6 +425,7 @@ pub(crate) async fn apply_download_action(
     }
     let mut affected = 0_u32;
     let mut errors = Vec::new();
+    let mut refusals = Vec::new();
     for id in ids {
         let result = match action {
             DownloadBulkAction::Pause => state.scheduler.pause(id).await,
@@ -411,10 +437,55 @@ pub(crate) async fn apply_download_action(
         };
         match result {
             Ok(()) => affected += 1,
-            Err(error) => errors.push(format!("{id}: {error}")),
+            Err(error) => {
+                errors.push(format!("{id}: {error}"));
+                refusals.push(bulk_refusal(action, error).into_message());
+            }
         }
     }
-    Ok(DownloadBulkResponse { affected, errors })
+    Ok(DownloadBulkResponse {
+        affected,
+        errors,
+        refusals,
+    })
+}
+
+/// The coded refusal of one file in a batch, the same code its single endpoint answers with.
+fn bulk_refusal(action: DownloadBulkAction, error: anyhow::Error) -> ApiError {
+    if refused(&error, StoreErrorKind::NotFound) {
+        return crate::error_codes::download_not_found();
+    }
+    if error
+        .downcast_ref::<rd_scheduler::mirrors::MirrorTaken>()
+        .is_some()
+    {
+        return ApiError::conflict(
+            "download.mirror_active",
+            "Another link to this file is already downloading",
+        );
+    }
+    if !refused(&error, StoreErrorKind::WrongState) {
+        return error.into();
+    }
+    match action {
+        DownloadBulkAction::Cancel => ApiError::conflict(
+            "download.cancel_state",
+            "The download cannot be cancelled in its current state",
+        ),
+        DownloadBulkAction::Remove => ApiError::conflict(
+            "download.active_must_pause",
+            "Active downloads must be cancelled or paused before removal",
+        ),
+        DownloadBulkAction::Reset | DownloadBulkAction::ResetDeleteFiles => reset_failure(error),
+        DownloadBulkAction::Pause => ApiError::conflict(
+            "download.pause_state",
+            "The download cannot be paused in its current state",
+        ),
+        DownloadBulkAction::Resume => ApiError::conflict(
+            "download.resume_state",
+            "The download cannot be resumed in its current state",
+        ),
+    }
 }
 
 /// Discards a file's data and queues it again from zero.
@@ -512,30 +583,53 @@ pub async fn extract_downloads(
     ))
 }
 
-#[utoipa::path(post, path = "/api/v1/downloads/{id}/pause", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse)))]
+#[utoipa::path(post, path = "/api/v1/downloads/{id}/pause", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse), (status = 404), (status = 409)))]
 pub async fn pause_download(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    state.scheduler.pause(parse_id::<DownloadId>(&id)?).await?;
+    state
+        .scheduler
+        .pause(parse_id::<DownloadId>(&id)?)
+        .await
+        .map_err(|error| bulk_refusal(DownloadBulkAction::Pause, error))?;
     Ok(message("download.paused", "Download paused"))
 }
 
-#[utoipa::path(post, path = "/api/v1/downloads/{id}/resume", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse)))]
+#[utoipa::path(post, path = "/api/v1/downloads/{id}/resume", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse), (status = 404), (status = 409)))]
 pub async fn resume_download(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    state.scheduler.resume(parse_id::<DownloadId>(&id)?).await?;
+    state
+        .scheduler
+        .resume(parse_id::<DownloadId>(&id)?)
+        .await
+        .map_err(|error| bulk_refusal(DownloadBulkAction::Resume, error))?;
     Ok(message("download.resumed", "Download resumed"))
 }
 
-#[utoipa::path(post, path = "/api/v1/downloads/{id}/cancel", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse)))]
+#[utoipa::path(post, path = "/api/v1/downloads/{id}/cancel", tag = "downloads", params(("id" = String, Path)), responses((status = 200, body = MessageResponse), (status = 404), (status = 409)))]
 pub async fn cancel_download(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    state.scheduler.cancel(parse_id::<DownloadId>(&id)?).await?;
+    state
+        .scheduler
+        .cancel(parse_id::<DownloadId>(&id)?)
+        .await
+        .map_err(|error| {
+            if refused(&error, StoreErrorKind::WrongState) {
+                ApiError::conflict(
+                    "download.cancel_state",
+                    "The download cannot be cancelled in its current state",
+                )
+            } else if refused(&error, StoreErrorKind::NotFound) {
+                crate::error_codes::download_not_found()
+            } else {
+                error.into()
+            }
+        })?;
     Ok(message("download.cancelled", "Download cancelled"))
 }
 
@@ -646,7 +740,7 @@ pub async fn set_download_auth_profile(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{is_transferring, queue_rate, remaining_of};
+    use super::{is_transferring, moving_rates, queue_rate, remaining_of};
     use rd_core::{DownloadFile, DownloadId, DownloadState};
     use std::collections::HashMap;
 
@@ -688,6 +782,18 @@ pub(crate) mod tests {
             .iter()
             .map(|(file, rate)| (file.id, *rate))
             .collect()
+    }
+
+    #[test]
+    fn a_finished_download_keeps_no_rate() {
+        let running = file(DownloadState::Downloading, 500, Some(1_000));
+        let finished = file(DownloadState::Completed, 1_000, Some(1_000));
+        let verifying = file(DownloadState::Verifying, 1_000, Some(1_000));
+        let table = rates(&[(&running, 250), (&finished, 36_000_000), (&verifying, 10)]);
+
+        let moving = moving_rates(table, &[running.clone(), finished, verifying]);
+
+        assert_eq!(moving, HashMap::from([(running.id, 250)]));
     }
 
     #[test]
@@ -759,5 +865,69 @@ pub(crate) mod tests {
     fn an_overshooting_checkpoint_leaves_nothing_remaining() {
         let running = file(DownloadState::Downloading, 1_200, Some(1_000));
         assert_eq!(remaining_of(&running), Some(0));
+    }
+
+    /// A batch reports each refusal with the code its single endpoint answers with, so the
+    /// interface can translate it instead of showing the English text or nothing.
+    #[test]
+    fn a_bulk_refusal_carries_the_code_of_its_single_endpoint() {
+        use crate::dto::DownloadBulkAction;
+        use rd_db::StoreError;
+
+        let refusal = |action, error: StoreError| {
+            super::bulk_refusal(action, anyhow::Error::new(error)).into_message()
+        };
+        assert_eq!(
+            refusal(
+                DownloadBulkAction::Cancel,
+                StoreError::wrong_state("cannot be cancelled")
+            )
+            .code,
+            "download.cancel_state"
+        );
+        assert_eq!(
+            refusal(
+                DownloadBulkAction::Remove,
+                StoreError::wrong_state("still running")
+            )
+            .code,
+            "download.active_must_pause"
+        );
+        assert_eq!(
+            refusal(DownloadBulkAction::Pause, StoreError::not_found("gone")).code,
+            "download.not_found"
+        );
+        assert_eq!(
+            refusal(
+                DownloadBulkAction::Pause,
+                StoreError::wrong_state("invalid download transition")
+            )
+            .code,
+            "download.pause_state"
+        );
+        assert_eq!(
+            refusal(
+                DownloadBulkAction::Resume,
+                StoreError::wrong_state("invalid download transition")
+            )
+            .code,
+            "download.resume_state"
+        );
+        let taken = anyhow::Error::new(rd_scheduler::mirrors::MirrorTaken {
+            source: "https://mirror.example/file".to_owned(),
+        });
+        assert_eq!(
+            super::bulk_refusal(DownloadBulkAction::Resume, taken)
+                .into_message()
+                .code,
+            "download.mirror_active"
+        );
+        // Anything untagged stays the internal error it is.
+        assert_eq!(
+            super::bulk_refusal(DownloadBulkAction::Resume, anyhow::anyhow!("disk on fire"))
+                .into_message()
+                .code,
+            crate::error_codes::INTERNAL_ERROR
+        );
     }
 }

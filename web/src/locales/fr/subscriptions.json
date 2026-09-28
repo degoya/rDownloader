@@ -75,7 +75,15 @@
     "script": "Script",
     "script_description": "Un fichier du dossier des scripts du service. Chaque ligne qu'il affiche et qui est un lien est reprise ; un lien déjà vu ne l'est pas une seconde fois. Seul l'administrateur peut configurer un abonnement de script.",
     "schedule": "Planification (cron)",
-    "schedule_description": "Cinq champs dans l'heure locale du service, p. ex. 0 6 * * * pour 06:00 chaque jour. Laissez vide pour utiliser l'intervalle ; avec une planification, l'intervalle ne fixe que le délai avant de réessayer une exécution échouée."
+    "schedule_description": "Cinq champs dans l'heure locale du service, p. ex. 0 6 * * * pour 06:00 chaque jour. Laissez vide pour utiliser l'intervalle ; avec une planification, l'intervalle ne fixe que le délai avant de réessayer une exécution échouée.",
+    "script_arguments": "Paramètres",
+    "script_arguments_description": "Une ligne, séparée par des espaces ; \"…\" ou '…' gardent ensemble un paramètre contenant des espaces. Pas de shell : $variables, > redirections, ; et & arrivent tels quels. Aucun secret : les paramètres sont stockés en clair dans la base de données, les sauvegardes et le journal d'audit.",
+    "script_arguments_preview": "Ainsi les paramètres arrivent au script",
+    "script_arguments_empty": "vide",
+    "script_arguments_unclosed": "Un guillemet n'est pas fermé",
+    "script_missing": "{name} (n'est plus dans le dossier des scripts)",
+    "create": "Créer l’abonnement",
+    "form_new": "Nouvel abonnement"
   },
   "list": {
     "title": "Abonnements",

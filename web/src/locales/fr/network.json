@@ -19,7 +19,6 @@
     "enabled": "Compte actif",
     "save_changes": "Enregistrer les modifications",
     "create": "Créer un compte",
-    "cancel_edit": "Annuler la modification",
     "hint_title": "Importer correctement les identifiants",
     "secret_generic": "Clé API ou mot de passe",
     "secret_generic_api_key": "Clé API",
@@ -59,7 +58,9 @@
       "declined": "Refusé dans l'extension : la session {host} n'a pas été transmise.",
       "expired": "Personne n'a répondu à la demande à temps ; la session {host} n'a pas été transmise."
     },
-    "providers_loading": "Je charge les plugins dont viennent les fournisseurs – après un démarrage ou une mise à jour de plugin, cela prend un moment…"
+    "providers_loading": "Je charge les plugins dont viennent les fournisseurs – après un démarrage ou une mise à jour de plugin, cela prend un moment…",
+    "credential_mode_oauth": "Se connecter avec un code",
+    "no_providers": "Aucun plugin de comptes n'est actif. Activez les plugins d'hébergeur dans Paramètres → Plugins."
   },
   "hosters": {
     "toggle": "Hébergeurs pris en charge",

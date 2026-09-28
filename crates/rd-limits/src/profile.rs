@@ -22,7 +22,8 @@ pub struct BandwidthProfile {
     pub name: String,
     /// Global download limit; `None` = unlimited.
     pub download_bytes_per_second: Option<rd_core::ByteCount>,
-    /// Global torrent upload limit; `None` = unlimited.
+    /// Global upload limit; `None` = unlimited. Every upload keeps it: torrent seeding, object
+    /// storage, rclone and the upload destination plugins (RD-150-15).
     pub upload_bytes_per_second: Option<rd_core::ByteCount>,
     /// Overrides the queue's parallelism while the profile is active; `None` keeps it.
     pub max_active_files: Option<u32>,

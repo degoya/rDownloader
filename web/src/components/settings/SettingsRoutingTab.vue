@@ -9,6 +9,7 @@ import RoutingCategories from '@/components/routing/RoutingCategories.vue'
 import RoutingCategoryRules from '@/components/routing/RoutingCategoryRules.vue'
 import RoutingStorageRoots from '@/components/routing/RoutingStorageRoots.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import StorageActivityCard from '@/components/storage/StorageActivityCard.vue'
 import SettingsCollectorTab from '@/components/settings/SettingsCollectorTab.vue'
 import { useFetchState } from '@/composables/useFetchState'
 
@@ -80,7 +81,10 @@ async function reloadDependents(): Promise<void> {
       :ui="{ content: 'pt-4' }"
     >
       <template #roots>
-        <RoutingStorageRoots v-model="roots" :loading="loading" :load-error="loadError" />
+        <div class="space-y-4">
+          <RoutingStorageRoots v-model="roots" :loading="loading" :load-error="loadError" />
+          <StorageActivityCard />
+        </div>
       </template>
       <template #categories>
         <RoutingCategories v-model="categories" :roots="roots" :loading="loading" :load-error="loadError" @removed="reloadDependents" />

@@ -1,5 +1,4 @@
 {
-  "cancel_edit": "Annuler la modification",
   "tabs": {
     "roots": "Racines de stockage",
     "categories": "Catégories",
@@ -20,7 +19,10 @@
     "confirm_description": "Le fichier contient {categories} catégories et {rules} règles. Les entrées existantes portant le même nom sont conservées ; seules les nouvelles sont ajoutées.",
     "confirm": "Importer",
     "import_success": "Configuration de routage importée",
-    "import_summary": "{categories} catégories et {rules} règles ajoutées, {skipped} ignorées"
+    "import_summary": "{categories} catégories et {rules} règles ajoutées, {skipped} ignorées",
+    "export_all": "Tout (catégories et règles)",
+    "export_categories": "Catégories seulement",
+    "export_rules": "Règles seulement"
   },
   "root": {
     "eyebrow": "Liste blanche",
@@ -129,7 +131,13 @@
     "plugin_steps_override_label": "Remplacer les étapes de plugin",
     "plugin_steps_override_description": "Désactivé hérite de la liste globale. Activé laisse cette catégorie choisir — y compris « aucune », ce qui désactive ici une étape activée globalement.",
     "plugin_steps_none_hint": "Aucune étape ici : les paquets de cette catégorie n'en exécutent aucune, même si la liste globale en contient.",
-    "form_new": "Nouvelle catégorie"
+    "form_new": "Nouvelle catégorie",
+    "duplicated": "Copie créée — ajustez-la et enregistrez",
+    "group_count": "aucune catégorie | {count} catégorie | {count} catégories",
+    "collision_label": "En cas de collision de noms",
+    "collision_description": "S’applique aux paquets de cette catégorie, sauf si un paquet a sa propre règle.",
+    "collision_inherit": "Hériter du réglage global",
+    "collision_badge": "Collisions : {policy}"
   },
   "rule": {
     "eyebrow": "Classificateur",
@@ -203,8 +211,6 @@
       "invalid_pattern": "Le motif n'est pas une expression régulière valide."
     },
     "create": "Créer une règle",
-    "duplicate": "Dupliquer la règle",
-    "copy_suffix": "copie",
     "empty": "Sans règle, la catégorie par défaut s'applique.",
     "no_category_hint": "Créez d'abord une catégorie — une règle a toujours besoin d'une cible.",
     "disabled_badge": "INACTIVE",
@@ -214,7 +220,9 @@
     "created": "Règle créée",
     "duplicated": "Copie de la règle créée",
     "updated": "Règle mise à jour",
-    "form_new": "Nouvelle règle"
+    "form_new": "Nouvelle règle",
+    "duplicate": "Dupliquer la règle",
+    "copy_suffix": "copie"
   },
   "hotfolder": {
     "eyebrow": "Réception réconciliée",
@@ -259,6 +267,8 @@
     "poll_label": "Intervalle d'interrogation",
     "poll_description": "Secondes entre deux passes de réconciliation sur tous les dossiers surveillés (5–3600). Les surveillances en cours adoptent la valeur immédiatement.",
     "poll_saved": "Intervalle d'interrogation enregistré",
-    "poll_save": "Enregistrer l'intervalle"
-  }
+    "poll_save": "Enregistrer l'intervalle",
+    "copy_path_hint": "Une copie a besoin de son propre dossier : modifiez le chemin avant de la créer."
+  },
+  "cancel_edit": "Annuler la modification"
 }

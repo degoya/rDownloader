@@ -303,3 +303,103 @@ async fn an_answered_callback_state_matches_nothing_the_second_time() {
     let kept = database.auth_flow(account_id).await.expect("flow");
     assert_eq!(kept.map(|flow| flow.state), Some(AuthFlowState::Authorized));
 }
+
+/// The named parts a sign-in keeps beside its token (RD-150-09): one row each, a replacement
+/// answers the reference it took out of use, and they go with the flow and with the account.
+#[tokio::test]
+async fn a_sign_in_s_parts_are_kept_one_by_one_and_go_with_the_flow() {
+    let directory = TempDir::new().expect("directory");
+    let database = database(&directory).await;
+    let account_id = account(&database).await;
+    database
+        .upsert_auth_flow(renewable(account_id, Duration::hours(1)))
+        .await
+        .expect("upsert");
+
+    let first = database
+        .set_auth_flow_part(
+            account_id,
+            "demo_client_id".to_owned(),
+            "vault://a".to_owned(),
+        )
+        .await
+        .expect("part");
+    assert_eq!(first, None, "a new part replaces nothing");
+    database
+        .set_auth_flow_part(
+            account_id,
+            "demo_client_secret".to_owned(),
+            "vault://b".to_owned(),
+        )
+        .await
+        .expect("part");
+    let replaced = database
+        .set_auth_flow_part(
+            account_id,
+            "demo_client_id".to_owned(),
+            "vault://c".to_owned(),
+        )
+        .await
+        .expect("part");
+    assert_eq!(replaced.as_deref(), Some("vault://a"));
+    assert_eq!(
+        database
+            .auth_flow_part(account_id, "demo_client_id")
+            .await
+            .expect("read")
+            .as_deref(),
+        Some("vault://c")
+    );
+    assert_eq!(
+        database
+            .auth_flow_part(account_id, "demo_client_secret")
+            .await
+            .expect("read")
+            .as_deref(),
+        Some("vault://b")
+    );
+
+    // A renewal touches the flow's own columns and leaves the parts alone.
+    database
+        .set_auth_flow_renewal(account_id, None, Some("vault://refresh".to_owned()), None)
+        .await
+        .expect("renewal");
+    assert!(
+        database
+            .auth_flow_part(account_id, "demo_client_secret")
+            .await
+            .expect("read")
+            .is_some()
+    );
+
+    // Cancelling the flow takes them with it.
+    database.delete_auth_flow(account_id).await.expect("cancel");
+    for name in ["demo_client_id", "demo_client_secret"] {
+        assert!(
+            database
+                .auth_flow_part(account_id, name)
+                .await
+                .expect("read")
+                .is_none(),
+            "{name}"
+        );
+    }
+
+    // And deleting the account takes whatever a later sign-in kept.
+    database
+        .set_auth_flow_part(
+            account_id,
+            "demo_client_id".to_owned(),
+            "vault://d".to_owned(),
+        )
+        .await
+        .expect("part");
+    database.delete_account(account_id).await.expect("delete");
+    assert!(
+        database
+            .auth_flow_part(account_id, "demo_client_id")
+            .await
+            .expect("read")
+            .is_none()
+    );
+}

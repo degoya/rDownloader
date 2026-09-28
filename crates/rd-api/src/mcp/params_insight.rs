@@ -116,6 +116,9 @@ pub(crate) struct SubmitRemoteJobParams {
     /// provider's plugin reads the format from the bytes (RD-120-31).
     #[serde(default)]
     pub container: Option<String>,
+    /// The container's file name. The finished job's LinkGrabber package is named after it.
+    #[serde(default)]
+    pub file_name: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
