@@ -13,7 +13,9 @@ export default defineConfig({
     globals: true,
     // Vitest's default of 5 s is tight for tests that render every settings page in four
     // languages: one took 5.7 s on a GitHub runner (2026-09-25) and four more ran over locally
-    // while other work loaded the machine. The limit catches a hang, not a slow render.
-    testTimeout: 20_000
+    // while other work loaded the machine. The limit catches a hang, not a slow render. Hooks get
+    // the same: `beforeAll(loadEveryLocale)` ran past the default 10 s in the 1.5.1 release check.
+    testTimeout: 20_000,
+    hookTimeout: 20_000
   }
 })

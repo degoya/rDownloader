@@ -202,6 +202,11 @@ jobs:
         with:
           toolchain: 1.98.0
           targets: ${{ matrix.target }}
+      # rust-toolchain.toml selects its own channel inside the checkout, so the target the step
+      # above installed for 1.98.0 is not the one cargo builds with. The Intel macOS binary is
+      # cross-built on the Apple Silicon runner since RD-150-10, and 1.5.0's release failed on
+      # exactly this: "can't find crate for `std`" for x86_64-apple-darwin.
+      - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}

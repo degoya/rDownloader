@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-28
+
+The same program as 1.5.0; 1.5.0's release workflow stopped before publishing anything.
+
+### Fixed
+
+- **The release workflow builds the Intel macOS binary again.** Since 1.5.0 it is cross-built on
+  the Apple Silicon runner, and the target was installed for the pinned toolchain while
+  `rust-toolchain.toml` builds with its own channel, so the build found no standard library for
+  `x86_64-apple-darwin` and 1.5.0 got no GitHub release. The workflow now installs the target for
+  the toolchain the checkout selects.
+
 ## [1.5.0] - 2026-09-28
 
 ### Added
