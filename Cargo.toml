@@ -260,7 +260,7 @@ webauthn-rs = "0.6.1-dev"
 # protocol types; a version skew here would compare structurally identical types that the
 # compiler considers unrelated.
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
-wit-bindgen = "0.61"
+wit-bindgen = "0.62"
 zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
