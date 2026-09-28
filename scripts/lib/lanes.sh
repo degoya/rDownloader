@@ -15,7 +15,7 @@
 # working set is ~52 GiB (48 GiB of the newest variant per stem in target/debug/deps, 279 test
 # binaries at up to 585 MB each, plus build/ and examples/), 596 GiB were free, and a wave had ten
 # worktrees open. Ten own targets would need ~520 GiB; the two lanes the machine has memory for
-# need ~105 GiB. The numbers are in docs/roadmap/jobs/140-06-schneller-bauen-rest.md.
+# need ~105 GiB. The numbers are in docs/roadmap/jobs/archive/140-06-schneller-bauen-rest.md.
 
 # The main checkout of the repository checkout $1 belongs to — itself for the main checkout.
 rd_main_root() {

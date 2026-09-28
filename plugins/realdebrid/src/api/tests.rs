@@ -276,13 +276,6 @@ fn the_answers_the_plugin_reads_parse_as_documented() {
     assert_eq!(unrestricted.filename.as_deref(), Some("release.rar"));
     assert_eq!(unrestricted.filesize, Some(4096));
 
-    let checked: CheckedLink = serde_json::from_str(
-        r#"{"host":"example.test","link":"https://example.test/f/abc",
-            "filename":"release.rar","filesize":4096,"supported":1}"#,
-    )
-    .expect("parse");
-    assert_eq!(checked.filename.as_deref(), Some("release.rar"));
-
     let user: UserInfo = serde_json::from_str(
         r#"{"id":1,"username":"alice","email":"a@test","points":300,"locale":"en",
             "avatar":"https://fcdn.real-debrid.com/x.png","type":"premium",
@@ -291,4 +284,20 @@ fn the_answers_the_plugin_reads_parse_as_documented() {
     .expect("parse");
     assert_eq!(user.username.as_deref(), Some("alice"));
     assert!(is_premium(user.account_type.as_deref(), user.premium));
+}
+
+/// The same rule as the host's catalogue match: the domain itself, a subdomain of it, `www.`
+/// ignored — and not a name that merely ends in the same letters.
+#[test]
+fn the_catalogue_covers_a_hoster_and_its_subdomains_only() {
+    let hosters = merge_hosters(vec!["1fichier.com".to_owned(), "Rapidgator.net".to_owned()]);
+    assert!(covers(
+        &hosters,
+        "https://1fichier.com/?abcdefghij0123456789"
+    ));
+    assert!(covers(&hosters, "https://www.1fichier.com/?abc"));
+    assert!(covers(&hosters, "https://a-1.RAPIDGATOR.net/file/x"));
+    assert!(!covers(&hosters, "https://not1fichier.com/?abc"));
+    assert!(!covers(&hosters, "https://example.test/f/abc"));
+    assert!(!covers(&hosters, "not a url"));
 }

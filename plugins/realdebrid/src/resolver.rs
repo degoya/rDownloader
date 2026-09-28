@@ -100,53 +100,38 @@ pub(crate) async fn hosters<H: PluginHost>(
     Ok(api::merge_hosters(domains))
 }
 
-/// Asks `POST /unrestrict/check` about each address, one request per link.
+/// Answers the LinkGrabber's check from the public catalogue, without asking about any file.
 ///
-/// Three decisions worth naming:
+/// `POST /unrestrict/check` is deliberately not called (1.5.3). Measured on 2026-09-28 it
+/// answered `429` with `error_code` 34 to the very first request, token or not, so every check
+/// came back as a rate-limit wait on links the download could fetch; and where it answers, it
+/// costs one request per link against the 250 a minute the downloads share. Whether a file is
+/// there is what `unrestrict/link` answers when the download starts, so nothing is lost that
+/// the download does not learn anyway. The check is one `GET /hosts/domains` per batch:
 ///
-/// - **The batch is bounded.** Everything past [`api::CHECK_LIMIT`] comes back `Unknown`,
-///   because one request per link against an API capped at 250 a minute would rate-limit the
-///   very account the check is for.
-/// - **A refusal about one link is not a failed batch.** A link the provider calls unavailable
-///   is `Offline`, anything else it refuses is `Unknown`, and the remaining links are still
-///   asked about. Only a rate limit stops the run, because carrying on would deepen it.
-/// - **`supported` is not `online`.** A file that is there on a hoster Real-Debrid does not
-///   cover is still there; it just cannot be fetched through this account.
+/// - **A link on a covered hoster is `Unknown`**: Real-Debrid supports it, and whether the
+///   file is there cannot be verified before the download.
+/// - **A batch with no covered link fails `Unsupported`** (`realdebrid.host_unsupported`),
+///   because a link status has no word for "not this provider". The LinkGrabber only routes
+///   covered links here, by the same catalogue, so an uncovered link in a mixed batch is
+///   `Unknown` too, and `resolve` names it when the download tries it.
+/// - **A catalogue that cannot be fetched leaves every link `Unknown`**, a rate limit
+///   included. A check has nothing to wait for, and a wait reported here would hold links
+///   whose download is fine.
 pub(crate) async fn check<H: PluginHost>(
     host: &H,
     request: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let mut results = Vec::with_capacity(request.urls.len());
-    for (index, url) in request.urls.iter().enumerate() {
-        if index >= api::CHECK_LIMIT {
-            results.push(unknown(url));
-            continue;
-        }
-        match call(host, "POST", "/unrestrict/check", api::link_body(url), None).await {
-            Ok(response) => results.push(match parse_json::<api::CheckedLink>(&response) {
-                Ok(checked) => LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Online,
-                    file_name: checked.filename,
-                    size: checked.filesize,
-                },
-                Err(_) => unknown(url),
-            }),
-            Err(failure) if matches!(failure.kind, FailureKind::RateLimited(_)) => {
-                return Err(failure);
-            }
-            Err(failure) => results.push(LinkCheck {
-                url: url.clone(),
-                status: match failure.kind {
-                    FailureKind::Offline => LinkStatus::Offline,
-                    _ => LinkStatus::Unknown,
-                },
-                file_name: None,
-                size: None,
-            }),
+    let catalogue = call(host, "GET", "/hosts/domains", Vec::new(), None)
+        .await
+        .and_then(|response| parse_json::<Vec<String>>(&response));
+    if let Ok(domains) = catalogue {
+        let hosters = api::merge_hosters(domains);
+        if !request.urls.is_empty() && !request.urls.iter().any(|url| api::covers(&hosters, url)) {
+            return Err(coded(FailureKind::Unsupported, messages::HOST_UNSUPPORTED));
         }
     }
-    Ok(results)
+    Ok(request.urls.iter().map(|url| unknown(url)).collect())
 }
 
 fn unknown(url: &str) -> LinkCheck {
@@ -160,9 +145,9 @@ fn unknown(url: &str) -> LinkCheck {
 
 /// Calls `{API_BASE}{path}` and turns whatever came back into a failure or a response.
 ///
-/// `token` names the reference the Bearer header carries, or `None` for no header at all. Two of
-/// Real-Debrid's endpoints take no token, and sending one to them would put a credential on the
-/// wire for no reason — the host would allow it, which is exactly why the plugin should not ask.
+/// `token` names the reference the Bearer header carries, or `None` for no header at all. The
+/// catalogue takes no token, and sending one to it would put a credential on the wire for no
+/// reason — the host would allow it, which is exactly why the plugin should not ask.
 ///
 /// The token never enters the plugin: `{{secret:…}}` is expanded by the host, towards
 /// `api.real-debrid.com` and nowhere else.

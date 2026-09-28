@@ -59,7 +59,8 @@ fn value_after<'a>(body: &'a str, name: &str) -> Option<&'a str> {
     None
 }
 
-/// Percent-encoding for the query parameters the device endpoint takes.
+/// Percent-encoding of everything outside RFC 3986's unreserved set, which reads the same in a
+/// query and in a form body -- the token request's body is written with it (`crate::form`).
 #[must_use]
 pub fn percent_encode(value: &str) -> String {
     let mut out = String::with_capacity(value.len());

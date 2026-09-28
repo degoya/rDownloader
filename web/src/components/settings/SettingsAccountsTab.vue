@@ -6,7 +6,6 @@ import { api, resultMessage, responseError } from '@/api/client'
 import type {
   Account,
   AccountTest,
-  AuthFlow,
   CreateAccount,
   CredentialMode,
   Provider,
@@ -17,13 +16,15 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import AccountBrowserSession from '@/components/settings/AccountBrowserSession.vue'
+import AccountSignInFlow from '@/components/settings/AccountSignInFlow.vue'
+import { isOpenFlow, useAuthFlows } from '@/composables/useAuthFlows'
 import { useBrowserSessions } from '@/composables/useBrowserSessions'
 import { useConfirm } from '@/composables/useConfirm'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { providerText as pluginProviderText } from '@/i18n/plugins'
-import { translateAccountLabel, translateServerMessage } from '@/i18n/server'
+import { translateAccountLabel } from '@/i18n/server'
 import { formatBytes } from '@/utils/format'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { withPluginVersion } from '@/utils/pluginVersion'
@@ -246,15 +247,9 @@ function genericCredentialNoun(): string {
   return t('network.account.secret_generic')
 }
 
-/**
- * Sign-in flows a plugin is running, by account (RD-090-13).
- *
- * The service drives them; this only reads state and shows it. Closing the page in the middle
- * of a sign-in therefore loses nothing — reopening it picks the flow up where it stands.
- */
-const authFlows = ref<Record<string, AuthFlow | null>>({})
-const connectingAccountId = ref<string | null>(null)
-let flowTimer: number | null = null
+/** Sign-in flows by account; one that finishes changes the account, so the list is re-read. */
+const authFlows = useAuthFlows(() => { void refresh() })
+const { flowOf } = authFlows
 
 /** Whether an installed plugin can sign this account in instead of a key being typed. */
 function canConnect(account: Account): boolean {
@@ -270,10 +265,6 @@ function canConnect(account: Account): boolean {
   return provider.credentials !== 'api_key' || !account.has_secret
 }
 
-function flowOf(account: Account): AuthFlow | null {
-  return authFlows.value[account.id] ?? null
-}
-
 /** What to call a provider: its plugin's own name, the registry's, or the bare slug. */
 function providerName(slug: string): string {
   return pluginProviderText(slug, 'name')
@@ -281,70 +272,15 @@ function providerName(slug: string): string {
     ?? slug
 }
 
-/**
- * Why a flow ended, in the reader's language (RD-106-02).
- *
- * Two kinds of text arrive in `message`. What the service decided by itself — no installed
- * plugin claims this provider, the provider stayed unreachable — is a stable code, because
- * there is no foreign answer to quote and a code can be translated. What a plugin reported
- * is the provider's own English wording, which nothing here can translate.
- * `translateServerMessage` takes the first and falls through to the second.
- */
-function flowMessage(account: Account): string {
-  const message = flowOf(account)?.message
-  if (!message) return t('network.account.connect_failed')
-  return translateServerMessage({
-    code: message,
-    message,
-    params: { provider: providerName(account.provider) }
-  })
-}
-
-async function loadFlow(accountId: string): Promise<void> {
-  const response = await api.GET('/api/v1/accounts/{id}/auth', { params: { path: { id: accountId } } })
-  authFlows.value = { ...authFlows.value, [accountId]: response.data ?? null }
-}
-
-/** Starts a flow and begins watching it; the address is shown, never opened for somebody. */
+/** Shows the running sign-in or starts one (RD-150-09); only a failed start is reported. */
 async function connectAccount(account: Account): Promise<void> {
-  connectingAccountId.value = account.id
   error.value = null
   message.value = null
-  const response = await api.POST('/api/v1/accounts/{id}/auth/begin', {
-    params: { path: { id: account.id } }
-  })
-  connectingAccountId.value = null
-  if (!response.data) return void (error.value = responseError(response))
-  authFlows.value = { ...authFlows.value, [account.id]: response.data }
-  watchFlows()
-}
-
-async function cancelConnect(account: Account): Promise<void> {
-  await api.DELETE('/api/v1/accounts/{id}/auth', { params: { path: { id: account.id } } })
-  authFlows.value = { ...authFlows.value, [account.id]: null }
-}
-
-/** Polls the flows that are still open, and stops as soon as none are. */
-function watchFlows(): void {
-  if (flowTimer !== null) return
-  flowTimer = window.setInterval(() => {
-    const open = Object.entries(authFlows.value).filter(
-      ([, flow]) => flow && (flow.state === 'waiting_for_user' || flow.state === 'polling')
-    )
-    if (!open.length) {
-      window.clearInterval(flowTimer ?? 0)
-      flowTimer = null
-      return
-    }
-    void Promise.all(open.map(([id]) => loadFlow(id))).then(() => {
-      // A finished sign-in changes the account: the key badge appears once it is stored.
-      if (Object.values(authFlows.value).some(flow => flow?.state === 'authorized')) void refresh()
-    })
-  }, 3000)
+  const failure = await authFlows.connect(account.id)
+  if (failure) error.value = failure
 }
 
 onUnmounted(() => {
-  if (flowTimer !== null) window.clearInterval(flowTimer)
   releaseEvents?.()
   releaseEvents = null
   if (providerTimer !== null) {
@@ -391,9 +327,13 @@ onMounted(() => {
   void load(refresh).then(() => {
     // A flow may have been running when the page was last closed; picking it up is what
     // makes closing the browser mid-sign-in cost nothing.
-    void Promise.all(accounts.value.map(account => loadFlow(account.id))).then(watchFlows)
+    void Promise.all(accounts.value.map(account => authFlows.load(account.id)))
   })
-  releaseEvents = subscribeEvents({ 'plugin_catalog.changed': scheduleProviderReload })
+  releaseEvents = subscribeEvents({
+    'plugin_catalog.changed': scheduleProviderReload,
+    // Every step a sign-in takes is recorded as an account change (RD-150-09).
+    'account.changed': authFlows.onAccountEvent
+  })
 })
 
 /**
@@ -754,14 +694,15 @@ function proxyName(id: string | null | undefined): string {
                 >
                   {{ testBadge(account.id) }}
                 </UBadge>
+                <!-- Not offered while a sign-in runs: a second one would replace its code. -->
                 <UButton
-                  v-if="canConnect(account)"
+                  v-if="canConnect(account) && !isOpenFlow(flowOf(account.id))"
                   size="xs"
                   color="primary"
                   variant="ghost"
                   icon="i-lucide-link"
                   :label="t('network.account.connect')"
-                  :loading="connectingAccountId === account.id"
+                  :loading="authFlows.connectingId.value === account.id"
                   @click="connectAccount(account)"
                 />
                 <UButton
@@ -779,23 +720,12 @@ function proxyName(id: string | null | undefined): string {
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('network.account.edit')" :title="t('network.account.edit')" @click="editAccount(account)" />
                 <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('network.account.delete')" :title="t('network.account.delete')" :loading="deletingAccountId === account.id" @click="deleteAccount(account)" />
               </div>
-              <div v-if="flowOf(account)" class="mt-2 border border-muted bg-elevated p-3">
-                <template v-if="flowOf(account)!.state === 'waiting_for_user' || flowOf(account)!.state === 'polling'">
-                  <p class="text-xs leading-5 text-muted">{{ t('network.account.connect_instructions') }}</p>
-                  <p class="mt-2 break-all font-mono text-sm text-highlighted">{{ flowOf(account)!.verification_url }}</p>
-                  <p v-if="flowOf(account)!.user_code" class="mt-1 font-mono text-lg font-semibold tracking-widest text-primary">
-                    {{ flowOf(account)!.user_code }}
-                  </p>
-                  <p class="mt-2 text-xs leading-5 text-muted">{{ t('network.account.connect_waiting') }}</p>
-                  <UButton class="mt-2" size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('network.account.connect_cancel')" @click="cancelConnect(account)" />
-                </template>
-                <p v-else-if="flowOf(account)!.state === 'authorized'" class="text-xs leading-5 text-success">
-                  {{ t('network.account.connect_done') }}
-                </p>
-                <p v-else class="text-xs leading-5 text-error">
-                  {{ flowMessage(account) }}
-                </p>
-              </div>
+              <AccountSignInFlow
+                v-if="flowOf(account.id)"
+                :flow="flowOf(account.id)!"
+                :provider="providerName(account.provider)"
+                @cancel="authFlows.cancel(account.id)"
+              />
               <AccountBrowserSession
                 v-if="browserSessions.sessions.value[account.id]"
                 :session="browserSessions.sessions.value[account.id]!"

@@ -267,7 +267,8 @@ describe('SettingsAccountsTab reacting to plugin_catalog.changed', () => {
    * handed an event only when it holds that event's exact scope — scopes widen towards `Read`
    * only, so `plugin.changed` would be a subscription the service can never serve. Naming the
    * set exactly also keeps the screen from listening to all three and hiding the next such
-   * mistake.
+   * mistake. `account.changed` carries every step of a sign-in and costs `Secrets`, which is
+   * what the accounts themselves are read at (RD-150-09).
    */
   it('subscribes at the scope its own data is read at', async () => {
     serve([provider(true)])
@@ -275,7 +276,7 @@ describe('SettingsAccountsTab reacting to plugin_catalog.changed', () => {
     mount()
 
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/providers'))
-    expect(subscribedNames).toEqual(['plugin_catalog.changed'])
+    expect(subscribedNames).toEqual(['plugin_catalog.changed', 'account.changed'])
   })
 
   it('withdraws the sign-in offer when the authentication plugin is removed elsewhere', async () => {

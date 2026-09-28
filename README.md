@@ -24,7 +24,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="License: GPL-3.0-or-later"></a>
 </p>
 
-> **Status: early public release (alpha).** This is rDownloader's first public release. Expect
+> **Status: early public release (alpha).** rDownloader has been public since 1.3. Expect
 > rough edges, and read the note under *Supported sources* on what has and has not been run
 > against real provider accounts. The project website is <https://rdownloader.net>, and the user
 > handbook is the [wiki](https://github.com/degoya/rDownloader/wiki).

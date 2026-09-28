@@ -9,6 +9,7 @@
 //! | Rate limit | `429` + `Retry-After` / `error_code` 34 | wait the stated time, keep the account |
 //! | Sign-in expired | `error_code` 8 | invalidate the account so a sign-in is offered |
 //! | Error | `error_code` 24 / an undocumented number | offline, or a generic coded failure |
+//! | Link check | the catalogue, `429`/34 included | `unknown` for a covered hoster, never a wait |
 //!
 //! A run against the real provider is deliberately **not** claimed here: it needs an account,
 //! and the job file records which acceptance criteria that leaves unproven.
@@ -326,90 +327,95 @@ async fn the_hoster_catalogue_is_fetched_without_a_credential() {
     );
 }
 
-/// One refused link does not end the batch, and `supported` is not confused with `online`.
+fn check_request(urls: &[&str]) -> CheckRequest {
+    CheckRequest {
+        urls: urls.iter().map(|url| url.parse().expect("URL")).collect(),
+        client: client(),
+    }
+}
+
+fn catalogue(domains: &str) -> HostHttpResponse {
+    answer(200, "/hosts/domains", domains, Vec::new())
+}
+
+/// A covered hoster is supported and unverified: `unknown`, from one catalogue request that
+/// carries no credential, and never `unrestrict/check` (1.5.3).
 #[tokio::test]
-async fn a_check_reports_each_link_and_carries_on_past_a_refusal() {
-    let host = MockHost::with_responses(
-        vec![
-            answer(
-                200,
-                "/unrestrict/check",
-                r#"{"host":"example.test","link":"https://example.test/f/one",
-                    "filename":"one.rar","filesize":4096,"supported":1}"#,
-                Vec::new(),
-            ),
-            answer(
-                503,
-                "/unrestrict/check",
-                r#"{"error":"file unavailable","error_code":24}"#,
-                Vec::new(),
-            ),
-            answer(
-                200,
-                "/unrestrict/check",
-                r#"{"host":"other.test","link":"https://other.test/f/three",
-                    "filename":"three.rar","filesize":8192,"supported":0}"#,
-                Vec::new(),
-            ),
-        ],
-        true,
-    );
+async fn a_check_reports_a_covered_hoster_as_unverified_from_the_catalogue() {
+    let host = MockHost::new(catalogue(r#"["1fichier.com","rapidgator.net"]"#), true);
     let results = resolver(&host)
-        .check(CheckRequest {
-            urls: [
-                "https://example.test/f/one",
-                "https://example.test/f/two",
-                "https://other.test/f/three",
-            ]
-            .iter()
-            .map(|url| url.parse().expect("URL"))
-            .collect(),
-            client: client(),
-        })
+        .check(check_request(&[
+            "https://1fichier.com/?abcdefghij0123456789",
+            "https://rapidgator.net/file/abc",
+        ]))
         .await
         .expect("checked");
 
-    assert_eq!(results.len(), 3);
-    assert_eq!(results[0].status, LinkStatus::Online);
-    assert_eq!(results[0].file_name.as_deref(), Some("one.rar"));
-    assert_eq!(results[1].status, LinkStatus::Offline);
-    // Present on a hoster the plan does not cover is still present.
-    assert_eq!(results[2].status, LinkStatus::Online);
+    assert_eq!(results.len(), 2);
+    assert!(
+        results
+            .iter()
+            .all(|result| result.status == LinkStatus::Unknown)
+    );
+    let requests = host.requests();
+    assert_eq!(requests.len(), 1, "one request for the whole batch");
+    assert_eq!(requests[0].method, "GET");
+    assert_eq!(
+        requests[0].url.as_str(),
+        "https://api.real-debrid.com/rest/1.0/hosts/domains"
+    );
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .all(|header| header.name != "Authorization")
+    );
 }
 
-/// A rate limit in the middle of a batch stops it. Carrying on would spend refused requests
-/// against the very cap that refused them.
+/// The owner's 1.5.1 report: every check answered "rate limit reached, waiting". A `429` with
+/// `error_code` 34 is no reason for a check to wait: the links come back `unknown`, and nothing
+/// reaches the host that would hold the account or its downloads.
 #[tokio::test]
-async fn a_rate_limit_stops_a_batch_rather_than_deepening_it() {
-    let host = MockHost::with_responses(
-        vec![answer(
+async fn a_rate_limited_answer_leaves_the_links_unverified_rather_than_waiting() {
+    let host = MockHost::new(
+        answer(
             429,
-            "/unrestrict/check",
-            r#"{"error":"too many requests","error_code":34}"#,
+            "/hosts/domains",
+            r#"{"error":"too_many_requests","error_code":34}"#,
             vec![ResolvedHeader {
                 name: "Retry-After".to_owned(),
                 value: "30".to_owned(),
             }],
-        )],
+        ),
         true,
     );
-    let failure = resolver(&host)
-        .check(CheckRequest {
-            urls: ["https://example.test/f/one", "https://example.test/f/two"]
-                .iter()
-                .map(|url| url.parse().expect("URL"))
-                .collect(),
-            client: client(),
-        })
+    let results = resolver(&host)
+        .check(check_request(&[
+            "https://1fichier.com/?abcdefghij0123456789",
+            "https://1fichier.com/?klmnopqrst9876543210",
+        ]))
         .await
-        .expect_err("a rate limit");
-    assert_eq!(
-        failure.category,
-        FailureKind::RateLimited {
-            retry_after_seconds: Some(30)
-        }
+        .expect("a check never fails on a rate limit");
+
+    assert_eq!(results.len(), 2);
+    assert!(
+        results
+            .iter()
+            .all(|result| result.status == LinkStatus::Unknown)
     );
-    assert_eq!(host.requests().len(), 1);
+    assert_eq!(host.requests().len(), 1, "no retry, no request per link");
+}
+
+/// A hoster the catalogue does not list is not Real-Debrid's to check.
+#[tokio::test]
+async fn a_check_of_an_uncovered_hoster_is_unsupported() {
+    let host = MockHost::new(catalogue(r#"["1fichier.com"]"#), true);
+    let failure = resolver(&host)
+        .check(check_request(&["https://example.test/f/abc123"]))
+        .await
+        .expect_err("unsupported");
+    assert_eq!(failure.category, FailureKind::Unsupported);
+    assert_eq!(failure.code.as_deref(), Some("realdebrid.host_unsupported"));
 }
 
 /// The plugin claims what a multihoster claims, and not the magnet a torrent would need.

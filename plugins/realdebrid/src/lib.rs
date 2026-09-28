@@ -5,7 +5,8 @@
 //! `matches()` accepts any http(s) address the way the other multihosters do, because what a
 //! multihoster covers is decided by the account's catalogue rather than by the address; the
 //! catalogue itself comes from `hosts/domains`. `resolve()` posts the link to `unrestrict/link`
-//! and hands back the `download` address it answers with.
+//! and hands back the `download` address it answers with. `check()` answers from that catalogue
+//! alone and never calls `unrestrict/check` (1.5.3): see `resolver::check` for why.
 //!
 //! The sibling plugins, because a manifest carries exactly one `plugin_type`:
 //!

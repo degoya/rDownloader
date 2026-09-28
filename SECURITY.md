@@ -60,9 +60,9 @@ worse than an honest "upgrade".
 | Anything older | No — upgrade |
 
 Because updates are not yet delivered in-app, staying current means watching the releases page.
-That is a known gap, and the first public release — the one that closes milestone 1.6 — keeps it:
-the in-app updater with signed manifests and channels is planned for milestone 1.8, together with
-the installers and platform signing.
+That is a known gap, and the releases up to and including 1.6 keep it: the in-app updater with
+signed manifests and channels is planned for milestone 1.8, together with the installers and
+platform signing.
 
 ## What the project already does
 

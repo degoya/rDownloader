@@ -516,6 +516,13 @@ prevent columns from shifting during live updates.
   account or widen a domain — it can only answer what a person asked for, once. A sign-in that
   cannot finish because the browser is signed in already says so and names this way out, rather
   than waiting out a timeout in silence.
+- **A sign-in with a code stays on its account row until it ends.** The address (a link the
+  person follows, never opened for them), the code, a live status saying that rDownloader keeps
+  checking in the background, and the code's expiry stay visible while the service waits —
+  through a list refresh, a read that did not answer and a page reload, which reads the running
+  flow back. Only the end replaces them: signed in, refused, expired or cancelled. *Connect* is
+  not offered while a sign-in runs, and pressing it on a stale page shows the running one: a new
+  code would make the one being typed worthless (RD-150-09).
 
 ### Fetching, Empty, and Failed
 

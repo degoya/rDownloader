@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-09-28
+
+### Fixed
+
+- **The LinkGrabber check of a link through Real-Debrid no longer waits on a rate limit
+  (RD-150-09).** Every link checked through a Real-Debrid account showed "The Real-Debrid API
+  rate limit was reached. Waiting.", although the account worked. Real-Debrid's per-link check
+  endpoint answered "too many requests" to the very first request. The check no longer asks
+  it: a link on a hoster Real-Debrid supports is shown as supported with availability unknown,
+  and the download itself tells whether the file is there. One request per check instead of
+  one per link, and a refused check can no longer hold anything. `realdebrid` 0.2.2.
+
+- **Connecting Real-Debrid with a code finishes the sign-in (RD-150-09).** After the code was
+  confirmed at real-debrid.com, rDownloader showed "the provider refused the sign-in:
+  parameter_missing" and the account stayed signed out, although Real-Debrid already listed the
+  device. The token request sent its fields in the address, and Real-Debrid reads them from the
+  request body alone; the sign-in and every renewal now send them as a form body.
+  `realdebrid-auth` 0.2.1.
+
+- **The sign-in code stays on screen until the sign-in ends (RD-150-09).** In the accounts
+  settings a Real-Debrid code could vanish after a few seconds while the service kept waiting
+  on it, and "Connect" then replaced it with a new code. A status read that did not answer used
+  to clear the sign-in from the row and stop watching it. Now only an answer from the service
+  changes it; the row also follows the service's events, and after a page reload it shows the
+  running sign-in again. The row shows the address as a link, the code, that rDownloader keeps
+  checking in the background, and until when the code is valid. "Connect" is hidden while a
+  sign-in runs, and on a page that has not caught up it shows the running sign-in instead of
+  starting a new one.
+
 ## [1.5.1] - 2026-09-28
 
 The same program as 1.5.0; 1.5.0's release workflow stopped before publishing anything.

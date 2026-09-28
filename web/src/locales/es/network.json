@@ -60,7 +60,9 @@
     },
     "providers_loading": "Cargando los plugins de los que salen los proveedores; tras un inicio o una actualización de plugins tarda un momento…",
     "credential_mode_oauth": "Conectar con un código",
-    "no_providers": "Ningún plugin de cuentas está activo. Activa los plugins de alojamiento en Ajustes → Plugins."
+    "no_providers": "Ningún plugin de cuentas está activo. Activa los plugins de alojamiento en Ajustes → Plugins.",
+    "connect_polling": "rDownloader sigue consultando a {provider} en segundo plano hasta que confirme o el código caduque.",
+    "connect_expires": "El código es válido hasta {time}."
   },
   "hosters": {
     "toggle": "Hosters compatibles",

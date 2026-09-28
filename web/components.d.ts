@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AccountBrowserSession: typeof import('./src/components/settings/AccountBrowserSession.vue')['default']
+    AccountSignInFlow: typeof import('./src/components/settings/AccountSignInFlow.vue')['default']
     AppSignature: typeof import('./src/components/AppSignature.vue')['default']
     AreaBackupButtons: typeof import('./src/components/AreaBackupButtons.vue')['default']
     AuthGate: typeof import('./src/components/AuthGate.vue')['default']

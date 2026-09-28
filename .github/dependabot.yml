@@ -26,6 +26,10 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    # wasmparser follows wasmtime: the version wasmtime itself pulls in is the one we pin, so the
+    # build carries one wasmparser, not two (RD-150-21). It moves when wasmtime moves.
+    ignore:
+      - dependency-name: wasmparser
     groups:
       cargo-compatible:
         update-types: [minor, patch]
@@ -46,6 +50,10 @@ updates:
     # the group fails the install and hides every other update's result (RD-150-06).
     ignore:
       - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # The Node types follow the Node major we build and ship with (24); a newer major would
+      # offer APIs the runtime does not have (RD-160-08).
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
     groups:
       npm-compatible:

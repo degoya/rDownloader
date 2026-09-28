@@ -60,7 +60,9 @@
     },
     "providers_loading": "Je charge les plugins dont viennent les fournisseurs – après un démarrage ou une mise à jour de plugin, cela prend un moment…",
     "credential_mode_oauth": "Se connecter avec un code",
-    "no_providers": "Aucun plugin de comptes n'est actif. Activez les plugins d'hébergeur dans Paramètres → Plugins."
+    "no_providers": "Aucun plugin de comptes n'est actif. Activez les plugins d'hébergeur dans Paramètres → Plugins.",
+    "connect_polling": "rDownloader continue d'interroger {provider} en arrière-plan jusqu'à ce que vous confirmiez ou que le code expire.",
+    "connect_expires": "Le code est valable jusqu'à {time}."
   },
   "hosters": {
     "toggle": "Hébergeurs pris en charge",

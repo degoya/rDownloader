@@ -20,7 +20,7 @@
 //! no installation shares a bucket with another, and no client secret is ever shipped.
 //!
 //! Until 1.4.2 this plugin ran against an application the person had to register themselves,
-//! which nobody could be asked to do; 1.4.3 parked it behind the private API token, which stays
+//! which nobody could be asked to do; 1.5.0 parked it behind the private API token, which stays
 //! as the provider's second mode.
 //!
 //! **A renewal needs three stored values, so the host keeps parts.** The personal client id and
@@ -45,6 +45,7 @@
 //!   which the host stores verbatim, never shows, and never serialises out of the API.
 
 pub mod flow;
+pub mod form;
 pub mod json;
 
 #[cfg(target_arch = "wasm32")]

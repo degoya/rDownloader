@@ -167,6 +167,53 @@ async fn each_part_is_kept_on_its_own_and_filled_only_where_it_is_named() {
     assert_eq!(field(&request, "code"), "a-device-code");
 }
 
+/// The exchange as `realdebrid-auth` sends it since 1.5.2: every field in a form body, which
+/// is the only place Real-Debrid's token endpoint reads them from. Each part lands in its own
+/// field, percent-encoded, so a value holding the form's separators cannot add a field.
+#[tokio::test]
+async fn the_parts_fill_a_form_body_encoded_for_it() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let host = test_host(directory.path()).await;
+    let account = real_debrid_account(&host, CredentialMode::OAuth).await;
+    let secret = "CANARY-Q&grant_type=other +/";
+    host.store_flow_secret(account, "realdebrid_client_id", CLIENT_ID)
+        .await
+        .expect("stored");
+    host.store_flow_secret(account, "realdebrid_client_secret", secret)
+        .await
+        .expect("stored");
+
+    let mut request = exchange(TOKEN_ENDPOINT);
+    request.query.clear();
+    request
+        .headers
+        .push(value("Content-Type", "application/x-www-form-urlencoded"));
+    request.body = b"client_id={{secret:realdebrid_client_id}}\
+        &client_secret={{secret:realdebrid_client_secret}}\
+        &code=a-device-code\
+        &grant_type=http%3A%2F%2Foauth.net%2Fgrant_type%2Fdevice%2F1.0"
+        .to_vec();
+    expand(&host, account, &mut request)
+        .await
+        .expect("both parts pass their gate in a body");
+
+    let form: Vec<(String, String)> = url::form_urlencoded::parse(&request.body)
+        .into_owned()
+        .collect();
+    assert_eq!(
+        form,
+        vec![
+            ("client_id".to_owned(), CLIENT_ID.to_owned()),
+            ("client_secret".to_owned(), secret.to_owned()),
+            ("code".to_owned(), "a-device-code".to_owned()),
+            (
+                "grant_type".to_owned(),
+                "http://oauth.net/grant_type/device/1.0".to_owned()
+            ),
+        ]
+    );
+}
+
 #[tokio::test]
 async fn a_new_sign_in_replaces_a_part_and_drops_the_old_value() {
     let directory = tempfile::tempdir().expect("tempdir");

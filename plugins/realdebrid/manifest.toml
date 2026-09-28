@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.9.0"
 id = "019d0000-0000-7000-8000-00000000000c"
 name = "Real-Debrid"
-version = "0.2.1"
+version = "0.2.2"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["*"]
@@ -39,7 +39,7 @@ kind = "multihoster"
 # Two ways to hold the account (RD-150-09). "Connect with a code" is the default: the sign-in in
 # `plugins/realdebrid-auth/` runs Real-Debrid's open-source device flow, which hands the person a
 # client id and client secret of their own, and the renewal sweep keeps the token alive. "API
-# token" is the private token from real-debrid.com/apitoken (1.4.3), typed with the account.
+# token" is the private token from real-debrid.com/apitoken (1.5.0), typed with the account.
 credentials = "oauth_or_api_key"
 username_required = false
 # Deliberately no `cookie_scope`. This is an API-shaped multihoster with no `cookies`

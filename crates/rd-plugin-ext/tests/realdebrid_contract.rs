@@ -22,6 +22,10 @@
 //! | The renewal was refused | `refresh_refused.json` | `Failed`, sign in again |
 //! | Too many requests to begin | `quota.json` at the device endpoint | an error coded `rate_limited` |
 //!
+//! The token endpoint is as strict as Real-Debrid's: its four fields are read from an
+//! `application/x-www-form-urlencoded` body alone, and a request that carries them anywhere else
+//! is answered `parameter_missing` -- the answer 1.5.1 met after every confirmed device.
+//!
 //! **A run against the real provider is not claimed here.** It needs a Real-Debrid account;
 //! `docs/roadmap/jobs/150-09-realdebrid-device-flow-open-source.md` records which acceptance
 //! criteria that leaves unproven.
@@ -101,20 +105,46 @@ enum Case {
     DeviceRateLimited,
 }
 
+/// The fields Real-Debrid's token endpoint reads, from the form body and nowhere else.
+const TOKEN_FIELDS: [&str; 4] = ["client_id", "client_secret", "code", "grant_type"];
+/// Real-Debrid's answer to a token request whose fields are not in a form body.
+const PARAMETER_MISSING: &str = r#"{"error":"parameter_missing","error_code":1}"#;
+
 /// One request the plugin made, flattened to what a test wants to assert on.
 #[derive(Clone, Debug)]
 struct Recorded {
     method: String,
     url: String,
+    query: Vec<(String, String)>,
+    /// The body's fields, read only when it was declared a form -- as the provider reads it.
     form: Vec<(String, String)>,
 }
 
+fn lookup<'a>(pairs: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    pairs
+        .iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.as_str())
+}
+
 impl Recorded {
+    /// A query parameter.
     fn field(&self, name: &str) -> Option<&str> {
-        self.form
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+        lookup(&self.query, name)
+    }
+
+    /// A field of the form body.
+    fn form_field(&self, name: &str) -> Option<&str> {
+        lookup(&self.form, name)
+    }
+
+    /// Whether the token endpoint would read this request: every field in the form body, none
+    /// of them in the query.
+    fn is_readable_token_request(&self) -> bool {
+        TOKEN_FIELDS.iter().all(|name| {
+            self.form_field(name).is_some_and(|value| !value.is_empty())
+                && self.field(name).is_none()
+        })
     }
 }
 
@@ -177,7 +207,8 @@ impl MockRealDebrid {
         self.parts.lock().expect("parts").clone()
     }
 
-    fn answer(&self, url: &str) -> Result<HostHttpResponse, Failure> {
+    fn answer(&self, request: &Recorded) -> Result<HostHttpResponse, Failure> {
+        let url = request.url.as_str();
         let case = *self.case.lock().expect("case");
         let body = |status: u16, text: &str, headers: Vec<ResolvedHeader>| {
             Ok(HostHttpResponse {
@@ -217,6 +248,10 @@ impl MockRealDebrid {
                 _ => body(200, CREDENTIALS, Vec::new()),
             };
         }
+        // What Real-Debrid does with a token request whose fields are not in the form body.
+        if !request.is_readable_token_request() {
+            return body(400, PARAMETER_MISSING, Vec::new());
+        }
         match case {
             Case::ClientRejected => body(401, CLIENT_REJECTED, Vec::new()),
             Case::RefreshRefused => body(401, REFRESH_REFUSED, Vec::new()),
@@ -232,17 +267,33 @@ impl ResolverHost for MockRealDebrid {
         _client: &ClientIdentity,
         request: HostHttpRequest,
     ) -> Result<HostHttpResponse, Failure> {
-        let form: Vec<(String, String)> = request
+        let query = request
             .query
             .iter()
             .map(|value| (value.name.clone(), value.value_template.clone()))
             .collect();
-        self.requests.lock().expect("requests").push(Recorded {
+        let is_form = request.headers.iter().any(|header| {
+            header.name.eq_ignore_ascii_case("content-type")
+                && header.value_template == "application/x-www-form-urlencoded"
+        });
+        let form = if is_form {
+            url::form_urlencoded::parse(&request.body)
+                .map(|(name, value)| (name.into_owned(), value.into_owned()))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let recorded = Recorded {
             method: request.method.clone(),
             url: request.url.to_string(),
+            query,
             form,
-        });
-        self.answer(request.url.as_str())
+        };
+        self.requests
+            .lock()
+            .expect("requests")
+            .push(recorded.clone());
+        self.answer(&recorded)
     }
 
     /// Whether a part exists — never what it is: the one question `secret-available` answers.
@@ -378,20 +429,23 @@ async fn a_device_sign_in_runs_through_to_a_stored_token_and_is_then_renewed() {
 
     assert_eq!(exchange.method, "POST");
     assert_eq!(exchange.url, TOKEN_ENDPOINT);
-    assert_eq!(exchange.field("grant_type"), Some(GRANT_TYPE));
-    assert_eq!(exchange.field("code"), Some(PLACEHOLDER_DEVICE_CODE));
+    // Everything in the form body and nothing in the query: Real-Debrid reads no other shape.
+    assert!(exchange.query.is_empty(), "{exchange:?}");
+    assert!(exchange.is_readable_token_request(), "{exchange:?}");
+    assert_eq!(exchange.form_field("grant_type"), Some(GRANT_TYPE));
+    assert_eq!(exchange.form_field("code"), Some(PLACEHOLDER_DEVICE_CODE));
     // Named, never held: the exchange carries the markers the host expands, not the values the
     // plugin read a moment earlier.
     assert_eq!(
-        exchange.field("client_id"),
+        exchange.form_field("client_id"),
         Some("{{secret:realdebrid_client_id}}")
     );
     assert_eq!(
-        exchange.field("client_secret"),
+        exchange.form_field("client_secret"),
         Some("{{secret:realdebrid_client_secret}}")
     );
     // A device grant carries no PKCE verifier: there is no authorization code to bind.
-    assert!(exchange.field("code_verifier").is_none());
+    assert!(exchange.form_field("code_verifier").is_none());
 
     // Both halves reached the vault, with the expiry the renewal sweep needs, for the account
     // the flow was started for and no other.
@@ -414,25 +468,26 @@ async fn a_device_sign_in_runs_through_to_a_stored_token_and_is_then_renewed() {
     assert_eq!(renewed, TokenOutcome::Authorized);
     let renewal = server.requests().pop().expect("a renewal request");
     assert_eq!(renewal.url, TOKEN_ENDPOINT);
-    assert_eq!(renewal.field("grant_type"), Some(GRANT_TYPE));
+    assert!(renewal.query.is_empty(), "{renewal:?}");
+    assert_eq!(renewal.form_field("grant_type"), Some(GRANT_TYPE));
     assert_eq!(
-        renewal.field("client_id"),
+        renewal.form_field("client_id"),
         Some("{{secret:realdebrid_client_id}}")
     );
     assert_eq!(
-        renewal.field("client_secret"),
+        renewal.form_field("client_secret"),
         Some("{{secret:realdebrid_client_secret}}")
     );
     // The material left the plugin as a template. The plugin never held the value, and the
     // host is what substitutes it on the way out.
     assert_eq!(
-        renewal.field("code"),
+        renewal.form_field("code"),
         Some("{{secret:account/renewal/reference}}")
     );
     assert_eq!(server.stored().len(), 2);
     // No value the host keeps ever travelled in a request the plugin described.
     for request in server.requests() {
-        for (_, value) in &request.form {
+        for (_, value) in request.query.iter().chain(&request.form) {
             for kept in [
                 PLACEHOLDER_CLIENT_SECRET,
                 PLACEHOLDER_ACCESS_TOKEN,

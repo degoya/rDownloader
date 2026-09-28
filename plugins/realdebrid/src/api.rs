@@ -14,11 +14,13 @@
 //! - **Unrestriction**: `POST /unrestrict/link` with a form body carrying `link`. The answer's
 //!   `download` field is the generated address; `link` is the original one echoed back, and
 //!   confusing the two would queue the hoster page instead of the file.
-//! - **Link check**: `POST /unrestrict/check` with `link`, one address per call. It takes no
-//!   token, so a check works before an account is signed in — but the plugin still sends one
-//!   request per link, so the batch is bounded (see [`CHECK_LIMIT`]).
+//! - **Link check**: not `POST /unrestrict/check`, deliberately (1.5.3). On 2026-09-28 it
+//!   answered `429` with `error_code` 34 to the very first request, with a token and without,
+//!   and when it does answer it costs one request per link against the cap the downloads share.
+//!   The check reads the catalogue instead (see [`covers`]); `unrestrict/link` tells whether the
+//!   file is there when the download starts.
 //! - **Catalogue**: `GET /hosts/domains` answers a bare JSON array of domains and needs no
-//!   token either.
+//!   token.
 //! - **Account**: `GET /user` answers `type` (`premium`/`free`) and `premium`, the seconds of
 //!   premium time left. There is no remaining-traffic figure in bytes anywhere in the API, so
 //!   `traffic_left` stays `None` rather than being invented from `points`, which counts
@@ -38,7 +40,7 @@ use crate::messages;
 /// The access token a sign-in with a code stored ("Connect with a code", the default mode).
 pub(crate) const SIGN_IN_TOKEN_REFERENCE: &str = "realdebrid_access_token";
 
-/// The private API token the person typed ("API token" mode, since 1.4.3).
+/// The private API token the person typed ("API token" mode, since 1.5.0).
 pub(crate) const API_TOKEN_REFERENCE: &str = "realdebrid_api_token";
 
 /// Both, in the order they are asked about. The host answers `secret-available` only for the
@@ -46,14 +48,6 @@ pub(crate) const API_TOKEN_REFERENCE: &str = "realdebrid_api_token";
 pub(crate) const TOKEN_REFERENCES: [&str; 2] = [SIGN_IN_TOKEN_REFERENCE, API_TOKEN_REFERENCE];
 
 pub(crate) const API_BASE: &str = "https://api.real-debrid.com/rest/1.0";
-
-/// How many addresses one `check` invocation will ask about.
-///
-/// `unrestrict/check` answers about one link per request, so a batch of a thousand pasted
-/// links would be a thousand requests against an account capped at 250 a minute — the plugin
-/// would rate-limit the very account it is checking for. Everything past this many comes back
-/// `Unknown`, which is the honest answer: not checked, rather than not there.
-pub(crate) const CHECK_LIMIT: usize = 40;
 
 /// Real-Debrid is a multihoster: it claims any http(s) URL (mirrors `premiumize`/`alldebrid`).
 ///
@@ -65,8 +59,7 @@ pub(crate) fn matches(scheme: &str) -> bool {
     matches!(scheme, "http" | "https")
 }
 
-/// `application/x-www-form-urlencoded` body for `POST /unrestrict/link` and
-/// `POST /unrestrict/check`.
+/// `application/x-www-form-urlencoded` body for `POST /unrestrict/link`.
 pub(crate) fn link_body(link: &str) -> Vec<u8> {
     let mut serializer = form_urlencoded::Serializer::new(String::new());
     serializer.append_pair("link", link);
@@ -112,17 +105,6 @@ pub(crate) struct UnrestrictedLink {
     // every download fail its own verification.
 }
 
-/// `POST /unrestrict/check`.
-#[derive(Default, Deserialize)]
-pub(crate) struct CheckedLink {
-    #[serde(default)]
-    pub(crate) filename: Option<String>,
-    #[serde(default)]
-    pub(crate) filesize: Option<u64>,
-    // `supported` is deliberately not read: a file that is there on a hoster Real-Debrid
-    // does not cover is still there, so it can decide nothing about a link's status.
-}
-
 /// `GET /user`.
 #[derive(Default, Deserialize)]
 pub(crate) struct UserInfo {
@@ -136,6 +118,25 @@ pub(crate) struct UserInfo {
     /// Seconds of premium time left. `0` on a free account.
     #[serde(default)]
     pub(crate) premium: Option<i64>,
+}
+
+/// Whether `url`'s host is one of `hosters` or a subdomain of one, `www.` ignored — the rule
+/// the host's own catalogue match applies (`rd-api`'s `hosters::supports`), so the check and
+/// the LinkGrabber's routing agree on what Real-Debrid covers.
+pub(crate) fn covers(hosters: &[String], url: &str) -> bool {
+    let Some(host) = url::Url::parse(url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_ascii_lowercase))
+    else {
+        return false;
+    };
+    let host = host.strip_prefix("www.").unwrap_or(&host);
+    hosters.iter().any(|hoster| {
+        host == hoster
+            || host
+                .strip_suffix(hoster.as_str())
+                .is_some_and(|rest| rest.ends_with('.'))
+    })
 }
 
 /// Lower-cases, deduplicates and sorts the `hosts/domains` array (mirrors

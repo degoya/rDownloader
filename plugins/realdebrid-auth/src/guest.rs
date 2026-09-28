@@ -15,7 +15,10 @@ use rdownloader::plugin::{
     types::{Failure, FailureKind},
 };
 
-use crate::flow;
+use crate::{
+    flow,
+    form::{self, Field},
+};
 
 /// Where a device sign-in asks for the code the person types.
 const DEVICE_ENDPOINT: &str = "https://api.real-debrid.com/oauth/v2/device/code";
@@ -77,6 +80,17 @@ fn accept_json() -> Vec<RequestHeader> {
     }]
 }
 
+/// What the token request sends besides its body: the body's type, which is also what makes the
+/// host look for the markers in it and encode what it fills in for a form.
+fn form_headers() -> Vec<RequestHeader> {
+    let mut headers = accept_json();
+    headers.push(RequestHeader {
+        name: "Content-Type".to_owned(),
+        value_template: "application/x-www-form-urlencoded".to_owned(),
+    });
+    headers
+}
+
 /// The `Retry-After` a provider sent, if it sent one.
 fn retry_after(headers: &[(String, String)]) -> Option<String> {
     headers
@@ -92,20 +106,25 @@ fn retry_after(headers: &[(String, String)]) -> Option<String> {
 /// and not a shortcut taken here: the renewal grant type is the device grant type. The client is
 /// the person's own on both, named and never held: the host expands the two parts the sign-in
 /// stored, towards `api.real-debrid.com` and nowhere else.
-fn exchange(account_id: &str, code: &str) -> Result<TokenOutcome, Failure> {
+///
+/// All four fields go in the form body. Real-Debrid reads them from there alone and answers the
+/// same fields in the query string with `parameter_missing` -- after the person has confirmed
+/// the device, which is what 1.5.1 did to every sign-in.
+fn exchange(account_id: &str, code: Field<'_>) -> Result<TokenOutcome, Failure> {
     let client_id = secret_template(CLIENT_ID_REFERENCE);
     let client_secret = secret_template(CLIENT_SECRET_REFERENCE);
+    let body = form::body(&[
+        ("client_id", Field::Marker(&client_id)),
+        ("client_secret", Field::Marker(&client_secret)),
+        ("code", code),
+        ("grant_type", Field::Value(GRANT_TYPE)),
+    ]);
     let response = http::http_request(
         "POST",
         TOKEN_ENDPOINT,
-        &query(&[
-            ("client_id", &client_id),
-            ("client_secret", &client_secret),
-            ("code", code),
-            ("grant_type", GRANT_TYPE),
-        ]),
-        &accept_json(),
         &[],
+        &form_headers(),
+        body.as_bytes(),
     )?;
     outcome(
         account_id,
@@ -153,7 +172,7 @@ fn claim_credentials(account_id: &str, device_code: &str) -> Result<TokenOutcome
         } => {
             credentials::store_flow_secret(account_id, CLIENT_ID_REFERENCE, &client_id)?;
             credentials::store_flow_secret(account_id, CLIENT_SECRET_REFERENCE, &client_secret)?;
-            exchange(account_id, device_code)
+            exchange(account_id, Field::Value(device_code))
         }
         flow::CredentialsAnswer::Refused { error, api_code } => Ok(refused(&error, api_code)),
         // Nobody has confirmed yet, or the request budget is spent: a wait either way.
@@ -338,7 +357,7 @@ impl Guest for Component {
                 FailureKind::AuthRequired,
             )));
         };
-        exchange(&account_id, &secret_template(&reference))
+        exchange(&account_id, Field::Marker(&secret_template(&reference)))
     }
 }
 
