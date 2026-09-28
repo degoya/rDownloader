@@ -250,7 +250,7 @@ utoipa = { version = "6", features = ["axum_extras", "chrono", "uuid"] }
 uuid = { version = "1", features = ["serde", "v7"] }
 # The version wasmtime brings (wasmtime 49: 0.258), so the pre-validation adds no second copy;
 # raise it together with wasmtime (RD-150-21).
-wasmparser = "0.258"
+wasmparser = "0.259"
 # `cache` keeps compiled plugins on disk between starts and `parallel-compilation` spreads the
 # compile a cache miss still costs over the cores (RD-130-06; `rd-plugin-host/src/compile_cache.rs`).
 wasmtime = { version = "49.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
@@ -260,7 +260,7 @@ webauthn-rs = "0.6.1-dev"
 # protocol types; a version skew here would compare structurally identical types that the
 # compiler considers unrelated.
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
-wit-bindgen = "0.61"
+wit-bindgen = "0.62"
 zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
