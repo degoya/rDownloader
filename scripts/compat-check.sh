@@ -25,6 +25,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
 
 OPENAPI=web/openapi.json
 WIT=crates/rd-plugin-api/wit/rdownloader.wit
@@ -54,13 +56,7 @@ workspace_version() {
 
 if [[ -z "$BASE" ]]; then
     current="$(workspace_version)"
-    while read -r tag; do
-        [[ -n "$tag" ]] || continue
-        if [[ -z "$current" || "$(printf '%s\n%s\n' "${tag#v}" "$current" | sort -V | tail -1)" == "$current" ]]; then
-            BASE="$tag"
-            break
-        fi
-    done < <(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -rV || true)
+    BASE="$(rd_release_tag_at_most "$current")"
     if [[ -z "$BASE" ]]; then
         echo "compat-check: no release tag vX.Y.Z at or below ${current:-the workspace version};" \
             "a shallow checkout needs the tags (git fetch --tags), or name one with --base" >&2

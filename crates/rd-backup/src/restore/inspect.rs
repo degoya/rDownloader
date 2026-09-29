@@ -84,6 +84,13 @@ pub async fn read_archive(
         .map_err(|error| RestoreError::new("backup.restore_damaged", format!("{error:#}")))
 }
 
+/// Whether a part is held in memory: `keep` asks for it and its manifest entry is within
+/// [`MAX_KEPT_PART_BYTES`]. The read stops a member at its stated size, so the entry is the
+/// bound.
+fn keeps(part: &ManifestPart, keep: fn(&ManifestPart) -> bool) -> bool {
+    keep(part) && part.size <= MAX_KEPT_PART_BYTES
+}
+
 fn read_blocking(
     archive: &Path,
     key: &BackupKey,
@@ -135,7 +142,7 @@ fn read_blocking(
             seen.insert(name.clone()),
             "archive member {name} appears twice"
         );
-        let keeping = keep(part) && part.size <= MAX_KEPT_PART_BYTES;
+        let keeping = keeps(part, keep);
         let mut held = Vec::new();
         let mut hasher = Sha256::new();
         let mut size = 0_u64;
@@ -187,4 +194,70 @@ pub async fn unpack(archive: &Path, key: BackupKey, into: &Path) -> Result<Manif
     .await
     .map_err(|error| RestoreError::new("backup.restore_failed", error))?
     .map_err(|error| RestoreError::new("backup.restore_damaged", format!("{error:#}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use super::*;
+    use crate::crypto::{KEY_LEN, SALT_LEN};
+    use crate::manifest::PartKind;
+    use crate::stream::SealingWriter;
+
+    fn key() -> BackupKey {
+        BackupKey::from_stored(&[7; KEY_LEN], &[3; SALT_LEN]).expect("key")
+    }
+
+    /// A sealed archive whose manifest header states `stated` bytes, of which none follow: the
+    /// limit is checked on the header, before a byte is read.
+    fn manifest_stating(path: &Path, stated: u64) {
+        let mut header = tar::Header::new_gnu();
+        header.set_path(MANIFEST_NAME).expect("name");
+        header.set_size(stated);
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_mode(0o600);
+        header.set_cksum();
+        let file = File::create(path).expect("create");
+        let mut writer = SealingWriter::new(file, &key()).expect("seal");
+        writer.write_all(header.as_bytes()).expect("header");
+        writer.write_all(&[0; 1024]).expect("end of archive");
+        writer.finish().expect("finish");
+    }
+
+    #[tokio::test]
+    async fn a_manifest_stated_past_its_limit_is_refused_before_it_is_read() {
+        let directory = tempfile::tempdir().expect("temp");
+        for (stated, refused) in [(MAX_MANIFEST_BYTES, false), (MAX_MANIFEST_BYTES + 1, true)] {
+            let path = directory.path().join(format!("{stated}.rdbackup"));
+            manifest_stating(&path, stated);
+            let read = read_archive(&path, key(), |_| false)
+                .await
+                .expect_err("no manifest to read");
+            let verified = archive::verify_archive(&path, &key()).expect_err("nor to verify");
+            for detail in [read.detail, format!("{verified:#}")] {
+                assert_eq!(
+                    detail.contains("the manifest is too large"),
+                    refused,
+                    "{stated}: {detail}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_part_past_the_kept_limit_is_only_hashed() {
+        let part = |size| ManifestPart {
+            name: "settings.json".to_owned(),
+            kind: PartKind::Settings,
+            size,
+            sha256: String::new(),
+        };
+        assert!(keeps(&part(MAX_KEPT_PART_BYTES), |_| true));
+        assert!(!keeps(&part(MAX_KEPT_PART_BYTES + 1), |_| true));
+        assert!(
+            !keeps(&part(1), |_| false),
+            "what is not asked for is not kept"
+        );
+    }
 }

@@ -22,7 +22,7 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/release-pipeline.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{lock,lanes,verified,jobs,public-ci}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{lock,lanes,verified,jobs,public-ci,release-tag}.sh "$TREE/scripts/lib/"
 git init -q -b development "$TREE"
 git -C "$TREE" commit -q --allow-empty -m base
 
@@ -119,5 +119,24 @@ expect "the checkout is on development" "development" "$(git -C "$TREE" rev-pars
 run_step_case "return_to_release_branch"
 expect_status "on the release branch already: nothing to do" 0
 expect "and nothing said" "" "$output"
+
+# docs-gate compares the changelog with the last shipped release, the highest tag under the one
+# being cut — not with what `git describe` answers on development, where the release tags on
+# main's merge commits are never reachable and an older tag is.
+printf '## [9.8.0]\n' > "$TREE/CHANGELOG.md"
+git -C "$TREE" add CHANGELOG.md && git -C "$TREE" commit -qm "release 9.8.0" && git -C "$TREE" tag v9.8.0
+printf '## [9.9.8]\n\n## [9.8.0]\n' > "$TREE/CHANGELOG.md"
+git -C "$TREE" commit -qam "work towards 9.9.8"
+git -C "$TREE" checkout -q main
+git -C "$TREE" merge -q --no-ff -m "release 9.9.8" development && git -C "$TREE" tag v9.9.8
+# A tag above the release being cut is no release it comes after.
+git -C "$TREE" tag v10.0.0
+git -C "$TREE" checkout -q development
+expect "the scenario: git describe on development answers the older tag" "v9.8.0" \
+    "$(git -C "$TREE" describe --tags --abbrev=0)"
+run_step_case "RD_WIKI_SRC='$SCRATCH/no-wiki' step_docs_gate"
+expect_output "docs-gate: the previous release is the highest tag under this one" "previous version: 9.9.8"
+expect_output "docs-gate: a changelog unchanged since that release is refused" \
+    "CHANGELOG.md is unchanged since v9.9.8"
 
 finish_tests release-evidence

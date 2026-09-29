@@ -60,7 +60,8 @@
     "destination_label": "Plugin",
     "destination_description": "Which installed destination delivers this target.",
     "form_new": "New target",
-    "secret_copy": "Not copied — enter it again; until then the copy has none."
+    "secret_copy": "Not copied — enter it again; until then the copy has none.",
+    "setting_unset": "Not set"
   },
   "smtp": {
     "from": "Sender",

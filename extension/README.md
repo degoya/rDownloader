@@ -289,20 +289,27 @@ starts from 1.0.8.
 
 ## Install
 
-- **Chrome / Edge**: `chrome://extensions` → Developer mode → *Load unpacked* → `artifacts/browser-extensions/chrome`.
-- **Firefox, permanently**: `rdownloader-firefox.xpi` from the GitHub release — signed by Mozilla as a
-  self-distributed ("unlisted") version — opened in Firefox, or dragged onto `about:addons`.
+- **From the stores**: [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda)
+  (Chrome, Edge) and [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/), both listed since
+  2026-09-29; a store can trail a release until its review is through. Release Firefox installs
+  permanently only what Mozilla signed, which for this extension is the listing.
+- **Chrome / Edge, a local build**: `chrome://extensions` → Developer mode → *Load unpacked* → `artifacts/browser-extensions/chrome`.
 - **Firefox, a local build**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* →
   `artifacts/browser-extensions/firefox/manifest.json` (gone after a restart; release Firefox installs
   only signed add-ons permanently).
 
-The release workflow signs the build with `scripts/firefox-amo.sh sign` (RD-160-07): it asks AMO
-for the version first, downloads the store's signed file when AMO already has that version (each
-version number exists once across the listed and unlisted channels), and otherwise uploads it with
-`web-ext sign --channel unlisted`. Without the `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets, or when
-AMO cannot deliver, it warns and the release carries the unsigned ZIP only. CI runs
-`scripts/firefox-amo.sh lint` — AMO's validator — on every push, so a manifest Mozilla would refuse
-fails before a tag.
+After the GitHub release, the release workflow's `extension-stores` job submits both builds for
+review (RD-170-10), for the newest `vX.Y.Z` tag only: `scripts/chrome-webstore.sh publish` uploads
+`rdownloader-chrome.zip` to the Chrome Web Store through its API v2, and `scripts/firefox-amo.sh
+submit` uploads the Firefox build to the AMO listing (`web-ext sign --channel listed`, without
+waiting for the review). Each first asks its store for the version and leaves one it already has
+alone; AMO takes each version number once across the listed and unlisted channels, so a number
+Mozilla signed unlisted (1.6.0) never reaches the listing. Without the credentials, or when a
+store refuses, the step warns and the release is unaffected; the ZIPs on the release are the
+fallback for a submission by hand. Up to 1.6.0 the release carried a Mozilla-signed
+`rdownloader-firefox.xpi` (RD-160-07); a listed version is signed only after its review, so
+releases after 1.6.0 carry none. CI runs `scripts/firefox-amo.sh lint` — AMO's validator — on every
+push, so a manifest Mozilla would refuse fails before a tag.
 
 ## Pairing
 

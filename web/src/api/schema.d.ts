@@ -9171,7 +9171,26 @@ export interface components {
             name: string;
             /** @description The value a target stores in `config.plugin_id`. */
             plugin_id: string;
+            /**
+             * @description What a target of this destination may be set to, stored in `config.settings`
+             *     (RD-170-09).
+             */
+            settings: components["schemas"]["NotificationDestinationSetting"][];
+            /**
+             * @description The plugin's message namespace: a setting's label is its code
+             *     `<slug>.setting.<name>`, a choice's `<slug>.choice.<value>`.
+             */
+            slug: string;
             version: string;
+        };
+        /** @description One setting a notification destination offers. */
+        NotificationDestinationSetting: {
+            /** @description Every value the setting accepts, in the order to offer them. */
+            choices: string[];
+            /** @description What applies while the target leaves the setting alone; absent means it may stay unset. */
+            default?: string | null;
+            /** @description The key in `config.settings`. */
+            name: string;
         };
         /**
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.

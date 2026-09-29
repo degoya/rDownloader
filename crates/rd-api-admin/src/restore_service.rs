@@ -358,6 +358,13 @@ pub(crate) async fn check(
         ApiError::unprocessable("backup.restore_settings_unreadable", error.to_string())
     })?;
     crate::settings_backup::validate_header(&bundle)?;
+    // Where the copy's roots land here passes the check a root created by hand does, against
+    // the scripts and vendor directory the backup brings back as well.
+    let protected =
+        crate::protected_roots::protected_directories(state, Some(&bundle.settings)).await;
+    for path in path_plan.roots.iter().filter_map(lands_on) {
+        crate::protected_roots::refuse_protected(&path, &protected)?;
+    }
 
     let mut findings = Findings::default();
     let mut updates: Vec<CopyUpdate> = path_plan.updates.clone();
@@ -453,6 +460,14 @@ pub(crate) async fn check(
     })
 }
 
+/// Where a root of the copy lands on this machine: its mapping, or its own path when that is
+/// one here; a foreign path nobody mapped lands nowhere.
+fn lands_on(root: &plan::CopyRoot) -> Option<PathBuf> {
+    root.mapped_to
+        .clone()
+        .or_else(|| root.native.then(|| PathBuf::from(&root.path)))
+}
+
 async fn roots_report(
     path_plan: &plan::PathPlan,
     findings: &mut Findings,
@@ -460,10 +475,7 @@ async fn roots_report(
     let mut missing = PathFindings::default();
     let mut roots = Vec::with_capacity(path_plan.roots.len());
     for root in &path_plan.roots {
-        let lands_on = root
-            .mapped_to
-            .clone()
-            .or_else(|| root.native.then(|| PathBuf::from(&root.path)));
+        let lands_on = lands_on(root);
         let exists_here = match &lands_on {
             Some(path) => tokio::fs::metadata(path)
                 .await

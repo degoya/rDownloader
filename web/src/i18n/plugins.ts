@@ -109,3 +109,19 @@ export function providerText(slug: string, key: string): string | undefined {
   }
   return undefined
 }
+
+/**
+ * Localised text for one plugin code, e.g. `ntfy_notifier.setting.priority_info`.
+ *
+ * The same lookup as {@link providerText}, for text a plugin ships among its codes: the label
+ * of a notification destination's setting and of its choices (RD-170-09). `undefined` when no
+ * installed plugin supplies it, so the caller shows the name or the value instead.
+ */
+export function pluginCodeText(code: string): string | undefined {
+  const path = `server.codes.${code}`
+  const active = i18n.global.locale.value as AppLocale
+  for (const locale of active === 'en' ? ['en'] : [active, 'en']) {
+    if (i18n.global.te(path, locale)) return i18n.global.t(path, {}, { locale })
+  }
+  return undefined
+}

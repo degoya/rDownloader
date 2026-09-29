@@ -79,6 +79,23 @@ pub struct NotificationDestination {
     /// Default display name. The interface prefers the plugin's own localised name.
     pub name: String,
     pub version: String,
+    /// The plugin's message namespace: a setting's label is its code
+    /// `<slug>.setting.<name>`, a choice's `<slug>.choice.<value>`.
+    pub slug: String,
+    /// What a target of this destination may be set to, stored in `config.settings`
+    /// (RD-170-09).
+    pub settings: Vec<NotificationDestinationSetting>,
+}
+
+/// One setting a notification destination offers.
+#[derive(Serialize, ToSchema)]
+pub struct NotificationDestinationSetting {
+    /// The key in `config.settings`.
+    pub name: String,
+    /// Every value the setting accepts, in the order to offer them.
+    pub choices: Vec<String>,
+    /// What applies while the target leaves the setting alone; absent means it may stay unset.
+    pub default: Option<String>,
 }
 
 #[utoipa::path(get, path = "/api/v1/notifications/destinations", tag = "notifications", responses((status = 200, body = [NotificationDestination])))]
@@ -96,6 +113,16 @@ pub async fn list_destinations(
                 plugin_id: destination.plugin_id,
                 name: destination.name,
                 version: destination.version,
+                slug: destination.slug,
+                settings: destination
+                    .settings
+                    .into_iter()
+                    .map(|setting| NotificationDestinationSetting {
+                        name: setting.name,
+                        choices: setting.choices,
+                        default: setting.default,
+                    })
+                    .collect(),
             })
             .collect(),
     )
@@ -280,6 +307,25 @@ async fn save_target(
                 ));
             }
             Some(Ok(())) => {}
+        }
+        // The same for its settings (RD-170-09): a name the destination does not declare, or a
+        // value it does not offer, would otherwise be dropped silently on every delivery.
+        let checked = match rd_plugin_host::extension::settings_from_config(&request.config) {
+            Ok(settings) => state
+                .notifications
+                .notifiers()
+                .await
+                .check_settings(plugin_id, &settings)
+                .unwrap_or(Ok(())),
+            Err(failure) => Err(failure),
+        };
+        if let Err(failure) = checked {
+            return Err(ApiError::bad_request_owned(
+                failure
+                    .code
+                    .unwrap_or_else(|| "plugin.setting_invalid".to_owned()),
+                failure.message,
+            ));
         }
     }
     if request.kind == TargetKind::Webhook {

@@ -87,7 +87,8 @@ pub(crate) struct CreateNotificationTargetParams {
     /// Webhook: the URL. SMTP: `host:port`. Apprise: the service scheme.
     pub endpoint: String,
     /// Settings without any secret: SMTP TLS mode, sender and recipients, webhook headers,
-    /// `plugin_id` for a plugin destination.
+    /// `plugin_id` for a plugin destination and its `settings` object (name to value, as the
+    /// destination list declares them; ntfy's `priority_info`, for example).
     pub config: Option<serde_json::Map<String, serde_json::Value>>,
     pub enabled: Option<bool>,
 }

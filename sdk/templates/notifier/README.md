@@ -27,6 +27,11 @@ the grants to the person deciding whether to install it.
 - Put `{{secret}}` in the request and the host substitutes the token; only allowlisted headers are
   sent.
 
+A target can also be given settings of its own, such as a priority: declare them as
+`[[extension.settings]]` in `manifest.toml` (a name, the values offered, an optional default) and
+read them in `deliver` with `destination_settings::setting("name")`. The handbook page above shows
+how.
+
 ## Build, test, package
 
 ```bash

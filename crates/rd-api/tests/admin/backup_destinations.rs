@@ -13,7 +13,7 @@ use crate::full_backup::add_folder;
 
 const PASSPHRASE: &str = "correct horse battery staple";
 
-async fn ready(harness: &Harness) {
+pub(crate) async fn ready(harness: &Harness) {
     let (status, body) = common::put_json(
         &harness.router,
         "/api/v1/backups/passphrase",
@@ -23,7 +23,7 @@ async fn ready(harness: &Harness) {
     assert_eq!(status, StatusCode::OK, "{body}");
 }
 
-async fn run(harness: &Harness) -> rd_db::BackupRun {
+pub(crate) async fn run(harness: &Harness) -> rd_db::BackupRun {
     let (status, run) = common::post_json(&harness.router, "/api/v1/backups/runs", json!({})).await;
     assert_eq!(status, StatusCode::ACCEPTED, "{run}");
     let id = run["id"].as_str().expect("run id").to_owned();

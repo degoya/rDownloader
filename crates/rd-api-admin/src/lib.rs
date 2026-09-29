@@ -24,6 +24,7 @@ pub mod plugin_lifecycle;
 pub mod plugin_repository_dto;
 pub mod plugin_repository_handlers;
 pub mod plugin_update_policy;
+mod protected_roots;
 pub mod providers_handlers;
 pub mod remote_handlers;
 mod restore_checks;

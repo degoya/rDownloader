@@ -824,7 +824,9 @@
     "extract.password_has_quote": "La contraseña contiene comillas (\"), que 7-Zip no puede recibir en Windows, por lo que no se ha podido probar.",
     "request.host_not_allowed": "Este servicio no responde al nombre {host}. Ábrelo por su dirección o añade el nombre a los nombres de host permitidos en los ajustes.",
     "storage_root.protected_directory": "Una ubicación de almacenamiento no puede ser, contener ni estar dentro de un directorio desde el que el servicio ejecuta programas, scripts o plugins o en el que guarda sus datos ({directory}).",
-    "capture.fetch_address_refused": "La dirección apunta a este equipo o a una dirección que el servicio no puede solicitar."
+    "capture.fetch_address_refused": "La dirección apunta a este equipo o a una dirección que el servicio no puede solicitar.",
+    "plugin.setting_unknown": "Este destino de notificación no tiene ningún ajuste con ese nombre",
+    "plugin.setting_invalid": "Un ajuste de este destino tiene un valor que el destino de notificación no ofrece"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

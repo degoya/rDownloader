@@ -60,7 +60,8 @@
     "destination_label": "Plugin",
     "destination_description": "Welches installierte Ziel dieses Element zustellt.",
     "form_new": "Neues Ziel",
-    "secret_copy": "Nicht mitkopiert – bitte neu eintragen; bis dahin hat die Kopie keins."
+    "secret_copy": "Nicht mitkopiert – bitte neu eintragen; bis dahin hat die Kopie keins.",
+    "setting_unset": "Nicht gesetzt"
   },
   "smtp": {
     "from": "Absender",

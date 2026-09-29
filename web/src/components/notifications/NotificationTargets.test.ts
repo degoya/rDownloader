@@ -14,8 +14,9 @@ import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
 const post = vi.fn()
+const put = vi.fn()
 vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args), PUT: vi.fn(), DELETE: vi.fn() },
+  api: { GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args), PUT: (...args: unknown[]) => put(...args), DELETE: vi.fn() },
   responseError: vi.fn(() => 'The service did not answer')
 }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
@@ -39,7 +40,7 @@ vi.mock('@/composables/useEventStream', () => ({
 
 const { default: NotificationTargets } = await import('./NotificationTargets.vue')
 
-const DESTINATION = { plugin_id: 'rd-plugin-ntfy', name: 'ntfy', version: '0.4.0' }
+const DESTINATION = { plugin_id: 'rd-plugin-ntfy', name: 'ntfy', version: '0.4.0', slug: 'ntfy', settings: [] }
 
 function mount() {
   return mountComponent(NotificationTargets, {
@@ -162,5 +163,76 @@ describe('NotificationTargets form and duplicate', () => {
     await screen.findByRole('heading', { name: notifications.target.form_edit })
     expect(screen.getByText(notifications.target.secret_copy)).toBeTruthy()
     expect(screen.getByText(common.editing)).toBeTruthy()
+  })
+})
+
+/**
+ * RD-170-09: a destination's own settings — ntfy's priority per severity and a fixed one — are
+ * offered for its targets and saved in `config.settings`; left alone, a setting shows its default.
+ */
+describe('NotificationTargets destination settings', () => {
+  const CHOICES = ['1', '2', '3', '4', '5']
+  const NTFY = {
+    plugin_id: 'rd-plugin-ntfy',
+    name: 'ntfy',
+    version: '0.10.0',
+    slug: 'ntfy_notifier',
+    settings: [
+      { name: 'priority_info', choices: CHOICES, default: '2' },
+      { name: 'priority_error', choices: CHOICES, default: '4' },
+      { name: 'priority_fixed', choices: CHOICES, default: null }
+    ]
+  }
+  const TARGET = {
+    id: 't1', name: 'Phone', kind: 'plugin', enabled: true, endpoint: 'downloads',
+    config: { plugin_id: 'rd-plugin-ntfy', settings: { priority_error: '5' } }, has_secret: false
+  }
+
+  beforeEach(() => {
+    get.mockReset()
+    get.mockResolvedValue({ data: [NTFY] })
+    put.mockReset()
+    put.mockResolvedValue({ data: TARGET })
+  })
+
+  it('shows each setting with its stored value or its default and saves a change', async () => {
+    mountComponent(NotificationTargets, {
+      messages: { notifications },
+      props: { modelValue: [TARGET], loading: false, loadError: null }
+    })
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/destinations'))
+    const row = screen.getByText('Phone').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.edit }))
+
+    const info = await screen.findByTestId('notification-setting-priority_info') as HTMLSelectElement
+    const error = screen.getByTestId('notification-setting-priority_error') as HTMLSelectElement
+    const fixed = screen.getByTestId('notification-setting-priority_fixed') as HTMLSelectElement
+    expect(info.value).toBe('2')
+    expect(error.value).toBe('5')
+    // A setting without a default can stay unset, and says so.
+    expect(fixed.options[0]?.textContent).toBe(notifications.target.setting_unset)
+
+    await fireEvent.update(info, '4')
+    await fireEvent.submit(info.closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(put.mock.calls[0]?.[1]?.body?.config).toEqual({
+      plugin_id: 'rd-plugin-ntfy',
+      settings: { priority_error: '5', priority_info: '4' }
+    })
+  })
+
+  it('offers no settings for a destination that declares none', async () => {
+    get.mockResolvedValue({ data: [{ ...NTFY, settings: [] }] })
+    mountComponent(NotificationTargets, {
+      messages: { notifications },
+      props: { modelValue: [TARGET], loading: false, loadError: null }
+    })
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/destinations'))
+    const row = screen.getByText('Phone').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.edit }))
+
+    await screen.findByRole('heading', { name: notifications.target.form_edit })
+    expect(screen.queryByTestId('notification-setting-priority_info')).toBeNull()
   })
 })

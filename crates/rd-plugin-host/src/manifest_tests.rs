@@ -796,3 +796,49 @@ fn a_code_or_api_key_provider_describes_each_mode_completely() {
         "realdebrid_access_token is not granted",
     );
 }
+
+/// A notification destination may offer settings (RD-170-09); nothing else may, and a setting
+/// has to be something a person can pick and a plugin can be told.
+#[test]
+fn only_a_notifier_declares_settings_and_each_is_a_real_choice() {
+    let setting = |body: &str| format!("\n[[extension.settings]]\n{body}\n");
+    let priority = setting("name = \"priority\"\nchoices = [\"1\", \"2\", \"3\"]\ndefault = \"2\"");
+    let manifest: PluginManifest =
+        toml::from_str(&extension_toml("notifier", &priority)).expect("parses");
+    validate_manifest(&manifest).expect("a notifier offers a setting");
+    let settings = &manifest.extension.as_ref().expect("extension").settings;
+    assert_eq!(settings.len(), 1);
+    assert_eq!(settings[0].default.as_deref(), Some("2"));
+
+    let manifest: PluginManifest =
+        toml::from_str(&extension_toml("enricher", &priority)).expect("parses");
+    let error = validate_manifest(&manifest).expect_err("an enricher has no target to set");
+    assert!(error.to_string().contains("extension.settings"), "{error}");
+
+    for (body, why) in [
+        (
+            "name = \"priority\"\nchoices = [\"1\", \"2\"]\ndefault = \"5\"".to_owned(),
+            "a default it does not offer",
+        ),
+        ("name = \"priority\"\nchoices = []".to_owned(), "no choices"),
+        (
+            "name = \"Priority\"\nchoices = [\"1\"]".to_owned(),
+            "a name that is no key",
+        ),
+        (
+            "name = \"priority\"\nchoices = [\"1\", \"1\"]".to_owned(),
+            "a choice offered twice",
+        ),
+        (
+            format!(
+                "name = \"priority\"\nchoices = [\"1\"]\n{}",
+                setting("name = \"priority\"\nchoices = [\"2\"]")
+            ),
+            "a name declared twice",
+        ),
+    ] {
+        let manifest: PluginManifest =
+            toml::from_str(&extension_toml("notifier", &setting(&body))).expect("parses");
+        validate_manifest(&manifest).expect_err(why);
+    }
+}

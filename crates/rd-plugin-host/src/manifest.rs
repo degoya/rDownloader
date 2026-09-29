@@ -389,6 +389,31 @@ pub struct ExtensionManifest {
     /// service whose own crawler was installed, purely by being earlier in the list.
     #[serde(default)]
     pub generic: bool,
+    /// What a notification target of this destination may be set to (RD-170-09), each a name
+    /// and the values it accepts. Only a notifier declares any: the host checks a target's
+    /// settings against this list when it is saved and answers the plugin's
+    /// `destination-settings.setting` from it at delivery.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub settings: Vec<SettingManifest>,
+}
+
+/// One setting a notification destination offers (`[[extension.settings]]`, RD-170-09).
+///
+/// A choice among fixed values rather than free text: what a person can pick is what the
+/// plugin was written to understand, and a value outside the list is refused when the target
+/// is saved instead of being guessed at on every delivery.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SettingManifest {
+    /// The key a target stores and the plugin asks for; lowercase, digits and underscores.
+    /// Its label is the plugin's own code `<slug>.setting.<name>`.
+    pub name: String,
+    /// Every value the setting accepts, in the order the interface offers them. A value's
+    /// label is the plugin's code `<slug>.choice.<value>`, or the value itself.
+    pub choices: Vec<String>,
+    /// What the plugin is told when a target leaves the setting alone. Absent means the
+    /// setting may stay unset, and the plugin is told `none`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
 }
 
 /// One way into an `oauth` plugin (RD-106-01).
@@ -917,6 +942,15 @@ fn validate_shape(manifest: &PluginManifest) -> Result<()> {
             {
                 bail!("a stream-transform plugin needs at least one capabilities.net_http domain");
             }
+            // Only a target of a notification destination has settings to store; on any
+            // other type the list would be a promise nothing keeps (RD-170-09).
+            if !extension.settings.is_empty() && manifest.plugin_type != PluginType::Notifier {
+                bail!(
+                    "a {} manifest must not declare extension.settings",
+                    manifest.plugin_type.as_str()
+                );
+            }
+            validate_settings(&extension.settings)?;
             // Only a crawler is ever asked in an order, so on any other type the flag would
             // be a claim about behaviour that does not exist.
             if extension.generic && manifest.plugin_type != PluginType::Crawler {
@@ -1303,6 +1337,48 @@ fn validate_oauth_or_api_key(slots: &[SecretSlotManifest]) -> Result<()> {
         bail!(
             "provider.credentials = \"oauth_or_api_key\" needs oauth entries, each with filled_by = \"flow\""
         );
+    }
+    Ok(())
+}
+
+/// Most settings one destination declares, and most values one setting offers.
+const MAX_SETTINGS: usize = 16;
+const MAX_SETTING_CHOICES: usize = 32;
+
+/// `[[extension.settings]]`: names that can be a key and a code, values that can be offered.
+fn validate_settings(settings: &[SettingManifest]) -> Result<()> {
+    if settings.len() > MAX_SETTINGS {
+        bail!("extension.settings declares more than {MAX_SETTINGS} settings");
+    }
+    let mut names = Vec::new();
+    for setting in settings {
+        let name = setting.name.as_str();
+        if name.is_empty()
+            || name.len() > MAX_SLUG_CHARS
+            || !name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+        {
+            bail!("extension.settings name `{name}` must be 1-{MAX_SLUG_CHARS} of a-z, 0-9 and _");
+        }
+        if names.contains(&name) {
+            bail!("extension.settings declares `{name}` twice");
+        }
+        names.push(name);
+        if setting.choices.is_empty() || setting.choices.len() > MAX_SETTING_CHOICES {
+            bail!("extension.settings `{name}` needs 1-{MAX_SETTING_CHOICES} choices");
+        }
+        for (index, choice) in setting.choices.iter().enumerate() {
+            bounded_text("extension.settings choice", choice, MAX_SLUG_CHARS)?;
+            if choice.trim() != choice || setting.choices[..index].contains(choice) {
+                bail!("extension.settings `{name}` offers `{choice}` badly or twice");
+            }
+        }
+        if let Some(default) = &setting.default
+            && !setting.choices.contains(default)
+        {
+            bail!("extension.settings `{name}` defaults to `{default}`, which it does not offer");
+        }
     }
     Ok(())
 }

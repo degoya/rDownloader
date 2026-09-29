@@ -73,6 +73,7 @@ async fn a_destination_with_no_way_out_reports_a_failure_rather_than_hanging() {
             idempotency_key: "test:1",
             destination: "downloads",
             secret_ref: None,
+            settings: &[],
         })
         .await
         .expect_err("no host is connected");
@@ -98,6 +99,7 @@ async fn a_failure_keeps_the_category_the_plugin_gave_it() {
             idempotency_key: "test:1",
             destination: "123456",
             secret_ref: None,
+            settings: &[],
         })
         .await
         .expect_err("no token is stored");
@@ -143,6 +145,7 @@ async fn a_destination_is_judged_the_same_when_saved_and_when_delivered() {
             idempotency_key: "test:saved-and-delivered",
             destination: public_http,
             secret_ref: None,
+            settings: &[],
         })
         .await
         .expect_err("refused at delivery too");

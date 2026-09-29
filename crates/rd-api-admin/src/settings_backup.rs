@@ -234,6 +234,13 @@ pub async fn import_settings(
     validate_header(&bundle)?;
     validate_references(&bundle)?;
     crate::settings_handlers::validate_settings(&mut bundle.settings)?;
+    // The bundle's roots replace the service's, so they pass the check a root created by hand
+    // does — before anything is decrypted or written.
+    let protected =
+        crate::protected_roots::protected_directories(&state, Some(&bundle.settings)).await;
+    for root in &bundle.storage_roots {
+        crate::protected_roots::refuse_protected(std::path::Path::new(&root.path), &protected)?;
+    }
 
     let secrets_included = bundle.secrets.is_some();
     let secret_values = match &bundle.secrets {

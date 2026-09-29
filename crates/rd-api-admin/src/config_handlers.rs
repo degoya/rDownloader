@@ -17,6 +17,7 @@ use crate::{
         CreateStorageRootRequest, UpdateAccountRequest,
     },
     error_codes::store_error,
+    protected_roots::{protected_directories, refuse_protected},
 };
 
 #[utoipa::path(get, path = "/api/v1/accounts", tag = "configuration", responses((status = 200, body = [rd_core::Account])))]
@@ -469,54 +470,6 @@ pub async fn list_storage_roots(
     ))
 }
 
-/// The directories no storage root may equal, contain or lie inside (security review
-/// 2026-09-28, finding 4): where the service keeps its state, runs scripts from, finds its
-/// helper binaries and loads plugins from. Gathered per request, so a changed scripts or vendor
-/// setting counts from the next save on.
-async fn protected_directories(state: &AppState) -> Vec<rd_files::ProtectedDirectory> {
-    use rd_files::ProtectedDirectory;
-
-    let mut protected = Vec::new();
-    if let Some(data) = rd_core::data_directory() {
-        protected.push(ProtectedDirectory::new("data", data));
-    }
-    match state.extraction.scripts_directory().await {
-        Ok(scripts) => protected.push(ProtectedDirectory::new("scripts", scripts)),
-        Err(error) => tracing::warn!(%error, "the scripts directory could not be resolved"),
-    }
-    let program = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf));
-    let configured = crate::notify_service::vendor_directory(&state.database).await;
-    for vendor in rd_core::vendor_directories(configured.as_deref()) {
-        protected.push(if program.as_ref() == Some(&vendor) {
-            ProtectedDirectory::new("program", vendor).top_level_only()
-        } else {
-            ProtectedDirectory::new("vendor", vendor)
-        });
-    }
-    protected.push(ProtectedDirectory::new("tools", state.tools.root()));
-    protected.push(ProtectedDirectory::new("plugins", state.plugins.root()));
-    protected
-}
-
-/// Refuses a root that would reach one of [`protected_directories`].
-fn refuse_protected(
-    path: &std::path::Path,
-    protected: &[rd_files::ProtectedDirectory],
-) -> Result<(), ApiError> {
-    match rd_files::protected_collision(path, protected) {
-        None => Ok(()),
-        Some(directory) => Err(ApiError::bad_request(
-            "storage_root.protected_directory",
-            "A storage root may not be, contain or lie inside a directory the service runs \
-             programs, scripts or plugins from or keeps its data in",
-        )
-        .with_param("path", path.display())
-        .with_param("directory", directory.kind)),
-    }
-}
-
 /// Validates the request and materialises the directory the root points at.
 async fn validated_storage_root(
     state: &AppState,
@@ -527,7 +480,7 @@ async fn validated_storage_root(
     let path = PathBuf::from(&request.path);
     // Before the directory is created, so a refused root leaves nothing behind; again after,
     // against the canonical path, for what only exists once it does (a symlink on the way).
-    let protected = protected_directories(state).await;
+    let protected = protected_directories(state, None).await;
     if path.is_absolute() {
         refuse_protected(&path, &protected)?;
     }

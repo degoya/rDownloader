@@ -23,6 +23,7 @@ import type {
 } from '@/api/types'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import { positiveCount } from '@/utils/positiveCount'
 
 const props = defineProps<{ destinations: BackupDestination[] }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -46,8 +47,8 @@ interface DestinationForm {
   profileId: string
   prefix: string
   remote: string
-  keepLast: string
-  keepDays: string
+  keepLast: string | number
+  keepDays: string | number
 }
 
 const profiles = ref<ObjectStorageProfile[]>([])
@@ -66,10 +67,6 @@ function blank(): DestinationForm {
   return { kind: 'local', name: '', enabled: true, path: '', profileId: '', prefix: '', remote: '', keepLast: '', keepDays: '' }
 }
 
-function count(value: string): number | null {
-  const parsed = Number.parseInt(value.trim(), 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-}
 
 /** The address a destination writes to, as the list shows it. */
 function address(destination: BackupDestination): string {
@@ -116,8 +113,8 @@ function body() {
     profile_id: form.kind === 'object_storage' ? form.profileId || null : null,
     prefix: form.kind === 'object_storage' ? form.prefix.trim() : null,
     remote: form.kind === 'rclone' ? form.remote.trim() : null,
-    keep_last: count(form.keepLast),
-    keep_days: count(form.keepDays)
+    keep_last: positiveCount(form.keepLast),
+    keep_days: positiveCount(form.keepDays)
   }
 }
 
@@ -158,8 +155,8 @@ async function previewRetention(): Promise<void> {
   if (!editing.value || editing.value === 'new') return
   error.value = null
   const query: { keep_last?: number, keep_days?: number } = {}
-  const keepLast = count(form.keepLast)
-  const keepDays = count(form.keepDays)
+  const keepLast = positiveCount(form.keepLast)
+  const keepDays = positiveCount(form.keepDays)
   if (keepLast != null) query.keep_last = keepLast
   if (keepDays != null) query.keep_days = keepDays
   const response = await api.GET('/api/v1/backups/destinations/{id}/retention', {

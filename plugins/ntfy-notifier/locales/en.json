@@ -2,6 +2,16 @@
   "name": "ntfy",
   "description": "Delivers notifications to an ntfy topic.",
   "codes": {
-    "ntfy_notifier.rejected": "ntfy rejected the message."
+    "ntfy_notifier.rejected": "ntfy rejected the message.",
+    "ntfy_notifier.setting.priority_info": "Priority for info messages",
+    "ntfy_notifier.setting.priority_warning": "Priority for warnings",
+    "ntfy_notifier.setting.priority_error": "Priority for errors",
+    "ntfy_notifier.setting.priority_fixed": "Fixed priority",
+    "ntfy_notifier.setting.priority_fixed.description": "Applies to every message of this target. When it is not set, the priority per severity applies.",
+    "ntfy_notifier.choice.1": "1 – min (silent)",
+    "ntfy_notifier.choice.2": "2 – low",
+    "ntfy_notifier.choice.3": "3 – default",
+    "ntfy_notifier.choice.4": "4 – high",
+    "ntfy_notifier.choice.5": "5 – max (overrides do-not-disturb)"
   }
 }

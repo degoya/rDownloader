@@ -98,6 +98,18 @@ pub async fn create_restore_upload(
     ))
 }
 
+/// Refuses a chunk past [`CHUNK_LIMIT`]; the request body limit in front of it is wider.
+fn refuse_oversized_chunk(length: u64) -> Result<(), ApiError> {
+    if length > CHUNK_LIMIT {
+        return Err(ApiError::payload_too_large(
+            "backup.restore_chunk_too_large",
+            "The chunk is larger than one request may carry",
+        )
+        .with_param("max", CHUNK_LIMIT));
+    }
+    Ok(())
+}
+
 #[utoipa::path(
     put,
     path = "/api/v1/backups/restore/uploads/{id}",
@@ -119,13 +131,7 @@ pub async fn append_restore_upload(
 ) -> Result<Json<RestoreUploadResponse>, ApiError> {
     let path = upload_path(&state, &id)?;
     let length = bytes.len() as u64;
-    if length > CHUNK_LIMIT {
-        return Err(ApiError::payload_too_large(
-            "backup.restore_chunk_too_large",
-            "The chunk is larger than one request may carry",
-        )
-        .with_param("max", CHUNK_LIMIT));
-    }
+    refuse_oversized_chunk(length)?;
     let _writing = WRITING.lock().await;
     let size = size_of(&path).await?;
     if query.offset != size {
@@ -174,4 +180,25 @@ pub async fn delete_restore_upload(
         .await
         .map_err(anyhow::Error::from)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::response::IntoResponse;
+
+    use super::{CHUNK_LIMIT, refuse_oversized_chunk};
+
+    // A chunk at the limit has to get past the request body limit to reach the check at all.
+    const _: () = assert!(CHUNK_LIMIT < rd_api_core::container_upload::BODY_LIMIT_BYTES as u64);
+
+    #[test]
+    fn a_chunk_past_the_limit_is_refused_as_too_large() {
+        assert!(refuse_oversized_chunk(CHUNK_LIMIT).is_ok());
+        let refused = refuse_oversized_chunk(CHUNK_LIMIT + 1).expect_err("past the limit");
+        assert_eq!(refused.code(), "backup.restore_chunk_too_large");
+        assert_eq!(
+            refused.into_response().status(),
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE
+        );
+    }
 }

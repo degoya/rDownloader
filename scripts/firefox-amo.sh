@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
 #
-# The Firefox build against Mozilla's add-on service (RD-160-07): `lint` runs AMO's validator
-# locally, so a manifest AMO would reject fails CI before a tag; `sign` has Mozilla sign the build
-# as a self-distributed ("unlisted") version, so release Firefox installs it permanently.
+# The Firefox build against Mozilla's add-on service: `lint` runs AMO's validator locally, so a
+# manifest AMO would reject fails CI before a tag (RD-160-07); `submit` uploads the build to the
+# listing https://addons.mozilla.org/addon/rdownloader/ (the "listed" channel, RD-170-10), where
+# it goes through Mozilla's review and reaches Firefox users as an update once approved. A listed
+# version is signed only after that review, so nothing signed comes back to the release.
 #
 # Usage:
 #   scripts/firefox-amo.sh lint <unpacked firefox build>
-#   scripts/firefox-amo.sh sign <unpacked firefox build> <out.xpi>
+#   scripts/firefox-amo.sh submit <unpacked firefox build>
 #
-# `sign` reads the credentials from AMO_JWT_ISSUER and AMO_JWT_SECRET, never from arguments, and
-# hands them to web-ext as its WEB_EXT_API_* variables, so neither appears in a command line.
+# `submit` reads the credentials from AMO_JWT_ISSUER and AMO_JWT_SECRET, never from arguments,
+# and hands them to web-ext as its WEB_EXT_API_* variables, so neither appears in a command line.
 # Nothing it prints contains them.
 #
-# A release must not fail over the signed copy — the ZIPs are still the release — so `sign` ends
-# with exit 0 and a `::warning::` whenever no .xpi comes out: no credentials (a fork, a local
-# run), a version AMO already has but has not signed, a rejection, a timeout, an outage. It exits
-# non-zero only for a wrong call or a build without an add-on ID or version.
+# A release must not fail over the store — the ZIPs are the release — so `submit` ends with exit 0
+# and a `::warning::` whenever AMO does not take the version: no credentials (a fork, a local
+# run), a rejection, a timeout, an outage. It exits non-zero only for a wrong call or a build
+# without an add-on ID or version.
 #
-# AMO accepts every version number once across both channels. Before uploading, `sign` asks
-# for this version; if it is there already — the owner's store submission (listed), or a re-run
-# of the release — and signed, the signed file is downloaded, checked against AMO's hash and used
-# instead. Only when AMO does not know the version is it uploaded.
+# AMO accepts every version number once across both channels. Before uploading, `submit` asks
+# for this version; if AMO has it already — the owner's submission by hand, a re-run of the
+# release — nothing is uploaded: listed, it is only reported; unlisted (a 1.6.0 self-distributed
+# signature), it warns, because that number can never be listed and the listing gets the next one.
 #
 # AMO_BASE_URL (default https://addons.mozilla.org/api/v5/) exists for the test,
 # scripts/tests/firefox-amo.sh, which stands in stub `curl` and `npx`.
@@ -29,11 +31,12 @@ set -euo pipefail
 # Pinned: a new web-ext can change the validator's verdict or the upload. Raise it deliberately.
 WEB_EXT_VERSION="10.7.0"
 AMO_BASE_URL="${AMO_BASE_URL:-https://addons.mozilla.org/api/v5/}"
-# Unlisted versions are signed automatically, usually within minutes.
-SIGN_TIMEOUT_MS=900000
+# How long web-ext waits for an answer from AMO's service; the review itself is not waited for
+# (`--approval-timeout 0`), it takes days.
+RESPONSE_TIMEOUT_MS=900000
 
 usage() {
-    echo "usage: $0 lint <source-dir> | sign <source-dir> <out.xpi>" >&2
+    echo "usage: $0 lint <source-dir> | submit <source-dir>" >&2
     exit 2
 }
 
@@ -42,7 +45,7 @@ web_ext() {
 }
 
 skip() {
-    echo "::warning::Firefox extension not signed: $1 — the release carries the unsigned ZIP only"
+    echo "::warning::Firefox extension not submitted to AMO: $1 — submit rdownloader-firefox.zip by hand"
     exit 0
 }
 
@@ -88,19 +91,17 @@ case "$cmd" in
         web_ext lint --source-dir "$2"
         exit 0
         ;;
-    sign)
-        [[ $# -eq 3 ]] || usage
+    submit)
+        [[ $# -eq 2 ]] || usage
         ;;
     *) usage ;;
 esac
 
 source_dir="$2"
-out="$3"
 [[ -f "$source_dir/manifest.json" ]] || { echo "no manifest.json in $source_dir" >&2; exit 2; }
 id="$(manifest_field "$source_dir" browser_specific_settings.gecko.id)"
 version="$(manifest_field "$source_dir" version)"
 [[ -n "$id" && -n "$version" ]] || { echo "$source_dir/manifest.json names no gecko id or version" >&2; exit 2; }
-rm -f "$out"
 
 if [[ -z "${AMO_JWT_ISSUER:-}" || -z "${AMO_JWT_SECRET:-}" ]]; then
     skip "AMO_JWT_ISSUER or AMO_JWT_SECRET is not set"
@@ -114,41 +115,28 @@ encoded_id="$(node -p 'encodeURIComponent(process.argv[1])' "$id")"
 status="$(amo_get "${AMO_BASE_URL}addons/addon/${encoded_id}/versions/v${version}/" "$work/version.json")"
 case "$status" in
     200)
-        # channel, file status, file URL and file hash, separated by US (0x1f): unlike a tab it is
-        # not whitespace to `read`, so an empty field stays a field.
-        IFS=$'\x1f' read -r channel file_status file_url file_hash < <(node -e '
+        # channel and file status, separated by US (0x1f): unlike a tab it is not whitespace to
+        # `read`, so an empty field stays a field.
+        IFS=$'\x1f' read -r channel file_status < <(node -e '
 const version = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))
-const file = version.file ?? {}
-console.log([version.channel, file.status, file.url, file.hash].map((v) => v ?? "").join("\x1f"))
+console.log([version.channel, version.file?.status].map((v) => v ?? "").join("\x1f"))
 ' "$work/version.json")
-        [[ "$file_status" == "public" && -n "$file_url" ]] \
-            || skip "AMO has ${version} (${channel:-unknown} channel) but its file is '${file_status:-none}', not signed"
-        # The token goes only to AMO's own host, not to wherever a URL in a response points.
-        [[ "$file_url" == "${AMO_BASE_URL%%/api/*}/"* ]] || skip "AMO names a download outside ${AMO_BASE_URL%%/api/*}"
-        echo "==> ${version} is on AMO already (${channel} channel, signed); downloading it"
-        status="$(amo_get "$file_url" "$work/signed.xpi")"
-        [[ "$status" == "200" ]] || skip "the download of the signed ${version} answered ${status}"
-        expected="${file_hash#sha256:}"
-        actual="$(sha256sum "$work/signed.xpi" | cut -d' ' -f1)"
-        [[ "$file_hash" == sha256:* && "$actual" == "$expected" ]] \
-            || skip "the downloaded ${version} does not match AMO's hash ${file_hash:-none}"
-        mv "$work/signed.xpi" "$out"
+        [[ "$channel" == "listed" ]] \
+            || skip "AMO has ${version} in the ${channel:-unknown} channel; a version number exists once, so the listing gets the next version"
+        echo "==> ${version} is on AMO already (listed, file '${file_status:-none}'); nothing to upload"
+        exit 0
         ;;
     404)
-        echo "==> AMO does not know ${version}; web-ext ${WEB_EXT_VERSION} sign --channel unlisted"
-        mkdir -p "$work/signed"
+        echo "==> AMO does not know ${version}; web-ext ${WEB_EXT_VERSION} sign --channel listed"
+        mkdir -p "$work/artifacts"
         WEB_EXT_API_KEY="$AMO_JWT_ISSUER" WEB_EXT_API_SECRET="$AMO_JWT_SECRET" \
-            web_ext sign --channel unlisted --source-dir "$source_dir" \
-            --artifacts-dir "$work/signed" --timeout "$SIGN_TIMEOUT_MS" \
+            web_ext sign --channel listed --source-dir "$source_dir" \
+            --artifacts-dir "$work/artifacts" --timeout "$RESPONSE_TIMEOUT_MS" --approval-timeout 0 \
             || skip "web-ext sign failed (above)"
-        shopt -s nullglob
-        signed=("$work"/signed/*.xpi)
-        [[ ${#signed[@]} -eq 1 ]] || skip "web-ext sign left ${#signed[@]} .xpi files, expected one"
-        mv "${signed[0]}" "$out"
         ;;
     401 | 403) skip "AMO refused the credentials or this add-on (HTTP ${status})" ;;
     000) skip "AMO did not answer ($(tr '\n' ' ' < "$work/curl.err"))" ;;
     *) skip "AMO answered HTTP ${status} to the version query" ;;
 esac
 
-echo "==> signed: $out ($(sha256sum "$out" | cut -d' ' -f1))"
+echo "==> submitted ${version} to the listing; it reaches Firefox users once Mozilla's review approves it"

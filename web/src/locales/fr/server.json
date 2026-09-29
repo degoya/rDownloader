@@ -824,7 +824,9 @@
     "extract.password_has_quote": "Le mot de passe contient un guillemet (\"), que 7-Zip ne peut pas recevoir sous Windows ; il n'a donc pas pu être essayé.",
     "request.host_not_allowed": "Ce service ne répond pas au nom {host}. Ouvrez-le par son adresse ou ajoutez le nom aux noms d'hôte autorisés dans les paramètres.",
     "storage_root.protected_directory": "Un emplacement de stockage ne peut pas être, contenir ou se trouver dans un répertoire depuis lequel le service lance des programmes, des scripts ou des plugins, ou dans lequel il conserve ses données ({directory}).",
-    "capture.fetch_address_refused": "L'adresse pointe vers cette machine ou vers une adresse que le service n'a pas le droit de demander."
+    "capture.fetch_address_refused": "L'adresse pointe vers cette machine ou vers une adresse que le service n'a pas le droit de demander.",
+    "plugin.setting_unknown": "Cette destination de notification n'a aucun réglage de ce nom",
+    "plugin.setting_invalid": "Un réglage de cette cible a une valeur que la destination de notification ne propose pas"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

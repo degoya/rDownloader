@@ -39,6 +39,8 @@ source "$ROOT/scripts/lib/lock.sh"
 source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=lib/public-ci.sh
 source "$ROOT/scripts/lib/public-ci.sh"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
 cd "$ROOT"
 
 # Capped for the same reason every other script here caps it (scripts/lib/jobs.sh). Clippy over
@@ -521,20 +523,16 @@ step_docs_gate() {
 
     # The version has moved; anything still naming the previous one is stale by definition.
     #
-    # The last *shipped* release is the honest reference, and the last tag is what says so.
-    # Reading it out of HEAD's Cargo.toml only works while the pipeline's own version-bump step
-    # is the single thing that moves the version — bump it by hand beforehand, as a release
-    # prepared over several sessions will, and `previous` becomes the version being released,
-    # `v$previous` does not exist, and the fallback then asks whether the working tree is dirty.
-    # Preflight refuses to start from a dirty tree, so that branch can only ever fail. Measured
-    # on 1.0.9: the changelog had 860 new lines against v1.0.8 and the gate called it untouched.
+    # The last *shipped* release is the honest reference: the highest `vX.Y.Z` tag under the
+    # version being released (scripts/lib/release-tag.sh). Neither HEAD's Cargo.toml — bumped by
+    # hand beforehand, as a release prepared over several sessions is, it names the version being
+    # released, and on 1.0.9 the gate called 860 new changelog lines untouched — nor `git
+    # describe`: release tags sit on main's merge commits, so on development it answered a
+    # release several versions old, whose changelog diff anything passes.
     local previous
-    previous="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
-    if [[ -z "$previous" || "$previous" == "$VERSION" ]]; then
-        previous="$(git show HEAD:Cargo.toml | sed -n '/^\[workspace\.package\]/,/^\[/p' \
-            | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
-    fi
-    echo "previous version: ${previous:-unknown}"
+    previous="$(rd_release_tag_at_most "$VERSION" --below)"
+    previous="${previous#v}"
+    echo "previous version: ${previous:-none}"
 
     # What this has to establish is that the changelog was written for *this* release, and
     # the honest comparison is against the last one that shipped. Asking whether the file is

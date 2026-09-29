@@ -8,6 +8,7 @@ wit_bindgen::generate!({
 
 use exports::rdownloader::plugin::notifier::{Guest, Notification};
 use rdownloader::plugin::{
+    destination_settings,
     http::{self, RequestHeader, RequestQuery},
     types::{Failure, FailureKind},
 };
@@ -23,7 +24,12 @@ impl Guest for Component {
         // and the host sends no header outside its allowlist (RD-120-60).
         let query = [
             ("title", payload::field_value(&message.title)),
-            ("priority", payload::priority(&message.severity).to_owned()),
+            // The target's own choice where it made one (RD-170-09); the host answers the
+            // manifest's defaults otherwise.
+            (
+                "priority",
+                payload::priority(&message.severity, destination_settings::setting),
+            ),
             ("tags", payload::field_value(&message.event)),
         ]
         .into_iter()

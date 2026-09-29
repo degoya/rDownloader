@@ -2,6 +2,16 @@
   "name": "ntfy",
   "description": "Stellt Benachrichtigungen an ein ntfy-Topic zu.",
   "codes": {
-    "ntfy_notifier.rejected": "ntfy hat die Nachricht abgelehnt."
+    "ntfy_notifier.rejected": "ntfy hat die Nachricht abgelehnt.",
+    "ntfy_notifier.setting.priority_info": "Priorität für Info-Meldungen",
+    "ntfy_notifier.setting.priority_warning": "Priorität für Warnungen",
+    "ntfy_notifier.setting.priority_error": "Priorität für Fehler",
+    "ntfy_notifier.setting.priority_fixed": "Feste Priorität",
+    "ntfy_notifier.setting.priority_fixed.description": "Gilt für jede Meldung dieses Ziels. Ohne Angabe gilt die Priorität je Schwere.",
+    "ntfy_notifier.choice.1": "1 – min (still)",
+    "ntfy_notifier.choice.2": "2 – niedrig",
+    "ntfy_notifier.choice.3": "3 – normal",
+    "ntfy_notifier.choice.4": "4 – hoch",
+    "ntfy_notifier.choice.5": "5 – max (übergeht „Nicht stören“)"
   }
 }

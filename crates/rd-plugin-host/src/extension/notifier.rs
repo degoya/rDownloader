@@ -11,7 +11,7 @@ use rd_plugin_api::ResolverHost;
 use url::{Host, Url};
 
 use super::{ExtensionRuntime, bindings::notifier};
-use crate::{PluginManifest, runtime::PluginStoreState};
+use crate::{PluginManifest, SettingManifest, runtime::PluginStoreState};
 
 /// A compiled notification destination.
 pub struct NotifierPlugin {
@@ -44,6 +44,21 @@ impl NotifierPlugin {
         destination_reach(self.manifest().capabilities.domains(), destination).map(|_| ())
     }
 
+    /// Whether a target's settings are ones this destination offers, asked when the target
+    /// is saved (RD-170-09): every name declared in the manifest, every value one of its
+    /// choices. An empty value leaves the setting at its default.
+    pub fn check_settings(&self, settings: &[(String, String)]) -> Result<(), Failure> {
+        check_settings(self.declared_settings(), settings)
+    }
+
+    fn declared_settings(&self) -> &[SettingManifest] {
+        self.manifest()
+            .extension
+            .as_ref()
+            .map(|extension| extension.settings.as_slice())
+            .unwrap_or_default()
+    }
+
     /// Delivers one notification. Whether to try again is the hub's decision, not the
     /// plugin's, so a failure comes back as a message rather than a retry.
     ///
@@ -63,6 +78,8 @@ impl NotifierPlugin {
         let mut store =
             self.runtime
                 .store_reaching(None, message.secret_ref.map(str::to_owned), reach)?;
+        store.data_mut().destination_settings =
+            resolve_settings(self.declared_settings(), message.settings);
         let instance = self.pre.instantiate_async(&mut store).await?;
         // Everything but the destination is text the plugin will copy into its request, and
         // much of it was written by somebody else — a release name from a feed. The host would
@@ -102,6 +119,96 @@ pub struct Delivery<'a> {
     pub destination: &'a str,
     /// The vault reference the plugin's `{{secret}}` expands to, if the destination has one.
     pub secret_ref: Option<&'a str>,
+    /// The target's settings as stored (RD-170-09), name and value. Resolved against the
+    /// manifest before the plugin runs, so a name it does not declare never reaches it.
+    pub settings: &'a [(String, String)],
+}
+
+/// `destination-settings`: the settings of the target this delivery goes to, and nothing else.
+impl notifier::rdownloader::plugin::destination_settings::Host for PluginStoreState {
+    async fn setting(&mut self, name: String) -> Option<String> {
+        self.destination_settings
+            .iter()
+            .find(|(declared, _)| *declared == name)
+            .map(|(_, value)| value.clone())
+    }
+}
+
+/// A target's `config.settings`, read as the name-to-text object it is stored as.
+///
+/// Refused rather than read leniently when something else is there, because the only way to
+/// get there is a request that did not come from the target editor; at delivery the caller
+/// falls back to the defaults instead.
+pub fn settings_from_config(config: &serde_json::Value) -> Result<Vec<(String, String)>, Failure> {
+    let Some(value) = config.get("settings") else {
+        return Ok(Vec::new());
+    };
+    if value.is_null() {
+        return Ok(Vec::new());
+    }
+    let invalid = || {
+        Failure::coded(
+            FailureKind::Permanent,
+            "plugin.setting_invalid",
+            "A setting of this notification target has a value its destination does not offer",
+        )
+    };
+    value
+        .as_object()
+        .ok_or_else(invalid)?
+        .iter()
+        .map(|(name, value)| {
+            value
+                .as_str()
+                .map(|text| (name.clone(), text.to_owned()))
+                .ok_or_else(invalid)
+        })
+        .collect()
+}
+
+/// Whether every chosen setting is one the manifest declares, with a value it offers.
+fn check_settings(
+    declared: &[SettingManifest],
+    chosen: &[(String, String)],
+) -> Result<(), Failure> {
+    for (name, value) in chosen {
+        let Some(setting) = declared.iter().find(|setting| setting.name == *name) else {
+            return Err(Failure::coded(
+                FailureKind::Permanent,
+                "plugin.setting_unknown",
+                "This notification destination has no setting of that name",
+            ));
+        };
+        if !value.is_empty() && !setting.choices.contains(value) {
+            return Err(Failure::coded(
+                FailureKind::Permanent,
+                "plugin.setting_invalid",
+                "A setting of this notification target has a value its destination does not offer",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// What the plugin is told for each setting its manifest declares: the stored value when it is
+/// one of the choices, else the default. A value the manifest stopped offering after the target
+/// was saved -- a newer version of the plugin -- falls back rather than failing the delivery.
+fn resolve_settings(
+    declared: &[SettingManifest],
+    chosen: &[(String, String)],
+) -> Vec<(String, String)> {
+    declared
+        .iter()
+        .filter_map(|setting| {
+            let stored = chosen
+                .iter()
+                .find(|(name, value)| *name == setting.name && setting.choices.contains(value))
+                .map(|(_, value)| value.clone());
+            stored
+                .or_else(|| setting.default.clone())
+                .map(|value| (setting.name.clone(), value))
+        })
+        .collect()
 }
 
 /// The domains one delivery may reach (RD-130-15).
@@ -185,7 +292,103 @@ fn inside_own_network(host: &Host<&str>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::destination_reach;
+    use super::{check_settings, destination_reach, resolve_settings, settings_from_config};
+    use crate::SettingManifest;
+
+    fn priority() -> Vec<SettingManifest> {
+        vec![
+            SettingManifest {
+                name: "priority_info".to_owned(),
+                choices: ["1", "2", "3", "4", "5"].map(str::to_owned).to_vec(),
+                default: Some("2".to_owned()),
+            },
+            SettingManifest {
+                name: "priority_fixed".to_owned(),
+                choices: ["1", "2", "3", "4", "5"].map(str::to_owned).to_vec(),
+                default: None,
+            },
+        ]
+    }
+
+    fn pairs(values: &[(&str, &str)]) -> Vec<(String, String)> {
+        values
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    }
+
+    /// RD-170-09: a target saves only names the destination declares and values it offers.
+    #[test]
+    fn a_target_is_saved_only_with_settings_its_destination_offers() {
+        check_settings(&priority(), &[]).expect("nothing chosen");
+        check_settings(&priority(), &pairs(&[("priority_info", "5")])).expect("offered");
+        check_settings(&priority(), &pairs(&[("priority_fixed", "")])).expect("left unset");
+        let code = |chosen: &[(&str, &str)]| {
+            check_settings(&priority(), &pairs(chosen))
+                .expect_err("refused")
+                .code
+                .unwrap_or_default()
+        };
+        assert_eq!(code(&[("priority_info", "7")]), "plugin.setting_invalid");
+        assert_eq!(code(&[("priority_info", "high")]), "plugin.setting_invalid");
+        assert_eq!(code(&[("volume", "3")]), "plugin.setting_unknown");
+    }
+
+    /// The plugin hears the stored value, else the default, and nothing it did not declare.
+    #[test]
+    fn a_delivery_resolves_settings_against_the_manifest() {
+        assert_eq!(
+            resolve_settings(&priority(), &[]),
+            pairs(&[("priority_info", "2")])
+        );
+        assert_eq!(
+            resolve_settings(
+                &priority(),
+                &pairs(&[
+                    ("priority_info", "4"),
+                    ("priority_fixed", "5"),
+                    ("volume", "3")
+                ])
+            ),
+            pairs(&[("priority_info", "4"), ("priority_fixed", "5")])
+        );
+        // Unset on purpose, or a value the manifest no longer offers: the default, or nothing.
+        assert_eq!(
+            resolve_settings(
+                &priority(),
+                &pairs(&[("priority_info", "9"), ("priority_fixed", "")])
+            ),
+            pairs(&[("priority_info", "2")])
+        );
+    }
+
+    #[test]
+    fn stored_settings_are_a_name_to_text_object() {
+        let read = |config: serde_json::Value| settings_from_config(&config);
+        assert!(
+            read(serde_json::json!({"plugin_id": "x"}))
+                .expect("none")
+                .is_empty()
+        );
+        assert!(
+            read(serde_json::json!({"settings": null}))
+                .expect("null")
+                .is_empty()
+        );
+        assert_eq!(
+            read(serde_json::json!({"settings": {"priority_info": "4"}})).expect("object"),
+            pairs(&[("priority_info", "4")])
+        );
+        for config in [
+            serde_json::json!({"settings": {"priority_info": 4}}),
+            serde_json::json!({"settings": ["priority_info"]}),
+        ] {
+            assert_eq!(
+                read(config).expect_err("refused").code.as_deref(),
+                Some("plugin.setting_invalid")
+            );
+        }
+    }
 
     fn ntfy() -> Vec<String> {
         vec!["ntfy.sh".to_owned(), "*".to_owned()]

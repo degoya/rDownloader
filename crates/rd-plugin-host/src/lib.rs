@@ -47,7 +47,7 @@ pub use manifest::{
     Capabilities, CredentialKindManifest, MANIFEST_VERSION, ManifestHeader, ManifestRejection,
     NetHttpCapability, OAuthFlowManifest, PluginManifest, PluginMetadata, PluginType,
     ProviderKindManifest, ProviderManifest, SUPPORTED_API_VERSIONS, SecretFilledByManifest,
-    check_app_version, decode_public_key, provider_spec_from_manifest,
+    SettingManifest, check_app_version, decode_public_key, provider_spec_from_manifest,
 };
 pub use native::{
     CLIENT_ID_MARKER, ResolverService, client_not_configured, provider_cookie_scope,

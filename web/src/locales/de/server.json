@@ -824,7 +824,9 @@
     "extract.password_has_quote": "Das Passwort enthält ein Anführungszeichen (\"), das 7-Zip unter Windows nicht annehmen kann; es konnte deshalb nicht ausprobiert werden.",
     "request.host_not_allowed": "Dieser Dienst antwortet nicht unter dem Namen {host}. Öffne ihn über seine Adresse oder trage den Namen in den Einstellungen unter „Erlaubte Hostnamen“ ein.",
     "storage_root.protected_directory": "Ein Speicherort darf kein Verzeichnis sein, enthalten oder in einem liegen, aus dem der Dienst Programme, Skripte oder Plugins startet oder in dem er seine Daten hält ({directory}).",
-    "capture.fetch_address_refused": "Die Adresse zeigt auf diesen Rechner oder auf eine Adresse, die der Dienst nicht abrufen darf."
+    "capture.fetch_address_refused": "Die Adresse zeigt auf diesen Rechner oder auf eine Adresse, die der Dienst nicht abrufen darf.",
+    "plugin.setting_unknown": "Dieses Benachrichtigungsziel hat keine Einstellung dieses Namens",
+    "plugin.setting_invalid": "Eine Einstellung dieses Ziels hat einen Wert, den das Benachrichtigungsziel nicht anbietet"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

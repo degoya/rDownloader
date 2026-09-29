@@ -60,7 +60,8 @@
     "destination_label": "Plugin",
     "destination_description": "Quelle destination installée distribue cette cible.",
     "form_new": "Nouvelle cible",
-    "secret_copy": "Non copié — saisissez-le à nouveau ; d’ici là, la copie n’en a aucun."
+    "secret_copy": "Non copié — saisissez-le à nouveau ; d’ici là, la copie n’en a aucun.",
+    "setting_unset": "Non défini"
   },
   "smtp": {
     "from": "Expéditeur",

@@ -12,15 +12,26 @@ const MAX_FIELD: usize = 512;
 /// Longest message body sent.
 const MAX_BODY: usize = 4096;
 
-/// ntfy's priority scale, 1 (min) to 5 (max). Only three of the five are used: a download
-/// manager has nothing that deserves "max", which on a phone overrides do-not-disturb.
+/// The priority a message is sent with, on ntfy's scale from 1 (min) to 5 (max).
+///
+/// `setting` answers the target's settings (RD-170-09), which the host has already resolved
+/// against the manifest's defaults: `priority_fixed` for every message when it is set, else
+/// the one for the message's severity. The fallbacks are the same defaults, so a host that
+/// answers nothing -- or a value outside the scale -- sends what the plugin always sent:
+/// error 4 (high), warning 3 (default), everything else 2 (low). Nothing defaults to "max",
+/// which on a phone overrides do-not-disturb; a person may still choose it.
 #[must_use]
-pub fn priority(severity: &str) -> &'static str {
-    match severity {
-        "error" => "4",
-        "warning" => "3",
-        _ => "2",
-    }
+pub fn priority(severity: &str, setting: impl Fn(&str) -> Option<String>) -> String {
+    let (name, default) = match severity {
+        "error" => ("priority_error", "4"),
+        "warning" => ("priority_warning", "3"),
+        _ => ("priority_info", "2"),
+    };
+    let on_scale = |value: &String| matches!(value.as_str(), "1" | "2" | "3" | "4" | "5");
+    setting("priority_fixed")
+        .filter(on_scale)
+        .or_else(|| setting(name).filter(on_scale))
+        .unwrap_or_else(|| default.to_owned())
 }
 
 /// A parameter value ntfy will accept: single-line and bounded.
@@ -135,11 +146,66 @@ mod tests {
         assert!(cut.chars().all(|character| character == '\u{e9}'));
     }
 
+    /// A target's settings, as `destination-settings.setting` answers them.
+    fn settings(values: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+        let values: Vec<(String, String)> = values
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect();
+        move |name: &str| {
+            values
+                .iter()
+                .find(|(declared, _)| declared == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
     #[test]
     fn severity_maps_onto_ntfys_own_scale() {
-        assert_eq!(priority("error"), "4");
-        assert_eq!(priority("warning"), "3");
-        assert_eq!(priority("info"), "2");
-        assert_eq!(priority("something else"), "2");
+        let none = settings(&[]);
+        assert_eq!(priority("error", &none), "4");
+        assert_eq!(priority("warning", &none), "3");
+        assert_eq!(priority("info", &none), "2");
+        assert_eq!(priority("something else", &none), "2");
+    }
+
+    /// RD-170-09: each severity takes the priority its target was set to.
+    #[test]
+    fn each_severity_takes_the_priority_it_was_set_to() {
+        let chosen = settings(&[
+            ("priority_info", "4"),
+            ("priority_warning", "5"),
+            ("priority_error", "1"),
+        ]);
+        assert_eq!(priority("info", &chosen), "4");
+        assert_eq!(priority("warning", &chosen), "5");
+        assert_eq!(priority("error", &chosen), "1");
+        // One set, the others keep their defaults.
+        let one = settings(&[("priority_info", "3")]);
+        assert_eq!(priority("info", &one), "3");
+        assert_eq!(priority("warning", &one), "3");
+        assert_eq!(priority("error", &one), "4");
+    }
+
+    #[test]
+    fn a_fixed_priority_overrides_every_severity() {
+        let fixed = settings(&[("priority_fixed", "5"), ("priority_info", "1")]);
+        for severity in ["info", "warning", "error"] {
+            assert_eq!(priority(severity, &fixed), "5", "{severity}");
+        }
+    }
+
+    #[test]
+    fn a_value_off_the_scale_falls_back_to_the_default() {
+        let off = settings(&[
+            ("priority_fixed", "9"),
+            ("priority_info", "high"),
+            ("priority_error", ""),
+        ]);
+        assert_eq!(priority("info", &off), "2");
+        assert_eq!(priority("error", &off), "4");
+        // A fixed value off the scale does not hide a valid per-severity one.
+        let per_severity = settings(&[("priority_fixed", "0"), ("priority_warning", "1")]);
+        assert_eq!(priority("warning", &per_severity), "1");
     }
 }

@@ -3,7 +3,7 @@ plugin_type = "notifier"
 api_version = "0.9.0"
 id = "019d0000-0000-7000-8000-000000000103"
 name = "ntfy"
-version = "0.9.6"
+version = "0.10.0"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -20,6 +20,28 @@ slug = "ntfy_notifier"
 # Empty: a destination is chosen by name when a notification target is created, not matched
 # against anything.
 claims = []
+
+# The priority each message is sent with (RD-170-09), ntfy's own scale from 1 (min) to 5 (max).
+# The defaults are what the plugin sent before it could be set: info 2, warning 3, error 4.
+[[extension.settings]]
+name = "priority_info"
+choices = ["1", "2", "3", "4", "5"]
+default = "2"
+
+[[extension.settings]]
+name = "priority_warning"
+choices = ["1", "2", "3", "4", "5"]
+default = "3"
+
+[[extension.settings]]
+name = "priority_error"
+choices = ["1", "2", "3", "4", "5"]
+default = "4"
+
+# One priority for every message of the target; unset, the three above apply.
+[[extension.settings]]
+name = "priority_fixed"
+choices = ["1", "2", "3", "4", "5"]
 
 [metadata]
 description = "Delivers notifications to an ntfy topic."

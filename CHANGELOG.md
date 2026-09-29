@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-29
+
+### Added
+
+- **ntfy priority per target (RD-170-09).** An ntfy target now chooses the priority for info
+  messages, warnings and errors (1 min to 5 max), or one fixed priority for every message;
+  without a choice it stays 2/3/4 as before. Notification destination plugins can declare such
+  settings in their manifest (`[[extension.settings]]`), the target editor offers them as
+  selects, saving refuses an undeclared name or value (`plugin.setting_unknown`,
+  `plugin.setting_invalid`), and the plugin reads them through the new additive interface
+  `destination-settings` of `notifier-plugin`. ntfy plugin 0.10.0.
+
+### Changed
+
+- **The release submits the browser extension to both stores (RD-170-10).** After the GitHub
+  release, the Chrome build is uploaded to the Chrome Web Store through its API v2 and submitted
+  for review (`scripts/chrome-webstore.sh`), and the Firefox build goes to the listing on Firefox
+  Add-ons instead of being signed for self-distribution (`scripts/firefox-amo.sh submit`) — both
+  reach users as store updates once the review is through, for the newest release tag only. The
+  release therefore no longer carries `rdownloader-firefox.xpi`; the unsigned ZIPs stay. Missing
+  credentials or a store's refusal are warnings, never a failed release.
+
+### Fixed
+
+- **Saving a backup destination with a retention rule works.** The keep-last and keep-days fields hand over a number, which the editor read as text, so saving failed in the browser with `e.trim is not a function`.
+- **A settings import and a full restore refuse a storage root on a protected directory.** Like
+  creating or changing a root by hand, both now refuse a root that is, contains or lies inside
+  the data, scripts, vendor, tool or plugin directory (`storage_root.protected_directory`) —
+  including the scripts and vendor directory the imported bundle or the backup brings along —
+  before anything is written.
+- **The release chain's docs gate compares the changelog with the last shipped release.** It
+  took its baseline from `git describe`, which on development answers an old tag because release
+  tags sit on main's merge commits; it now takes the highest `vX.Y.Z` tag under the version being
+  cut, the same way `compat-check.sh` picks its base (`scripts/lib/release-tag.sh`).
+
 ## [1.6.0] - 2026-09-29
 
 ### Added
@@ -2914,7 +2949,7 @@ The same program as 1.5.0; 1.5.0's release workflow stopped before publishing an
   `lupaste.com`, `gpaste.us`, `pasfox.co`, `pasfox.com`, `hopepaste.download` and
   `fullpaste.todofullxd.com` are gone, and the three that still answer deliver nothing but
   advertising shorteners, which this job excludes.
-  `docs/roadmap/jobs/110-12-paste-und-linklisten.md` records every measurement and its date.
+  `docs/roadmap/jobs/archive/110-12-paste-und-linklisten.md` records every measurement and its date.
 - **A release and its mirrors are one thing, not five** (RD-110-18). Links in one LinkGrabber
   package that point at the same file now carry a mirror group, so the five hosters a release
   page lists arrive as one file with five mirrors instead of five candidates of which four get

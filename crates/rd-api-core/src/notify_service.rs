@@ -126,6 +126,10 @@ impl NotificationService {
         // The event name as the contract spells it: the same `snake_case` the REST API and
         // the automation triggers use, so a plugin and a webhook receiver see one vocabulary.
         let event = serde_json::to_string(&message.event).unwrap_or_default();
+        // Checked when the target was saved (RD-170-09); anything unreadable here falls back to
+        // the destination's defaults rather than failing the delivery.
+        let settings =
+            rd_plugin_host::extension::settings_from_config(&target.config).unwrap_or_default();
         let delivery = rd_plugin_host::extension::Delivery {
             title: &message.title,
             body: &message.body,
@@ -134,6 +138,7 @@ impl NotificationService {
             idempotency_key: &message.idempotency_key,
             destination: &target.endpoint,
             secret_ref: target.secret_ref.as_deref(),
+            settings: &settings,
         };
         match self.notifiers().await.deliver(plugin_id, delivery).await {
             Some(Ok(())) => Attempt::succeeded(),

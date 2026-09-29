@@ -35,6 +35,7 @@ async fn telegram_reaches_send_message_with_its_query_and_no_header_of_its_own()
             idempotency_key: "wire:telegram",
             destination: "-100123456",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("the delivery reaches Telegram");
@@ -75,6 +76,7 @@ async fn ntfy_carries_title_priority_and_tags_in_its_query() {
             idempotency_key: "wire:ntfy",
             destination: "downloads",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("the delivery reaches ntfy");
@@ -103,6 +105,66 @@ async fn ntfy_carries_title_priority_and_tags_in_its_query() {
     }
 }
 
+/// RD-170-09: the priority ntfy receives is the one the target was set to -- per severity, or
+/// one fixed value for all -- and without settings still 2/3/4 by severity. A name the manifest
+/// does not declare and a value it does not offer never reach the plugin.
+#[tokio::test]
+async fn ntfy_sends_the_priority_its_target_was_set_to() {
+    let wire = wire().await;
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (host, _) = host_over(directory.path(), &wire, "tk_access").await;
+    let plugin = notifier(NTFY, "rd-plugin-ntfy-notifier", host);
+    let set = |values: &[(&str, &str)]| -> Vec<(String, String)> {
+        values
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    };
+    let cases = [
+        (set(&[]), "info", "2"),
+        (set(&[]), "warning", "3"),
+        (set(&[]), "error", "4"),
+        (set(&[("priority_info", "5")]), "info", "5"),
+        (set(&[("priority_info", "5")]), "error", "4"),
+        (set(&[("priority_warning", "1")]), "warning", "1"),
+        (set(&[("priority_error", "3")]), "error", "3"),
+        (
+            set(&[("priority_fixed", "1"), ("priority_error", "5")]),
+            "error",
+            "1",
+        ),
+        (set(&[("priority_fixed", "5")]), "info", "5"),
+        (set(&[("priority_fixed", "")]), "warning", "3"),
+        (set(&[("priority_info", "9"), ("volume", "3")]), "info", "2"),
+    ];
+
+    for (settings, severity, _) in &cases {
+        plugin
+            .deliver(Delivery {
+                title: "Package finished",
+                body: "example.iso is complete",
+                event: "package_completed",
+                severity,
+                idempotency_key: "wire:ntfy-priority",
+                destination: "downloads",
+                secret_ref: None,
+                settings,
+            })
+            .await
+            .expect("the delivery reaches ntfy");
+    }
+
+    let arrived = wire.arrived.lock().expect("arrived").clone();
+    assert_eq!(arrived.len(), cases.len(), "{arrived:?}");
+    for ((settings, severity, expected), request) in cases.iter().zip(&arrived) {
+        assert_eq!(
+            request.query().get("priority").map(String::as_str),
+            Some(*expected),
+            "{severity} with {settings:?}"
+        );
+    }
+}
+
 /// RD-130-15: a destination written as an address reaches that server, with the token, and the
 /// token goes nowhere else.
 #[tokio::test]
@@ -121,6 +183,7 @@ async fn ntfy_reaches_a_self_hosted_server_with_the_token() {
             idempotency_key: "wire:ntfy-self-hosted",
             destination: "https://ntfy.example.org/alerts",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("the delivery reaches the self-hosted server");
@@ -159,6 +222,7 @@ async fn ntfy_on_a_self_hosted_server_is_not_followed_to_ntfy_sh() {
             idempotency_key: "wire:ntfy-redirect",
             destination: &destination,
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect_err("a redirect off the configured server is not followed");
@@ -203,6 +267,7 @@ async fn a_redirect_between_two_reachable_hosts_is_followed() {
             idempotency_key: "wire:ntfy-redirect-within",
             destination: &destination,
             secret_ref: None,
+            settings: &[],
         })
         .await
         .expect("a redirect inside the plugin's domains is followed");
@@ -249,6 +314,7 @@ async fn a_redirect_to_another_host_does_not_carry_the_authorization_header() {
             idempotency_key: "wire:ntfy-redirect-token",
             destination: &destination,
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect_err("a credentialed request that changed host is refused afterwards");
@@ -289,6 +355,7 @@ async fn ntfy_refuses_plain_http_to_a_public_server_before_sending_anything() {
             idempotency_key: "wire:ntfy-plain-http",
             destination: "http://ntfy.example.org/alerts",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect_err("plain http to a public server is refused");

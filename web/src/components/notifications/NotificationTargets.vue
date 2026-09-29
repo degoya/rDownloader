@@ -12,6 +12,7 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { pluginCodeText } from '@/i18n/plugins'
 import { withPluginVersion } from '@/utils/pluginVersion'
 
 const targets = defineModel<NotificationTarget[]>({ required: true })
@@ -131,6 +132,56 @@ const destinationItems = computed(() =>
     label: withPluginVersion(destination.name, destination.version)
   }))
 )
+
+/**
+ * The settings the chosen destination offers (RD-170-09), such as ntfy's priority per severity.
+ * The manifest declares them and the service checks them when the target is saved; the labels
+ * are the plugin's own codes `<slug>.setting.<name>` and `<slug>.choice.<value>`, and fall back
+ * to the name and the value where a plugin ships none.
+ */
+const chosenDestination = computed(() =>
+  destinations.value.find(destination => destination.plugin_id === config.value.plugin_id)
+)
+
+/** Stands for "not set" in a select, which cannot carry an empty value. */
+const UNSET = '__unset__'
+
+const destinationSettings = computed(() => {
+  const destination = chosenDestination.value
+  if (!destination) return []
+  return destination.settings.map(setting => ({
+    name: setting.name,
+    label: pluginCodeText(`${destination.slug}.setting.${setting.name}`) ?? setting.name,
+    description: pluginCodeText(`${destination.slug}.setting.${setting.name}.description`),
+    fallback: setting.default ?? UNSET,
+    items: [
+      ...(setting.default == null ? [{ value: UNSET, label: t('notifications.target.setting_unset') }] : []),
+      ...setting.choices.map(value => ({
+        value,
+        label: pluginCodeText(`${destination.slug}.choice.${value}`) ?? value
+      }))
+    ]
+  }))
+})
+
+function storedSettings(): Record<string, string> {
+  const stored = config.value.settings
+  return stored !== null && typeof stored === 'object' ? { ...(stored as Record<string, string>) } : {}
+}
+
+function setSetting(name: string, value: unknown): void {
+  const settings = storedSettings()
+  if (value === UNSET) delete settings[name]
+  else settings[name] = String(value)
+  setConfig('settings', settings)
+}
+
+/** Another destination has other settings; the previous one's would be refused on save. */
+function chooseDestination(pluginId: unknown): void {
+  const next: Record<string, unknown> = { ...config.value, plugin_id: pluginId }
+  delete next.settings
+  config.value = next
+}
 
 const tlsModes = computed(() =>
   (['starttls', 'tls', 'none'] as const).map(value => ({ value, label: t(`notifications.smtp.tls_${value}`) }))
@@ -270,9 +321,26 @@ async function remove(target: NotificationTarget): Promise<void> {
               value-key="value"
               class="w-full"
               data-testid="notification-destination"
-              @update:model-value="setConfig('plugin_id', $event)"
+              @update:model-value="chooseDestination($event)"
             />
           </UFormField>
+          <template v-if="form.kind === 'plugin'">
+            <UFormField
+              v-for="setting in destinationSettings"
+              :key="setting.name"
+              :label="setting.label"
+              :description="setting.description"
+            >
+              <USelect
+                :model-value="storedSettings()[setting.name] ?? setting.fallback"
+                :items="setting.items"
+                value-key="value"
+                class="w-full"
+                :data-testid="`notification-setting-${setting.name}`"
+                @update:model-value="setSetting(setting.name, $event)"
+              />
+            </UFormField>
+          </template>
 
           <template v-if="form.kind === 'smtp'">
             <UFormField :label="t('notifications.smtp.from')">

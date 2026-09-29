@@ -34,7 +34,7 @@ pub use auth::{AuthProgress, AuthProvider};
 pub use crawler::{CrawlRefusal, CrawledLink, FolderCrawler, MAX_CRAWLED_LINKS};
 pub use enricher::MetadataEnricher;
 pub use intake::{IntakeParser, IntakeProposal, SourceSetProposal};
-pub use notifier::{Delivery, NotifierPlugin};
+pub use notifier::{Delivery, NotifierPlugin, settings_from_config};
 pub use oauth::{AuthorizationRequest, DeviceAuthorization, OAuthProvider, TokenOutcome};
 pub use postprocess::{PostprocessPlugin, StepOutcome};
 pub use remote_job::{
@@ -160,6 +160,14 @@ fn linker_for(
             &mut linker,
             |state| state,
         )?;
+    }
+    // And what a notification destination is: the settings of the target it delivers to
+    // (RD-170-09), checked by the host when the target was saved.
+    if manifest.plugin_type == PluginType::Notifier {
+        bindings::notifier::rdownloader::plugin::destination_settings::add_to_linker::<
+            _,
+            HasSelf<_>,
+        >(&mut linker, |state| state)?;
     }
     Ok(linker)
 }

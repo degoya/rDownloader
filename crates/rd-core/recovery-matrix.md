@@ -42,8 +42,8 @@ cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usene
 file is gated on the feature of the crate that owns the point, and enabling a dependency's
 feature does not enable its dependants'. A file compiled to nothing runs no cases and reports
 success, which is the one failure mode this matrix cannot afford, so check the counts: without
-those features `rd-http` runs 65 tests, `rd-scheduler` 71 and `rd-usenet` 40; with them 70, 76
-and 42, measured per crate on 2026-09-22.
+those features `rd-http` runs 97 tests, `rd-scheduler` 111, `rd-usenet` 54, `rd-object-storage` 50
+and `rd-backup` 52; with them 103, 117, 57, 51 and 54, measured per crate on 2026-09-29.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything

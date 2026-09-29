@@ -52,6 +52,10 @@ pub struct PluginStoreState {
     /// The name the source of the remote job being submitted was added under, answered by
     /// `job-context.source-name`. Set only for a `submit` call; `None` everywhere else.
     pub(crate) job_source_name: Option<String>,
+    /// The settings of the notification target being delivered to, already resolved against
+    /// the manifest's defaults, answered by `destination-settings.setting` (RD-170-09). Empty
+    /// for every other call.
+    pub(crate) destination_settings: Vec<(String, String)>,
     /// Sockets the host opened for this invocation, addressed by the opaque handles the
     /// guest received. Dropping the store closes every one of them.
     pub(crate) connections: std::collections::HashMap<u32, crate::transfer::HostConnection>,
@@ -239,6 +243,7 @@ impl SandboxEngine {
             redactions: Vec::new(),
             granted_secret: None,
             job_source_name: None,
+            destination_settings: Vec::new(),
             request_authority: rd_plugin_api::RequestAuthority::Provider,
             write_methods: false,
             execution_deadline: Instant::now()
@@ -380,6 +385,11 @@ fn allowed_imports(manifest: &crate::PluginManifest) -> Vec<&'static str> {
     if manifest.plugin_type == crate::PluginType::RemoteJob {
         allowed.push("rdownloader:plugin/job-context");
     }
+    // The settings of the target a notification is delivered to (RD-170-09): values the host
+    // already checked against the manifest, reaching nothing.
+    if manifest.plugin_type == crate::PluginType::Notifier {
+        allowed.push("rdownloader:plugin/destination-settings");
+    }
     let capabilities = &manifest.capabilities;
     if capabilities.net_http.is_some() {
         allowed.push("rdownloader:plugin/http");
@@ -476,6 +486,19 @@ mod tests {
             assert!(
                 !allowed_imports(&manifest(other)).contains(&JOB_CONTEXT),
                 "{other} has no job to ask about"
+            );
+        }
+    }
+
+    /// A target's settings are read by the notifier type and nobody else (RD-170-09).
+    #[test]
+    fn only_a_notifier_may_read_its_destination_settings() {
+        const SETTINGS: &str = "rdownloader:plugin/destination-settings";
+        assert!(allowed_imports(&manifest("notifier")).contains(&SETTINGS));
+        for other in ["resolver", "enricher", "remote-job", "storage"] {
+            assert!(
+                !allowed_imports(&manifest(other)).contains(&SETTINGS),
+                "{other} has no target to be set"
             );
         }
     }

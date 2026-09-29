@@ -21,7 +21,7 @@
 # Usage:
 #   scripts/session-state.sh               # everything
 #   scripts/session-state.sh --no-network  # no ls-remote, no gh
-#   scripts/session-state.sh --brief       # a few lines, no network — the SessionStart hook
+#   scripts/session-state.sh --brief       # a few lines, no network — a session's first look
 #
 # Environment: RD_REPO (this checkout), RD_BASE (development), RD_RUN_ROOT (/tmp/claude-<uid>),
 # RD_LOCK_FILE (/tmp/rd-build.lock), RD_GH_REPO (degoya/rDownloader), CARGO_TARGET_DIR

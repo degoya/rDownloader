@@ -27,7 +27,7 @@
 //! is answered `parameter_missing` -- the answer 1.5.1 met after every confirmed device.
 //!
 //! **A run against the real provider is not claimed here.** It needs a Real-Debrid account;
-//! `docs/roadmap/jobs/150-09-realdebrid-device-flow-open-source.md` records which acceptance
+//! `docs/roadmap/jobs/archive/150-09-realdebrid-device-flow-open-source.md` records which acceptance
 //! criteria that leaves unproven.
 
 use std::sync::{Arc, Mutex};

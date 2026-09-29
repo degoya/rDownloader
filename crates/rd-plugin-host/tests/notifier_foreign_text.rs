@@ -77,6 +77,7 @@ async fn telegram_sends_a_hostile_title_made_inert_and_keeps_the_token_in_its_pa
             idempotency_key: "foreign:telegram",
             destination: "-100123456",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("a hostile name is still delivered");
@@ -104,6 +105,7 @@ async fn ntfy_sends_a_hostile_title_and_body_made_inert() {
             idempotency_key: "foreign:ntfy",
             destination: "downloads",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("a hostile name is still delivered");
@@ -136,6 +138,7 @@ async fn discord_sends_a_hostile_title_made_inert_and_keeps_the_token_in_its_pat
             idempotency_key: "foreign:discord",
             destination: "",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("a hostile name is still delivered");
@@ -169,6 +172,7 @@ async fn ntfy_sends_the_granted_marker_made_inert() {
             idempotency_key: "foreign:ntfy-granted",
             destination: "downloads",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("delivered");
@@ -195,6 +199,7 @@ async fn discord_sends_the_granted_marker_made_inert() {
             idempotency_key: "foreign:discord-granted",
             destination: "",
             secret_ref: Some(&reference),
+            settings: &[],
         })
         .await
         .expect("delivered");

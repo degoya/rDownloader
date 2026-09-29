@@ -968,6 +968,20 @@ interface enricher {
   enrich: func(subject: enrich-subject) -> result<list<enrich-field>, failure>;
 }
 
+/// The settings a notification target was saved with (RD-170-09).
+///
+/// Additive (still `rdownloader:plugin@0.9.0`): an interface of its own, imported by
+/// `notifier-plugin` only, so a destination built before it existed links unchanged and the
+/// `notification` record keeps its shape. What a destination may be set to is declared in its
+/// manifest (`[[extension.settings]]`, a name and the values it accepts); the host refuses
+/// anything else when the target is saved, so what arrives here is always one of those values.
+interface destination-settings {
+  /// The value of the declared setting `name` for the delivery in progress: what the person
+  /// chose, else the manifest's default. `none` when neither exists -- a setting left unset on
+  /// purpose, or a name the manifest does not declare.
+  setting: func(name: string) -> option<string>;
+}
+
 /// A notification destination (RD-090-15).
 interface notifier {
   use types.{failure};
@@ -1221,6 +1235,7 @@ world enricher-plugin {
 world notifier-plugin {
   import host;
   import http;
+  import destination-settings;
   export notifier;
 }
 

@@ -60,7 +60,8 @@
     "destination_label": "Plugin",
     "destination_description": "Qué destino instalado entrega este objetivo.",
     "form_new": "Nuevo destino",
-    "secret_copy": "No se ha copiado: vuelve a introducirlo; hasta entonces la copia no tiene ninguno."
+    "secret_copy": "No se ha copiado: vuelve a introducirlo; hasta entonces la copia no tiene ninguno.",
+    "setting_unset": "Sin definir"
   },
   "smtp": {
     "from": "Remitente",

@@ -106,7 +106,7 @@ For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, vo
 
 **Linux needs glibc 2.39 or newer.** Both Linux binaries are built on Ubuntu 24.04 and linked against its glibc 2.39, so they run on Ubuntu 24.04 and newer, Debian 13 and current Fedora and Arch — but not on Debian 12 or Raspberry Pi OS based on it (bookworm, glibc 2.36), where the binary refuses to start with `GLIBC_2.39 not found`. Use the Docker image there; it brings its own glibc and runs on `amd64` and `arm64`, a Raspberry Pi with a 64-bit OS included. `ldd --version` shows what a system has.
 
-The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)); each release carries a Firefox `.xpi` signed by Mozilla, which installs permanently.
+The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)); install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda) or [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/); each release submits both for the stores' review.
 
 ## LinkGrabber
 

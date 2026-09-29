@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.6.0"
+    "version": "1.6.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -24552,7 +24552,9 @@
         "required": [
           "plugin_id",
           "name",
-          "version"
+          "version",
+          "slug",
+          "settings"
         ],
         "properties": {
           "name": {
@@ -24563,8 +24565,47 @@
             "type": "string",
             "description": "The value a target stores in `config.plugin_id`."
           },
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationDestinationSetting"
+            },
+            "description": "What a target of this destination may be set to, stored in `config.settings`\n(RD-170-09)."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The plugin's message namespace: a setting's label is its code\n`<slug>.setting.<name>`, a choice's `<slug>.choice.<value>`."
+          },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "NotificationDestinationSetting": {
+        "type": "object",
+        "description": "One setting a notification destination offers.",
+        "required": [
+          "name",
+          "choices"
+        ],
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every value the setting accepts, in the order to offer them."
+          },
+          "default": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What applies while the target leaves the setting alone; absent means it may stay unset."
+          },
+          "name": {
+            "type": "string",
+            "description": "The key in `config.settings`."
           }
         }
       },

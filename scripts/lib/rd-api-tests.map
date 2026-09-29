@@ -60,7 +60,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_profile_handlers)\.rs$   auth_profiles media_cookie_profile browser_session capture_intake
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service\.rs$                                     auto_remove
 ^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)\.rs$                 automations automation_triggers area_backup
-^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+\.rs$                                        full_backup backup_destinations mcp
+^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+\.rs$                                        full_backup backup_destinations backup_remote mcp
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers\.rs$                                      bandwidth
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers\.rs$                                        captcha
@@ -87,13 +87,14 @@
 ^crates/rd-api(-[a-z]+)?/src/power_[a-z_]+\.rs$                                           power
 ^crates/rd-api(-[a-z]+)?/src/reconnect_[a-z_]+\.rs$                                       reconnect
 ^crates/rd-api(-[a-z]+)?/src/(replay_dto|replay_handlers)\.rs$                            replay_consent replay_restart
-^crates/rd-api(-[a-z]+)?/src/(restore_[a-z_]+|routes/restore)\.rs$                    full_restore mcp
+^crates/rd-api(-[a-z]+)?/src/(restore_[a-z_]+|routes/restore)\.rs$                    full_restore backup_remote protected_roots mcp
 ^crates/rd-api(-[a-z]+)?/src/routing_backup\.rs$                                          routing_backup
 ^crates/rd-api(-[a-z]+)?/src/routes/security\.rs$                                         auth mfa passkeys sessions api_tokens reverse_proxy
 # The host allowlist and the proxy contract it lives in (security review 2026-09-28, finding 3).
 ^crates/rd-authn/src/(host|proxy)\.rs$                                                     + host_check reverse_proxy
 ^crates/rd-api(-[a-z]+)?/src/session_handlers\.rs$                                        sessions auth
-^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*\.rs$                                  settings_backup full_backup backup_destinations
+^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*\.rs$                                  settings_backup full_backup backup_destinations protected_roots
+^crates/rd-api(-[a-z]+)?/src/protected_roots\.rs$                                         storage_roots protected_roots mcp
 ^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)\.rs$                  site_rules
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity\.rs$                                        storage_capacity
 ^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)\.rs$   collisions

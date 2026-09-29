@@ -26,23 +26,11 @@ jobs:
         with:
           node-version: 24
       - run: scripts/build-extension.sh
-      # Mozilla signs the Firefox build as a self-distributed ("unlisted") version, so release
-      # Firefox installs it permanently (RD-160-07). Without the secrets (a fork) or when AMO
-      # cannot deliver, the step warns and the release keeps the unsigned ZIP; a version the
-      # store already signed is downloaded rather than uploaded twice. scripts/firefox-amo.sh.
-      - name: Sign the Firefox extension with Mozilla (unlisted)
-        env:
-          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
-          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: >-
-          scripts/firefox-amo.sh sign artifacts/browser-extensions/firefox
-          artifacts/browser-extensions/rdownloader-firefox.xpi
+      # The stores get these ZIPs after the release, in `extension-stores` (RD-170-10).
       - uses: actions/upload-artifact@v7
         with:
           name: browser-extensions
-          path: |
-            artifacts/browser-extensions/*.zip
-            artifacts/browser-extensions/*.xpi
+          path: artifacts/browser-extensions/*.zip
           if-no-files-found: error
 
   plugins:
@@ -503,6 +491,67 @@ jobs:
           README: rendered/scoop-README.md
           REF_NAME: ${{ github.ref_name }}
         run: *push-channel
+
+  # RD-170-10: the extension follows the release into the two stores — the Chrome ZIP is uploaded
+  # to the Chrome Web Store and submitted for review (scripts/chrome-webstore.sh, API v2, secrets
+  # CWS_CLIENT_ID/CWS_CLIENT_SECRET/CWS_REFRESH_TOKEN, repository variable CWS_PUBLISHER_ID), the
+  # Firefox build to the AMO listing (scripts/firefox-amo.sh submit, secrets AMO_JWT_ISSUER/
+  # AMO_JWT_SECRET). Both publish after the stores' own review; neither returns a file for the
+  # release. Each script warns and succeeds when its credentials are missing or its store refuses,
+  # and the job continues on error on top of that: the release is out by then. Only the newest
+  # plain vX.Y.Z tag is submitted, as with the tap and the bucket, so a re-run of an old tag or a
+  # pre-release cannot reach a store.
+  extension-stores:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Decide whether the stores get this release
+        id: gate
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          newest="$(git ls-remote --tags --refs origin 'refs/tags/v*' \
+            | sed 's#.*refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
+            | sort -V | tail -n 1)"
+          if [[ "${REF_NAME}" != "${newest}" ]]; then
+            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); the stores keep their version"
+            echo "submit=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "submit=true" >> "${GITHUB_OUTPUT}"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.submit == 'true'
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        if: steps.gate.outputs.submit == 'true'
+        with:
+          name: browser-extensions
+          path: browser-extensions
+      - name: Submit the Chrome extension to the Chrome Web Store
+        if: steps.gate.outputs.submit == 'true'
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: scripts/chrome-webstore.sh publish browser-extensions/rdownloader-chrome.zip
+      # web-ext signs from a directory, so the Firefox ZIP is unpacked first.
+      - name: Submit the Firefox extension to the AMO listing
+        if: ${{ !cancelled() && steps.gate.outputs.submit == 'true' }}
+        shell: bash
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          unzip -q browser-extensions/rdownloader-firefox.zip -d firefox
+          scripts/firefox-amo.sh submit firefox
 
   # The image is built from the binaries above, not compiled again (owner, 2026-09-26): the arm64
   # half runs only apt, pip and the `--version` guard under QEMU. Nothing is pushed before the

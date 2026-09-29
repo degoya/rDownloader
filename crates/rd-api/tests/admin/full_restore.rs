@@ -14,11 +14,11 @@ use serde_json::json;
 
 use crate::common::{self, Harness};
 
-const PASSPHRASE: &str = "correct horse battery staple";
+pub(crate) const PASSPHRASE: &str = "correct horse battery staple";
 const CANARY: &str = "proxy-password-canary";
 
 /// A proxy with a credential, a storage root, a passphrase and one finished backup of it all.
-async fn backed_up(harness: &Harness, directory: &Path) -> (String, PathBuf, String) {
+pub(crate) async fn backed_up(harness: &Harness, directory: &Path) -> (String, PathBuf, String) {
     let secret = harness
         .secrets
         .put_string(CANARY.to_owned())
