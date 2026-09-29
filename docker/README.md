@@ -23,7 +23,9 @@ docker compose -f docker/compose.yml up -d
 Then open <http://127.0.0.1:8710> and work through the setup wizard: an administrator password,
 at least one storage root, and a category.
 
-**The first start takes about a minute.** The service installs the bundled plugin packages,
+**The first start takes about a minute.** The service installs the bundled plugins that need no
+account (the setup wizard's *Your services* step installs the rest you choose; set
+`RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS=true` for all of them),
 loads the resolver components and the intake parsers before it begins listening. That is why the
 health check has a 90-second start period. `docker logs -f rdownloader` shows the progress; the
 line to wait for is `rDownloader listening`.
@@ -238,6 +240,10 @@ Do not forward port 8710 in your router. Use the DSM reverse proxy instead
 `localhost:8710`, and give it a certificate from *Control Panel → Security → Certificate*. That
 way the connection is encrypted and DSM handles the certificate renewal.
 
+Then enter that hostname as the external URL under *Settings → Security*
+(`https://rd.example.com`): rDownloader answers only to names it knows, see
+[Host names](#host-names) below.
+
 ### Synology notes
 
 - **Ports below 1024 are taken by DSM.** 8710 is free; if it clashes with something else, change
@@ -247,6 +253,23 @@ way the connection is encrypted and DSM handles the certificate renewal.
   *Settings → Backup* instead.
 - **The capture agent does not run on the NAS.** Use the browser extension for link capture and
   pair it with a capture token from *Settings → System*.
+
+## Host names
+
+rDownloader checks the `Host` of every request, as a defence against DNS rebinding. Behind a
+port mapping the `Host` is whatever you type into the browser:
+
+- **An IP address** (`http://192.168.1.20:8710`) and **`localhost`** always work.
+- **The host of the external URL** works once it is set under *Settings → Security*.
+- **Any other name** — `http://nas:8710`, `http://nas.lan:8710`, or the Compose service name
+  another container uses (`http://rdownloader:8710` from Sonarr or Radarr) — is refused with
+  `403 request.host_not_allowed` until you add it to **Allowed host names** under
+  *Settings → Security*. Open the interface by its IP address to do that.
+
+**A switched-off administrator login does not apply inside a container.** It trusts only
+requests from this machine's loopback address, and behind Docker's port mapping every request
+arrives from the bridge gateway — so the login stays required. Use the password, or a machine
+token for tools.
 
 ## Building the image yourself
 

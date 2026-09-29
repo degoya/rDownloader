@@ -58,7 +58,11 @@
     "script_subscription_changed": "Script subscription created or changed",
     "file_overwritten": "File overwritten",
     "collision_decided": "File collision decided",
-    "duplicate_linked": "Duplicate linked"
+    "duplicate_linked": "Duplicate linked",
+    "backup_configured": "Full backup configured",
+    "backup_key_changed": "Full backup passphrase set",
+    "backup_created": "Full backup written",
+    "backup_verified": "Full backup archive verified"
   },
   "list": {
     "title": "Records",

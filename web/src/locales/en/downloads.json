@@ -166,9 +166,10 @@
       "isolated_reason": {
         "piece": "Delivered data that did not match its hash.",
         "size": "Offers a different file size.",
-        "other": "No longer used for this file."
+        "other": "No longer used for this file.",
+        "internal": "Points at your own machine or into a network this source list may not reach."
       },
-      "unsupported_hint": "FTP and SFTP sources are shown but not yet used for chunks."
+      "unsupported_hint": "Sources whose protocol this service cannot fetch are shown but not used."
     }
   },
   "summary": {

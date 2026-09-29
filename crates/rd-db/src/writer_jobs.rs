@@ -694,6 +694,26 @@ impl Writer {
         Ok(())
     }
 
+    /// `VACUUM INTO` on the writer's own connection: the copy is the state after every
+    /// command sent before this one, and no command sent after it (see `crate::snapshot`).
+    pub(crate) async fn vacuum_into(&mut self, path: &std::path::Path) -> Result<()> {
+        // SQLite refuses a target that already holds data; refusing earlier names the reason.
+        anyhow::ensure!(
+            !path.exists(),
+            "the snapshot target {} already exists",
+            path.display()
+        );
+        let target = path
+            .to_str()
+            .with_context(|| format!("snapshot path {} is not UTF-8", path.display()))?;
+        sqlx::query("VACUUM INTO ?")
+            .bind(target)
+            .execute(&mut self.connection)
+            .await
+            .with_context(|| format!("write database snapshot {}", path.display()))?;
+        Ok(())
+    }
+
     pub(crate) async fn set_setting(&mut self, key: &str, value: &serde_json::Value) -> Result<()> {
         sqlx::query(
             "INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?) \

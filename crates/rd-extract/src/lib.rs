@@ -10,6 +10,7 @@ mod pipeline;
 mod plugin_step;
 mod rar_test_job;
 mod rclone_job;
+mod rclone_remote;
 mod remux_job;
 mod script_job;
 mod settings;
@@ -30,6 +31,7 @@ use tokio_util::sync::CancellationToken;
 
 pub use object_upload::{ObjectUpload, ObjectUploader};
 pub use plugin_step::{PluginStepJob, PluginStepOutcome, PluginStepRunner};
+pub use rclone_remote::{RcloneEntry, RcloneFailure, RcloneRemote};
 pub use script_job::BATCH_ARGUMENTS_REFUSED;
 pub use settings::load_postprocess_settings;
 pub use storage_upload::{StorageUpload, StorageUploader, UploadProgress, UploadReport};

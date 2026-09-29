@@ -1,4 +1,4 @@
-/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+/** Matches `validate_name` in `crates/rd-api-core/src/config_fields.rs`. */
 export const MAX_RULE_NAME_LENGTH = 100
 const MAX_RULE_PRIORITY = 2_147_483_647
 

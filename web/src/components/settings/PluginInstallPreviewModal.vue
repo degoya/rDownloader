@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * What a package is before it is installed (RD-140-01): name, version, publisher, the key's
- * standing, every permission it asks for, and the release notes a repository published.
+ * standing, every permission it asks for, and the release notes a repository published. For an
+ * update, the permissions the installed version does not have yet come first (RD-160-09).
  *
  * Opened for an uploaded file and for a repository's offer alike, and for a package from an
  * already trusted key too — installing used to be the first thing that looked at a package, so
@@ -22,6 +23,7 @@ import {
 import { currentLocale } from '@/i18n'
 import { loadPluginMessages, resetPluginMessages } from '@/i18n/plugins'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
+import { capabilityLabel as labelOf, permissionLabels } from './pluginPermissions'
 
 const props = defineProps<{
   /** The package to preview; `null` keeps the dialog closed. */
@@ -90,17 +92,16 @@ async function install(): Promise<void> {
   emit('installed', translateServerMessage(serverMessageFrom(answer.data)))
 }
 
-/**
- * A grant as the manifest declares it. Two carry a detail worth showing in full:
- * `secrets:<reference>` names the one credential the plugin may expand, and `net_stream:<ports>`
- * the ports it may dial. The rest are fixed capability names.
- */
 function capabilityLabel(capability: string): string {
-  const [name, detail] = capability.split(/:(.*)/s)
-  if (name === 'secrets') return t('plugins.capability.secret', { reference: detail })
-  if (name === 'net_stream') return t('plugins.capability.net_stream', { ports: detail })
-  return t(`plugins.capability.${name}`)
+  return labelOf(t, capability)
 }
+
+/** What an update asks for beyond the installed version; `null` for a plugin not installed yet. */
+const added = computed(() => {
+  const change = preview.value?.added_permissions
+  if (!change) return null
+  return { version: change.installed_version, labels: permissionLabels(t, change.permissions) }
+})
 </script>
 
 <template>
@@ -140,6 +141,14 @@ function capabilityLabel(capability: string): string {
             <UBadge class="mt-3" :color="keyColor" variant="subtle">{{ t(`plugins.preview.key.${preview.key_status}`) }}</UBadge>
           </div>
           <UAlert v-if="needsTrust" color="warning" variant="subtle" :description="t('plugins.trust.warning')" />
+
+          <div v-if="added" class="border border-muted p-3" data-preview-added-permissions>
+            <p class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.added_permissions', { version: added.version }) }}</p>
+            <div v-if="added.labels.length" class="mt-1 flex flex-wrap gap-1">
+              <UBadge v-for="label in added.labels" :key="label" color="error" variant="subtle" icon="i-lucide-shield-alert">{{ label }}</UBadge>
+            </div>
+            <p v-else class="mt-1 text-sm text-toned">{{ t('plugins.preview.no_added_permissions', { version: added.version }) }}</p>
+          </div>
 
           <div data-preview-permissions>
             <p class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.permissions') }}</p>

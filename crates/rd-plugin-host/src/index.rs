@@ -185,6 +185,33 @@ impl Permissions {
     pub fn same_as(&self, other: &Self) -> bool {
         !self.widens(other) && !other.widens(self)
     }
+
+    /// What these permissions ask for that `held` does not, each list in this one's order: the
+    /// part of an update the person has not granted yet (RD-160-09). Empty exactly when
+    /// [`widens`](Self::widens) is false.
+    #[must_use]
+    pub fn beyond(&self, held: &Self) -> Self {
+        fn missing(wanted: &[String], held: &[String]) -> Vec<String> {
+            let mut missing: Vec<String> = Vec::new();
+            for entry in wanted {
+                if !held.contains(entry) && !missing.contains(entry) {
+                    missing.push(entry.clone());
+                }
+            }
+            missing
+        }
+        Self {
+            granted: missing(&self.granted, &held.granted),
+            http_domains: missing(&self.http_domains, &held.http_domains),
+            stream_hosts: missing(&self.stream_hosts, &held.stream_hosts),
+        }
+    }
+
+    /// Whether this asks for nothing at all.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.granted.is_empty() && self.http_domains.is_empty() && self.stream_hosts.is_empty()
+    }
 }
 
 /// What the repository withdraws.

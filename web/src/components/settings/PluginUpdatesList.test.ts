@@ -22,6 +22,8 @@ vi.mock('@/i18n/server', () => ({
 
 const { default: PluginUpdatesList } = await import('./PluginUpdatesList.vue')
 
+const NONE = { granted: [], http_domains: [], stream_hosts: [] }
+
 function offer(name: string, version: string, overrides: Partial<PluginOffer> = {}): PluginOffer {
   return {
     repository_id: 'official',
@@ -73,8 +75,8 @@ describe('PluginUpdatesList', () => {
   it('names both versions and the repository, and marks an automatic update', async () => {
     mount({
       updates: [
-        { offer: offer('DDownload', '1.2.4', { installed_version: '1.2.3' }), installed_version: '1.2.3', policy: 'automatic', adds_permissions: false },
-        { offer: offer('Rapidgator', '2.0.0', { installed_version: '1.9.0' }), installed_version: '1.9.0', policy: 'manual', adds_permissions: false }
+        { offer: offer('DDownload', '1.2.4', { installed_version: '1.2.3' }), installed_version: '1.2.3', policy: 'automatic', adds_permissions: false, added_permissions: NONE },
+        { offer: offer('Rapidgator', '2.0.0', { installed_version: '1.9.0' }), installed_version: '1.9.0', policy: 'manual', adds_permissions: false, added_permissions: NONE }
       ],
       available: []
     })
@@ -87,18 +89,31 @@ describe('PluginUpdatesList', () => {
   it('marks an update that asks for new permissions, automatic or not', async () => {
     mount({
       updates: [
-        { offer: offer('DDownload', '1.2.4'), installed_version: '1.2.3', policy: 'automatic', adds_permissions: true },
-        { offer: offer('Rapidgator', '2.0.0'), installed_version: '1.9.0', policy: 'manual', adds_permissions: false }
+        {
+          offer: offer('DDownload', '1.2.4'),
+          installed_version: '1.2.3',
+          policy: 'automatic',
+          adds_permissions: true,
+          added_permissions: { granted: ['captcha'], http_domains: ['api.ddownload.com'], stream_hosts: [] }
+        },
+        { offer: offer('Rapidgator', '2.0.0'), installed_version: '1.9.0', policy: 'manual', adds_permissions: false, added_permissions: NONE }
       ],
       available: []
     })
     const badge = await screen.findByText(pluginsCatalogue.updates.adds_permissions)
-    expect(badge.closest('[data-adds-permissions]')?.getAttribute('title')).toBe(pluginsCatalogue.updates.adds_permissions_hint)
+    // The tooltip names what is new, translated grants first, then the addresses (RD-160-09).
+    const added = pluginsCatalogue.updates.added_permissions.replace(
+      '{permissions}',
+      `${pluginsCatalogue.capability.captcha}, api.ddownload.com`
+    )
+    expect(badge.closest('[data-adds-permissions]')?.getAttribute('title')).toBe(
+      `${pluginsCatalogue.updates.adds_permissions_hint}\n${added}`
+    )
     expect(screen.getAllByText(pluginsCatalogue.updates.adds_permissions)).toHaveLength(1)
   })
 
   it('opens the preview for the exact version, and never installs straight away', async () => {
-    mount({ updates: [{ offer: offer('DDownload', '1.2.4'), installed_version: '1.2.3', policy: 'manual', adds_permissions: false }], available: [] })
+    mount({ updates: [{ offer: offer('DDownload', '1.2.4'), installed_version: '1.2.3', policy: 'manual', adds_permissions: false, added_permissions: NONE }], available: [] })
     await fireEvent.click(await screen.findByRole('button', { name: pluginsCatalogue.updates.review }))
     expect(previewSources).toEqual([
       { kind: 'repository', repositoryId: 'official', pluginId: 'id-DDownload', version: '1.2.4' }

@@ -14,6 +14,10 @@
 //! [`rd_core::CODE_INTERNAL_ADDRESS`] and the others go on. The client the sources are fetched
 //! with carries the same rule into its resolver and its redirects, so a name that answers
 //! differently the second time is refused when the connection is made.
+//!
+//! An FTP or SFTP mirror is fetched through its runner's [`rd_http::RangeSource`]: every
+//! connection it opens — the size query, and one per chunk at the chunk's offset — resolves
+//! and checks the address itself when the socket is opened.
 
 use std::{collections::HashMap, ops::ControlFlow, sync::Arc};
 
@@ -21,7 +25,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
 use rd_core::{
-    ByteCount, DownloadFile, DownloadSource, Failure, FailureKind, SourceOutcome, SourceState,
+    ByteCount, DownloadFile, DownloadSource, Failure, FailureKind, SourceOutcome, SourceProtocol,
+    SourceState,
 };
 use rd_db::Database;
 use rd_http::{
@@ -102,42 +107,36 @@ pub(super) async fn run(
                 continue;
             }
         }
-        let headers = match headers_for(scheduler, &network, &source.url).await? {
-            Ok(headers) => headers,
+        let probed = if matches!(
+            source.protocol,
+            SourceProtocol::Http | SourceProtocol::Https
+        ) {
+            tokio::select! {
+                () = cancellation.cancelled() => {
+                    transition_stopped(scheduler, file).await?;
+                    return Ok(ControlFlow::Break(()));
+                }
+                result = http_endpoint(scheduler, &network, source) => result?,
+            }
+        } else {
+            tokio::select! {
+                () = cancellation.cancelled() => {
+                    transition_stopped(scheduler, file).await?;
+                    return Ok(ControlFlow::Break(()));
+                }
+                result = mirror_endpoint(scheduler, source, &policy) => result,
+            }
+        };
+        let (endpoint, offered) = match probed {
+            Ok(Some(probed)) => probed,
+            // No runner for this protocol in this service: nothing to fetch it with.
+            Ok(None) => continue,
             Err(failure) => {
                 note_failure(scheduler, file, source.position, &failure).await?;
                 continue;
             }
         };
-        let probe = tokio::select! {
-            () = cancellation.cancelled() => {
-                transition_stopped(scheduler, file).await?;
-                return Ok(ControlFlow::Break(()));
-            }
-            result = probe_with_headers(&network.client, source.url.clone(), &headers) => result,
-        };
-        let probe = match probe {
-            Ok(probe) => probe,
-            Err(error) => {
-                let failure = match error {
-                    rd_http::HttpDownloadError::Failure(failure) => failure,
-                    other => transient("download.network_failed", other.to_string()),
-                };
-                note_failure(scheduler, file, source.position, &failure).await?;
-                continue;
-            }
-        };
-        if !probe.looks_downloadable() {
-            let failure = transient("download.not_a_file", "a mirror answered with a page");
-            note_failure(scheduler, file, source.position, &failure).await?;
-            continue;
-        }
-        if !probe.accepts_ranges {
-            let failure = transient("download.range_ignored", "a mirror refuses ranges");
-            note_failure(scheduler, file, source.position, &failure).await?;
-            continue;
-        }
-        match (reference, probe.total_bytes) {
+        match (reference, offered) {
             (Some(expected), Some(offered)) if expected != offered => {
                 // A different size is a different file. Stated by the document, that is
                 // final; merely disagreeing with another mirror, it is one failure.
@@ -161,24 +160,7 @@ pub(super) async fn run(
             (None, Some(offered)) => reference = Some(offered),
             _ => {}
         }
-        // The chunks go where the probe ended; the credential is decided again for that
-        // address, as the single-source path does (RD-120-38).
-        let headers = if probe.final_url == source.url {
-            headers
-        } else {
-            match headers_for(scheduler, &network, &probe.final_url).await? {
-                Ok(headers) => headers,
-                Err(failure) => {
-                    note_failure(scheduler, file, source.position, &failure).await?;
-                    continue;
-                }
-            }
-        };
-        endpoints.push(SourceEndpoint {
-            position: source.position,
-            url: probe.final_url,
-            headers,
-        });
+        endpoints.push(endpoint);
     }
     let Some(total) = reference else {
         // The single path fetches the download's own address, which the set named as well:
@@ -187,7 +169,7 @@ pub(super) async fn run(
         if let Err(rd_http::TargetRefusal::Refused(_)) =
             rd_http::check_target(&policy, &rd_http::SystemLookup, &file.source).await
         {
-            record_error(scheduler, file, internal_address()).await?;
+            record_error(scheduler, file, super::internal_address()).await?;
             return Ok(ControlFlow::Break(()));
         }
         return Ok(ControlFlow::Continue(()));
@@ -308,6 +290,102 @@ pub(super) async fn run(
     Ok(ControlFlow::Break(()))
 }
 
+/// Probes an HTTP mirror: the endpoint the chunks go to — where the probe ended, with the
+/// headers decided again for that address (RD-120-38) — and the size it offers. A failure is
+/// the source's, and the attempt goes on with the others.
+async fn http_endpoint(
+    scheduler: &SchedulerHandle,
+    network: &NetworkClient,
+    source: &DownloadSource,
+) -> Result<std::result::Result<Option<(SourceEndpoint, Option<u64>)>, Failure>> {
+    let headers = match headers_for(scheduler, network, &source.url).await? {
+        Ok(headers) => headers,
+        Err(failure) => return Ok(Err(failure)),
+    };
+    let probe = match probe_with_headers(&network.client, source.url.clone(), &headers).await {
+        Ok(probe) => probe,
+        Err(rd_http::HttpDownloadError::Failure(failure)) => return Ok(Err(failure)),
+        Err(other) => return Ok(Err(transient("download.network_failed", other.to_string()))),
+    };
+    if !probe.looks_downloadable() {
+        return Ok(Err(transient(
+            "download.not_a_file",
+            "a mirror answered with a page",
+        )));
+    }
+    if !probe.accepts_ranges {
+        return Ok(Err(transient(
+            "download.range_ignored",
+            "a mirror refuses ranges",
+        )));
+    }
+    let headers = if probe.final_url == source.url {
+        headers
+    } else {
+        match headers_for(scheduler, network, &probe.final_url).await? {
+            Ok(headers) => headers,
+            Err(failure) => return Ok(Err(failure)),
+        }
+    };
+    Ok(Ok(Some((
+        SourceEndpoint {
+            position: source.position,
+            url: probe.final_url,
+            headers,
+            via: None,
+        },
+        probe.total_bytes,
+    ))))
+}
+
+/// An FTP or SFTP mirror, fetched through its runner (RD-150-03): the size it reports over a
+/// connection held to `policy`, and the endpoint whose chunks each open one more such
+/// connection. `Ok(None)` when this service has no runner for the protocol.
+async fn mirror_endpoint(
+    scheduler: &SchedulerHandle,
+    source: &DownloadSource,
+    policy: &rd_http::AddressPolicy,
+) -> std::result::Result<Option<(SourceEndpoint, Option<u64>)>, Failure> {
+    let kind = match source.protocol {
+        SourceProtocol::Ftp | SourceProtocol::Ftps => rd_core::DownloadKind::Ftp,
+        SourceProtocol::Sftp => rd_core::DownloadKind::Sftp,
+        SourceProtocol::Http | SourceProtocol::Https => return Ok(None),
+    };
+    let Some(range_source) = scheduler
+        .runners
+        .get(kind)
+        .and_then(|runner| runner.range_source())
+    else {
+        tracing::debug!(
+            position = source.position,
+            protocol = source.protocol.as_str(),
+            "no runner fetches this mirror's protocol here"
+        );
+        return Ok(None);
+    };
+    let Some(target) = rd_core::RemoteTarget::parse(&source.url) else {
+        return Err(Failure::coded(
+            FailureKind::Permanent,
+            "download.failed",
+            "the mirror's address is not a valid remote link",
+        ));
+    };
+    let size = range_source.size(&target, Some(policy)).await?;
+    Ok(Some((
+        SourceEndpoint {
+            position: source.position,
+            url: source.url.clone(),
+            headers: Vec::new(),
+            via: Some(rd_http::RangeTransport {
+                source: range_source,
+                target,
+                policy: Some(policy.clone()),
+            }),
+        },
+        Some(size),
+    )))
+}
+
 /// The headers a request to `target` carries: the profile's where its scope admits them, the
 /// account's credential where its provider's gate does. Decided per address, because the
 /// mirrors of one file sit on hosts that have nothing to do with each other.
@@ -332,8 +410,33 @@ pub(super) fn address_policy(
     scheduler: &SchedulerHandle,
     sources: &[DownloadSource],
 ) -> rd_http::AddressPolicy {
-    let local_network = !sources.is_empty() && sources.iter().all(|source| source.local_network);
-    scheduler.remote_address_policy(local_network)
+    scheduler.source_address_policy(sources)
+}
+
+/// Whether the sources are the download's own address alone, with no piece hashes to check
+/// it by: what a link a document or a page proposed without mirrors is written with
+/// (RD-150-03). The single-source path fetches such a download; the rule stays the same.
+pub(super) async fn only_its_own_address(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    sources: &[DownloadSource],
+) -> Result<bool> {
+    let [only] = sources else {
+        return Ok(false);
+    };
+    let without_password = |url: &url::Url| {
+        let mut url = url.clone();
+        let _ = url.set_password(None);
+        url
+    };
+    if without_password(&only.url) != without_password(&file.source) {
+        return Ok(false);
+    }
+    Ok(scheduler
+        .database
+        .download_piece_hashes(file.id)
+        .await?
+        .is_none())
 }
 
 /// Takes a source out for good with a stable code; the attempt goes on with the others.
@@ -353,15 +456,6 @@ async fn isolate(
             },
         )
         .await
-}
-
-/// The download's own address points where a remote document may not reach.
-fn internal_address() -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        rd_core::CODE_INTERNAL_ADDRESS,
-        "The download's address points at an address a remote document may not reach",
-    )
 }
 
 /// Records one source's failure; the attempt goes on with the others. A failure that says the

@@ -83,11 +83,15 @@ impl SourceProtocol {
 
     /// Whether chunks of one file may be fetched from this source in parallel with others.
     ///
-    /// Only HTTP today: its range requests are what the chunk engine is built on. An FTP or
-    /// SFTP source is kept, ordered and shown, and waits for its runner to learn ranges.
+    /// Every protocol a source may carry: HTTP through the chunk engine's range requests, FTP
+    /// (`REST`) and SFTP (a seek) through their runners, which open a connection at a chunk's
+    /// offset for it.
     #[must_use]
     pub const fn serves_chunks(self) -> bool {
-        matches!(self, Self::Http | Self::Https)
+        matches!(
+            self,
+            Self::Http | Self::Https | Self::Ftp | Self::Ftps | Self::Sftp
+        )
     }
 }
 
@@ -139,6 +143,20 @@ pub struct SourceSet {
     /// addresses. This machine is out of reach either way.
     #[serde(default)]
     pub local_network: bool,
+}
+
+/// One source a LinkGrabber link carries, as the interface shows it before the link is queued
+/// (RD-150-03). Redacted like every address the interface shows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+pub struct CandidateSource {
+    /// The address, with credentials and signed query values replaced.
+    pub url: String,
+    pub host: Option<String>,
+    pub protocol: SourceProtocol,
+    /// Lower is preferred; absent when the document ranked it not at all.
+    pub priority: Option<u32>,
+    /// ISO 3166-1 alpha-2 country code the document gave.
+    pub location: Option<String>,
 }
 
 /// A hash as a plugin handed it over, before it is checked.
@@ -198,6 +216,48 @@ impl SourceSet {
             // not; the strict answer until it says otherwise.
             local_network: false,
         })
+    }
+
+    /// The one address of a link a document or a page proposed without naming mirrors, held
+    /// to the same address rule a set is (RD-150-03).
+    ///
+    /// Written with the download, it is how the transfer knows the address is a stranger's:
+    /// the queue fetches such a link on its single-source path, and holds it to the rule
+    /// there. `None` for a scheme no source may carry. A password in the address is left out
+    /// of the row, as for every source; the download keeps its own address.
+    #[must_use]
+    pub fn of_link(url: &Url, local_network: bool) -> Option<Self> {
+        let mut address = url.clone();
+        let _ = address.set_password(None);
+        let url = checked_url(address.as_str())?;
+        Some(Self {
+            sources: vec![SetSource {
+                url,
+                priority: None,
+                location: None,
+            }],
+            size: None,
+            checksum: None,
+            pieces: None,
+            local_network,
+        })
+    }
+
+    /// The sources as the LinkGrabber shows them, in the order the transfer will try them.
+    #[must_use]
+    pub fn preview(&self) -> Vec<CandidateSource> {
+        self.sources
+            .iter()
+            .filter_map(|source| {
+                Some(CandidateSource {
+                    url: crate::redact_url(&source.url),
+                    host: source.url.host_str().map(str::to_owned),
+                    protocol: SourceProtocol::from_scheme(source.url.scheme())?,
+                    priority: source.priority,
+                    location: source.location.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Whether the set carries something that proves the bytes, which is the condition for
@@ -340,7 +400,8 @@ pub enum SourceState {
     Ready,
     BackingOff,
     Isolated,
-    /// A protocol the chunk engine does not fetch from yet.
+    /// A protocol the chunk engine does not fetch from. No protocol a source may carry is one
+    /// since FTP and SFTP mirrors are fetched too; kept so the interface's contract holds.
     Unsupported,
 }
 
@@ -605,6 +666,26 @@ mod tests {
     }
 
     #[test]
+    fn a_proposed_link_becomes_one_source_with_its_reach_and_no_password() {
+        let link = Url::parse("ftp://user:secret@mirror.example/f.iso").expect("url");
+        let set = SourceSet::of_link(&link, true).expect("set");
+        assert_eq!(set.sources.len(), 1);
+        assert_eq!(
+            set.sources[0].url.as_str(),
+            "ftp://user@mirror.example/f.iso"
+        );
+        assert!(set.local_network);
+        assert!(set.size.is_none() && set.checksum.is_none() && set.pieces.is_none());
+        let strict = SourceSet::of_link(&Url::parse("https://a.example/f").expect("url"), false)
+            .expect("set");
+        assert!(!strict.local_network);
+        assert!(
+            SourceSet::of_link(&Url::parse("magnet:?xt=urn:btih:abc").expect("url"), false)
+                .is_none()
+        );
+    }
+
+    #[test]
     fn state_follows_isolation_protocol_and_backoff() {
         let now = Utc::now();
         let mut source = DownloadSource {
@@ -623,8 +704,11 @@ mod tests {
         assert_eq!(source.state_at(now), SourceState::Ready);
         source.backoff_until = Some(now + Duration::seconds(10));
         assert_eq!(source.state_at(now), SourceState::BackingOff);
+        // An FTP mirror is fetched through its runner and waits out a backoff like any other.
         source.protocol = SourceProtocol::Ftp;
-        assert_eq!(source.state_at(now), SourceState::Unsupported);
+        assert_eq!(source.state_at(now), SourceState::BackingOff);
+        source.backoff_until = None;
+        assert_eq!(source.state_at(now), SourceState::Ready);
         source.isolated_code = Some(CODE_PIECE_MISMATCH.to_owned());
         assert_eq!(source.state_at(now), SourceState::Isolated);
     }

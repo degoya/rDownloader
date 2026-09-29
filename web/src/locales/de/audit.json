@@ -58,7 +58,11 @@
     "script_subscription_changed": "Skript-Abo angelegt oder geändert",
     "file_overwritten": "Datei überschrieben",
     "collision_decided": "Namenskonflikt entschieden",
-    "duplicate_linked": "Duplikat verknüpft"
+    "duplicate_linked": "Duplikat verknüpft",
+    "backup_configured": "Vollsicherung eingerichtet oder geändert",
+    "backup_key_changed": "Passphrase der Vollsicherung gesetzt",
+    "backup_created": "Vollsicherung geschrieben",
+    "backup_verified": "Archiv der Vollsicherung geprüft"
   },
   "list": {
     "title": "Einträge",

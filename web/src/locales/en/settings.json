@@ -156,7 +156,7 @@
   },
   "admin_login": {
     "label": "Disable admin login",
-    "description": "Anyone who can reach the interface may control everything. Only sensible when the service is reachable on loopback or inside your own trusted network. Takes effect immediately after saving.",
+    "description": "Whoever opens the interface on this computer may control everything without signing in. Every other machine — on the LAN, through a port mapping, a container or a reverse proxy — still has to sign in with the password. Takes effect immediately after saving.",
     "warning": "Password protection is switched off."
   },
   "proxy": {

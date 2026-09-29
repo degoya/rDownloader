@@ -21,7 +21,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 
 /** Gap between generated priorities so manual values keep room in between. */
 const PRIORITY_STEP = 10
-/** Matches `validate_name` in `crates/rd-api/src/usenet_handlers.rs`. */
+/** Matches `validate_name` in `crates/rd-api-queue/src/usenet_handlers.rs`. */
 const MAX_SERVER_NAME = 100
 
 /** The setup wizard embeds this tab under its own step heading. */

@@ -165,6 +165,12 @@ impl TorrentService {
         self.inner.data_dir.join("torrents")
     }
 
+    /// Directory librqbit persists its session in; a full backup copies it (RD-160-01).
+    #[must_use]
+    pub fn session_directory(&self) -> PathBuf {
+        forget::session_folder(&self.inner.data_dir)
+    }
+
     /// Parses and stores an uploaded `.torrent` below the service data directory.
     ///
     /// The directory is canonicalized before the final path is built. This is important when

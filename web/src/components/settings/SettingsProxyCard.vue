@@ -20,6 +20,18 @@ const trustedText = computed({
   }
 })
 
+/// The names a browser may call the service by, beyond addresses, localhost and the external
+/// URL's host: one per line, like the proxy list above.
+const allowedHostsText = computed({
+  get: () => (props.modelValue.allowed_hosts ?? []).join('\n'),
+  set: (value: string) => {
+    props.modelValue.allowed_hosts = value
+      .split('\n')
+      .map(entry => entry.trim())
+      .filter(Boolean)
+  }
+})
+
 const cookieOptions = computed(() => [
   { value: 'auto', label: t('system.proxy.cookie.auto') },
   { value: 'always', label: t('system.proxy.cookie.always') },
@@ -49,6 +61,9 @@ const warning = computed(() => {
           class="w-full"
           @update:model-value="modelValue.external_url = String($event).trim() || null"
         />
+      </UFormField>
+      <UFormField :label="t('system.proxy.allowed_hosts')" :description="t('system.proxy.allowed_hosts_hint')">
+        <UTextarea v-model="allowedHostsText" :rows="2" placeholder="nas.lan&#10;rdownloader" class="w-full font-mono" />
       </UFormField>
       <UFormField :label="t('system.proxy.cookie_label')" :description="t('system.proxy.cookie_hint')">
         <USelect v-model="modelValue.cookie_security" :items="cookieOptions" class="w-full" />

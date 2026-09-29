@@ -167,6 +167,14 @@ skip = [
 
   # wasmtime 49 / cranelift 0.136 (rd-plugin-host).
   { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 49" },
+  # The wasm-tools line: wasmtime 49.0.1, the newest release, is on 0.258, the wit-bindgen 0.62
+  # proc macro the plugin crates compile with on 0.259 (RD-160-08). The service ships 0.258 only;
+  # 0.259 lives in the plugins' build. They leave when a wasmtime release moves to 0.259.
+  { crate = "wasmparser:0.258", reason = "wasmtime 49 (rd-plugin-host); wit-bindgen 0.62 uses 0.259" },
+  { crate = "wasm-encoder:0.258", reason = "wasmtime-environ 49; wit-bindgen 0.62 uses 0.259" },
+  { crate = "wasm-metadata:0.258", reason = "wit-component 0.258 (wasmtime 49); wit-bindgen 0.62 uses 0.259" },
+  { crate = "wit-component:0.258", reason = "wasmtime-internal-wit-bindgen 49; wit-bindgen 0.62 uses 0.259" },
+  { crate = "wit-parser:0.258", reason = "wasmtime-internal-wit-bindgen and -component-macro 49; wit-bindgen 0.62 uses 0.259" },
 
   # croner 4 (rd-subscription).
   { crate = "darling:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
@@ -207,7 +215,7 @@ skip = [
   { crate = "untrusted:0.7", reason = "aws-lc-rs 1.18 (object_store, librqbit-sha1-wrapper); ring uses 0.9" },
   { crate = "tower-http:0.6", reason = "reqwest 0.13" },
   { crate = "sha3:0.11", reason = "ml-kem 0.3 (russh 0.63)" },
-  { crate = "syn:2", reason = "about 55 proc macros are still on syn 2 (tracing-attributes, pin-project-internal, zerocopy-derive, sqlx-macros, wit-bindgen-rust, …)" },
+  { crate = "syn:2", reason = "about 55 proc macros are still on syn 2 (tracing-attributes, pin-project-internal, zerocopy-derive, sqlx-macros, wasmtime-internal-component-macro, …)" },
   { crate = "synstructure:0.13", reason = "yoke-derive, zerofrom-derive (url via icu), asn1-rs-derive (webauthn-rs)" },
 ]
 

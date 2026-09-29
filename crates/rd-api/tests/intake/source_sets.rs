@@ -126,7 +126,8 @@ async fn a_candidate_with_mirrors_becomes_one_download_with_every_mirror_as_a_so
         [
             ("first.example", "ready"),
             ("second.example", "ready"),
-            ("third.example", "unsupported"),
+            // An FTP mirror is fetched through the FTP runner (RD-150-03).
+            ("third.example", "ready"),
         ]
     );
     assert_eq!(rows[0]["location"], "de");
@@ -288,4 +289,156 @@ async fn the_online_check_never_requests_a_relayed_metalinks_mirror_at_this_mach
         !paths.iter().any(|path| path == "/mirror.bin"),
         "the mirror was requested: {paths:?}"
     );
+}
+
+/// A collector batch of the given links, as a browser extension would relay them, unchecked.
+async fn relayed_batch(
+    harness: &crate::common::Harness,
+    urls: &[(&str, Option<&str>)],
+) -> Vec<rd_core::LinkCandidate> {
+    let (_, _, candidates) = harness
+        .database
+        .add_collector_batch(rd_db::NewCollectorBatch {
+            package_hints: Vec::new(),
+            mirror_hints: Vec::new(),
+            source: rd_core::IngressSource::BrowserExtension,
+            source_label: None,
+            package_name: Some("Relayed".to_owned()),
+            password: None,
+            passwords: Vec::new(),
+            category_id: None,
+            priority: None,
+            providers: urls
+                .iter()
+                .map(|(_, provider)| provider.map(str::to_owned))
+                .collect(),
+            file_names: urls.iter().map(|_| None).collect(),
+            sizes: urls.iter().map(|_| None).collect(),
+            requests: urls.iter().map(|_| None).collect(),
+            body_refs: urls.iter().map(|_| None).collect(),
+            urls: urls
+                .iter()
+                .map(|(url, _)| url.parse().expect("url"))
+                .collect(),
+            auto_check: false,
+            source_attributes: Vec::new(),
+        })
+        .await
+        .expect("batch");
+    candidates
+}
+
+async fn enqueue_all(harness: &crate::common::Harness) -> (StatusCode, serde_json::Value) {
+    let (_, packages) = get_json(&harness.router, "/api/v1/collector/packages").await;
+    let ids: Vec<&str> = packages
+        .as_array()
+        .expect("packages")
+        .iter()
+        .filter_map(|package| package["id"].as_str())
+        .collect();
+    post_json(
+        &harness.router,
+        "/api/v1/collector/packages/enqueue",
+        json!({ "ids": ids, "paused": false }),
+    )
+    .await
+}
+
+/// RD-150-03: a link a relayed document or page proposed without mirrors keeps to the address
+/// rule into the queue. It becomes a download whose one source row is its own address, held to
+/// the public internet, and the transfer never requests it at this machine. The person's own
+/// link in the same package reaches the same listener, which is what makes the silence on the
+/// proposed path mean something.
+#[tokio::test]
+async fn a_proposed_link_without_mirrors_is_never_downloaded_from_this_machine() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let (port, paths) = recording_listener().await;
+    let own = format!("http://127.0.0.1:{port}/own.bin");
+    let proposed = format!("http://127.0.0.1:{port}/proposed.bin");
+    let candidates = relayed_batch(&harness, &[(&own, None), (&proposed, None)]).await;
+    harness
+        .database
+        .set_candidates_remote_reach(vec![candidates[1].id], false)
+        .await
+        .expect("reach");
+
+    let (status, body) = enqueue_all(&harness).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+
+    let database = &harness.database;
+    let proposed_url: url::Url = proposed.parse().expect("url");
+    let failed = eventually(
+        Duration::from_secs(10),
+        "the proposed link's download ended",
+        || {
+            let proposed_url = proposed_url.clone();
+            async move {
+                database
+                    .list_downloads()
+                    .await
+                    .ok()?
+                    .into_iter()
+                    .find(|file| file.source == proposed_url && file.last_error.is_some())
+            }
+        },
+    )
+    .await;
+    assert_eq!(
+        failed.last_error.and_then(|error| error.code).as_deref(),
+        Some(rd_core::CODE_INTERNAL_ADDRESS)
+    );
+    let rows = harness
+        .database
+        .download_sources(failed.id)
+        .await
+        .expect("sources");
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].url, proposed_url);
+    assert!(!rows[0].local_network);
+
+    let paths = Arc::clone(&paths);
+    eventually(
+        Duration::from_secs(10),
+        "the own link was requested",
+        || {
+            let paths = Arc::clone(&paths);
+            async move {
+                paths
+                    .lock()
+                    .ok()?
+                    .iter()
+                    .any(|path| path == "/own.bin")
+                    .then_some(())
+            }
+        },
+    )
+    .await;
+    let seen = paths.lock().expect("paths").clone();
+    assert!(
+        !seen.iter().any(|path| path == "/proposed.bin"),
+        "the proposed link was requested: {seen:?}"
+    );
+}
+
+/// RD-150-03: an NZB link a relayed page proposed is fetched at enqueue time on the terms of its
+/// online check. Pointing at this machine, it is refused with a stable code and never requested.
+#[tokio::test]
+async fn a_proposed_nzb_link_is_never_fetched_from_this_machine() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let (port, paths) = recording_listener().await;
+    let link = format!("http://127.0.0.1:{port}/release.nzb");
+    let candidates = relayed_batch(&harness, &[(&link, Some(rd_core::NZB_PROVIDER))]).await;
+    harness
+        .database
+        .set_candidates_remote_reach(vec![candidates[0].id], true)
+        .await
+        .expect("reach");
+
+    let (status, body) = enqueue_all(&harness).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["code"], "collector.nzb_internal_address", "{body}");
+    let seen = paths.lock().expect("paths").clone();
+    assert!(seen.is_empty(), "the NZB was requested: {seen:?}");
 }

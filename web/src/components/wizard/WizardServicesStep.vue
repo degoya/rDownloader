@@ -10,6 +10,7 @@ import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { useExtensionConnection } from '@/composables/useExtensionConnection'
 import { providerText } from '@/i18n/plugins'
 
+const emit = defineEmits<{ 'choose-services': [] }>()
 const { t } = useI18n()
 const activeTab = ref('accounts')
 const tabItems = ref([
@@ -18,6 +19,20 @@ const tabItems = ref([
 ])
 
 const providers = ref<Provider[]>([])
+/** Set once the provider list has been read, so an empty one is said and not waited on. */
+const providersLoaded = ref(false)
+/**
+ * Providers an account can be created for. Empty when "Your services" installed none that takes
+ * one (RD-160-05): then the step says so and leads back, instead of offering an empty picker.
+ */
+const accountProviders = computed(() => providers.value.filter(provider => provider.credentials !== 'none'))
+const chooseActions = computed(() => [{
+  label: t('wizard.services.choose_services'),
+  icon: 'i-lucide-layout-grid',
+  color: 'neutral' as const,
+  variant: 'outline' as const,
+  onClick: () => emit('choose-services')
+}])
 const pairingOpen = ref(false)
 /**
  * The providers whose account can take over the browser's sign-in (a `cookie_scope_host`), which
@@ -39,6 +54,7 @@ const pairingActions = computed(() => [{
 onMounted(async () => {
   const response = await api.GET('/api/v1/providers')
   if (response.data) providers.value = response.data
+  providersLoaded.value = true
 })
 </script>
 
@@ -54,6 +70,16 @@ onMounted(async () => {
       :description="t('wizard.services.extension_hint', { providers: browserSessionProviders.join(', ') })"
       :actions="pairingActions"
       data-testid="services-extension-hint"
+    />
+    <UAlert
+      v-if="providersLoaded && !accountProviders.length"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-layout-grid"
+      :title="t('wizard.services.no_providers_title')"
+      :description="t('wizard.services.no_providers')"
+      :actions="chooseActions"
+      data-testid="services-no-providers"
     />
     <ExtensionPairingModal v-model:open="pairingOpen" />
     <UTabs v-model="activeTab" :items="tabItems" variant="link" :unmount-on-hide="false">

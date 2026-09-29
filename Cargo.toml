@@ -5,9 +5,17 @@ resolver = "2"
 exclude = ["sdk"]
 members = [
   "crates/rd-api",
+  "crates/rd-api-access",
+  "crates/rd-api-admin",
+  "crates/rd-api-compat",
+  "crates/rd-api-core",
+  "crates/rd-api-intake",
+  "crates/rd-api-mcp",
+  "crates/rd-api-queue",
   "crates/rd-authn",
   "crates/rd-automation",
   "crates/rd-autostart",
+  "crates/rd-backup",
   "crates/rd-captcha",
   "crates/rd-capture",
   "crates/rd-collector",
@@ -135,7 +143,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.5.2"
+version = "1.6.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.98"
@@ -260,7 +268,7 @@ webauthn-rs = "0.6.1-dev"
 # protocol types; a version skew here would compare structurally identical types that the
 # compiler considers unrelated.
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
-wit-bindgen = "0.61"
+wit-bindgen = "0.62"
 zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]

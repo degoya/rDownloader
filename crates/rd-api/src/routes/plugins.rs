@@ -6,7 +6,9 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, plugin_handlers, plugin_lifecycle, plugin_repository_handlers};
+use crate::{
+    AppState, plugin_bundled, plugin_handlers, plugin_lifecycle, plugin_repository_handlers,
+};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -79,6 +81,15 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/plugins/preview",
             post(plugin_repository_handlers::preview_plugin_package),
         )
+        // The bundle by service, and installing from it (RD-160-05); static like the others.
+        .route(
+            "/api/v1/plugins/bundled",
+            get(plugin_bundled::list_bundled_services),
+        )
+        .route(
+            "/api/v1/plugins/bundled/install",
+            post(plugin_bundled::install_bundled_services),
+        )
         .route(
             "/api/v1/plugins/updates",
             get(plugin_repository_handlers::list_plugin_updates),
@@ -125,6 +136,8 @@ pub(crate) fn routes() -> Router<AppState> {
     plugin_handlers::revoke_plugin_digest,
     plugin_handlers::unrevoke_plugin_digest,
     plugin_handlers::plugin_messages,
+    plugin_bundled::list_bundled_services,
+    plugin_bundled::install_bundled_services,
     plugin_lifecycle::activate_plugin_version,
     plugin_lifecycle::stage_plugin_version,
     plugin_lifecycle::discard_staged_plugin_version,

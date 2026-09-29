@@ -9,6 +9,7 @@ mod moves;
 mod names;
 mod part_file;
 mod persistence;
+mod protected;
 mod storage;
 mod template;
 mod verified_move;
@@ -27,11 +28,13 @@ pub use names::{
 };
 pub use part_file::{PartFile, existing_bytes, part_path};
 pub use persistence::{PathPersistence, PersistenceProbe};
+pub use protected::{ProtectedDirectory, protected_collision};
 pub use storage::{StorageRoot, StorageRootProblem, ensure_usable};
 pub use template::{
     MAX_TEMPLATE_DEPTH, MAX_TEMPLATE_LENGTH, TEMPLATE_FIELDS, TemplateError, TemplateValues,
     expand, validate,
 };
 pub use verified_move::{
-    PlacedCopy, VerifiedMoveError, place_verified, release_source, verified_move_file,
+    PlacedCopy, VerifiedMoveError, copy_verified, place_verified, release_source,
+    verified_move_file,
 };

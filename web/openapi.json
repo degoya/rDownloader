@@ -3,14 +3,11 @@
   "info": {
     "title": "rd-api",
     "description": "",
-    "contact": {
-      "name": "Alexander Herling"
-    },
     "license": {
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.4.2"
+    "version": "1.6.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -1845,6 +1842,924 @@
         }
       }
     },
+    "/api/v1/backups": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "get_backup_config",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "update_backup_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBackupConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/archives": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "list_backup_archives",
+        "parameters": [
+          {
+            "name": "destination_id",
+            "in": "query",
+            "description": "Only this destination's archives",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackupArchiveResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/archives/{id}/verify": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "verify_backup_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The archive's id in the ledger",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupVerificationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/destinations": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "create_backup_destination",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupDestinationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupDestinationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/destinations/{id}": {
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "update_backup_destination",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The destination's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupDestinationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupDestinationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "delete_backup_destination",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The destination's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/destinations/{id}/retention": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "preview_backup_retention",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The destination's id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keep_last",
+            "in": "query",
+            "description": "Preview this count instead of the stored one",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "keep_days",
+            "in": "query",
+            "description": "Preview this age in days instead of the stored one",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/passphrase": {
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "set_backup_passphrase",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBackupPassphraseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/restore": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "get_restore_status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Checks the archive like a test restore and stages it; the next start switches to it.",
+        "operationId": "start_restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreStagedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Drops a restore that has not switched yet, with the credentials it put into the secret\nstore, or dismisses the record of one that did not start.",
+        "operationId": "discard_restore",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreStatusResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/restore/preview": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Reads the whole archive with the passphrase and describes it; writes nothing.",
+        "operationId": "preview_restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestorePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestorePreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/restore/test": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Unpacks into a throwaway folder, migrates, remaps and checks the copy, then removes it.",
+        "operationId": "test_restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/restore/uploads": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "create_restore_upload",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreUploadResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/restore/uploads/{id}": {
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "append_restore_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Upload id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreUploadResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "delete_restore_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Upload id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/runs": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "list_backup_runs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackupRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "run_backup",
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRunResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/verifications": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "list_backup_verifications",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackupVerificationResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bandwidth/capabilities": {
       "get": {
         "tags": [
@@ -2900,6 +3815,9 @@
           },
           "401": {
             "description": "Capture token missing or revoked"
+          },
+          "403": {
+            "description": "The address, or one a redirect leads to, is on this machine or otherwise not one the service may request"
           },
           "413": {
             "description": "The file exceeds 64 MiB (48 MiB as base64 JSON)"
@@ -8440,6 +9358,93 @@
         }
       }
     },
+    "/api/v1/plugins/bundled": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "The bundle by service, with what of it is installed.",
+        "operationId": "list_bundled_services",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "description": "Language of the names and descriptions (`de`, `en`, …); English when absent or not\nshipped by a package.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundledCatalogueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/bundled/install": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Installs the plugins of the named services that are not installed yet.",
+        "description": "One plugin that fails does not stop the others: the answer lists what was installed and what\nwas not, and the person sees both. Every service is looked up before anything installs, so a\nrequest naming an unknown one changes nothing. Like every install, the plugins' provider rows\nare live at once — the accounts step can offer them straight away — and the plugins\nthemselves run from the next start.",
+        "operationId": "install_bundled_services",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundledInstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundledInstallResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The bundle has no service of that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/i18n/{locale}": {
       "get": {
         "tags": [
@@ -13675,7 +14680,11 @@
           "script_subscription_changed",
           "file_overwritten",
           "collision_decided",
-          "duplicate_linked"
+          "duplicate_linked",
+          "backup_configured",
+          "backup_key_changed",
+          "backup_created",
+          "backup_verified"
         ]
       },
       "AuditActorKind": {
@@ -14426,6 +15435,607 @@
           }
         ],
         "description": "What the *first* poll of a subscription does with everything already there.\n\nThis exists because the alternative is a channel with a decade of uploads arriving in\nthe queue at once, which is the single most destructive thing this feature could do."
+      },
+      "BackupArchiveResponse": {
+        "type": "object",
+        "description": "One archive of the ledger.",
+        "required": [
+          "id",
+          "destination_id",
+          "run_id",
+          "archive_name",
+          "location",
+          "size_bytes",
+          "sha256",
+          "created_at",
+          "stored_at"
+        ],
+        "properties": {
+          "archive_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "destination_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "stored_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "verify_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verify_state": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BackupVerifyState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "BackupConfigResponse": {
+        "type": "object",
+        "description": "The backup configuration as the interface shows it. The key is never part of it.",
+        "required": [
+          "enabled",
+          "schedule",
+          "timezone",
+          "destinations",
+          "instance_id",
+          "key_configured",
+          "running"
+        ],
+        "properties": {
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupDestinationResponse"
+            },
+            "description": "Every destination; each receives its own copy of every archive (RD-160-02)."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "instance_id": {
+            "type": "string",
+            "description": "This installation's id, part of every archive name; retention removes only archives\ncarrying it."
+          },
+          "key_configured": {
+            "type": "boolean",
+            "description": "Whether a passphrase has been set up."
+          },
+          "key_fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sixteen hex characters telling keys apart; not the key."
+          },
+          "key_set_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "next_run_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the schedule next runs; `None` while it is off."
+          },
+          "running": {
+            "type": "boolean",
+            "description": "Whether a run is going on right now."
+          },
+          "schedule": {
+            "type": "string",
+            "description": "Five-field cron expression, read in `timezone`."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA time zone the schedule is read in."
+          },
+          "verify_next_run_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the verification schedule next checks the newest archive of every destination."
+          },
+          "verify_schedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Five-field cron expression of the scheduled verification, read in `timezone`; `None`\nis off."
+          }
+        }
+      },
+      "BackupDestinationRequest": {
+        "type": "object",
+        "description": "A destination to create or replace. Only the fields of its kind are read.",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Missing is on."
+          },
+          "keep_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "At least 1; missing is no limit by age.",
+            "minimum": 0
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "At least 1; missing is no limit by count.",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "description": "`local`, `object_storage` or `rclone`."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How the interface and the history name it; empty is the destination's own address."
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`local`: an absolute folder, checked like a storage root and created when missing."
+          },
+          "prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`object_storage`: `<bucket>/<folder>`."
+          },
+          "profile_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`object_storage`: the profile's id."
+          },
+          "remote": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`rclone`: `name:path` of a configured remote."
+          }
+        }
+      },
+      "BackupDestinationResponse": {
+        "type": "object",
+        "description": "A destination as the interface shows it.",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "enabled",
+          "archive_count"
+        ],
+        "properties": {
+          "archive_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Archives this installation recorded there.",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "keep_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The days archives are kept; `None` is no limit by age.",
+            "minimum": 0
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The newest archives kept; `None` is no limit by count.",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "description": "`local`, `object_storage` or `rclone`."
+          },
+          "last_stored_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_verify_state": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BackupVerifyState",
+                "description": "The last verification of the newest archive there."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The folder of a `local` destination."
+          },
+          "prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`<bucket>/<folder>` of an `object_storage` destination; an empty bucket is the\nprofile's bound one."
+          },
+          "profile_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The object storage profile of an `object_storage` destination."
+          },
+          "remote": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`name:path` of an `rclone` destination."
+          }
+        }
+      },
+      "BackupOrigin": {
+        "type": "string",
+        "description": "What started a backup run.",
+        "enum": [
+          "scheduled",
+          "manual"
+        ]
+      },
+      "BackupPartResponse": {
+        "type": "object",
+        "description": "One member of a finished archive.",
+        "required": [
+          "name",
+          "kind",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "`settings`, `database`, `plugin_trust`, `partial_transfers`, `torrent_session` or\n`torrent_file`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "BackupRunDestinationResponse": {
+        "type": "object",
+        "description": "One destination of a run.",
+        "required": [
+          "destination_id",
+          "kind",
+          "destination",
+          "state",
+          "attempts",
+          "pruned"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Attempts made; an outage is tried again with a growing pause.",
+            "minimum": 0
+          },
+          "destination": {
+            "type": "string",
+            "description": "The destination as it was named when the run started."
+          },
+          "destination_id": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`local`, `object_storage` or `rclone`."
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pruned": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Older archives retention removed there after this run.",
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/BackupRunState"
+          }
+        }
+      },
+      "BackupRunResponse": {
+        "type": "object",
+        "description": "One run of the history.",
+        "required": [
+          "id",
+          "origin",
+          "state",
+          "started_at",
+          "parts",
+          "destinations"
+        ],
+        "properties": {
+          "archive_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The destination as it was named when the run started."
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupRunDestinationResponse"
+            },
+            "description": "How each destination fared (RD-160-02)."
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Stable code of a failed or interrupted run, or `backup.destinations_partial` when a\nrun reached some destinations and not others."
+          },
+          "error_detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/BackupOrigin"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupPartResponse"
+            }
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BackupRunState"
+          }
+        }
+      },
+      "BackupRunState": {
+        "type": "string",
+        "description": "Where a backup run stands.",
+        "enum": [
+          "running",
+          "succeeded",
+          "failed",
+          "interrupted"
+        ]
+      },
+      "BackupVerificationResponse": {
+        "type": "object",
+        "description": "One verification of one archive.",
+        "required": [
+          "id",
+          "origin",
+          "state",
+          "destination",
+          "archive_name",
+          "started_at"
+        ],
+        "properties": {
+          "archive_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "archive_name": {
+            "type": "string"
+          },
+          "content_checked": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the archive was opened and every member checked, or only its size and SHA-256\ncompared (an archive sealed under an earlier passphrase)."
+          },
+          "destination": {
+            "type": "string"
+          },
+          "destination_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`backup.verify_missing`, `backup.verify_digest_mismatch`, `backup.verify_damaged` or\nthe destination's own code."
+          },
+          "error_detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/BackupOrigin"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BackupVerifyState"
+          }
+        }
+      },
+      "BackupVerifyState": {
+        "type": "string",
+        "description": "Where a verification of one archive at one destination stands (RD-160-02).",
+        "enum": [
+          "running",
+          "passed",
+          "failed",
+          "interrupted"
+        ]
       },
       "BandwidthProfile": {
         "type": "object",
@@ -15618,6 +17228,185 @@
           }
         }
       },
+      "BundledCatalogueResponse": {
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "properties": {
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledServiceResponse"
+            },
+            "description": "Ordered by category, then key. Empty when the service found no bundle directory."
+          }
+        }
+      },
+      "BundledInstallFailure": {
+        "type": "object",
+        "description": "One plugin that could not be installed.",
+        "required": [
+          "service",
+          "plugin_id",
+          "name",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "$ref": "#/components/schemas/PluginId"
+          },
+          "service": {
+            "type": "string"
+          }
+        }
+      },
+      "BundledInstallRequest": {
+        "type": "object",
+        "description": "Body of `POST /api/v1/plugins/bundled/install`.",
+        "required": [
+          "services"
+        ],
+        "properties": {
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the services to install, as the catalogue lists them."
+          }
+        }
+      },
+      "BundledInstallResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "installed",
+          "failed"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "`plugin.bundled_installed`, or `plugin.bundled_partly_installed` when something failed."
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledInstallFailure"
+            }
+          },
+          "installed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledPluginResponse"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "BundledPluginResponse": {
+        "type": "object",
+        "description": "One plugin of a bundled service.",
+        "required": [
+          "id",
+          "name",
+          "plugin_type",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PluginId"
+          },
+          "installed_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The newest installed version, `null` when the plugin is not installed."
+          },
+          "name": {
+            "type": "string"
+          },
+          "plugin_type": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "description": "The version in the bundle."
+          }
+        }
+      },
+      "BundledServiceResponse": {
+        "type": "object",
+        "description": "One service of the bundle.",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "category",
+          "needs_account",
+          "state",
+          "plugins"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "`hoster`, `multihoster`, `remote_jobs`, `cloud`, `links`, `metadata`, `notifications`,\n`postprocess` or `other`."
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "Stable key: the provider slug, or the plugin's own slug."
+          },
+          "name": {
+            "type": "string"
+          },
+          "needs_account": {
+            "type": "boolean",
+            "description": "Whether the service does nothing until an account or a destination is set up. The ones\nthat need none are what a fresh installation starts with."
+          },
+          "plugins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledPluginResponse"
+            }
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The provider an account for this service is created under, when it has one."
+          },
+          "state": {
+            "$ref": "#/components/schemas/BundledServiceState"
+          }
+        }
+      },
+      "BundledServiceState": {
+        "type": "string",
+        "description": "How much of a service is installed.",
+        "enum": [
+          "installed",
+          "partial",
+          "available"
+        ]
+      },
       "BundledTool": {
         "type": "object",
         "description": "A helper program the packages ship in `vendor/`, with the licence it ships under.",
@@ -15804,6 +17593,45 @@
           },
           "package_id": {
             "$ref": "#/components/schemas/CollectorPackageId"
+          }
+        }
+      },
+      "CandidateSource": {
+        "type": "object",
+        "description": "One source a LinkGrabber link carries, as the interface shows it before the link is queued\n(RD-150-03). Redacted like every address the interface shows.",
+        "required": [
+          "url",
+          "protocol"
+        ],
+        "properties": {
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 3166-1 alpha-2 country code the document gave."
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Lower is preferred; absent when the document ranked it not at all.",
+            "minimum": 0
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/SourceProtocol"
+          },
+          "url": {
+            "type": "string",
+            "description": "The address, with credentials and signed query values replaced."
           }
         }
       },
@@ -19246,7 +21074,7 @@
             "items": {
               "$ref": "#/components/schemas/DownloadSourceView"
             },
-            "description": "Empty for a download that came with a single address."
+            "description": "Empty for a download that came with a single address the person gave. A link a\ndocument or a page proposed without mirrors shows its own address as its one source,\nthe row that holds it to the address rule (RD-150-03)."
           }
         }
       },
@@ -20900,6 +22728,13 @@
                 "type": "null"
               }
             ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateSource"
+            },
+            "description": "The mirrors a Metalink parser stated for this link (RD-150-03), redacted and in the\norder the transfer will try them, so they can be reviewed before the link is queued.\nEmpty for a link without a source set."
           },
           "state": {
             "$ref": "#/components/schemas/LinkCandidateState"
@@ -23901,6 +25736,24 @@
           }
         }
       },
+      "PluginAddedPermissionsResponse": {
+        "type": "object",
+        "description": "What a package asks for beyond the newest installed version of the same plugin (RD-160-09).",
+        "required": [
+          "installed_version",
+          "permissions"
+        ],
+        "properties": {
+          "installed_version": {
+            "type": "string",
+            "description": "The installed version the package is compared with."
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/PluginPermissionsResponse",
+            "description": "Empty lists when the package asks for nothing new."
+          }
+        }
+      },
       "PluginDigestRevocationRequest": {
         "type": "object",
         "description": "Which package to withdraw: the digest itself, or the installed version to hash.\n\nBoth spellings exist because both questions are real. An operator acting on an advisory has\na digest and may not have the package installed at all; an operator acting on what the\nplugin manager shows has an id and a version and no way to compute a digest by hand.",
@@ -24300,6 +26153,17 @@
           "installed_versions"
         ],
         "properties": {
+          "added_permissions": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PluginAddedPermissionsResponse",
+                "description": "What the package asks for that the newest installed version does not; `None` when no\nversion of the plugin is installed, so everything in `permissions` is new."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "api_version": {
             "type": "string"
           },
@@ -24631,9 +26495,14 @@
           "offer",
           "installed_version",
           "policy",
-          "adds_permissions"
+          "adds_permissions",
+          "added_permissions"
         ],
         "properties": {
+          "added_permissions": {
+            "$ref": "#/components/schemas/PluginPermissionsResponse",
+            "description": "Those permissions, one list each; empty when `adds_permissions` is false (RD-160-09)."
+          },
           "adds_permissions": {
             "type": "boolean",
             "description": "Asks for a permission the installed version does not have; never installed\nautomatically, whatever the policy."
@@ -26376,6 +28245,594 @@
           }
         }
       },
+      "RestoreCountsResponse": {
+        "type": "object",
+        "description": "How much the database copy holds.",
+        "required": [
+          "packages",
+          "downloads",
+          "unfinished",
+          "torrents",
+          "storage_roots",
+          "categories",
+          "accounts",
+          "hotfolders"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "categories": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "downloads": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "hotfolders": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "packages": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "storage_roots": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "torrents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unfinished": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "RestoreMappingRequest": {
+        "type": "object",
+        "description": "A storage root of the backup, moved to a folder on this machine.",
+        "required": [
+          "storage_root_id",
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute on this machine."
+          },
+          "storage_root_id": {
+            "type": "string"
+          }
+        }
+      },
+      "RestorePartGroupResponse": {
+        "type": "object",
+        "description": "One kind of member of the archive.",
+        "required": [
+          "kind",
+          "count",
+          "size"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "description": "`settings`, `database`, `plugin_trust`, `partial_transfers`, `torrent_session` or\n`torrent_file`."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "RestorePathResponse": {
+        "type": "object",
+        "description": "Another stored path the backup refers to.",
+        "required": [
+          "kind",
+          "path",
+          "native"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "`hotfolder` or `partial_transfer`."
+          },
+          "native": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "RestorePreviewRequest": {
+        "type": "object",
+        "description": "A preview: the archive and the passphrase, nothing else.",
+        "required": [
+          "source",
+          "passphrase"
+        ],
+        "properties": {
+          "passphrase": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "source": {
+            "$ref": "#/components/schemas/RestoreSourceRequest"
+          }
+        }
+      },
+      "RestorePreviewResponse": {
+        "type": "object",
+        "description": "What a preview found, from the manifest and the small parts only.",
+        "required": [
+          "archive_name",
+          "archive_size",
+          "format_version",
+          "app_version",
+          "current_version",
+          "from_newer_version",
+          "created_at",
+          "parts",
+          "storage_roots",
+          "paths",
+          "categories",
+          "accounts",
+          "proxy_profiles",
+          "usenet_servers",
+          "subscriptions",
+          "hotfolders",
+          "credentials_included",
+          "plugin_trust_rows",
+          "partial_transfers"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "app_version": {
+            "type": "string",
+            "description": "The version of rDownloader that wrote the backup."
+          },
+          "archive_name": {
+            "type": "string"
+          },
+          "archive_size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "categories": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "credentials_included": {
+            "type": "boolean",
+            "description": "Whether the settings carry their credentials, sealed."
+          },
+          "current_version": {
+            "type": "string",
+            "description": "The version running here."
+          },
+          "format_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "from_newer_version": {
+            "type": "boolean",
+            "description": "Whether a newer version wrote the backup; its database may not open here."
+          },
+          "hotfolders": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "partial_transfers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestorePartGroupResponse"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestorePathResponse"
+            },
+            "description": "Hot folders and unfinished transfers' folders, the first fifty."
+          },
+          "plugin_trust_rows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "proxy_profiles": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "storage_roots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestoreRootResponse"
+            }
+          },
+          "subscriptions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usenet_servers": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "RestoreProblemResponse": {
+        "type": "object",
+        "description": "A finding of a test restore or a restore.",
+        "required": [
+          "severity",
+          "code",
+          "count",
+          "examples"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "A stable code, translated like an error code."
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The first few paths or rows it concerns."
+          },
+          "severity": {
+            "type": "string",
+            "description": "`error` refuses the restore; `warning` is something to do after it."
+          }
+        }
+      },
+      "RestoreReportResponse": {
+        "type": "object",
+        "description": "What a test restore found; the same report a restore answers with.",
+        "required": [
+          "ok",
+          "schema",
+          "counts",
+          "roots",
+          "moved_paths",
+          "restored_credentials",
+          "problems"
+        ],
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/RestoreCountsResponse"
+          },
+          "moved_paths": {
+            "type": "integer",
+            "description": "Stored paths moved with their root.",
+            "minimum": 0
+          },
+          "ok": {
+            "type": "boolean",
+            "description": "No finding of severity `error`."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestoreProblemResponse"
+            }
+          },
+          "restored_credentials": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "roots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestoreRootPlanResponse"
+            }
+          },
+          "schema": {
+            "$ref": "#/components/schemas/RestoreSchemaResponse"
+          }
+        }
+      },
+      "RestoreRequest": {
+        "type": "object",
+        "description": "A test restore or a restore: the archive, the passphrase and the storage roots to move.",
+        "required": [
+          "source",
+          "passphrase"
+        ],
+        "properties": {
+          "mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestoreMappingRequest"
+            }
+          },
+          "passphrase": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "source": {
+            "$ref": "#/components/schemas/RestoreSourceRequest"
+          }
+        }
+      },
+      "RestoreRootPlanResponse": {
+        "type": "object",
+        "description": "A storage root and where the restore puts it.",
+        "required": [
+          "id",
+          "path",
+          "native",
+          "exists_here"
+        ],
+        "properties": {
+          "exists_here": {
+            "type": "boolean",
+            "description": "Whether the folder the root ends up on exists here now."
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapped_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "native": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "RestoreRootResponse": {
+        "type": "object",
+        "description": "A storage root the backup names.",
+        "required": [
+          "id",
+          "name",
+          "path",
+          "native"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "native": {
+            "type": "boolean",
+            "description": "Whether the path is an absolute path on this machine; a path from another system\nwants a mapping."
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "RestoreSchemaResponse": {
+        "type": "object",
+        "description": "Which migrations wrote the database copy.",
+        "required": [
+          "known",
+          "migrated"
+        ],
+        "properties": {
+          "applied": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "known": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "migrated": {
+            "type": "integer",
+            "description": "Migrations the test restore applied to the copy.",
+            "minimum": 0
+          }
+        }
+      },
+      "RestoreSourceRequest": {
+        "type": "object",
+        "description": "Which archive to open: exactly one of the three.",
+        "properties": {
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An absolute path to an archive on this machine (a mounted NAS included)."
+          },
+          "run_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A successful run of the history, read from its local folder."
+          },
+          "upload_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An archive uploaded through `/api/v1/backups/restore/uploads`."
+          }
+        }
+      },
+      "RestoreStagedResponse": {
+        "type": "object",
+        "description": "A staged restore, and the report of the checks it passed.",
+        "required": [
+          "status",
+          "report"
+        ],
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/RestoreReportResponse"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RestoreStatusResponse"
+          }
+        }
+      },
+      "RestoreStatusResponse": {
+        "type": "object",
+        "description": "Where a restore stands.",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "app_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "archive_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backup_created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "failed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "staged_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "description": "`none`, `staged` (the next start switches), `switching` (a start is switching now) or\n`failed` (the restored state did not start; the previous one runs)."
+          }
+        }
+      },
+      "RestoreUploadResponse": {
+        "type": "object",
+        "description": "An upload in progress.",
+        "required": [
+          "id",
+          "size",
+          "chunk_limit"
+        ],
+        "properties": {
+          "chunk_limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The largest chunk one request may carry.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes received so far; the next chunk starts here.",
+            "minimum": 0
+          }
+        }
+      },
+      "RetentionPreviewResponse": {
+        "type": "object",
+        "description": "What a retention pass would do at a destination; nothing is deleted by asking.",
+        "required": [
+          "keep",
+          "remove"
+        ],
+        "properties": {
+          "keep": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupArchiveResponse"
+            },
+            "description": "Newest first."
+          },
+          "keep_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "remove": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupArchiveResponse"
+            }
+          }
+        }
+      },
       "ReuseCapability": {
         "type": "object",
         "description": "What a runner can do with data that is already on disk (RD-150-02).\n\nDeclared by every runner rather than inferred, so the interface can say why one kind of\ntransfer picks up where it stopped and another starts over, and so a runner added later has\nto say it too: `rd_scheduler::ExternalRunner::reuse` has no default.",
@@ -27101,6 +29558,27 @@
         "type": "string",
         "format": "uuid"
       },
+      "SetBackupPassphraseRequest": {
+        "type": "object",
+        "description": "Sets up or replaces the passphrase. Archives written before keep the old one.",
+        "required": [
+          "passphrase"
+        ],
+        "properties": {
+          "current_passphrase": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The passphrase in force; required once one is set up (owner's decision, 2026-09-28).",
+            "writeOnly": true
+          },
+          "passphrase": {
+            "type": "string",
+            "writeOnly": true
+          }
+        }
+      },
       "SetCollisionPolicyRequest": {
         "type": "object",
         "properties": {
@@ -27237,6 +29715,14 @@
             "type": "boolean",
             "description": "Switches the administrator login off (only sensible on a trusted loopback/LAN setup).",
             "default": false
+          },
+          "allowed_hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Host names, beyond the external URL's, a browser may call the service by.\n\nAddresses and `localhost` always pass; any other name in a request's `Host` is refused\nunless it is listed here, which is what keeps a DNS rebinding page out.",
+            "default": []
           },
           "archive_max_files": {
             "type": "integer",
@@ -31901,6 +34387,33 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "UpdateBackupConfigRequest": {
+        "type": "object",
+        "description": "The schedule and the verification schedule, saved together. Destinations have their own\nroutes.",
+        "required": [
+          "enabled",
+          "schedule",
+          "timezone"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "schedule": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "verify_schedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Five-field cron expression of the scheduled verification; empty or missing is off."
           }
         }
       },

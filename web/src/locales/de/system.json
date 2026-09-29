@@ -91,6 +91,198 @@
       "button": "Importieren und ersetzen",
       "success": "Einstellungen wiederhergestellt",
       "success_description": "{count} Konfigurationseinträge importiert."
+    },
+    "full": {
+      "eyebrow": "Vollsicherung",
+      "title": "Geplante verschlüsselte Vollsicherung",
+      "description": "Sichert Datenbank, Warteschlange, LinkGrabber, Torrent-Sitzungen, Plugin-Vertrauen und Zugangsdaten verschlüsselt an deine Ziele – auch während Downloads laufen. Heruntergeladene Dateien gehören nicht dazu.",
+      "key": {
+        "title": "Passphrase",
+        "missing": "Noch keine Passphrase eingerichtet. Ohne sie wird keine Vollsicherung geschrieben.",
+        "configured": "Schlüssel {fingerprint}, eingerichtet {date}",
+        "hint": "Die Passphrase wird nirgends gespeichert, nur der daraus abgeleitete Schlüssel im Secret-Store. Eine Wiederherstellung fragt sie erneut ab. Eine neue Passphrase gilt für künftige Sicherungen; ältere öffnest du weiter mit der alten.",
+        "passphrase": "Passphrase",
+        "confirm": "Passphrase bestätigen",
+        "setup": "Passphrase einrichten",
+        "change": "Passphrase ändern",
+        "saved": "Passphrase gespeichert",
+        "short": "Die Passphrase muss mindestens {min} Zeichen lang sein.",
+        "mismatch": "Die Passphrasen stimmen nicht überein.",
+        "current": "Aktuelle Passphrase",
+        "current_required": "Gib die aktuelle Passphrase ein, um sie zu ersetzen."
+      },
+      "schedule": {
+        "title": "Zeitplan",
+        "enabled": "Zeitplan aktiv",
+        "enabled_description": "Läuft im Hintergrund. Ein Fehler hält keinen Download an und landet im Verlauf.",
+        "cron": "Zeitplan (Cron)",
+        "cron_description": "Fünf Felder: Minute Stunde Tag Monat Wochentag, z. B. 0 3 * * * für täglich um 3 Uhr.",
+        "timezone": "Zeitzone",
+        "verify": "Prüfplan (Cron)",
+        "verify_description": "Prüft das neueste Archiv an jedem Ziel: zurückgeholt, verglichen und geöffnet. Leer ist aus.",
+        "verify_next": "Nächste Prüfung: {date}",
+        "no_destination": "Noch kein aktives Ziel – füge unten eins hinzu, bevor du den Zeitplan einschaltest.",
+        "save": "Zeitplan speichern",
+        "saved": "Zeitplan gespeichert",
+        "next": "Nächster Lauf: {date}",
+        "off": "Zeitplan aus"
+      },
+      "destinations": {
+        "title": "Ziele",
+        "description": "Jedes Ziel bekommt seine eigene Kopie. Ein unerreichbares Ziel wird erneut versucht und kostet nur seinen eigenen Eintrag im Verlauf.",
+        "empty": "Noch kein Ziel. Füge einen Ordner, einen Objektspeicher-Bucket oder ein rclone-Remote hinzu.",
+        "add": "Ziel hinzufügen",
+        "edit": "Bearbeiten",
+        "delete": "Entfernen",
+        "deleted": "Ziel entfernt. Seine Archive bleiben, wo sie sind.",
+        "saved": "Ziel gespeichert",
+        "save": "Ziel speichern",
+        "cancel": "Abbrechen",
+        "off": "Aus",
+        "kind": {
+          "label": "Art",
+          "local": "Ordner oder NAS",
+          "object_storage": "Objektspeicher",
+          "rclone": "rclone-Remote"
+        },
+        "name": "Name",
+        "name_description": "Optional; ohne Namen zeigt die Liste die Adresse.",
+        "enabled": "Aktiv",
+        "path": "Ordner",
+        "path_description": "Absoluter Pfad auf dem Rechner, auf dem rDownloader läuft; eine eingebundene NAS-Freigabe geht auch.",
+        "profile": "Objektspeicher-Profil",
+        "profile_placeholder": "Profil wählen",
+        "profile_none": "Noch kein Profil – lege zuerst eins in den Objektspeicher-Einstellungen an.",
+        "prefix": "Bucket und Ordner",
+        "prefix_description": "<bucket>/<ordner>; ohne Bucket nimmt es den Bucket des Profils.",
+        "remote": "rclone-Remote",
+        "remote_description": "name:pfad eines in rclone eingerichteten Remotes – WebDAV, SFTP, Cloud-Laufwerke und mehr.",
+        "keep_last": "Neueste behalten",
+        "keep_last_description": "Anzahl Archive; leer behält alle.",
+        "keep_days": "Tage behalten",
+        "keep_days_description": "Jüngere Archive bleiben; leer behält alle.",
+        "retention": {
+          "none": "Behält jedes Archiv",
+          "last": "Neueste {count}",
+          "days": "{count} Tage",
+          "hint": "Das neueste Archiv bleibt immer. Entfernt werden nur Archive, die diese Installation dort geschrieben hat – fremde Dateien nie.",
+          "preview": "Vorschau",
+          "result": "Behält {keep}, entfernt {remove} – noch wird nichts gelöscht."
+        },
+        "archives": "Archive: {count}",
+        "verify": "Neuestes prüfen",
+        "verify_started": "Prüfung gestartet",
+        "verify_none": "Dort liegt noch kein Archiv.",
+        "verify_state": {
+          "running": "Wird geprüft",
+          "passed": "Geprüft",
+          "failed": "Prüfung fehlgeschlagen",
+          "interrupted": "Unterbrochen"
+        },
+        "verifications": "Prüfungen",
+        "digest_only": "nur Prüfsumme (frühere Passphrase)"
+      },
+      "run": {
+        "button": "Jetzt sichern",
+        "running": "Sicherung läuft",
+        "started": "Vollsicherung gestartet"
+      },
+      "history": {
+        "title": "Verlauf",
+        "empty": "Noch keine Vollsicherung gelaufen.",
+        "parts": "{count} Teile",
+        "origin": {
+          "scheduled": "Geplant",
+          "manual": "Von Hand"
+        },
+        "state": {
+          "running": "Läuft",
+          "succeeded": "Erfolgreich",
+          "failed": "Fehlgeschlagen",
+          "interrupted": "Unterbrochen"
+        },
+        "pruned": "{count} alte Archive nach Aufbewahrung entfernt"
+      }
+    },
+    "full_restore": {
+      "eyebrow": "Wiederherstellung",
+      "title": "Vollbackup wiederherstellen",
+      "description": "Öffnet ein Archiv mit seiner Passphrase, zeigt, was es enthält, prüft es in einer Wegwerf-Kopie und wechselt beim nächsten Start darauf. Die laufende Installation bleibt startbar, bis die wiederhergestellte einmal gestartet ist.",
+      "open": "Aus einem Backup wiederherstellen …",
+      "status": {
+        "staged": "Die Wiederherstellung von {archive} ({date}) wartet. Starte rDownloader neu, um zu wechseln; der jetzige Stand bleibt erhalten, bis der wiederhergestellte einmal gestartet ist.",
+        "switching": "Der Wechsel zu {archive} läuft gerade in einem Start.",
+        "failed": "Die Wiederherstellung von {archive} ist am {date} nicht gestartet; die vorherige Installation läuft weiter. Grund: {reason}",
+        "discard": "Wiederherstellung verwerfen",
+        "dismiss": "Ausblenden",
+        "discarded": "Wiederherstellung verworfen"
+      },
+      "dialog": {
+        "title": "Vollbackup wiederherstellen",
+        "description": "Archiv wählen, Passphrase eingeben, Inhalt prüfen, Speicherorte zuordnen, testen – erst dann bestätigen."
+      },
+      "source": {
+        "title": "Archiv",
+        "history": "Aus dem Verlauf",
+        "upload": "Datei hochladen",
+        "path": "Pfad auf diesem Rechner",
+        "no_runs": "Im Verlauf ist kein erfolgreiches Backup.",
+        "run_placeholder": "Backup wählen",
+        "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
+        "file_pick": "Datei wählen",
+        "uploading": "Wird hochgeladen: {percent} %",
+        "uploaded": "{name} hochgeladen"
+      },
+      "passphrase": {
+        "label": "Passphrase dieses Backups",
+        "hint": "Wird jedes Mal abgefragt: Der für den Zeitplan gespeicherte Schlüssel wird für eine Wiederherstellung nie verwendet."
+      },
+      "preview": {
+        "action": "Inhalt anzeigen",
+        "title": "Inhalt",
+        "created": "Erstellt {date} von rDownloader {version}, {size}",
+        "newer": "Eine neuere Version hat dieses Backup erstellt. Aktualisiere zuerst auf mindestens diese Version (hier läuft {version}).",
+        "part": "{count} × {size}",
+        "counts": "{categories} Kategorien, {accounts} Konten, {proxies} Proxys, {servers} Usenet-Server, {subscriptions} Abos, {hotfolders} Hotfolder",
+        "state": "{partial} unfertige Übertragungen, {trust} Einträge Plugin-Vertrauen.",
+        "credentials_included": "Zugangsdaten sind verschlüsselt enthalten.",
+        "credentials_missing": "Zugangsdaten sind nicht enthalten.",
+        "kind": {
+          "settings": "Einstellungen",
+          "database": "Datenbank",
+          "plugin_trust": "Plugin-Vertrauen",
+          "partial_transfers": "Unfertige Übertragungen",
+          "torrent_session": "Torrent-Sitzung",
+          "torrent_file": "Torrent-Dateien"
+        },
+        "path_kind": {
+          "hotfolder": "Hotfolder",
+          "partial_transfer": "Unfertige Übertragung"
+        }
+      },
+      "mapping": {
+        "title": "Speicherorte",
+        "hint": "Wo jeder Speicherort auf diesem Rechner liegt. Leer lassen behält den Pfad. Pfade eines anderen Systems (Laufwerksbuchstaben, Freigaben) brauchen hier einen Ordner; alle Pfade darunter ziehen mit um und können ihn nie verlassen.",
+        "foreign": "anderes System",
+        "target": "Neuer Ordner für {name}",
+        "placeholder": "Pfad beibehalten"
+      },
+      "test": {
+        "action": "Test-Wiederherstellung",
+        "ok": "Die Test-Wiederherstellung hat nichts gefunden, was die Wiederherstellung verhindert.",
+        "failed": "Die Test-Wiederherstellung hat Fehler gefunden, die die Wiederherstellung verhindern.",
+        "summary": "{packages} Pakete, {moved} Pfade umgezogen, {credentials} Zugangsdaten übernommen, {migrated} Migrationen angewandt.",
+        "none": "Keine Befunde.",
+        "severity": {
+          "error": "Fehler",
+          "warning": "Hinweis"
+        }
+      },
+      "confirm": {
+        "label": "Mir ist klar: Beim nächsten Start ersetzt dieses Backup die ganze Installation. Der jetzige Stand bleibt erhalten, bis der wiederhergestellte einmal gestartet ist.",
+        "action": "Beim nächsten Start wiederherstellen",
+        "staged": "Wiederherstellung vorbereitet. Starte rDownloader neu, um zu wechseln."
+      }
     }
   },
   "mcp": {
@@ -241,7 +433,9 @@
       "never": "Nie Secure"
     },
     "warning_no_proxies": "Eine externe Adresse ist gesetzt, aber kein vertrauenswürdiger Proxy. Dann sieht jede Anfrage aus, als käme sie vom Proxy: Sperren und Sitzungsliste zeigen für alle dieselbe Adresse.",
-    "warning_no_url": "Vertrauenswürdige Proxys sind gesetzt, aber keine externe Adresse. Dann kann das Cookie nicht automatisch als Secure markiert werden."
+    "warning_no_url": "Vertrauenswürdige Proxys sind gesetzt, aber keine externe Adresse. Dann kann das Cookie nicht automatisch als Secure markiert werden.",
+    "allowed_hosts": "Erlaubte Hostnamen",
+    "allowed_hosts_hint": "Ein Name pro Zeile, unter dem du den Dienst im Browser öffnest, etwa nas.lan. IP-Adressen, localhost und der Host der externen URL gelten immer; jeder andere Name wird abgewiesen, damit keine fremde Seite per DNS-Rebinding hereinkommt."
   },
   "mfa": {
     "eyebrow": "Zweiter Faktor",

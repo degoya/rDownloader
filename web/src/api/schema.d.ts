@@ -608,6 +608,237 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_backup_config"];
+        put: operations["update_backup_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/archives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_backup_archives"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/archives/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verify_backup_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_backup_destination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/destinations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_backup_destination"];
+        post?: never;
+        delete: operations["delete_backup_destination"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/destinations/{id}/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preview_backup_retention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/passphrase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_backup_passphrase"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_restore_status"];
+        put?: never;
+        /** Checks the archive like a test restore and stages it; the next start switches to it. */
+        post: operations["start_restore"];
+        /**
+         * Drops a restore that has not switched yet, with the credentials it put into the secret
+         *     store, or dismisses the record of one that did not start.
+         */
+        delete: operations["discard_restore"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reads the whole archive with the passphrase and describes it; writes nothing. */
+        post: operations["preview_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unpacks into a throwaway folder, migrates, remaps and checks the copy, then removes it. */
+        post: operations["test_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_restore_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore/uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["append_restore_upload"];
+        post?: never;
+        delete: operations["delete_restore_upload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_backup_runs"];
+        put?: never;
+        post: operations["run_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_backup_verifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bandwidth/capabilities": {
         parameters: {
             query?: never;
@@ -3108,6 +3339,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/bundled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bundle by service, with what of it is installed. */
+        get: operations["list_bundled_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/bundled/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Installs the plugins of the named services that are not installed yet.
+         * @description One plugin that fails does not stop the others: the answer lists what was installed and what
+         *     was not, and the person sees both. Every service is looked up before anything installs, so a
+         *     request naming an unknown one changes nothing. Like every install, the plugins' provider rows
+         *     are live at once — the accounts step can offer them straight away — and the plugins
+         *     themselves run from the next start.
+         */
+        post: operations["install_bundled_services"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins/i18n/{locale}": {
         parameters: {
             query?: never;
@@ -5231,7 +5503,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -5513,6 +5785,228 @@ export interface components {
             /** @enum {string} */
             mode: "review_all";
         };
+        /** @description One archive of the ledger. */
+        BackupArchiveResponse: {
+            archive_name: string;
+            /** Format: date-time */
+            created_at: string;
+            destination_id: string;
+            id: string;
+            location: string;
+            run_id: string;
+            sha256: string;
+            /** Format: int64 */
+            size_bytes: number;
+            /** Format: date-time */
+            stored_at: string;
+            /** Format: date-time */
+            verified_at?: string | null;
+            verify_code?: string | null;
+            verify_state?: components["schemas"]["BackupVerifyState"] | null;
+        };
+        /** @description The backup configuration as the interface shows it. The key is never part of it. */
+        BackupConfigResponse: {
+            /** @description Every destination; each receives its own copy of every archive (RD-160-02). */
+            destinations: components["schemas"]["BackupDestinationResponse"][];
+            enabled: boolean;
+            /**
+             * @description This installation's id, part of every archive name; retention removes only archives
+             *     carrying it.
+             */
+            instance_id: string;
+            /** @description Whether a passphrase has been set up. */
+            key_configured: boolean;
+            /** @description Sixteen hex characters telling keys apart; not the key. */
+            key_fingerprint?: string | null;
+            /** Format: date-time */
+            key_set_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When the schedule next runs; `None` while it is off.
+             */
+            next_run_at?: string | null;
+            /** @description Whether a run is going on right now. */
+            running: boolean;
+            /** @description Five-field cron expression, read in `timezone`. */
+            schedule: string;
+            /** @description IANA time zone the schedule is read in. */
+            timezone: string;
+            /**
+             * Format: date-time
+             * @description When the verification schedule next checks the newest archive of every destination.
+             */
+            verify_next_run_at?: string | null;
+            /**
+             * @description Five-field cron expression of the scheduled verification, read in `timezone`; `None`
+             *     is off.
+             */
+            verify_schedule?: string | null;
+        };
+        /** @description A destination to create or replace. Only the fields of its kind are read. */
+        BackupDestinationRequest: {
+            /** @description Missing is on. */
+            enabled?: boolean | null;
+            /**
+             * Format: int32
+             * @description At least 1; missing is no limit by age.
+             */
+            keep_days?: number | null;
+            /**
+             * Format: int32
+             * @description At least 1; missing is no limit by count.
+             */
+            keep_last?: number | null;
+            /** @description `local`, `object_storage` or `rclone`. */
+            kind: string;
+            /** @description How the interface and the history name it; empty is the destination's own address. */
+            name?: string | null;
+            /** @description `local`: an absolute folder, checked like a storage root and created when missing. */
+            path?: string | null;
+            /** @description `object_storage`: `<bucket>/<folder>`. */
+            prefix?: string | null;
+            /** @description `object_storage`: the profile's id. */
+            profile_id?: string | null;
+            /** @description `rclone`: `name:path` of a configured remote. */
+            remote?: string | null;
+        };
+        /** @description A destination as the interface shows it. */
+        BackupDestinationResponse: {
+            /**
+             * Format: int32
+             * @description Archives this installation recorded there.
+             */
+            archive_count: number;
+            enabled: boolean;
+            id: string;
+            /**
+             * Format: int32
+             * @description The days archives are kept; `None` is no limit by age.
+             */
+            keep_days?: number | null;
+            /**
+             * Format: int32
+             * @description The newest archives kept; `None` is no limit by count.
+             */
+            keep_last?: number | null;
+            /** @description `local`, `object_storage` or `rclone`. */
+            kind: string;
+            /** Format: date-time */
+            last_stored_at?: string | null;
+            last_verify_state?: components["schemas"]["BackupVerifyState"] | null;
+            name: string;
+            /** @description The folder of a `local` destination. */
+            path?: string | null;
+            /**
+             * @description `<bucket>/<folder>` of an `object_storage` destination; an empty bucket is the
+             *     profile's bound one.
+             */
+            prefix?: string | null;
+            /** @description The object storage profile of an `object_storage` destination. */
+            profile_id?: string | null;
+            /** @description `name:path` of an `rclone` destination. */
+            remote?: string | null;
+        };
+        /**
+         * @description What started a backup run.
+         * @enum {string}
+         */
+        BackupOrigin: "scheduled" | "manual";
+        /** @description One member of a finished archive. */
+        BackupPartResponse: {
+            /**
+             * @description `settings`, `database`, `plugin_trust`, `partial_transfers`, `torrent_session` or
+             *     `torrent_file`.
+             */
+            kind: string;
+            name: string;
+            sha256: string;
+            /** Format: int64 */
+            size: number;
+        };
+        /** @description One destination of a run. */
+        BackupRunDestinationResponse: {
+            /**
+             * Format: int32
+             * @description Attempts made; an outage is tried again with a growing pause.
+             */
+            attempts: number;
+            /** @description The destination as it was named when the run started. */
+            destination: string;
+            destination_id: string;
+            error_code?: string | null;
+            error_detail?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            /** @description `local`, `object_storage` or `rclone`. */
+            kind: string;
+            location?: string | null;
+            /**
+             * Format: int32
+             * @description Older archives retention removed there after this run.
+             */
+            pruned: number;
+            state: components["schemas"]["BackupRunState"];
+        };
+        /** @description One run of the history. */
+        BackupRunResponse: {
+            archive_name?: string | null;
+            /** @description The destination as it was named when the run started. */
+            destination?: string | null;
+            /** @description How each destination fared (RD-160-02). */
+            destinations: components["schemas"]["BackupRunDestinationResponse"][];
+            /**
+             * @description Stable code of a failed or interrupted run, or `backup.destinations_partial` when a
+             *     run reached some destinations and not others.
+             */
+            error_code?: string | null;
+            error_detail?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            id: string;
+            origin: components["schemas"]["BackupOrigin"];
+            parts: components["schemas"]["BackupPartResponse"][];
+            sha256?: string | null;
+            /** Format: int64 */
+            size_bytes?: number | null;
+            /** Format: date-time */
+            started_at: string;
+            state: components["schemas"]["BackupRunState"];
+        };
+        /**
+         * @description Where a backup run stands.
+         * @enum {string}
+         */
+        BackupRunState: "running" | "succeeded" | "failed" | "interrupted";
+        /** @description One verification of one archive. */
+        BackupVerificationResponse: {
+            archive_id?: string | null;
+            archive_name: string;
+            /**
+             * @description Whether the archive was opened and every member checked, or only its size and SHA-256
+             *     compared (an archive sealed under an earlier passphrase).
+             */
+            content_checked?: boolean | null;
+            destination: string;
+            destination_id?: string | null;
+            /**
+             * @description `backup.verify_missing`, `backup.verify_digest_mismatch`, `backup.verify_damaged` or
+             *     the destination's own code.
+             */
+            error_code?: string | null;
+            error_detail?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            id: string;
+            origin: components["schemas"]["BackupOrigin"];
+            /** Format: date-time */
+            started_at: string;
+            state: components["schemas"]["BackupVerifyState"];
+        };
+        /**
+         * @description Where a verification of one archive at one destination stands (RD-160-02).
+         * @enum {string}
+         */
+        BackupVerifyState: "running" | "passed" | "failed" | "interrupted";
         /** @description A named set of limits — "Day", "Night", "Unlimited". */
         BandwidthProfile: {
             daily_budget_bytes?: components["schemas"]["ByteCount"] | null;
@@ -5853,6 +6347,66 @@ export interface components {
             tls: boolean;
             username?: string | null;
         };
+        BundledCatalogueResponse: {
+            /** @description Ordered by category, then key. Empty when the service found no bundle directory. */
+            services: components["schemas"]["BundledServiceResponse"][];
+        };
+        /** @description One plugin that could not be installed. */
+        BundledInstallFailure: {
+            code: string;
+            message: string;
+            name: string;
+            plugin_id: components["schemas"]["PluginId"];
+            service: string;
+        };
+        /** @description Body of `POST /api/v1/plugins/bundled/install`. */
+        BundledInstallRequest: {
+            /** @description Keys of the services to install, as the catalogue lists them. */
+            services: string[];
+        };
+        BundledInstallResponse: {
+            /** @description `plugin.bundled_installed`, or `plugin.bundled_partly_installed` when something failed. */
+            code: string;
+            failed: components["schemas"]["BundledInstallFailure"][];
+            installed: components["schemas"]["BundledPluginResponse"][];
+            message: string;
+        };
+        /** @description One plugin of a bundled service. */
+        BundledPluginResponse: {
+            id: components["schemas"]["PluginId"];
+            /** @description The newest installed version, `null` when the plugin is not installed. */
+            installed_version?: string | null;
+            name: string;
+            plugin_type: string;
+            /** @description The version in the bundle. */
+            version: string;
+        };
+        /** @description One service of the bundle. */
+        BundledServiceResponse: {
+            /**
+             * @description `hoster`, `multihoster`, `remote_jobs`, `cloud`, `links`, `metadata`, `notifications`,
+             *     `postprocess` or `other`.
+             */
+            category: string;
+            description: string;
+            /** @description Stable key: the provider slug, or the plugin's own slug. */
+            key: string;
+            name: string;
+            /**
+             * @description Whether the service does nothing until an account or a destination is set up. The ones
+             *     that need none are what a fresh installation starts with.
+             */
+            needs_account: boolean;
+            plugins: components["schemas"]["BundledPluginResponse"][];
+            /** @description The provider an account for this service is created under, when it has one. */
+            provider?: string | null;
+            state: components["schemas"]["BundledServiceState"];
+        };
+        /**
+         * @description How much of a service is installed.
+         * @enum {string}
+         */
+        BundledServiceState: "installed" | "partial" | "available";
         /** @description A helper program the packages ship in `vendor/`, with the licence it ships under. */
         BundledTool: {
             /** @description Where the full text lies in an installed package. */
@@ -5936,6 +6490,23 @@ export interface components {
         CandidateReorderRequest: {
             ids: components["schemas"]["CandidateId"][];
             package_id: components["schemas"]["CollectorPackageId"];
+        };
+        /**
+         * @description One source a LinkGrabber link carries, as the interface shows it before the link is queued
+         *     (RD-150-03). Redacted like every address the interface shows.
+         */
+        CandidateSource: {
+            host?: string | null;
+            /** @description ISO 3166-1 alpha-2 country code the document gave. */
+            location?: string | null;
+            /**
+             * Format: int32
+             * @description Lower is preferred; absent when the document ranked it not at all.
+             */
+            priority?: number | null;
+            protocol: components["schemas"]["SourceProtocol"];
+            /** @description The address, with credentials and signed query values replaced. */
+            url: string;
         };
         /**
          * @description What a tool version can take away.
@@ -7194,7 +7765,11 @@ export interface components {
         /** @description Every source of a download and what its bytes are checked against. */
         DownloadSourcesResponse: {
             piece_hashes?: components["schemas"]["PieceHashSummary"] | null;
-            /** @description Empty for a download that came with a single address. */
+            /**
+             * @description Empty for a download that came with a single address the person gave. A link a
+             *     document or a page proposed without mirrors shows its own address as its one source,
+             *     the row that holds it to the address rule (RD-150-03).
+             */
             sources: components["schemas"]["DownloadSourceView"][];
         };
         /**
@@ -7786,6 +8361,12 @@ export interface components {
              */
             secret_fragment?: boolean;
             size?: components["schemas"]["ByteCount"] | null;
+            /**
+             * @description The mirrors a Metalink parser stated for this link (RD-150-03), redacted and in the
+             *     order the transfer will try them, so they can be reviewed before the link is queued.
+             *     Empty for a link without a source set.
+             */
+            sources?: components["schemas"]["CandidateSource"][];
             state: components["schemas"]["LinkCandidateState"];
             torrent?: components["schemas"]["TorrentCandidateSummary"] | null;
             /** Format: uri */
@@ -9017,6 +9598,13 @@ export interface components {
             piece_length: number;
             pieces: number;
         };
+        /** @description What a package asks for beyond the newest installed version of the same plugin (RD-160-09). */
+        PluginAddedPermissionsResponse: {
+            /** @description The installed version the package is compared with. */
+            installed_version: string;
+            /** @description Empty lists when the package asks for nothing new. */
+            permissions: components["schemas"]["PluginPermissionsResponse"];
+        };
         /**
          * @description Which package to withdraw: the digest itself, or the installed version to hash.
          *
@@ -9148,6 +9736,7 @@ export interface components {
         };
         /** @description Everything the install preview shows. Nothing is installed by asking for it. */
         PluginPreviewResponse: {
+            added_permissions?: components["schemas"]["PluginAddedPermissionsResponse"] | null;
             api_version: string;
             description: string;
             homepage?: string | null;
@@ -9255,6 +9844,8 @@ export interface components {
         };
         /** @description A newer version of an installed plugin, from the key it is already signed with. */
         PluginUpdateResponse: {
+            /** @description Those permissions, one list each; empty when `adds_permissions` is false (RD-160-09). */
+            added_permissions: components["schemas"]["PluginPermissionsResponse"];
             /**
              * @description Asks for a permission the installed version does not have; never installed
              *     automatically, whatever the policy.
@@ -9939,6 +10530,196 @@ export interface components {
             /** Format: int32 */
             priority: number;
         };
+        /** @description How much the database copy holds. */
+        RestoreCountsResponse: {
+            /** Format: int64 */
+            accounts: number;
+            /** Format: int64 */
+            categories: number;
+            /** Format: int64 */
+            downloads: number;
+            /** Format: int64 */
+            hotfolders: number;
+            /** Format: int64 */
+            packages: number;
+            /** Format: int64 */
+            storage_roots: number;
+            /** Format: int64 */
+            torrents: number;
+            /** Format: int64 */
+            unfinished: number;
+        };
+        /** @description A storage root of the backup, moved to a folder on this machine. */
+        RestoreMappingRequest: {
+            /** @description Absolute on this machine. */
+            path: string;
+            storage_root_id: string;
+        };
+        /** @description One kind of member of the archive. */
+        RestorePartGroupResponse: {
+            count: number;
+            /**
+             * @description `settings`, `database`, `plugin_trust`, `partial_transfers`, `torrent_session` or
+             *     `torrent_file`.
+             */
+            kind: string;
+            /** Format: int64 */
+            size: number;
+        };
+        /** @description Another stored path the backup refers to. */
+        RestorePathResponse: {
+            /** @description `hotfolder` or `partial_transfer`. */
+            kind: string;
+            native: boolean;
+            path: string;
+        };
+        /** @description A preview: the archive and the passphrase, nothing else. */
+        RestorePreviewRequest: {
+            passphrase: string;
+            source: components["schemas"]["RestoreSourceRequest"];
+        };
+        /** @description What a preview found, from the manifest and the small parts only. */
+        RestorePreviewResponse: {
+            accounts: number;
+            /** @description The version of rDownloader that wrote the backup. */
+            app_version: string;
+            archive_name: string;
+            /** Format: int64 */
+            archive_size: number;
+            categories: number;
+            /** Format: date-time */
+            created_at: string;
+            /** @description Whether the settings carry their credentials, sealed. */
+            credentials_included: boolean;
+            /** @description The version running here. */
+            current_version: string;
+            /** Format: int32 */
+            format_version: number;
+            /** @description Whether a newer version wrote the backup; its database may not open here. */
+            from_newer_version: boolean;
+            hotfolders: number;
+            partial_transfers: number;
+            parts: components["schemas"]["RestorePartGroupResponse"][];
+            /** @description Hot folders and unfinished transfers' folders, the first fifty. */
+            paths: components["schemas"]["RestorePathResponse"][];
+            plugin_trust_rows: number;
+            proxy_profiles: number;
+            storage_roots: components["schemas"]["RestoreRootResponse"][];
+            subscriptions: number;
+            usenet_servers: number;
+        };
+        /** @description A finding of a test restore or a restore. */
+        RestoreProblemResponse: {
+            /** @description A stable code, translated like an error code. */
+            code: string;
+            count: number;
+            /** @description The first few paths or rows it concerns. */
+            examples: string[];
+            /** @description `error` refuses the restore; `warning` is something to do after it. */
+            severity: string;
+        };
+        /** @description What a test restore found; the same report a restore answers with. */
+        RestoreReportResponse: {
+            counts: components["schemas"]["RestoreCountsResponse"];
+            /** @description Stored paths moved with their root. */
+            moved_paths: number;
+            /** @description No finding of severity `error`. */
+            ok: boolean;
+            problems: components["schemas"]["RestoreProblemResponse"][];
+            restored_credentials: number;
+            roots: components["schemas"]["RestoreRootPlanResponse"][];
+            schema: components["schemas"]["RestoreSchemaResponse"];
+        };
+        /** @description A test restore or a restore: the archive, the passphrase and the storage roots to move. */
+        RestoreRequest: {
+            mappings?: components["schemas"]["RestoreMappingRequest"][];
+            passphrase: string;
+            source: components["schemas"]["RestoreSourceRequest"];
+        };
+        /** @description A storage root and where the restore puts it. */
+        RestoreRootPlanResponse: {
+            /** @description Whether the folder the root ends up on exists here now. */
+            exists_here: boolean;
+            id: string;
+            mapped_to?: string | null;
+            native: boolean;
+            path: string;
+        };
+        /** @description A storage root the backup names. */
+        RestoreRootResponse: {
+            id: string;
+            name: string;
+            /**
+             * @description Whether the path is an absolute path on this machine; a path from another system
+             *     wants a mapping.
+             */
+            native: boolean;
+            path: string;
+        };
+        /** @description Which migrations wrote the database copy. */
+        RestoreSchemaResponse: {
+            /** Format: int64 */
+            applied?: number | null;
+            /** Format: int64 */
+            known: number;
+            /** @description Migrations the test restore applied to the copy. */
+            migrated: number;
+        };
+        /** @description Which archive to open: exactly one of the three. */
+        RestoreSourceRequest: {
+            /** @description An absolute path to an archive on this machine (a mounted NAS included). */
+            path?: string | null;
+            /** @description A successful run of the history, read from its local folder. */
+            run_id?: string | null;
+            /** @description An archive uploaded through `/api/v1/backups/restore/uploads`. */
+            upload_id?: string | null;
+        };
+        /** @description A staged restore, and the report of the checks it passed. */
+        RestoreStagedResponse: {
+            report: components["schemas"]["RestoreReportResponse"];
+            status: components["schemas"]["RestoreStatusResponse"];
+        };
+        /** @description Where a restore stands. */
+        RestoreStatusResponse: {
+            app_version?: string | null;
+            archive_name?: string | null;
+            /** Format: date-time */
+            backup_created_at?: string | null;
+            /** Format: date-time */
+            failed_at?: string | null;
+            reason?: string | null;
+            /** Format: date-time */
+            staged_at?: string | null;
+            /**
+             * @description `none`, `staged` (the next start switches), `switching` (a start is switching now) or
+             *     `failed` (the restored state did not start; the previous one runs).
+             */
+            state: string;
+        };
+        /** @description An upload in progress. */
+        RestoreUploadResponse: {
+            /**
+             * Format: int64
+             * @description The largest chunk one request may carry.
+             */
+            chunk_limit: number;
+            id: string;
+            /**
+             * Format: int64
+             * @description Bytes received so far; the next chunk starts here.
+             */
+            size: number;
+        };
+        /** @description What a retention pass would do at a destination; nothing is deleted by asking. */
+        RetentionPreviewResponse: {
+            /** @description Newest first. */
+            keep: components["schemas"]["BackupArchiveResponse"][];
+            /** Format: int32 */
+            keep_days?: number | null;
+            /** Format: int32 */
+            keep_last?: number | null;
+            remove: components["schemas"]["BackupArchiveResponse"][];
+        };
         /**
          * @description What a runner can do with data that is already on disk (RD-150-02).
          *
@@ -10250,6 +11031,12 @@ export interface components {
         };
         /** Format: uuid */
         SessionId: string;
+        /** @description Sets up or replaces the passphrase. Archives written before keep the old one. */
+        SetBackupPassphraseRequest: {
+            /** @description The passphrase in force; required once one is set up (owner's decision, 2026-09-28). */
+            current_passphrase?: string | null;
+            passphrase: string;
+        };
         SetCollisionPolicyRequest: {
             policy?: components["schemas"]["CollisionPolicy"] | null;
         };
@@ -10284,6 +11071,14 @@ export interface components {
              * @default false
              */
             admin_login_disabled: boolean;
+            /**
+             * @description Host names, beyond the external URL's, a browser may call the service by.
+             *
+             *     Addresses and `localhost` always pass; any other name in a request's `Host` is refused
+             *     unless it is listed here, which is what keeps a DNS rebinding page out.
+             * @default []
+             */
+            allowed_hosts: string[];
             /**
              * Format: int32
              * @default 20000
@@ -12651,6 +13446,17 @@ export interface components {
             secret?: string | null;
             username?: string | null;
         };
+        /**
+         * @description The schedule and the verification schedule, saved together. Destinations have their own
+         *     routes.
+         */
+        UpdateBackupConfigRequest: {
+            enabled: boolean;
+            schedule: string;
+            timezone: string;
+            /** @description Five-field cron expression of the scheduled verification; empty or missing is off. */
+            verify_schedule?: string | null;
+        };
         /** @description Partial update of the solver configuration. */
         UpdateCaptchaConfigRequest: {
             /** @description New API key; stored in the secret store, never echoed back. */
@@ -14199,6 +15005,761 @@ export interface operations {
             };
         };
     };
+    get_backup_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupConfigResponse"];
+                };
+            };
+        };
+    };
+    update_backup_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBackupConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupConfigResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_backup_archives: {
+        parameters: {
+            query?: {
+                /** @description Only this destination's archives */
+                destination_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupArchiveResponse"][];
+                };
+            };
+        };
+    };
+    verify_backup_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The archive's id in the ledger */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupVerificationResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_backup_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupDestinationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupDestinationResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_backup_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The destination's id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupDestinationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupDestinationResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_backup_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The destination's id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    preview_backup_retention: {
+        parameters: {
+            query?: {
+                /** @description Preview this count instead of the stored one */
+                keep_last?: number;
+                /** @description Preview this age in days instead of the stored one */
+                keep_days?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The destination's id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionPreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_backup_passphrase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBackupPassphraseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupConfigResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_restore_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreStatusResponse"];
+                };
+            };
+        };
+    };
+    start_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreStagedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    discard_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreStatusResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    preview_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestorePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestorePreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    test_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreReportResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_restore_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreUploadResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    append_restore_upload: {
+        parameters: {
+            query: {
+                offset: number;
+            };
+            header?: never;
+            path: {
+                /** @description Upload id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": number[];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreUploadResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_restore_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Upload id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_backup_runs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupRunResponse"][];
+                };
+            };
+        };
+    };
+    run_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupRunResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_backup_verifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupVerificationResponse"][];
+                };
+            };
+        };
+    };
     bandwidth_capabilities: {
         parameters: {
             query?: never;
@@ -15084,6 +16645,13 @@ export interface operations {
             };
             /** @description Capture token missing or revoked */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The address, or one a redirect leads to, is on this machine or otherwise not one the service may request */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19680,6 +21248,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PluginInventoryResponse"];
+                };
+            };
+        };
+    };
+    list_bundled_services: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Language of the names and descriptions (`de`, `en`, …); English when absent or not
+                 *     shipped by a package.
+                 */
+                locale?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundledCatalogueResponse"];
+                };
+            };
+        };
+    };
+    install_bundled_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundledInstallRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundledInstallResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The bundle has no service of that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
         };

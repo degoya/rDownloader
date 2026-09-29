@@ -59,6 +59,14 @@ impl ExternalRunner for SftpRunner {
         self.service.max_parallel()
     }
 
+    /// SFTP mirrors of a multi-source download: open, seek to a chunk's offset, read to its
+    /// end (RD-150-03).
+    fn range_source(&self) -> Option<std::sync::Arc<dyn rd_http::RangeSource>> {
+        Some(std::sync::Arc::new(crate::mirror::SftpMirror::new(
+            self.service.clone(),
+        )))
+    }
+
     async fn run(
         &self,
         file: &DownloadFile,
@@ -87,7 +95,11 @@ impl ExternalRunner for SftpRunner {
 
         let connection = match self
             .service
-            .connect(file.remote_credential_id, &target)
+            .connect(
+                file.remote_credential_id,
+                &target,
+                limits.address_policy.as_ref(),
+            )
             .await?
         {
             Ok(connection) => connection,

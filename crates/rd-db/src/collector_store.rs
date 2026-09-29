@@ -224,6 +224,7 @@ pub(crate) async fn add_batch(
                 // Set from the column when the batch is re-read below, so the flag a reader
                 // sees always comes from what was actually written.
                 secret_fragment: false,
+                sources: Vec::new(),
             };
             let stored_size = candidate
                 .size
@@ -628,6 +629,8 @@ pub(crate) struct CandidateRow {
     /// The `vault://` reference of the fragment this link arrived with (RD-110-38); the
     /// candidate struct is told only *that* one exists, never what it is.
     secret_fragment_ref: Option<String>,
+    /// The checked source set a Metalink parser stated (RD-150-03), shown before queueing.
+    source_set_json: Option<String>,
 }
 
 impl TryFrom<CandidateRow> for LinkCandidate {
@@ -729,6 +732,14 @@ impl TryFrom<CandidateRow> for LinkCandidate {
                 _ => None,
             },
             secret_fragment: row.secret_fragment_ref.is_some(),
+            // Like the enrichment: a set that no longer parses hides its mirrors, never the
+            // link, which is queued as the single address it also is.
+            sources: row
+                .source_set_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str::<rd_core::SourceSet>(value).ok())
+                .map(|set| set.preview())
+                .unwrap_or_default(),
         })
     }
 }
@@ -792,10 +803,10 @@ pub(crate) async fn set_enrichment(
     Ok(())
 }
 
-pub(crate) const CANDIDATE_SELECT: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref \
+pub(crate) const CANDIDATE_SELECT: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json \
      FROM link_candidates";
 
-pub(crate) const GET_CANDIDATE: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref \
+pub(crate) const GET_CANDIDATE: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json \
      FROM link_candidates WHERE id = ?";
 
 fn provider_for(url: &Url) -> String {

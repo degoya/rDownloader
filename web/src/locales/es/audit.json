@@ -58,7 +58,11 @@
     "script_subscription_changed": "Suscripción de script creada o modificada",
     "file_overwritten": "Archivo sobrescrito",
     "collision_decided": "Colisión de archivo resuelta",
-    "duplicate_linked": "Duplicado enlazado"
+    "duplicate_linked": "Duplicado enlazado",
+    "backup_configured": "Copia completa configurada",
+    "backup_key_changed": "Frase de la copia completa establecida",
+    "backup_created": "Copia completa escrita",
+    "backup_verified": "Archivo de copia completa verificado"
   },
   "list": {
     "title": "Registros",

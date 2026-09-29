@@ -53,6 +53,11 @@ pub struct CrashPoint {
 /// Kept sorted by name so a diff shows an addition rather than a reshuffle.
 pub const CRASH_POINTS: &[CrashPoint] = &[
     CrashPoint {
+        name: "backup.before_archive_published",
+        owner: "rd-backup",
+        invariant: "an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging",
+    },
+    CrashPoint {
         name: "http.after_chunk_mac",
         owner: "rd-http",
         invariant: "a finished chunk MAC that was not recorded is recomputed from the start of its chunk, never assumed",
@@ -81,6 +86,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "object_storage.after_part_upload",
         owner: "rd-object-storage",
         invariant: "a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again",
+    },
+    CrashPoint {
+        name: "restore.after_live_set_aside",
+        owner: "rd-backup",
+        invariant: "a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes",
     },
     CrashPoint {
         name: "scheduler.after_package_row",

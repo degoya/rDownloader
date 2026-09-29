@@ -91,6 +91,198 @@
       "button": "Importer et remplacer",
       "success": "Paramètres restaurés",
       "success_description": "{count} entrées de configuration importées."
+    },
+    "full": {
+      "eyebrow": "Sauvegarde complète",
+      "title": "Sauvegarde complète chiffrée planifiée",
+      "description": "Enregistre, chiffrés, la base de données, la file, le LinkGrabber, les sessions torrent, la confiance des plugins et les identifiants vers tes destinations – pendant que les téléchargements continuent. Les fichiers téléchargés n’en font pas partie.",
+      "key": {
+        "title": "Phrase secrète",
+        "missing": "Aucune phrase secrète configurée. Sans elle, aucune sauvegarde complète n’est écrite.",
+        "configured": "Clé {fingerprint}, configurée {date}",
+        "hint": "La phrase secrète n’est stockée nulle part, seule la clé qui en est dérivée l’est, dans le coffre. Une restauration la redemande. Une nouvelle phrase vaut pour les sauvegardes futures ; les anciennes s’ouvrent avec l’ancienne.",
+        "passphrase": "Phrase secrète",
+        "confirm": "Confirmer la phrase secrète",
+        "setup": "Configurer la phrase secrète",
+        "change": "Changer la phrase secrète",
+        "saved": "Phrase secrète enregistrée",
+        "short": "La phrase secrète doit comporter au moins {min} caractères.",
+        "mismatch": "Les phrases secrètes ne correspondent pas.",
+        "current": "Phrase secrète actuelle",
+        "current_required": "Saisis la phrase secrète actuelle pour la remplacer."
+      },
+      "schedule": {
+        "title": "Planification",
+        "enabled": "Planification active",
+        "enabled_description": "S’exécute en arrière-plan. Un échec n’arrête aucun téléchargement et figure dans l’historique.",
+        "cron": "Planification (cron)",
+        "cron_description": "Cinq champs : minute heure jour mois jour de la semaine, p. ex. 0 3 * * * pour chaque jour à 3 h.",
+        "timezone": "Fuseau horaire",
+        "verify": "Planification de la vérification (cron)",
+        "verify_description": "Vérifie l’archive la plus récente à chaque destination : récupérée, comparée et ouverte. Vide, c’est désactivé.",
+        "verify_next": "Prochaine vérification : {date}",
+        "no_destination": "Aucune destination active pour l’instant – ajoute-en une ci-dessous avant d’activer la planification.",
+        "save": "Enregistrer la planification",
+        "saved": "Planification enregistrée",
+        "next": "Prochaine exécution : {date}",
+        "off": "Planification désactivée"
+      },
+      "destinations": {
+        "title": "Destinations",
+        "description": "Chaque destination reçoit sa propre copie. Une destination injoignable est réessayée et n’affecte que sa propre entrée dans l’historique.",
+        "empty": "Aucune destination pour l’instant. Ajoute un dossier, un bucket de stockage objet ou un remote rclone.",
+        "add": "Ajouter une destination",
+        "edit": "Modifier",
+        "delete": "Retirer",
+        "deleted": "Destination retirée. Ses archives restent où elles sont.",
+        "saved": "Destination enregistrée",
+        "save": "Enregistrer la destination",
+        "cancel": "Annuler",
+        "off": "Désactivée",
+        "kind": {
+          "label": "Type",
+          "local": "Dossier ou NAS",
+          "object_storage": "Stockage objet",
+          "rclone": "Remote rclone"
+        },
+        "name": "Nom",
+        "name_description": "Facultatif ; sans nom, la liste affiche l’adresse.",
+        "enabled": "Active",
+        "path": "Dossier",
+        "path_description": "Chemin absolu sur la machine qui exécute rDownloader ; un partage NAS monté convient aussi.",
+        "profile": "Profil de stockage objet",
+        "profile_placeholder": "Choisis un profil",
+        "profile_none": "Aucun profil pour l’instant – crée-en d’abord un dans les réglages du stockage objet.",
+        "prefix": "Bucket et dossier",
+        "prefix_description": "<bucket>/<dossier> ; sans bucket, celui du profil est utilisé.",
+        "remote": "Remote rclone",
+        "remote_description": "nom:chemin d’un remote configuré dans rclone – WebDAV, SFTP, stockages cloud et plus.",
+        "keep_last": "Garder les plus récentes",
+        "keep_last_description": "Nombre d’archives ; vide garde tout.",
+        "keep_days": "Garder des jours",
+        "keep_days_description": "Les archives plus récentes restent ; vide garde tout.",
+        "retention": {
+          "none": "Garde toutes les archives",
+          "last": "Les {count} plus récentes",
+          "days": "{count} jours",
+          "hint": "L’archive la plus récente reste toujours. Seules les archives écrites là par cette installation sont supprimées – jamais les fichiers d’autrui.",
+          "preview": "Aperçu",
+          "result": "Garde {keep}, supprime {remove} – rien n’est encore effacé."
+        },
+        "archives": "Archives : {count}",
+        "verify": "Vérifier la plus récente",
+        "verify_started": "Vérification lancée",
+        "verify_none": "Il n’y a pas encore d’archive là-bas.",
+        "verify_state": {
+          "running": "Vérification",
+          "passed": "Vérifiée",
+          "failed": "Vérification échouée",
+          "interrupted": "Interrompue"
+        },
+        "verifications": "Vérifications",
+        "digest_only": "empreinte seule (phrase secrète antérieure)"
+      },
+      "run": {
+        "button": "Sauvegarder maintenant",
+        "running": "Sauvegarde en cours",
+        "started": "Sauvegarde complète démarrée"
+      },
+      "history": {
+        "title": "Historique",
+        "empty": "Aucune sauvegarde complète n’a encore été exécutée.",
+        "parts": "{count} parties",
+        "origin": {
+          "scheduled": "Planifiée",
+          "manual": "Manuelle"
+        },
+        "state": {
+          "running": "En cours",
+          "succeeded": "Réussie",
+          "failed": "Échouée",
+          "interrupted": "Interrompue"
+        },
+        "pruned": "{count} anciennes archives supprimées par la rétention"
+      }
+    },
+    "full_restore": {
+      "eyebrow": "Restauration",
+      "title": "Restaurer une sauvegarde complète",
+      "description": "Ouvre une archive avec sa phrase secrète, montre ce qu'elle contient, la vérifie dans une copie jetable et bascule dessus au prochain démarrage. L'installation actuelle reste démarrable jusqu'à ce que la restaurée ait démarré une fois.",
+      "open": "Restaurer depuis une sauvegarde …",
+      "status": {
+        "staged": "La restauration de {archive} ({date}) est en attente. Redémarre rDownloader pour basculer ; l'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
+        "switching": "Un démarrage est en train de basculer vers {archive}.",
+        "failed": "La restauration de {archive} n'a pas démarré le {date} ; l'installation précédente a été conservée. Raison : {reason}",
+        "discard": "Abandonner la restauration",
+        "dismiss": "Masquer",
+        "discarded": "Restauration abandonnée"
+      },
+      "dialog": {
+        "title": "Restaurer une sauvegarde complète",
+        "description": "Choisis l'archive, saisis sa phrase secrète, vérifie son contenu, associe les racines de stockage, teste – et seulement ensuite confirme."
+      },
+      "source": {
+        "title": "Archive",
+        "history": "Depuis l'historique",
+        "upload": "Téléverser un fichier",
+        "path": "Chemin sur cette machine",
+        "no_runs": "Aucune sauvegarde réussie dans l'historique.",
+        "run_placeholder": "Choisis une sauvegarde",
+        "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
+        "file_pick": "Choisir un fichier",
+        "uploading": "Téléversement : {percent} %",
+        "uploaded": "{name} téléversé"
+      },
+      "passphrase": {
+        "label": "Phrase secrète de cette sauvegarde",
+        "hint": "Demandée à chaque fois : la clé conservée pour la planification n'est jamais utilisée pour une restauration."
+      },
+      "preview": {
+        "action": "Afficher le contenu",
+        "title": "Contenu",
+        "created": "Créée le {date} par rDownloader {version}, {size}",
+        "newer": "Une version plus récente a créé cette sauvegarde. Mets d'abord à jour vers au moins cette version (ici tourne {version}).",
+        "part": "{count} × {size}",
+        "counts": "{categories} catégories, {accounts} comptes, {proxies} proxys, {servers} serveurs Usenet, {subscriptions} abonnements, {hotfolders} dossiers surveillés",
+        "state": "{partial} transferts inachevés, {trust} entrées de confiance des plugins.",
+        "credentials_included": "Les identifiants sont inclus, chiffrés.",
+        "credentials_missing": "Les identifiants ne sont pas inclus.",
+        "kind": {
+          "settings": "Paramètres",
+          "database": "Base de données",
+          "plugin_trust": "Confiance des plugins",
+          "partial_transfers": "Transferts inachevés",
+          "torrent_session": "Session torrent",
+          "torrent_file": "Fichiers torrent"
+        },
+        "path_kind": {
+          "hotfolder": "Dossier surveillé",
+          "partial_transfer": "Transfert inachevé"
+        }
+      },
+      "mapping": {
+        "title": "Racines de stockage",
+        "hint": "Où se trouve chaque racine de stockage sur cette machine. Laisse un champ vide pour garder le chemin. Les chemins d'un autre système (lettres de lecteur, partages) ont besoin d'un dossier ici ; tous les chemins en dessous le suivent et ne peuvent jamais en sortir.",
+        "foreign": "autre système",
+        "target": "Nouveau dossier pour {name}",
+        "placeholder": "Garder le chemin"
+      },
+      "test": {
+        "action": "Restauration d'essai",
+        "ok": "La restauration d'essai n'a rien trouvé qui empêche la restauration.",
+        "failed": "La restauration d'essai a trouvé des erreurs qui empêchent la restauration.",
+        "summary": "{packages} paquets, {moved} chemins déplacés, {credentials} identifiants restaurés, {migrated} migrations appliquées.",
+        "none": "Aucune constatation.",
+        "severity": {
+          "error": "Erreur",
+          "warning": "Remarque"
+        }
+      },
+      "confirm": {
+        "label": "J'ai compris : au prochain démarrage, cette sauvegarde remplace toute l'installation. L'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
+        "action": "Restaurer au prochain démarrage",
+        "staged": "Restauration préparée. Redémarre rDownloader pour basculer."
+      }
     }
   },
   "mcp": {
@@ -241,7 +433,9 @@
       "never": "Jamais Secure"
     },
     "warning_no_proxies": "Une adresse externe est définie mais aucun proxy de confiance. Chaque requête semblera alors venir du proxy : les limites et la liste des sessions afficheront une seule adresse pour tout le monde.",
-    "warning_no_url": "Des proxys de confiance sont définis mais aucune adresse externe. Le cookie ne peut alors pas être marqué Secure automatiquement."
+    "warning_no_url": "Des proxys de confiance sont définis mais aucune adresse externe. Le cookie ne peut alors pas être marqué Secure automatiquement.",
+    "allowed_hosts": "Noms d'hôte autorisés",
+    "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l'hôte de l'URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu'aucune page étrangère n'entre par DNS rebinding."
   },
   "mfa": {
     "eyebrow": "Deuxième facteur",

@@ -125,6 +125,12 @@ impl Database {
         download_sources_store::candidates_remote_reach(&self.readers).await
     }
 
+    /// The address reach one candidate is held to (RD-150-03): `Some(local_network)` for a
+    /// link a stranger's document or page proposed, `None` for one the person added.
+    pub async fn candidate_remote_reach(&self, candidate_id: CandidateId) -> Result<Option<bool>> {
+        download_sources_store::candidate_remote_reach(&self.readers, candidate_id).await
+    }
+
     /// The source set a LinkGrabber candidate carries, if any.
     pub async fn candidate_source_set(
         &self,

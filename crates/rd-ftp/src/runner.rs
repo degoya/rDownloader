@@ -60,6 +60,14 @@ impl ExternalRunner for FtpRunner {
         self.service.max_parallel()
     }
 
+    /// FTP mirrors of a multi-source download: `REST` to a chunk's offset, `RETR`, read to its
+    /// end (RD-150-03).
+    fn range_source(&self) -> Option<std::sync::Arc<dyn rd_http::RangeSource>> {
+        Some(std::sync::Arc::new(crate::mirror::FtpMirror::new(
+            self.service.clone(),
+        )))
+    }
+
     async fn run(
         &self,
         file: &DownloadFile,
@@ -96,7 +104,11 @@ impl ExternalRunner for FtpRunner {
         tokio::fs::create_dir_all(&destination).await?;
         let part_path = rd_files::part_path(&root, file.id).await?;
 
-        let mut connection = match self.service.connect(&credential).await? {
+        let mut connection = match self
+            .service
+            .connect(&credential, limits.address_policy.as_ref())
+            .await?
+        {
             Ok(connection) => connection,
             Err(error) => return Ok(RunOutcome::Failed(classify(&error))),
         };

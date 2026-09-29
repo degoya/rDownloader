@@ -62,6 +62,21 @@ impl Par2Error {
     }
 }
 
+/// Refuses a set that names a file outside the package directory.
+///
+/// The names come from whoever posted the set, and rust-par2 joins them onto the directory
+/// unchecked: an absolute name or a `..` would let a repair write its recovered bytes anywhere
+/// the service may write (RD-170-06). The rule is the one ZIP members and SFV entries follow.
+fn confined<'a>(names: impl IntoIterator<Item = &'a str>) -> anyhow::Result<()> {
+    for name in names {
+        let relative = crate::archive::safe_relative(name)?;
+        if relative.as_os_str().is_empty() {
+            anyhow::bail!("PAR2 set names a file without a name: {name:?}");
+        }
+    }
+    Ok(())
+}
+
 /// Runs CPU- and disk-heavy PAR2 work outside the async runtime.
 pub async fn verify_and_repair(
     index: PathBuf,
@@ -70,6 +85,9 @@ pub async fn verify_and_repair(
     tokio::task::spawn_blocking(move || {
         let file_set = rust_par2::parse(&index)
             .with_context(|| format!("parse PAR2 index {}", index.display()))
+            .map_err(Par2Error::IndexUnreadable)?;
+        confined(file_set.files.values().map(|file| file.filename.as_str()))
+            .with_context(|| format!("PAR2 index {}", index.display()))
             .map_err(Par2Error::IndexUnreadable)?;
         let verification = rust_par2::verify(&file_set, &directory);
         let mut report = Par2Report {
@@ -203,7 +221,86 @@ pub fn par2_set(index: &std::path::Path, candidates: &[PathBuf]) -> Vec<PathBuf>
 mod tests {
     use std::path::PathBuf;
 
-    use super::{Par2Error, par2_set, verify_set};
+    use super::{Par2Error, confined, par2_set, verify_set};
+
+    /// A repair writes where the set's names point, so a name that leaves the package is
+    /// refused before anything is verified or written (RD-170-06).
+    #[test]
+    fn a_set_naming_a_file_outside_the_package_is_refused() {
+        for escaping in [
+            "/home/user/.config/autostart/x.desktop",
+            "../outside.bin",
+            "sub/../../outside.bin",
+            "..\\outside.bin",
+            "\\\\server\\share\\x.bin",
+            "",
+            ".",
+        ] {
+            assert!(
+                confined(["release.r00", escaping]).is_err(),
+                "{escaping:?} leaves the package"
+            );
+        }
+        #[cfg(windows)]
+        for escaping in ["C:\\Users\\x\\Startup\\x.bat", "C:x.bin"] {
+            assert!(
+                confined([escaping]).is_err(),
+                "{escaping:?} leaves the package"
+            );
+        }
+    }
+
+    /// One PAR2 packet: magic, length, the MD5 of what follows it, then set id, type and body.
+    fn packet(kind: &[u8; 16], body: &[u8]) -> Vec<u8> {
+        use md5::{Digest, Md5};
+        let mut data = vec![7u8; 16];
+        data.extend_from_slice(kind);
+        data.extend_from_slice(body);
+        let mut packet = b"PAR2\x00PKT".to_vec();
+        packet.extend_from_slice(&(32 + data.len() as u64).to_le_bytes());
+        packet.extend_from_slice(&Md5::digest(&data));
+        packet.extend_from_slice(&data);
+        packet
+    }
+
+    /// The wrapper, not only the rule: a set whose one file lies outside the package is
+    /// refused as unreadable. Without the check the same set reaches verification and comes
+    /// back as a missing file with no blocks to repair it.
+    #[tokio::test]
+    async fn the_repair_never_sees_a_set_that_points_outside_the_package() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let package = temp.path().join("package");
+        std::fs::create_dir(&package).expect("package directory");
+        let file_id = [3u8; 16];
+        let mut main = 4u64.to_le_bytes().to_vec();
+        main.extend_from_slice(&1u32.to_le_bytes());
+        main.extend_from_slice(&file_id);
+        let mut desc = file_id.to_vec();
+        desc.extend_from_slice(&[0u8; 32]);
+        desc.extend_from_slice(&4u64.to_le_bytes());
+        desc.extend_from_slice(b"../escaped.bin\x00\x00");
+        let mut index = packet(b"PAR 2.0\x00Main\x00\x00\x00\x00", &main);
+        index.extend(packet(b"PAR 2.0\x00FileDesc", &desc));
+        let path = package.join("release.par2");
+        std::fs::write(&path, index).expect("index");
+
+        let error = super::verify_and_repair(path, package)
+            .await
+            .expect_err("the set names a file outside the package");
+        assert!(matches!(error, Par2Error::IndexUnreadable(_)), "{error:#}");
+        assert!(!temp.path().join("escaped.bin").exists());
+    }
+
+    #[test]
+    fn names_inside_the_package_pass() {
+        confined([
+            "release.r00",
+            "release.rar",
+            "sub/sample.mkv",
+            "./release.nfo",
+        ])
+        .expect("every name stays inside the package");
+    }
 
     /// A corrupt main index has to send the search on to the rest of its set.
     ///

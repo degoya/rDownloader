@@ -8,6 +8,7 @@ mod hostlimit;
 mod multisource;
 mod plan;
 mod probe;
+mod range_source;
 mod redirect;
 mod sniff;
 mod tls;
@@ -15,7 +16,8 @@ mod transform;
 
 pub use address_guard::{
     AddressPolicy, AddressRefused, AddressScope, GuardedResolver, HostLookup, LookupFuture,
-    SystemLookup, TargetRefusal, address_scope, check_target, is_refusal, literal_address,
+    SystemLookup, TargetRefusal, address_scope, check_target, connect_addresses, is_refusal,
+    literal_address, refusal_in,
 };
 pub use client_pool::{
     AuthMaterial, ClientContext, ClientKey, ClientPool, NetworkDefaults, ProxyCredentials,
@@ -36,6 +38,7 @@ pub use probe::{
     fetch_bytes, fetch_conditional, fetch_document, fetch_text_verbatim, peek_body_text, probe,
     probe_with_headers,
 };
+pub use range_source::{RangeReader, RangeSource, RangeTransport};
 pub use redirect::{RedirectGate, ReplayScope, is_approved, origin_of, with_redirect_gate};
 pub use sniff::{SniffedBody, fetch_sniffed};
 pub use tls::client_config as tls_client_config;

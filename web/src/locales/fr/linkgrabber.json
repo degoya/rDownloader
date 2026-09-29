@@ -479,5 +479,11 @@
   "duplicates": {
     "queued": "{count} × déjà dans la file",
     "queued_hint": "La même source est déjà {count} fois dans la file – reconnue par l’adresse normalisée, l’info-hash ou l’hébergeur."
+  },
+  "sources": {
+    "title": "Sources ({count})",
+    "badge": "{count} sources",
+    "priority": "Priorité {value}",
+    "hint": "Essayées dans cet ordre. Une adresse qui pointe vers ta propre machine — ou, pour un document que tu n'as pas fourni toi-même, vers ton réseau local — n'est pas interrogée."
   }
 }

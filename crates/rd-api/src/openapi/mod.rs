@@ -29,6 +29,7 @@ pub fn document() -> utoipa::openapi::OpenApi {
     doc.merge(routes::notify::Doc::openapi());
     doc.merge(routes::plugins::Doc::openapi());
     doc.merge(routes::queue::Doc::openapi());
+    doc.merge(routes::restore::Doc::openapi());
     doc.merge(routes::security::Doc::openapi());
     doc.merge(routes::site_rules::Doc::openapi());
     doc.merge(routes::system::Doc::openapi());

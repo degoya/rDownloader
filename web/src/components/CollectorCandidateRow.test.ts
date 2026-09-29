@@ -166,6 +166,33 @@ describe('CollectorCandidateRow', () => {
     expect(screen.getByText('accept: */*')).toBeTruthy()
   })
 
+  // RD-150-03: a Metalink's mirrors are reviewed before the link is queued, not only once it
+  // is a transfer.
+  it('counts a link’s mirrors in the row and lists them in the details', async () => {
+    const withSources = {
+      ...candidate(),
+      sources: [
+        { url: 'https://first.example/image.iso', host: 'first.example', protocol: 'https', priority: 1, location: 'de' },
+        { url: 'ftp://second.example/image.iso', host: 'second.example', protocol: 'ftp', priority: null, location: null }
+      ]
+    } as LinkCandidate
+    const { container, getByTitle } = renderRow(withSources)
+    const badge = container.querySelector('[data-testid="candidate-sources-badge"]')
+    expect(badge?.getAttribute('aria-label')).toBe('2 sources')
+    expect(container.querySelector('[data-testid="candidate-sources"]')).toBeNull()
+
+    getByTitle('Details').click()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(container.querySelectorAll('[data-testid="candidate-source"]')).toHaveLength(2)
+    expect(screen.getByText('ftp://second.example/image.iso')).toBeTruthy()
+  })
+
+  it('shows no mirror badge for a link without mirrors', () => {
+    const { container } = renderRow(candidate())
+    expect(container.querySelector('[data-testid="candidate-sources-badge"]')).toBeNull()
+  })
+
   // Without this the approval is invisible: the enqueue skips the dialog for a candidate that
   // already carries one, so an approval left behind by a cancelled enqueue would send the
   // captured credentials on the next attempt with nothing on screen saying so.

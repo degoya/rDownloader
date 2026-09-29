@@ -15,7 +15,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 
 type ImportMode = HotFolder['import_mode']
 
-/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+/** Matches `validate_name` in `crates/rd-api-core/src/config_fields.rs`. */
 const MAX_HOTFOLDER_NAME = 100
 
 const hotfolders = defineModel<HotFolder[]>({ required: true })

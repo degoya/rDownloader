@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installed versions",
     "title": "Local inventory",
-    "empty": "No plugins installed yet. Hoster links need a resolver plugin: the bundled ones are installed at the next start, the others come from a repository.",
+    "empty": "No plugins installed yet. Hoster links need a resolver plugin: install a service from the bundle above or from a repository.",
     "filter_label": "Filter by plugin group"
   },
   "card": {
@@ -170,7 +170,9 @@
     "withdrawn": "This exact package was withdrawn and cannot be installed.",
     "incompatible": "This build cannot run it: {reason}",
     "restart": "A plugin becomes active after the next restart.",
-    "install": "Install"
+    "install": "Install",
+    "added_permissions": "New compared with v{version}",
+    "no_added_permissions": "Asks for nothing v{version} does not already have."
   },
   "updates": {
     "eyebrow": "Repositories",
@@ -191,7 +193,8 @@
       "withdrawn": "Withdrawn"
     },
     "adds_permissions": "New permissions",
-    "adds_permissions_hint": "Asks for more than the installed version, so it installs only after your review, even when updates are automatic."
+    "adds_permissions_hint": "Asks for more than the installed version, so it installs only after your review, even when updates are automatic.",
+    "added_permissions": "New: {permissions}"
   },
   "repositories": {
     "eyebrow": "Sources",
@@ -224,5 +227,35 @@
     "remove_title": "Remove this repository?",
     "remove_description": "{name} will no longer offer updates. Plugins installed from it stay installed.",
     "empty": "No repository configured."
+  },
+  "bundled": {
+    "eyebrow": "Bundle",
+    "title": "Available services",
+    "description": "What this release ships but is not installed — not chosen, removed or new. One click installs a service with all its plugins; they run from the next start.",
+    "search": "Search services",
+    "filter_label": "Filter by category",
+    "all": "All",
+    "category": {
+      "hoster": "Hosters",
+      "multihoster": "Multihosters & debrid",
+      "remote_jobs": "Torrents & remote jobs",
+      "cloud": "Cloud drives & storage",
+      "links": "Link lists & folders",
+      "metadata": "Metadata",
+      "notifications": "Notifications",
+      "postprocess": "Post-processing",
+      "other": "Other"
+    },
+    "state": {
+      "installed": "Installed",
+      "partial": "Partly installed"
+    },
+    "needs_account": "Needs an account or destination",
+    "install": "Install",
+    "no_match": "No service matches “{query}”.",
+    "all_installed": "Everything in the bundle is installed.",
+    "none": "This build ships no bundle. Plugins then come from a repository.",
+    "failed": "{name} could not be installed: {reason}",
+    "installed": "Nothing installed. | 1 plugin installed; it runs from the next start. | {count} plugins installed; they run from the next start."
   }
 }

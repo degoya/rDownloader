@@ -299,6 +299,15 @@ async fn an_unusable_origin_is_refused_with_an_explanation() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
     let token = sign_in(&harness.router, PASSWORD).await;
+    // The name has to pass the host check first (security review 2026-09-28, finding 3); an
+    // allowed host is still no external URL, so the origin stays unknown.
+    let (status, mut settings) =
+        common::get_with_cookie(&harness.router, "/api/v1/settings", &token).await;
+    assert_eq!(status, StatusCode::OK, "{settings}");
+    settings["allowed_hosts"] = serde_json::json!(["downloads.example.com"]);
+    let (status, saved) =
+        common::put_json_with_cookie(&harness.router, "/api/v1/settings", &token, settings).await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
     let request = Request::builder()
         .method("POST")
         .uri("/api/v1/mfa/passkey")

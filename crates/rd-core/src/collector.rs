@@ -204,6 +204,11 @@ pub struct LinkCandidate {
     /// being kept for this link, and that is exactly what this says.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub secret_fragment: bool,
+    /// The mirrors a Metalink parser stated for this link (RD-150-03), redacted and in the
+    /// order the transfer will try them, so they can be reviewed before the link is queued.
+    /// Empty for a link without a source set.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<crate::CandidateSource>,
 }
 
 /// What the online check leaves on a candidate: the English sentence, and the stable code

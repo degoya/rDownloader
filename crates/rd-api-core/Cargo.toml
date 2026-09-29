@@ -1,0 +1,69 @@
+[package]
+name = "rd-api-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+dunce.workspace = true
+fs4.workspace = true
+hex.workspace = true
+percent-encoding.workspace = true
+rand.workspace = true
+rd-authn = { path = "../rd-authn" }
+rd-automation = { path = "../rd-automation" }
+rd-collector = { path = "../rd-collector" }
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-extract = { path = "../rd-extract" }
+rd-files = { path = "../rd-files" }
+rd-ftp = { path = "../rd-ftp" }
+rd-gallery = { path = "../rd-gallery" }
+rd-hotfolder = { path = "../rd-hotfolder" }
+rd-http = { path = "../rd-http" }
+rd-limits = { path = "../rd-limits" }
+rd-media = { path = "../rd-media" }
+rd-notify = { path = "../rd-notify" }
+rd-object-storage = { path = "../rd-object-storage" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-ext = { path = "../rd-plugin-ext" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-power = { path = "../rd-power" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-secrets = { path = "../rd-secrets" }
+rd-sftp = { path = "../rd-sftp" }
+rd-stream = { path = "../rd-stream" }
+rd-subscription = { path = "../rd-subscription" }
+rd-tools = { path = "../rd-tools" }
+rd-torrent = { path = "../rd-torrent" }
+rd-webdav = { path = "../rd-webdav" }
+regex.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tower = { version = "0.5", features = ["util"] }
+tracing.workspace = true
+url.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+webauthn-rs.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

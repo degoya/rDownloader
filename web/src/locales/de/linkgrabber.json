@@ -479,5 +479,11 @@
   "duplicates": {
     "queued": "{count} × schon in der Warteschlange",
     "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster."
+  },
+  "sources": {
+    "title": "Quellen ({count})",
+    "badge": "{count} Quellen",
+    "priority": "Priorität {value}",
+    "hint": "In dieser Reihenfolge versucht. Eine Adresse, die auf deinen eigenen Rechner zeigt – oder, bei einem Dokument, das du nicht selbst übergeben hast, in dein lokales Netz –, wird nicht abgefragt."
   }
 }

@@ -54,6 +54,15 @@ gate_with "sed -i '/id=smoke /d' \"\$LOG\""
 expect_status "a step without a record: refused" 1
 expect_output "naming it" "smoke              NO EVIDENCE"
 
+gate_with "sed -i '/id=compat /d' \"\$LOG\""
+expect_status "the compatibility gate is required evidence (RD-170-08)" 1
+expect_output "naming it" "compat             NO EVIDENCE"
+
+run_status bash "$TREE/scripts/release-pipeline.sh" 9.9.9 --plan
+expect_status "--plan prints the steps" 0
+expect "--plan: compat right after preflight, before the long steps" "  - compat" \
+    "$(grep -A1 -x -- '  - preflight' <<< "$output" | tail -1)"
+
 gate_with "printf '##RD-STEP id=test nonce=%s version=9.9.9 exit=101 bytes=5 started=x ended=y\n' \"\$NONCE\" >> \"\$LOG\""
 expect_status "the last attempt at a step failed: refused" 1
 expect_output "with its exit code" "exit=101"
@@ -83,5 +92,32 @@ expect_status "run_step: a silent success is missing evidence" 1
 expect_output "said as such" "that is missing evidence, not a pass"
 run_step_case "run_step smoke echo fine; grep -c '^##RD-STEP id=smoke .* exit=0 bytes=5 ' \"\$LOG\""
 expect_status "run_step: a passing step records its exit and bytes" 0
+
+# The public CI with every platform green on record for this content: no run (RD-160-06). The gh
+# here refuses everything, so a step that wanted GitHub fails.
+mkdir -p "$SCRATCH/bin"
+printf '#!/usr/bin/env bash\necho "gh must not be called" >&2\nexit 1\n' > "$SCRATCH/bin/gh"
+chmod +x "$SCRATCH/bin/gh"
+tree="$(git -C "$TREE" rev-parse 'HEAD^{tree}')"
+printf '%s %s 2026-09-28T00:00:00+00:00\n' ubuntu-24.04 "$tree" windows-2025 "$tree" > "$TREE/.git/rd-verified-ci"
+run_step_case "PATH='$SCRATCH/bin':\$PATH step_public_ci"
+expect_status "public-ci with macOS not yet green: needs a run" 1
+expect_output "and names it" "macos-15: to run"
+printf '%s %s 2026-09-28T00:00:00+00:00\n' macos-15 "$tree" >> "$TREE/.git/rd-verified-ci"
+run_step_case "PATH='$SCRATCH/bin':\$PATH step_public_ci"
+expect_status "public-ci with every platform green on record: passes without gh" 0
+expect_output "saying so" "the public CI is not run again"
+rm -f "$TREE/.git/rd-verified-ci"
+
+# The checkout ends on the release branch, not on main (RD-160-06).
+git -C "$TREE" branch -q main
+git -C "$TREE" checkout -q main
+run_step_case "return_to_release_branch; git rev-parse --abbrev-ref HEAD"
+expect_status "from main: back on the release branch" 0
+expect_output "saying so" "the checkout is back on development"
+expect "the checkout is on development" "development" "$(git -C "$TREE" rev-parse --abbrev-ref HEAD)"
+run_step_case "return_to_release_branch"
+expect_status "on the release branch already: nothing to do" 0
+expect "and nothing said" "" "$output"
 
 finish_tests release-evidence

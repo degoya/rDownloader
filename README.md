@@ -89,6 +89,8 @@ PAR2 applies to Usenet packages; SFV verification works for any package. Which s
 2. Run `start-rdownloader.bat` (Windows), `./start-rdownloader.sh` (Linux) or `./start-rdownloader.command` (macOS).
 3. Open <http://127.0.0.1:8710> and follow the setup wizard: administrator password, pairing the capture agent or browser extension, a storage destination, and optionally MCP access and provider or Usenet settings.
 
+With a package manager instead: `brew install degoya/rdownloader/rdownloader` and `brew services start rdownloader` on macOS and Linux, or `scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader`, `scoop install rdownloader` and `start-rdownloader` on Windows. Both keep the database and downloads across upgrades.
+
 For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, volumes, `PUID`/`PGID` and a Synology walkthrough. Autostart is in [Installation](https://github.com/degoya/rDownloader/wiki/installation), and the [capture agent](https://github.com/degoya/rDownloader/wiki/capture-agent), the [browser extension](https://github.com/degoya/rDownloader/wiki/browser-extension) and [building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) have handbook pages of their own.
 
 > Media, gallery, stream, archive, Apprise and rclone features need their external tools. The Docker image ships FFmpeg, yt-dlp, streamlink, gallery-dl, 7-Zip, par2 and Apprise. A native install finds them in a `vendor/` folder beside the executable or on `PATH`, and can download managed yt-dlp and FFmpeg builds on Linux and Windows. RAR extraction needs `unrar` 6.10 or newer. Details: [External tools](https://github.com/degoya/rDownloader/wiki/external-tools). Each Windows and Linux package names its version and commit in `VERSION.txt`.
@@ -104,7 +106,7 @@ For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, vo
 
 **Linux needs glibc 2.39 or newer.** Both Linux binaries are built on Ubuntu 24.04 and linked against its glibc 2.39, so they run on Ubuntu 24.04 and newer, Debian 13 and current Fedora and Arch — but not on Debian 12 or Raspberry Pi OS based on it (bookworm, glibc 2.36), where the binary refuses to start with `GLIBC_2.39 not found`. Use the Docker image there; it brings its own glibc and runs on `amd64` and `arm64`, a Raspberry Pi with a 64-bit OS included. `ldd --version` shows what a system has.
 
-The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)).
+The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)); each release carries a Firefox `.xpi` signed by Mozilla, which installs permanently.
 
 ## LinkGrabber
 

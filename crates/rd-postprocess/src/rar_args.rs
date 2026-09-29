@@ -12,13 +12,19 @@
 //! destination travels as `-op<staging>` (unrar 6.10 and later add the separator themselves, so
 //! no argument ends in one), and under Windows every `unrar` argument is written onto the command
 //! line in the form `unrar`'s own parser reads back unchanged ([`unrar_quote`]).
+//!
+//! 7-Zip has a parser of its own as well (`SplitCommandLine`, `CommandLineParser.cpp`), and until
+//! the 2026-09-28 security review it still got Rust's quoting: a password `x" -spf -w"` arrived as
+//! the switches `-px\`, `-spf` and `-w\`, all in front of `--`. Its arguments now take the same
+//! `raw_arg` route through [`seven_zip_quote`], and a password with a `"` - which that parser
+//! cannot receive at all - is refused before the tool starts.
 
 use std::{
     ffi::{OsStr, OsString},
     path::Path,
 };
 
-use crate::RarToolKind;
+use crate::{ExtractionError, RarToolKind};
 
 /// What the tool is asked to do with the archive.
 #[derive(Clone, Copy, Debug)]
@@ -112,39 +118,86 @@ impl RarArguments {
 
     /// Hands the arguments to `command`.
     ///
-    /// Under Windows `unrar` gets each argument pre-quoted for its own parser through `raw_arg`;
-    /// Rust's quoting follows the C runtime's rules, which `unrar` does not. Everything else - 7-Zip,
-    /// and every tool outside Windows, where no command line is re-parsed - takes the list as is.
+    /// Under Windows every argument goes onto the command line pre-quoted for the tool's own
+    /// parser, through `raw_arg` ([`windows_raw_args`](Self::windows_raw_args)): Rust's quoting
+    /// follows the C runtime's rules, which neither `unrar` nor 7-Zip does. Outside Windows no
+    /// command line is re-parsed, and the list is handed over as is.
     ///
     /// # Errors
     ///
-    /// An argument with a NUL character, which a Windows command line would cut short. `Command`
-    /// refuses one itself for arguments it quotes, but not for a raw one.
+    /// Under Windows, what [`windows_raw_args`](Self::windows_raw_args) refuses.
     pub(crate) fn apply_to(
         &self,
         kind: RarToolKind,
         command: &mut tokio::process::Command,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), ExtractionError> {
         #[cfg(windows)]
-        if kind == RarToolKind::Unrar {
-            use std::os::windows::ffi::{OsStrExt, OsStringExt};
-            for arg in &self.args {
-                let units: Vec<u16> = arg.encode_wide().collect();
-                if units.contains(&0) {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "RAR tool argument contains a NUL character",
-                    ));
-                }
-                command.raw_arg(OsString::from_wide(&unrar_quote(&units)));
+        {
+            use std::os::windows::ffi::OsStringExt;
+            for raw in self.windows_raw_args(kind)? {
+                command.raw_arg(OsString::from_wide(&raw));
             }
-            return Ok(());
         }
         #[cfg(not(windows))]
-        let _ = kind;
-        command.args(&self.args);
+        {
+            let _ = kind;
+            command.args(&self.args);
+        }
         Ok(())
     }
+
+    /// Every argument in UTF-16, written for `kind`'s Windows command-line parser.
+    ///
+    /// Pure, so the tests check it on every platform against ports of both parsers.
+    ///
+    /// # Errors
+    ///
+    /// [`ExtractionError::PasswordHasQuote`] for a 7-Zip password with a `"`, which 7-Zip's
+    /// parser cannot receive (see [`seven_zip_quote`]). An argument with a NUL character, which a
+    /// Windows command line would cut short, or any other argument with a `"` for 7-Zip - neither
+    /// can come from a Windows path - is [`ExtractionError::Other`].
+    #[cfg(any(windows, test))]
+    pub(crate) fn windows_raw_args(
+        &self,
+        kind: RarToolKind,
+    ) -> Result<Vec<Vec<u16>>, ExtractionError> {
+        let mut raw = Vec::with_capacity(self.args.len());
+        for (index, arg) in self.args.iter().enumerate() {
+            let units = wide(arg);
+            if units.contains(&0) {
+                return Err(ExtractionError::Other(anyhow::anyhow!(
+                    "RAR tool argument contains a NUL character"
+                )));
+            }
+            raw.push(match kind {
+                RarToolKind::Unrar => unrar_quote(&units),
+                RarToolKind::SevenZip => match seven_zip_quote(&units) {
+                    Some(quoted) => quoted,
+                    None if Some(index) == self.password_at => {
+                        return Err(ExtractionError::PasswordHasQuote);
+                    }
+                    None => {
+                        return Err(ExtractionError::Other(anyhow::anyhow!(
+                            "7-Zip argument contains a quote"
+                        )));
+                    }
+                },
+            });
+        }
+        Ok(raw)
+    }
+}
+
+#[cfg(windows)]
+fn wide(arg: &OsStr) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    arg.encode_wide().collect()
+}
+
+/// Outside Windows only the tests build a Windows command line; every argument there is UTF-8.
+#[cfg(all(test, not(windows)))]
+fn wide(arg: &OsStr) -> Vec<u16> {
+    arg.to_string_lossy().encode_utf16().collect()
 }
 
 /// One argument, in UTF-16, written so that `unrar`'s Windows command-line parser reads it back
@@ -179,4 +232,27 @@ pub(crate) fn unrar_quote(arg: &[u16]) -> Vec<u16> {
         out.push(QUOTE);
     }
     out
+}
+
+/// One argument, in UTF-16, written so that 7-Zip's Windows command-line parser reads it back
+/// exactly - or `None` for an argument with a `"`, which that parser cannot receive at all.
+///
+/// `SplitCommandLine` (`CPP/Common/CommandLineParser.cpp`) knows two rules: space and tab
+/// separate arguments outside quotes, and every `"` toggles quoting and is dropped. There is no
+/// escape for a literal `"` - neither `\"` nor `""` - and a backslash is always literal, also in
+/// front of a quote. So the argument is wrapped in one pair of quotes and otherwise left alone:
+/// spaces and tabs inside stay in it, and a trailing backslash stays a backslash rather than
+/// escaping the closing quote as it would for the C runtime. A quote-free argument needs nothing
+/// more, whatever else it carries.
+#[cfg(any(windows, test))]
+pub(crate) fn seven_zip_quote(arg: &[u16]) -> Option<Vec<u16>> {
+    const QUOTE: u16 = b'"' as u16;
+    if arg.contains(&QUOTE) {
+        return None;
+    }
+    let mut out = Vec::with_capacity(arg.len() + 2);
+    out.push(QUOTE);
+    out.extend_from_slice(arg);
+    out.push(QUOTE);
+    Some(out)
 }

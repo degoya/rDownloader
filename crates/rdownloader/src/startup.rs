@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use rd_api::AppState;
+use rd_backup::restore::cutover::{self, Cutover};
 use rd_db::Database;
 use rd_scheduler::{SchedulerConfig, SchedulerHandle};
 
@@ -21,9 +22,16 @@ pub(crate) struct Store {
     pub(crate) data_directory: PathBuf,
     pub(crate) database: Database,
     pub(crate) secrets: rd_secrets::SecretStore,
+    /// What this start did with a restore waiting for it (RD-160-03); a switched one is
+    /// finished once the start completed ([`finish_restore`]).
+    pub(crate) restore: Cutover,
 }
 
 /// Opens the database and the vault, and starts the log sink and the trace exporter.
+///
+/// A restore staged by the running service switches here, before the database opens
+/// (RD-160-03). A restored database that does not open is put back in the same start, and the
+/// previous installation starts instead.
 pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Result<Store> {
     ensure_paths(paths).await?;
     let data_directory = paths
@@ -32,7 +40,19 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         .unwrap_or_else(|| std::path::Path::new("."))
         .to_path_buf();
     rd_core::set_data_directory(&data_directory);
-    let database = Database::open(&paths.database).await?;
+    let layout = cutover::Layout::new(&paths.database);
+    let mut restore = cutover::apply_pending(&layout)?;
+    let database = match Database::open(&paths.database).await {
+        Ok(database) => database,
+        Err(error) if matches!(restore, Cutover::Switched(_)) => {
+            let reason = format!("the restored database does not open: {error:#}");
+            tracing::error!(%reason, "the previous installation is put back");
+            let pending = cutover::roll_back(&layout, &reason)?;
+            restore = Cutover::RolledBack { pending, reason };
+            Database::open(&paths.database).await?
+        }
+        Err(error) => return Err(error),
+    };
     // Before anything compiles a plugin: the cache is part of the engine the first compile
     // builds (RD-130-06). Without it the service still starts, it only compiles every plugin.
     if let Err(error) =
@@ -56,11 +76,37 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
     // dropped (RD-110-38). Installed rather than passed to `Database::open`, because the
     // store has to exist before the vault's master key is fetched from the keyring.
     database.install_secret_vault(secrets.clone());
+    // A restore that was put back leaves the credentials it put into the vault; they belong to
+    // nothing now.
+    if let Cutover::RolledBack {
+        pending: Some(pending),
+        ..
+    } = &restore
+    {
+        for reference in &pending.minted_secrets {
+            if let Err(error) = secrets.remove(reference).await {
+                tracing::warn!(%error, "a restore's credential could not be removed");
+            }
+        }
+    }
     Ok(Store {
         data_directory,
         database,
         secrets,
+        restore,
     })
+}
+
+/// The first start with a restored state completed: the previous installation, kept until
+/// now, goes (RD-160-03).
+pub(crate) fn finish_restore(paths: &CommonPaths, restore: &Cutover) {
+    if !matches!(restore, Cutover::Switched(_)) {
+        return;
+    }
+    match cutover::finish(&cutover::Layout::new(&paths.database)) {
+        Ok(()) => tracing::info!("the restored installation started; the previous one is removed"),
+        Err(error) => tracing::warn!(%error, "the finished restore could not be recorded"),
+    }
 }
 
 /// The plugin installer, with its trust, withdrawals, switches, version choices, the bundled
@@ -87,7 +133,18 @@ pub(crate) async fn open_plugins(
     // under test are decided before the first package is loaded, and stay as they were read
     // here until the next start.
     load_plugin_version_choices(database, &plugins).await;
-    sync_bundled_plugins(&plugins, args.bundled_plugins.clone()).await;
+    sync_bundled_plugins(
+        database,
+        &plugins,
+        args.bundled_plugins.clone(),
+        args.install_all_bundled_plugins,
+    )
+    .await;
+    // What is on disk now is what this start loads; a version installed from here on runs from
+    // the next start, and the plugin manager says so (RD-160-09).
+    if let Err(error) = plugins.record_started_versions().await {
+        tracing::warn!(%error, "could not record the plugin versions this start loads");
+    }
     // Installed manifests contribute their provider rows before the scheduler builds
     // resolvers, so account creation and the HTTP sandbox know about them from the start.
     plugins.refresh_providers().await;
@@ -336,7 +393,7 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
         .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
             state.database.clone(),
         )));
-    state.prepare_plugin_repositories().await;
+    rd_api::prepare_plugin_repositories(state).await;
     state.hotfolders.start_existing().await?;
     Ok(())
 }

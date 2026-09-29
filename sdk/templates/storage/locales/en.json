@@ -2,6 +2,10 @@
   "name": "{{PLUGIN_NAME}}",
   "description": "Uploads finished packages to {{PLUGIN_NAME}}.",
   "codes": {
+    "{{PLUGIN_SLUG}}.bad_destination": "The destination has to be an https:// address.",
+    "{{PLUGIN_SLUG}}.bad_reply": "The destination sent a reply this plugin could not read.",
+    "{{PLUGIN_SLUG}}.unauthorized": "The destination refused the stored login.",
+    "{{PLUGIN_SLUG}}.unavailable": "The destination did not answer. The upload continues later.",
     "{{PLUGIN_SLUG}}.upload_rejected": "The destination refused the upload."
   }
 }

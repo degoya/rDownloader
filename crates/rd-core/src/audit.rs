@@ -93,11 +93,23 @@ pub enum AuditAction {
     CollisionDecided,
     /// A duplicate file was replaced by a link to its verified identical original (RD-150-02).
     DuplicateLinked,
+    /// The full backup's schedule or destination was changed (RD-160-01); the `fields` detail
+    /// names what changed, never a path's contents.
+    BackupConfigured,
+    /// The full backup's passphrase was set or replaced (RD-160-01). The detail carries the new
+    /// key's fingerprint, never the passphrase or the key.
+    BackupKeyChanged,
+    /// A full backup ran (RD-160-01), started by hand or by the schedule; a failed run is
+    /// recorded as a failure with its stable code.
+    BackupCreated,
+    /// An archive was checked at its destination (RD-160-02), by hand or by the verification
+    /// schedule; a failed check is recorded as a failure with its stable code.
+    BackupVerified,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 36] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -130,6 +142,10 @@ impl AuditAction {
         Self::FileOverwritten,
         Self::CollisionDecided,
         Self::DuplicateLinked,
+        Self::BackupConfigured,
+        Self::BackupKeyChanged,
+        Self::BackupCreated,
+        Self::BackupVerified,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -168,6 +184,10 @@ impl AuditAction {
             Self::FileOverwritten => "file_overwritten",
             Self::CollisionDecided => "collision_decided",
             Self::DuplicateLinked => "duplicate_linked",
+            Self::BackupConfigured => "backup_configured",
+            Self::BackupKeyChanged => "backup_key_changed",
+            Self::BackupCreated => "backup_created",
+            Self::BackupVerified => "backup_verified",
         }
     }
 

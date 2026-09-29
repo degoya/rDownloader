@@ -6,7 +6,7 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, automation_handlers};
+use crate::{AppState, automation_handlers, automation_input};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -68,7 +68,7 @@ pub(crate) fn routes() -> Router<AppState> {
     ),
     components(schemas(
         automation_handlers::AutomationResponse,
-        automation_handlers::AutomationRequest,
+        automation_input::AutomationRequest,
         automation_handlers::AutomationVocabulary,
         automation_handlers::DryRunRequest,
         automation_handlers::EnableRequest,

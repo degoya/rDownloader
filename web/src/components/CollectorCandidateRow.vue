@@ -13,6 +13,7 @@ import type {
   ResolvedRemoteListing,
   TorrentPlanRequest
 } from '@/api/types'
+import CollectorCandidateSources from '@/components/CollectorCandidateSources.vue'
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import MediaFormatSelector from '@/components/MediaFormatSelector.vue'
 import RemoteFileTree from '@/components/RemoteFileTree.vue'
@@ -216,7 +217,11 @@ const mediaBusy = ref(false)
 const mediaError = ref<string | null>(null)
 const selectorRef = ref<InstanceType<typeof MediaFormatSelector> | null>(null)
 const collector = useCollectorStore()
-const expandable = computed(() => Boolean(request.value || torrent.value || listing.value || media.value))
+/** The mirrors a Metalink parser stated for this link (RD-150-03), reviewed before queueing. */
+const sources = computed(() => props.candidate.sources ?? [])
+const expandable = computed(() =>
+  Boolean(request.value || torrent.value || listing.value || media.value || sources.value.length)
+)
 
 /** Loads the tree the first time the row is opened; magnets resolve their metadata first. */
 async function expand(): Promise<void> {
@@ -504,6 +509,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         <UBadge v-if="consent" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-shield-check" :title="t('linkgrabber.replay.consent.granted')" :aria-label="t('linkgrabber.replay.consent.granted')" />
         <UBadge v-if="queuedCopies" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-list-checks" :title="t('linkgrabber.duplicates.queued_hint', { count: queuedCopies })" :aria-label="t('linkgrabber.duplicates.queued', { count: queuedCopies })" data-testid="queued-badge" />
         <UBadge v-if="freeDownload" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-user-x" :title="t('linkgrabber.candidate.no_account')" :aria-label="t('linkgrabber.candidate.no_account')" />
+        <UBadge v-if="sources.length" color="neutral" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-layers" :title="t('linkgrabber.sources.badge', { count: sources.length })" :aria-label="t('linkgrabber.sources.badge', { count: sources.length })" data-testid="candidate-sources-badge" />
         <!-- The group, and how sure it is. The word changes with the evidence, not only the
              colour: a proposal that merely looked different would read as a fact to anybody
              who does not see the difference (RD-110-19). -->
@@ -566,6 +572,9 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         :title="cacheHint"
       >{{ t('linkgrabber.cache.label') }}: {{ formatMoment(cachedAt) }}</UBadge>
       <EnrichmentChips v-if="!props.hideMetadata" :fields="enrichment" />
+    </div>
+    <div v-if="sources.length && expanded" class="border-t border-muted px-12 py-2">
+      <CollectorCandidateSources :sources="sources" />
     </div>
     <div v-if="torrent && expanded" class="border-t border-muted px-12 py-2">
       <p v-if="torrentBusy && !torrentDetail" class="flex items-center gap-2 text-xs text-muted">

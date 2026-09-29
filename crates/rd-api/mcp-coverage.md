@@ -5,16 +5,16 @@ is a **capability** — something a person can do — not a REST route: a capabi
 covered when the toolbox can *do the thing*, not when every route under it has a tool of its own.
 Every capability that is left out carries the reason it is left out.
 
-The table is generated, not kept by hand. Its source is `crates/rd-api/src/mcp/coverage.rs`: one
+The table is generated, not kept by hand. Its source is `crates/rd-api/src/mcp_coverage.rs`: one
 row per capability, the operation counts read from the OpenAPI document the service builds, the
-tool names read from `mcp::TOOL_POLICY`. `scripts/mcp-coverage.sh` writes it into this page, and
-two tests keep it honest: `coverage::tests` fails `cargo nextest run -p rd-api --lib` when a REST
-operation belongs to no capability, so a new route cannot arrive undecided, and
-`coverage::doc_tests` fails when this page has drifted from the source.
+tool names read from `rd_api_mcp::TOOL_POLICY`. `scripts/mcp-coverage.sh` writes it into this
+page, and two tests keep it honest: `mcp_coverage::tests` fails `cargo nextest run -p rd-api
+--lib` when a REST operation belongs to no capability, so a new route cannot arrive undecided,
+and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**78 capabilities, 59 covered by a tool, 19 deliberately out (13 of them on the owner's line of 2026-09-23).** 354 REST operations, 179 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**83 capabilities, 62 covered by a tool, 21 deliberately out (15 of them on the owner's line of 2026-09-23).** 376 REST operations, 192 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -24,6 +24,8 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Packages in the queue | Downloads | 2 | `delete_packages`, `list_packages` |
 | LinkGrabber: collect, check, enqueue | LinkGrabber | 5 | `check_links`, `collect_links`, `enqueue_collector`, `list_collector` |
 | The settings document | Settings | 2 | `get_settings`, `update_settings` |
+| Full backup: schedule, runs and history | Settings > Backup | 4 | `get_backup_status`, `list_backup_runs`, `run_backup`, `update_backup_schedule` |
+| Full backup: destinations, retention and verification | Settings > Backup | 7 | `create_backup_destination`, `delete_backup_destination`, `list_backup_archives`, `list_backup_verifications`, `preview_backup_retention`, `update_backup_destination`, `verify_backup_archive` |
 | Categories | Settings > Routing | 4 | `create_category`, `delete_category`, `list_configuration`, `update_category` |
 | Routing rules | Settings > Routing | 4 | `create_category_rule`, `delete_category_rule`, `list_category_rules`, `update_category_rule` |
 | Storage roots | Settings > Storage | 4 | `create_storage_root`, `delete_storage_root`, `list_configuration`, `update_storage_root` |
@@ -37,6 +39,7 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 3 | `list_configuration`, `set_plugin_enabled`, `uninstall_plugin_version` |
+| Choosing the bundled services | Setup wizard, Settings > Plugins | 2 | `install_bundled_services`, `list_bundled_services` |
 | Remote jobs | Remote jobs | 4 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | The log store | Logs | 1 | `list_log_records` |
@@ -92,6 +95,8 @@ operation belongs to no capability, so a new route cannot arrive undecided, and
 | Object storage profiles | Settings > Transfers | 4 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Solving captchas | captcha dialog | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Consent to replay a paid link | LinkGrabber | 3 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Full backup passphrase | Settings > Backup | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Restoring a full backup | Settings > Backup | 8 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Import and export of a whole area | Settings > Backup | 14 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Plugin trust and installation | Settings > Plugins | 21 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Probing an indexer's capabilities | Subscriptions | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |

@@ -102,10 +102,13 @@ struct ServeArgs {
     /// Separate from --plugin-development-mode on purpose: never enable for production.
     #[arg(long, env = "RDOWNLOADER_PLUGIN_ALLOW_LOCAL_TARGETS")]
     plugin_allow_local_targets: bool,
-    /// Directory with bundled `.rdplug` packages installed automatically when newer
-    /// (default: `plugins/` next to the executable).
+    /// Directory with bundled `.rdplug` packages; installed plugins are updated from it
+    /// automatically when newer (default: `plugins/` next to the executable).
     #[arg(long, env = "RDOWNLOADER_BUNDLED_PLUGINS")]
     bundled_plugins: Option<PathBuf>,
+    /// Installs every bundled package instead of only the chosen ones (RD-160-05).
+    #[arg(long, env = "RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS")]
+    install_all_bundled_plugins: bool,
     /// Ignores the release signing key compiled into this binary.
     #[arg(long)]
     no_default_plugin_key: bool,
@@ -183,6 +186,7 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         data_directory,
         database,
         secrets,
+        restore,
     } = startup::open_store(&args.paths, telemetry).await?;
     let stored = load_stored_settings(&database).await?;
     let runtime = runtime_settings(&stored)?;
@@ -325,6 +329,7 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         env!("RD_BUILD_TIME"),
     ));
     startup::prepare_state(&state).await?;
+    startup::finish_restore(&args.paths, &restore);
     let hotfolders = state.hotfolders.clone();
     let state_link_check = state.link_check.clone();
     let remote_jobs = state.remote_jobs.clone();
@@ -767,9 +772,51 @@ async fn load_withdrawn_plugin_keys(
     }
 }
 
+/// Settings key recording that the bundle's first-start install happened (RD-160-05).
+const BUNDLED_FIRST_START_SETTING: &str = "plugins.bundled_first_start";
+
+/// Which bundled packages this start installs that are not installed yet (RD-160-05).
+///
+/// Only the first start of a fresh installation installs anything new, and only the services
+/// that need no account; every later start updates what is installed and offers the rest. An
+/// installation that already has plugins when this first runs counts as chosen: what is
+/// installed stays, and nothing it does not have is added. A marker that cannot be read costs
+/// the first-start install, never an unasked one.
+async fn bundled_policy(
+    database: &Database,
+    plugins: &rd_plugin_host::PluginInstaller,
+    install_all: bool,
+) -> rd_plugin_host::BundledPolicy {
+    if install_all {
+        return rd_plugin_host::BundledPolicy::All;
+    }
+    let first_start = match database.get_setting(BUNDLED_FIRST_START_SETTING).await {
+        Ok(marker) => marker.is_none(),
+        Err(error) => {
+            tracing::warn!(%error, "could not read the bundled plugin marker");
+            false
+        }
+    };
+    let untouched = plugins
+        .list_installed()
+        .await
+        .is_ok_and(|installed| installed.is_empty())
+        && plugins
+            .list_incompatible()
+            .await
+            .is_ok_and(|incompatible| incompatible.is_empty());
+    if first_start && untouched {
+        rd_plugin_host::BundledPolicy::FirstStart
+    } else {
+        rd_plugin_host::BundledPolicy::InstalledOnly
+    }
+}
+
 async fn sync_bundled_plugins(
+    database: &Database,
     plugins: &rd_plugin_host::PluginInstaller,
     directory: Option<PathBuf>,
+    install_all: bool,
 ) {
     let directory = directory.or_else(|| {
         std::env::current_exe()
@@ -795,13 +842,29 @@ async fn sync_bundled_plugins(
             "no bundled plugin packages found; hoster resolvers and other plugin providers will be missing"
         );
     }
-    match rd_plugin_host::sync_bundled(plugins, &directory).await {
+    let policy = bundled_policy(database, plugins, install_all).await;
+    match rd_plugin_host::sync_bundled(plugins, &directory, policy).await {
         Ok(report) => {
             for (id, version) in &report.installed {
                 tracing::info!(%id, version, "installed bundled plugin");
             }
             for (name, reason) in &report.rejected {
                 tracing::warn!(package = name, reason, "bundled plugin rejected");
+            }
+            if report.available > 0 {
+                tracing::info!(
+                    count = report.available,
+                    "bundled plugins not installed; offered as available in the plugin manager"
+                );
+            }
+            if let Err(error) = database
+                .set_setting(
+                    BUNDLED_FIRST_START_SETTING.to_owned(),
+                    serde_json::Value::Bool(true),
+                )
+                .await
+            {
+                tracing::warn!(%error, "could not record the bundled plugin marker");
             }
         }
         Err(error) => {

@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installierte Versionen",
     "title": "Lokaler Bestand",
-    "empty": "Noch keine Plugins installiert. Hoster-Links brauchen ein Resolver-Plugin: Die mitgelieferten werden beim nächsten Start installiert, alle anderen kommen aus einem Repository.",
+    "empty": "Noch keine Plugins installiert. Hoster-Links brauchen ein Resolver-Plugin: Installiere einen Dienst aus dem Paket-Bündel oben oder aus einem Repository.",
     "filter_label": "Nach Plugin-Gruppe filtern"
   },
   "card": {
@@ -170,7 +170,9 @@
     "withdrawn": "Genau dieses Paket wurde zurückgezogen und kann nicht installiert werden.",
     "incompatible": "Diese Version kann es nicht ausführen: {reason}",
     "restart": "Ein Plugin wird nach dem nächsten Neustart aktiv.",
-    "install": "Installieren"
+    "install": "Installieren",
+    "added_permissions": "Neu gegenüber v{version}",
+    "no_added_permissions": "Verlangt nichts, was v{version} nicht schon hat."
   },
   "updates": {
     "eyebrow": "Repositories",
@@ -191,7 +193,8 @@
       "withdrawn": "Zurückgezogen"
     },
     "adds_permissions": "Neue Rechte",
-    "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach deiner Prüfung installiert, auch bei automatischen Updates."
+    "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach deiner Prüfung installiert, auch bei automatischen Updates.",
+    "added_permissions": "Neu: {permissions}"
   },
   "repositories": {
     "eyebrow": "Quellen",
@@ -224,5 +227,35 @@
     "remove_title": "Dieses Repository entfernen?",
     "remove_description": "{name} bietet dann keine Updates mehr an. Daraus installierte Plugins bleiben installiert.",
     "empty": "Kein Repository eingerichtet."
+  },
+  "bundled": {
+    "eyebrow": "Paket-Bündel",
+    "title": "Verfügbare Dienste",
+    "description": "Was diese Version mitbringt, aber nicht installiert ist – nicht gewählt, entfernt oder neu. Ein Klick installiert einen Dienst mit allen seinen Plugins; sie laufen ab dem nächsten Start.",
+    "search": "Dienst suchen",
+    "filter_label": "Nach Kategorie filtern",
+    "all": "Alle",
+    "category": {
+      "hoster": "Hoster",
+      "multihoster": "Multihoster & Debrid",
+      "remote_jobs": "Torrent & Remote-Jobs",
+      "cloud": "Cloud & Speicher",
+      "links": "Linklisten & Ordner",
+      "metadata": "Metadaten",
+      "notifications": "Benachrichtigungen",
+      "postprocess": "Nachbearbeitung",
+      "other": "Sonstiges"
+    },
+    "state": {
+      "installed": "Installiert",
+      "partial": "Teilweise installiert"
+    },
+    "needs_account": "Konto oder Ziel nötig",
+    "install": "Installieren",
+    "no_match": "Kein Dienst passt zu „{query}“.",
+    "all_installed": "Alles aus dem Paket-Bündel ist installiert.",
+    "none": "Dieser Build bringt kein Paket-Bündel mit. Plugins kommen dann aus einem Repository.",
+    "failed": "{name} konnte nicht installiert werden: {reason}",
+    "installed": "Nichts installiert. | 1 Plugin installiert; es läuft ab dem nächsten Start. | {count} Plugins installiert; sie laufen ab dem nächsten Start."
   }
 }

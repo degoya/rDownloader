@@ -115,6 +115,7 @@ fn endpoint(position: u32, address: SocketAddr) -> SourceEndpoint {
             .parse()
             .expect("fixture URL"),
         headers: Vec::new(),
+        via: None,
     }
 }
 
@@ -497,6 +498,7 @@ async fn a_mirror_that_points_inside_at_connect_time_is_isolated_and_the_others_
             .parse()
             .expect("URL"),
         headers: Vec::new(),
+        via: None,
     };
 
     let outcome = DownloadEngine::new(client, ScopedLimiter::unlimited())

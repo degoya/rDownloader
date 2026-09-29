@@ -26,10 +26,23 @@ jobs:
         with:
           node-version: 24
       - run: scripts/build-extension.sh
+      # Mozilla signs the Firefox build as a self-distributed ("unlisted") version, so release
+      # Firefox installs it permanently (RD-160-07). Without the secrets (a fork) or when AMO
+      # cannot deliver, the step warns and the release keeps the unsigned ZIP; a version the
+      # store already signed is downloaded rather than uploaded twice. scripts/firefox-amo.sh.
+      - name: Sign the Firefox extension with Mozilla (unlisted)
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: >-
+          scripts/firefox-amo.sh sign artifacts/browser-extensions/firefox
+          artifacts/browser-extensions/rdownloader-firefox.xpi
       - uses: actions/upload-artifact@v7
         with:
           name: browser-extensions
-          path: artifacts/browser-extensions/*.zip
+          path: |
+            artifacts/browser-extensions/*.zip
+            artifacts/browser-extensions/*.xpi
           if-no-files-found: error
 
   plugins:
@@ -109,9 +122,14 @@ jobs:
           RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
         shell: bash
         run: |
-          mkdir -p dist/plugins
+          mkdir -p dist/plugins dist/plugin-notes
           for plugin in ${{ steps.plugins.outputs.packageable }}; do
             version=$(sed -n 's/^version = "\(.*\)"/\1/p' "plugins/${plugin}/manifest.toml" | head -n 1)
+            # RD-160-09: the CHANGELOG entries naming this version are its notes in the index.
+            notes=$(scripts/plugin-release-notes.sh "${plugin}" "${version}")
+            if [[ -n "${notes}" ]]; then
+              printf '%s\n' "${notes}" > "dist/plugin-notes/${plugin}-${version}.txt"
+            fi
             target/release-test/rd-pack plugin package \
               --manifest "plugins/${plugin}/manifest.toml" \
               --component "target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm" \
@@ -141,7 +159,8 @@ jobs:
           target/release-test/rd-pack plugin index build dist/plugins \
             --out dist/plugin-index/rdownloader-plugin-index.json \
             --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
-            --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json
+            --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json \
+            --notes dist/plugin-notes
           target/release-test/rd-pack plugin index verify \
             dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
       - uses: actions/upload-artifact@v7
@@ -378,6 +397,112 @@ jobs:
         with:
           generate_release_notes: true
           files: release-assets/*
+
+  # RD-180-06: the Homebrew tap and the Scoop bucket follow the release — the formula and the
+  # manifest rendered by scripts/package-managers.sh from the published SHA256SUMS, each with its
+  # repository's README, pushed to <owner>/homebrew-rdownloader and <owner>/scoop-rdownloader.
+  # Each repository has a write deploy key of its own, whose private half is a secret here
+  # (HOMEBREW_TAP_DEPLOY_KEY, SCOOP_BUCKET_DEPLOY_KEY); actions/checkout clones with it and leaves
+  # the SSH remote for the push, so each channel pushes with its own key only. A channel whose
+  # secret is missing (a fork) is skipped with a warning, the other still runs. The release is out
+  # by then, so nothing here may fail it: the job continues on error, and the bucket is still
+  # pushed when the tap failed. Only the newest plain vX.Y.Z tag is pushed, as with the image's
+  # `:latest`, so a re-run of an old tag or a pre-release cannot move the channels back.
+  package-managers:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      # A secret cannot be tested in `if:`, so this step says which channels have their key.
+      - name: Decide whether the tap and the bucket move
+        id: gate
+        shell: bash
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          newest="$(git ls-remote --tags --refs origin 'refs/tags/v*' \
+            | sed 's#.*refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
+            | sort -V | tail -n 1)"
+          if [[ "${REF_NAME}" != "${newest}" ]]; then
+            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); the tap and the bucket stay where they are"
+            echo "tap=false" >> "${GITHUB_OUTPUT}"
+            echo "bucket=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          for channel in tap:HOMEBREW_TAP_DEPLOY_KEY bucket:SCOOP_BUCKET_DEPLOY_KEY; do
+            name="${channel%%:*}"
+            secret="${channel#*:}"
+            if [[ -z "${!secret}" ]]; then
+              echo "::warning::${secret} is not set; the ${name} stays on its last release"
+              echo "${name}=false" >> "${GITHUB_OUTPUT}"
+            else
+              echo "${name}=true" >> "${GITHUB_OUTPUT}"
+            fi
+          done
+      - name: Render the formula, the manifest and their READMEs
+        id: render
+        if: steps.gate.outputs.tap == 'true' || steps.gate.outputs.bucket == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release download "${REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern SHA256SUMS --dir release
+          scripts/package-managers.sh "${REF_NAME}" release/SHA256SUMS rendered --repository "${GITHUB_REPOSITORY}"
+      - uses: actions/checkout@v7
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        with:
+          repository: ${{ github.repository_owner }}/homebrew-rdownloader
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+      - name: Push the formula to the Homebrew tap
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        shell: bash
+        env:
+          CHECKOUT: tap
+          RENDERED: rendered/rdownloader.rb
+          TARGET: Formula/rdownloader.rb
+          README: rendered/homebrew-README.md
+          REF_NAME: ${{ github.ref_name }}
+        # The key stays where actions/checkout put it, in that checkout's SSH configuration;
+        # nothing here reads or prints it.
+        run: &push-channel |
+          set -euo pipefail
+          mkdir -p "$(dirname "${CHECKOUT}/${TARGET}")"
+          cp "${RENDERED}" "${CHECKOUT}/${TARGET}"
+          cp "${README}" "${CHECKOUT}/README.md"
+          git -C "${CHECKOUT}" config user.name "github-actions[bot]"
+          git -C "${CHECKOUT}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${CHECKOUT}" add --all
+          if git -C "${CHECKOUT}" diff --cached --quiet; then
+            echo "${CHECKOUT}: already at ${REF_NAME}"
+            exit 0
+          fi
+          git -C "${CHECKOUT}" commit --quiet --message "rdownloader ${REF_NAME#v}"
+          git -C "${CHECKOUT}" push --quiet origin HEAD
+          echo "${CHECKOUT}: rdownloader ${REF_NAME#v}"
+      - uses: actions/checkout@v7
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.bucket == 'true' }}
+        with:
+          repository: ${{ github.repository_owner }}/scoop-rdownloader
+          ssh-key: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
+          path: bucket
+      - name: Push the manifest to the Scoop bucket
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.bucket == 'true' }}
+        shell: bash
+        env:
+          CHECKOUT: bucket
+          RENDERED: rendered/rdownloader.json
+          TARGET: bucket/rdownloader.json
+          README: rendered/scoop-README.md
+          REF_NAME: ${{ github.ref_name }}
+        run: *push-channel
 
   # The image is built from the binaries above, not compiled again (owner, 2026-09-26): the arm64
   # half runs only apt, pip and the `--version` guard under QEMU. Nothing is pushed before the

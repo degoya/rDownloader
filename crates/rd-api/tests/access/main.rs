@@ -13,6 +13,7 @@ mod audit;
 mod auth;
 mod auth_profiles;
 mod browser_session;
+mod host_check;
 mod media_cookie_profile;
 mod mfa;
 mod passkeys;

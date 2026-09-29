@@ -2,6 +2,7 @@
   "name": "{{PLUGIN_NAME}}",
   "description": "Signs an account in to {{PLUGIN_NAME}} without a password ever being typed here.",
   "codes": {
-    "{{PLUGIN_SLUG}}.flow_expired": "The sign-in code expired before it was confirmed."
+    "{{PLUGIN_SLUG}}.flow_expired": "The sign-in code expired before it was confirmed.",
+    "{{PLUGIN_SLUG}}.bad_reply": "{{PLUGIN_NAME}} sent a reply this plugin could not read."
   }
 }

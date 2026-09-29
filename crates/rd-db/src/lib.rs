@@ -3,6 +3,7 @@
 mod auth_flow_store;
 mod auth_profile_store;
 mod automation_store;
+mod backup_ledger_store;
 mod backup_store;
 mod bandwidth_store;
 mod capture_store;
@@ -22,6 +23,7 @@ mod event_bus;
 mod facade_audit;
 mod facade_collector;
 mod facade_ext;
+mod facade_full_backup;
 mod facade_logs;
 mod facade_object_storage;
 mod facade_plugin_repositories;
@@ -31,6 +33,7 @@ mod facade_site_rules;
 mod facade_sources;
 mod facade_stats;
 mod facade_storage;
+mod full_backup_store;
 mod log_store;
 mod managed_tools_store;
 mod mfa_store;
@@ -50,11 +53,13 @@ mod plugin_versions_store;
 mod postprocess_store;
 mod remote_job_store;
 mod replay_store;
+pub mod restore_copy;
 mod service_settings;
 mod session_store;
 mod site_rule_checks_store;
 mod site_rule_switches_store;
 mod site_rules_store;
+pub mod snapshot;
 mod stats_store;
 mod storage_ops_store;
 mod stream_schedule_store;
@@ -72,7 +77,7 @@ mod stats_tests;
 mod tests;
 
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, OnceLock},
     time::Duration,
@@ -93,6 +98,10 @@ pub use audit_store::{
 pub use auth_flow_store::UpsertAuthFlow;
 pub use auth_profile_store::{NewAuthProfile, UpdateAuthProfile};
 pub use automation_store::{NewAutomation, NewRun};
+pub use backup_ledger_store::{
+    BACKUP_VERIFICATIONS_KEPT, BackupArchive, BackupRunDestination, BackupRunDestinationEnd,
+    BackupVerification, BackupVerificationOutcome, NewBackupArchive,
+};
 pub use backup_store::{
     ConfigReplacement, ReplacementAccount, ReplacementAuthProfile, ReplacementProxyProfile,
     ReplacementStreamChannel, ReplacementSubscription, ReplacementUsenetServer,
@@ -113,6 +122,11 @@ pub use config_store::{
 pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
 pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Replay};
+pub use full_backup_store::{
+    BACKUP_INTERRUPTED, BACKUP_RUNS_KEPT, BackupConfig, BackupConfigUpdate,
+    BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
+    NewBackupRun,
+};
 pub use log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord};
 pub use managed_tools_store::{ManagedToolRecord, NewManagedTool, ToolManifestState};
 pub use models::{NewDownload, NewPackage, PersistedChunk, TransferMetadata};
@@ -169,6 +183,8 @@ pub struct Database {
     /// `Arc` so every clone made in between sees it once it arrives, and so it can never be
     /// swapped for a second vault whose key would not open what the first one wrote.
     vault: Arc<OnceLock<rd_secrets::SecretStore>>,
+    /// The database file, whose folder is the data directory a full backup stages in.
+    path: Arc<PathBuf>,
 }
 
 /// Every unfinished download bound to one plugin id and version, by download id.
@@ -227,7 +243,14 @@ impl Database {
             writer: command_tx,
             events,
             vault: Arc::new(OnceLock::new()),
+            path: Arc::new(path.to_path_buf()),
         })
+    }
+
+    /// The database file this facade opened.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Hands the database the vault it puts secret link fragments in (RD-110-38).
@@ -911,6 +934,18 @@ impl Database {
     /// Checkpoints the WAL after all writer commands already sent have completed.
     pub async fn checkpoint_wal(&self) -> Result<()> {
         writer::request(&self.writer, |reply| WriterCommand::CheckpointWal { reply }).await
+    }
+
+    /// Closes the read pool and the writer's connection, so the database files are free while
+    /// clones of this handle still exist — on Windows a file another handle holds open cannot
+    /// be moved. Every later call on any clone fails.
+    ///
+    /// # Errors
+    ///
+    /// When the writer is already gone or its connection does not close cleanly.
+    pub async fn close(&self) -> Result<()> {
+        self.readers.close().await;
+        writer::request(&self.writer, |reply| WriterCommand::Close { reply }).await
     }
 
     /// Creates account metadata referring to separately stored secrets.

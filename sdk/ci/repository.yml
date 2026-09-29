@@ -1,0 +1,142 @@
+# Publish a signed rDownloader plugin repository on GitHub Pages.
+#
+# Copy into `.github/workflows/` of the repository that publishes your packages. It collects
+# the signed `.rdplug` files, builds and signs `rdownloader-plugin-index.json` over them, and
+# publishes both to GitHub Pages, where people add the repository with the index address
+# (`https://<owner>.github.io/<repository>/rdownloader-plugin-index.json`) and your repository
+# public key. Settings → Pages → Source has to be "GitHub Actions".
+#
+# An index expires (`VALID_DAYS`) and an expired one is refused, so the workflow also runs once
+# a month and re-signs whatever is there. GitHub switches scheduled workflows off in a public
+# repository without activity for 60 days; switch it back on when GitHub mails you about it.
+#
+# Optional files at the root of the repository:
+#   revocations.json  withdrawn versions: {"package_digests": ["<64 hex>"], "keys": []}
+#   notes/            release notes, one `<package file stem>.txt` per package
+#   packages/         the `.rdplug` files, when `PACKAGE_SOURCE` is `folder`
+name: repository
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "notes/**"
+      - "revocations.json"
+  schedule:
+    # Monthly: a 90-day index survives two missed runs.
+    - cron: "23 5 1 * *"
+  workflow_dispatch:
+
+env:
+  # The rDownloader release whose `plugin index build` runs here. `--notes` needs 1.6.0 or later.
+  RDOWNLOADER_VERSION: 1.6.0
+  # The key id your index names. Choose it once: people approve your key under this id, and a
+  # different id or key later means they remove and add the repository again.
+  KEY_ID: example-repository-v1
+  # Where the packages come from: `releases` (every `.rdplug` attached to a published,
+  # non-prerelease GitHub release of this repository) or `folder` (`packages/`).
+  PACKAGE_SOURCE: releases
+  # Days until the index expires, 1 to 366.
+  VALID_DAYS: 90
+
+# One deployment at a time; a queued one waits rather than cancelling a running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the rDownloader release binary
+        # The archive stores its entries as `./<name>`, so the member is named that way.
+        run: |
+          curl --fail --silent --show-error --location \
+            --output rdownloader.tar.gz \
+            "https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}/rdownloader-linux-x86_64.tar.gz"
+          tar --extract --gzip --file rdownloader.tar.gz ./rdownloader
+          sudo install --mode 0755 rdownloader /usr/local/bin/rdownloader
+          rdownloader --version
+
+      - name: Collect the signed packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site
+          case "${PACKAGE_SOURCE}" in
+            releases)
+              gh release list --limit 1000 --exclude-drafts --exclude-pre-releases \
+                  --json tagName --jq '.[].tagName' |
+                while read -r tag; do
+                  count=$(gh release view "${tag}" --json assets \
+                    --jq '[.assets[].name | select(endswith(".rdplug"))] | length')
+                  if (( count > 0 )); then
+                    gh release download "${tag}" --pattern '*.rdplug' --dir site --skip-existing
+                  fi
+                done
+              ;;
+            folder)
+              cp packages/*.rdplug site/
+              ;;
+            *)
+              echo "::error::PACKAGE_SOURCE is ${PACKAGE_SOURCE}, not releases or folder"
+              exit 1
+              ;;
+          esac
+          ls -l site
+
+      - name: Build and sign the index
+        env:
+          # The PEM private key of the repository role; the CLI reads it from this variable when
+          # `--key` is not given. It never appears in the log.
+          RDOWNLOADER_REPOSITORY_SIGNING_KEY: ${{ secrets.REPOSITORY_SIGNING_KEY }}
+        # The CLI warns that this build embeds no repository root named KEY_ID: that is the
+        # official repository's key, and yours is approved by each person instead.
+        run: |
+          if [[ -z "${RDOWNLOADER_REPOSITORY_SIGNING_KEY}" ]]; then
+            echo "::error::the secret REPOSITORY_SIGNING_KEY is not set"
+            exit 1
+          fi
+          extra=()
+          if [[ -f revocations.json ]]; then
+            extra+=(--revocations revocations.json)
+          fi
+          if [[ -d notes ]]; then
+            extra+=(--notes notes)
+          fi
+          # Package addresses stay relative: the packages sit beside the index.
+          rdownloader plugin index build site \
+            --out site/rdownloader-plugin-index.json \
+            --key-id "${KEY_ID}" \
+            --valid-days "${VALID_DAYS}" \
+            "${extra[@]}"
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

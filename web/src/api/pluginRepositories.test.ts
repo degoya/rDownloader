@@ -16,7 +16,7 @@ function offer(pluginId: string, version: string, notes: string | null, reposito
 describe('releaseNotesByPlugin', () => {
   it('collects the notes of every offered version, newest first, one per version', () => {
     const offers: PluginOffers = {
-      updates: [{ offer: offer('a', '1.10.0', 'Ten'), installed_version: '1.2.0', policy: 'manual', adds_permissions: false }],
+      updates: [{ offer: offer('a', '1.10.0', 'Ten'), installed_version: '1.2.0', policy: 'manual', adds_permissions: false, added_permissions: { granted: [], http_domains: [], stream_hosts: [] } }],
       // The versions of an installed plugin come in `installed`, the others in `available`.
       installed: [offer('a', '1.9.0', 'Nine')],
       available: [

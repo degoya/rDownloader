@@ -454,3 +454,30 @@ fn every_bundled_plugin_fits_an_index_entry() {
         plugins.display()
     );
 }
+
+/// RD-160-09: what an update adds is named entry by entry, not only flagged.
+#[test]
+fn beyond_names_exactly_what_is_not_held_yet() {
+    fn list(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|entry| (*entry).to_owned()).collect()
+    }
+    let held = Permissions {
+        granted: list(&["net_http", "cookies"]),
+        http_domains: list(&["example.test"]),
+        stream_hosts: Vec::new(),
+    };
+    let wanted = Permissions {
+        granted: list(&["cookies", "net_http", "captcha", "captcha"]),
+        http_domains: list(&["api.example.test", "example.test"]),
+        stream_hosts: list(&["stream.example.test"]),
+    };
+    let added = wanted.beyond(&held);
+    assert_eq!(added.granted, ["captcha"], "once, although listed twice");
+    assert_eq!(added.http_domains, ["api.example.test"]);
+    assert_eq!(added.stream_hosts, ["stream.example.test"]);
+    assert!(wanted.widens(&held));
+
+    // The other way round nothing is new, and order alone never counts.
+    assert!(held.beyond(&wanted).is_empty());
+    assert!(!held.widens(&wanted));
+}

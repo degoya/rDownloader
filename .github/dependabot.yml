@@ -55,6 +55,10 @@ updates:
       # offer APIs the runtime does not have (RD-160-08).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # VueUse follows Nuxt UI's own requirement; a newer major alone would ship two copies
+      # (RD-150-21, RD-160-08).
+      - dependency-name: "@vueuse/core"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-compatible:
         update-types: [minor, patch]

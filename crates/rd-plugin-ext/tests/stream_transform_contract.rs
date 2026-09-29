@@ -200,9 +200,10 @@ fn a_plugin_that_does_not_use_the_new_world_is_unaffected() {
 ///
 /// The twelfth world was additive and left the package version alone; RD-120-20 moved it to
 /// `0.7.0`, RD-120-36 to `0.8.0` and RD-130-11 to `0.9.0`, each for a reason of its own
-/// (`docs/plugins.md`, "What moves `api_version`"). What this
-/// test has always been about is the other half and still is: **eleven copies, one text**. CI
-/// diffs them too, and this is the same question asked where a plugin author would notice.
+/// (`docs/plugins.md`, "What moves `api_version`"). What this test has always been about is
+/// the other half and still is: **one copy per world, one text** — thirteen since RD-160-04
+/// gave `stream-transform` and `intake-mirrors` templates of their own. CI diffs them too, and
+/// this is the same question asked where a plugin author would notice.
 #[test]
 fn the_contract_is_copied_verbatim_into_every_template() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -228,5 +229,5 @@ fn the_contract_is_copied_verbatim_into_every_template() {
         );
         copies += 1;
     }
-    assert_eq!(copies, 11, "every template carries a copy");
+    assert_eq!(copies, 13, "every template carries a copy");
 }

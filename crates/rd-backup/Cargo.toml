@@ -1,0 +1,54 @@
+[package]
+name = "rd-backup"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
+failpoints = ["rd-core/failpoints"]
+
+[dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait.workspace = true
+chacha20poly1305.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+rand.workspace = true
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+# The rclone destination runs rclone the way the upload step does (RD-160-02).
+rd-extract = { path = "../rd-extract" }
+rd-files = { path = "../rd-files" }
+# The upload limit every upload keeps (RD-150-15), object storage and rclone included.
+rd-limits = { path = "../rd-limits" }
+# The object storage destination: profiles, resumable multipart upload (RD-160-02).
+rd-object-storage = { path = "../rd-object-storage" }
+rd-subscription = { path = "../rd-subscription" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+# The object storage destination's contract runs against a small S3 endpoint, the pattern of
+# `rd-object-storage/tests/s3.rs`.
+axum.workspace = true
+rd-http = { path = "../rd-http" }
+rd-secrets = { path = "../rd-secrets" }
+tempfile.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

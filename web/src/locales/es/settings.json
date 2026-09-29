@@ -156,7 +156,7 @@
   },
   "admin_login": {
     "label": "Desactivar inicio de sesión de administrador",
-    "description": "Cualquiera que acceda a la interfaz puede controlarlo todo. Solo tiene sentido si el servicio es accesible únicamente en loopback o dentro de tu propia red de confianza. Surte efecto inmediatamente tras guardar.",
+    "description": "Quien abra la interfaz en este equipo puede controlarlo todo sin iniciar sesión. Cualquier otro equipo — en la LAN, a través de una redirección de puertos, un contenedor o un proxy inverso — sigue teniendo que iniciar sesión con la contraseña. Surte efecto inmediatamente tras guardar.",
     "warning": "La protección por contraseña está desactivada."
   },
   "proxy": {

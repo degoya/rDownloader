@@ -9,8 +9,11 @@
 #
 # Why check.sh --full before the pipeline: the pipeline's preflight refuses a HEAD no green run
 # has seen, and a --full green of the tree before the version bump is what lets the pipeline skip
-# its own full Rust run (scripts/lib/verified.sh, rd_prebump_full_green). A --full green that
-# already covers this HEAD and tree is not run again.
+# its own full Rust run (scripts/lib/verified.sh, rd_prebump_full_green). check.sh decides itself
+# whether that run is due (RD-160-06): a --full green of this content, or of content that differs
+# in documentation only, recorded by any checkout on the target, is recorded for this HEAD and
+# tree instead of run again. Until then this script asked for a green of exactly this HEAD, and the
+# chain of 2026-09-28 ran --full again for commits that changed only the changelog and job files.
 #
 # Nothing here takes the build lock itself: check.sh and release-pipeline.sh each take it, and a
 # wrapper around them in `flock` would deadlock (AGENTS.md).
@@ -60,17 +63,10 @@ if [[ "$chain" -eq 1 ]]; then
         "$@"
     }
     cd "$ROOT"
-    # shellcheck source=lib/verified.sh
-    source "$ROOT/scripts/lib/verified.sh"
     {
         # rust-embed compiles web/dist into the binary, so the frontend is built before any cargo.
         run pnpm --dir web run build \
-            && if rd_verified_gate "$ROOT" "release-start" > /dev/null 2>&1 \
-                && rd_full_gate "$ROOT" "release-start" > /dev/null 2>&1; then
-                echo "==> [release-start] a check.sh --full green already covers HEAD and this tree; not run again"
-            else
-                run scripts/check.sh --full
-            fi \
+            && run scripts/check.sh --full \
             && run scripts/release-pipeline.sh "$version" "${push[@]}"
     } || status=$?
     echo

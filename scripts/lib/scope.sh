@@ -231,7 +231,7 @@ rd_vue_script_touched() {
 # holding them, filtered to them.
 
 # The paths whose unmapped changes select every suite rather than none.
-RD_API_TEST_DOMAIN='^crates/rd-api/|^crates/rd-core/|^crates/rd-db/migrations/'
+RD_API_TEST_DOMAIN='^crates/rd-api(-[a-z]+)?/|^crates/rd-core/|^crates/rd-db/migrations/'
 
 # Every rd-api integration test binary, one per line, sorted bytewise.
 rd_api_test_binaries() {

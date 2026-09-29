@@ -20,6 +20,7 @@ fn run_limits() -> rd_scheduler::RunLimits {
     rd_scheduler::RunLimits {
         max_parallel_requests: 1,
         bandwidth: rd_limits::ScopedLimiter::unlimited(),
+        address_policy: None,
     }
 }
 
@@ -403,7 +404,7 @@ async fn a_directory_is_walked_and_a_single_file_is_not() {
     .expect("target");
     let (probed, used) = harness
         .service
-        .probe(&directory, Some(credential))
+        .probe(&directory, Some(credential), None)
         .await
         .expect("probe");
     assert_eq!(used, Some(credential));
@@ -429,7 +430,7 @@ async fn a_directory_is_walked_and_a_single_file_is_not() {
     .expect("target");
     let (probed, _) = harness
         .service
-        .probe(&single, Some(credential))
+        .probe(&single, Some(credential), None)
         .await
         .expect("probe");
     let listing = match probed {
@@ -452,7 +453,11 @@ async fn a_link_without_a_stored_login_says_so() {
     )
     .expect("target");
 
-    let (probed, used) = harness.service.probe(&target, None).await.expect("probe");
+    let (probed, used) = harness
+        .service
+        .probe(&target, None, None)
+        .await
+        .expect("probe");
     assert!(used.is_none());
     match probed {
         rd_sftp::Probed::Failed(failure) => {
@@ -464,4 +469,104 @@ async fn a_link_without_a_stored_login_says_so() {
         }
         rd_sftp::Probed::Resolved(_) => panic!("there is no server to resolve against"),
     }
+}
+
+/// RD-150-03: an SFTP link a stranger's document or page proposed is held to the address rule
+/// when the socket is opened. This machine is refused by its literal address and by a name
+/// that resolves to it, before a single connection is made, and with the stable code.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_guarded_probe_never_connects_to_this_machine() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let harness = Harness::start().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    let accepted = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&accepted);
+    tokio::spawn(async move {
+        while listener.accept().await.is_ok() {
+            counter.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+    // The person's own network is allowed here; this machine never is.
+    let policy = rd_http::AddressPolicy::new(true);
+    for host in ["127.0.0.1", "localhost"] {
+        let credential = harness
+            .database
+            .create_remote_credential(NewRemoteCredential {
+                name: host.to_owned(),
+                protocol: RemoteProtocol::Sftp,
+                host: host.to_owned(),
+                port,
+                username: Some("tester".to_owned()),
+                auth_mode: RemoteAuthMode::Password,
+                passive: true,
+                enabled: true,
+                secret_ref: None,
+                key_ref: None,
+                passphrase_ref: None,
+            })
+            .await
+            .expect("credential")
+            .id;
+        let target = RemoteTarget::parse(
+            &format!("sftp://{host}:{port}/srv/a.bin")
+                .parse()
+                .expect("url"),
+        )
+        .expect("target");
+        let (probed, _) = harness
+            .service
+            .probe(&target, Some(credential), Some(&policy))
+            .await
+            .expect("probe");
+        match probed {
+            rd_sftp::Probed::Failed(failure) => assert_eq!(
+                failure.code.as_deref(),
+                Some(rd_core::CODE_INTERNAL_ADDRESS),
+                "{host}: {failure:?}"
+            ),
+            rd_sftp::Probed::Resolved(_) => panic!("{host} was probed"),
+        }
+    }
+    assert_eq!(
+        accepted.load(Ordering::SeqCst),
+        0,
+        "a refused server was connected to"
+    );
+}
+
+/// RD-150-03: an SFTP mirror of a multi-source download reports its size and serves a chunk
+/// from the chunk's offset, over the runner's range source.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_sftp_mirror_serves_a_chunk_from_its_offset() {
+    use tokio::io::AsyncReadExt as _;
+
+    let harness = Harness::start().await;
+    harness.allow_first_use_trust().await;
+    harness
+        .fixture
+        .put("/srv/mirror.bin", RemoteFile::new(payload()));
+    harness.credential().await;
+    let source = harness
+        .runner()
+        .range_source()
+        .expect("SFTP serves mirrors");
+    let target = RemoteTarget::parse(
+        &format!("sftp://127.0.0.1:{}/srv/mirror.bin", harness.fixture.port)
+            .parse()
+            .expect("url"),
+    )
+    .expect("target");
+
+    assert_eq!(
+        source.size(&target, None).await.expect("size"),
+        payload().len() as u64
+    );
+    let mut reader = source.open_at(&target, 1000, None).await.expect("open");
+    let mut read = vec![0_u8; 500];
+    reader.read_exact(&mut read).await.expect("read");
+    assert_eq!(read, payload()[1000..1500]);
 }

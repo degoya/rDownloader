@@ -479,5 +479,11 @@
   "duplicates": {
     "queued": "{count} × already queued",
     "queued_hint": "The same source is already queued {count} time(s) – recognised by the normalised address, the info-hash or the hoster."
+  },
+  "sources": {
+    "title": "Sources ({count})",
+    "badge": "{count} sources",
+    "priority": "Priority {value}",
+    "hint": "Tried in this order. An address that points at your own machine — or, for a document you did not hand over yourself, into your local network — is not requested."
   }
 }

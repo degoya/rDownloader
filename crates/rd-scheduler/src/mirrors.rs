@@ -13,7 +13,7 @@
 //! the candidate row and let a person change which member is selected. Two answers to the
 //! same question that could disagree, and the weaker one won, because it ran last and
 //! overwrote the choice. The LinkGrabber's group is now carried into the queue unchanged
-//! (`rd_api::collector_enqueue`); what is left here is what the *queue* does with a group,
+//! (`rd_api_intake::collector_enqueue`); what is left here is what the *queue* does with a group,
 //! which the LinkGrabber has no business deciding: who runs, who waits, who takes over when
 //! an attempt fails, and when the group is out of mirrors.
 

@@ -61,6 +61,8 @@ expect "a '+' row adds without mapping, so the rest is everything" \
     "$(demands crates/rd-api/src/routes/x.rs | tr '\n' '|' | sed 's/|$//')"
 expect "'-' maps to nothing" "" "$(demands crates/rd-api/src/tests.rs)"
 expect "an unmapped rd-api path selects everything" "all crates/rd-api/src/new.rs" "$(demands crates/rd-api/src/new.rs)"
+expect "an unmapped path in one of rd-api's crates selects everything" "all crates/rd-api-core/src/new.rs" \
+    "$(demands crates/rd-api-core/src/new.rs)"
 expect "another crate selects nothing" "" "$(demands crates/rd-http/src/lib.rs)"
 
 # --- the upkeep the map check refuses ------------------------------------------------------------

@@ -393,6 +393,7 @@ impl Harness {
                 RunLimits {
                     max_parallel_requests: 0,
                     bandwidth: rd_limits::ScopedLimiter::unlimited(),
+                    address_policy: None,
                 },
             )
             .await

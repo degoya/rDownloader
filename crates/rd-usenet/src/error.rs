@@ -6,7 +6,7 @@
 //! answer and the stable error code the web client translates — and `anyhow` keeps causes
 //! downcastable.
 //!
-//! The failure this prevents: `rd-api/src/usenet_handlers.rs` recognised a refused connection
+//! The failure this prevents: `rd-api-queue/src/usenet_handlers.rs` recognised a refused connection
 //! by searching the rendered message for the characters `"502"`. That is a substring of this
 //! crate's own sentence, so rewording it would have turned a documented, specific answer into
 //! a generic one — and, the other way round, any server line that merely contained `502`

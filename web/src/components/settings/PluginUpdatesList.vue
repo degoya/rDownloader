@@ -6,7 +6,8 @@
  * release notes before anything is written (owner, 2026-09-26). A plugin set to update
  * automatically is marked, because the next check installs it without asking; it still becomes
  * active only after a restart. An update that asks for new permissions is marked too: it never
- * installs itself, whatever the policy, so its new rights are seen before they are granted.
+ * installs itself, whatever the policy, so its new rights are seen before they are granted. The
+ * mark's tooltip names them (RD-160-09).
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,6 +16,7 @@ import {
   listOffers,
   type PluginOffer,
   type PluginOffers,
+  type PluginUpdate,
   type PreviewSource
 } from '@/api/pluginRepositories'
 import DataState from '@/components/DataState.vue'
@@ -22,6 +24,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { translateServerMessage } from '@/i18n/server'
 import PluginInstallPreviewModal from './PluginInstallPreviewModal.vue'
+import { permissionLabels } from './pluginPermissions'
 
 const emit = defineEmits<{
   /** A package was installed from here; the parent re-reads its inventory. */
@@ -78,6 +81,13 @@ async function load(): Promise<void> {
   }
 }
 
+/** Why the update waits for a click, and what exactly it would add. */
+function addedPermissionsHint(update: PluginUpdate): string {
+  const added = permissionLabels(t, update.added_permissions)
+  const hint = t('plugins.updates.adds_permissions_hint')
+  return added.length ? `${hint}\n${t('plugins.updates.added_permissions', { permissions: added.join(', ') })}` : hint
+}
+
 function review(offer: PluginOffer): void {
   message.value = null
   previewing.value = {
@@ -121,7 +131,7 @@ async function onInstalled(text: string): Promise<void> {
             <UBadge v-if="update.policy === 'automatic'" color="warning" variant="subtle" :title="t('plugins.updates.automatic_hint')">
               {{ t('plugins.updates.automatic') }}
             </UBadge>
-            <UBadge v-if="update.adds_permissions" color="error" variant="subtle" data-adds-permissions :title="t('plugins.updates.adds_permissions_hint')">
+            <UBadge v-if="update.adds_permissions" color="error" variant="subtle" data-adds-permissions :title="addedPermissionsHint(update)">
               {{ t('plugins.updates.adds_permissions') }}
             </UBadge>
           </div>

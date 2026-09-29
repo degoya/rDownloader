@@ -133,6 +133,7 @@ export function defaultSettings(): Settings {
   stats_retention_days: 365,
   trusted_proxies: [],
   external_url: null,
+  allowed_hosts: [],
   cookie_security: 'auto',
   session_idle_hours: 12,
   session_max_hours: 720,

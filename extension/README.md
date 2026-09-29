@@ -290,8 +290,19 @@ starts from 1.0.8.
 ## Install
 
 - **Chrome / Edge**: `chrome://extensions` → Developer mode → *Load unpacked* → `artifacts/browser-extensions/chrome`.
-- **Firefox**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `artifacts/browser-extensions/firefox/manifest.json`
-  (or install the zip as a permanent add-on after signing it through AMO).
+- **Firefox, permanently**: `rdownloader-firefox.xpi` from the GitHub release — signed by Mozilla as a
+  self-distributed ("unlisted") version — opened in Firefox, or dragged onto `about:addons`.
+- **Firefox, a local build**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* →
+  `artifacts/browser-extensions/firefox/manifest.json` (gone after a restart; release Firefox installs
+  only signed add-ons permanently).
+
+The release workflow signs the build with `scripts/firefox-amo.sh sign` (RD-160-07): it asks AMO
+for the version first, downloads the store's signed file when AMO already has that version (each
+version number exists once across the listed and unlisted channels), and otherwise uploads it with
+`web-ext sign --channel unlisted`. Without the `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets, or when
+AMO cannot deliver, it warns and the release carries the unsigned ZIP only. CI runs
+`scripts/firefox-amo.sh lint` — AMO's validator — on every push, so a manifest Mozilla would refuse
+fails before a tag.
 
 ## Pairing
 

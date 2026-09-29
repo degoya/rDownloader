@@ -1,0 +1,17 @@
+# The breaking changes of the public contracts that a release accepts on purpose (RD-170-08).
+#
+# scripts/compat-check.sh compares web/openapi.json and the plugin WIT with the last release and
+# refuses every break not listed here. One [[break]] per finding, with the release that ships it
+# and why. `finding` is the exact string the gate prints after BREAK; an entry counts only while
+# its release is newer than the base, so the list is history and never has to be emptied.
+#
+# A break in the plugin contract is better versioned than listed: raising the package version of
+# rdownloader:plugin by a major step (before 1.0: a minor one) passes every WIT finding at once.
+#
+# It lives under scripts/ rather than docs/ because the public repository runs this gate in CI
+# and docs/ is not exported (scripts/public-exclude.txt).
+#
+# [[break]]
+# release = "1.7.0"
+# finding = "rest:path-removed:/api/v1/example"
+# reason = "Replaced by /api/v1/example-v2 since 1.6.0; the web UI and the extension use the new route."

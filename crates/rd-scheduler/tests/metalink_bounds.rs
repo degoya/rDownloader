@@ -6,7 +6,8 @@
 //! machine — or, for a set that did not come from the person's own hand, into their network —
 //! is isolated with `mirror.internal_address` and never receives a single connection, the
 //! download does not fall back to fetching its own address when that address is one of them,
-//! and every hostile file name is flattened into one plain name inside the package folder.
+//! a proposed link without mirrors is refused the same way on the single-source path, and
+//! every hostile file name is flattened into one plain name inside the package folder.
 
 use std::{
     path::Path,
@@ -212,6 +213,30 @@ async fn a_set_without_a_size_does_not_fall_back_to_an_internal_address() {
         0,
         "the fallback requested it"
     );
+}
+
+/// A link a document or a page proposed without mirrors is queued with its own address as its
+/// one source row (RD-150-03). The single-source path fetches it, held to the row's rule: this
+/// machine is refused under its literal address and under a name that resolves to it — even
+/// for a document the person handed over — and never receives a connection.
+#[tokio::test]
+async fn a_proposed_link_without_mirrors_is_never_requested_at_this_machine() {
+    for host in ["127.0.0.1", "localhost"] {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let (port, reached) = counting_listener().await;
+        let (scheduler, database) = scheduler_over(directory.path()).await;
+        let link: url::Url = format!("http://{host}:{port}/f.bin").parse().expect("url");
+        let proposed = SourceSet::of_link(&link, true).expect("set");
+
+        let finished = run(&scheduler, &database, directory.path(), proposed).await;
+        let error = finished.last_error.expect("failed");
+        assert_eq!(
+            error.code.as_deref(),
+            Some(rd_core::CODE_INTERNAL_ADDRESS),
+            "{host}: {error:?}"
+        );
+        assert_eq!(reached.load(Ordering::SeqCst), 0, "{host} was requested");
+    }
 }
 
 /// The file name is the document's too. Whatever it says, the queue keeps one plain name that

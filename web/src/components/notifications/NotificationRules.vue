@@ -27,7 +27,7 @@ const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 const copyName = useCopyName()
 const duplicatingId = ref<string | null>(null)
-/** Matches the name check in `crates/rd-api/src/notify_handlers.rs`. */
+/** Matches the name check in `crates/rd-api-admin/src/notify_handlers.rs`. */
 const MAX_RULE_NAME = 100
 
 const EVENTS: NotificationEvent[] = [

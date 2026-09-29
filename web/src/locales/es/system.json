@@ -91,6 +91,198 @@
       "button": "Importar y reemplazar",
       "success": "Ajustes restaurados",
       "success_description": "Se importaron {count} entradas de configuración."
+    },
+    "full": {
+      "eyebrow": "Copia completa",
+      "title": "Copia completa cifrada programada",
+      "description": "Guarda cifrados en tus destinos la base de datos, la cola, el LinkGrabber, las sesiones de torrent, la confianza de plugins y las credenciales, mientras las descargas siguen. Los archivos descargados no se incluyen.",
+      "key": {
+        "title": "Frase de contraseña",
+        "missing": "Aún no hay frase de contraseña. Sin ella no se escribe ninguna copia completa.",
+        "configured": "Clave {fingerprint}, configurada {date}",
+        "hint": "La frase no se guarda en ningún sitio, solo la clave derivada, en el almacén de secretos. Una restauración la vuelve a pedir. Una frase nueva vale para las copias futuras; las anteriores se abren con la antigua.",
+        "passphrase": "Frase de contraseña",
+        "confirm": "Confirmar frase de contraseña",
+        "setup": "Configurar frase",
+        "change": "Cambiar frase",
+        "saved": "Frase guardada",
+        "short": "La frase necesita al menos {min} caracteres.",
+        "mismatch": "Las frases no coinciden.",
+        "current": "Frase de contraseña actual",
+        "current_required": "Introduce la frase actual para sustituirla."
+      },
+      "schedule": {
+        "title": "Programación",
+        "enabled": "Programación activa",
+        "enabled_description": "Se ejecuta en segundo plano. Un fallo no detiene ninguna descarga y queda en el historial.",
+        "cron": "Programación (cron)",
+        "cron_description": "Cinco campos: minuto hora día mes día de la semana, p. ej. 0 3 * * * para cada día a las 3:00.",
+        "timezone": "Zona horaria",
+        "verify": "Programación de verificación (cron)",
+        "verify_description": "Comprueba el archivo más reciente en cada destino: se recupera, se compara y se abre. Vacío es desactivado.",
+        "verify_next": "Próxima verificación: {date}",
+        "no_destination": "Aún no hay ningún destino activo: añade uno abajo antes de activar la programación.",
+        "save": "Guardar programación",
+        "saved": "Programación guardada",
+        "next": "Próxima ejecución: {date}",
+        "off": "Programación desactivada"
+      },
+      "destinations": {
+        "title": "Destinos",
+        "description": "Cada destino recibe su propia copia. Uno inalcanzable se reintenta y solo afecta a su propia entrada del historial.",
+        "empty": "Aún no hay destinos. Añade una carpeta, un bucket de almacenamiento de objetos o un remoto de rclone.",
+        "add": "Añadir destino",
+        "edit": "Editar",
+        "delete": "Quitar",
+        "deleted": "Destino quitado. Sus archivos se quedan donde están.",
+        "saved": "Destino guardado",
+        "save": "Guardar destino",
+        "cancel": "Cancelar",
+        "off": "Desactivado",
+        "kind": {
+          "label": "Tipo",
+          "local": "Carpeta o NAS",
+          "object_storage": "Almacenamiento de objetos",
+          "rclone": "Remoto de rclone"
+        },
+        "name": "Nombre",
+        "name_description": "Opcional; sin nombre la lista muestra la dirección.",
+        "enabled": "Activo",
+        "path": "Carpeta",
+        "path_description": "Ruta absoluta en el equipo donde se ejecuta rDownloader; también sirve un recurso NAS montado.",
+        "profile": "Perfil de almacenamiento de objetos",
+        "profile_placeholder": "Elige un perfil",
+        "profile_none": "Aún no hay perfiles: crea uno primero en los ajustes de almacenamiento de objetos.",
+        "prefix": "Bucket y carpeta",
+        "prefix_description": "<bucket>/<carpeta>; sin bucket se usa el del perfil.",
+        "remote": "Remoto de rclone",
+        "remote_description": "nombre:ruta de un remoto configurado en rclone: WebDAV, SFTP, unidades en la nube y más.",
+        "keep_last": "Conservar los más recientes",
+        "keep_last_description": "Número de archivos; vacío conserva todos.",
+        "keep_days": "Conservar días",
+        "keep_days_description": "Los archivos más recientes se quedan; vacío conserva todos.",
+        "retention": {
+          "none": "Conserva todos los archivos",
+          "last": "Los {count} más recientes",
+          "days": "{count} días",
+          "hint": "El archivo más reciente siempre se queda. Solo se eliminan archivos que esta instalación escribió allí, nunca archivos ajenos.",
+          "preview": "Vista previa",
+          "result": "Conserva {keep}, elimina {remove}; todavía no se borra nada."
+        },
+        "archives": "Archivos: {count}",
+        "verify": "Verificar el más reciente",
+        "verify_started": "Verificación iniciada",
+        "verify_none": "Aún no hay ningún archivo allí.",
+        "verify_state": {
+          "running": "Comprobando",
+          "passed": "Verificado",
+          "failed": "Verificación fallida",
+          "interrupted": "Interrumpida"
+        },
+        "verifications": "Verificaciones",
+        "digest_only": "solo suma de comprobación (frase anterior)"
+      },
+      "run": {
+        "button": "Copiar ahora",
+        "running": "Copia en curso",
+        "started": "Copia completa iniciada"
+      },
+      "history": {
+        "title": "Historial",
+        "empty": "Todavía no se ha ejecutado ninguna copia completa.",
+        "parts": "{count} partes",
+        "origin": {
+          "scheduled": "Programada",
+          "manual": "Manual"
+        },
+        "state": {
+          "running": "En curso",
+          "succeeded": "Correcta",
+          "failed": "Fallida",
+          "interrupted": "Interrumpida"
+        },
+        "pruned": "{count} archivos antiguos eliminados por la retención"
+      }
+    },
+    "full_restore": {
+      "eyebrow": "Restauración",
+      "title": "Restaurar una copia completa",
+      "description": "Abre un archivo con su frase de contraseña, muestra lo que contiene, lo comprueba en una copia desechable y cambia a él en el próximo inicio. La instalación actual sigue pudiendo arrancar hasta que la restaurada haya arrancado una vez.",
+      "open": "Restaurar desde una copia …",
+      "status": {
+        "staged": "La restauración de {archive} ({date}) está en espera. Reinicia rDownloader para cambiar; el estado actual se conserva hasta que el restaurado haya arrancado una vez.",
+        "switching": "Un inicio está cambiando a {archive} en este momento.",
+        "failed": "La restauración de {archive} no arrancó el {date}; se conservó la instalación anterior. Motivo: {reason}",
+        "discard": "Descartar restauración",
+        "dismiss": "Ocultar",
+        "discarded": "Restauración descartada"
+      },
+      "dialog": {
+        "title": "Restaurar una copia completa",
+        "description": "Elige el archivo, introduce su frase de contraseña, revisa el contenido, asigna las raíces de almacenamiento, prueba – y solo entonces confirma."
+      },
+      "source": {
+        "title": "Archivo",
+        "history": "Del historial",
+        "upload": "Subir un archivo",
+        "path": "Ruta en este equipo",
+        "no_runs": "No hay ninguna copia correcta en el historial.",
+        "run_placeholder": "Elige una copia",
+        "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
+        "file_pick": "Elegir archivo",
+        "uploading": "Subiendo: {percent} %",
+        "uploaded": "{name} subido"
+      },
+      "passphrase": {
+        "label": "Frase de contraseña de esta copia",
+        "hint": "Se pide cada vez: la clave guardada para la programación nunca se usa para restaurar."
+      },
+      "preview": {
+        "action": "Mostrar contenido",
+        "title": "Contenido",
+        "created": "Creada el {date} por rDownloader {version}, {size}",
+        "newer": "Una versión más reciente creó esta copia. Actualiza primero al menos a esa versión (aquí se ejecuta {version}).",
+        "part": "{count} × {size}",
+        "counts": "{categories} categorías, {accounts} cuentas, {proxies} proxies, {servers} servidores Usenet, {subscriptions} suscripciones, {hotfolders} carpetas vigiladas",
+        "state": "{partial} transferencias sin terminar, {trust} entradas de confianza de plugins.",
+        "credentials_included": "Las credenciales están incluidas, cifradas.",
+        "credentials_missing": "Las credenciales no están incluidas.",
+        "kind": {
+          "settings": "Ajustes",
+          "database": "Base de datos",
+          "plugin_trust": "Confianza de plugins",
+          "partial_transfers": "Transferencias sin terminar",
+          "torrent_session": "Sesión de torrent",
+          "torrent_file": "Archivos torrent"
+        },
+        "path_kind": {
+          "hotfolder": "Carpeta vigilada",
+          "partial_transfer": "Transferencia sin terminar"
+        }
+      },
+      "mapping": {
+        "title": "Raíces de almacenamiento",
+        "hint": "Dónde está cada raíz de almacenamiento en este equipo. Deja un campo vacío para conservar la ruta. Las rutas de otro sistema (letras de unidad, recursos compartidos) necesitan aquí una carpeta; todas las rutas por debajo se mueven con ella y nunca pueden salir de ella.",
+        "foreign": "otro sistema",
+        "target": "Nueva carpeta para {name}",
+        "placeholder": "Conservar la ruta"
+      },
+      "test": {
+        "action": "Restauración de prueba",
+        "ok": "La restauración de prueba no encontró nada que impida la restauración.",
+        "failed": "La restauración de prueba encontró errores que impiden la restauración.",
+        "summary": "{packages} paquetes, {moved} rutas movidas, {credentials} credenciales restauradas, {migrated} migraciones aplicadas.",
+        "none": "Sin hallazgos.",
+        "severity": {
+          "error": "Error",
+          "warning": "Aviso"
+        }
+      },
+      "confirm": {
+        "label": "Entiendo: en el próximo inicio esta copia sustituye toda la instalación. El estado actual se conserva hasta que el restaurado haya arrancado una vez.",
+        "action": "Restaurar en el próximo inicio",
+        "staged": "Restauración preparada. Reinicia rDownloader para cambiar."
+      }
     }
   },
   "mcp": {
@@ -241,7 +433,9 @@
       "never": "Nunca Secure"
     },
     "warning_no_proxies": "Hay una dirección externa pero ningún proxy de confianza. Entonces cada petición parecerá venir del proxy: los límites y la lista de sesiones mostrarán una sola dirección para todos.",
-    "warning_no_url": "Hay proxies de confianza pero ninguna dirección externa. Entonces la cookie no puede marcarse como Secure automáticamente."
+    "warning_no_url": "Hay proxies de confianza pero ninguna dirección externa. Entonces la cookie no puede marcarse como Secure automáticamente.",
+    "allowed_hosts": "Nombres de host permitidos",
+    "allowed_hosts_hint": "Un nombre por línea con el que abres el servicio en el navegador, por ejemplo nas.lan. Las direcciones IP, localhost y el host de la URL externa siempre valen; cualquier otro nombre se rechaza para que ninguna página ajena entre mediante DNS rebinding."
   },
   "mfa": {
     "eyebrow": "Segundo factor",

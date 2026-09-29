@@ -1,0 +1,40 @@
+manifest_version = 3
+plugin_type = "stream-transform"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# The hosts whose link fragment is key material. Intake strips the fragment off every other
+# address before a LinkGrabber row exists; for these it keeps it in the credential vault and
+# restores it one call before `resolve`. Without this line the key is gone before this plugin
+# is ever asked. A top-level key: it has to stand above the first `[table]` header.
+secret_fragment_domains = ["files.example.com"]
+
+# The provider's API, and the storage host the address `resolve` answers with lies on — the
+# host refuses a download address outside this list. The file host itself is not here: this
+# plugin never fetches it, and it never sends the fragment anywhere.
+[capabilities.net_http]
+domains = ["api.example.com", "*.storage.example.com"]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# Left empty: addresses are claimed by `claims-url`. A plugin that signs requests with an
+# account names its provider slug here and carries a `[provider]` section, as MEGA does.
+claims = []
+
+[metadata]
+description = "Downloads {{PLUGIN_NAME}} files whose key lives in the link, never at the provider."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 15000
+max_response_bytes = 1048576

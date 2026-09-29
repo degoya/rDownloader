@@ -19,6 +19,7 @@ mod collector;
 mod config;
 mod download_rows;
 mod downloads;
+mod full_backup;
 mod logs;
 mod maintenance;
 mod network;
@@ -63,6 +64,13 @@ impl Writer {
             // Exhaustive over `WriterCommand`: a new variant does not compile until it is
             // routed, which is what keeps a command from being accepted and silently dropped.
             match command {
+                WriterCommand::Close { reply } => {
+                    let closed = sqlx::Connection::close(self.connection)
+                        .await
+                        .map_err(anyhow::Error::from);
+                    let _ = reply.send(closed);
+                    return;
+                }
                 command @ (WriterCommand::CreatePackage { .. }
                 | WriterCommand::CreateDownload { .. }
                 | WriterCommand::TransitionDownload { .. }
@@ -289,8 +297,27 @@ impl Writer {
                 | WriterCommand::RecoverInterrupted { .. }
                 | WriterCommand::PurgeOldEvents { .. }
                 | WriterCommand::PruneTransferStats { .. }
-                | WriterCommand::ClearTransferStats { .. }) => {
-                    self.handle_maintenance(command).await
+                | WriterCommand::ClearTransferStats { .. }
+                | WriterCommand::VacuumInto { .. }) => self.handle_maintenance(command).await,
+                command @ (WriterCommand::SaveBackupConfig { .. }
+                | WriterCommand::SetBackupKey { .. }
+                | WriterCommand::ArmBackup { .. }
+                | WriterCommand::BeginBackupRun { .. }
+                | WriterCommand::FinishBackupRun { .. }
+                | WriterCommand::InterruptBackupRuns { .. }) => {
+                    self.handle_full_backup(command).await
+                }
+                command @ (WriterCommand::CreateBackupDestination { .. }
+                | WriterCommand::UpdateBackupDestination { .. }
+                | WriterCommand::DeleteBackupDestination { .. }
+                | WriterCommand::RecordBackupArchive { .. }
+                | WriterCommand::ForgetBackupArchives { .. }
+                | WriterCommand::BeginBackupRunDestinations { .. }
+                | WriterCommand::FinishBackupRunDestination { .. }
+                | WriterCommand::BeginBackupVerification { .. }
+                | WriterCommand::FinishBackupVerification { .. }
+                | WriterCommand::ArmBackupVerify { .. }) => {
+                    self.handle_backup_ledger(command).await
                 }
                 command @ (WriterCommand::AppendLogRecords { .. }
                 | WriterCommand::PruneLogRecords { .. }

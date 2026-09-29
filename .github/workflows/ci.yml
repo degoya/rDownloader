@@ -75,6 +75,9 @@ jobs:
           # Long enough to re-run a failed `rust` job the next day without the whole workflow.
           retention-days: 3
       - run: ../scripts/build-extension.sh
+      # AMO's validator on the Firefox build, so a manifest Mozilla would refuse fails here and
+      # not in the release after the tag (RD-160-07).
+      - run: ../scripts/firefox-amo.sh lint ../artifacts/browser-extensions/firefox
       - uses: actions/upload-artifact@v7
         with:
           name: browser-extensions
@@ -240,7 +243,7 @@ jobs:
       # components (`on_real_components`).
       - name: Crash and restart matrix
         if: runner.os != 'macOS'
-        run: cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage
+        run: cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup
       # Azure Blob and Google Cloud Storage are default features of rd-object-storage (RD-150-05).
       # Without them the crate still has to build and pass: S3 works, `az://` and `gs://` are
       # refused with `object_storage.provider_unsupported`.
@@ -309,6 +312,50 @@ jobs:
             http://127.0.0.1:8710/api/v1/health
           "${stop_script}" server
           trap - EXIT
+      # RD-180-06: the Homebrew formula as the tap gets it, rendered by scripts/package-managers.sh
+      # — but over an archive in the release layout made from this tree's debug build instead of
+      # a published release, so what is tested is this tree's formula. Install from a local tap,
+      # `brew test`, the service through `brew services` up to /api/v1/health, uninstall.
+      - name: Install through the Homebrew formula
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_ANALYTICS: "1"
+        run: |
+          set -euo pipefail
+          cargo build --locked -p rd-capture
+          version="$(scripts/set-version.sh)"
+          arch="$(uname -m)"
+          [[ "${arch}" == arm64 ]] && arch=aarch64
+          fixture="${RUNNER_TEMP}/brew-fixture"
+          mkdir -p "${fixture}/stage/plugins"
+          cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md "${fixture}/stage/"
+          osacompile -o "${fixture}/stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
+          COPYFILE_DISABLE=1 tar --directory "${fixture}/stage" --create --gzip \
+            --file "${fixture}/rdownloader-macos-${arch}.tar.gz" .
+          # The generator wants every archive of a release; the others are never downloaded here.
+          (cd "${fixture}" && shasum -a 256 "./rdownloader-macos-${arch}.tar.gz") > "${fixture}/SHA256SUMS"
+          for other in macos-x86_64.tar.gz macos-aarch64.tar.gz linux-x86_64.tar.gz linux-aarch64.tar.gz windows-x86_64.zip; do
+            grep -q "rdownloader-${other}" "${fixture}/SHA256SUMS" \
+              || printf '%064d  ./rdownloader-%s\n' 0 "${other}" >> "${fixture}/SHA256SUMS"
+          done
+          scripts/package-managers.sh "${version}" "${fixture}/SHA256SUMS" "${fixture}/out" \
+            --base-url "file://${fixture}"
+          brew tap-new --no-git rdownloader-ci/local
+          cp "${fixture}/out/rdownloader.rb" "$(brew --repository rdownloader-ci/local)/Formula/"
+          brew install rdownloader-ci/local/rdownloader
+          brew test rdownloader-ci/local/rdownloader
+          log="$(brew --prefix)/var/log/rdownloader.log"
+          brew services start rdownloader
+          trap 'brew services stop rdownloader || true; cat "${log}" || true' EXIT
+          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused \
+            http://127.0.0.1:8710/api/v1/health
+          test -f "$(brew --prefix)/var/rdownloader/data/rdownloader.sqlite3"
+          brew services stop rdownloader
+          trap - EXIT
+          brew uninstall rdownloader
       - name: Smoke-test Windows executables
         if: runner.os == 'Windows'
         shell: pwsh
@@ -343,6 +390,74 @@ jobs:
             cmd /c stop-rdownloader.bat server
           }
           Pop-Location
+      # RD-180-06: the Scoop manifest the same way as the Homebrew formula on macOS, over a zip
+      # in the release layout from this tree's debug build, served on loopback. Three steps
+      # because the generator is bash and Scoop is PowerShell.
+      - name: Pack a release-layout zip for the Scoop manifest
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'scoop-fixture'
+          $stage = Join-Path $fixture 'stage'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item target/debug/rdownloader.exe,target/debug/rdownloader-capture.exe $stage
+          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat,scripts/windows/start-capture.bat,scripts/windows/stop-capture.bat $stage
+          Copy-Item LICENSE, README.md $stage
+          Compress-Archive -Path "$stage/*" -DestinationPath (Join-Path $fixture 'rdownloader-windows-x86_64.zip')
+      - name: Render the Scoop manifest
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${RUNNER_TEMP}/scoop-fixture"
+          (cd "${fixture}" && sha256sum ./rdownloader-windows-x86_64.zip) > "${fixture}/SHA256SUMS"
+          # The generator wants every archive of a release; the others are never downloaded here.
+          for other in macos-x86_64 macos-aarch64 linux-x86_64 linux-aarch64; do
+            printf '%064d  ./rdownloader-%s.tar.gz\n' 0 "${other}" >> "${fixture}/SHA256SUMS"
+          done
+          scripts/package-managers.sh "$(scripts/set-version.sh)" "${fixture}/SHA256SUMS" \
+            "${fixture}/out" --base-url http://127.0.0.1:8765
+      - name: Install through the Scoop manifest
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RDOWNLOADER_NO_PAUSE: "1"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $fixture = Join-Path $env:RUNNER_TEMP 'scoop-fixture'
+          $server = Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1' -WorkingDirectory $fixture -PassThru -WindowStyle Hidden
+          try {
+            Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+            $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
+            scoop install (Join-Path $fixture 'out\rdownloader.json')
+            if ($LASTEXITCODE -ne 0) { throw "scoop install failed" }
+            $version = (rdownloader --version | Out-String)
+            if ($version -notmatch [regex]::Escape((Get-Content (Join-Path $fixture 'out\rdownloader.json') | ConvertFrom-Json).version)) { throw "rdownloader --version: $version" }
+            start-rdownloader server
+            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader failed" }
+            try {
+              $healthy = $false
+              for ($attempt = 0; $attempt -lt 30; $attempt++) {
+                try {
+                  Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
+                  $healthy = $true
+                  break
+                } catch {
+                  Start-Sleep -Seconds 1
+                }
+              }
+              if (-not $healthy) { throw "the Scoop install's server did not answer" }
+            } finally {
+              stop-rdownloader server
+            }
+            # `persist`: the database is in Scoop's persist folder, where an update finds it.
+            if (-not (Test-Path "$env:USERPROFILE\scoop\persist\rdownloader\data\rdownloader.sqlite3")) { throw "the database is not in the persist folder" }
+            scoop uninstall rdownloader
+            if ($LASTEXITCODE -ne 0) { throw "scoop uninstall failed" }
+          } finally {
+            Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
+          }
+          exit 0
       # A prebuilt binary instead of a source build in every run. install-action has no manifest
       # of its own for sqlx-cli or cargo-component and hands both to cargo-binstall, which takes
       # the signed build from cargo-quickinstall (default features: a superset of the
@@ -484,6 +599,15 @@ jobs:
             diff -u crates/rd-plugin-api/wit/rdownloader.wit "${template}" \
               || { echo "::error::${template} is out of date"; exit 1; }
           done
+      - name: Every world has a template, and the reference reads the whole contract
+        shell: bash
+        # RD-160-04: a world added to the WIT without a template, or a template left behind by
+        # a world that went, fails here rather than in a third party's first scaffold. The
+        # reference generator reads the WIT strictly, so a construct it does not know yet is a
+        # failure instead of a reference that silently leaves part of the contract out.
+        run: |
+          scripts/check-sdk-templates.sh
+          scripts/wit-reference.sh --check
       - name: A scaffolded plugin builds outside the repository
         shell: bash
         run: |
@@ -497,10 +621,12 @@ jobs:
           # current contract; it does not compile the template's code against that contract,
           # and the `auth` scaffold was broken by a contract change on the day it was
           # written without anything here noticing. The scaffolds share one target directory, so the dependency
-          # graph is built once and each further world costs one crate.
+          # graph is built once and each further world costs one crate. The list is the template
+          # directories themselves (RD-160-04), and the step above holds them to the WIT's worlds.
           packager="${GITHUB_WORKSPACE}/target/debug/rd-pack"
           export CARGO_TARGET_DIR=$(mktemp -d)/scaffold-target
-          for world in resolver transfer intake auth oauth crawler enricher notifier postprocess storage remote-job; do
+          for template in sdk/templates/*/; do
+            world=$(basename "${template}")
             out=$(mktemp -d)/scaffolded
             "${packager}" plugin new --type "${world}" --out "${out}"
             (cd "${out}" && cargo component build --release --target wasm32-unknown-unknown)
@@ -531,6 +657,80 @@ jobs:
           done
       - name: Keep Dockerfile COPY satisfied on pull requests
         run: mkdir -p dist/plugins && touch dist/plugins/.keep
+
+  # The S3 connector against a real MinIO (RD-150-04): the multipart upload with its checksums,
+  # listing, a download and a resume on MinIO's own ETags, and a wrong secret refused as such —
+  # what the in-process fixture of crates/rd-object-storage/tests/s3.rs can only imitate. The
+  # tests are `#[ignore]` and fail without RD_S3_LIVE_*, so only this job runs them.
+  #
+  # MinIO is started as a step, not as a `services:` container: the official image needs
+  # `server /data` as its command, which `services:` cannot pass, and MinIO no longer publishes
+  # it on Docker Hub (the registry answers UNAUTHORIZED for minio/minio, 2026-09-28). The last
+  # Bitnami build, frozen as bitnamilegacy/minio and starting the server on its own, is pinned
+  # by digest; readiness is MinIO's /minio/health/live, polled from the runner. The credentials
+  # are the throw-away container's own.
+  s3-live:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
+      MINIO_IMAGE: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+      RD_S3_LIVE_ENDPOINT: http://127.0.0.1:9000
+      RD_S3_LIVE_REGION: us-east-1
+      RD_S3_LIVE_BUCKET: rd-live
+      RD_S3_LIVE_ACCESS_KEY: minioadmin
+      RD_S3_LIVE_SECRET: minioadmin
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start MinIO
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name minio --publish 127.0.0.1:9000:9000 \
+            --env MINIO_ROOT_USER="${RD_S3_LIVE_ACCESS_KEY}" \
+            --env MINIO_ROOT_PASSWORD="${RD_S3_LIVE_SECRET}" \
+            "${MINIO_IMAGE}"
+      - name: Install mold
+        run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+      - uses: mozilla-actions/sccache-action@v0.0.11
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Build the live S3 tests
+        run: cargo nextest run --locked --no-run -p rd-object-storage --test s3_live
+      # The build gave MinIO its time; this waits for the rest, then makes the bucket with a
+      # signed CreateBucket (curl's own SigV4), since object_store creates none.
+      - name: Wait for MinIO and create the bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            curl --silent --fail --output /dev/null "${RD_S3_LIVE_ENDPOINT}/minio/health/live" && break
+            if [[ ${attempt} -eq 60 ]]; then
+              echo "::error::MinIO did not answer /minio/health/live within 60 s"
+              docker logs minio
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --silent --show-error --fail -X PUT --data-binary '' \
+            --aws-sigv4 "aws:amz:${RD_S3_LIVE_REGION}:s3" \
+            --user "${RD_S3_LIVE_ACCESS_KEY}:${RD_S3_LIVE_SECRET}" \
+            "${RD_S3_LIVE_ENDPOINT}/${RD_S3_LIVE_BUCKET}"
+      - name: Live S3 tests against MinIO
+        run: >-
+          cargo nextest run --locked -p rd-object-storage --test s3_live
+          --run-ignored only --no-tests fail
+      - name: MinIO log after a failure
+        if: failure()
+        run: docker logs minio || true
 
   # The image the release publishes, minus arm64 and the push: the release binary built here
   # with the cache, copied into docker/Dockerfile's `prebuilt` target and smoke-tested (owner,
@@ -584,6 +784,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The compatibility gate compares with the last release tag; the public repository
+          # carries one commit per release, so its whole history is small.
+          fetch-depth: 0
+      # A break of the REST API or the plugin contract since the last release fails unless
+      # scripts/compat-breaks.toml acknowledges it or the WIT version moved (RD-170-08).
+      - name: compat-check
+        run: scripts/compat-check.sh
+      # One version: every copy (web/package.json, the extension manifest, the generated OpenAPI
+      # document) agrees with Cargo.toml's workspace version. Reads files only.
+      - name: Versions agree
+        run: scripts/set-version.sh --check
       # A stale entry in deny.toml's duplicate skip list fails, so the list only shrinks (RD-150-21).
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:

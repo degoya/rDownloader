@@ -19,12 +19,22 @@
 # with every job green and `docker` still running. Every job in ci.yml carries its own
 # `timeout-minutes`, so GitHub ends a run by itself; the ceiling is the six hours a hosted job
 # may run at most, and only catches a run whose jobs never leave the queue.
+#
+# Only the runner images no recorded green covers are dispatched (RD-160-06): a green run is
+# recorded per image and tree (scripts/lib/verified.sh, rd_record_ci), and a tree that differs from
+# a green one only in documentation and version lines — the release candidate against its wave's
+# integration branch — counts as green. A red run records nothing.
+
+# shellcheck source=verified.sh
+source "$(dirname "${BASH_SOURCE[0]}")/verified.sh"
 
 PUBLIC_DIR="${RD_PUBLIC_DIR:-$HOME/projects/rDownloader-public}"
 PUBLIC_REPO="${RD_PUBLIC_REPO:-degoya/rDownloader}"
 PUBLIC_CI_TIMEOUT="${RD_PUBLIC_CI_TIMEOUT:-900}"
 PUBLIC_CI_CEILING="${RD_PUBLIC_CI_CEILING:-21600}"
 PUBLIC_CI_POLL="${RD_PUBLIC_CI_POLL:-60}"
+# Every platform ci.yml checks.
+RD_PUBLIC_CI_ALL="linux,windows,macos"
 
 rd_public_ci_gh_ready() {
     command -v gh > /dev/null || { echo "gh is required to watch the public CI" >&2; return 1; }
@@ -32,13 +42,14 @@ rd_public_ci_gh_ready() {
         || { echo "gh is not signed in to github.com (gh auth login)" >&2; return 1; }
 }
 
-# The JSON list ci.yml's `platforms` input takes, from a comma-separated list of short names
-# (linux, windows, macos) or runner images. The images are the ones ci.yml names; a new image
-# there is a new line here.
-rd_public_ci_platforms() {
-    local item json="" image
+# The runner images, one per line, of a comma-separated list of short names (linux, windows,
+# macos) or runner images. The images are the ones ci.yml names; a new image there is a new line
+# here.
+rd_public_ci_images() {
+    local item image
     local -a items
     IFS=',' read -r -a items <<< "$1"
+    [[ ${#items[@]} -gt 0 ]] || { echo "no platform named" >&2; return 2; }
     for item in "${items[@]}"; do
         case "$item" in
             linux) image="ubuntu-24.04" ;;
@@ -47,10 +58,35 @@ rd_public_ci_platforms() {
             ubuntu-*|windows-*|macos-*) image="$item" ;;
             *) echo "unknown platform: $item (linux, windows, macos or a runner image)" >&2; return 2 ;;
         esac
-        json+="${json:+,}\"$image\""
+        printf '%s\n' "$image"
     done
-    [[ -n "$json" ]] || { echo "no platform named" >&2; return 2; }
-    printf '[%s]\n' "$json"
+}
+
+# The JSON list ci.yml's `platforms` input takes, from the same comma-separated list.
+rd_public_ci_platforms() {
+    local images
+    images="$(rd_public_ci_images "$1")" || return 2
+    printf '[%s]\n' "$(sed 's/.*/"&"/' <<< "$images" | paste -sd, -)"
+}
+
+# Which of runner images $3... tree $2 of checkout $1 still needs a run on. Says for each image
+# whether a recorded green covers it (rd_ci_covering) and leaves the others, in order, in the
+# array RD_PUBLIC_CI_MISSING.
+rd_public_ci_plan() {
+    local root="$1" tree="$2" image covering
+    shift 2
+    RD_PUBLIC_CI_MISSING=()
+    for image in "$@"; do
+        covering="$(rd_ci_covering "$root" "$tree" "$image")"
+        if [[ -z "$covering" ]]; then
+            RD_PUBLIC_CI_MISSING+=("$image")
+            echo "  $image: to run"
+        elif [[ "$covering" == "$tree" ]]; then
+            echo "  $image: green for this tree already"
+        else
+            echo "  $image: green already for tree ${covering:0:12}, which differs only in documentation and version lines"
+        fi
+    done
 }
 
 # Deletes every ci/* branch of the public repository but $1: what an earlier red run left.

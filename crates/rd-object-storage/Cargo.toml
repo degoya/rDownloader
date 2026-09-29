@@ -48,5 +48,9 @@ workspace = true
 
 [dev-dependencies]
 axum.workspace = true
+# The TLS endpoint of `tests/s3_tls.rs`: a CA of its own and a rustls listener.
+rcgen.workspace = true
+rustls.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
+tokio-rustls.workspace = true

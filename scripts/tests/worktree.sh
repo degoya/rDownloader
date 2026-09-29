@@ -3,7 +3,8 @@
 # scripts/worktree.sh against a scratch repository (RD-140-22): `new` installs web/node_modules
 # with pnpm and links web/dist from the main checkout (RD-150-14), `check` catches rewritten
 # generated declarations, and `finish` merges only a branch whose HEAD a green run recorded,
-# discarding such a rewrite and refusing uncommitted work.
+# discarding such a rewrite and refusing uncommitted work; a branch already in the base is only
+# removed.
 #
 # Pure git and bash, no cargo; pnpm is a stand-in that records its arguments.
 #
@@ -86,6 +87,24 @@ expect "and so is the branch" "" "$(git -C "$MAIN" branch --list "$BRANCH")"
 
 worktree finish "$BRANCH"
 expect_status "finish of a worktree that does not exist" 1
+
+# A wave branch: merged into the base through its integration branch, never checked on its own.
+WAVE="wave/part"
+WAVE_TREE="$MAIN-wave-part"
+worktree new "$WAVE"
+echo part > "$WAVE_TREE/part.txt"
+git -C "$WAVE_TREE" add part.txt
+git -C "$WAVE_TREE" commit -qm part
+git -C "$MAIN" merge -q --no-ff -m integrate "$WAVE"
+echo dirty >> "$WAVE_TREE/part.txt"
+worktree finish "$WAVE"
+expect_status "a merged branch with uncommitted changes is still refused" 1
+git -C "$WAVE_TREE" checkout -q -- part.txt
+worktree finish "$WAVE"
+expect_status "a branch already in the base is finished without a green of its own" 0
+expect_true "its worktree is gone" '[[ ! -e "$WAVE_TREE" ]]'
+expect "and its branch" "" "$(git -C "$MAIN" branch --list "$WAVE")"
+expect "no second merge commit" "integrate" "$(git -C "$MAIN" log -1 --format=%s)"
 worktree bogus "$BRANCH"
 expect_status "an unknown command is a usage error" 2
 

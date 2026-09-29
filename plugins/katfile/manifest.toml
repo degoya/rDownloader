@@ -6,7 +6,7 @@ name = "KatFile"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed 0.2.0 package (`sync_bundled` only installs newer ones) and never picks the
 # free flow up. Pinned jobs are unaffected: installing 0.3.0 leaves 0.2.0 in place.
-version = "0.9.8"
+version = "0.9.9"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # Seven domains per JD's KatfileCom.getPluginDomains() (rev 53112): katfile.biz is the current

@@ -240,6 +240,46 @@ async fn a_name_is_judged_by_every_address_it_answers_with() {
     ));
 }
 
+/// FTP and SFTP open their own sockets: the addresses they are handed are the ones checked,
+/// with the port on them, and a refusal comes back as the I/O error a connect returns.
+#[tokio::test]
+async fn a_transport_with_its_own_sockets_gets_only_checked_addresses() {
+    let table = Table::new(&[
+        ("mirror.test", &["127.0.0.1"]),
+        ("rebind.test", &["93.184.216.34", "127.0.0.1"]),
+        ("public.test", &["93.184.216.34"]),
+    ]);
+    let internet = AddressPolicy::new(false);
+    for host in [
+        "mirror.test",
+        "rebind.test",
+        "127.0.0.1",
+        "[::1]",
+        "::ffff:127.0.0.1",
+    ] {
+        let refused = connect_addresses(&internet, table.as_ref(), host, 21)
+            .await
+            .expect_err(host);
+        assert_eq!(
+            refused.kind(),
+            std::io::ErrorKind::PermissionDenied,
+            "{host}"
+        );
+        assert!(refusal_in(&refused).is_some(), "{host}");
+    }
+    assert_eq!(
+        connect_addresses(&internet, table.as_ref(), "public.test", 2121)
+            .await
+            .expect("permitted"),
+        vec![SocketAddr::new(ip("93.184.216.34"), 2121)]
+    );
+    // Nothing refused, nothing to connect to: an ordinary I/O error, not the guard's.
+    let unresolved = connect_addresses(&internet, table.as_ref(), "nowhere.test", 22)
+        .await
+        .expect_err("no address");
+    assert!(refusal_in(&unresolved).is_none());
+}
+
 #[tokio::test]
 async fn localhost_is_refused_through_the_system_resolver() {
     let refused = check_target(

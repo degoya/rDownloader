@@ -734,6 +734,7 @@ async fn a_chunk_confirmed_but_unchecked_is_checked_before_the_file_completes() 
         position,
         url: format!("http://{address}/payload").parse().expect("url"),
         headers: Vec::new(),
+        via: None,
     };
     let engine = DownloadEngine::new(reqwest::Client::new(), ScopedLimiter::unlimited());
 

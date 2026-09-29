@@ -97,6 +97,22 @@ finish)
     # A rewrite of the generated declarations is discarded rather than merged: the build in the
     # merged checkout writes them again, from its own inventory.
     restore_generated "$path"
+    # A branch already contained in the base — a wave branch, merged and checked through its
+    # integration branch — brings nothing a merge could add. Only the worktree and the branch go;
+    # uncommitted work still stops it, because that is not in the base.
+    if git -C "$MAIN" merge-base --is-ancestor "$branch" "$BASE"; then
+        if [[ -n "$(git -C "$path" status --porcelain --untracked-files=no)" ]]; then
+            echo "!! $branch has uncommitted changes" >&2
+            git -C "$path" status --short >&2
+            exit 1
+        fi
+        echo "==> $branch is already in $BASE; removing its worktree and branch"
+        [[ -L "$path/web/dist" ]] && rm -f "$path/web/dist"
+        [[ -L "$path/target/wasm32-unknown-unknown" ]] && rm -f "$path/target/wasm32-unknown-unknown"
+        git -C "$MAIN" worktree remove "$path"
+        git -C "$MAIN" branch -d "$branch"
+        exit 0
+    fi
     # This is where a deferral is used up. scripts/check.sh --defer lets a translated string or
     # a colour be committed without a forty minute run, and the next ordinary run picks those
     # commits up by itself — but only if one happens before the merge. A branch whose HEAD no

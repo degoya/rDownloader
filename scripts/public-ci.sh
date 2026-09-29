@@ -15,10 +15,12 @@
 #   scripts/public-ci.sh integration/1.4-w4                             # all three platforms
 #   scripts/public-ci.sh fix/x --platforms windows-2025                 # a runner image by name
 #
-# Without --platforms the push starts ci.yml on every platform, as any push does. With it the
-# export's commit carries `[skip ci]` and ci.yml is started by hand with its `platforms` input,
-# so exactly one run is watched. Either way the export, the wait and the deletion are the ones
-# the release pipeline's `public-ci` step uses (scripts/lib/public-ci.sh).
+# Not twice (RD-160-06): a platform already green for the branch's tree, or for a tree that
+# differs from it only in documentation and version lines, is not run again; with every named
+# platform green nothing is exported at all. The export's commit carries `[skip ci]` and ci.yml
+# is started by hand with its `platforms` input for the rest, so exactly one run is watched; its
+# green is recorded per platform. The plan, the export, the wait, the record and the deletion
+# are the ones the release pipeline's `public-ci` step uses (scripts/lib/public-ci.sh).
 #
 # Outward: the branch's tree becomes public while the run lasts, minus what
 # scripts/public-exclude.txt leaves out. The export refuses anything gitleaks finds.
@@ -37,19 +39,18 @@ platforms=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --platforms) platforms="${2:?--platforms needs a list}"; shift 2 ;;
-        -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) [[ -z "$branch" ]] || usage; branch="$1"; shift ;;
     esac
 done
 [[ -n "$branch" ]] || usage
 
-platforms_json=""
-if [[ -n "$platforms" ]]; then
-    platforms_json="$(rd_public_ci_platforms "$platforms")" || exit 2
-fi
+image_list="$(rd_public_ci_images "${platforms:-$RD_PUBLIC_CI_ALL}")" || exit 2
+mapfile -t images <<< "$image_list"
 commit="$(git rev-parse --verify --quiet "$branch^{commit}")" \
     || { echo "no such branch or commit: $branch" >&2; exit 2; }
+tree="$(git rev-parse "$commit^{tree}")"
 # The public branch: ci/ and the name with its slashes flattened, so integration/1.4-w4 becomes
 # ci/integration-1.4-w4. The release pipeline's ci/<version> cannot collide with it.
 public_branch="ci/${branch//\//-}"
@@ -59,20 +60,22 @@ version="$(git show "$commit:Cargo.toml" | sed -n '/^\[workspace\.package\]/,/^\
     | sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\).*"/\1/p' | head -1)"
 [[ -n "$version" ]] || { echo "no workspace version in $branch:Cargo.toml" >&2; exit 1; }
 
-rd_public_ci_gh_ready
-skip=()
-[[ -z "$platforms_json" ]] || skip=(--skip-push-ci)
-scripts/export-public.sh "$version" --ref "$commit" --branch "$public_branch" "${skip[@]}"
-sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$public_branch")"
-
-event=""
-if [[ -n "$platforms_json" ]]; then
-    rd_public_ci_dispatch "$public_branch" "$platforms_json"
-    event="workflow_dispatch"
+echo "==> $branch (${commit:0:12}, tree ${tree:0:12}) on GitHub"
+rd_public_ci_plan "$ROOT" "$tree" "${images[@]}"
+if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 ]]; then
+    echo "==> $branch (${commit:0:12}) is green on GitHub (${images[*]}) already; nothing was run"
+    exit 0
 fi
-if ! rd_public_ci_wait "$public_branch" "$sha" "$event"; then
+platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")"
+
+rd_public_ci_gh_ready
+scripts/export-public.sh "$version" --ref "$commit" --branch "$public_branch" --skip-push-ci
+sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$public_branch")"
+rd_public_ci_dispatch "$public_branch" "$platforms_json"
+if ! rd_public_ci_wait "$public_branch" "$sha" workflow_dispatch; then
     echo "!! $branch is not green on GitHub; it is not merged until it is." >&2
     exit 1
 fi
+rd_record_ci "$ROOT" "$tree" "${RD_PUBLIC_CI_MISSING[@]}"
 rd_public_ci_delete "$public_branch"
-echo "==> $branch (${commit:0:12}) is green on GitHub${platforms:+ ($platforms)}"
+echo "==> $branch (${commit:0:12}) is green on GitHub (${images[*]}); recorded for ${RD_PUBLIC_CI_MISSING[*]}"

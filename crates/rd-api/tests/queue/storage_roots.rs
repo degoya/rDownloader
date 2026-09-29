@@ -163,3 +163,84 @@ async fn the_setup_status_counts_roots_that_will_not_survive() {
         "the readiness card and the routing view must not disagree about the same roots"
     );
 }
+
+/// Finding 4 of the 2026-09-28 security review: a root is where downloads land under names a
+/// download chooses, so a root at or around the scripts, plugin or vendor folder let
+/// `api:config` plant something the service runs. Each case below was created with a 201
+/// before the check.
+#[tokio::test]
+async fn a_root_may_not_reach_a_directory_the_service_runs_things_from() {
+    let temporary = tempfile::tempdir().expect("tempdir");
+    let base = temporary.path();
+    let router = test_router(base).await;
+    let (status, mut settings) = get_json(&router, "/api/v1/settings").await;
+    assert_eq!(status, StatusCode::OK, "{settings}");
+    let vendor = base.join("helpers");
+    settings["vendor_directory"] = json!(vendor.to_string_lossy());
+    settings["admin_login_disabled"] = json!(true);
+    let (status, saved) = put_json(&router, "/api/v1/settings", settings).await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+
+    // The harness keeps its scripts in `<dir>/scripts` and its plugins in `<dir>/plugins`.
+    for (path, directory) in [
+        (base.join("scripts"), "scripts"),
+        (base.join("scripts/inbox"), "scripts"),
+        (base.join("downloads/../scripts"), "scripts"),
+        (base.join("plugins"), "plugins"),
+        (base.join("plugins/extra"), "plugins"),
+        (vendor.clone(), "vendor"),
+        (vendor.join("bin"), "vendor"),
+        (base.to_path_buf(), "scripts"),
+    ] {
+        let (status, body) = post_json(
+            &router,
+            "/api/v1/storage-roots",
+            body("Library", &path, false),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "{}: {body}",
+            path.display()
+        );
+        assert_eq!(
+            body["code"],
+            "storage_root.protected_directory",
+            "{}",
+            path.display()
+        );
+        assert_eq!(body["params"]["directory"], directory, "{}", path.display());
+    }
+    assert!(
+        !base.join("scripts/inbox").exists(),
+        "a refused root is refused before its directory is created"
+    );
+
+    let (_, listed) = get_json(&router, "/api/v1/storage-roots").await;
+    assert_eq!(listed, json!([]), "nothing was stored");
+}
+
+#[tokio::test]
+async fn an_existing_root_may_not_be_moved_onto_a_protected_directory() {
+    let temporary = tempfile::tempdir().expect("tempdir");
+    let base = temporary.path();
+    let router = test_router(base).await;
+    let (status, created) = post_json(
+        &router,
+        "/api/v1/storage-roots",
+        body("Downloads", &base.join("downloads"), true),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["id"].as_str().expect("id").to_owned();
+
+    let (status, body) = put_json(
+        &router,
+        &format!("/api/v1/storage-roots/{id}"),
+        body("Downloads", &base.join("scripts"), true),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "storage_root.protected_directory");
+}

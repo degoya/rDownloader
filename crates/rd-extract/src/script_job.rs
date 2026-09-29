@@ -126,6 +126,19 @@ fn is_batch(script: &Path) -> bool {
         })
 }
 
+/// A script that did not start, for [`execute`] and [`execute_for_output`] alike.
+///
+/// The standard library's refusal to build a batch file's command line becomes
+/// [`BATCH_ARGUMENTS_REFUSED`] as the whole message; the script's own name cannot be the cause --
+/// `resolve_script` admits no quote and no backslash. Anything else keeps `context`.
+fn spawn_error(script: &Path, error: std::io::Error, context: &'static str) -> anyhow::Error {
+    if is_batch(script) && error.kind() == std::io::ErrorKind::InvalidInput {
+        anyhow::anyhow!(BATCH_ARGUMENTS_REFUSED)
+    } else {
+        anyhow::Error::new(error).context(context)
+    }
+}
+
 /// SABnzbd-compatible positional arguments.
 pub(crate) fn arguments(context: &ScriptContext) -> Vec<String> {
     vec![
@@ -181,7 +194,9 @@ pub(crate) async fn execute(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let mut child = command.spawn().context("spawn post-processing script")?;
+    let mut child = command
+        .spawn()
+        .map_err(|error| spawn_error(script, error, "spawn post-processing script"))?;
     let mut stdout = child.stdout.take().context("script stdout")?;
     let mut stderr = child.stderr.take().context("script stderr")?;
     let capture = async {
@@ -255,15 +270,9 @@ pub(crate) async fn execute_for_output(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let mut child = match command.spawn() {
-        Ok(child) => child,
-        // The standard library's refusal to build a batch file's command line. The script's
-        // own name cannot be the cause -- `resolve_script` admits no quote and no backslash.
-        Err(error) if is_batch(script) && error.kind() == std::io::ErrorKind::InvalidInput => {
-            bail!(BATCH_ARGUMENTS_REFUSED)
-        }
-        Err(error) => return Err(anyhow::Error::new(error).context("spawn script")),
-    };
+    let mut child = command
+        .spawn()
+        .map_err(|error| spawn_error(script, error, "spawn script"))?;
     let stdout = child.stdout.take().context("script stdout")?;
     let stderr = child.stderr.take().context("script stderr")?;
     let errors = tokio::spawn(async move {
@@ -368,7 +377,7 @@ pub(crate) async fn run(
 
 #[cfg(test)]
 mod tests {
-    use super::{ScriptContext, arguments, failure_reason, resolve_script};
+    use super::{ScriptContext, arguments, failure_reason, resolve_script, spawn_error};
 
     fn context(dir: &std::path::Path) -> ScriptContext {
         ScriptContext {
@@ -409,6 +418,30 @@ mod tests {
             reason.chars().count() <= super::REASON_LIMIT + 1,
             "{reason}"
         );
+    }
+
+    /// Security review 2026-09-28, finding 8: a post-processing script is refused with the same
+    /// code as an output script, not with a generic spawn failure. Only a batch file's
+    /// `InvalidInput` is that refusal.
+    #[test]
+    fn a_refused_batch_command_line_is_the_stable_code_for_every_script_kind() {
+        use std::{io, path::Path};
+
+        let refused = || io::Error::from(io::ErrorKind::InvalidInput);
+        for batch in ["run.bat", "RUN.CMD"] {
+            assert_eq!(
+                spawn_error(Path::new(batch), refused(), "spawn script").to_string(),
+                super::BATCH_ARGUMENTS_REFUSED
+            );
+        }
+        let other = spawn_error(Path::new("run.sh"), refused(), "spawn script");
+        assert_eq!(other.to_string(), "spawn script");
+        let missing = spawn_error(
+            Path::new("run.bat"),
+            io::Error::from(io::ErrorKind::NotFound),
+            "spawn post-processing script",
+        );
+        assert_eq!(missing.to_string(), "spawn post-processing script");
     }
 
     /// RD-130-19: a script whose output is data -- every line, the exit code and both limits.
@@ -576,6 +609,19 @@ mod tests {
         let error = run(vec!["line\nbreak".to_owned()])
             .await
             .expect_err("a line break cannot be escaped for cmd.exe");
+        assert_eq!(error.to_string(), BATCH_ARGUMENTS_REFUSED);
+
+        // The post-processing run refuses the same way: its arguments carry the package name.
+        let mut refused = context(scripts);
+        refused.package_name = "line\nbreak".to_owned();
+        let error = super::execute(
+            &scripts.join("args.bat"),
+            scripts,
+            &refused,
+            Duration::from_secs(20),
+        )
+        .await
+        .expect_err("a line break cannot be escaped for cmd.exe");
         assert_eq!(error.to_string(), BATCH_ARGUMENTS_REFUSED);
     }
 

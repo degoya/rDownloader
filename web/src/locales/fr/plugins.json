@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Versions installées",
     "title": "Inventaire local",
-    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : ceux fournis sont installés au prochain démarrage, les autres viennent d’un dépôt.",
+    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : installez un service du lot fourni ci-dessus ou d’un dépôt.",
     "filter_label": "Filtrer par groupe de plugins"
   },
   "card": {
@@ -170,7 +170,9 @@
     "withdrawn": "Ce paquet précis a été retiré et ne peut pas être installé.",
     "incompatible": "Cette version ne peut pas l’exécuter : {reason}",
     "restart": "Un plugin devient actif après le prochain redémarrage.",
-    "install": "Installer"
+    "install": "Installer",
+    "added_permissions": "Nouveau par rapport à v{version}",
+    "no_added_permissions": "Ne demande rien que la v{version} n’ait déjà."
   },
   "updates": {
     "eyebrow": "Dépôts",
@@ -191,7 +193,8 @@
       "withdrawn": "Retiré"
     },
     "adds_permissions": "Nouvelles autorisations",
-    "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques."
+    "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques.",
+    "added_permissions": "Nouveau : {permissions}"
   },
   "repositories": {
     "eyebrow": "Sources",
@@ -224,5 +227,35 @@
     "remove_title": "Retirer ce dépôt ?",
     "remove_description": "{name} ne proposera plus de mises à jour. Les plugins qui en proviennent restent installés.",
     "empty": "Aucun dépôt configuré."
+  },
+  "bundled": {
+    "eyebrow": "Lot fourni",
+    "title": "Services disponibles",
+    "description": "Ce que cette version fournit sans être installé : non choisi, supprimé ou nouveau. Un clic installe un service avec tous ses plugins ; ils fonctionnent dès le prochain démarrage.",
+    "search": "Rechercher un service",
+    "filter_label": "Filtrer par catégorie",
+    "all": "Tous",
+    "category": {
+      "hoster": "Hébergeurs",
+      "multihoster": "Multihébergeurs et debrid",
+      "remote_jobs": "Torrents et tâches distantes",
+      "cloud": "Cloud et stockage",
+      "links": "Listes de liens et dossiers",
+      "metadata": "Métadonnées",
+      "notifications": "Notifications",
+      "postprocess": "Post-traitement",
+      "other": "Autres"
+    },
+    "state": {
+      "installed": "Installé",
+      "partial": "Partiellement installé"
+    },
+    "needs_account": "Nécessite un compte ou une destination",
+    "install": "Installer",
+    "no_match": "Aucun service ne correspond à « {query} ».",
+    "all_installed": "Tout le lot fourni est installé.",
+    "none": "Cette version ne fournit aucun lot. Les plugins viennent alors d'un dépôt.",
+    "failed": "{name} n'a pas pu être installé : {reason}",
+    "installed": "Rien n'a été installé. | 1 plugin installé ; il fonctionne dès le prochain démarrage. | {count} plugins installés ; ils fonctionnent dès le prochain démarrage."
   }
 }

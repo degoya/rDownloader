@@ -41,6 +41,11 @@ pub struct RunLimits {
     pub max_parallel_requests: usize,
     /// Byte pacing for this transfer's scope; unlimited when no profile applies.
     pub bandwidth: rd_limits::ScopedLimiter,
+    /// The address rule the file's own address keeps to, when a stranger's document or page
+    /// proposed it (RD-150-03). The queue has already checked the address against it before
+    /// the runner starts; a runner that opens its own sockets (FTP, SFTP) holds every
+    /// connection to it as well. `None` for an address the person gave.
+    pub address_policy: Option<rd_http::AddressPolicy>,
 }
 
 /// A transport that executes queued files of one kind (segments, articles, …).
@@ -76,6 +81,12 @@ pub trait ExternalRunner: Send + Sync {
     /// No default on purpose: a runner added later has to say whether it resumes, rechecks
     /// and adopts, rather than inheriting an answer that is true of somebody else.
     fn reuse(&self) -> rd_core::ReuseCapability;
+    /// How the multi-source transfer fetches a mirror of this transport (RD-150-03): FTP and
+    /// SFTP answer with a source that opens a connection at a chunk's offset. `None` for a
+    /// transport whose files cannot be read from an offset on demand.
+    fn range_source(&self) -> Option<Arc<dyn rd_http::RangeSource>> {
+        None
+    }
     async fn run(
         &self,
         file: &DownloadFile,
@@ -257,6 +268,28 @@ impl SchedulerHandle {
         self.database
             .transition_download(file.id, DownloadState::Resolving)
             .await?;
+        // A link a document or a page proposed is judged before its runner is handed it
+        // (RD-150-03): yt-dlp, gallery-dl and streamlink open their own sockets and cannot be
+        // held to the rule once they run, so an address that points at this machine — or,
+        // unless the person handed the document over, into their network — never reaches
+        // them. FTP and SFTP also hold every connection to it (`RunLimits::address_policy`).
+        let address_policy = self.address_policy_for(file.id).await?;
+        if let Some(policy) = &address_policy
+            && let Err(rd_http::TargetRefusal::Refused(refused)) =
+                rd_http::check_target(policy, &rd_http::SystemLookup, &file.source).await
+        {
+            tracing::warn!(
+                download_id = %file.id,
+                address = ?refused.address,
+                "a proposed link points at an address it may not reach; it is not handed over"
+            );
+            let failure = crate::worker::internal_address();
+            let retry_at = retry::retry_at(&failure, file.retry_count, self.max_retries());
+            self.database
+                .record_failure(file.id, failure, retry_at)
+                .await?;
+            return Ok(());
+        }
         // Every non-HTTP transport passes through here, so one check covers Usenet,
         // torrent, media, gallery and stream instead of five separate ones.
         let remaining = file
@@ -279,6 +312,7 @@ impl SchedulerHandle {
                 .external_connections_per_file
                 .load(std::sync::atomic::Ordering::Acquire),
             bandwidth: self.scoped_limiter(file).await,
+            address_policy,
         };
         match runner.run(file, &package, cancellation, limits).await? {
             RunOutcome::Completed { final_name } => {

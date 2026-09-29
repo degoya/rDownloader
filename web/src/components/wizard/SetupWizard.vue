@@ -7,21 +7,24 @@ import AppSignature from '@/components/AppSignature.vue'
 import SettingsMcpAccess from '@/components/settings/SettingsMcpAccess.vue'
 import WizardPairingStep from '@/components/wizard/WizardPairingStep.vue'
 import WizardPasswordStep from '@/components/wizard/WizardPasswordStep.vue'
+import WizardSelectionStep from '@/components/wizard/WizardSelectionStep.vue'
 import WizardServicesStep from '@/components/wizard/WizardServicesStep.vue'
 import WizardStorageStep from '@/components/wizard/WizardStorageStep.vue'
 import { useSessionStore } from '@/stores/session'
 
-type StepKey = 'password' | 'pairing' | 'storage' | 'mcp' | 'services'
+type StepKey = 'password' | 'pairing' | 'storage' | 'mcp' | 'selection' | 'services'
 
 const { t } = useI18n()
 const session = useSessionStore()
 const endpoint = window.location.host
 
-const STEP_ORDER: StepKey[] = ['password', 'pairing', 'storage', 'mcp', 'services']
+// "Your services" comes right before the accounts: what it installs is what they offer (RD-160-05).
+const STEP_ORDER: StepKey[] = ['password', 'pairing', 'storage', 'mcp', 'selection', 'services']
 // Re-run starts at the top so every step is reviewable; a first run resumes at the first
 // step that still has work — the password is already set when the wizard was abandoned.
 const current = ref<StepKey>(session.wizardRerun || session.setupRequired ? 'password' : 'pairing')
 const storageStep = ref<InstanceType<typeof WizardStorageStep> | null>(null)
+const selectionStep = ref<InstanceType<typeof WizardSelectionStep> | null>(null)
 const advancing = ref(false)
 const finishing = ref(false)
 const counts = ref({ storage_roots: 0, capture_agents: 0, accounts: 0, usenet_servers: 0 })
@@ -57,6 +60,13 @@ const items = computed(() => [
     disabled: !session.wizardRerun
   },
   {
+    value: 'selection',
+    title: t('wizard.steps.selection.title'),
+    description: t('wizard.steps.selection.description'),
+    icon: 'i-lucide-layout-grid',
+    disabled: !session.wizardRerun
+  },
+  {
     value: 'services',
     title: t('wizard.steps.services.title'),
     description: t('wizard.steps.services.description'),
@@ -73,7 +83,7 @@ const isFirst = computed(() => index.value === 0)
 const passwordPending = computed(() => current.value === 'password' && session.setupRequired)
 /** Storage is mandatory: no way forward until a root exists. */
 const blocked = computed(() => current.value === 'storage' && !storageStep.value?.complete)
-const skippable = computed(() => ['pairing', 'mcp', 'services'].includes(current.value))
+const skippable = computed(() => ['pairing', 'mcp', 'selection', 'services'].includes(current.value))
 
 onMounted(() => void loadCounts())
 
@@ -95,7 +105,17 @@ async function next(): Promise<void> {
   if (blocked.value) return
   advancing.value = true
   if (current.value === 'storage') await storageStep.value?.ensureDefaultCategory()
+  // The chosen services install before the accounts step opens, so it lists them from its
+  // first read. A failure stays on the step, which says what failed; "Skip" still moves on.
+  const installed = current.value === 'selection' ? await selectionStep.value?.install() ?? true : true
   advancing.value = false
+  if (!installed) return
+  const target = STEP_ORDER[index.value + 1]
+  if (target) current.value = target
+}
+
+/** Skipping installs nothing: the step's choice is dropped, not applied. */
+function skip(): void {
   const target = STEP_ORDER[index.value + 1]
   if (target) current.value = target
 }
@@ -157,7 +177,8 @@ async function finish(startTour: boolean): Promise<void> {
           <WizardPairingStep v-else-if="current === 'pairing'" />
           <WizardStorageStep v-else-if="current === 'storage'" ref="storageStep" />
           <SettingsMcpAccess v-else-if="current === 'mcp'" embedded />
-          <WizardServicesStep v-else />
+          <WizardSelectionStep v-else-if="current === 'selection'" ref="selectionStep" />
+          <WizardServicesStep v-else @choose-services="current = 'selection'" />
         </div>
 
         <footer class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-muted pt-5">
@@ -177,7 +198,8 @@ async function finish(startTour: boolean): Promise<void> {
               color="neutral"
               variant="ghost"
               :label="t('wizard.actions.skip')"
-              @click="next"
+              :disabled="advancing"
+              @click="skip"
             />
             <template v-if="isLast">
               <UButton

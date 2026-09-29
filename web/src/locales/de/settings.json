@@ -156,7 +156,7 @@
   },
   "admin_login": {
     "label": "Admin-Login deaktivieren",
-    "description": "Jeder, der die Oberfläche erreicht, darf alles steuern. Nur sinnvoll, wenn der Dienst ausschließlich auf Loopback oder im eigenen vertrauenswürdigen Netz erreichbar ist. Wirkt sofort nach dem Speichern.",
+    "description": "Wer die Oberfläche von diesem Rechner aus öffnet, darf alles steuern, ohne sich anzumelden. Jeder andere Rechner – im LAN, über eine Portweiterleitung, einen Container oder einen Reverse Proxy – muss sich weiter mit dem Kennwort anmelden. Wirkt sofort nach dem Speichern.",
     "warning": "Der Kennwortschutz ist ausgeschaltet."
   },
   "proxy": {

@@ -34,8 +34,15 @@
 # directories never shrink. The script reports each `deps` directory's own size; past 256 MiB it
 # says so, and the remedy is AGENTS.md's rename-and-delete.
 #
+# Never beside a build: run on the shared target while tests ran, it deleted test binaries in
+# use, and the shared target was left alone after that. The lock keeps a scripted build out, so
+# --if-free prunes a directory only when its lock is free at that moment and otherwise skips it
+# with a note and exit 0 — for the end of a wave (scripts/integrate.sh runs it after a green
+# check). A bare `cargo` outside the lock is not protected; AGENTS.md wraps those in `flock`.
+#
 # Usage:
 #   scripts/prune-target.sh              # prune (takes the build lock)
+#   scripts/prune-target.sh --if-free    # prune what no build holds right now; never wait
 #   scripts/prune-target.sh --dry-run    # say what would go, change nothing (lock-free)
 #   scripts/prune-target.sh --keep 2     # keep the newest two variants per stem
 #   scripts/prune-target.sh --all        # ... and every worktree's own target
@@ -49,15 +56,17 @@ source "$ROOT/scripts/lib/verified.sh"
 dry_run=0
 keep=1
 all=0
+if_free=0
 arguments=("$@")
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) dry_run=1; shift ;;
         --all) all=1; shift ;;
+        --if-free) if_free=1; shift ;;
         --keep)
             [[ "${2:-}" =~ ^[1-9][0-9]*$ ]] || { echo "--keep wants a positive whole number" >&2; exit 2; }
             keep="$2"; shift 2 ;;
-        -h|--help) sed -n '2,41p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,48p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -75,7 +84,20 @@ if [[ -z "${RD_PRUNE_ONE:-}" ]]; then
     status=0
     while read -r one; do
         [[ -n "$one" ]] || continue
-        RD_PRUNE_ONE="$one" "$0" "${arguments[@]}" || status=$?
+        # A chain that holds the lock itself (RD_LOCK_HELD) keeps builds out already.
+        if [[ "$if_free" -eq 1 && "$dry_run" -eq 0 && -z "${RD_LOCK_HELD:-}" ]] \
+            && ! flock -n "$(rd_target_lock_file "$one" "$ROOT")" true 2> /dev/null; then
+            echo "$one: a build holds its lock; not pruned (--if-free)"
+            continue
+        fi
+        one_status=0
+        RD_PRUNE_ONE="$one" "$0" "${arguments[@]}" || one_status=$?
+        # 199 is the lock's give-up code: taken between the look above and the run.
+        if [[ "$if_free" -eq 1 && "$one_status" -eq 199 ]]; then
+            echo "$one: a build took its lock; not pruned (--if-free)"
+        elif [[ "$one_status" -ne 0 ]]; then
+            status="$one_status"
+        fi
     done <<< "$targets"
     exit "$status"
 fi
@@ -85,6 +107,8 @@ fi
 # nothing. The dry run only reads, so it stays lock-free like the other queries.
 if [[ "$dry_run" -eq 0 ]]; then
     export RD_LANE_TARGET_DIR="$RD_PRUNE_ONE" RD_LOCK_NO_SLOT=1 RD_MIN_FREE_MB=0
+    # `flock -w 0` does not wait at all.
+    [[ "$if_free" -eq 0 ]] || export RD_LOCK_WAIT=0
     # shellcheck source=lib/lock.sh
     source "$ROOT/scripts/lib/lock.sh"
     rd_take_lock "${arguments[@]}"

@@ -68,7 +68,14 @@ regexes = ['''ipnyzofjcwri357|x67lis2zygml5''']
 description = "A made-up passkey in a link-check test"
 targetRules = ["generic-api-key"]
 condition = "AND"
-paths = ['''(^|/)crates/rd-api/src/link_check_service(_tests)?\.rs$''']
+paths = ['''(^|/)crates/rd-api-core/src/link_check_service(_tests)?\.rs$''']
+regexes = ['''0123456789abcdef''']
+
+[[allowlists]]
+description = "A made-up backup key fingerprint in a web unit test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)web/src/components/settings/SettingsFullBackupCard\.test\.ts$''']
 regexes = ['''0123456789abcdef''']
 
 [[allowlists]]

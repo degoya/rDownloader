@@ -3,6 +3,7 @@
 mod account_label;
 pub mod artifact;
 mod bundled;
+mod bundled_services;
 mod compile_cache;
 mod component;
 mod conformance;
@@ -29,7 +30,10 @@ mod transfer;
 mod unsigned_notice;
 mod versions;
 
-pub use bundled::{BundledSyncReport, sync_bundled};
+pub use bundled::{BundledPolicy, BundledSyncReport, sync_bundled};
+pub use bundled_services::{
+    BundledPackage, BundledService, BundledText, ServiceCategory, group_services,
+};
 pub use component::ComponentResolver;
 pub use conformance::{ConformanceCheck, ConformanceReport, check_package};
 pub use diagnostics::{ExecutionLog, ExecutionOutcome, Invocation};
@@ -492,7 +496,16 @@ pub struct PluginInstaller {
     disabled: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
     /// The operator's version choices as read at start (RD-140-02), shared like `disabled`.
     choices: std::sync::Arc<std::sync::RwLock<VersionChoices>>,
+    /// The versions installed when this start loaded its plugins (RD-160-09), shared the same
+    /// way; `None` until the start records them.
+    started: std::sync::Arc<std::sync::RwLock<Option<StartedVersions>>>,
+    /// The packages shipped next to the executable, as the start-up sync verified them
+    /// (RD-160-05). What the wizard and the plugin manager offer as "available".
+    bundled: std::sync::Arc<std::sync::RwLock<Vec<BundledPackage>>>,
 }
+
+/// Installed versions by plugin id.
+pub type StartedVersions = std::collections::BTreeMap<String, Vec<String>>;
 
 impl PluginInstaller {
     #[must_use]
@@ -502,7 +515,15 @@ impl PluginInstaller {
             verifier,
             disabled: std::sync::Arc::default(),
             choices: std::sync::Arc::default(),
+            started: std::sync::Arc::default(),
+            bundled: std::sync::Arc::default(),
         }
+    }
+
+    /// The directory installed plugins live in; a storage root may not reach it.
+    #[must_use]
+    pub fn root(&self) -> &std::path::Path {
+        &self.root
     }
 
     /// Replaces the active and staged version of every plugin that has a choice.
@@ -524,6 +545,33 @@ impl PluginInstaller {
             .read()
             .map(|choices| choices.clone())
             .unwrap_or_default()
+    }
+
+    /// Records the versions installed now as the ones this start loads (RD-160-09).
+    ///
+    /// Called once at start, after the bundled packages are synced and before anything loads a
+    /// plugin. A version installed later lies on disk, but nothing runs it before the next
+    /// start: resolvers and adapters are built once per start. Without this record the newest
+    /// version on disk -- the one just installed -- passed for the one that runs.
+    pub async fn record_started_versions(&self) -> Result<()> {
+        let mut versions = StartedVersions::new();
+        for manifest in self.list_installed().await? {
+            versions
+                .entry(manifest.id.to_string())
+                .or_default()
+                .push(manifest.version);
+        }
+        if let Ok(mut started) = self.started.write() {
+            *started = Some(versions);
+        }
+        Ok(())
+    }
+
+    /// The versions installed when this start loaded its plugins; `None` when the start did not
+    /// record them, as in a test that builds the service without starting it.
+    #[must_use]
+    pub fn started_versions(&self) -> Option<StartedVersions> {
+        self.started.read().ok().and_then(|started| started.clone())
     }
 
     /// Replaces the set of switched-off plugins.

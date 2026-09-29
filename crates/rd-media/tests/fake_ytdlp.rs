@@ -17,6 +17,7 @@ fn test_limits() -> rd_scheduler::RunLimits {
     rd_scheduler::RunLimits {
         max_parallel_requests: 1,
         bandwidth: rd_limits::ScopedLimiter::unlimited(),
+        address_policy: None,
     }
 }
 

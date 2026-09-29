@@ -11,6 +11,7 @@ mod client;
 mod error;
 mod hostkey;
 mod listing;
+mod mirror;
 mod runner;
 
 use std::{sync::Arc, time::Duration};
@@ -82,11 +83,13 @@ impl SftpService {
     }
 
     /// Opens an authenticated session for a link, recording a first-sighting host key when
-    /// `remote_ssh_auto_trust` allowed one through.
+    /// `remote_ssh_auto_trust` allowed one through. Held to `guard` when a stranger's
+    /// document or page proposed the link (RD-150-03).
     pub(crate) async fn connect(
         &self,
         pinned: Option<RemoteCredentialId>,
         target: &RemoteTarget,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<Result<client::Connection, Failure>> {
         let credential = match pinned {
             Some(id) => self.database.remote_credential(id).await?,
@@ -95,13 +98,14 @@ impl SftpService {
         let Some(credential) = credential else {
             return Ok(Err(error::no_credential(&target.host)));
         };
-        self.connect_with(&credential).await
+        self.connect_with(&credential, guard).await
     }
 
     /// Opens an authenticated session for one specific stored login.
     pub(crate) async fn connect_with(
         &self,
         credential: &RemoteCredential,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<Result<client::Connection, Failure>> {
         let password = self.secret(credential.secret_ref.as_deref()).await?;
         let private_key = self.secret(credential.key_ref.as_deref()).await?;
@@ -133,6 +137,7 @@ impl SftpService {
             passphrase: passphrase.as_ref(),
             auto_trust: self.auto_trust(),
             timeout: self.timeout(),
+            guard,
         };
         match client::connect(spec, verdict).await? {
             Ok((connection, offered)) => {
@@ -159,11 +164,13 @@ impl SftpService {
         }
     }
 
-    /// Resolves one link into the listing the LinkGrabber reviews.
+    /// Resolves one link into the listing the LinkGrabber reviews. `guard` is the address
+    /// rule of a link a document or a page proposed; the connection keeps to it.
     pub async fn probe(
         &self,
         target: &RemoteTarget,
         pinned: Option<RemoteCredentialId>,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<(Probed, Option<RemoteCredentialId>)> {
         let credential = match pinned {
             Some(id) => self.database.remote_credential(id).await?,
@@ -172,7 +179,7 @@ impl SftpService {
         let Some(credential) = credential else {
             return Ok((Probed::Failed(error::no_credential(&target.host)), None));
         };
-        let connection = match self.connect_with(&credential).await? {
+        let connection = match self.connect_with(&credential, guard).await? {
             Ok(connection) => connection,
             Err(failure) => return Ok((Probed::Failed(failure), None)),
         };
@@ -223,7 +230,7 @@ impl SftpService {
 
     /// Checks that a stored login can reach its server and log in, for the settings UI.
     pub async fn test_credential(&self, credential: &RemoteCredential) -> Result<Option<Failure>> {
-        match self.connect_with(credential).await? {
+        match self.connect_with(credential, None).await? {
             Ok(_) => Ok(None),
             Err(failure) => Ok(Some(failure)),
         }

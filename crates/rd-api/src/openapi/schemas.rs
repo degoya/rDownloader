@@ -5,9 +5,9 @@ use utoipa::OpenApi;
 use crate::{
     bandwidth_handlers, captcha_handlers, collision_handlers, container_handlers, diagnostics_dto,
     download_sources, dto, duplicates, error, media_dto, mfa_handlers, notify_handlers,
-    passkey_handlers, reconnect_service, regex_tester, remote_job_handlers, replay_dto,
-    routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto, site_rules_dto,
-    stats_handlers, storage_capacity, storage_handlers, stream_schedule_handlers,
+    passkey_handlers, plugin_lifecycle, reconnect_service, regex_tester, remote_job_handlers,
+    replay_dto, routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
+    site_rules_dto, stats_handlers, storage_capacity, storage_handlers, stream_schedule_handlers,
     subscription_handlers, torrent_control, torrent_trackers,
 };
 
@@ -178,6 +178,7 @@ use crate::{
     download_sources::PieceHashSummary,
     rd_core::SourceProtocol,
     rd_core::SourceState,
+    rd_core::CandidateSource,
     dto::StreamChannelRequest,
     dto::RecordNowRequest,
     rd_core::StreamChannel,
@@ -332,7 +333,7 @@ use crate::{
     settings_backup_crypto::SecretKdf,
     dto::InstalledPluginResponse,
     dto::IncompatiblePluginResponse,
-    dto::PluginInventoryResponse,
+    plugin_lifecycle::PluginInventoryResponse,
     dto::PluginExecutionResponse,
     dto::ProviderResponse,
     dto::ProviderKindResponse,

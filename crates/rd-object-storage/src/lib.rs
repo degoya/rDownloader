@@ -10,9 +10,13 @@
 //!
 //! A link names a bucket and a key, never a host: the endpoint and the credentials come from
 //! a profile somebody configured, chosen by `rd_core::select_profile`.
+//!
+//! [`ObjectFolder`] is the same machinery as a plain file store for the full backup's
+//! destinations (RD-160-02): put, list, get and delete of single files in one folder.
 
 mod connect;
 pub mod error;
+mod folder;
 mod listing;
 mod runner;
 #[cfg(test)]
@@ -32,6 +36,9 @@ use rd_secrets::SecretStore;
 use secrecy::SecretString;
 use tokio::sync::RwLock;
 
+pub use folder::{
+    FOLDER_BUCKET_INVALID, FOLDER_NAME_INVALID, FOLDER_PROFILE_MISSING, FolderObject, ObjectFolder,
+};
 pub use runner::ObjectStorageRunner;
 pub use upload::STALE_UPLOAD_AGE;
 

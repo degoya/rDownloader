@@ -4,13 +4,15 @@ A plugin is a signed WebAssembly component. It runs in a sandbox with no file sy
 processes and no WASI, and reaches exactly the interfaces its manifest asks for — nothing is
 granted implicitly and nothing can be requested at run time.
 
-There are twelve kinds. Eleven of them have a scaffold, one per `--type`:
+There are twelve kinds, built against thirteen worlds, and every world has a scaffold, one per
+`--type`:
 
 | Type | What it does |
 | --- | --- |
 | `resolver` | Turns a hoster link into a downloadable URL and checks whether links are alive |
 | `transfer` | Carries the bytes of a protocol the application does not know |
 | `intake` | Turns text and URLs the built-in scanner does not understand into LinkGrabber candidates |
+| `intake-mirrors` | An `intake` parser that also states every source of a file, ranked and with its hashes |
 | `auth` | Signs an account in through the provider's own flow, without a password being typed here |
 | `oauth` | Signs an account in by OAuth redirect or device code, and renews the token afterwards |
 | `crawler` | Turns one address — a cloud folder, a directory share — into the files behind it |
@@ -19,20 +21,35 @@ There are twelve kinds. Eleven of them have a scaffold, one per `--type`:
 | `postprocess` | Runs one more step after a package has been downloaded |
 | `storage` | Uploads finished packages somewhere |
 | `remote-job` | Runs a job that lives at a provider and outlives the call — a magnet at a debrid account |
+| `stream-transform` | Answers with an address *and* how its bytes become a file — for a provider that encrypts on the client and keeps the key in the link |
 
-Each scaffold is a working plugin of its type, with the promises the host makes to that type
-written at the top of `src/lib.rs` — they are what shapes the code, so they are worth reading
-before changing it.
+`intake-mirrors` is not a type of its own: its manifest says `plugin_type = "intake"`, and the
+world in `Cargo.toml`, `intake-mirrors-plugin`, is what adds the `mirror-sets` export the host
+looks for.
 
-The twelfth kind, `stream-transform`, has **no scaffold yet**. It answers with an address *and*
-a declarative description of how the bytes behind it become a file — the world for a provider
-that encrypts on the client and keeps the key out of its own reach (RD-110-33). The
-contract is already in every template's `wit/rdownloader.wit`, so writing one means scaffolding
-any other type, setting `plugin_type = "stream-transform"` in `manifest.toml` and pointing
-`[package.metadata.component.target] world` at `stream-transform-plugin`.
-[Stream transforms](https://github.com/degoya/rDownloader/wiki/plugin-reference#stream-transforms) in the handbook's plugin reference describes the
-world, the primitives the host implements and the properties an author has to write against; `plugins/example-stream-transform/` in the
-repository is a working reference.
+Each scaffold is a small, working plugin of its type rather than a set of signatures: it does
+something a real plugin of the type does — a PIN sign-in, a resumable chunked upload, a CRC-32
+over a package, a key read out of a link's fragment — with the promises the host makes to that
+type written at the top of `src/lib.rs`. They are what shapes the code, so they are worth reading
+before changing it. Everything that can run without a WebAssembly toolchain lives outside the
+component, and `src/guest.rs` — the translation into the WIT vocabulary — exists only on
+`wasm32`, so `cargo test` runs every scaffold's unit tests straight away. Each carries a
+`README.md` pointing at the section of the
+[plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) for its type and
+at its page in the handbook's *Plugin development* section, which walks from the scaffold to a
+signed package in a repository of your own — the resolver's is
+[Writing a resolver plugin](https://github.com/degoya/rDownloader/wiki/resolver-plugin). The
+reference's last part, *The contract*, is generated from the WIT by `scripts/wit-reference.sh`.
+CI scaffolds, builds, tests, packages and runs conformance on every one of them against the
+current contract, and `scripts/check-sdk-templates.sh` fails when a world of the contract has no
+scaffold.
+
+The `stream-transform` scaffold is the one to read for a provider whose files are ciphertext:
+[Stream transforms](https://github.com/degoya/rDownloader/wiki/plugin-reference#stream-transforms)
+in the plugin reference describes the world, the primitives the host implements and the
+properties an author has to write against. Two of them the scaffold shows in code: the key rides
+in the link's fragment, so the file host goes into `secret_fragment_domains` — or intake strips
+the key before `resolve` is ever asked — and the key never goes into a request.
 
 ## Start
 
@@ -67,15 +84,14 @@ the CI workflow below signs. `--development` writes an unsigned package instead;
 `serve --plugin-development-mode` and `verify --development-mode` accept one, so it is for a
 local test and never for a release.
 
-The `oauth` scaffold is the one with logic of its own: a full authorization-code flow with
+The `oauth` scaffold carries the most logic of all: a full authorization-code flow with
 PKCE **and** a device-code flow beside it, including SHA-256 and base64url written out in `src/pkce.rs`, because a guest has no WASI
 to borrow them from. The PKCE verifier and the `state` are built from `host.random-bytes` — 32
 bytes of operating-system entropy each, drawn separately — and from nothing else. A value
 computed from the clock and the account id, which an earlier version of this scaffold used, is
 one anybody holding those public inputs can recompute, and a recomputable verifier defeats the
 whole point of PKCE. An empty answer from `host.random-bytes` is a refusal: fail the sign-in on
-it. Everything that does not need a WebAssembly toolchain lives outside the component, so
-`cargo test` in a fresh scaffold runs its unit tests straight away:
+it. As in every scaffold, `cargo test` runs its unit tests straight away:
 
 ```bash
 rdownloader plugin new --type oauth --out ./myprovider
@@ -93,7 +109,7 @@ rules the flow turns on: a provider that refuses ends the sign-in while one that
 reached must not, "not confirmed yet" is waiting rather than either, and nothing a provider
 wrote is ever repeated verbatim.
 
-The `crawler` scaffold is the other one that arrives with working logic: a breadth-first walk
+The `crawler` scaffold arrives with a breadth-first walk
 of a folder tree with its own limits on depth, breadth and cycles, an address matcher that
 claims narrowly, and a listing reader — none of which needs a WebAssembly toolchain, so
 `cargo test` runs twelve unit tests in a fresh scaffold here too:
@@ -108,8 +124,7 @@ rules that matter most: the walk bounds itself rather than leaning on the fuel b
 empty or unreachable folder is a failure with a stable code — never an empty list, which would
 create a package with nothing in it.
 
-The `remote-job` scaffold is the third with logic of its own, and the one to read if you are
-writing for a debrid provider. A remote job is work that happens at somebody else's provider and
+The `remote-job` scaffold is the one to read if you are writing for a debrid provider. A remote job is work that happens at somebody else's provider and
 outlives the call that started it: a magnet handed over answers with an identifier, not a file,
 runs for minutes or hours, stops half-way until a person has said which files they want, and
 stays in the account afterwards. Seven short calls carry it — `claims`, `identify`, `submit`,
@@ -222,6 +237,15 @@ put your crate name into `COMPONENT`. It downloads the rDownloader release named
 `RDOWNLOADER_VERSION` for `plugin package`, `verify` and `conformance` — the binary embeds the
 built web interface, so it cannot be `cargo install`ed from the repository — and that version
 is the one you bump when you build against a newer contract.
+
+`ci/repository.yml` publishes your own plugin repository on GitHub Pages: it collects the signed
+`.rdplug` files from your releases (or a `packages/` folder), builds and signs
+`rdownloader-plugin-index.json` over them with `plugin index build`, and deploys both. Set
+`REPOSITORY_SIGNING_KEY` as a repository secret holding the PEM text of a key made with
+`rdownloader plugin keygen --role repository`, choose your `KEY_ID`, and set Settings → Pages →
+Source to "GitHub Actions". An index expires after 90 days and is then refused, so the workflow
+also re-signs once a month. Hosting, withdrawing a version and a lost key are in
+[Running a plugin repository](https://github.com/degoya/rDownloader/wiki/running-a-plugin-repository).
 
 ## The contract
 

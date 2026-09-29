@@ -316,6 +316,7 @@ impl Harness {
                 RunLimits {
                     max_parallel_requests: 0,
                     bandwidth: rd_limits::ScopedLimiter::unlimited(),
+                    address_policy: None,
                 },
             )
             .await
@@ -903,3 +904,6 @@ async fn a_part_confirmed_but_not_recorded_is_uploaded_again_and_nothing_before_
         .expect("bytes");
     assert_eq!(stored.as_ref(), payload(40 * MIB).as_slice());
 }
+
+/// The folder the full backup's destinations use (RD-160-02).
+mod folder;

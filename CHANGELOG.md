@@ -6,6 +6,204 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-29
+
+### Added
+
+- **Scheduled encrypted full backups (RD-160-01).** Settings > Backup now also writes the whole
+  installation into one encrypted archive: a consistent copy of the database taken while
+  downloads keep running, the settings bundle with its credentials, the torrent session and
+  `.torrent` files, the plugin trust (including repositories and version choices) and the list
+  of unfinished transfers, described by a manifest with a SHA-256 per part. The passphrase is
+  entered once; the key derived from it lives in the secret store, the passphrase nowhere, and a
+  backup without it cannot be written. A cron schedule in a chosen time zone survives restarts
+  and summer-time changes, archives go to a local folder or mounted NAS share, and every run —
+  scheduled or by hand — is in a history; a failure never affects the queue. REST under
+  `/api/v1/backups`, four MCP tools, the new crate `rd-backup` and migration `0109`.
+- **Full backup destinations, retention and verification (RD-160-02).** A full backup now goes to
+  any number of destinations, each with its own copy: a folder or NAS path, a folder of an
+  S3/Azure/GCS bucket through the object storage profiles (resumable multipart upload paced by
+  the upload limit), or an rclone remote (WebDAV included; there is no native WebDAV
+  destination). An unreachable destination is retried and costs only its own row in the history.
+  Each destination keeps the newest N archives and/or those younger than D days; retention only
+  ever removes archives this installation recorded under its instance id, and can be previewed.
+  An archive can be verified where it lies — size, SHA-256 and every part — by hand or on a
+  schedule. REST under `/api/v1/backups/destinations`, `/archives` and `/verifications`, seven
+  more MCP tools, migration `0110`; the backup schedule no longer takes a folder of its own.
+- **A link's mirrors in the LinkGrabber, and FTP/SFTP mirrors in the transfer (RD-150-03).** A
+  link that came with a Metalink's mirrors shows how many in its row and lists them — redacted,
+  in the order the transfer will try them — in its details before it is queued. FTP and SFTP
+  mirrors are no longer only shown: the transfer fetches chunks from them through the FTP and
+  SFTP runners, with the stored login for their host.
+- **Restoring a full backup: preview, test restore, path remap and cutover (RD-160-03).**
+  Settings > Backup gets a restore dialog: pick an archive from the history, upload one in
+  chunks or name a path, and type its passphrase — every step asks for it again and never uses
+  the key the schedule keeps. The preview reads and verifies the whole archive and writes
+  nothing; the test restore unpacks into a throwaway folder, migrates the database copy (a
+  backup from a newer version is refused), moves storage roots to folders on this machine —
+  Windows drive letters and shares onto Linux and back, with no path able to leave its root —,
+  matches the credentials against the sealed settings bundle and reports dangling references,
+  missing torrent files and secrets this machine cannot open. The restore stages the result and
+  switches at the next start; the previous installation stays startable until the restored one
+  has started once, and a restored state that does not start is put back automatically. REST
+  under `/api/v1/backups/restore` (`api:admin`); not offered through MCP, since every step takes
+  the passphrase in.
+- **The setup wizard asks which services you use, and only those are installed (RD-160-05).**
+  A new step *Your services*, right before the accounts, offers the bundled plugins by service
+  — hosters, multihosters and debrid, torrents and remote jobs, cloud drives, link lists and
+  folders, metadata, notifications, post-processing — with a category filter and a search, and
+  installs the chosen ones with a progress bar; the accounts step then offers exactly those.
+  Everything else stays under Settings → Plugins → *Available services*, one click to install.
+  An update installs newer versions of what is installed and nothing new; a fresh installation
+  starts with the services that need no account, and an existing one keeps what it has.
+  `--install-all-bundled-plugins` installs everything as before. REST
+  `GET /api/v1/plugins/bundled` and `POST /api/v1/plugins/bundled/install`, MCP tools
+  `list_bundled_services` and `install_bundled_services`.
+- **A Firefox extension that stays installed (RD-160-07).** Each GitHub release carries
+  `rdownloader-firefox.xpi`, signed by Mozilla as a self-distributed version, which release Firefox
+  installs permanently; the unsigned ZIPs stay. When Mozilla already has that version — the store
+  submission, a re-run — its signed file is downloaded and checked instead of uploaded twice;
+  without the credentials, or when Mozilla cannot deliver, the release warns and goes on without
+  it. CI runs Mozilla's validator on the Firefox build, so a manifest the store would refuse fails
+  before a tag (`scripts/firefox-amo.sh`).
+- **A plugin scaffold for every world, each a small working example (RD-160-04).** `rdownloader
+  plugin new` gains `--type stream-transform` (a key read out of the link's fragment, answered as
+  `aes-128-ctr`) and `--type intake-mirrors` (an intake parser that states every source of a
+  file); the thin scaffolds do something real — an enricher reading release names, a notifier
+  posting JSON, a PIN sign-in, a CRC-32 step, a resumable chunked upload, a line-protocol
+  transfer backend — each with unit tests `cargo test` runs without a WebAssembly toolchain and a
+  `README.md` pointing at its section of the plugin reference. `scripts/check-sdk-templates.sh`
+  (run in CI) refuses a world without a template, CI scaffolds every template directory, and
+  `scripts/wit-reference.sh` generates the contract reference for the user wiki from the WIT,
+  `--check` in CI; the release pipeline's `docs-gate` refuses a wiki whose generated part no
+  longer matches the WIT, and job ids in the WIT's comments stay out of it. The handbook gains a
+  *Plugin development* section with one page per plugin type, from `plugin new` through test,
+  build, signing, install and a repository of your own. `plugins/example-*` stay as the contract
+  tests' components, still unbundled.
+- **Dependencies after 1.5 (RD-160-08):** psl 2.1.238, rand 0.10.3 and rustls-platform-verifier
+  0.7.1 as targeted updates, no new duplicate crate. wit-bindgen 0.62 changes every plugin
+  component, so 69 bundled plugins raise their patch version; the SDK templates build against
+  wit-bindgen 0.62 with the contract unchanged. wit-bindgen 0.62 is on the 0.259 wasm-tools line
+  while wasmtime 49 stays on 0.258, so the plugins' build carries both (the service ships 0.258
+  only). VueUse stays on 14 until Nuxt UI moves: 15 would ship a second copy. wasmparser stays on wasmtime's version and `@types/node` on the Node runtime's
+  major; Dependabot no longer proposes these, nor a VueUse major.
+- **Running a plugin repository of your own (SDK).** `sdk/ci/repository.yml` is a GitHub Actions
+  workflow that collects a publisher's signed packages from their releases or a `packages/`
+  folder, builds and signs the index with the repository key from a secret, deploys both to
+  GitHub Pages and re-signs once a month, so the index never runs into its 90-day expiry. The
+  handbook's new page *Running a plugin repository* covers keys, hosting, adding a version,
+  release notes, withdrawing a version, the validity window, a lost key and the error codes a
+  refused index shows.
+- **Homebrew and Scoop (RD-180-06).** `brew install degoya/rdownloader/rdownloader` installs
+  rDownloader on macOS (Apple Silicon and Intel) and Linux (x86-64 and arm64), and
+  `brew services start rdownloader` runs it with its data in Homebrew's `var/rdownloader`;
+  `scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader` and
+  `scoop install rdownloader` install it on Windows, with the database and downloads persisted
+  across updates. Each release updates the tap and the bucket from its `SHA256SUMS`, and CI
+  installs this tree's formula and manifest on macOS and Windows.
+- **Upgrades from 1.0 to 1.5 are tested with a queue in them (RD-170-07).** The migration-forward
+  test already covered 0.6.0 and 0.9.2. It now also builds a database at the schema of 1.0.0,
+  1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0 and upgrades each one to today's schema. The seeded data
+  is larger too: packages and downloads in several states with their byte counts, a chunk
+  checkpoint, storage roots, categories, an account with its secret reference, and every row a
+  later migration rewrites (the default flags, finish times, PAR2 recovery flags, extraction
+  codes, the LinkGrabber order, site-rule groups). After the upgrade all of it must match what a
+  current release writes. The suite is now split into modules
+  (`crates/rd-db/tests/migration_forward/`).
+- **A breaking change of the REST API or the plugin contract needs explicit versioning
+  (RD-170-08).** `scripts/compat-check.sh` compares `web/openapi.json` and the plugin WIT with the
+  last release and names every break on its own line — a removed route or response field, a newly
+  required request field or parameter, a narrowed enum, a changed type; a removed, re-typed or
+  (binary-breaking) added WIT function, field or case. A break passes only when
+  `scripts/compat-breaks.toml` acknowledges it for the release with a reason, or when the WIT
+  package version moved a major (before 1.0: a minor) step. The release pipeline runs it as its
+  `compat` step right after `preflight`, and CI in the supply-chain job.
+
+### Changed
+
+- **The HTTP surface is eight crates instead of one (RD-160-06, item 4).** `rd-api` was 63,500
+  lines that rustc checked and built in a single process. It is now `rd-api-core` (the shared
+  state and its services, errors, DTOs, authentication, audit and shared helpers), four areas that
+  build side by side on it — `rd-api-access`, `rd-api-intake`, `rd-api-queue`, `rd-api-admin` —,
+  `rd-api-compat` and `rd-api-mcp` above them, and `rd-api` as the assembly of router, OpenAPI
+  document and web assets. No route, operation id, DTO name or JSON shape changed; the generated
+  API contract and the MCP coverage page are unchanged. Measured once: `cargo check -p rd-api`
+  after editing one handler 32.1 s → 12.8 s, `cargo build -p rdownloader` with the whole surface
+  rebuilt 65.4 s → 53.8 s.
+- **One version number, one place.** `Cargo.toml`'s workspace version is the only source;
+  `scripts/set-version.sh` writes every copy — the web package, the extension manifest and now
+  also the generated API document's `info.version`, which had kept saying 1.4.2 through 1.5.1 —
+  and `scripts/set-version.sh --check` fails a branch check and CI when a copy disagrees.
+- **S3 is tested over TLS and against MinIO (RD-150-04).** A custom endpoint with a certificate
+  from a CA of its own is reached once that CA is in the shared custom CA and refused without it;
+  a new CI job runs upload, listing, download and resume against a real MinIO.
+- **Nothing is checked twice (RD-160-06).** `scripts/check.sh --full` ends at once for content a
+  `--full` green of any checkout on the target already covers up to documentation (`--again`
+  forces a run), and `--windows` keeps its lint green the same way, so `release-start.sh` and
+  `integrate.sh` no longer repeat either after a changelog commit; the public CI records its greens per platform and tree and dispatches only the platforms
+  not yet green up to documentation and version lines — a release candidate after the wave's
+  Linux-and-Windows gate runs macOS alone. The release chain ends with the checkout back on
+  `development`, and `integrate.sh` prunes the shared target after a green check, only when no
+  build holds its lock (`prune-target.sh --if-free`).
+- **Finishing a wave branch.** `scripts/worktree.sh finish` removes a branch that is already in
+  `development` through its integration branch without asking for a green of its own; a branch
+  with work of its own still needs one, and uncommitted changes still stop it.
+
+### Fixed
+
+- **The SDK plugin workflow downloads a current rDownloader.** `sdk/ci/plugin.yml` extracted `rdownloader` from a release archive that stores it as `./rdownloader`, so its first step failed, and it pinned 1.0.5; it now extracts `./rdownloader` and pins 1.5.2.
+- **Plugin updates say what runs, what they add and what changed (RD-160-09).** Right after an
+  update was installed, the plugin manager showed the new version as running and no restart
+  pending, although the old one runs until the restart; it now shows the version the start
+  loaded and that a restart is due, also after going back before the restart, and a version
+  installed since can be put under test at once. An update that asks for new permissions names
+  them — in the tooltip of the updates list and at the top of the install preview, which compares
+  with the newest installed version. The official plugin index now carries release notes: the
+  release reads each plugin version's entries from this changelog, the ones that end with
+  `` `<plugin>` <version>`` (`scripts/plugin-release-notes.sh`). The background refresh that
+  installs automatic updates has a test of its own.
+
+### Security
+
+- **A link a document or a page proposed never makes rDownloader connect to this machine
+  (RD-150-03).** The address rule of Metalink mirrors and the online check now holds all the
+  way: the download of a proposed link without mirrors, an NZB such a link names when it is
+  queued, and FTP, SFTP and WebDAV connections are refused for loopback, the service's own
+  address, link-local and cloud metadata addresses — and for the local network unless the person
+  handed the document over themselves. FTP and SFTP resolve the host once and connect only to
+  the addresses checked, and FTP ignores the address a `PASV` reply names. yt-dlp, gallery-dl and
+  streamlink are refused such an address before it is handed over; what they do afterwards is
+  their own.
+- **A PAR2 repair can no longer write outside its package.** The file names in a PAR2 set come
+  from whoever posted it, and the repair joined them onto the package folder unchecked: a set
+  naming an absolute path or `../` could make the automatic repair of a Usenet download write
+  its recovered bytes anywhere the service may write. Every name now has to stay inside the
+  package, the rule ZIP members and SFV entries already follow; a set that breaks it is treated
+  as unreadable and repairs nothing (RD-170-06).
+- **7-Zip no longer reads part of an archive password as switches (Windows).** 7-Zip parses its
+  own command line, with no escape for a `"`, but still got Rust's quoting: a password such as
+  `x" -spf -w"` — from an NZB, a `{{pw}}` marker or a Click'n'Load page — arrived as extra switches
+  before `--`, and `-spf` or `-snld` could have let an archive write outside staging. Every 7-Zip
+  argument is now written for 7-Zip's parser, and a password containing a `"`, which it cannot
+  receive at all, is not tried: the attempt fails with `extract.password_has_quote` and the next
+  password is tried. A post-processing script whose arguments `cmd.exe` cannot receive safely now
+  fails with `script.batch_arguments_refused`, like an output script, instead of a generic
+  start error.
+- **DNS rebinding, a switched-off login, storage roots and the capture fetch (security review
+  2026-09-28, findings 3, 4 and 9).** The service now checks the `Host` of every request: IP
+  addresses, `localhost` and the external URL's host pass, further names only from the new
+  **Allowed host names** list under *Settings → Security* (`allowed_hosts`), and every other name
+  is refused with `request.host_not_allowed` — a page on a stranger's domain that points its
+  name at `127.0.0.1` can no longer use the API or claim a fresh installation's password. If you
+  open rDownloader by a hostname (a NAS name, a Docker Compose service name), add it to the list,
+  opening the interface by its IP address first. The proxy settings are now read at start as
+  well. A switched-off administrator login lets in only requests from this machine's loopback
+  address that no proxy forwarded; a LAN client, a container's port mapping or a reverse proxy
+  signs in. A storage root may no longer be, contain or lie inside the data, scripts, vendor,
+  managed-tool or plugin directory (`storage_root.protected_directory`), which let `api:config`
+  plant a script the service runs. `capture/file` no longer fetches an address on this machine,
+  on any redirect hop either (`capture.fetch_address_refused`).
+
 ## [1.5.2] - 2026-09-28
 
 ### Fixed

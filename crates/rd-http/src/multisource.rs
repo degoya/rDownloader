@@ -41,6 +41,8 @@ pub struct SourceEndpoint {
     /// Headers for this address only. The caller decides them per address, because a
     /// profile's or an account's credential may belong to one mirror and not to the next.
     pub headers: Vec<(String, String)>,
+    /// How an FTP or SFTP mirror is reached; `None` for HTTP, which the engine fetches itself.
+    pub via: Option<crate::RangeTransport>,
 }
 
 /// A file, its chunks and the sources to fetch them from.
@@ -255,17 +257,26 @@ impl DownloadEngine {
                 let cancellation = cancellation.clone();
                 tasks.spawn(async move {
                     let started_at = chunk.committed;
-                    let result = engine
-                        .fetch_chunk(
-                            source.url.clone(),
-                            Arc::new(source.headers.clone()),
-                            part,
-                            checkpoints,
-                            cancellation,
-                            chunk.clone(),
-                            covers_whole_file,
-                        )
-                        .await;
+                    let result = match &source.via {
+                        Some(via) => {
+                            engine
+                                .fetch_via(via, part, checkpoints, cancellation, chunk.clone())
+                                .await
+                        }
+                        None => {
+                            engine
+                                .fetch_chunk(
+                                    source.url.clone(),
+                                    Arc::new(source.headers.clone()),
+                                    part,
+                                    checkpoints,
+                                    cancellation,
+                                    chunk.clone(),
+                                    covers_whole_file,
+                                )
+                                .await
+                        }
+                    };
                     Fetched {
                         chunk,
                         position: source.position,

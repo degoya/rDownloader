@@ -166,9 +166,10 @@
       "isolated_reason": {
         "piece": "Hat Daten geliefert, die nicht zu ihrer Prüfsumme passen.",
         "size": "Bietet eine andere Dateigröße an.",
-        "other": "Wird für diese Datei nicht mehr verwendet."
+        "other": "Wird für diese Datei nicht mehr verwendet.",
+        "internal": "Zeigt auf deinen eigenen Rechner oder in ein Netz, das diese Quellenliste nicht erreichen darf."
       },
-      "unsupported_hint": "FTP- und SFTP-Quellen werden angezeigt, aber noch nicht für Teile genutzt."
+      "unsupported_hint": "Quellen, deren Protokoll dieser Dienst nicht abrufen kann, werden angezeigt, aber nicht genutzt."
     }
   },
   "summary": {

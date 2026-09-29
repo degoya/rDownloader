@@ -1,0 +1,34 @@
+manifest_version = 3
+# `intake`, not a type of its own: a parser that states every source of a file is an intake
+# parser whose component also exports `mirror-sets`. The host sees the second export and asks
+# it; the world in `Cargo.toml` is what makes the component carry it.
+plugin_type = "intake"
+api_version = "0.9.0"
+id = "{{PLUGIN_ID}}"
+name = "{{PLUGIN_NAME}}"
+version = "0.1.0"
+# `plugin new` generated this key pair for you; the private half is `plugin-signing.key`.
+# Keep it out of version control, and use your own key id.
+key_id = "{{PLUGIN_SLUG}}-release-v1"
+public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
+
+# Nothing granted. The list carries every address it needs, so there is nothing to fetch and
+# no reason to reach the network.
+[capabilities]
+
+[extension]
+slug = "{{PLUGIN_SLUG}}"
+# Empty: the format is recognised from the text in `claims`, not from where it came from.
+claims = []
+
+[metadata]
+description = "Reads {{PLUGIN_NAME}} mirror lists and proposes each file with every place it can be fetched from."
+author = "Your name"
+license = "MIT"
+min_app_version = "0.9.0"
+
+[limits]
+memory_bytes = 33554432
+fuel = 500000000
+timeout_milliseconds = 5000
+max_response_bytes = 1048576

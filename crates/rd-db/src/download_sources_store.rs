@@ -371,3 +371,18 @@ pub(crate) async fn candidates_remote_reach(
     }
     Ok(reaches)
 }
+
+/// The address reach one candidate is held to: `Some(true)` for the person's own network,
+/// `Some(false)` for the public internet, `None` for a link the person added themselves.
+pub(crate) async fn candidate_remote_reach(
+    readers: &SqlitePool,
+    candidate_id: CandidateId,
+) -> Result<Option<bool>> {
+    let reach: Option<String> =
+        sqlx::query_scalar("SELECT remote_reach FROM link_candidates WHERE id = ?")
+            .bind(candidate_id.to_string())
+            .fetch_optional(readers)
+            .await?
+            .flatten();
+    Ok(reach.map(|reach| reach == "local_network"))
+}

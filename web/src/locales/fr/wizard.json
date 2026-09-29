@@ -26,6 +26,11 @@
       "title": "Comptes",
       "description": "Hébergeurs et Usenet",
       "lead": "Ajoutez des comptes d'hébergeurs et des serveurs Usenet. Vous pouvez passer cette étape et le faire plus tard dans les paramètres."
+    },
+    "selection": {
+      "title": "Vos services",
+      "description": "Ce que vous utilisez",
+      "lead": "Choisissez les services que vous utilisez. Seuls leurs plugins sont installés ; tout le reste reste disponible dans Paramètres → Plugins, à un clic."
     }
   },
   "password": {
@@ -48,7 +53,10 @@
     "accounts_tab": "Comptes d'hébergeurs",
     "usenet_tab": "Usenet",
     "extension_title": "Ces comptes ont besoin de l'extension du navigateur",
-    "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu'avec l'extension du navigateur appairée, et aucune ne s'est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé d'API."
+    "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu'avec l'extension du navigateur appairée, et aucune ne s'est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé d'API.",
+    "no_providers_title": "Aucun service avec compte n'est encore installé",
+    "no_providers": "Choisissez un hébergeur, un multihébergeur ou un service cloud dans « Vos services », puis ajoutez ici son compte. Les serveurs Usenet n'ont pas besoin de plugin.",
+    "choose_services": "Choisir des services"
   },
   "actions": {
     "back": "Retour",
@@ -57,5 +65,9 @@
     "finish": "Terminer",
     "finish_with_tour": "Terminer et faire la visite",
     "close": "Fermer l'assistant"
+  },
+  "selection": {
+    "progress": "Installation de {done} sur {total}…",
+    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les nouveaux plugins fonctionnent dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les nouveaux plugins fonctionnent dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante."
   }
 }

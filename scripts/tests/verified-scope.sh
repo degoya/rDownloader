@@ -6,7 +6,11 @@
 #    an older green, and now a green on the branch itself, which a follow-up round starts from;
 #  * whether the release chain may skip its full Rust run (lib/verified.sh,
 #    rd_prebump_full_green) — only for a --full green of HEAD's tree and a bump that changed
-#    nothing but version lines.
+#    nothing but version lines;
+#  * whether check.sh --full runs at all (rd_full_covering, rd_full_already_green, RD-160-06) — not
+#    for content a --full green of any checkout on the target covers up to documentation;
+#  * which GitHub platforms a tree still needs (rd_ci_covering, rd_tree_same_but_versions) — none
+#    that a green covers up to documentation and version lines.
 #
 # Pure git and bash, no cargo: it runs in a second. check.sh runs it when scripts/lib/ or
 # scripts/tests/ change, and under --full.
@@ -129,6 +133,119 @@ rd_record_full "$repo" rust "$(git rev-parse 'HEAD~1^{tree}')"
 expect "a --full green of another tree: run" "" "$(rd_prebump_full_green "$repo")"
 rd_record_full "$repo" web "$tree"
 expect "a --full green of the web half only: run" "" "$(rd_prebump_full_green "$repo")"
+
+# --- a --full green covers the same content, from any checkout (RD-160-06) ---------------------
+reset
+green="$(git rev-parse 'HEAD^{tree}')"
+rm -rf "$CARGO_TARGET_DIR"
+other="$SCRATCH/integration-worktree"
+rd_record_full "$other" rust "$green"
+rd_record_full "$other" web "$green"
+expect "another checkout's green of this very tree covers it" "$green" "$(rd_full_covering "$repo" rust "$green")"
+mkdir -p docs
+echo "verification note" > docs/note.md
+echo "## [1.0.0]" > CHANGELOG.md
+now="$(rd_worktree_tree "$repo")"
+expect "a green of a tree that differs in documentation only covers it" "$green" "$(rd_full_covering "$repo" web "$now")"
+set +e
+full_again="$(rd_full_already_green "$repo" rust web)"
+covered=$?
+set -e
+expect "check.sh --full is not run again for it" "0" "$covered"
+expect_line() { if grep -qF -- "$2" <<< "$3"; then expect "$1" x x; else expect "$1" "$2" "$3"; fi; }
+expect_line "and names the green it relies on" "rust: tree ${green:0:12}, documentation changed since" "$full_again"
+expect "and records the halves for this tree, so the gates find them" "$now" "$(sed -n 's/^web //p' "$(rd_full_marker "$repo")")"
+expect "the gate of the tag and the Windows package agrees" "0" "$(rd_full_gate "$repo" "the test" > /dev/null 2>&1; echo $?)"
+reset
+echo "change" > crates.txt
+expect "a code change is not covered" "" "$(rd_full_covering "$repo" rust "$(rd_worktree_tree "$repo")")"
+set +e
+rd_full_already_green "$repo" rust > /dev/null
+covered=$?
+set -e
+expect "and check.sh --full runs" "1" "$covered"
+reset
+mkdir -p crates/rd-core
+echo "| point |" > crates/rd-core/recovery-matrix.md
+expect "a .md a test reads is not documentation" "" "$(rd_full_covering "$repo" rust "$(rd_worktree_tree "$repo")")"
+reset
+rm -rf "$CARGO_TARGET_DIR"
+rd_record_full "$other" rust "$green"
+expect "one half recorded does not cover the other" "" "$(rd_full_covering "$repo" web "$green")"
+
+# check.sh --full itself: with a covering green it ends before the lock, before any cargo. Only
+# the skipping side is run here; the other would start the real check — should the skip ever
+# break, a lock of its own that is never waited for keeps it away from the real one.
+wired="$SCRATCH/wired"
+git init -q -b development "$wired"
+mkdir -p "$wired/scripts/lib"
+cp "$ROOT/scripts/check.sh" "$wired/scripts/"
+cp "$ROOT/scripts/lib/"*.sh "$wired/scripts/lib/"
+git -C "$wired" add -A
+git -C "$wired" commit -qm "the checked state"
+rm -rf "$CARGO_TARGET_DIR"
+rd_record_full "$SCRATCH/elsewhere" rust "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
+rd_record_full "$SCRATCH/elsewhere" web "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
+echo "note" > "$wired/NOTES.md"
+set +e
+wired_output="$(env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 "$wired/scripts/check.sh" --full 2>&1)"
+covered=$?
+set -e
+expect "check.sh --full over a covered tree: passes without running" "0" "$covered"
+expect_line "saying so" "==> all requested checks passed" "$wired_output"
+expect "and records the revision as verified" "$(git -C "$wired" rev-parse HEAD)" "$(rd_verified_revision "$wired")"
+rm -f "$(rd_verified_marker "$wired")"
+set +e
+wired_output="$(env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 "$wired/scripts/check.sh" --rust --full 2>&1)"
+covered=$?
+set -e
+expect "check.sh --rust --full over a covered tree: passes" "0" "$covered"
+expect "a half run records no verified revision" "" "$(rd_verified_revision "$wired")"
+rm -rf "$CARGO_TARGET_DIR"
+rd_record_full "$SCRATCH/elsewhere" windows "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
+set +e
+wired_output="$(env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 "$wired/scripts/check.sh" --windows 2>&1)"
+covered=$?
+set -e
+expect "check.sh --windows over a tree its green covers up to documentation: passes" "0" "$covered"
+expect_line "saying it is not run again" "(windows); it is not run again" "$wired_output"
+expect "and records the Windows green for this tree" "$(rd_worktree_tree "$wired")" "$(sed -n 's/^windows //p' "$(rd_full_marker "$wired")")"
+expect "a Windows green covers no half of --full" "" "$(rd_full_covering "$wired" rust "$(rd_worktree_tree "$wired")")"
+echo "change" > "$wired/code.rs"
+expect "a code change is not covered by the Windows green" "" "$(rd_full_covering "$wired" windows "$(rd_worktree_tree "$wired")")"
+rm -f "$wired/code.rs"
+
+# --- GitHub greens per platform, up to documentation and version lines (RD-160-06) --------------
+rm -f "$(rd_ci_record_file "$repo")"
+expect "no record: nothing covers a platform" "" "$(rd_ci_covering "$repo" "$green" macos-15)"
+rd_record_ci "$repo" "$green" ubuntu-24.04 windows-2025
+expect "a recorded platform of this tree is covered" "$green" "$(rd_ci_covering "$repo" "$green" windows-2025)"
+expect "an unrecorded platform is not" "" "$(rd_ci_covering "$repo" "$green" macos-15)"
+bump
+echo "## [1.1.0]" > CHANGELOG.md
+mkdir -p docs && echo "moved" > docs/archived-job.md
+git add -A
+git commit -qm "chore(release): 1.1.0"
+candidate="$(git rev-parse 'HEAD^{tree}')"
+expect "the release candidate: bump and documentation count as the same content" "$green" "$(rd_ci_covering "$repo" "$candidate" ubuntu-24.04)"
+expect "but macOS still has to run" "" "$(rd_ci_covering "$repo" "$candidate" macos-15)"
+sed -i 's/version = "1\.0\.200"/version = "1.0.201"/' Cargo.lock
+git commit -qam "a dependency moved"
+expect "a dependency moved in Cargo.lock: not the same content" "" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" ubuntu-24.04)"
+git reset -q --hard HEAD~1
+echo change >> file-c1
+git commit -qam "a code change"
+expect "a code change: not the same content" "" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" ubuntu-24.04)"
+git reset -q --hard HEAD~1
+sed -i 's/^edition = "2024"/edition = "2021"/' Cargo.toml
+git commit -qam "another Cargo.toml line"
+expect "another line of a version file: not the same content" "" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" ubuntu-24.04)"
+git reset -q --hard HEAD~1
+echo "verification note" > docs/note.md
+git add -A
+git commit -qm "docs: the verification note"
+rd_record_ci "$repo" "$candidate" macos-15
+expect "only documentation after the green: the same content" "$candidate" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" macos-15)"
 
 echo
 if [[ "$failures" -gt 0 ]]; then

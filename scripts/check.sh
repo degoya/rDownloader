@@ -30,10 +30,12 @@
 # Usage:
 #   scripts/check.sh                       # branch level: what the change touches
 #   scripts/check.sh --full                # everything — wave end on development, release, tag
+#   scripts/check.sh --full --again        # ... even when a --full green covers this content
 #   scripts/check.sh --defer               # postpone a triviality; does NOT record a green
 #   scripts/check.sh --rust                # skip the web half
 #   scripts/check.sh --web                 # skip the Rust half
 #   scripts/check.sh --windows             # only the Windows lint: cargo xwin clippy, every crate
+#   scripts/check.sh --windows --again     # ... even when its green covers this content
 #   JOBS=2 scripts/check.sh                # lower parallelism further
 #   TEST_THREADS=16 scripts/check.sh       # run tests wider than the build (scripts/lib/jobs.sh)
 #   RD_BASE=main scripts/check.sh          # compare against another base branch
@@ -53,6 +55,41 @@ source "$ROOT/scripts/lib/lock.sh"
 # --defer runs no cargo at all, so it does not queue behind somebody else's build. Read from
 # "$@" rather than from the parsed flags because the lock has to be taken before anything else.
 case " $* " in *" --defer "*) RD_NO_LOCK=1 ;; esac
+
+# Not twice (RD-160-06; owner, 2026-09-28: "unnötige Doppelprüfung immer vermeiden"): a --full run
+# of content a --full green already covers — the same tree, or one that differs in documentation
+# only, recorded by any checkout on this target — records the green for this tree and ends. The
+# rule is the one the tag and the Windows package apply (rd_full_gate). The Windows lint alone
+# (--windows) keeps its green the same way, as the half `windows`. Decided before the lock, so it
+# never queues behind somebody else's build; --again runs everything anyway.
+reuse=0
+full_halves=(rust web)
+for argument in "$@"; do
+    case "$argument" in
+        --full) [[ "$reuse" -eq -1 ]] || reuse=1 ;;
+        --rust|--web)
+            if [[ ${#full_halves[@]} -eq 2 ]]; then full_halves=("${argument#--}"); else reuse=-1; fi ;;
+        *) reuse=-1 ;;
+    esac
+done
+if [[ "$*" == "--windows" ]]; then
+    reuse=1
+    full_halves=(windows)
+fi
+if [[ "$reuse" -eq 1 ]]; then
+    # shellcheck source=lib/verified.sh
+    source "$ROOT/scripts/lib/verified.sh"
+    if rd_full_already_green "$ROOT" "${full_halves[@]}"; then
+        if [[ ${#full_halves[@]} -eq 2 ]]; then
+            rd_record_verified "$ROOT" "$(git -C "$ROOT" rev-parse HEAD)"
+            echo "==> recorded green at $(git -C "$ROOT" rev-parse --short HEAD) in $(rd_verified_marker "$ROOT")"
+        fi
+        echo
+        echo "==> all requested checks passed"
+        exit 0
+    fi
+fi
+
 rd_take_lock "$@"
 cd "$ROOT"
 
@@ -80,6 +117,7 @@ while [[ $# -gt 0 ]]; do
         --rust) run_web=0; shift ;;
         --web) run_rust=0; shift ;;
         --full) full=1; shift ;;
+        --again) shift ;;
         --defer) defer=1; shift ;;
         --clippy-all) clippy_all=1; shift ;;
         --windows) windows=1; shift ;;
@@ -102,7 +140,9 @@ fi
 # would be; it is a run of its own because it shares nothing with the Linux scope below. Every
 # crate by name — `--` arguments reach the selected packages only — and all targets and
 # features, because tests compile differently on Windows (RD-120-67). Under the lock taken above,
-# which also stamped this checkout's sources. It records no green: it verifies one platform's lint.
+# which also stamped this checkout's sources. Its green is recorded by tree as the half `windows`
+# (RD-160-06), never as a revision: it verifies one platform's lint, and a later --windows over
+# content it covers up to documentation ends before the lock.
 if [[ "$windows" -eq 1 ]]; then
     if [[ "$full" -eq 1 || "$defer" -eq 1 || "$clippy_all" -eq 1 || ${#clippy_crates[@]} -gt 0 ]]; then
         echo "--windows runs alone; start the other run separately" >&2
@@ -114,10 +154,15 @@ if [[ "$windows" -eq 1 ]]; then
     for manifest in crates/*/Cargo.toml; do args+=(-p "$(basename "$(dirname "$manifest")")"); done
     echo "==> cargo xwin clippy for x86_64-pc-windows-msvc over $(( ${#args[@]} / 2 )) crates (-j 2)"
     started=$SECONDS
+    windows_tree="$(rd_worktree_tree "$ROOT")"
     CARGO_BUILD_JOBS=2 cargo xwin clippy --target x86_64-pc-windows-msvc -j 2 "${args[@]}" \
         --all-targets --all-features -- -D warnings
     echo
     echo "==> the Windows lint took $((SECONDS - started))s"
+    if [[ -n "$windows_tree" ]]; then
+        rd_record_full "$ROOT" windows "$windows_tree"
+        echo "==> recorded the Windows lint's green for tree ${windows_tree:0:12} in $(rd_full_marker "$ROOT")"
+    fi
     echo "==> all requested checks passed"
     exit 0
 fi
@@ -227,7 +272,7 @@ fi
 # crates/rd-core/recovery-matrix.md is deliberately NOT harmless text: a test compares it
 # against rd_core::failpoint::CRASH_POINTS, so editing it is a code change wearing a .md
 # extension. crates/rd-api/mcp-coverage.md is the same kind: rd-api's library include_str!s it
-# and mcp::coverage::doc_tests compares it with the capability table.
+# and mcp_coverage::doc_tests compares it with the capability table.
 docs_only=0
 if [[ -n "$changed" ]] && ! grep -qvE '^docs/|\.md$' <<< "$changed"; then
     docs_only=1
@@ -348,7 +393,7 @@ fi
 failpoints=0
 if [[ "$full" -eq 1 ]] \
     || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage'; then
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup'; then
     failpoints=1
 fi
 
@@ -378,6 +423,12 @@ rd_script_checks
 # only, well under a second.
 step "the job layout: finished jobs archived, open ones not"
 scripts/archive-jobs.sh --check
+
+# One version (2026-09-28): Cargo.toml's workspace version is the source, and every copy
+# (web/package.json, the extension manifest, the generated OpenAPI document) must agree. Reads
+# files only.
+step "the version: every copy agrees with Cargo.toml"
+scripts/set-version.sh --check
 
 # ---------------------------------------------------------------------------------------------
 # Rust
@@ -556,10 +607,10 @@ if [[ "$run_rust" -eq 1 ]]; then
             # Every owning crate's own feature, not just rd-core's: each crash-test file is
             # gated on the feature of the crate that owns the point, and rd-core/failpoints does
             # not turn those on — a binary compiled to nothing reports success.
-            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints \
-                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage
+            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints \
+                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup
         else
-            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, failpoint.rs or the recovery matrix changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then

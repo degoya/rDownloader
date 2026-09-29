@@ -58,7 +58,11 @@
     "script_subscription_changed": "Abonnement de script créé ou modifié",
     "file_overwritten": "Fichier écrasé",
     "collision_decided": "Collision de fichier tranchée",
-    "duplicate_linked": "Doublon lié"
+    "duplicate_linked": "Doublon lié",
+    "backup_configured": "Sauvegarde complète configurée",
+    "backup_key_changed": "Phrase secrète de la sauvegarde définie",
+    "backup_created": "Sauvegarde complète écrite",
+    "backup_verified": "Archive de sauvegarde complète vérifiée"
   },
   "list": {
     "title": "Entrées",

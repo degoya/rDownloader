@@ -511,7 +511,7 @@ async fn a_refused_consent_and_an_expired_code_end_the_flow() {
 /// not.
 ///
 /// The difference matters because the renewal sweep acts on it
-/// (`rd_api::auth_flow_service::sweep_renewals`): `Failed` records a failure the person is
+/// (`rd_api_core::auth_flow_service::sweep_renewals`): `Failed` records a failure the person is
 /// shown and stops asking, while an `Err` keeps the stored token and tries again later. A
 /// plugin that reported an unreachable provider as `Failed` would sign people out every time
 /// their connection dropped.

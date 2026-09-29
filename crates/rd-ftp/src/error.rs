@@ -36,6 +36,13 @@ pub const NO_CREDENTIAL: &str = "ftp.no_credential";
 #[must_use]
 pub fn classify(error: &FtpError) -> Failure {
     match error {
+        // The address guard refused the server before a socket was opened (RD-150-03): not a
+        // network failure to retry, and the same code a refused mirror carries everywhere.
+        FtpError::ConnectionError(io) if rd_http::refusal_in(io).is_some() => Failure::coded(
+            FailureKind::Permanent,
+            rd_core::CODE_INTERNAL_ADDRESS,
+            "The FTP server points at an address a link from elsewhere may not reach",
+        ),
         FtpError::ConnectionError(io) => Failure::coded(
             FailureKind::Transient {
                 retry_after_seconds: None,

@@ -26,6 +26,10 @@ vi.mock('@/components/AppSignature.vue', () => empty)
 vi.mock('@/components/settings/SettingsMcpAccess.vue', () => empty)
 vi.mock('@/components/wizard/WizardPairingStep.vue', () => empty)
 vi.mock('@/components/wizard/WizardPasswordStep.vue', () => empty)
+// Exposes what the wizard calls on "Continue", as the real step does.
+vi.mock('@/components/wizard/WizardSelectionStep.vue', () => ({
+  default: { template: '<div />', setup: (_: unknown, { expose }: { expose: (value: object) => void }) => expose({ install: async () => true }) }
+}))
 vi.mock('@/components/wizard/WizardServicesStep.vue', () => empty)
 vi.mock('@/components/wizard/WizardStorageStep.vue', () => empty)
 

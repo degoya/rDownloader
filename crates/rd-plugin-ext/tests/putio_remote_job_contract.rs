@@ -653,7 +653,7 @@ async fn a_full_account_ends_the_job_naming_the_one_thing_to_fix() {
 ///
 /// This is the restart half of the idempotency argument at the plugin's end. The other half --
 /// the row written before the request goes out, and the unique key on it -- is the host's, and
-/// `crates/rd-api/src/remote_job_service/tests.rs` drives that.
+/// `crates/rd-api-core/src/remote_job_service/tests.rs` drives that.
 #[tokio::test]
 async fn an_orphaned_transfer_is_adopted_by_its_hash_and_a_stranger_is_not() {
     let bytes = component();

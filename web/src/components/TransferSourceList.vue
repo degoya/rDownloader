@@ -39,6 +39,7 @@ const piecesLabel = computed(() => {
 function isolatedReason(source: DownloadSourceView): string {
   if (source.isolated_code === 'mirror.piece_hash_mismatch') return t('downloads.transfer.sources.isolated_reason.piece')
   if (source.isolated_code === 'mirror.size_mismatch') return t('downloads.transfer.sources.isolated_reason.size')
+  if (source.isolated_code === 'mirror.internal_address') return t('downloads.transfer.sources.isolated_reason.internal')
   return t('downloads.transfer.sources.isolated_reason.other')
 }
 </script>

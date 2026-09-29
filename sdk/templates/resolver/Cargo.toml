@@ -9,10 +9,12 @@ license = "MIT"
 # ships with this scaffold, and wit-bindgen turns it into the types below. That is what makes
 # the plugin buildable without a checkout of the application.
 url = "2"
-wit-bindgen = "0.61"
+wit-bindgen = "0.62"
 
 [lib]
-crate-type = ["cdylib"]
+# `rlib` alongside `cdylib` so `cargo test` builds the scaffold for the host target and runs
+# the unit tests in `src/lib.rs` without a WebAssembly toolchain.
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.component]
 package = "{{PLUGIN_SLUG}}:resolver"

@@ -91,6 +91,198 @@
       "button": "Import and replace",
       "success": "Settings restored",
       "success_description": "Imported {count} configuration entries."
+    },
+    "full": {
+      "eyebrow": "Full backup",
+      "title": "Scheduled encrypted full backup",
+      "description": "Writes the database, the queue, the LinkGrabber, torrent sessions, plugin trust and credentials, encrypted, to your destinations – while downloads keep running. Downloaded files are not included.",
+      "key": {
+        "title": "Passphrase",
+        "missing": "No passphrase set up yet. Without one no full backup is written.",
+        "configured": "Key {fingerprint}, set up {date}",
+        "hint": "The passphrase is stored nowhere, only the key derived from it, in the secret store. A restore asks for it again. A new passphrase applies to future backups; older ones still open with the old one.",
+        "passphrase": "Passphrase",
+        "confirm": "Confirm passphrase",
+        "setup": "Set up passphrase",
+        "change": "Change passphrase",
+        "saved": "Passphrase saved",
+        "short": "The passphrase needs at least {min} characters.",
+        "mismatch": "The passphrases do not match.",
+        "current": "Current passphrase",
+        "current_required": "Enter the current passphrase to replace it."
+      },
+      "schedule": {
+        "title": "Schedule",
+        "enabled": "Schedule on",
+        "enabled_description": "Runs in the background. A failure stops no download and lands in the history.",
+        "cron": "Schedule (cron)",
+        "cron_description": "Five fields: minute hour day month weekday, e.g. 0 3 * * * for every day at 3:00.",
+        "timezone": "Time zone",
+        "verify": "Verification schedule (cron)",
+        "verify_description": "Checks the newest archive at every destination: fetched back, compared and opened. Empty is off.",
+        "verify_next": "Next verification: {date}",
+        "no_destination": "No active destination yet – add one below before you switch the schedule on.",
+        "save": "Save schedule",
+        "saved": "Schedule saved",
+        "next": "Next run: {date}",
+        "off": "Schedule off"
+      },
+      "destinations": {
+        "title": "Destinations",
+        "description": "Every destination gets its own copy. One that is unreachable is tried again and costs only its own entry in the history.",
+        "empty": "No destination yet. Add a folder, an object storage bucket or an rclone remote.",
+        "add": "Add destination",
+        "edit": "Edit",
+        "delete": "Remove",
+        "deleted": "Destination removed. Its archives stay where they are.",
+        "saved": "Destination saved",
+        "save": "Save destination",
+        "cancel": "Cancel",
+        "off": "Off",
+        "kind": {
+          "label": "Type",
+          "local": "Folder or NAS",
+          "object_storage": "Object storage",
+          "rclone": "rclone remote"
+        },
+        "name": "Name",
+        "name_description": "Optional; without one the list shows the address.",
+        "enabled": "On",
+        "path": "Folder",
+        "path_description": "Absolute path on the machine running rDownloader; a mounted NAS share works too.",
+        "profile": "Object storage profile",
+        "profile_placeholder": "Choose a profile",
+        "profile_none": "No profile yet – add one in the object storage settings first.",
+        "prefix": "Bucket and folder",
+        "prefix_description": "<bucket>/<folder>; without a bucket the profile's own bucket is used.",
+        "remote": "rclone remote",
+        "remote_description": "name:path of a remote configured in rclone – WebDAV, SFTP, cloud drives and more.",
+        "keep_last": "Keep newest",
+        "keep_last_description": "Number of archives; empty keeps all.",
+        "keep_days": "Keep days",
+        "keep_days_description": "Younger archives stay; empty keeps all.",
+        "retention": {
+          "none": "Keeps every archive",
+          "last": "Newest {count}",
+          "days": "{count} days",
+          "hint": "The newest archive always stays. Only archives this installation wrote there are ever removed – never anybody else's files.",
+          "preview": "Preview",
+          "result": "Keeps {keep}, removes {remove} – nothing is deleted yet."
+        },
+        "archives": "Archives: {count}",
+        "verify": "Verify newest",
+        "verify_started": "Verification started",
+        "verify_none": "There is no archive there yet.",
+        "verify_state": {
+          "running": "Checking",
+          "passed": "Verified",
+          "failed": "Check failed",
+          "interrupted": "Interrupted"
+        },
+        "verifications": "Verifications",
+        "digest_only": "digest only (earlier passphrase)"
+      },
+      "run": {
+        "button": "Back up now",
+        "running": "Backup running",
+        "started": "Full backup started"
+      },
+      "history": {
+        "title": "History",
+        "empty": "No full backup has run yet.",
+        "parts": "{count} parts",
+        "origin": {
+          "scheduled": "Scheduled",
+          "manual": "Manual"
+        },
+        "state": {
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed",
+          "interrupted": "Interrupted"
+        },
+        "pruned": "{count} old archives removed by retention"
+      }
+    },
+    "full_restore": {
+      "eyebrow": "Restore",
+      "title": "Restore a full backup",
+      "description": "Opens an archive with its passphrase, shows what it holds, checks it in a throwaway copy and switches to it at the next start. The running installation stays startable until the restored one has started once.",
+      "open": "Restore from a backup …",
+      "status": {
+        "staged": "The restore of {archive} ({date}) is waiting. Restart rDownloader to switch to it; the current state is kept until the restored one has started once.",
+        "switching": "A start is switching to {archive} right now.",
+        "failed": "The restore of {archive} did not start on {date}; the previous installation was kept. Reason: {reason}",
+        "discard": "Discard restore",
+        "dismiss": "Dismiss",
+        "discarded": "Restore discarded"
+      },
+      "dialog": {
+        "title": "Restore a full backup",
+        "description": "Pick the archive, enter its passphrase, check its contents, map the storage roots, test – only then confirm."
+      },
+      "source": {
+        "title": "Archive",
+        "history": "From the history",
+        "upload": "Upload a file",
+        "path": "Path on this machine",
+        "no_runs": "No successful backup in the history.",
+        "run_placeholder": "Choose a backup",
+        "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
+        "file_pick": "Choose file",
+        "uploading": "Uploading: {percent} %",
+        "uploaded": "{name} uploaded"
+      },
+      "passphrase": {
+        "label": "Passphrase of this backup",
+        "hint": "Asked for every time: the key kept for the schedule is never used for a restore."
+      },
+      "preview": {
+        "action": "Show contents",
+        "title": "Contents",
+        "created": "Made {date} by rDownloader {version}, {size}",
+        "newer": "A newer version made this backup. Update to at least that version first ({version} runs here).",
+        "part": "{count} × {size}",
+        "counts": "{categories} categories, {accounts} accounts, {proxies} proxies, {servers} Usenet servers, {subscriptions} subscriptions, {hotfolders} hot folders",
+        "state": "{partial} unfinished transfers, {trust} plugin trust entries.",
+        "credentials_included": "Credentials are included, sealed.",
+        "credentials_missing": "Credentials are not included.",
+        "kind": {
+          "settings": "Settings",
+          "database": "Database",
+          "plugin_trust": "Plugin trust",
+          "partial_transfers": "Unfinished transfers",
+          "torrent_session": "Torrent session",
+          "torrent_file": "Torrent files"
+        },
+        "path_kind": {
+          "hotfolder": "Hot folder",
+          "partial_transfer": "Unfinished transfer"
+        }
+      },
+      "mapping": {
+        "title": "Storage roots",
+        "hint": "Where each storage root lies on this machine. Leave a field empty to keep the path. Paths from another system (drive letters, shares) need a folder here; every path below moves with it and can never leave it.",
+        "foreign": "other system",
+        "target": "New folder for {name}",
+        "placeholder": "Keep the path"
+      },
+      "test": {
+        "action": "Test restore",
+        "ok": "The test restore found nothing that stops the restore.",
+        "failed": "The test restore found errors that stop the restore.",
+        "summary": "{packages} packages, {moved} paths moved, {credentials} credentials restored, {migrated} migrations applied.",
+        "none": "No findings.",
+        "severity": {
+          "error": "Error",
+          "warning": "Note"
+        }
+      },
+      "confirm": {
+        "label": "I understand: at the next start this backup replaces the whole installation. The current state is kept until the restored one has started once.",
+        "action": "Restore at the next start",
+        "staged": "Restore staged. Restart rDownloader to switch to it."
+      }
     }
   },
   "mcp": {
@@ -241,7 +433,9 @@
       "never": "Never Secure"
     },
     "warning_no_proxies": "An external URL is set but no trusted proxy is. Every request will then look as though it came from the proxy: rate limiting and the session list show one address for everybody.",
-    "warning_no_url": "Trusted proxies are set but no external URL is. The cookie then cannot be marked Secure automatically."
+    "warning_no_url": "Trusted proxies are set but no external URL is. The cookie then cannot be marked Secure automatically.",
+    "allowed_hosts": "Allowed host names",
+    "allowed_hosts_hint": "One name per line that you open the service by in a browser, such as nas.lan. IP addresses, localhost and the external URL's host always work; any other name is refused, so no foreign page gets in through DNS rebinding."
   },
   "mfa": {
     "eyebrow": "Second factor",

@@ -29,7 +29,7 @@ const scopeValue = ref('')
 const scopeMiB = ref<number | null>(null)
 const copyName = useCopyName()
 const duplicatingId = ref<string | null>(null)
-/** Matches the name check in `crates/rd-api/src/bandwidth_handlers.rs`. */
+/** Matches the name check in `crates/rd-api-queue/src/bandwidth_handlers.rs`. */
 const MAX_PROFILE_NAME = 100
 
 function emptyForm(): BandwidthProfileRequest {

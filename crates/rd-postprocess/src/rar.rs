@@ -63,7 +63,9 @@ pub(crate) async fn extract_rar_into(
         first_volume,
         password,
     );
-    arguments.apply_to(tool.kind, &mut command)?;
+    arguments
+        .apply_to(tool.kind, &mut command)
+        .inspect_err(|error| log_refused(tool, &arguments, error))?;
     log_started(tool, &arguments);
     let mut child = command.spawn().context("spawn RAR tool")?;
     let mut stdout = child.stdout.take().context("RAR tool stdout")?;
@@ -230,6 +232,18 @@ fn log_started(tool: &ExternalRarTool, arguments: &RarArguments) {
     );
 }
 
+/// An argument list the tool's command line cannot carry, refused before the tool starts - a
+/// 7-Zip password with a `"` under Windows, or a NUL. Only the code is logged, and the arguments
+/// without the password, like every other line here.
+fn log_refused(tool: &ExternalRarTool, arguments: &RarArguments, error: &ExtractionError) {
+    tracing::warn!(
+        tool = %tool.executable.display(),
+        args = %arguments.redacted(),
+        code = error.code(),
+        "RAR tool not started"
+    );
+}
+
 /// The same line again with the outcome: the exit code, or why the process was killed.
 fn log_finished(tool: &ExternalRarTool, arguments: &RarArguments, exit: &str) {
     tracing::info!(
@@ -282,7 +296,9 @@ pub async fn test_rar(
         .stderr(Stdio::piped());
     apply_tool_environment(&mut command);
     let arguments = rar_arguments(tool.kind, RarAction::Test, first_volume, password);
-    arguments.apply_to(tool.kind, &mut command)?;
+    arguments
+        .apply_to(tool.kind, &mut command)
+        .inspect_err(|error| log_refused(tool, &arguments, error))?;
     log_started(tool, &arguments);
     let mut child = command.spawn().context("spawn RAR tool")?;
     let mut stdout = child.stdout.take().context("RAR tool stdout")?;

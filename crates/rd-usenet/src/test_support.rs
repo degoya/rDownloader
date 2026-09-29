@@ -609,6 +609,7 @@ pub(crate) fn run_limits() -> rd_scheduler::RunLimits {
     rd_scheduler::RunLimits {
         max_parallel_requests: 32,
         bandwidth: rd_limits::ScopedLimiter::unlimited(),
+        address_policy: None,
     }
 }
 

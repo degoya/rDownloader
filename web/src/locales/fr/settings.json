@@ -156,7 +156,7 @@
   },
   "admin_login": {
     "label": "Désactiver la connexion admin",
-    "description": "Toute personne accédant à l'interface peut tout contrôler. Pertinent uniquement si le service n'est joignable que sur loopback ou dans votre propre réseau de confiance. Prend effet immédiatement après l'enregistrement.",
+    "description": "Quiconque ouvre l'interface sur cet ordinateur peut tout contrôler sans se connecter. Toute autre machine — sur le LAN, via une redirection de port, un conteneur ou un proxy inverse — doit toujours se connecter avec le mot de passe. Prend effet immédiatement après l'enregistrement.",
     "warning": "La protection par mot de passe est désactivée."
   },
   "proxy": {

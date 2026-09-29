@@ -15,6 +15,7 @@ import { subscribeEvents } from '@/composables/useEventStream'
 import { withBase } from '@/basePath'
 import SectionHeader from '@/components/SectionHeader.vue'
 import PluginCard from './PluginCard.vue'
+import PluginBundledList from './PluginBundledList.vue'
 import PluginInstallPreviewModal from './PluginInstallPreviewModal.vue'
 import PluginTrustedKeys from './PluginTrustedKeys.vue'
 import PluginUpdatesList from './PluginUpdatesList.vue'
@@ -105,6 +106,8 @@ const openSuperseded = ref<string | null>(null)
 function toggleSuperseded(id: string): void {
   openSuperseded.value = openSuperseded.value === id ? null : id
 }
+/** The bundle's available services, re-read when the installed set changes elsewhere. */
+const bundledList = ref<InstanceType<typeof PluginBundledList> | null>(null)
 const trustedKeys = ref<TrustedKey[]>([])
 const packageFile = ref<File | null>(null)
 /** The package the install preview shows; the upload installs only from there (RD-140-01). */
@@ -202,7 +205,8 @@ async function reloadFromEvent(): Promise<void> {
   const [, keyFailure, revocationFailure] = await Promise.all([
     refresh(),
     refreshKeys(),
-    refreshRevocations()
+    refreshRevocations(),
+    bundledList.value?.reload()
   ])
   const failure = keyFailure ?? revocationFailure
   if (failure) error.value = failure
@@ -385,6 +389,8 @@ async function revokeKey(keyId: string): Promise<void> {
     </section>
 
     <PluginUpdatesList @installed="onInstalled" />
+
+    <PluginBundledList ref="bundledList" @installed="onInstalled" />
 
     <section class="border border-muted bg-default p-5">
       <div class="mb-4 flex items-center justify-between">

@@ -479,5 +479,11 @@
   "duplicates": {
     "queued": "{count} × ya en la cola",
     "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el alojamiento."
+  },
+  "sources": {
+    "title": "Fuentes ({count})",
+    "badge": "{count} fuentes",
+    "priority": "Prioridad {value}",
+    "hint": "Se prueban en este orden. Una dirección que apunta a tu propio equipo —o, en un documento que no has aportado tú mismo, a tu red local— no se consulta."
   }
 }

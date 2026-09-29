@@ -75,6 +75,8 @@ export interface PluginUpdate {
   policy: 'manual' | 'automatic'
   /** Asks for a permission the installed version lacks; waits for a click whatever the policy. */
   adds_permissions: boolean
+  /** Those permissions, one list each; empty lists when `adds_permissions` is false (RD-160-09). */
+  added_permissions: PluginPermissions
 }
 
 export interface PluginOffers {
@@ -105,6 +107,11 @@ export interface PluginPreview {
   incompatible: string | null
   installable: boolean
   installed_versions: string[]
+  /**
+   * What the package asks for beyond the newest installed version (RD-160-09); `null` when no
+   * version of the plugin is installed, so every permission is new.
+   */
+  added_permissions: { installed_version: string, permissions: PluginPermissions } | null
   source: { repository_id: string, repository_name: string, official: boolean } | null
   release_notes: string | null
 }
@@ -119,7 +126,7 @@ export type Answer<T> =
   | { ok: true, data: T }
   | { ok: false, status: number, message: ServerMessage | null }
 
-async function call<T>(method: string, path: string, body?: Blob | object): Promise<Answer<T>> {
+export async function call<T>(method: string, path: string, body?: Blob | object): Promise<Answer<T>> {
   const init: RequestInit = { method, credentials: 'same-origin' }
   if (body instanceof Blob) {
     init.headers = { 'Content-Type': 'application/octet-stream' }

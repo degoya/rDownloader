@@ -1,0 +1,39 @@
+package rdownloader:plugin@0.9.0;
+
+interface types {
+  variant failure-kind {
+    transient(option<u64>),
+    permanent,
+  }
+
+  record failure {
+    category: failure-kind,
+    /// English, redaction-safe text.
+    message: string,
+    code: option<string>,
+  }
+
+  enum link-status {
+    online,
+    offline,
+  }
+}
+
+interface host {
+  use types.{failure};
+
+  log: func(level: string, message: string);
+  wait: func(seconds: u32) -> result<_, failure>;
+}
+
+interface resolver {
+  use types.{failure, link-status};
+
+  resolve: func(url: string) -> result<string, failure>;
+  check: func(urls: list<string>) -> list<link-status>;
+}
+
+world resolver-plugin {
+  import host;
+  export resolver;
+}

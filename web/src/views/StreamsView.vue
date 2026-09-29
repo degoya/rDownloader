@@ -255,7 +255,7 @@ const focusScheduleForm = useFormFocus(scheduleForm)
 const scheduleError = ref<string | null>(null)
 const duplicatingScheduleId = ref<string | null>(null)
 const copyName = useCopyName()
-/** Matches `MAX_NAME` in `crates/rd-api/src/stream_schedule_handlers.rs`. */
+/** Matches `MAX_NAME` in `crates/rd-api-intake/src/stream_schedule_handlers.rs`. */
 const MAX_SCHEDULE_NAME = 200
 
 const channelItems = computed(() =>

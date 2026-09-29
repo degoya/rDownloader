@@ -5,7 +5,8 @@
 # a bare repository. What is tested is the flow — the platforms become ci.yml's JSON input, a
 # dispatched run is watched by its event and its push run skipped, green deletes the public
 # branch, red, a run that never appears and one past the ceiling keep it and fail, and a long
-# run is waited for past the start deadline — not GitHub.
+# run is waited for past the start deadline; a green is recorded per platform, and a platform
+# already green for the tree is not dispatched again (RD-160-06) — not GitHub.
 #
 #   scripts/tests/public-ci.sh
 set -euo pipefail
@@ -48,7 +49,7 @@ export PATH="$SCRATCH/bin:$PATH"
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/public-ci.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/public-ci.sh" "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{public-ci,verified,lanes}.sh "$TREE/scripts/lib/"
 cat > "$TREE/scripts/export-public.sh" <<'EOF'
 #!/usr/bin/env bash
 # Stub: records its arguments, commits onto --branch in the public clone and pushes it.
@@ -72,7 +73,13 @@ git clone -q "$SCRATCH/public.git" "$RD_PUBLIC_DIR" 2> /dev/null
 git -C "$RD_PUBLIC_DIR" commit -q --allow-empty -m main
 git -C "$RD_PUBLIC_DIR" push -q origin main
 remote_has() { git -C "$SCRATCH/public.git" rev-parse --verify --quiet "refs/heads/$1" > /dev/null; }
-public_ci() { rm -f "$FAKE/gh.calls"; run_status "$TREE/scripts/public-ci.sh" "$@"; }
+RECORD="$TREE/.git/rd-verified-ci"
+# Every case starts without a recorded green unless it says KEEP=1.
+public_ci() {
+    rm -f "$FAKE/gh.calls" "$FAKE/export.args"
+    [[ "${KEEP:-0}" -eq 1 ]] || rm -f "$RECORD"
+    run_status "$TREE/scripts/public-ci.sh" "$@"
+}
 
 # --- the platform list ---------------------------------------------------------------------------
 # shellcheck source=../lib/public-ci.sh
@@ -103,12 +110,43 @@ expect_true "ci.yml is started on that branch with the JSON list" \
 expect_true "and only the dispatched run is watched" 'grep -q "^run list .*--event workflow_dispatch" "$FAKE/gh.calls"'
 expect_true "the public branch is deleted" '! remote_has ci/integration-1.4-w4'
 
-# --- without platforms: the push's own run -------------------------------------------------------
+expect "the green is recorded per platform, for the branch's tree" \
+    "ubuntu-24.04 $(git -C "$TREE" rev-parse 'integration/1.4-w4^{tree}')|windows-2025 $(git -C "$TREE" rev-parse 'integration/1.4-w4^{tree}')" \
+    "$(cut -d' ' -f1,2 "$RECORD" | paste -sd'|' -)"
+
+# --- what is green already is not run again (RD-160-06) -------------------------------------------
+KEEP=1 public_ci integration/1.4-w4 --platforms linux,windows
+expect_status "every named platform green for this tree: passes" 0
+expect_output "without a run" "nothing was run"
+expect_true "nothing exported" '[[ ! -f "$FAKE/export.args" ]]'
+expect_true "nothing asked of gh" '[[ ! -f "$FAKE/gh.calls" ]]'
+
+KEEP=1 public_ci integration/1.4-w4
+expect_status "without platforms: only the one not yet green" 0
+expect_output "naming what it relies on" "windows-2025: green for this tree already"
+expect_true "macOS alone is dispatched" \
+    'grep -qF "workflow run ci.yml --repo owner/repo --ref ci/integration-1.4-w4 -f platforms=[\"macos-15\"]" "$FAKE/gh.calls"'
+expect_true "with [skip ci] on the export" 'grep -q -- "--skip-push-ci" "$FAKE/export.args"'
+expect "and recorded" "3" "$(wc -l < "$RECORD")"
+
+# The release candidate: the same content plus documentation and a version bump.
+git -C "$TREE" checkout -q integration/1.4-w4
+printf '[workspace.package]\nversion = "1.4.0"\n' > "$TREE/Cargo.toml"
+echo "## [1.4.0]" > "$TREE/CHANGELOG.md"
+git -C "$TREE" add -A
+git -C "$TREE" commit -qm "chore(release): 1.4.0"
+git -C "$TREE" checkout -q development
+KEEP=1 public_ci integration/1.4-w4
+expect_status "a tree differing only in documentation and version lines: passes" 0
+expect_output "saying which green it relies on" "differs only in documentation and version lines"
+expect_true "without a run" '[[ ! -f "$FAKE/export.args" ]]'
+git -C "$TREE" branch -q -f integration/1.4-w4 integration/1.4-w4~1
+
+# --- without platforms: all three, dispatched ----------------------------------------------------
 public_ci integration/1.4-w4
 expect_status "green on every platform" 0
-expect_true "no [skip ci] export" '! grep -q -- "--skip-push-ci" "$FAKE/export.args"'
-expect_true "nothing dispatched" '! grep -q "^workflow run" "$FAKE/gh.calls"'
-expect_true "no event filter" '! grep -q -- "--event" "$FAKE/gh.calls"'
+expect_true "ci.yml is dispatched for all three" \
+    'grep -qF "platforms=[\"ubuntu-24.04\",\"windows-2025\",\"macos-15\"]" "$FAKE/gh.calls"'
 
 # --- red, and a run that never finishes ----------------------------------------------------------
 printf '%s\n' "completed success web https://example.invalid/runs/2" \
@@ -118,6 +156,7 @@ expect_status "a red run fails" 1
 expect_output "naming the run" "completed failure CI https://example.invalid/runs/3"
 expect_output "and how to read it" "scripts/ci-log.sh"
 expect_true "the public branch is kept for inspection" 'remote_has ci/integration-1.4-w4'
+expect_true "and nothing is recorded" '[[ ! -s "$RECORD" ]]'
 
 echo "completed cancelled CI https://example.invalid/runs/4" > "$FAKE/runs"
 public_ci integration/1.4-w4 --platforms windows

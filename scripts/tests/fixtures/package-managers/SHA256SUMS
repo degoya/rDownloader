@@ -1,0 +1,10 @@
+1111111111111111111111111111111111111111111111111111111111111111  ./rdownloader-chrome.zip
+2222222222222222222222222222222222222222222222222222222222222222  ./rdownloader-firefox.xpi
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  ./rdownloader-linux-aarch64.tar.gz
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc  ./rdownloader-linux-x86_64.tar.gz
+dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd  ./rdownloader-macos-aarch64.tar.gz
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee  ./rdownloader-macos-x86_64.tar.gz
+7777777777777777777777777777777777777777777777777777777777777777  ./rdownloader-plugin-index.json
+8888888888888888888888888888888888888888888888888888888888888888  ./rdownloader-site-rules.json
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  ./rdownloader-windows-x86_64.zip
+9999999999999999999999999999999999999999999999999999999999999999  ./rdownloader.spdx.json

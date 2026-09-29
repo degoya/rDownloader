@@ -166,9 +166,10 @@
       "isolated_reason": {
         "piece": "A livré des données qui ne correspondent pas à leur empreinte.",
         "size": "Propose une autre taille de fichier.",
-        "other": "N'est plus utilisée pour ce fichier."
+        "other": "N'est plus utilisée pour ce fichier.",
+        "internal": "Pointe vers ta propre machine ou vers un réseau que cette liste de sources ne peut pas atteindre."
       },
-      "unsupported_hint": "Les sources FTP et SFTP sont affichées mais pas encore utilisées pour les morceaux."
+      "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
     }
   },
   "summary": {

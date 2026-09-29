@@ -2,6 +2,10 @@
   "name": "{{PLUGIN_NAME}}",
   "description": "Transfers files over the {{PLUGIN_NAME}} protocol.",
   "codes": {
-    "{{PLUGIN_SLUG}}.not_implemented": "This backend does not implement that yet."
+    "{{PLUGIN_SLUG}}.bad_url": "This is not a {{PLUGIN_NAME}} address.",
+    "{{PLUGIN_SLUG}}.refused": "The server refused the request.",
+    "{{PLUGIN_SLUG}}.bad_reply": "The server sent a reply this backend could not read.",
+    "{{PLUGIN_SLUG}}.no_reply": "The server closed the connection without answering.",
+    "{{PLUGIN_SLUG}}.truncated": "The server stopped sending before the whole file arrived."
   }
 }

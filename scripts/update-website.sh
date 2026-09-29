@@ -7,7 +7,8 @@
 # container image, the handbook links — derives from one file, app/data/release.json, and this
 # script sets it: the version, today's date (kept as it is when the file already names this
 # version with a date, so a re-run does not move the release date; an empty date is the
-# placeholder of a version prepared before its tag and is filled) and the repository, which stays. Then it
+# placeholder of a version prepared before its tag and is filled), the number of bundled plugins
+# (counted as doc-facts.py counts them) and the repository, which stays. Then it
 # checks that every public wiki page the site links to exists in the exported wiki, runs the
 # site's tests, generates it, checks the generated download page links this version's assets,
 # and commits "Release <version>" in the site repository.
@@ -77,20 +78,28 @@ restore() { git -C "$SITE" checkout --quiet -- "$DATA"; }
 trap 'status=$?; [[ $status -eq 0 ]] || restore; exit $status' EXIT
 
 echo "==> setting $DATA to $VERSION"
-python3 - "$SITE/$DATA" "$VERSION" "$(date +%F)" <<'PY'
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+python3 - "$SITE/$DATA" "$VERSION" "$(date +%F)" "$ROOT/plugins" <<'PY'
 import json
+import os
 import sys
 
-path, version, today = sys.argv[1:]
+path, version, today, plugins = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
     data = json.load(handle)
 if data.get("version") != version or not data.get("date"):
     data["date"] = today
 data["version"] = version
+# The bundled plugins, counted as scripts/lib/doc-facts.py counts them: the examples are built
+# but not bundled.
+data["plugins"] = sum(
+    os.path.isfile(os.path.join(plugins, entry, "manifest.toml")) and not entry.startswith("example-")
+    for entry in os.listdir(plugins)
+)
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2)
     handle.write("\n")
-print(f"   version {data['version']}, date {data['date']}, repository {data['repo']}")
+print(f"   version {data['version']}, date {data['date']}, {data['plugins']} plugins, repository {data['repo']}")
 PY
 
 cd "$SITE"

@@ -9,15 +9,15 @@ version = "0.1.0"
 key_id = "{{PLUGIN_SLUG}}-release-v1"
 public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
 
-# Every address this plugin may reach. The host refuses anything outside the list, so keep
-# it to the hosts you actually call rather than a wildcard you might need one day.
-[capabilities.net_http]
-domains = ["api.example.com"]
+# Nothing granted: this enricher reads the file name it is handed. One that looks something up
+# adds `[capabilities.net_http]` with exactly the hosts it calls — the host refuses the rest, and
+# the plugin manager shows the list to the person deciding whether to install it.
+[capabilities]
 
 [extension]
 slug = "{{PLUGIN_SLUG}}"
 # Domain patterns this enricher is offered for. Empty means every link of its type.
-claims = ["example.com"]
+claims = []
 
 [metadata]
 description = "Adds {{PLUGIN_NAME}} details to a link before it is downloaded."

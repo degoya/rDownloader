@@ -1,6 +1,7 @@
 //! What the Azure and Google wire tests share: a service on a fresh database and vault, a
 //! queue row for a link, a run of the runner, and a partial file left by an earlier attempt.
 //! Each test file brings its own fixture server; `tests/s3.rs` predates this and keeps its own.
+//! `tests/s3_tls.rs` and `tests/s3_live.rs` use it for S3 over TLS and against a real service.
 
 #![allow(dead_code)]
 
@@ -79,6 +80,24 @@ impl Harness {
         scheme: &'static str,
         bucket: &'static str,
     ) -> Self {
+        Self::start_with_network(
+            profile,
+            secret,
+            scheme,
+            bucket,
+            rd_http::NetworkDefaults::default(),
+        )
+        .await
+    }
+
+    /// [`Harness::start`] under the given network settings — the custom CA of the TLS tests.
+    pub async fn start_with_network(
+        profile: NewObjectStorageProfile,
+        secret: Option<&str>,
+        scheme: &'static str,
+        bucket: &'static str,
+        network: rd_http::NetworkDefaults,
+    ) -> Self {
         let directory = tempfile::tempdir().expect("tempdir");
         let database = Database::open(directory.path().join("objects.sqlite3"))
             .await
@@ -101,7 +120,7 @@ impl Harness {
             database.clone(),
             secrets.clone(),
             Arc::new(RwLock::new(rd_core::RemoteSettings::default())),
-            Arc::new(RwLock::new(rd_http::NetworkDefaults::default())),
+            Arc::new(RwLock::new(network)),
         );
         Self {
             directory,
@@ -182,6 +201,7 @@ impl Harness {
                 RunLimits {
                     max_parallel_requests: 0,
                     bandwidth: rd_limits::ScopedLimiter::unlimited(),
+                    address_policy: None,
                 },
             )
             .await

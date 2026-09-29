@@ -64,13 +64,21 @@ describe('TransferSourceList', () => {
     expect(container.textContent).toContain('No piece hashes')
   })
 
-  it('names FTP and SFTP mirrors as kept but not yet used', () => {
+  it('names a mirror the service cannot fetch as kept but not used', () => {
     const { container } = mount({
       sources: [source(0), source(1, { protocol: 'ftp', state: 'unsupported' })],
       piece_hashes: null
     })
     expect(container.querySelector('[data-state="unsupported"] [label="Not used yet"]')).not.toBeNull()
-    expect(container.textContent).toContain('FTP and SFTP sources are shown but not yet used for chunks.')
+    expect(container.textContent).toContain('Sources whose protocol this service cannot fetch are shown but not used.')
+  })
+
+  it('says that a mirror pointing at this machine was excluded (RD-150-03)', () => {
+    const { container } = mount({
+      sources: [source(0, { protocol: 'ftp', state: 'isolated', isolated_code: 'mirror.internal_address' })],
+      piece_hashes: null
+    })
+    expect(container.textContent).toContain('Points at your own machine or into a network this source list may not reach.')
   })
 
   it('renders nothing for a download with a single address', () => {

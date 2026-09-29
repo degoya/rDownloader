@@ -6,7 +6,7 @@
 //! so it can pick the documented HTTP status and the stable error code the web client
 //! translates — and `anyhow` keeps causes downcastable.
 //!
-//! The failure this prevents: `rd-api/src/torrent_trackers.rs` chose `429` against `400` by
+//! The failure this prevents: `rd-api-queue/src/torrent_trackers.rs` chose `429` against `400` by
 //! searching the rendered message for the word `"wait"`. Rewording the rate-limit `bail!` in
 //! this crate therefore turned a documented `429` into a `400` — nothing to compile-check, and
 //! no test that would notice, because the tests assert the code the mapping produced rather

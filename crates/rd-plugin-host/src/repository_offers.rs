@@ -50,6 +50,9 @@ pub struct Update {
     /// does not have. Such an update is never installed automatically: a new permission is
     /// shown before it is granted, so it waits for a click whatever the policy says.
     pub adds_permissions: bool,
+    /// Which capabilities, domains and stream hosts those are (RD-160-09); empty exactly when
+    /// `adds_permissions` is false.
+    pub added_permissions: Permissions,
 }
 
 /// Whether this build can run `entry`, judged from the index alone.
@@ -157,7 +160,7 @@ impl PluginRepositoryService {
     /// id, and it is offered like any other package — with its own preview — never as an update.
     pub async fn updates(&self) -> anyhow::Result<Vec<Update>> {
         let installed = newest_installed(&self.installer().list_installed().await?);
-        let mut best: HashMap<String, (semver::Version, Offer, bool)> = HashMap::new();
+        let mut best: HashMap<String, (semver::Version, Offer, Permissions)> = HashMap::new();
         for offer in self.offers().await? {
             if offer.compatibility != PackageCompatibility::Compatible {
                 continue;
@@ -177,12 +180,12 @@ impl PluginRepositoryService {
             }
             // Repositories are listed official first, so on a tie the official offer stays.
             if best.get(&id).is_none_or(|(known, _, _)| version > *known) {
-                let widens = offer.entry.permissions.widens(&current.permissions);
-                best.insert(id, (version, offer, widens));
+                let added = offer.entry.permissions.beyond(&current.permissions);
+                best.insert(id, (version, offer, added));
             }
         }
         let mut updates = Vec::with_capacity(best.len());
-        for (id, (_, offer, adds_permissions)) in best {
+        for (id, (_, offer, added_permissions)) in best {
             let installed_version = installed
                 .get(&id)
                 .map(|newest| newest.text.clone())
@@ -191,7 +194,8 @@ impl PluginRepositoryService {
                 policy: self.policy(&id).await,
                 installed_version,
                 offer,
-                adds_permissions,
+                adds_permissions: !added_permissions.is_empty(),
+                added_permissions,
             });
         }
         updates.sort_by(|left, right| left.offer.entry.name.cmp(&right.offer.entry.name));

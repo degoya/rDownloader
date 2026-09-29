@@ -9,6 +9,7 @@ pub(crate) mod media;
 pub(crate) mod notify;
 pub(crate) mod plugins;
 pub(crate) mod queue;
+pub(crate) mod restore;
 pub(crate) mod security;
 pub(crate) mod site_rules;
 pub(crate) mod stats;
@@ -31,6 +32,7 @@ pub(crate) fn protected() -> Router<AppState> {
         .merge(notify::routes())
         .merge(plugins::routes())
         .merge(queue::routes())
+        .merge(restore::routes())
         .merge(security::routes())
         .merge(site_rules::routes())
         .merge(system::routes())

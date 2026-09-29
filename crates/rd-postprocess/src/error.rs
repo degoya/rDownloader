@@ -17,6 +17,12 @@ pub enum ExtractionError {
     /// was: RAR4 without header encryption carries no password check value, and 7-Zip reports
     /// both cases as exit 2. Another password may still succeed, so this keeps the retry going.
     PasswordOrDataDamaged,
+    /// The password contains a `"`, and the tool is 7-Zip under Windows: its command-line parser
+    /// reads every `"` as a quote toggle and has no escape for a literal one, so the password
+    /// cannot reach it intact - and passing it anyway would let the rest of the password be read
+    /// as further switches. The attempt is refused before the tool starts; another password may
+    /// still succeed, so the retry goes on.
+    PasswordHasQuote,
     /// The payload is damaged and the password is not in question
     /// (`unrar` exit 3 on a format that verified the password, a truncated archive).
     DataDamaged,
@@ -49,6 +55,9 @@ impl fmt::Display for ExtractionError {
             Self::WrongPassword => f.write_str("archive password is wrong"),
             Self::PasswordOrDataDamaged => {
                 f.write_str("archive password is wrong or the data is damaged")
+            }
+            Self::PasswordHasQuote => {
+                f.write_str("the archive password contains a quote, which 7-Zip cannot receive")
             }
             Self::DataDamaged => f.write_str("archive data is damaged"),
             Self::ToolMismatch(detail) => write!(f, "RAR tool mismatch: {detail}"),
@@ -87,7 +96,10 @@ impl ExtractionError {
     pub const fn is_password_problem(&self) -> bool {
         matches!(
             self,
-            Self::PasswordRequired | Self::WrongPassword | Self::PasswordOrDataDamaged
+            Self::PasswordRequired
+                | Self::WrongPassword
+                | Self::PasswordOrDataDamaged
+                | Self::PasswordHasQuote
         )
     }
 
@@ -102,6 +114,7 @@ impl ExtractionError {
             Self::PasswordRequired => "extract.password_required",
             Self::WrongPassword => "extract.wrong_password",
             Self::PasswordOrDataDamaged => "extract.password_or_data_damaged",
+            Self::PasswordHasQuote => "extract.password_has_quote",
             Self::DataDamaged => "extract.data_damaged",
             Self::ToolMismatch(_) => "extract.tool_mismatch",
             Self::ToolTooOld(_) => "extract.tool_too_old",
@@ -114,7 +127,7 @@ impl ExtractionError {
     /// The tool's own words, where the code alone does not tell a reader what to do.
     ///
     /// Travels as the `detail` parameter of the step code, which is what the catalogues
-    /// interpolate; the four verdicts about a password or damaged data say everything in the
+    /// interpolate; the verdicts about a password or damaged data say everything in the
     /// code itself and carry no detail (RD-108-08).
     #[must_use]
     pub fn detail(&self) -> Option<String> {
@@ -122,6 +135,7 @@ impl ExtractionError {
             Self::PasswordRequired
             | Self::WrongPassword
             | Self::PasswordOrDataDamaged
+            | Self::PasswordHasQuote
             | Self::DataDamaged => None,
             Self::ToolMismatch(detail)
             | Self::ToolTooOld(detail)
@@ -153,6 +167,7 @@ mod tests {
         assert!(ExtractionError::PasswordOrDataDamaged.is_password_problem());
         assert!(ExtractionError::WrongPassword.is_password_problem());
         assert!(ExtractionError::PasswordRequired.is_password_problem());
+        assert!(ExtractionError::PasswordHasQuote.is_password_problem());
     }
 
     /// One wire format: the code is a field, the message is text (RD-108-08).
@@ -162,6 +177,7 @@ mod tests {
             ExtractionError::PasswordRequired,
             ExtractionError::WrongPassword,
             ExtractionError::PasswordOrDataDamaged,
+            ExtractionError::PasswordHasQuote,
             ExtractionError::DataDamaged,
             ExtractionError::ToolMismatch("detail".to_owned()),
             ExtractionError::ToolTooOld("detail".to_owned()),

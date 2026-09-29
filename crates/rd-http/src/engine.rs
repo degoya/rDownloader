@@ -22,8 +22,8 @@ use crate::{
     transform::{MacWalker, StreamTransform, TransformCheckpoint, plan_resume},
 };
 
-const CHECKPOINT_INTERVAL: Duration = Duration::from_secs(2);
-const CHECKPOINT_BYTES: u64 = 8 * 1024 * 1024;
+pub(crate) const CHECKPOINT_INTERVAL: Duration = Duration::from_secs(2);
+pub(crate) const CHECKPOINT_BYTES: u64 = 8 * 1024 * 1024;
 
 /// Durable checkpoint target implemented by the scheduler/database adapter.
 #[async_trait]
@@ -160,6 +160,11 @@ impl DownloadEngine {
             limiter,
             hosts: HostLimits::default(),
         }
+    }
+
+    /// The pacing every byte this engine fetches goes through, whoever fetches it.
+    pub(crate) const fn limiter(&self) -> &ScopedLimiter {
+        &self.limiter
     }
 
     /// Shares one connection policy with every other transfer.

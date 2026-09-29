@@ -1,0 +1,69 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "fixture", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/items": {
+      "get": {
+        "operationId": "list_items",
+        "parameters": [
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": ["integer", "null"] } }
+        ],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemList" } } } }
+        }
+      },
+      "post": {
+        "operationId": "create_item",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateItem" } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } } },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/items/{id}": {
+      "get": {
+        "operationId": "get_item",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } } }
+        }
+      },
+      "delete": {
+        "operationId": "delete_item",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "No Content" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateItem": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "note": { "type": ["string", "null"] }
+        }
+      },
+      "Item": {
+        "type": "object",
+        "required": ["id", "name", "state"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "size": { "type": ["integer", "null"] },
+          "state": { "$ref": "#/components/schemas/ItemState" }
+        }
+      },
+      "ItemList": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } }
+        }
+      },
+      "ItemState": { "type": "string", "enum": ["queued", "done"] }
+    }
+  }
+}

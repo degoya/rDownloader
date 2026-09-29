@@ -48,8 +48,10 @@ pub struct NewPluginArgs {
 /// The plugin worlds `plugin new` can scaffold.
 ///
 /// One variant per world and nothing else: the variant's own value name is the template
-/// directory *and* the manifest's `plugin_type`, so adding a world costs a line here and no
-/// branch anywhere. It used to be this enum plus a matching `match`, which is two places to
+/// directory *and* the manifest's `plugin_type` (`intake-mirrors` excepted, see
+/// `manifest_type`), so adding a world costs a line here and no branch
+/// anywhere. `scripts/check-sdk-templates.sh` holds the other end: every world in the WIT has
+/// a template. It used to be this enum plus a matching `match`, which is two places to
 /// change and one of them easy to forget — `oauth` shipped as a world in RD-103-00 and was
 /// missing from both, so the command refused a type the core already spoke.
 #[derive(Clone, Copy, clap::ValueEnum)]
@@ -68,10 +70,15 @@ enum NewPluginType {
     Storage,
     /// Runs a job that lives at the provider and outlives the call (RD-107-06).
     RemoteJob,
+    /// Answers with an address and how its bytes become a file (RD-110-33).
+    StreamTransform,
+    /// An intake parser that also states every source of a file (RD-150-03).
+    IntakeMirrors,
 }
 
 impl NewPluginType {
-    /// The template directory, which is also the manifest's `plugin_type`.
+    /// The template directory, which is also the manifest's `plugin_type` for every world
+    /// but `intake-mirrors`.
     ///
     /// Read off clap's own value name, which is where the string the user typed came from —
     /// so the directory and the accepted `--type` value cannot drift apart. It allocates, so
@@ -82,6 +89,19 @@ impl NewPluginType {
             .expect("every NewPluginType variant has a value name; none is skipped")
             .get_name()
             .to_owned()
+    }
+
+    /// The manifest's `plugin_type` the template declares.
+    ///
+    /// The directory name for every world but one: `intake-mirrors-plugin` is a second world
+    /// of the `intake` type, recognised by what the component exports rather than by a type of
+    /// its own (RD-150-03), so its template declares `intake`. Only the test below asks.
+    #[cfg(test)]
+    fn manifest_type(self) -> String {
+        match self {
+            Self::IntakeMirrors => Self::Intake.name(),
+            other => other.name(),
+        }
     }
 }
 
@@ -457,9 +477,16 @@ mod tests {
             );
             let manifest = std::fs::read_to_string(directory.join("manifest.toml"))
                 .expect("template manifest");
+            let plugin_type = variant.manifest_type();
             assert!(
-                manifest.contains(&format!("plugin_type = \"{name}\"")),
+                manifest.contains(&format!("plugin_type = \"{plugin_type}\"")),
                 "{name} template declares another plugin_type"
+            );
+            let cargo =
+                std::fs::read_to_string(directory.join("Cargo.toml")).expect("template Cargo.toml");
+            assert!(
+                cargo.contains(&format!("world = \"{name}-plugin\"")),
+                "{name} template builds another world"
             );
             assert!(
                 directory.join("wit/rdownloader.wit").is_file(),

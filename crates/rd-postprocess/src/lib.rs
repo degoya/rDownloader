@@ -18,6 +18,8 @@ mod zip_format;
 #[cfg(test)]
 mod rar_args_tests;
 #[cfg(test)]
+mod seven_zip_args_tests;
+#[cfg(test)]
 mod tests;
 
 pub use archive::{ArchiveLimits, ExtractionReport};

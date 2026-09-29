@@ -24,8 +24,8 @@
 /// response.
 ///
 /// It is deliberately **not** `#[non_exhaustive]`: adding a reason here should stop the build in
-/// `rd_api::error_codes` until somebody decides what it means over HTTP. That decision is exactly
-/// what the prose matching used to make silently, and wrongly.
+/// `rd_api_core::error_codes` until somebody decides what it means over HTTP. That decision is
+/// exactly what the prose matching used to make silently, and wrongly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StoreErrorKind {
     /// No row with that id.

@@ -38,7 +38,9 @@ pub(crate) async fn run(
     // A file with several sources (RD-150-03) is fetched from them, unless a resolver or a
     // transform plugin claimed its address: then the address is a hoster's, not a mirror's.
     // Its own address is one of the set's, so the single path below keeps to the set's
-    // address rule as well.
+    // address rule as well. So does a link a document or a page proposed without mirrors:
+    // its one source row is its own address, which the single path fetches — it needs no
+    // ranges — held to the rule the row was written with.
     let mut address_policy = None;
     if resolved.is_none() && transform.is_none() && file.kind == rd_core::DownloadKind::Http {
         let listed = scheduler.database.download_sources(file.id).await?;
@@ -46,6 +48,7 @@ pub(crate) async fn run(
             address_policy = Some(sources::address_policy(scheduler, &listed));
         }
         if listed.iter().any(|source| source.protocol.serves_chunks())
+            && !sources::only_its_own_address(scheduler, file, &listed).await?
             && sources::run(scheduler, file, listed, cancellation.clone())
                 .await?
                 .is_break()
@@ -109,6 +112,21 @@ pub(crate) async fn run(
                 return record_error(scheduler, file, crate::replay::blocked(reason)).await;
             }
         }
+    }
+
+    // An address a stranger's document or page named is judged before the first request
+    // (RD-150-03). The client below holds every name to the same rule when it connects, but a
+    // literal address never reaches its resolver, so this is where `127.0.0.1` is refused.
+    if let Some(policy) = &address_policy
+        && let Err(rd_http::TargetRefusal::Refused(refused)) =
+            rd_http::check_target(policy, &rd_http::SystemLookup, &source).await
+    {
+        tracing::warn!(
+            download_id = %file.id,
+            address = ?refused.address,
+            "the download's address points at an address it may not reach; it is not requested"
+        );
+        return record_error(scheduler, file, internal_address()).await;
     }
 
     let network = tokio::select! {
@@ -259,6 +277,15 @@ pub(crate) async fn run(
             record_http_error_with_replay(scheduler, file, error, is_post_replay).await
         }
     }
+}
+
+/// A download's address points where a stranger's document may not reach (RD-150-03).
+pub(crate) fn internal_address() -> Failure {
+    Failure::coded(
+        rd_core::FailureKind::Permanent,
+        rd_core::CODE_INTERNAL_ADDRESS,
+        "The download's address points at an address a remote document may not reach",
+    )
 }
 
 pub(crate) async fn transition_stopped(

@@ -223,6 +223,12 @@ async fn a_hidden_permission_is_refused_and_a_new_one_is_marked() {
     let updates = service.updates().await.expect("updates");
     assert_eq!(updates.len(), 1);
     assert!(updates[0].adds_permissions, "a new domain went unmarked");
+    // And named: the one new domain, nothing the installed version already holds (RD-160-09).
+    assert_eq!(
+        updates[0].added_permissions.http_domains,
+        ["collector.example.net"]
+    );
+    assert!(updates[0].added_permissions.granted.is_empty());
     let automatic = service.automatic_updates().await.expect("automatic");
     assert!(
         automatic.is_empty(),
@@ -238,8 +244,9 @@ async fn a_hidden_permission_is_refused_and_a_new_one_is_marked() {
     let index = unsigned_index(6, vec![hidden], Revocations::default());
     fixture.serve_index(index::sign(REPOSITORY_KEY_ID, &repository_key(), &index).expect("sign"));
     only_ok(&service.refresh_all().await);
+    let updates = service.updates().await.expect("updates");
     assert!(
-        !service.updates().await.expect("updates")[0].adds_permissions,
+        !updates[0].adds_permissions && updates[0].added_permissions.is_empty(),
         "the hidden domain is invisible to the update list, which is why the download checks"
     );
     // The download cache holds the same bytes; it is checked against the new entry anyway.

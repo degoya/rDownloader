@@ -102,7 +102,7 @@ impl SchedulerHandle {
     /// boundary *here* lets a reader observe the package after it is written and before that
     /// work lands. That was tried and reverted.
     ///
-    /// The gap is closed one layer up instead: `rd_api::collector_enqueue::enqueue_package`
+    /// The gap is closed one layer up instead: `rd_api_intake::collector_enqueue::enqueue_package`
     /// runs the whole enqueue-and-enrich operation on a task, so there is no point inside it
     /// at which a half-written package is observable. Anything added between this call and the
     /// enrichment belongs inside that boundary, not behind a second one.

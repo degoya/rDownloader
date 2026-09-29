@@ -1,0 +1,11 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Downloads {{PLUGIN_NAME}} files whose key lives in the link, never at the provider.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.not_mine": "This address does not belong to {{PLUGIN_NAME}}.",
+    "{{PLUGIN_SLUG}}.no_key": "The link carries no usable key. Copy the whole link, including the part after #.",
+    "{{PLUGIN_SLUG}}.file_gone": "{{PLUGIN_NAME}} no longer has this file.",
+    "{{PLUGIN_SLUG}}.unavailable": "{{PLUGIN_NAME}} did not answer. Try again later.",
+    "{{PLUGIN_SLUG}}.bad_reply": "{{PLUGIN_NAME}} sent a reply this plugin could not read."
+  }
+}

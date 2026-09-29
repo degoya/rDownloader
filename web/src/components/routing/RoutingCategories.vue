@@ -22,7 +22,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { translateServerMessage } from '@/i18n/server'
 
-/** Matches `validate_name` in `crates/rd-api/src/config_handlers.rs`. */
+/** Matches `validate_name` in `crates/rd-api-core/src/config_fields.rs`. */
 const MAX_CATEGORY_NAME = 100
 
 const categories = defineModel<Category[]>({ required: true })

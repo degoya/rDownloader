@@ -1,0 +1,46 @@
+[package]
+name = "rd-api-intake"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+base64.workspace = true
+chrono.workspace = true
+hex.workspace = true
+percent-encoding.workspace = true
+rd-api-core = { path = "../rd-api-core" }
+rd-automation = { path = "../rd-automation" }
+rd-captcha = { path = "../rd-captcha" }
+rd-collector = { path = "../rd-collector" }
+rd-core = { path = "../rd-core" }
+rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
+rd-http = { path = "../rd-http" }
+rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-ext = { path = "../rd-plugin-ext" }
+rd-plugin-host = { path = "../rd-plugin-host" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rd-scheduler = { path = "../rd-scheduler" }
+rd-siterules = { path = "../rd-siterules" }
+rd-stream = { path = "../rd-stream" }
+rd-subscription = { path = "../rd-subscription" }
+rd-torrent = { path = "../rd-torrent" }
+rd-webdav = { path = "../rd-webdav" }
+regex.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+utoipa.workspace = true
+zip.workspace = true
+
+[lints]
+workspace = true

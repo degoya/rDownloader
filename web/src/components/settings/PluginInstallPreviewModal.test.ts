@@ -57,6 +57,7 @@ function shown(overrides: Partial<PluginPreview> = {}): PluginPreview {
     incompatible: null,
     installable: true,
     installed_versions: ['1.2.3'],
+    added_permissions: { installed_version: '1.2.3', permissions: { granted: [], http_domains: [], stream_hosts: [] } },
     source: { repository_id: 'official', repository_name: 'rDownloader', official: true },
     release_notes: '<b>Fixes</b> the countdown.\nNo new permissions.',
     ...overrides
@@ -96,6 +97,42 @@ describe('PluginInstallPreviewModal', () => {
     expect(screen.getByText(/<b>Fixes<\/b> the countdown\./)).toBeTruthy()
     expect(document.querySelector('b')).toBeNull()
     expect(install).not.toHaveBeenCalled()
+  })
+
+  it('puts what an update adds over the installed version first (RD-160-09)', async () => {
+    preview.mockResolvedValue({
+      ok: true,
+      data: shown({
+        added_permissions: {
+          installed_version: '1.2.3',
+          permissions: { granted: ['captcha'], http_domains: ['api.ddownload.com'], stream_hosts: [] }
+        }
+      })
+    })
+    mount()
+    await screen.findByText('DDownload')
+    const added = document.querySelector('[data-preview-added-permissions]')
+    expect(added?.textContent).toContain(pluginsCatalogue.preview.added_permissions.replace('{version}', '1.2.3'))
+    expect(added?.textContent).toContain(pluginsCatalogue.capability.captcha)
+    expect(added?.textContent).toContain('api.ddownload.com')
+    // Only the new ones: net_http and ddownload.com were granted to 1.2.3 already.
+    expect(added?.textContent).not.toContain(pluginsCatalogue.capability.net_http)
+    expect(added?.textContent?.match(/ddownload\.com/g)).toHaveLength(1)
+  })
+
+  it('says so when an update asks for nothing new, and shows no comparison for a first install', async () => {
+    preview.mockResolvedValue({ ok: true, data: shown() })
+    const first = mount()
+    await screen.findByText('DDownload')
+    expect(document.querySelector('[data-preview-added-permissions]')?.textContent).toContain(
+      pluginsCatalogue.preview.no_added_permissions.replace('{version}', '1.2.3')
+    )
+    first.unmount()
+
+    preview.mockResolvedValue({ ok: true, data: shown({ installed_versions: [], added_permissions: null }) })
+    mount()
+    await screen.findByText('DDownload')
+    expect(document.querySelector('[data-preview-added-permissions]')).toBeNull()
   })
 
   it('installs a trusted package without confirming a key', async () => {

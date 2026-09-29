@@ -1,0 +1,7 @@
+{
+  "name": "{{PLUGIN_NAME}}",
+  "description": "Reads {{PLUGIN_NAME}} mirror lists and proposes each file with every place it can be fetched from.",
+  "codes": {
+    "{{PLUGIN_SLUG}}.unreadable": "That mirror list could not be read."
+  }
+}

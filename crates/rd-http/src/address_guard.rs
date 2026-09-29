@@ -391,6 +391,44 @@ pub async fn check_target(
     policy.screen(name, addresses)
 }
 
+/// The socket addresses a connection to `host:port` may use, for a transport that opens its
+/// own sockets — FTP and SFTP (RD-150-03).
+///
+/// The same rule as [`check_target`], and the connection-time half of it at once: the caller
+/// connects to exactly the addresses returned and never resolves the name again, so a name
+/// that answers with a public address now cannot answer with a loopback one a moment later.
+/// A refusal travels inside an [`io::Error`] of kind `PermissionDenied`, the error a
+/// transport's connect already returns; [`refusal_in`] finds it there. `host` may be a
+/// bracketed IPv6 literal, as a URL spells one.
+pub async fn connect_addresses(
+    policy: &AddressPolicy,
+    lookup: &dyn HostLookup,
+    host: &str,
+    port: u16,
+) -> io::Result<Vec<SocketAddr>> {
+    let bare = host.trim_start_matches('[').trim_end_matches(']');
+    let screened = match bare.parse::<IpAddr>() {
+        Ok(address) => policy.screen(bare, vec![address]),
+        Err(_) => policy.screen(bare, lookup.lookup(bare).await?),
+    };
+    match screened {
+        Ok(addresses) => Ok(addresses
+            .into_iter()
+            .map(|address| SocketAddr::new(address, port))
+            .collect()),
+        Err(TargetRefusal::Refused(refused)) => {
+            Err(io::Error::new(io::ErrorKind::PermissionDenied, refused))
+        }
+        Err(TargetRefusal::Unresolved(error)) => Err(error),
+    }
+}
+
+/// The guard's refusal an I/O error carries, when [`connect_addresses`] refused the target.
+#[must_use]
+pub fn refusal_in(error: &io::Error) -> Option<&AddressRefused> {
+    error.get_ref()?.downcast_ref::<AddressRefused>()
+}
+
 /// The DNS resolver of a guarded client: resolves like the system does and refuses a name
 /// with any address the policy does not permit, at the moment the connection is made.
 #[derive(Clone)]

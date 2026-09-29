@@ -2,6 +2,9 @@
   "name": "{{PLUGIN_NAME}}",
   "description": "Delivers rDownloader notifications to {{PLUGIN_NAME}}.",
   "codes": {
+    "{{PLUGIN_SLUG}}.bad_channel": "The channel has to be a plain name: letters, digits, - and _.",
+    "{{PLUGIN_SLUG}}.unavailable": "{{PLUGIN_NAME}} did not take the message. It is tried again later.",
+    "{{PLUGIN_SLUG}}.unauthorized": "{{PLUGIN_NAME}} refused the stored token.",
     "{{PLUGIN_SLUG}}.rejected": "The destination rejected the message."
   }
 }

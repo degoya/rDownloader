@@ -101,6 +101,15 @@ impl Seen {
     }
 }
 
+/// The harness whose `capture/file` may fetch from loopback, where the "indexers" below listen.
+async fn local_fetch_harness(directory: &std::path::Path) -> common::Harness {
+    common::harness(
+        directory,
+        common::Options::default().local_capture_fetches(),
+    )
+    .await
+}
+
 async fn serve(app: Router) -> std::net::SocketAddr {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -293,7 +302,7 @@ async fn an_address_with_its_cookies_is_fetched_exactly_once() {
     let seen = Seen::default();
     let address = indexer(seen.clone()).await;
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
         &harness.router,
         ROUTE,
@@ -323,7 +332,7 @@ async fn a_refused_fetch_is_a_bad_gateway_and_imports_nothing() {
     let seen = Seen::default();
     let address = indexer(seen.clone()).await;
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
         &harness.router,
         ROUTE,
@@ -381,7 +390,7 @@ async fn cookies_never_follow_a_redirect_to_another_origin() {
         .await
     };
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
         &harness.router,
         ROUTE,
@@ -393,6 +402,32 @@ async fn cookies_never_follow_a_redirect_to_another_origin() {
     assert_eq!(origin.cookies(), [Some("uid=7; sess=s3cr3t".to_owned())]);
     assert_eq!(elsewhere.cookies(), [None]);
     assert_eq!(body["nzb_imports"][0]["name"], "file.nzb");
+}
+
+/// Finding 9 of the 2026-09-28 security review: a capture token made the service fetch any
+/// address, its own API and a cloud's metadata endpoint included. Without the guard the
+/// indexer below answers (a 502, its cart wants a session) and the count is two.
+#[tokio::test]
+async fn an_address_on_this_machine_is_refused_and_never_asked() {
+    let seen = Seen::default();
+    let address = indexer(seen.clone()).await;
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    for url in [
+        format!("http://{address}/getnzb/abc"),
+        format!("http://localhost:{}/getnzb/abc", address.port()),
+    ] {
+        let (status, body) = post_with_bearer(
+            &harness.router,
+            ROUTE,
+            CAPTURE_BEARER,
+            json!({ "url": url }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{url}: {body}");
+        assert_eq!(body["code"], "capture.fetch_address_refused");
+    }
+    assert_eq!(seen.hits.load(Ordering::SeqCst), 0, "nothing was requested");
 }
 
 #[tokio::test]

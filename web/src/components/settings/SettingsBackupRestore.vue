@@ -7,6 +7,8 @@ import { api, responseError } from '@/api/client'
 import type { SettingsBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsFullBackupCard from '@/components/settings/SettingsFullBackupCard.vue'
+import SettingsFullRestoreCard from '@/components/settings/SettingsFullRestoreCard.vue'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -252,5 +254,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         />
       </form>
     </section>
+
+    <SettingsFullBackupCard />
+    <SettingsFullRestoreCard />
   </div>
 </template>

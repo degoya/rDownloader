@@ -1,0 +1,28 @@
+[package]
+name = "rd-api-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+chrono.workspace = true
+rd-api-access = { path = "../rd-api-access" }
+rd-api-admin = { path = "../rd-api-admin" }
+rd-api-core = { path = "../rd-api-core" }
+rd-api-intake = { path = "../rd-api-intake" }
+rd-api-queue = { path = "../rd-api-queue" }
+rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
+rd-notify = { path = "../rd-notify" }
+rd-provider-registry = { path = "../rd-provider-registry" }
+rmcp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

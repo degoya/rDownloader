@@ -166,9 +166,10 @@
       "isolated_reason": {
         "piece": "Entregó datos que no coinciden con su suma.",
         "size": "Ofrece otro tamaño de archivo.",
-        "other": "Ya no se usa para este archivo."
+        "other": "Ya no se usa para este archivo.",
+        "internal": "Apunta a tu propio equipo o a una red que esta lista de fuentes no puede alcanzar."
       },
-      "unsupported_hint": "Las fuentes FTP y SFTP se muestran, pero aún no se usan para las partes."
+      "unsupported_hint": "Las fuentes cuyo protocolo este servicio no puede descargar se muestran, pero no se usan."
     }
   },
   "summary": {

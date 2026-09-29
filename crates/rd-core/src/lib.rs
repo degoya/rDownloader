@@ -3,6 +3,7 @@
 mod audit;
 mod auth_flow;
 mod auth_profile;
+mod backup;
 mod bandwidth;
 mod capture;
 mod collector;
@@ -50,6 +51,7 @@ pub use auth_profile::{
     AuthMethod, AuthOrigin, AuthProfile, AuthProfileSelection, AuthScope, MAX_AUTH_CERTIFICATE,
     MAX_AUTH_COOKIES, MAX_AUTH_SECRET, ScopeError,
 };
+pub use backup::{BackupOrigin, BackupRunState, BackupVerifyState};
 pub use bandwidth::{BandwidthSettings, DEFAULT_BANDWIDTH_TIMEZONE};
 pub use capture::{
     API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
@@ -165,9 +167,9 @@ pub use source_identity::{
 };
 pub use source_set::{
     CODE_INTERNAL_ADDRESS, CODE_NO_USABLE_SOURCE, CODE_PIECE_MISMATCH, CODE_SOURCE_SIZE_MISMATCH,
-    DownloadSource, MAX_PIECE_LENGTH, MAX_PIECES, MAX_SOURCE_URL, MAX_SOURCES, MIN_PIECE_LENGTH,
-    PieceHashes, SetSource, SourceOutcome, SourceProtocol, SourceSet, SourceState, StatedHash,
-    metalink_algorithm, source_backoff,
+    CandidateSource, DownloadSource, MAX_PIECE_LENGTH, MAX_PIECES, MAX_SOURCE_URL, MAX_SOURCES,
+    MIN_PIECE_LENGTH, PieceHashes, SetSource, SourceOutcome, SourceProtocol, SourceSet,
+    SourceState, StatedHash, metalink_algorithm, source_backoff,
 };
 pub use storage::{
     DEFAULT_MINIMUM_FREE_BYTES, DEFAULT_UNKNOWN_SIZE_HEADROOM, MAX_UNKNOWN_SIZE_HEADROOM,

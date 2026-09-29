@@ -1,0 +1,27 @@
+[package]
+name = "rd-api-compat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+chrono.workspace = true
+hex.workspace = true
+rd-api-core = { path = "../rd-api-core" }
+rd-api-intake = { path = "../rd-api-intake" }
+rd-api-queue = { path = "../rd-api-queue" }
+rd-authn = { path = "../rd-authn" }
+rd-collector = { path = "../rd-collector" }
+rd-core = { path = "../rd-core" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

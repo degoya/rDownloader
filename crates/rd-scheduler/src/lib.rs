@@ -421,6 +421,28 @@ impl SchedulerHandle {
         rd_http::AddressPolicy::new(local_network).listening_on(self.config.own_address)
     }
 
+    /// The address rule a download's source rows were written with: the person's own network
+    /// only when every row came from their own hand (`local_network`, decided at intake).
+    pub(crate) fn source_address_policy(
+        &self,
+        sources: &[rd_core::DownloadSource],
+    ) -> rd_http::AddressPolicy {
+        let local_network =
+            !sources.is_empty() && sources.iter().all(|source| source.local_network);
+        self.remote_address_policy(local_network)
+    }
+
+    /// The rule a queued download's address keeps to, when a stranger's document or page
+    /// proposed it or its mirrors (RD-150-03). `None` for a download without source rows,
+    /// which is an address the person gave.
+    pub(crate) async fn address_policy_for(
+        &self,
+        id: rd_core::DownloadId,
+    ) -> Result<Option<rd_http::AddressPolicy>> {
+        let sources = self.database.download_sources(id).await?;
+        Ok((!sources.is_empty()).then(|| self.source_address_policy(&sources)))
+    }
+
     /// The captcha broker resolvers hand their challenges to; REST handlers use it to list
     /// and answer the ones waiting for a person.
     #[must_use]

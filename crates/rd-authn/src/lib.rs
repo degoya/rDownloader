@@ -11,6 +11,7 @@
 
 pub mod cidr;
 pub mod client_ip;
+pub mod host;
 pub mod proxy;
 pub mod recovery;
 pub mod throttle;

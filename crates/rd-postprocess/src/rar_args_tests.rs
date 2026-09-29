@@ -12,20 +12,20 @@ use crate::{
     rar_args::{RarAction, rar_arguments, unrar_quote},
 };
 
-const QUOTE: u16 = b'"' as u16;
+pub(crate) const QUOTE: u16 = b'"' as u16;
 const BACKSLASH: u16 = b'\\' as u16;
 
-fn units(text: &str) -> Vec<u16> {
+pub(crate) fn units(text: &str) -> Vec<u16> {
     text.encode_utf16().collect()
 }
 
-fn text(units: &[u16]) -> String {
+pub(crate) fn text(units: &[u16]) -> String {
     String::from_utf16_lossy(units)
 }
 
 /// Rust std, `append_arg` with `Quote::Auto`: what `Command::arg` writes onto a Windows command
 /// line.
-fn rust_std_quote(arg: &[u16]) -> Vec<u16> {
+pub(crate) fn rust_std_quote(arg: &[u16]) -> Vec<u16> {
     let quote = arg.is_empty() || arg.iter().any(|&unit| unit == 0x20 || unit == 0x09);
     let mut out = Vec::new();
     if quote {
@@ -83,7 +83,7 @@ fn unrar_parse(line: &[u16]) -> Vec<Vec<u16>> {
 
 /// The command line `CreateProcessW` receives: the program always quoted, as std does, then the
 /// arguments separated by one space each, rendered by `render`.
-fn command_line(args: &[OsString], render: impl Fn(&[u16]) -> Vec<u16>) -> Vec<u16> {
+pub(crate) fn command_line(args: &[OsString], render: impl Fn(&[u16]) -> Vec<u16>) -> Vec<u16> {
     let mut line = units(r#""C:\Tools\rdownloader\vendor\unrar.exe""#);
     for arg in args {
         line.push(0x20);
@@ -101,14 +101,14 @@ fn round_trip(args: &[OsString], render: impl Fn(&[u16]) -> Vec<u16>) -> Vec<Str
         .collect()
 }
 
-fn strings(args: &[OsString]) -> Vec<String> {
+pub(crate) fn strings(args: &[OsString]) -> Vec<String> {
     args.iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect()
 }
 
-const STAGING: &str = r"\\?\D:\a b\.rd-xabc";
-const ARCHIVE: &str = r"\\?\D:\a b\release.part1.rar";
+pub(crate) const STAGING: &str = r"\\?\D:\a b\.rd-xabc";
+pub(crate) const ARCHIVE: &str = r"\\?\D:\a b\release.part1.rar";
 
 /// The field report, reproduced: `cannot create \\?\d:\downloads\lust auf genuss nr 11 -
 /// november 2026\.rd-xc2ec8h\\ruvalfa-....pdf`. The old argument list, through Rust's quoting and

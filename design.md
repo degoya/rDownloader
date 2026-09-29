@@ -309,6 +309,13 @@ Bundled resolvers are DDownload, Rapidgator, Nitroflare, KatFile, 1fichier, Keep
 Premiumize.me, AllDebrid, Debrid-Link, and LinkSnappy. Native resolvers act as fallbacks and share
 provider metadata with the components.
 
+Bundled plugins are installed by choice, not all at once (RD-160-05). The setup wizard's *Your
+services* step, right before the accounts, offers the bundle by service with a category chip row
+and a search; an installed service is shown ticked and cannot be unticked there, because removing
+a plugin asks first and can be refused while a download uses it. The plugin manager lists every
+uninstalled service under *Available services* with a one-click install. An update never installs
+a service nobody chose.
+
 ## Frontend and UX Design
 
 ### Information Architecture

@@ -451,3 +451,65 @@ async fn removing_a_version_clears_the_pointers_at_it() {
     assert_eq!(stored.active_version.as_deref(), Some("1.0.0"));
     assert_eq!(stored.previous_version, None);
 }
+
+/// RD-160-09: a version installed while the service runs lies on disk, but the start loaded the
+/// one before it. The version list says which one runs until the restart -- right after the
+/// install, after going back, and when the new one is put under test first.
+#[tokio::test]
+async fn a_version_installed_after_the_start_runs_only_after_a_restart() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = parked_harness(directory.path()).await;
+    install_package(directory.path(), "1.0.0");
+    harness
+        .state
+        .plugins
+        .record_started_versions()
+        .await
+        .expect("the start records what it loads");
+    install_package(directory.path(), "2.0.0");
+    let router = &harness.router;
+
+    // Newest wins at the next start; until then 1.0.0 is what runs.
+    let entry = lifecycle(router).await;
+    assert_eq!(entry["active_version"], "2.0.0", "{entry}");
+    assert_eq!(entry["running_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["restart_required"], true, "{entry}");
+
+    // Trying the new version first keeps the running one active, so the restart loads both.
+    let (status, body) = post_json(
+        router,
+        &lifecycle_route("stage"),
+        serde_json::json!({ "version": "2.0.0" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let entry = lifecycle(router).await;
+    assert_eq!(entry["active_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["staged_version"], "2.0.0", "{entry}");
+    assert_eq!(entry["running_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["restart_required"], true, "{entry}");
+
+    // Activating it is what a repository install does to the pointers.
+    let (status, body) = post_json(
+        router,
+        &lifecycle_route("activate"),
+        serde_json::json!({ "version": "2.0.0" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let entry = lifecycle(router).await;
+    assert_eq!(entry["active_version"], "2.0.0", "{entry}");
+    assert_eq!(entry["previous_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["running_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["restart_required"], true, "{entry}");
+
+    // Rolled back before the restart: the next start runs what runs now, so nothing waits.
+    let (status, body) =
+        post_json(router, &lifecycle_route("rollback"), serde_json::json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let entry = lifecycle(router).await;
+    assert_eq!(entry["active_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["previous_version"], "2.0.0", "{entry}");
+    assert_eq!(entry["running_version"], "1.0.0", "{entry}");
+    assert_eq!(entry["restart_required"], false, "{entry}");
+}

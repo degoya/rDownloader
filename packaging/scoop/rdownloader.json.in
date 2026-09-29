@@ -1,0 +1,54 @@
+{
+    "##": "rDownloader in the Scoop bucket @BUCKET@ (RD-180-06). Rendered from packaging/scoop/rdownloader.json.in in @REPOSITORY@ by scripts/package-managers.sh and replaced by the release workflow with every release: change the template, not this file.",
+    "version": "@VERSION@",
+    "description": "Local-first download manager with a web interface",
+    "homepage": "https://rdownloader.net",
+    "license": "GPL-3.0-or-later",
+    "architecture": {
+        "64bit": {
+            "url": "@BASE_URL@/rdownloader-windows-x86_64.zip",
+            "hash": "@SHA256_WINDOWS_X86_64@"
+        }
+    },
+    "bin": [
+        "rdownloader.exe",
+        "rdownloader-capture.exe",
+        "start-rdownloader.bat",
+        "stop-rdownloader.bat",
+        "start-capture.bat",
+        "stop-capture.bat"
+    ],
+    "shortcuts": [
+        [
+            "start-rdownloader.bat",
+            "rDownloader"
+        ],
+        [
+            "start-capture.bat",
+            "rDownloader Capture"
+        ]
+    ],
+    "persist": [
+        "data",
+        "downloads"
+    ],
+    "notes": [
+        "Start the service with `start-rdownloader` or the Start menu entry, then open http://127.0.0.1:8710 for the setup wizard.",
+        "The launchers run it in the app folder: the database and the installed plugins are kept in $persist_dir\\data, the default download folder in $persist_dir\\downloads, and updates keep both.",
+        "Stop it with `stop-rdownloader` (and `stop-capture`) before `scoop update rdownloader`."
+    ],
+    "checkver": {
+        "github": "https://github.com/@REPOSITORY@"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/@REPOSITORY@/releases/download/v$version/rdownloader-windows-x86_64.zip"
+            }
+        },
+        "hash": {
+            "url": "$baseurl/SHA256SUMS",
+            "regex": "$sha256\\s+(?:\\./)?$basename"
+        }
+    }
+}

@@ -4,6 +4,7 @@
 //! against an in-memory fetcher; these tests hold the REST contract that needs no network: the
 //! built-in repository, disable without deletion, the refresh interval, the refusals that come
 //! before any fetch, and a preview that reports a package's permissions without installing it.
+//! The refresh with its automatic updates is `plugin_auto_updates`.
 
 use crate::common;
 
@@ -201,6 +202,10 @@ async fn a_preview_shows_publisher_and_permissions_and_installs_nothing() {
     );
     assert_eq!(preview["installable"], true);
     assert_eq!(preview["installed_versions"], serde_json::json!([]));
+    assert!(
+        preview["added_permissions"].is_null(),
+        "nothing installed to compare with: {preview}"
+    );
 
     let (_, inventory) = get_json(&router, "/api/v1/plugins").await;
     assert_eq!(

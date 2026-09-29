@@ -92,6 +92,10 @@ LOG="$ROOT/artifacts/release-evidence-$VERSION.log"
 # archive-jobs sits between docs-gate and commit-guard: the job files the release finished move
 # into docs/roadmap/jobs/archive/ once their status is written, and are staged with the rest.
 #
+# compat sits right after preflight (RD-170-08): a break of the REST API or the plugin contract
+# that nobody acknowledged is a decision still to take, and it is cheaper to learn that before
+# the hours of test and packaging than after them.
+#
 # doc-facts sits after test on purpose (RD-140-24): it rewrites documentation lines, and test only
 # carries a pre-bump --full green over a bump that changed version lines alone.
 #
@@ -103,7 +107,7 @@ LOG="$ROOT/artifacts/release-evidence-$VERSION.log"
 # one debug target the packages do not use. Each keeps its own evidence record (run_steps_parallel).
 # ---------------------------------------------------------------------------------------------
 STEP_IDS=(
-    preflight version-bump test clippy web sign-plugins build-linux build-windows
+    preflight compat version-bump test clippy web sign-plugins build-linux build-windows
     verify-artifacts smoke doc-facts docs-gate archive-jobs commit-guard commit merge-main
     evidence-gate public-ci tag push publish-public
 )
@@ -111,6 +115,7 @@ STEP_IDS=(
 step_command() {
     case "$1" in
         preflight)        echo "step_preflight" ;;
+        compat)           echo "step_compat" ;;
         version-bump)     echo "step_version_bump" ;;
         test)             echo "step_test" ;;
         clippy)           echo "step_clippy" ;;
@@ -141,7 +146,7 @@ PARALLEL_STEPS=(build-linux build-windows)
 # Everything the evidence gate demands a clean record for. The gate itself, the public CI run, the
 # tag, the push and the public export come after it, so they are not in the list.
 GATE_REQUIRES=(
-    preflight version-bump test clippy web sign-plugins build-linux build-windows
+    preflight compat version-bump test clippy web sign-plugins build-linux build-windows
     verify-artifacts smoke doc-facts docs-gate archive-jobs commit-guard commit merge-main
 )
 
@@ -370,6 +375,11 @@ step_preflight() {
     echo "preflight ok at $(git rev-parse --short HEAD)"
 }
 
+# The breaking-change gate over web/openapi.json and the plugin WIT against the last release tag.
+# A break passes when scripts/compat-breaks.toml acknowledges it for this release, or, for the
+# WIT, under a large enough bump of rdownloader:plugin@X.Y.Z. Its summary line is the evidence.
+step_compat() { scripts/compat-check.sh; }
+
 step_version_bump() {
     scripts/set-version.sh "$VERSION"
     local reported; reported="$(scripts/set-version.sh)"
@@ -561,12 +571,16 @@ step_docs_gate() {
     # doc-facts wrote them; this proves nothing edited them back, and holds the user wiki to the
     # same facts. The wiki is updated at the tag from this release's section, before the chain
     # publishes it (publish-public), so a stale contract or count there stops the release here.
+    # The same holds for the contract reference the plugin reference carries (RD-160-04): a WIT
+    # change without `scripts/wit-reference.sh --wiki` in the wiki pass stops here too.
     local wiki="${RD_WIKI_SRC:-$HOME/projects/rdownloader.wiki}"
     if [[ -d "$wiki" ]]; then
         scripts/doc-facts.sh --check --wiki "$wiki" || failed=1
+        scripts/wit-reference.sh --wiki "$wiki" --check || failed=1
     else
         echo "no user wiki at $wiki; the facts are checked in this repository only"
         scripts/doc-facts.sh --check || failed=1
+        scripts/wit-reference.sh --check || failed=1
     fi
 
     [[ "$failed" -eq 0 ]]
@@ -710,15 +724,32 @@ step_push() {
 # replaced by the force push, any other ci/* branch is deleted before the new one is watched.
 # The export, the wait and the deletion are scripts/lib/public-ci.sh, which scripts/public-ci.sh
 # shares for integration branches (RD-140-22). Outward, so only with --push, like `push` itself.
+#
+# Only the platforms not yet green (RD-160-06): the candidate is its wave's integration tree plus
+# the version bump and the release's documentation, and that integration branch passed Linux and
+# Windows before it reached development — so as a rule macOS alone is dispatched, and with every
+# platform green on record the step passes without a run. What it relies on is named in the log.
 step_public_ci() {
-    local branch="ci/$VERSION" sha
-    rd_public_ci_gh_ready || return 1
-    scripts/export-public.sh "$VERSION" --ref HEAD --branch "$branch" || return 1
+    local branch="ci/$VERSION" sha tree platforms
+    local -a images
     # run_step calls a step without errexit, so every command that matters is checked here.
+    tree="$(git rev-parse 'HEAD^{tree}')" || return 1
+    mapfile -t images < <(rd_public_ci_images "$RD_PUBLIC_CI_ALL")
+    echo "the public CI for tree ${tree:0:12}:"
+    rd_public_ci_plan "$ROOT" "$tree" "${images[@]}"
+    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 ]]; then
+        echo "every platform is green on record for this content; the public CI is not run again"
+        return 0
+    fi
+    platforms="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")" || return 1
+    rd_public_ci_gh_ready || return 1
+    scripts/export-public.sh "$VERSION" --ref HEAD --branch "$branch" --skip-push-ci || return 1
     sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$branch")" || return 1
     rd_public_ci_prune_stale "$branch"
-    rd_public_ci_wait "$branch" "$sha" \
+    rd_public_ci_dispatch "$branch" "$platforms" || return 1
+    rd_public_ci_wait "$branch" "$sha" workflow_dispatch \
         || { echo "the tag is not made while the public CI is not green" >&2; return 1; }
+    rd_record_ci "$ROOT" "$tree" "${RD_PUBLIC_CI_MISSING[@]}"
     rd_public_ci_delete "$branch"
 }
 
@@ -734,6 +765,21 @@ step_publish_public() {
     scripts/export-public.sh "$VERSION" "${push[@]}" || return 1
     scripts/export-wiki.sh "$VERSION" "${push[@]}" || return 1
     scripts/update-website.sh "$VERSION" "${push[@]}"
+}
+
+# The checkout ends on the release branch (RD-160-06). merge-main checks out main, and
+# evidence-gate, public-ci and tag need it there — the tag is made at HEAD — but a chain that ended
+# on main left the next commit there: on 2026-09-28 two commits landed on main by accident. From
+# merge-main on, an exit trap switches back, after the last step as after a failure, and says so;
+# a resumed run goes back onto main before continuing past merge-main.
+return_to_release_branch() {
+    [[ "$(git rev-parse --abbrev-ref HEAD 2> /dev/null)" == "$MAIN_BRANCH" ]] || return 0
+    if git checkout -q "$RELEASE_BRANCH"; then
+        echo "==> the checkout is back on $RELEASE_BRANCH; $MAIN_BRANCH is merged into, never committed on"
+    else
+        echo "!! could not switch back to $RELEASE_BRANCH: this checkout is still on $MAIN_BRANCH." >&2
+        echo "   git checkout $RELEASE_BRANCH before committing anything." >&2
+    fi
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -764,6 +810,14 @@ for id in "${STEP_IDS[@]}"; do
     if [[ "$LANES" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then
         [[ "$id" == "${PARALLEL_STEPS[0]}" ]] && run_steps_parallel "${PARALLEL_STEPS[@]}"
         continue
+    fi
+    if [[ "$id" == "merge-main" ]]; then
+        trap return_to_release_branch EXIT
+        if [[ "$RESUME" -eq 1 ]] && step_is_green merge-main \
+            && [[ "$(git rev-parse --abbrev-ref HEAD)" != "$MAIN_BRANCH" ]]; then
+            echo "==> merge-main is green in this run; back onto $MAIN_BRANCH for the steps after it"
+            git checkout -q "$MAIN_BRANCH"
+        fi
     fi
     run_step "$id" "$(step_command "$id")"
 done

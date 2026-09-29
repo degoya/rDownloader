@@ -9,10 +9,11 @@ version = "0.1.0"
 key_id = "{{PLUGIN_SLUG}}-release-v1"
 public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
 
-# Every address this plugin may reach. The host refuses anything outside the list, so keep
-# it to the hosts you actually call rather than a wildcard you might need one day.
+# `*` because where somebody runs their server is not knowable in advance. It is narrower than
+# it looks: what applies to an upload is the host of the destination that upload is for, and
+# nothing else. A plugin for one hosted service names that service's hosts instead.
 [capabilities.net_http]
-domains = ["storage.example.com"]
+domains = ["*"]
 
 [extension]
 slug = "{{PLUGIN_SLUG}}"

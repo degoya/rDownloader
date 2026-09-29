@@ -49,6 +49,9 @@ pub enum ProxyConfigError {
     /// The external URL carries something an origin cannot.
     #[error("the external URL must not contain {part}")]
     ExternalExtras { part: &'static str },
+    /// An entry of the allowed host list is not a bare host name.
+    #[error("allowed host `{value}` is not a host name")]
+    AllowedHost { value: String },
 }
 
 /// The resolved proxy contract.
@@ -57,6 +60,10 @@ pub struct ProxyConfig {
     trusted: Vec<Cidr>,
     /// Scheme and authority, without a trailing slash: `https://rd.example.com`.
     origin: Option<String>,
+    /// The external URL's host name, lowercased: a `Host` a request may carry.
+    external_host: Option<String>,
+    /// The further names a request may call the service by (`crate::host`).
+    allowed_hosts: Vec<String>,
     /// Mount point, with a leading and no trailing slash, or empty for the root.
     base_path: String,
     cookie_security: CookieSecurity,
@@ -85,8 +92,11 @@ impl ProxyConfig {
             );
         }
 
-        let (origin, base_path) = match external_url.map(str::trim).filter(|v| !v.is_empty()) {
-            None => (None, String::new()),
+        let (origin, external_host, base_path) = match external_url
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        {
+            None => (None, None, String::new()),
             Some(value) => {
                 let url = url::Url::parse(value).map_err(|_| ProxyConfigError::ExternalUrl {
                     value: value.to_owned(),
@@ -121,15 +131,50 @@ impl ProxyConfig {
                     ),
                     None => format!("{}://{}", url.scheme(), url.host_str().unwrap_or_default()),
                 };
-                (Some(origin), normalise_base_path(url.path()))
+                (
+                    Some(origin),
+                    url.host_str().and_then(crate::host::parse_allowed_host),
+                    normalise_base_path(url.path()),
+                )
             }
         };
 
         Ok(Self {
             trusted,
             origin,
+            external_host,
+            allowed_hosts: Vec::new(),
             base_path,
             cookie_security,
+        })
+    }
+
+    /// Adds the names, beyond the external URL's host, a request may call the service by.
+    ///
+    /// Separate from [`Self::parse`] so the callers that only need the proxy half keep their
+    /// shape; refusing rather than dropping an entry for the reason `parse` gives.
+    pub fn with_allowed_hosts(mut self, hosts: &[String]) -> Result<Self, ProxyConfigError> {
+        let mut allowed = Vec::new();
+        for value in hosts {
+            if value.trim().is_empty() {
+                continue;
+            }
+            allowed.push(crate::host::parse_allowed_host(value).ok_or_else(|| {
+                ProxyConfigError::AllowedHost {
+                    value: value.trim().to_owned(),
+                }
+            })?);
+        }
+        self.allowed_hosts = allowed;
+        Ok(self)
+    }
+
+    /// Whether a request whose `Host` (or URI authority) is `value` may be served; see
+    /// [`crate::host`] for which names pass and why.
+    #[must_use]
+    pub fn host_allowed(&self, value: &str) -> bool {
+        crate::host::parse_request_host(value).is_some_and(|host| {
+            crate::host::host_permitted(&host, self.external_host.as_deref(), &self.allowed_hosts)
         })
     }
 
@@ -385,6 +430,39 @@ mod tests {
                 .warnings()
                 .iter()
                 .any(|warning| warning.contains("drop the cookie"))
+        );
+    }
+
+    /// The external URL's host is a name requests may carry; without the URL, and without the
+    /// list, only addresses and `localhost` are (security review 2026-09-28, finding 3).
+    #[test]
+    fn the_external_host_and_the_allowed_list_decide_which_names_pass() {
+        let bare = config(&[], None, CookieSecurity::Auto);
+        assert!(bare.host_allowed("127.0.0.1:8710"));
+        assert!(bare.host_allowed("localhost:8710"));
+        assert!(!bare.host_allowed("rd.example.com"));
+
+        let external = config(&[], Some("https://RD.example.com/dl"), CookieSecurity::Auto);
+        assert!(external.host_allowed("rd.example.com"));
+        assert!(!external.host_allowed("nas.lan:8710"));
+
+        let listed = external
+            .with_allowed_hosts(&["nas.lan".to_owned(), " ".to_owned()])
+            .expect("list");
+        assert!(listed.host_allowed("nas.lan:8710"));
+        assert!(listed.host_allowed("rd.example.com"));
+        assert!(!listed.host_allowed("attacker.example"));
+    }
+
+    #[test]
+    fn an_allowed_host_that_is_no_host_name_is_refused() {
+        let refused = config(&[], None, CookieSecurity::Auto)
+            .with_allowed_hosts(&["https://nas.lan:8710".to_owned()]);
+        assert_eq!(
+            refused,
+            Err(ProxyConfigError::AllowedHost {
+                value: "https://nas.lan:8710".to_owned()
+            })
         );
     }
 }

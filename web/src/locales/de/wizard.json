@@ -26,6 +26,11 @@
       "title": "Konten",
       "description": "Hoster & Usenet",
       "lead": "Füge Hoster-Konten und Usenet-Server hinzu. Du kannst das überspringen und später in den Einstellungen nachholen."
+    },
+    "selection": {
+      "title": "Deine Dienste",
+      "description": "Was du nutzt",
+      "lead": "Wähle die Dienste, die du nutzt. Nur deren Plugins werden installiert – alles andere bleibt unter Einstellungen → Plugins verfügbar und ist dort mit einem Klick nachinstalliert."
     }
   },
   "password": {
@@ -48,7 +53,10 @@
     "accounts_tab": "Hoster-Konten",
     "usenet_tab": "Usenet",
     "extension_title": "Für diese Konten braucht es die Browser-Erweiterung",
-    "extension_hint": "{providers} können die Anmeldung deines Browsers übernehmen – das geht nur über die gekoppelte Browser-Erweiterung, und es hat sich noch keine gemeldet. Kopple sie jetzt, oder melde dich per Passwort oder API-Schlüssel an."
+    "extension_hint": "{providers} können die Anmeldung deines Browsers übernehmen – das geht nur über die gekoppelte Browser-Erweiterung, und es hat sich noch keine gemeldet. Kopple sie jetzt, oder melde dich per Passwort oder API-Schlüssel an.",
+    "no_providers_title": "Noch kein Dienst mit Konto installiert",
+    "no_providers": "Wähle unter „Deine Dienste“ einen Hoster, Multihoster oder Cloud-Dienst, dann kannst du hier sein Konto anlegen. Usenet-Server brauchen kein Plugin.",
+    "choose_services": "Dienste wählen"
   },
   "actions": {
     "back": "Zurück",
@@ -57,5 +65,9 @@
     "finish": "Fertig",
     "finish_with_tour": "Fertig & Tour starten",
     "close": "Assistent schließen"
+  },
+  "selection": {
+    "progress": "Installiere {done} von {total} …",
+    "hint": "Weiter installiert nichts Neues. | Weiter installiert 1 Dienst. Neue Plugins laufen ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an. | Weiter installiert {count} Dienste. Neue Plugins laufen ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an."
   }
 }

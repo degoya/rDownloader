@@ -4,7 +4,7 @@
 //! its stream), so they are unified behind one enum here instead of leaking the difference
 //! into the probe and the runner.
 
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
 use rd_core::{RemoteAuthMode, RemoteCredential, RemoteProtocol};
 use secrecy::{ExposeSecret, SecretString};
@@ -42,15 +42,22 @@ impl Connection {
     ///
     /// The whole handshake is bounded by `timeout`: an FTP server that accepts the socket
     /// and then says nothing would otherwise hold a queue slot open indefinitely.
+    ///
+    /// `guard` is the address rule of a link a stranger's document or page proposed
+    /// (RD-150-03). The host is then resolved once and every address checked before the
+    /// socket is opened, and the control connection goes to exactly those addresses. The data
+    /// connections follow it: the address a `PASV` reply names is ignored for the control
+    /// connection's own peer, so a server cannot point a transfer at another machine.
     pub async fn open(
         credential: &RemoteCredential,
         password: Option<&SecretString>,
         custom_ca_pem: &[Vec<u8>],
         timeout: Duration,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> anyhow::Result<FtpResult<Self>> {
         match tokio::time::timeout(
             timeout,
-            Self::handshake(credential, password, custom_ca_pem),
+            Self::handshake(credential, password, custom_ca_pem, guard),
         )
         .await
         {
@@ -68,10 +75,15 @@ impl Connection {
         credential: &RemoteCredential,
         password: Option<&SecretString>,
         custom_ca_pem: &[Vec<u8>],
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> anyhow::Result<FtpResult<Self>> {
-        let address = format!("{}:{}", credential.host, credential.port);
+        let addresses = match socket_addresses(credential, guard).await {
+            Ok(addresses) => addresses,
+            Err(error) => return Ok(Err(suppaftp::FtpError::ConnectionError(error))),
+        };
+        let address = addresses.as_slice();
         let mut connection = match credential.protocol {
-            RemoteProtocol::Ftp => match AsyncFtpStream::connect(&address).await {
+            RemoteProtocol::Ftp => match AsyncFtpStream::connect(address).await {
                 Ok(stream) => Self::Plain(Box::new(stream)),
                 Err(error) => return Ok(Err(error)),
             },
@@ -80,7 +92,7 @@ impl Connection {
                 // Explicit FTPS starts as plaintext but has to be typed as the TLS stream
                 // from the start: `into_secure` upgrades in place and cannot change the
                 // stream type of the connection it is called on.
-                let plain = match AsyncRustlsFtpStream::connect(&address).await {
+                let plain = match AsyncRustlsFtpStream::connect(address).await {
                     Ok(stream) => stream,
                     Err(error) => return Ok(Err(error)),
                 };
@@ -92,7 +104,7 @@ impl Connection {
             RemoteProtocol::FtpsImplicit => {
                 let connector = crate::tls::connector(custom_ca_pem)?;
                 match AsyncRustlsFtpStream::connect_secure_implicit(
-                    &address,
+                    address,
                     connector,
                     &credential.host,
                 )
@@ -109,6 +121,9 @@ impl Connection {
         } else {
             Mode::Active
         });
+        if guard.is_some() {
+            connection.set_passive_nat_workaround(true);
+        }
         let (user, secret) = match credential.auth_mode {
             RemoteAuthMode::Anonymous => (ANONYMOUS_USER.to_owned(), ANONYMOUS_PASSWORD.to_owned()),
             _ => (
@@ -132,6 +147,10 @@ impl Connection {
 
     fn set_mode(&mut self, mode: Mode) {
         dispatch!(self, stream => stream.set_mode(mode));
+    }
+
+    fn set_passive_nat_workaround(&mut self, enabled: bool) {
+        dispatch!(self, stream => stream.set_passive_nat_workaround(enabled));
     }
 
     async fn login(&mut self, user: &str, password: &str) -> FtpResult<()> {
@@ -179,6 +198,20 @@ impl Connection {
         dispatch!(self, stream => stream.quit().await)
     }
 
+    /// Opens `path` for reading from the offset a preceding [`Self::resume_from`] set, for a
+    /// chunk of a multi-source download (RD-150-03). The reader owns this connection and
+    /// closes both when it is dropped, whether or not the file was read to its end.
+    pub async fn into_reader(mut self, path: &str) -> FtpResult<rd_http::RangeReader> {
+        let data: rd_http::RangeReader = match &mut self {
+            Self::Plain(stream) => Box::new(stream.retr_as_stream(path).await?),
+            Self::Secure(stream) => Box::new(stream.retr_as_stream(path).await?),
+        };
+        Ok(Box::new(Holding {
+            data,
+            _connection: self,
+        }))
+    }
+
     /// Streams `path` from the offset a preceding [`Self::resume_from`] established.
     #[allow(clippy::too_many_arguments)]
     pub async fn retrieve(
@@ -200,6 +233,47 @@ impl Connection {
             read_timeout,
         )
         .await)
+    }
+}
+
+/// A data connection that keeps its control connection open for as long as it is read.
+struct Holding {
+    data: rd_http::RangeReader,
+    _connection: Connection,
+}
+
+impl tokio::io::AsyncRead for Holding {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+        buffer: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.data).poll_read(context, buffer)
+    }
+}
+
+/// The addresses the control connection may go to: under a guard, exactly those the rule
+/// admits (a refusal is an I/O error [`rd_http::refusal_in`] recognises); otherwise every
+/// address the host resolves to, as a plain connect would try them.
+async fn socket_addresses(
+    credential: &RemoteCredential,
+    guard: Option<&rd_http::AddressPolicy>,
+) -> std::io::Result<Vec<SocketAddr>> {
+    match guard {
+        Some(policy) => {
+            rd_http::connect_addresses(
+                policy,
+                &rd_http::SystemLookup,
+                &credential.host,
+                credential.port,
+            )
+            .await
+        }
+        None => Ok(
+            tokio::net::lookup_host(format!("{}:{}", credential.host, credential.port))
+                .await?
+                .collect(),
+        ),
     }
 }
 

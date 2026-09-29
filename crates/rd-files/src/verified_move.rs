@@ -145,8 +145,12 @@ fn temporary_of(to: &Path) -> PathBuf {
     to.with_file_name(format!(".{name}.rdmove"))
 }
 
-/// The cross-device half: copy, sync, hash both sides, rename into place.
-pub(crate) async fn copy_verified(from: &Path, to: &Path) -> Result<PlacedCopy, VerifiedMoveError> {
+/// The cross-device half: copy, sync, hash both sides, rename into place. The original stays.
+///
+/// Also a copy in its own right, for a caller that has to keep the original — the full backup
+/// hands one archive to several destinations (RD-160-02). The rename replaces what is at `to`,
+/// so the caller makes sure the name is free.
+pub async fn copy_verified(from: &Path, to: &Path) -> Result<PlacedCopy, VerifiedMoveError> {
     let temporary = temporary_of(to);
     let io = |source: std::io::Error| VerifiedMoveError::Io {
         from: from.to_path_buf(),

@@ -327,6 +327,7 @@ async fn the_host_verifies_the_length_before_it_promotes() {
         rd_scheduler::RunLimits {
             max_parallel_requests: 1,
             bandwidth: rd_limits::ScopedLimiter::unlimited(),
+            address_policy: None,
         },
     )
     .await
@@ -444,6 +445,7 @@ async fn a_running_job_is_not_moved_to_another_backend_version() {
         rd_scheduler::RunLimits {
             max_parallel_requests: 1,
             bandwidth: rd_limits::ScopedLimiter::unlimited(),
+            address_policy: None,
         },
     )
     .await

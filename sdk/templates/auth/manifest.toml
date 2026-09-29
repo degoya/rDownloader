@@ -11,8 +11,10 @@ public_key = "REPLACE_WITH_YOUR_BASE64_ED25519_PUBLIC_KEY"
 
 # Every address this plugin may reach. The host refuses anything outside the list, so keep
 # it to the hosts you actually call rather than a wildcard you might need one day.
+# `example.com` because the address the person is sent to confirm the PIN lies there: the host
+# refuses a verification address outside this list.
 [capabilities.net_http]
-domains = ["api.example.com"]
+domains = ["api.example.com", "example.com"]
 
 [extension]
 slug = "{{PLUGIN_SLUG}}"

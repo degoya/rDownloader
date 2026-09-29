@@ -94,7 +94,8 @@ rd_worktree_tree() {
     [[ "$status" -eq 0 ]] && printf '%s\n' "$tree"
 }
 
-# The full-green marker file of checkout $1.
+# The full-green marker file of checkout $1. It also keeps the Windows lint's green, as the half
+# `windows` (check.sh --windows, RD-160-06); the gates read only `rust` and `web`.
 rd_full_marker() {
     printf '%s/.rd-verified-full/%s\n' "$(rd_target_dir "$1")" "$(printf '%s' "$1" | tr '/' '%')"
 }
@@ -107,32 +108,62 @@ rd_record_full() {
     mv "$marker.tmp" "$marker"
 }
 
-# Whether tree $2 differs from tree $3 of checkout $1 in documentation only — the same rule
-# check.sh applies ("a documentation-only change gets no build"), crates/rd-core/recovery-matrix.md
-# and crates/rd-api/mcp-coverage.md excepted because a test reads them. A tree git no longer has cannot be compared and does not qualify.
+# The paths on stdin that are not documentation, by the rule check.sh applies ("a
+# documentation-only change gets no build"): docs/ and *.md are documentation,
+# crates/rd-core/recovery-matrix.md and crates/rd-api/mcp-coverage.md excepted because a test
+# reads them.
+rd_non_doc_paths() {
+    local paths
+    paths="$(cat)"
+    { grep -vE '^docs/|\.md$' <<< "$paths" || true
+      grep -xE 'crates/rd-core/recovery-matrix\.md|crates/rd-api/mcp-coverage\.md' <<< "$paths" || true
+    } | sed '/^$/d'
+}
+
+# Whether tree $2 differs from tree $3 of checkout $1 in documentation only (rd_non_doc_paths).
+# A tree git no longer has cannot be compared and does not qualify.
 rd_tree_docs_only() {
     local changes
     changes="$(git -C "$1" diff --name-only "$2" "$3" 2> /dev/null)" || return 1
-    [[ -n "$changes" ]] || return 0
-    ! grep -qvE '^docs/|\.md$' <<< "$changes" \
-        && ! grep -qxE 'crates/rd-core/recovery-matrix\.md|crates/rd-api/mcp-coverage\.md' <<< "$changes"
+    [[ -z "$(rd_non_doc_paths <<< "$changes")" ]]
+}
+
+# The tree a --full green of half $2 was recorded for that covers tree $3 of checkout $1: that
+# very tree, or one it differs from in documentation only; prints nothing when there is none.
+# Every checkout that shares the target directory counts, not only $1 (RD-160-06): a tree is
+# content, and the integration worktree's green is development's after the fast-forward merge —
+# the release chain of 2026-09-28 ran --full again for want of this and of the documentation rule.
+rd_full_covering() {
+    local root="$1" half="$2" tree="$3" directory recorded candidate
+    directory="$(dirname "$(rd_full_marker "$root")")"
+    [[ -n "$tree" && -d "$directory" ]] || return 0
+    recorded="$(cat "$directory"/* 2> /dev/null | sed -n "s/^$half //p" | sort -u || true)"
+    if grep -qxF "$tree" <<< "$recorded"; then
+        printf '%s\n' "$tree"
+        return 0
+    fi
+    while read -r candidate; do
+        [[ -n "$candidate" ]] || continue
+        if rd_tree_docs_only "$root" "$candidate" "$tree"; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done <<< "$recorded"
 }
 
 # Refuses unless both halves of a --full run are recorded for the current working state of
-# checkout $1, or for a tree it differs from in documentation only — so the verification note
-# written after the full run, and the changelog of the release commit, do not demand another.
-# $2 names what is being gated, for the message.
+# checkout $1, or for a tree it differs from in documentation only (rd_full_covering) — so the
+# verification note written after the full run, and the changelog of the release commit, do not
+# demand another. $2 names what is being gated, for the message.
 rd_full_gate() {
     local root="$1" label="$2" tree half recorded missing=() docs=0
     tree="$(rd_worktree_tree "$root")"
     for half in rust web; do
-        recorded="$(sed -n "s/^$half //p" "$(rd_full_marker "$root")" 2> /dev/null || true)"
-        if [[ -n "$tree" && "$recorded" == "$tree" ]]; then
-            continue
-        elif [[ -n "$tree" && -n "$recorded" ]] && rd_tree_docs_only "$root" "$recorded" "$tree"; then
-            docs=1
-        else
+        recorded="$(rd_full_covering "$root" "$half" "$tree")"
+        if [[ -z "$recorded" ]]; then
             missing+=("$half")
+        elif [[ "$recorded" != "$tree" ]]; then
+            docs=1
         fi
     done
     if [[ ${#missing[@]} -eq 0 ]]; then
@@ -144,6 +175,34 @@ rd_full_gate() {
     echo "   missing for tree ${tree:0:12}: ${missing[*]}" >&2
     echo "   A branch green is scoped and does not count; run scripts/check.sh --full here." >&2
     return 1
+}
+
+# Whether a run of half or halves $2... in checkout $1 — `rust` and `web` of --full, `windows` of
+# check.sh --windows — would only check content a green already covers (rd_full_covering,
+# RD-160-06). If so it names the green, records the halves for the current tree — so the gates and
+# the release chain's pre-bump rule find them — and returns 0; check.sh then ends there.
+# Otherwise it prints nothing and returns 1.
+rd_full_already_green() {
+    local root="$1" tree half recorded
+    local -a lines=()
+    shift
+    [[ $# -gt 0 ]] || return 1
+    tree="$(rd_worktree_tree "$root")"
+    [[ -n "$tree" ]] || return 1
+    for half in "$@"; do
+        recorded="$(rd_full_covering "$root" "$half" "$tree")"
+        [[ -n "$recorded" ]] || return 1
+        if [[ "$recorded" == "$tree" ]]; then
+            lines+=("$half: tree ${recorded:0:12}, this very content")
+        else
+            lines+=("$half: tree ${recorded:0:12}, documentation changed since")
+        fi
+    done
+    echo "==> a recorded green already covers this content ($*); it is not run again"
+    printf '    %s\n' "${lines[@]}"
+    for half in "$@"; do rd_record_full "$root" "$half" "$tree"; done
+    echo "    recorded for tree ${tree:0:12} in $(rd_full_marker "$root")"
+    echo "    (--again runs it anyway)"
 }
 
 # --- a release that does not test a tested tree twice (RD-140-06) -----------------------------
@@ -166,7 +225,7 @@ rd_workspace_version() {
 # Cargo.lock looks the same and is exactly what must not pass, so the versions are compared, not
 # just the key.
 rd_version_bump_only() {
-    local root="$1" base="${2:-HEAD}" changed lines old new path file allowed
+    local root="$1" base="${2:-HEAD}" changed old new path file allowed
     changed="$({ git -C "$root" diff --name-only "$base"; git -C "$root" ls-files --others --exclude-standard; } | sed '/^$/d' | sort -u)"
     [[ -n "$changed" ]] || return 1
     while read -r path; do
@@ -177,9 +236,14 @@ rd_version_bump_only() {
     old="$(git -C "$root" show "$base:Cargo.toml" 2> /dev/null | rd_workspace_version)"
     new="$(rd_workspace_version < "$root/Cargo.toml")"
     [[ -n "$old" && -n "$new" && "$old" != "$new" ]] || return 1
-    old="${old//./\\.}"
-    new="${new//./\\.}"
-    lines="$(git -C "$root" diff -U0 "$base" -- "${RD_VERSION_FILES[@]}" | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
+    git -C "$root" diff -U0 "$base" -- "${RD_VERSION_FILES[@]}" | rd_version_lines_only "$old" "$new"
+}
+
+# Whether every line the -U0 diff on stdin removed carried workspace version $1 and every line
+# it added carries $2.
+rd_version_lines_only() {
+    local old="${1//./\\.}" new="${2//./\\.}" lines
+    lines="$(grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
     ! grep -vE "^-[[:space:]]*(\"version\": \"$old\",?|version = \"$old\")\$" <<< "$lines" \
         | grep -qvE "^\+[[:space:]]*(\"version\": \"$new\",?|version = \"$new\")\$"
 }
@@ -194,4 +258,70 @@ rd_prebump_full_green() {
     [[ -n "$recorded" && "$recorded" == "$before" ]] || return 0
     rd_version_bump_only "$root" HEAD || return 0
     printf '%s\n' "$recorded"
+}
+
+# --- GitHub greens, per platform (RD-160-06) ---------------------------------------------------
+#
+# The public CI costs an hour and paid minutes per platform. A wave's integration branch goes
+# through it on Linux and Windows; the release candidate made from it differs only in the version
+# lines of the bump and the release's documentation, and ran all three platforms again anyway —
+# 1.5.0 was released by hand without --push for that reason, with macOS dispatched alone. The
+# record says which runner image was green for which tree, and a run only dispatches the images
+# no record covers. A red run records nothing, so red still holds the merge.
+#
+# One file for the whole repository, in the common git directory: every worktree sees it, it is
+# never tracked, and deleting target/ does not throw away greens that cost money.
+
+# The record file of the repository checkout $1 belongs to.
+rd_ci_record_file() {
+    printf '%s/rd-verified-ci\n' "$(git -C "$1" rev-parse --path-format=absolute --git-common-dir)"
+}
+
+# Whether trees $2 and $3 of checkout $1 hold the same content up to documentation and a version
+# bump: every differing path is documentation (rd_non_doc_paths) or a version file, and in the
+# version files every changed line carried the workspace version of $2 and carries the one of $3.
+# The version files as a whole are compared, so a dependency moved in Cargo.lock does not pass.
+rd_tree_same_but_versions() {
+    local root="$1" from="$2" to="$3" changes path file allowed version_files=0 old new
+    changes="$(git -C "$root" diff --name-only "$from" "$to" 2> /dev/null)" || return 1
+    while read -r path; do
+        [[ -n "$path" ]] || continue
+        allowed=0
+        for file in "${RD_VERSION_FILES[@]}"; do [[ "$path" == "$file" ]] && allowed=1; done
+        [[ "$allowed" -eq 1 ]] || return 1
+        version_files=1
+    done < <(rd_non_doc_paths <<< "$changes")
+    [[ "$version_files" -eq 1 ]] || return 0
+    old="$(git -C "$root" show "$from:Cargo.toml" 2> /dev/null | rd_workspace_version)"
+    new="$(git -C "$root" show "$to:Cargo.toml" 2> /dev/null | rd_workspace_version)"
+    [[ -n "$old" && -n "$new" && "$old" != "$new" ]] || return 1
+    git -C "$root" diff -U0 "$from" "$to" -- "${RD_VERSION_FILES[@]}" | rd_version_lines_only "$old" "$new"
+}
+
+# Records that the public CI was green on runner image(s) $3... for tree $2 of checkout $1.
+rd_record_ci() {
+    local root="$1" tree="$2" file image
+    shift 2
+    file="$(rd_ci_record_file "$root")"
+    for image in "$@"; do
+        printf '%s %s %s\n' "$image" "$tree" "$(date -Is)" >> "$file"
+    done
+}
+
+# The tree whose recorded green on runner image $3 covers tree $2 of checkout $1: that tree, or
+# one it differs from only in documentation and version lines. Nothing when none does.
+rd_ci_covering() {
+    local root="$1" tree="$2" image="$3" recorded candidate
+    recorded="$(awk -v image="$image" '$1 == image { print $2 }' "$(rd_ci_record_file "$root")" 2> /dev/null | sort -u || true)"
+    if grep -qxF "$tree" <<< "$recorded"; then
+        printf '%s\n' "$tree"
+        return 0
+    fi
+    while read -r candidate; do
+        [[ -n "$candidate" ]] || continue
+        if rd_tree_same_but_versions "$root" "$candidate" "$tree"; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done <<< "$recorded"
 }

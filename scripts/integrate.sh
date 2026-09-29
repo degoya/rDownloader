@@ -14,7 +14,11 @@
 #      branch); stale or missing ones are built with --components-only.
 #   5. scripts/check.sh --full, then scripts/check.sh --windows, detached — an editor crash does
 #      not kill them — with their logs, a PID file and a status file under
-#      /tmp/claude-<uid>/<integration-branch>/.
+#      /tmp/claude-<uid>/<integration-branch>/. check.sh --full ends at once when a --full green
+#      already covers the merged content up to documentation (RD-160-06), so a run again after a
+#      documentation fix costs nothing.
+#   6. After both are green, scripts/prune-target.sh --if-free: the old crate variants go while
+#      the wave's own are the newest, and only when no build holds the target's lock (RD-160-06).
 #
 # Usage:
 #   scripts/integrate.sh integration/1.4-w4 feat/a fix/b tooling/c
@@ -54,7 +58,7 @@ while [[ $# -gt 0 ]]; do
         --merge-only) stop_after="merge"; shift ;;
         --no-check) stop_after="components"; shift ;;
         --no-windows) windows=0; shift ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,34p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) if [[ -z "$integration" ]]; then integration="$1"; else branches+=("$1"); fi; shift ;;
     esac
@@ -164,7 +168,11 @@ rm -f "$logs/status"
     else
         echo "windows=skipped"
     fi
-    echo "echo \"full=\$full windows=\$windows\" > '$logs/status'"
+    echo "prune=skipped"
+    echo "if [[ \$full -eq 0 && ( \$windows == 0 || \$windows == skipped ) ]]; then"
+    echo "    scripts/prune-target.sh --if-free > '$logs/prune.log' 2>&1; prune=\$?"
+    echo "fi"
+    echo "echo \"full=\$full windows=\$windows prune=\$prune\" > '$logs/status'"
 } > "$logs/run.sh"
 chmod +x "$logs/run.sh"
 setsid nohup "$logs/run.sh" > /dev/null 2>&1 < /dev/null &
@@ -173,7 +181,8 @@ cat <<INFO
 ==> started, detached: scripts/check.sh --full$([[ "$windows" -eq 1 ]] && echo ", then --windows")
     PID     $(cat "$logs/check.pid") (in $logs/check.pid)
     logs    $logs/check.log$([[ "$windows" -eq 1 ]] && echo " and windows.log")
-    status  $logs/status — written last, as "full=<exit> windows=<exit>"
+    status  $logs/status — written last, as "full=<exit> windows=<exit> prune=<exit|skipped>"
+            (the prune, into prune.log, only after both are green and when no build holds the lock)
 
     Judge each log by its closing line "==> all requested checks passed", not by an exit code
     alone. Then: scripts/public-ci.sh $integration --platforms linux,windows

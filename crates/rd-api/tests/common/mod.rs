@@ -52,6 +52,7 @@ pub struct Harness {
 pub struct Options {
     login: bool,
     parked: bool,
+    local_capture_fetches: bool,
     tokens: Vec<(&'static str, &'static str)>,
 }
 
@@ -75,6 +76,13 @@ impl Options {
     /// cap; nothing in the harness raises it again.
     pub fn parked(mut self) -> Self {
         self.parked = true;
+        self
+    }
+
+    /// `capture/file` may fetch from loopback, where the tests' "indexers" listen; the service
+    /// refuses that otherwise (`AppState::with_local_capture_fetches`).
+    pub fn local_capture_fetches(mut self) -> Self {
+        self.local_capture_fetches = true;
         self
     }
 
@@ -207,6 +215,11 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
             rd_http::SharedNetworkDefaults::default(),
         ),
     );
+    let state = if options.local_capture_fetches {
+        state.with_local_capture_fetches()
+    } else {
+        state
+    };
     // Capture intake authenticates with its own token; reading candidates back is a session
     // route, so the default stands in for an installation without an admin password.
     state.auth.set_disabled(!options.login);

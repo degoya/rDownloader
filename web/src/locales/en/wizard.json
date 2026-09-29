@@ -26,6 +26,11 @@
       "title": "Accounts",
       "description": "Hosters & Usenet",
       "lead": "Add hoster accounts and Usenet servers. You can skip this and add them later in the settings."
+    },
+    "selection": {
+      "title": "Your services",
+      "description": "What you use",
+      "lead": "Pick the services you use. Only their plugins are installed — everything else stays available in Settings → Plugins, one click away."
     }
   },
   "password": {
@@ -48,7 +53,10 @@
     "accounts_tab": "Hoster accounts",
     "usenet_tab": "Usenet",
     "extension_title": "These accounts need the browser extension",
-    "extension_hint": "{providers} can take over your browser's sign-in — that works only through the paired browser extension, and none has reported in yet. Pair it now, or sign in with a password or an API key."
+    "extension_hint": "{providers} can take over your browser's sign-in — that works only through the paired browser extension, and none has reported in yet. Pair it now, or sign in with a password or an API key.",
+    "no_providers_title": "No service with an account installed yet",
+    "no_providers": "Pick a hoster, multihoster or cloud service under “Your services”, then add its account here. Usenet servers need no plugin.",
+    "choose_services": "Choose services"
   },
   "actions": {
     "back": "Back",
@@ -57,5 +65,9 @@
     "finish": "Finish",
     "finish_with_tour": "Finish & take the tour",
     "close": "Close assistant"
+  },
+  "selection": {
+    "progress": "Installing {done} of {total} …",
+    "hint": "Continue installs nothing new. | Continue installs 1 service. New plugins run from the next start; you add accounts in the next step. | Continue installs {count} services. New plugins run from the next start; you add accounts in the next step."
   }
 }

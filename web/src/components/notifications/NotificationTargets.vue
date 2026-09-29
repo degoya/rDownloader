@@ -32,7 +32,7 @@ const copyName = useCopyName()
 const duplicatingId = ref<string | null>(null)
 /** The copy whose original held a secret; its form says the secret has to be entered again. */
 const secretMissingId = ref<string | null>(null)
-/** Matches the name check in `crates/rd-api/src/notify_handlers.rs`. */
+/** Matches the name check in `crates/rd-api-admin/src/notify_handlers.rs`. */
 const MAX_TARGET_NAME = 100
 
 function emptyForm(): NotificationTargetRequest {

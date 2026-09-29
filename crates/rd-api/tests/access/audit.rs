@@ -772,7 +772,19 @@ fn every_action_in_the_vocabulary_is_written_somewhere() {
 
     let mut sources = String::new();
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    collect(&manifest.join("src"), &mut sources);
+    // rd-api and the crates it was split into (RD-160-06).
+    for krate in [
+        "rd-api",
+        "rd-api-access",
+        "rd-api-admin",
+        "rd-api-compat",
+        "rd-api-core",
+        "rd-api-intake",
+        "rd-api-mcp",
+        "rd-api-queue",
+    ] {
+        collect(&manifest.join("..").join(krate).join("src"), &mut sources);
+    }
     assert!(!sources.is_empty(), "no sources were read");
     // The one writer outside rd-api: an overwrite the collision policy performs happens in the
     // queue, with nobody's request behind it, and is recorded there as the system's (RD-150-01).

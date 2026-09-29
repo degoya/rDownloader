@@ -444,6 +444,10 @@ pub(crate) enum WriterCommand {
     CheckpointWal {
         reply: Reply<()>,
     },
+    /// Closes the writer's connection and ends its task; every later command fails.
+    Close {
+        reply: Reply<()>,
+    },
     SetSetting {
         key: String,
         value: serde_json::Value,
@@ -1212,5 +1216,78 @@ pub(crate) enum WriterCommand {
     },
     InterruptStorageOperations {
         reply: Reply<u64>,
+    },
+    /// Writes a consistent copy of the whole database to `path` (RD-160-01).
+    VacuumInto {
+        path: std::path::PathBuf,
+        reply: Reply<()>,
+    },
+    SaveBackupConfig {
+        update: Box<crate::BackupConfigUpdate>,
+        reply: Reply<()>,
+    },
+    SetBackupKey {
+        key: crate::BackupKeyRecord,
+        reply: Reply<Option<String>>,
+    },
+    ArmBackup {
+        next_run_at: Option<DateTime<Utc>>,
+        reply: Reply<()>,
+    },
+    BeginBackupRun {
+        run: crate::NewBackupRun,
+        reply: Reply<bool>,
+    },
+    FinishBackupRun {
+        id: String,
+        outcome: Box<crate::BackupRunOutcome>,
+        reply: Reply<()>,
+    },
+    InterruptBackupRuns {
+        reply: Reply<u64>,
+    },
+    /// The full backup's destinations, ledger and verifications (RD-160-02).
+    CreateBackupDestination {
+        destination: Box<crate::NewBackupDestination>,
+        reply: Reply<String>,
+    },
+    UpdateBackupDestination {
+        id: String,
+        destination: Box<crate::NewBackupDestination>,
+        reply: Reply<bool>,
+    },
+    DeleteBackupDestination {
+        id: String,
+        reply: Reply<bool>,
+    },
+    RecordBackupArchive {
+        archive: Box<crate::NewBackupArchive>,
+        reply: Reply<String>,
+    },
+    ForgetBackupArchives {
+        ids: Vec<String>,
+        reply: Reply<u64>,
+    },
+    BeginBackupRunDestinations {
+        run_id: String,
+        destinations: Vec<(String, String, String)>,
+        reply: Reply<()>,
+    },
+    FinishBackupRunDestination {
+        end: Box<crate::BackupRunDestinationEnd>,
+        reply: Reply<()>,
+    },
+    BeginBackupVerification {
+        verification: Box<crate::BackupVerification>,
+        reply: Reply<()>,
+    },
+    FinishBackupVerification {
+        id: String,
+        outcome: crate::BackupVerificationOutcome,
+        reply: Reply<()>,
+    },
+    ArmBackupVerify {
+        next_run_at: Option<DateTime<Utc>>,
+        reply: Reply<()>,
     },
 }

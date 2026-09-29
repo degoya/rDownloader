@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Versiones instaladas",
     "title": "Inventario local",
-    "empty": "Todavía no hay plugins instalados. Los enlaces de hosters necesitan un plugin resolver: los incluidos se instalan en el próximo inicio y los demás vienen de un repositorio.",
+    "empty": "Todavía no hay plugins instalados. Los enlaces de hosters necesitan un plugin resolver: instala un servicio del paquete incluido de arriba o de un repositorio.",
     "filter_label": "Filtrar por grupo de plugins"
   },
   "card": {
@@ -170,7 +170,9 @@
     "withdrawn": "Este paquete exacto fue retirado y no se puede instalar.",
     "incompatible": "Esta versión no puede ejecutarlo: {reason}",
     "restart": "Un plugin se activa tras el siguiente reinicio.",
-    "install": "Instalar"
+    "install": "Instalar",
+    "added_permissions": "Nuevo respecto a v{version}",
+    "no_added_permissions": "No pide nada que v{version} no tenga ya."
   },
   "updates": {
     "eyebrow": "Repositorios",
@@ -191,7 +193,8 @@
       "withdrawn": "Retirado"
     },
     "adds_permissions": "Permisos nuevos",
-    "adds_permissions_hint": "Pide más que la versión instalada, así que solo se instala tras tu revisión, aunque las actualizaciones sean automáticas."
+    "adds_permissions_hint": "Pide más que la versión instalada, así que solo se instala tras tu revisión, aunque las actualizaciones sean automáticas.",
+    "added_permissions": "Nuevo: {permissions}"
   },
   "repositories": {
     "eyebrow": "Fuentes",
@@ -224,5 +227,35 @@
     "remove_title": "¿Quitar este repositorio?",
     "remove_description": "{name} dejará de ofrecer actualizaciones. Los plugins instalados desde él siguen instalados.",
     "empty": "No hay ningún repositorio configurado."
+  },
+  "bundled": {
+    "eyebrow": "Paquete incluido",
+    "title": "Servicios disponibles",
+    "description": "Lo que trae esta versión pero no está instalado: no elegido, eliminado o nuevo. Un clic instala un servicio con todos sus plugins; funcionan desde el próximo inicio.",
+    "search": "Buscar servicios",
+    "filter_label": "Filtrar por categoría",
+    "all": "Todos",
+    "category": {
+      "hoster": "Hosters",
+      "multihoster": "Multihosters y debrid",
+      "remote_jobs": "Torrents y trabajos remotos",
+      "cloud": "Nube y almacenamiento",
+      "links": "Listas de enlaces y carpetas",
+      "metadata": "Metadatos",
+      "notifications": "Notificaciones",
+      "postprocess": "Posprocesado",
+      "other": "Otros"
+    },
+    "state": {
+      "installed": "Instalado",
+      "partial": "Instalado en parte"
+    },
+    "needs_account": "Necesita una cuenta o un destino",
+    "install": "Instalar",
+    "no_match": "Ningún servicio coincide con «{query}».",
+    "all_installed": "Todo el paquete incluido está instalado.",
+    "none": "Esta compilación no incluye paquetes. Los plugins llegan entonces de un repositorio.",
+    "failed": "No se pudo instalar {name}: {reason}",
+    "installed": "No se instaló nada. | 1 plugin instalado; funciona desde el próximo inicio. | {count} plugins instalados; funcionan desde el próximo inicio."
   }
 }

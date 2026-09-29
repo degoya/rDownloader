@@ -7,9 +7,9 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::{
-    AppState, auth_flow_handlers, browser_session_handlers, config_handlers, hosters,
-    providers_handlers, regex_tester, remote_job_handlers, routing_backup, settings_backup,
-    setup_handlers, storage_capacity,
+    AppState, auth_flow_handlers, backup_destination_handlers, backup_handlers,
+    browser_session_handlers, config_handlers, hosters, providers_handlers, regex_tester,
+    remote_job_handlers, routing_backup, settings_backup, setup_handlers, storage_capacity,
 };
 
 /// Session-authenticated routes of this area.
@@ -158,6 +158,43 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/settings/import",
             post(settings_backup::import_settings),
         )
+        .route(
+            "/api/v1/backups",
+            get(backup_handlers::get_backup_config).put(backup_handlers::update_backup_config),
+        )
+        .route(
+            "/api/v1/backups/passphrase",
+            axum::routing::put(backup_handlers::set_backup_passphrase),
+        )
+        .route(
+            "/api/v1/backups/runs",
+            get(backup_handlers::list_backup_runs).post(backup_handlers::run_backup),
+        )
+        .route(
+            "/api/v1/backups/destinations",
+            post(backup_destination_handlers::create_backup_destination),
+        )
+        .route(
+            "/api/v1/backups/destinations/{id}",
+            axum::routing::put(backup_destination_handlers::update_backup_destination)
+                .delete(backup_destination_handlers::delete_backup_destination),
+        )
+        .route(
+            "/api/v1/backups/destinations/{id}/retention",
+            get(backup_destination_handlers::preview_backup_retention),
+        )
+        .route(
+            "/api/v1/backups/archives",
+            get(backup_destination_handlers::list_backup_archives),
+        )
+        .route(
+            "/api/v1/backups/archives/{id}/verify",
+            post(backup_destination_handlers::verify_backup_archive),
+        )
+        .route(
+            "/api/v1/backups/verifications",
+            get(backup_destination_handlers::list_backup_verifications),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -167,6 +204,18 @@ pub(crate) fn routes() -> Router<AppState> {
     setup_handlers::complete_setup,
     settings_backup::export_settings,
     settings_backup::import_settings,
+    backup_handlers::get_backup_config,
+    backup_handlers::update_backup_config,
+    backup_handlers::set_backup_passphrase,
+    backup_handlers::run_backup,
+    backup_handlers::list_backup_runs,
+    backup_destination_handlers::create_backup_destination,
+    backup_destination_handlers::update_backup_destination,
+    backup_destination_handlers::delete_backup_destination,
+    backup_destination_handlers::preview_backup_retention,
+    backup_destination_handlers::list_backup_archives,
+    backup_destination_handlers::verify_backup_archive,
+    backup_destination_handlers::list_backup_verifications,
     routing_backup::export_routing,
     routing_backup::import_routing,
     storage_capacity::storage_capacity,

@@ -126,10 +126,11 @@ packageable() {
     [[ "$(printf '%s\n%s\n' "$minimum" "$APP_VERSION" | sort -V | head -1)" == "$minimum" ]]
 }
 
-# Whether plugin $1 is an example (RD-150-20). `plugins/example-*` show authors a plugin type;
-# they are built, tested and checked like every other plugin, so they stay current, but no
-# installation needs them, so a signed build never packages them and the bundle does not carry
-# them. They move to sdk/templates with RD-160-04.
+# Whether plugin $1 is an example (RD-150-20). `plugins/example-*` are the components the
+# contract tests drive (oauth, stream-transform and transfer contract tests, rd-plugin-host's
+# artifact and foreign-address tests); they are built, tested and checked like every other plugin,
+# so they stay current, but no installation needs them, so a signed build never packages them and
+# the bundle does not carry them. What they taught authors lives in sdk/templates (RD-160-04).
 example() { [[ "$1" == example-* ]]; }
 
 # The plugins this build can actually package, for the release scripts and CI, so the rule

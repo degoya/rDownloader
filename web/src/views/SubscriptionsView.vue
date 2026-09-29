@@ -22,7 +22,7 @@ import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import { formatMoment } from '@/utils/format'
 import { translateServerMessage } from '@/i18n/server'
 
-/** Matches `MAX_NAME` in `crates/rd-api/src/subscription_handlers.rs`. */
+/** Matches `MAX_NAME` in `crates/rd-api-intake/src/subscription_handlers.rs`. */
 const MAX_SUBSCRIPTION_NAME = 200
 
 const { t } = useI18n()

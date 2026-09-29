@@ -10,6 +10,7 @@
 mod client;
 mod error;
 mod listing;
+mod mirror;
 mod probe;
 mod runner;
 mod tls;
@@ -90,33 +91,44 @@ impl FtpService {
         Ok(probe::require_credential(credential, target))
     }
 
-    /// Opens a logged-in control connection.
+    /// Opens a logged-in control connection; held to `guard` when a stranger's document or
+    /// page proposed the link (RD-150-03).
     pub(crate) async fn connect(
         &self,
         credential: &RemoteCredential,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<suppaftp::FtpResult<client::Connection>> {
         let password = match credential.secret_ref.as_deref() {
             Some(reference) => Some(self.secrets.get(reference).await?),
             None => None,
         };
         let custom_ca = self.network.read().await.custom_ca_pem.clone();
-        client::Connection::open(credential, password.as_ref(), &custom_ca, self.timeout()).await
+        client::Connection::open(
+            credential,
+            password.as_ref(),
+            &custom_ca,
+            self.timeout(),
+            guard,
+        )
+        .await
     }
 
     /// Resolves one link into the listing the LinkGrabber reviews.
     ///
     /// Returns the login that reached the server alongside it, so the queue row can
-    /// authenticate exactly the way the probe did.
+    /// authenticate exactly the way the probe did. `guard` is the address rule of a link a
+    /// document or a page proposed; every connection the probe opens keeps to it.
     pub async fn probe(
         &self,
         target: &RemoteTarget,
         pinned: Option<RemoteCredentialId>,
+        guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<(Probed, Option<RemoteCredentialId>)> {
         let credential = match self.credential_for(pinned, target).await? {
             Ok(credential) => credential,
             Err(failure) => return Ok((Probed::Failed(failure), None)),
         };
-        let mut connection = match self.connect(&credential).await? {
+        let mut connection = match self.connect(&credential, guard).await? {
             Ok(connection) => connection,
             Err(error) => return Ok((Probed::Failed(error::classify(&error)), None)),
         };
@@ -127,7 +139,7 @@ impl FtpService {
 
     /// Checks that a stored login can reach its server and log in, for the settings UI.
     pub async fn test_credential(&self, credential: &RemoteCredential) -> Result<Option<Failure>> {
-        match self.connect(credential).await? {
+        match self.connect(credential, None).await? {
             Ok(mut connection) => {
                 let _ = connection.quit().await;
                 Ok(None)

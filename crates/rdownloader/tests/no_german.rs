@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 const ROOTS: &[&str] = &["crates", "plugins"];
 const ALLOWED_FILES: &[&str] = &[
-    "crates/rd-api/src/link_check_probe.rs",
+    "crates/rd-api-core/src/link_check_probe.rs",
     "crates/rdownloader/tests/no_german.rs",
 ];
 const GERMAN_CHARS: &str = "\u{e4}\u{f6}\u{fc}\u{c4}\u{d6}\u{dc}\u{df}";

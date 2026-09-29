@@ -493,7 +493,7 @@ async fn every_route_in_the_adapter_refuses_an_unauthenticated_call() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::auth_harness(directory.path()).await;
 
-    let source = include_str!("../../src/compat/qbittorrent/mod.rs");
+    let source = include_str!("../../../rd-api-compat/src/qbittorrent/mod.rs");
     let guarded = source
         .split_once("fn guarded_routes()")
         .expect("the guarded router exists")
@@ -540,7 +540,7 @@ async fn only_the_login_routes_are_reachable_without_a_credential() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::auth_harness(directory.path()).await;
 
-    let source = include_str!("../../src/compat/qbittorrent/mod.rs");
+    let source = include_str!("../../../rd-api-compat/src/qbittorrent/mod.rs");
     let public = source
         .split_once("fn public_routes()")
         .expect("the public router exists")

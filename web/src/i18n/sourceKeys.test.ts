@@ -19,7 +19,7 @@
  * - **Composed keys.** `t(\`plugins.type.${type}\`)`, `t('common.' + name)` and anything built
  *   from a variable are invisible to a regular expression. Plugin types are covered because
  *   their *values* are extracted separately; other composed keys are not covered at all.
- * - **Codes from outside `crates/rd-api/src`.** A `Failure` raised in `rd-core`, `rd-scheduler`
+ * - **Codes from outside the `rd-api` crates.** A `Failure` raised in `rd-core`, `rd-scheduler`
  *   or a runner reaches the interface through the same `code` field, and nothing here extracts
  *   those. Plugin codes (`<slug>.<condition>`) are deliberately out of scope: they live in the
  *   package's own catalogue, which `pluginMessages.test.ts` covers.
@@ -42,10 +42,20 @@ import { loadEveryLocale } from '@/test/locales'
 beforeAll(loadEveryLocale)
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-const apiSources = join(repositoryRoot, 'crates/rd-api/src')
+const crates = join(repositoryRoot, 'crates')
 const manifestSource = join(repositoryRoot, 'crates/rd-plugin-host/src/manifest.rs')
 /** The web package is tested inside the repository; without the crates there is nothing to read. */
-const backendAvailable = existsSync(apiSources) && existsSync(manifestSource)
+const backendAvailable = existsSync(join(crates, 'rd-api/src')) && existsSync(manifestSource)
+/**
+ * `rd-api` and the crates it was split into (RD-160-06): `rd-api-core`, `rd-api-intake`, … Read
+ * from the directory rather than listed, so a further split cannot hide its codes from this file.
+ */
+const apiSources: string[] = backendAvailable
+  ? readdirSync(crates, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && /^rd-api(-[a-z]+)?$/.test(entry.name))
+      .map(entry => join(crates, entry.name, 'src'))
+      .filter(existsSync)
+  : []
 
 /**
  * Codes the backend constructs that no catalogue translates yet, as found on 2026-09-08.
@@ -152,7 +162,7 @@ const CODE_CALLS = [
 
 function backendCodes(): string[] {
   const codes = new Set<string>()
-  for (const file of rustFiles(apiSources)) {
+  for (const file of apiSources.flatMap(rustFiles)) {
     const source = readFileSync(file, 'utf8')
     for (const pattern of CODE_CALLS) {
       for (const match of source.matchAll(pattern)) if (match[1]) codes.add(match[1])
@@ -193,7 +203,7 @@ describe.skipIf(!backendAvailable)('keys the backend produces', () => {
   it.each(['en', 'de', 'fr', 'es'])('%s translates every candidate check code', (locale) => {
     i18n.global.locale.value = locale as 'en'
     const codes = new Set<string>()
-    for (const file of rustFiles(apiSources)) {
+    for (const file of apiSources.flatMap(rustFiles)) {
       const source = readFileSync(file, 'utf8')
       for (const match of source.matchAll(
         new RegExp(`CandidateMessage::coded\\(\\s*"${CODE}"`, 'g')
