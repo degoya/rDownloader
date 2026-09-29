@@ -11,6 +11,12 @@ export interface BundledInstallOutcome {
   failures: BundledInstallFailure[]
   /** A refused request (not one plugin failing), in the reader's language. */
   error: string | null
+  /**
+   * Something installed runs only from the next start: an update, a type that does not join the
+   * running service, or one that did not load. A first install of a hoster or a sign-in runs at
+   * once (RD-170-12).
+   */
+  restartRequired: boolean
 }
 
 /**
@@ -36,7 +42,7 @@ export function useBundledServices() {
   }
 
   async function install(keys: string[]): Promise<BundledInstallOutcome> {
-    const outcome: BundledInstallOutcome = { installed: 0, failures: [], error: null }
+    const outcome: BundledInstallOutcome = { installed: 0, failures: [], error: null, restartRequired: false }
     if (!keys.length) return outcome
     let done = 0
     progress.value = { done, total: keys.length }
@@ -45,6 +51,7 @@ export function useBundledServices() {
       if (answer.ok) {
         outcome.installed += answer.data.installed?.length ?? 0
         outcome.failures.push(...(answer.data.failed ?? []))
+        outcome.restartRequired ||= answer.data.restart_required === true
       } else {
         outcome.error = translateServerMessage(answer.message)
       }

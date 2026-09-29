@@ -96,12 +96,13 @@ version = "1.0.200"
 EOF
 printf '{\n  "name": "web",\n  "version": "1.0.0",\n  "private": true\n}\n' > web/package.json
 printf '{\n  "name": "ext",\n  "version": "1.0.0"\n}\n' > extension/manifest.base.json
+printf '{\n  "info": {\n    "title": "rd-api",\n    "version": "1.0.0"\n  },\n  "paths": {}\n}\n' > web/openapi.json
 git add -A
 git commit -qm "release base"
 tree="$(git rev-parse 'HEAD^{tree}')"
 bump() {
     sed -i 's/^version = "1\.0\.0"/version = "1.1.0"/' Cargo.toml Cargo.lock
-    sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' web/package.json extension/manifest.base.json
+    sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' web/package.json extension/manifest.base.json web/openapi.json
 }
 reset() { git checkout -q -- . && git clean -qfd; }
 

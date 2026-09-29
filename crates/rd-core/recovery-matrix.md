@@ -34,8 +34,8 @@ Every case asserts all four. They are not interchangeable, and each has its own 
 Axis A only exists when it is asked for, and it is each *owning* crate's feature that asks:
 
 ```bash
-cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints \
-    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup
+cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints \
+    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
 ```
 
 `rd-core/failpoints` on its own is not enough, however plausible it looks. Every crash-test
@@ -44,6 +44,9 @@ feature does not enable its dependants'. A file compiled to nothing runs no case
 success, which is the one failure mode this matrix cannot afford, so check the counts: without
 those features `rd-http` runs 97 tests, `rd-scheduler` 111, `rd-usenet` 54, `rd-object-storage` 50
 and `rd-backup` 52; with them 103, 117, 57, 51 and 54, measured per crate on 2026-09-29.
+RD-170-07 added three `rd-backup` cases and the first `rd-plugin-host` one, all behind the
+features, so those two counts change and are measured again with the next run; `rd-plugin-host`
+has none recorded yet.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything
@@ -62,14 +65,17 @@ row for a point that does not exist.
 
 | Point | Owner | A restart must show |
 | --- | --- | --- |
+| `backup.after_database_snapshot` | rd-backup | a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination |
+| `backup.after_retention_removal` | rd-backup | an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed |
 | `backup.before_archive_published` | rd-backup | an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging |
+| `backup.before_archive_recorded` | rd-backup | an archive that reached its destination before the ledger recorded it stays there whole and is never removed by retention, which removes only recorded archives; the next start records the run and that destination as interrupted |
 | `http.after_chunk_mac` | rd-http | a finished chunk MAC that was not recorded is recomputed from the start of its chunk, never assumed |
 | `http.after_chunk_write` | rd-http | bytes written but not recorded are re-fetched, never counted as confirmed |
 | `http.after_db_checkpoint` | rd-http | a recorded checkpoint is resumed from exactly, re-fetching nothing before it |
 | `http.after_part_sync` | rd-http | a durable write without its commit falls back to the older checkpoint |
 | `http.before_piece_check` | rd-http | a chunk confirmed but not checked against its piece hashes is checked before anything builds on it, and a piece that fails isolates the source named for it |
-
 | `object_storage.after_part_upload` | rd-object-storage | a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again |
+| `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
 | `restore.after_live_set_aside` | rd-backup | a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
@@ -87,6 +93,34 @@ recorded and a history row that still says `running`. Its case asserts that the 
 holds nothing under the archive's name, that the recovery every start runs marks the row
 `interrupted` with `backup.interrupted` and empties the staging, and that the next run succeeds
 beside it. The case runs with `rd-backup/failpoints`.
+
+`backup.after_database_snapshot` is the same run one step earlier (RD-170-07): the writer has
+put a consistent copy of the database into the run's staging folder, and nothing is sealed
+yet. That copy is plain — the only unencrypted state a backup ever writes — so its case asserts
+that the start after the stop marks the run `interrupted`, that the sweep removes the copy with
+the staging, and that no destination saw anything. The case runs with `rd-backup/failpoints`.
+
+`backup.before_archive_recorded` and `backup.after_retention_removal` are the ledger's two
+steps (RD-170-07, `rd_backup::ledger`). A delivery places the archive at its destination and
+only then records it; a stop in between leaves an archive the ledger does not know. Its case
+asserts that the archive is there whole (size and SHA-256 of the sealed file), that the next
+start marks the run and that destination `interrupted`, and that the next run's retention,
+which removes only recorded archives, leaves it where it is. Retention removes archives at the
+destination first and forgets them in the ledger after; a stop in between leaves a ledger that
+lists an archive the destination no longer holds, never the other way round. Its case asserts
+that the next pass finds the missing archive gone (`NotFound` counts as removed), forgets it
+with the rest, and keeps the newest. A stop inside the destination's own copy is the verified
+copy's temporary name, which `rd_files::copy_verified` discards before its next copy under that
+name and which no listing takes for an archive. Both cases run with `rd-backup/failpoints`.
+
+`plugin.before_version_promoted` is an install's or update's switch (RD-170-07): the package is
+downloaded, verified and written whole into a `.install-<id>` folder beside the version folders,
+and a rename makes it a version. Before RD-170-07 a stop in between left a folder the loader
+read as a second copy of the plugin that `remove_version` could not address. Its case asserts
+that the folder is never loaded or listed, that the start (`PluginRepositoryService::load`)
+removes it, that the version installed before stays the only one, and that the update then
+installs. The download itself is kept under `downloads/` by digest, which every start clears.
+The case runs with `rd-plugin-host/failpoints`.
 
 `restore.after_live_set_aside` is the restore's cutover (RD-160-03). A restore never replaces
 the running service's database: it stages the restored state in `restore-staged/` with a marker,
@@ -205,10 +239,18 @@ diff rather than a binary blob nobody can read.
 ## Downgrade
 
 There is no downgrade path, and adding `.down.sql` files would not create one: a migration
-that drops a column cannot be reversed, because the data is gone. The honest answer is
-restore-from-backup, which is why a schema-changing update takes a verified snapshot first
-(RD-130-03). The forward path is what Axis C covers, in
-`crates/rd-db/tests/migration_forward/`.
+that drops a column cannot be reversed, because the data is gone. The honest answer is the copy
+from before the upgrade (RD-170-07): a start that finds migrations pending on an existing
+database first writes it with `VACUUM INTO` to
+`<data>/pre-migration/rdownloader-<from>-to-<to>-<timestamp>.sqlite3`, keeping the newest
+three. sqlx applies every migration in a transaction of its own, so a failing one leaves nothing
+of itself but the ones before it in the same start stay applied, and the previous build refuses
+a file with migrations it does not know. A failure therefore puts the copy back in place of the
+database and ends the start with `db.migration_failed`, naming the copy; the previous version
+starts on the file as it was. `crates/rd-db/src/pre_migration_tests.rs` proves both halves with
+a chain whose last migration fails after two real ones committed. The encrypted, verified
+backup before an update, called by the updater, stays RD-180-03. The forward path is what
+Axis C covers, in `crates/rd-db/tests/migration_forward/`.
 
 ## Not yet covered
 
@@ -216,7 +258,10 @@ Recorded here rather than left implicit, because a matrix that only lists what p
 as completeness it does not have:
 
 - Post-processing, automation runs, torrent seeding and the plugin transfer runner have
-  recovery paths in the code but no crash points registered yet. Usenet assembly has two
+  recovery paths in the code but no crash points registered yet. Of an update's steps in the
+  service, the ones after the version folder exists — the repository row and the version
+  pointers following the update — have none either: a stop there leaves the new version
+  installed and not yet chosen, which the plugin manager offers to activate by hand. Usenet assembly has two
   (RD-108-25, RD-130-22); the resume itself, which CRC-checks every checkpointed range against the disk
   rather than trusting the database, is covered by `assembly_resume_tests` and
   `resume_after_crash_tests` without a crash point.

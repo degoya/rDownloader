@@ -183,8 +183,32 @@ fn remove_any(path: &Path) -> Result<()> {
     .with_context(|| format!("remove {}", path.display()))
 }
 
+/// How long a rename waits for a handle that is still being closed (Windows only).
+const RELEASE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Renames `from` to `to`.
+///
+/// On Windows a file stays locked until its last handle is closed, and a database that failed
+/// to open closes its handle on SQLite's worker thread, shortly after `Database::open` has
+/// returned the error. The roll-back right after it then met "used by another process"
+/// (os error 32), so a sharing or access violation is retried until [`RELEASE_WAIT`] is up.
 fn rename(from: &Path, to: &Path) -> Result<()> {
-    fs::rename(from, to).with_context(|| format!("move {} to {}", from.display(), to.display()))
+    let started = std::time::Instant::now();
+    loop {
+        match fs::rename(from, to) {
+            Err(error)
+                if cfg!(windows)
+                    && matches!(error.raw_os_error(), Some(5 | 32))
+                    && started.elapsed() < RELEASE_WAIT =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            result => {
+                return result
+                    .with_context(|| format!("move {} to {}", from.display(), to.display()));
+            }
+        }
+    }
 }
 
 /// Makes a rename or a new file in `directory` durable. On Windows a directory cannot be opened

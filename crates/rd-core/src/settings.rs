@@ -21,6 +21,10 @@ pub struct PostprocessSettings {
     pub ignore_samples: bool,
     /// Also extract archives found inside extracted archives (depth-capped).
     pub recursive_unpack: bool,
+    /// Unpack every archive set into a folder of its own below the package folder, named after
+    /// the archive (`Film.part1.rar` → `Film/`), instead of straight into the package folder.
+    /// Off by default (RD-170-16).
+    pub unpack_to_subfolder: bool,
     /// Verify the CRC32 checksums of any `.sfv` index found in the package before unpacking.
     pub sfv_verify: bool,
     /// Whether a failed verification blocks everything after it.
@@ -96,6 +100,7 @@ impl Default for PostprocessSettings {
             cleanup_extensions: Self::default_cleanup_extensions(),
             ignore_samples: true,
             recursive_unpack: false,
+            unpack_to_subfolder: false,
             sfv_verify: true,
             safe_postproc: true,
             delete_par2: false,
@@ -248,6 +253,17 @@ mod tests {
         let relaxed: PostprocessSettings =
             serde_json::from_str(r#"{"safe_postproc":false}"#).expect("explicit opt-out");
         assert!(!relaxed.safe_postproc);
+    }
+
+    #[test]
+    fn archives_unpack_into_the_package_folder_unless_a_folder_each_is_asked_for() {
+        // RD-170-16: the folder per archive is opt-in; a blob that never mentions it keeps
+        // unpacking straight into the package folder.
+        let legacy: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(!legacy.unpack_to_subfolder);
+        let folders: PostprocessSettings =
+            serde_json::from_str(r#"{"unpack_to_subfolder":true}"#).expect("explicit opt-in");
+        assert!(folders.unpack_to_subfolder);
     }
 
     #[test]

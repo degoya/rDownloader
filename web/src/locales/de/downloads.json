@@ -283,7 +283,10 @@
     "committed": "Bestätigt {total}",
     "remaining": "{total} ausstehend",
     "eta": "noch {duration}",
-    "eta_title": "Geschätzte Restzeit beim aktuellen Tempo"
+    "eta_title": "Geschätzte Restzeit beim aktuellen Tempo",
+    "selection_title": "{count} ausgewählt, zusammen {size}",
+    "selection_partial_title": "{count} ausgewählt, zusammen mindestens {size} – bei {unknown} ist die Größe noch unbekannt",
+    "selection_unknown_title": "{count} ausgewählt, Größe noch unbekannt"
   },
   "media": {
     "variant": "Variante:",

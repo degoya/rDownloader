@@ -51,6 +51,7 @@ mod plugin_revocations_store;
 mod plugin_transfer_store;
 mod plugin_versions_store;
 mod postprocess_store;
+pub mod pre_migration;
 mod remote_job_store;
 mod replay_store;
 pub mod restore_copy;
@@ -71,6 +72,8 @@ mod writer;
 mod writer_jobs;
 mod writer_pins;
 
+#[cfg(test)]
+mod pre_migration_tests;
 #[cfg(test)]
 mod stats_tests;
 #[cfg(test)]
@@ -200,10 +203,21 @@ const PLUGIN_VERSION_BINDINGS: &str = "\
       JOIN downloads job ON job.id = transfer.download_id \
      WHERE transfer.plugin_id = ? AND transfer.plugin_version = ? AND job.state != 'completed'";
 
+/// The migrations this build carries, compiled in from `migrations/`.
+pub(crate) static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+
 impl Database {
     /// Opens a database file, applies migrations and starts the writer actor.
+    ///
+    /// An existing database with pending migrations is copied to `<data>/pre-migration/` first,
+    /// and put back from that copy when a migration fails ([`pre_migration`]); the start then
+    /// fails with [`pre_migration::MigrationFailure`].
     pub async fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let path = path.as_ref();
+        Self::open_with(path.as_ref(), &MIGRATOR).await
+    }
+
+    /// [`Database::open`] with the migrations given; a test hands in a chain with one that fails.
+    pub(crate) async fn open_with(path: &Path, migrator: &sqlx::migrate::Migrator) -> Result<Self> {
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
@@ -219,13 +233,10 @@ impl Database {
             .busy_timeout(Duration::from_secs(5))
             .log_statements(LevelFilter::Trace);
 
-        let mut writer_connection = SqliteConnection::connect_with(&options)
+        let writer_connection = SqliteConnection::connect_with(&options)
             .await
             .context("open SQLite writer connection")?;
-        sqlx::migrate!()
-            .run(&mut writer_connection)
-            .await
-            .context("apply SQLite migrations")?;
+        let writer_connection = pre_migration::migrate(writer_connection, path, migrator).await?;
 
         let readers = SqlitePoolOptions::new()
             .max_connections(4)

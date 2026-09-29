@@ -43,10 +43,10 @@ function delivery(state: string, title: string) {
   }
 }
 
-function answer(deliveries: unknown[], clearable: number): void {
+function answer(deliveries: unknown[], clearable: number, pending = 0): void {
   get.mockImplementation(async (path: string) =>
     path === '/api/v1/system/data-reset'
-      ? { data: { logs: 0, audit: 0, stats: 0, notifications: clearable } }
+      ? { data: { logs: 0, audit: 0, stats: 0, notifications: clearable, notifications_pending: pending } }
       : { data: deliveries }
   )
 }
@@ -75,5 +75,29 @@ describe('NotificationHistory clearing', () => {
     await screen.findByText('still owed')
     expect(screen.queryByText('sent')).toBeNull()
     await waitFor(() => expect(screen.getByTestId('data-reset-notifications').getAttribute('data-count')).toBe('0'))
+  })
+
+  // The second button (RD-170-11) only appears while there is something it could discard.
+  it('offers discarding the pending notifications only while some are pending', async () => {
+    answer([delivery('retrying', 'still owed'), delivery('delivered', 'sent')], 1, 1)
+    mountComponent(NotificationHistory, { messages: { notifications } })
+    await screen.findByText('still owed')
+    const discard = await screen.findByTestId('data-reset-notifications_pending')
+    expect(discard.getAttribute('data-count')).toBe('1')
+
+    answer([delivery('delivered', 'sent')], 1, 0)
+    await fireEvent.click(discard)
+
+    await waitFor(() => expect(screen.queryByText('still owed')).toBeNull())
+    await waitFor(() => expect(screen.queryByTestId('data-reset-notifications_pending')).toBeNull())
+    expect(screen.getByTestId('data-reset-notifications')).toBeTruthy()
+  })
+
+  it('shows no discard when nothing is pending', async () => {
+    answer([delivery('delivered', 'sent')], 1, 0)
+    mountComponent(NotificationHistory, { messages: { notifications } })
+    await screen.findByText('sent')
+    await waitFor(() => expect(screen.getByTestId('data-reset-notifications').getAttribute('data-count')).toBe('1'))
+    expect(screen.queryByTestId('data-reset-notifications_pending')).toBeNull()
   })
 })

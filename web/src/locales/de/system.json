@@ -535,6 +535,14 @@
     "notifications": {
       "title": "Benachrichtigungsverlauf leeren?",
       "description": "{count} abgeschlossene Zustellungen werden endgültig aus dem Verlauf entfernt. Zustellungen, die noch in der Warteschlange stehen oder wiederholt werden, bleiben stehen, ebenso Ziele, Regeln, Protokoll, Audit und Statistik."
+    },
+    "notifications_pending": {
+      "button": "Ausstehende verwerfen",
+      "stored": "{count} ausstehend",
+      "title": "Ausstehende Benachrichtigungen verwerfen?",
+      "description": "{count} Benachrichtigungen, die noch in der Warteschlange stehen oder wiederholt werden, werden gelöscht und nicht mehr gesendet. Zugestellte und fehlgeschlagene Zustellungen bleiben im Verlauf, ebenso Ziele, Regeln, Protokoll, Audit und Statistik.",
+      "confirm": "Endgültig verwerfen",
+      "done": "{count} Benachrichtigungen verworfen"
     }
   },
   "session_limits": {

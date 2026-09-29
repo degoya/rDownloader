@@ -64,9 +64,9 @@
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers\.rs$                                      bandwidth
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers\.rs$                                        captcha
-^crates/rd-api(-[a-z]+)?/src/capture_sanitize\.rs$                                        capture_intake captcha event_resume browser_session auth_profiles
+^crates/rd-api(-[a-z]+)?/src/capture_sanitize\.rs$                                        capture_intake capture_boundary captcha event_resume browser_session auth_profiles
 ^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)\.rs$                    capture_file
-^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)\.rs$                    capture_intake containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets
+^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)\.rs$                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions\.rs$   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)\.rs$        containers container_json dlc capture_file
@@ -104,6 +104,11 @@
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)\.rs$                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)\.rs$                         nzb_paused container_json indexers compat_sabnzbd
 
+# --- the secret canaries (RD-170-06): what takes, stores, logs, seals or hands back a credential.
+# Added to whatever the rows above select; they still decide the rest of each path.
+^crates/rd-api(-[a-z]+)?/src/(config_handlers|config_fields|remote_handlers|object_storage_(handlers|fields)|notify_(handlers|service)|backup_[a-z_]+|settings_backup[a-z_]*|diagnostics_[a-z_]+|captcha_handlers|api_tokens|auth_profile_handlers|usenet_handlers|login_handlers|password_handlers|event_stream)\.rs$   + canaries
+^crates/(rd-secrets|rd-diagnostics|rd-backup|rd-notify|rd-object-storage|rd-ftp)/src/        + canaries
+
 # --- rd-core, by domain module ----------------------------------------------------------------
 # failpoint.rs compiles to nothing without its feature; the crash matrix is its test.
 # recovery-matrix.md is the table rd-core's own library test compares with the registry.
@@ -115,7 +120,7 @@
 ^crates/rd-core/src/session\.rs$                                                          sessions auth mfa passkeys browser_session
 ^crates/rd-core/src/backup\.rs$                                                           full_backup backup_destinations mcp
 ^crates/rd-core/src/bandwidth\.rs$                                                        bandwidth mcp
-^crates/rd-core/src/capture\.rs$                                                          capture_intake captcha event_resume browser_session auth_profiles
+^crates/rd-core/src/capture\.rs$                                                          capture_intake capture_boundary captcha event_resume browser_session auth_profiles
 ^crates/rd-core/src/collector\.rs$                                                        capture_intake containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens mcp
 ^crates/rd-core/src/source_set\.rs$                                                       source_sets mirrors mcp
 ^crates/rd-core/src/diagnostics\.rs$                                                      diagnostics data_reset mcp

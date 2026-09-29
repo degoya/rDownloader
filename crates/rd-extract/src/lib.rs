@@ -2,6 +2,8 @@
 //! scripts for finished downloads (SABnzbd-style levels per package/category).
 
 mod cleanup_job;
+#[cfg(test)]
+mod nested_upload_tests;
 mod object_upload;
 mod package_job;
 mod par2_job;
@@ -12,6 +14,8 @@ mod rar_test_job;
 mod rclone_job;
 mod rclone_remote;
 mod remux_job;
+#[cfg(all(test, unix))]
+mod script_env_tests;
 mod script_job;
 mod settings;
 mod sfv_job;
@@ -20,6 +24,8 @@ mod storage_upload;
 #[cfg(test)]
 mod tests;
 mod unpack_job;
+#[cfg(test)]
+mod unpack_subfolder_tests;
 
 use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 

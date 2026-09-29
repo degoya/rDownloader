@@ -62,7 +62,8 @@
     "backup_configured": "Sauvegarde complète configurée",
     "backup_key_changed": "Phrase secrète de la sauvegarde définie",
     "backup_created": "Sauvegarde complète écrite",
-    "backup_verified": "Archive de sauvegarde complète vérifiée"
+    "backup_verified": "Archive de sauvegarde complète vérifiée",
+    "notifications_discarded": "Notifications en attente abandonnées"
   },
   "list": {
     "title": "Entrées",

@@ -60,7 +60,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="security.password" class="border border-muted bg-default p-5">
     <SectionHeader
       :eyebrow="t('system.password.eyebrow')"
       :title="t('system.password.title')"

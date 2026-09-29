@@ -204,7 +204,7 @@ function lastError(repository: PluginRepository): string {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="plugins.repositories" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('plugins.repositories.title')" :count="repositories.length">
       <template #list-actions>
         <UButton

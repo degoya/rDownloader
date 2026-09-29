@@ -459,6 +459,11 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::POST,
         ADMIN,
     ),
+    entry(
+        "/api/v1/notifications/deliveries/discard-pending",
+        Method::POST,
+        ADMIN,
+    ),
     entry("/api/v1/notifications/destinations", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules", Method::POST, CONFIG),

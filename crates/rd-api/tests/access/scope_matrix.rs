@@ -157,19 +157,25 @@ async fn the_public_routes_need_no_credential() {
     assert_eq!(checked, 8, "the set of public routes changed");
 }
 
-/// Clearing the notification history costs `api:admin`, like the other clears (RD-130-08).
+/// Clearing the notification history costs `api:admin`, like the other clears (RD-130-08), and
+/// so does discarding the pending notifications (RD-170-11).
 ///
 /// The matrix above proves the table is enforced whatever it says; this pins what it says for
-/// the one route where the obvious guess is wrong. The history is read with `api:config`, so a
+/// the routes where the obvious guess is wrong. The history is read with `api:config`, so a
 /// table entry copied from its neighbour would let every configuration token throw it away.
 #[tokio::test]
 async fn a_config_token_reads_the_notification_history_but_cannot_clear_it() {
-    const CLEAR: &str = "/api/v1/notifications/deliveries/clear";
-    let required = rd_api::policy_rows()
-        .into_iter()
-        .find(|(path, method, _)| *path == CLEAR && *method == "POST")
-        .and_then(|(_, _, required)| required);
-    assert_eq!(required, Some(Scope::Admin.as_str()));
+    const CLEARS: [&str; 2] = [
+        "/api/v1/notifications/deliveries/clear",
+        "/api/v1/notifications/deliveries/discard-pending",
+    ];
+    for clear in CLEARS {
+        let required = rd_api::policy_rows()
+            .into_iter()
+            .find(|(path, method, _)| *path == clear && *method == "POST")
+            .and_then(|(_, _, required)| required);
+        assert_eq!(required, Some(Scope::Admin.as_str()), "{clear}");
+    }
 
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
@@ -184,10 +190,12 @@ async fn a_config_token_reads_the_notification_history_but_cannot_clear_it() {
         get_with_bearer(&harness.router, "/api/v1/notifications/deliveries", &bearer).await;
     assert_eq!(status, StatusCode::OK, "reading the history: {body}");
 
-    let (status, body) = request_with_bearer(&harness.router, "POST", CLEAR, &bearer).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-    assert_eq!(body["code"], "auth.scope_insufficient", "{body}");
-    assert_eq!(body["params"]["scope"], Scope::Admin.as_str(), "{body}");
+    for clear in CLEARS {
+        let (status, body) = request_with_bearer(&harness.router, "POST", clear, &bearer).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{clear}: {body}");
+        assert_eq!(body["code"], "auth.scope_insufficient", "{body}");
+        assert_eq!(body["params"]["scope"], Scope::Admin.as_str(), "{body}");
+    }
 }
 
 /// The settings blob is priced `api:config`, but a few of its fields are not configuration.
@@ -242,6 +250,59 @@ async fn a_config_token_cannot_change_how_long_a_sign_in_lasts() {
         assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
         assert_eq!(body["code"], "auth.scope_insufficient");
         assert_eq!(body["params"]["setting"], field);
+    }
+}
+
+/// Every settings field that names a program the service runs costs `api:admin` on its own
+/// (security review 2026-09-28, `docs/security/scripts.md` T-PRIV): the tests above reach the
+/// privileged list through the login and session fields, and a field dropped from it would go
+/// unnoticed. The four media executables share one entry and report its name.
+#[tokio::test]
+async fn a_config_token_cannot_change_what_the_service_executes() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(&harness.database, "config-only", &[Scope::Config.as_str()]).await;
+
+    let (status, settings) = get_with_bearer(&harness.router, "/api/v1/settings", &bearer).await;
+    assert_eq!(status, StatusCode::OK, "reading settings costs api:config");
+
+    for (field, value, reported) in [
+        ("scripts_directory", "/tmp/rd-scripts", "scripts_directory"),
+        ("completion_script", "done.sh", "completion_script"),
+        ("completion_action", "script", "completion_action"),
+        ("vendor_directory", "/tmp/rd-vendor", "vendor_directory"),
+        ("rar_executable", "/tmp/rd-vendor/unrar", "rar_executable"),
+        (
+            "media_ytdlp_executable",
+            "/tmp/rd-vendor/yt-dlp",
+            "media_ytdlp_executable",
+        ),
+        (
+            "media_ffmpeg_executable",
+            "/tmp/rd-vendor/ffmpeg",
+            "media_ytdlp_executable",
+        ),
+        (
+            "gallery_executable",
+            "/tmp/rd-vendor/gallery-dl",
+            "media_ytdlp_executable",
+        ),
+        (
+            "record_streamlink_executable",
+            "/tmp/rd-vendor/streamlink",
+            "media_ytdlp_executable",
+        ),
+    ] {
+        assert_ne!(
+            settings[field], value,
+            "{field} already holds the probe value"
+        );
+        let mut changed = settings.clone();
+        changed[field] = serde_json::json!(value);
+        let (status, body) = put_settings(&harness.router, &bearer, &changed).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
+        assert_eq!(body["code"], "auth.scope_insufficient", "{field}");
+        assert_eq!(body["params"]["setting"], reported, "{field}");
     }
 }
 

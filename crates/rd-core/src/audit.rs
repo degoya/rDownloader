@@ -82,6 +82,9 @@ pub enum AuditAction {
     /// The notification history was emptied; deliveries still owed an attempt stayed
     /// (RD-130-08).
     NotificationsCleared,
+    /// The notifications still queued or retrying were discarded, so they are never sent
+    /// (RD-170-11).
+    NotificationsDiscarded,
     /// A script subscription was created or changed (RD-150-08): which script runs on this
     /// machine, when, and with which arguments. The `change`, `script`, `arguments` and
     /// `schedule` details say what it is now.
@@ -109,7 +112,7 @@ pub enum AuditAction {
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -138,6 +141,7 @@ impl AuditAction {
         Self::AuditCleared,
         Self::StatsCleared,
         Self::NotificationsCleared,
+        Self::NotificationsDiscarded,
         Self::ScriptSubscriptionChanged,
         Self::FileOverwritten,
         Self::CollisionDecided,
@@ -180,6 +184,7 @@ impl AuditAction {
             Self::AuditCleared => "audit_cleared",
             Self::StatsCleared => "stats_cleared",
             Self::NotificationsCleared => "notifications_cleared",
+            Self::NotificationsDiscarded => "notifications_discarded",
             Self::ScriptSubscriptionChanged => "script_subscription_changed",
             Self::FileOverwritten => "file_overwritten",
             Self::CollisionDecided => "collision_decided",
@@ -351,6 +356,7 @@ mod tests {
             "audit_cleared",
             "stats_cleared",
             "notifications_cleared",
+            "notifications_discarded",
         ] {
             assert!(AuditAction::parse(word).is_some(), "missing {word}");
         }

@@ -42,7 +42,7 @@ async function loadAgents(): Promise<void> {
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="desktop.pairing" class="border border-muted bg-default p-5">
       <CapturePairingCard v-model="agents" :loading="loading" :load-error="loadError" />
     </section>
   </div>

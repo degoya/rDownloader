@@ -4,6 +4,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+mod stable_path;
+
+pub use stable_path::stable_executable_path;
+
 /// One independently installable rDownloader background process.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Target {
@@ -93,8 +97,11 @@ impl Registration {
 }
 
 /// Registers `executable` to start for the current user at the next login.
+///
+/// Registered under [`stable_executable_path`], so a package manager's update does not leave the
+/// login entry pointing at the previous version's folder.
 pub fn install(target: Target, executable: &Path) -> Result<()> {
-    let registration = Registration::new(target, executable)?;
+    let registration = Registration::new(target, &stable_executable_path(executable))?;
     platform::install(&registration)
 }
 

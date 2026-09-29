@@ -32,7 +32,12 @@ impl Guest for Component {
                 return StepEnd::Stopped((index as u32).to_le_bytes().to_vec());
             }
             source::progress(index as u64, Some(total));
-            let Some(target) = rename_to(name, rules) else {
+            // A file in a folder of the package keeps its folder: only the last part is
+            // tidied, and the host renames it where it is.
+            let base = name
+                .rsplit_once('/')
+                .map_or(name.as_str(), |(_, base)| base);
+            let Some(target) = rename_to(base, rules) else {
                 continue;
             };
             // A refused rename is not a reason to fail the package: the usual cause is a name

@@ -279,6 +279,36 @@ describe('LinkGrabberView', () => {
     expect(boxOf('cand-0-6').checked).toBe(false)
   })
 
+  /** The owner's case (RD-170-13): package checkbox, Shift, a later package checkbox. */
+  it('selects a range of packages with shift, and every link inside them', async () => {
+    seedCollector(4, 2)
+    const { container } = mountView()
+    await nextTick()
+
+    const boxOf = (key: string) => {
+      const box = container.querySelector<HTMLInputElement>(`[data-row-key="${key}"] input[type="checkbox"]`)
+      if (!box) throw new Error(`no checkbox for ${key}`)
+      return box
+    }
+
+    await fireEvent.click(boxOf('package:cpkg-0'))
+    await nextTick()
+    await fireEvent.click(boxOf('package:cpkg-2'), { shiftKey: true })
+    await nextTick()
+
+    for (const packageIndex of [0, 1, 2]) {
+      for (const index of [0, 1]) expect(boxOf(`link:cand-${packageIndex}-${index}`).checked).toBe(true)
+    }
+    expect(boxOf('link:cand-3-0').checked).toBe(false)
+
+    // Ctrl keeps the plain toggle: one package off, the rest of the range stays.
+    await fireEvent.click(boxOf('package:cpkg-1'), { ctrlKey: true })
+    await nextTick()
+    expect(boxOf('link:cand-1-0').checked).toBe(false)
+    expect(boxOf('link:cand-0-0').checked).toBe(true)
+    expect(boxOf('link:cand-2-1').checked).toBe(true)
+  })
+
   /**
    * RD-107-09: the paused button checked `groups` — the collector packages — while its
    * neighbour checked `entries`, which is collector packages *and* NZB imports. A LinkGrabber

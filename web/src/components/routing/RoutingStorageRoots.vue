@@ -122,7 +122,7 @@ async function remove(root: StorageRoot): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="routing.roots" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('routing.root.title')" :count="roots.length">
       <template #form>
         <SectionHeader

@@ -203,7 +203,7 @@ describe('SettingsPostprocessCard switch rows', () => {
       props: { modelValue: { ...SETTINGS } },
       stubs: { UInputTags: true, UFormField }
     })
-    const rows = ['recursive_unpack', 'sfv_verify', 'safe_postproc', 'delete_par2', 'enable_all_par', 'enrichment', 'pause', 'ignore_samples', 'upload'] as const
+    const rows = ['recursive_unpack', 'unpack_to_subfolder', 'sfv_verify', 'safe_postproc', 'delete_par2', 'enable_all_par', 'enrichment', 'pause', 'ignore_samples', 'upload'] as const
     for (const key of rows) {
       const entry = settings.postprocess[key]
       const toggle = screen.getByRole('switch', { name: entry.label })
@@ -213,5 +213,16 @@ describe('SettingsPostprocessCard switch rows', () => {
       expect(field.dataset.orientation).toBe('horizontal')
       expect(field.querySelector('[data-description]')?.textContent).toBe(entry.description)
     }
+  })
+
+  /** RD-170-16: off by default, and the switch is what writes the setting. */
+  it('switches unpacking into a folder per archive on', async () => {
+    serve([], [])
+    const model = { ...SETTINGS, unpack_to_subfolder: false } as Settings
+    mount(model)
+
+    await fireEvent.click(screen.getByRole('switch', { name: settings.postprocess.unpack_to_subfolder.label }))
+
+    expect(model.unpack_to_subfolder).toBe(true)
   })
 })

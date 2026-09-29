@@ -14,7 +14,7 @@ fn write_zip(path: &std::path::Path, options: SimpleFileOptions, name: &str) {
     zip.finish().expect("finish ZIP");
 }
 
-fn zip_bytes(member_name: &str, content: &[u8]) -> Vec<u8> {
+pub(crate) fn zip_bytes(member_name: &str, content: &[u8]) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     zip.start_file(member_name, SimpleFileOptions::default())
         .expect("start member");
@@ -23,7 +23,7 @@ fn zip_bytes(member_name: &str, content: &[u8]) -> Vec<u8> {
 }
 
 /// `level1.zip ⊃ level2.zip ⊃ … ⊃ payload.txt`: extracting `levels` times reaches the payload.
-fn nested_zip(levels: usize) -> Vec<u8> {
+pub(crate) fn nested_zip(levels: usize) -> Vec<u8> {
     let mut name = "payload.txt".to_owned();
     let mut bytes = b"payload".to_vec();
     for level in (1..=levels).rev() {
@@ -34,7 +34,7 @@ fn nested_zip(levels: usize) -> Vec<u8> {
 }
 
 /// Creates a completed one-file package holding `level1.zip` with the given nesting depth.
-async fn seed_nested_package(
+pub(crate) async fn seed_nested_package(
     database: &Database,
     destination: &std::path::Path,
     levels: usize,
@@ -90,7 +90,27 @@ async fn seed_nested_package(
     package.id
 }
 
-async fn run_extraction(database: &Database, temp: &std::path::Path, package_id: PackageId) {
+/// Waits until `service` has finished its job for `package_id`, the last step included.
+///
+/// The package state and the step rows are written while the job still runs: a test that stops
+/// at them and shuts the service down (which only cancels the queue, never a running job) left
+/// the job writing on, and a second run started right after met the first one's late writes
+/// (RD-170-16, seen on Windows only).
+pub(crate) async fn wait_until_finished(service: &ExtractionService, package_id: PackageId) {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while service.pending().await.contains(&package_id) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the post-processing job finished");
+}
+
+pub(crate) async fn run_extraction(
+    database: &Database,
+    temp: &std::path::Path,
+    package_id: PackageId,
+) {
     let state = run_extraction_to_end(database, temp, package_id).await;
     assert_eq!(state, rd_core::PackageState::Completed);
 }
@@ -143,6 +163,7 @@ async fn run_extraction_with(
     })
     .await
     .expect("extraction finished");
+    wait_until_finished(&service, package_id).await;
     service.shutdown().await;
     state
 }
@@ -364,7 +385,11 @@ async fn manual_extraction_uses_package_password_list_and_deletes_originals() {
 }
 
 /// Registers `file_name` in `destination` as a completed download of `package_id`.
-async fn seed_completed_file(database: &Database, package_id: PackageId, file_name: &str) {
+pub(crate) async fn seed_completed_file(
+    database: &Database,
+    package_id: PackageId,
+    file_name: &str,
+) {
     let file = database
         .create_download(NewDownload {
             id: DownloadId::new(),
@@ -548,6 +573,7 @@ async fn a_category_override_switches_the_sfv_check_off() {
             script: None,
             cleanup_extensions: None,
             recursive_unpack: None,
+            unpack_to_subfolder: None,
             sfv_verify: Some(false),
             safe_postproc: None,
             delete_par2: None,
@@ -1303,8 +1329,10 @@ async fn an_unpack_failure_carries_its_code_in_the_field_and_not_in_the_message(
         limits: rd_postprocess::ArchiveLimits::default(),
         rar_tool: None,
         rar_conflict: Some("rar_tool=unrar, rar_executable=7z".to_owned()),
+        rar_outdated: None,
         delete_volumes: false,
         trigger: ExtractionTrigger::Manual,
+        target: crate::unpack_job::UnpackTarget::Package,
     };
 
     let ok = crate::unpack_job::run(&inner, &context, &[], &sets)
@@ -1353,5 +1381,144 @@ async fn an_unpack_failure_carries_its_code_in_the_field_and_not_in_the_message(
             .contains("extract."),
         "{:?}",
         rar.message
+    );
+}
+
+/// Security review 2026-09-28, finding 5: a RAR set whose only tool is below its security
+/// floor fails with the code that names the tool, the version it reported and the floor, and
+/// the tool is never started.
+#[tokio::test]
+async fn an_outdated_archive_tool_fails_the_unpack_with_its_version_and_the_floor() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(temp.path().join("extract.sqlite"))
+        .await
+        .expect("database");
+    let directory = temp.path().join("package");
+    std::fs::create_dir_all(&directory).expect("package folder");
+    let rar = directory.join("release.rar");
+    std::fs::write(&rar, b"not read: the tool is refused first").expect("archive");
+    let owner = PackageId::new().to_string();
+    let inner = extraction_inner(&database, temp.path());
+    let sets = vec![rd_postprocess::ArchiveSet {
+        kind: rd_files::ArchiveKind::Rar,
+        base: "release".to_owned(),
+        volumes: vec![rar],
+    }];
+    let context = crate::unpack_job::UnpackContext {
+        owner: &owner,
+        directory: &directory,
+        downloads: &[],
+        candidates: &[None],
+        limits: rd_postprocess::ArchiveLimits::default(),
+        rar_tool: None,
+        rar_conflict: None,
+        rar_outdated: Some(crate::settings::OutdatedTool {
+            tool: "unrar",
+            found: "6.11".to_owned(),
+            minimum: "6.12".to_owned(),
+        }),
+        delete_volumes: false,
+        trigger: ExtractionTrigger::Manual,
+        target: crate::unpack_job::UnpackTarget::Package,
+    };
+
+    let ok = crate::unpack_job::run(&inner, &context, &[], &sets)
+        .await
+        .expect("one unpack pass");
+
+    assert!(!ok, "an outdated tool is a failure, not a skipped step");
+    let steps = database
+        .list_postprocess_steps(&owner)
+        .await
+        .expect("steps");
+    let step = steps
+        .iter()
+        .find(|step| step.kind == PostprocessKind::ExtractRar)
+        .expect("RAR step");
+    assert_eq!(step.state, PostprocessState::Failed);
+    assert_eq!(step.code.as_deref(), Some(crate::unpack_job::TOOL_OUTDATED));
+    assert_eq!(step.params.get("tool").map(String::as_str), Some("unrar"));
+    assert_eq!(step.params.get("found").map(String::as_str), Some("6.11"));
+    assert_eq!(step.params.get("minimum").map(String::as_str), Some("6.12"));
+}
+
+/// The same through the whole pipeline: the package's settings name an `unrar` 6.11, and the
+/// tool is asked for its banner but never started on the archive - no integrity test, no
+/// extraction - while the unpack step names the version and the floor.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_package_never_starts_an_archive_tool_below_its_security_floor() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(temp.path().join("extract.sqlite"))
+        .await
+        .expect("database");
+    let tools = temp.path().join("tools");
+    std::fs::create_dir_all(&tools).expect("tools");
+    let unrar = tools.join("unrar");
+    let started = tools.join("started-on-an-archive");
+    std::fs::write(
+        &unrar,
+        format!(
+            "#!/bin/sh\n[ $# -eq 0 ] && {{ echo 'UNRAR 6.11 freeware      Copyright (c) 1993-2022'; exit 0; }}\n\
+             touch '{}'\nexit 1\n",
+            started.display()
+        ),
+    )
+    .expect("fake unrar");
+    std::fs::set_permissions(&unrar, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    database
+        .set_setting(
+            "service.settings".to_owned(),
+            serde_json::json!({ "rar_tool": "unrar", "rar_executable": unrar }),
+        )
+        .await
+        .expect("settings");
+    let destination = temp.path().join("dl");
+    std::fs::create_dir_all(&destination).expect("destination");
+    std::fs::write(
+        destination.join("release.rar"),
+        b"Rar!\x1a\x07\x01\x00 not a real set",
+    )
+    .expect("archive");
+    let package = database
+        .create_package(NewPackage {
+            id: PackageId::new(),
+            name: "outdated".to_owned(),
+            destination: destination.to_string_lossy().into_owned(),
+            category_id: None,
+            priority: rd_core::DownloadPriority::Normal,
+            postprocess_level: None,
+            script: None,
+            enrichment: Vec::new(),
+        })
+        .await
+        .expect("package");
+    seed_completed_file(&database, package.id, "release.rar").await;
+
+    run_extraction_to_end(&database, temp.path(), package.id).await;
+
+    assert!(!started.exists(), "unrar 6.11 was started on the archive");
+    let steps = database
+        .list_postprocess_steps(&package.id.to_string())
+        .await
+        .expect("steps");
+    let unpack = steps
+        .iter()
+        .find(|step| step.kind == PostprocessKind::ExtractRar)
+        .expect("RAR step");
+    assert_eq!(unpack.state, PostprocessState::Failed, "{steps:?}");
+    assert_eq!(
+        unpack.code.as_deref(),
+        Some(crate::unpack_job::TOOL_OUTDATED)
+    );
+    assert_eq!(unpack.params.get("found").map(String::as_str), Some("6.11"));
+    assert!(
+        steps
+            .iter()
+            .filter(|step| step.kind == PostprocessKind::RarTest)
+            .all(|step| step.state == PostprocessState::Skipped),
+        "{steps:?}"
     );
 }

@@ -290,7 +290,7 @@
     "plugin.http_timeout": "La solicitud HTTP del resolutor ha agotado el tiempo de espera",
     "plugin.identity_changed": "El plugin cambió la identidad de cliente vinculada",
     "plugin.install_failed": "No se pudo instalar el plugin: {reason}",
-    "plugin.installed": "Plugin instalado en {path}",
+    "plugin.installed": "Plugin instalado en {path}; ya funciona",
     "plugin.installed_restart_required": "Complemento instalado en {path}; reinicia para activarlo",
     "plugin.key_fingerprint_mismatch": "La huella confirmada no coincide con la clave de firma del paquete",
     "plugin.key_revoked": "Clave de firma revocada; los complementos firmados con ella se omiten tras un reinicio",
@@ -817,7 +817,7 @@
     "backup.restore_torrent_file_missing": "Faltan {count} archivos torrent en la copia y aquí; esos torrents deben añadirse de nuevo.",
     "backup.restore_reference_dangling": "{count} filas hacen referencia a algo que la copia no tiene; se rechaza la restauración.",
     "backup.restore_partial_missing": "Las carpetas de {count} transferencias sin terminar no existen aquí; empiezan de nuevo.",
-    "plugin.bundled_installed": "Servicios instalados; sus plugins funcionan desde el próximo inicio",
+    "plugin.bundled_installed": "Servicios instalados; ya funcionan",
     "plugin.bundled_partly_installed": "Algunos plugins no se pudieron instalar",
     "plugin.bundled_service_unknown": "El paquete incluido no tiene ningún servicio llamado {service}",
     "plugin.bundled_services_invalid": "Indica entre 1 y {max} servicios para instalar",
@@ -826,13 +826,17 @@
     "storage_root.protected_directory": "Una ubicación de almacenamiento no puede ser, contener ni estar dentro de un directorio desde el que el servicio ejecuta programas, scripts o plugins o en el que guarda sus datos ({directory}).",
     "capture.fetch_address_refused": "La dirección apunta a este equipo o a una dirección que el servicio no puede solicitar.",
     "plugin.setting_unknown": "Este destino de notificación no tiene ningún ajuste con ese nombre",
-    "plugin.setting_invalid": "Un ajuste de este destino tiene un valor que el destino de notificación no ofrece"
+    "plugin.setting_invalid": "Un ajuste de este destino tiene un valor que el destino de notificación no ofrece",
+    "extract.tool_outdated": "{tool} {found} es anterior a la versión que necesita la extracción ({minimum} o posterior): las versiones antiguas escriben fuera de la carpeta de destino a través de enlaces del archivo. Actualiza {tool}.",
+    "plugin.installed_not_running": "El plugin de este proveedor está instalado; funciona tras el próximo reinicio",
+    "plugin.bundled_installed_restart_required": "Servicios instalados; algunos de sus plugins funcionan desde el próximo inicio"
   },
   "capabilities": {
     "media_download": "las descargas de medios",
     "media_merge": "la combinación de vídeo y audio",
     "audio_extraction": "la extracción de audio a MP3",
     "gallery_download": "las descargas de galerías",
-    "stream_recording": "la grabación de directos"
+    "stream_recording": "la grabación de directos",
+    "archive_extraction": "la extracción de archivos comprimidos"
   }
 }

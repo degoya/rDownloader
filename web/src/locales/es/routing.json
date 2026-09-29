@@ -137,7 +137,12 @@
     "collision_label": "Ante una colisión de nombres",
     "collision_description": "Se aplica a los paquetes de esta categoría salvo que un paquete tenga regla propia.",
     "collision_inherit": "Heredar el ajuste global",
-    "collision_badge": "Colisiones: {policy}"
+    "collision_badge": "Colisiones: {policy}",
+    "subfolder_label": "Subcarpeta por archivo",
+    "subfolder_description": "Extraer cada archivo en una carpeta propia (heredar = ajuste global).",
+    "subfolder_inherit": "Heredar",
+    "subfolder_on": "Activado",
+    "subfolder_off": "Desactivado"
   },
   "rule": {
     "eyebrow": "Clasificador",

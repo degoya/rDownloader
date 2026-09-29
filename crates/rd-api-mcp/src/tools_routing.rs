@@ -56,6 +56,7 @@ impl RdMcpServer {
                 script: params.script,
                 cleanup_extensions: params.cleanup_extensions,
                 recursive_unpack: params.recursive_unpack,
+                unpack_to_subfolder: params.unpack_to_subfolder,
                 sfv_verify: params.sfv_verify,
                 safe_postproc: params.safe_postproc,
                 delete_par2: params.delete_par2,
@@ -90,6 +91,7 @@ impl RdMcpServer {
                     "script",
                     "cleanup_extensions",
                     "recursive_unpack",
+                    "unpack_to_subfolder",
                     "sfv_verify",
                     "safe_postproc",
                     "delete_par2",
@@ -124,6 +126,12 @@ impl RdMcpServer {
                     "recursive_unpack",
                     params.recursive_unpack,
                     current.recursive_unpack,
+                ),
+                unpack_to_subfolder: merged(
+                    &cleared,
+                    "unpack_to_subfolder",
+                    params.unpack_to_subfolder,
+                    current.unpack_to_subfolder,
                 ),
                 sfv_verify: merged(
                     &cleared,

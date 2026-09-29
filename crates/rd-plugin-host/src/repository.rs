@@ -253,12 +253,14 @@ impl PluginRepositoryService {
         &self.0.database
     }
 
-    /// Clears leftover downloads and loads every cached index that still verifies.
+    /// Clears leftover downloads and install folders and loads every cached index that still
+    /// verifies.
     ///
     /// Called once at start. Never fails: a cache that does not verify is deleted and its
     /// repository offers nothing until the next refresh, which is the offline rule.
     pub async fn load(&self) {
         let _ = tokio::fs::remove_dir_all(self.downloads()).await;
+        self.installer().sweep_install_staging().await;
         let repositories = match self.0.database.list_plugin_repositories().await {
             Ok(repositories) => repositories,
             Err(error) => {

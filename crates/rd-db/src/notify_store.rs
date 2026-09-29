@@ -210,6 +210,17 @@ pub(crate) async fn count_clearable_deliveries(pool: &SqlitePool) -> Result<u64>
     Ok(u64::try_from(count).unwrap_or(0))
 }
 
+/// How many deliveries [`discard_pending_deliveries`] would remove right now.
+pub(crate) async fn count_pending_deliveries(pool: &SqlitePool) -> Result<u64> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM notification_deliveries WHERE state IN ('queued', 'retrying')",
+    )
+    .fetch_one(pool)
+    .await
+    .context("count pending notification deliveries")?;
+    Ok(u64::try_from(count).unwrap_or(0))
+}
+
 /// Deliveries the worker should attempt now.
 pub(crate) async fn due_deliveries(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Delivery>> {
     sqlx::query_as::<_, DeliveryRow>(sqlx::AssertSqlSafe(format!(
@@ -462,7 +473,24 @@ pub(crate) async fn clear_deliveries(connection: &mut SqliteConnection) -> Resul
     Ok(deleted.rows_affected())
 }
 
-/// Records the outcome of one attempt.
+/// Cancels the notifications still owed an attempt: deletes every row in `queued` or
+/// `retrying` and reports how many went (RD-170-11). The counterpart of [`clear_deliveries`],
+/// asked for on purpose.
+///
+/// An attempt the worker picked up before the delete still runs to its end; its
+/// [`record_attempt`] then updates no row and returns `Ok`, so the discarded delivery does not
+/// come back.
+pub(crate) async fn discard_pending_deliveries(connection: &mut SqliteConnection) -> Result<u64> {
+    let deleted =
+        sqlx::query("DELETE FROM notification_deliveries WHERE state IN ('queued', 'retrying')")
+            .execute(&mut *connection)
+            .await
+            .context("discard pending notification deliveries")?;
+    Ok(deleted.rows_affected())
+}
+
+/// Records the outcome of one attempt. A delivery discarded meanwhile has no row left; the
+/// update then touches nothing and is still `Ok` (RD-170-11).
 pub(crate) async fn record_attempt(
     connection: &mut SqliteConnection,
     id: NotificationDeliveryId,

@@ -1,5 +1,6 @@
-//! Emptying one store leaves the other two standing (RD-120-34), and emptying the
-//! notification history keeps every delivery the worker still owes an attempt (RD-130-08).
+//! Emptying one store leaves the other two standing (RD-120-34), emptying the notification
+//! history keeps every delivery the worker still owes an attempt (RD-130-08), and discarding
+//! the pending notifications removes exactly those and nothing else (RD-170-11).
 //!
 //! The store half of the job. What is checked here is the part a REST test cannot reach
 //! cheaply: the transfer statistics have no public write on `Database`, so they are seeded
@@ -291,6 +292,97 @@ async fn clearing_the_notification_history_keeps_what_is_still_owed_an_attempt()
 }
 
 #[tokio::test]
+async fn discarding_the_pending_notifications_keeps_the_finished_history() {
+    let directory = TempDir::new().expect("tempdir");
+    let (database, path) = database(&directory).await;
+    seed_all(&database, &path).await;
+    seed_deliveries(
+        &database,
+        &[
+            DeliveryState::Queued,
+            DeliveryState::Retrying,
+            DeliveryState::Delivered,
+            DeliveryState::Failed,
+        ],
+    )
+    .await;
+    assert_eq!(
+        database
+            .count_pending_notification_deliveries()
+            .await
+            .expect("count"),
+        2
+    );
+
+    let removed = database
+        .discard_pending_notification_deliveries()
+        .await
+        .expect("discard");
+
+    assert_eq!(removed, 2, "the queued and the retrying delivery went");
+    assert_eq!(
+        delivery_titles(&database).await,
+        ["2-Delivered", "3-Failed"]
+    );
+    assert!(
+        database
+            .due_notification_deliveries(Utc::now() + chrono::Duration::days(1))
+            .await
+            .expect("due")
+            .is_empty(),
+        "nothing is left for the worker to send"
+    );
+    assert_eq!(
+        counts(&database).await,
+        (7, 3, 6),
+        "the logs, the audit and the statistics are other stores"
+    );
+}
+
+/// The worker may have picked a delivery up before the discard: its attempt still ends, and
+/// recording the outcome must neither fail nor bring the delivery back.
+#[tokio::test]
+async fn an_attempt_recorded_after_its_delivery_was_discarded_changes_nothing() {
+    let directory = TempDir::new().expect("tempdir");
+    let (database, _path) = database(&directory).await;
+    seed_deliveries(&database, &[DeliveryState::Queued]).await;
+    let picked_up = database
+        .due_notification_deliveries(Utc::now())
+        .await
+        .expect("due")
+        .pop()
+        .expect("the queued delivery is due");
+
+    assert_eq!(
+        database
+            .discard_pending_notification_deliveries()
+            .await
+            .expect("discard"),
+        1
+    );
+    database
+        .record_notification_attempt(
+            picked_up.id,
+            DeliveryState::Retrying,
+            1,
+            Some(Utc::now()),
+            Some(503),
+            None,
+        )
+        .await
+        .expect("an attempt on a discarded delivery is not an error");
+
+    assert!(delivery_titles(&database).await.is_empty());
+    assert_eq!(
+        database
+            .count_pending_notification_deliveries()
+            .await
+            .expect("count"),
+        0
+    );
+}
+
+#[tokio::test]
 async fn clearing_an_empty_store_is_a_success_that_removed_nothing() {
     let directory = TempDir::new().expect("tempdir");
     let (database, _path) = database(&directory).await;
@@ -302,6 +394,13 @@ async fn clearing_an_empty_store_is_a_success_that_removed_nothing() {
             .clear_notification_deliveries()
             .await
             .expect("notifications"),
+        0
+    );
+    assert_eq!(
+        database
+            .discard_pending_notification_deliveries()
+            .await
+            .expect("pending notifications"),
         0
     );
     let removed = database

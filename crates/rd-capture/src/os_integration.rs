@@ -412,7 +412,10 @@ fn macos_install(kind: Kind, executable: &Path) -> Result<()> {
 fn macos_remove(kind: Kind) -> Result<()> {
     match kind {
         Kind::Association => {
-            let executable = std::env::current_exe().context("locate capture executable")?;
+            // The path `install` registered, which is the package manager's stable alias.
+            let executable = rd_autostart::stable_executable_path(
+                &std::env::current_exe().context("locate capture executable")?,
+            );
             let helper = macos_helper(&executable)?;
             if helper.exists() {
                 run_macos_launch_services("-u", &helper, "unregister macOS NZB association")?;

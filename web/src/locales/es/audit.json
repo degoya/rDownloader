@@ -62,7 +62,8 @@
     "backup_configured": "Copia completa configurada",
     "backup_key_changed": "Frase de la copia completa establecida",
     "backup_created": "Copia completa escrita",
-    "backup_verified": "Archivo de copia completa verificado"
+    "backup_verified": "Archivo de copia completa verificado",
+    "notifications_discarded": "Notificaciones pendientes descartadas"
   },
   "list": {
     "title": "Registros",

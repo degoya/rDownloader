@@ -54,6 +54,8 @@ export interface BundledInstallResult {
   message: string
   installed: BundledPlugin[]
   failed: BundledInstallFailure[]
+  /** Something installed here runs only from the next start (RD-170-12). */
+  restart_required?: boolean
 }
 
 export const listBundled = (locale: string) =>

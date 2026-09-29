@@ -104,7 +104,7 @@ defineExpose({ save })
 </script>
 
 <template>
-  <section id="captcha-settings" class="border border-muted bg-default p-5">
+  <section data-settings-anchor="captcha.settings" id="captcha-settings" class="border border-muted bg-default p-5">
     <div class="mb-4 flex items-start justify-between gap-4">
       <div>
         <SectionHeader
@@ -120,7 +120,7 @@ defineExpose({ save })
     </div>
 
     <div class="grid gap-3">
-      <UFormField :label="t('captcha.settings.solver.label')" :description="t('captcha.settings.solver.description')">
+      <UFormField data-settings-anchor="captcha.solver" :label="t('captcha.settings.solver.label')" :description="t('captcha.settings.solver.description')">
         <USelect v-model="form.solver" :items="solverItems" value-key="value" :disabled="loading" class="w-full" />
       </UFormField>
       <UFormField :label="t('captcha.settings.endpoint.label')" :description="t('captcha.settings.endpoint.description')">
@@ -133,6 +133,7 @@ defineExpose({ save })
       </UFormField>
       <USwitch v-if="form.has_api_key" v-model="clearApiKey" size="sm" :label="t('captcha.settings.api_key.clear')" />
       <UFormField
+        data-settings-anchor="captcha.api_key"
         :label="t('captcha.settings.api_key.label')"
         :description="form.has_api_key ? t('captcha.settings.api_key.stored') : t('captcha.settings.api_key.description')"
       >
@@ -152,7 +153,7 @@ defineExpose({ save })
       <UFormField :label="t('captcha.settings.manual.label')" :description="t('captcha.settings.manual.description')" orientation="horizontal">
         <USwitch v-model="form.manual_enabled" :disabled="loading" />
       </UFormField>
-      <UFormField :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
+      <UFormField data-settings-anchor="captcha.timeout" :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
         <UInput
           v-model.number="form.manual_timeout_seconds"
           type="number"

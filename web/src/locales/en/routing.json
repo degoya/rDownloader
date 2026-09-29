@@ -137,7 +137,12 @@
     "collision_label": "On a name collision",
     "collision_description": "Applies to this category’s packages unless a package has a policy of its own.",
     "collision_inherit": "Inherit the global setting",
-    "collision_badge": "Collisions: {policy}"
+    "collision_badge": "Collisions: {policy}",
+    "subfolder_label": "Subfolder per archive",
+    "subfolder_description": "Unpack each archive into a folder of its own (inherit = global setting).",
+    "subfolder_inherit": "Inherit",
+    "subfolder_on": "On",
+    "subfolder_off": "Off"
   },
   "rule": {
     "eyebrow": "Classifier",

@@ -244,9 +244,9 @@ pub struct PluginEnabledRequest {
 /// Switches one installed plugin off or back on.
 ///
 /// The plugin stays installed and keeps being listed — otherwise it could not be switched back
-/// on — but it is no longer loaded, compiled or executed. Like installing one, this takes full
-/// effect on the next start, because resolvers and extension hosts are built when their
-/// subsystem starts.
+/// on — but it is no longer loaded, compiled or executed. Like an update, this takes full effect
+/// on the next start, because resolvers and extension hosts are built when their subsystem
+/// starts.
 pub async fn set_plugin_enabled(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -326,7 +326,7 @@ pub async fn install_plugin(
         .install_bytes(bytes.to_vec())
         .await
         .map_err(install_error)?;
-    register_installed(&state, &installed).await?;
+    let running = register_installed(&state, &installed).await?;
     // A trust decision, and the sharpest one this service offers: from here on, code somebody
     // else wrote runs inside it. The record names the plugin, the version and — when the key
     // was confirmed in this very request — the fingerprint the person approved.
@@ -339,30 +339,45 @@ pub async fn install_plugin(
         event = event.detail("confirmed_key", fingerprint);
     }
     crate::audit::record(&state, event).await;
-    let path = installed.path.display().to_string();
     Ok((
         StatusCode::CREATED,
-        Json(
-            MessageResponse::new(
-                "plugin.installed_restart_required",
-                format!("Plugin installed at {path}; restart to activate it"),
-            )
-            .with_param("path", path),
-        ),
+        Json(installed_message(&installed, running)),
     ))
 }
 
-/// Makes a freshly installed package visible: its provider row, the secret fragment hosts and
-/// the event every open client reloads on. Shared by the upload and the repository install, so
-/// a package from a repository is live in exactly the ways an uploaded one is.
+/// What an install answers: running now, or from the next start (RD-170-12).
+pub(crate) fn installed_message(
+    installed: &rd_plugin_host::InstalledPackage,
+    running: bool,
+) -> MessageResponse {
+    let path = installed.path.display().to_string();
+    let message = if running {
+        MessageResponse::new(
+            "plugin.installed",
+            format!("Plugin installed at {path}; it runs now"),
+        )
+    } else {
+        MessageResponse::new(
+            "plugin.installed_restart_required",
+            format!("Plugin installed at {path}; restart to activate it"),
+        )
+    };
+    message.with_param("path", path)
+}
+
+/// Makes a freshly installed package visible: its provider row, the secret fragment hosts, a
+/// first install in the running service, and the event every open client reloads on. Shared by
+/// the upload, the repository and the bundle, so a package is live in exactly the same ways
+/// wherever it came from. Answers whether the plugin runs now; otherwise it runs from the next
+/// start.
 pub(crate) async fn register_installed(
     state: &AppState,
     installed: &rd_plugin_host::InstalledPackage,
-) -> Result<(), ApiError> {
+) -> Result<bool, ApiError> {
     // The provider row is live at once, so an account can be created straight away; the
-    // resolver itself starts working after a restart, since resolvers are built when the
-    // scheduler starts. A transfer backend contributes no row — it serves URL schemes, not an
-    // account — so there is nothing to register and nothing that can clash.
+    // plugin itself joins the running service when it is a first install (RD-170-12), and an
+    // update runs from the next start. A transfer backend contributes no row — it serves URL
+    // schemes, not an account — so there is nothing to register and nothing that can clash.
     if let Some(row) = rd_plugin_host::provider_spec_from_manifest(&installed.manifest)
         && let Err(error) = rd_provider_registry::try_register_dynamic(row)
     {
@@ -385,9 +400,10 @@ pub(crate) async fn register_installed(
     // The whole set is rebuilt rather than added to: a plugin declaring a secret fragment
     // host is live immediately, for the same reason its provider row is (RD-110-38).
     state.plugins.refresh_providers().await;
+    let running = crate::plugin_live::activate_first_install(state, installed).await;
 
     announce_plugin(state, &installed.manifest.id.to_string(), "installed");
-    Ok(())
+    Ok(running)
 }
 
 /// Verifies that `bytes` really is signed by the key whose fingerprint the user confirmed,

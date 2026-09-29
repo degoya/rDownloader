@@ -73,7 +73,7 @@ onMounted(() => void load())
 </script>
 
 <template>
-  <section class="space-y-4 border border-muted bg-default p-5" data-testid="storage-activity">
+  <section data-settings-anchor="routing.storage_activity" class="space-y-4 border border-muted bg-default p-5" data-testid="storage-activity">
     <SectionHeader
       :eyebrow="t('settings.storage.activity.eyebrow')"
       :title="t('settings.storage.activity.title')"

@@ -290,7 +290,7 @@
     "plugin.http_timeout": "Resolver HTTP request timed out",
     "plugin.identity_changed": "Plugin changed the bound client identity",
     "plugin.install_failed": "Plugin could not be installed: {reason}",
-    "plugin.installed": "Plugin installed at {path}",
+    "plugin.installed": "Plugin installed at {path}; it runs now",
     "plugin.installed_restart_required": "Plugin installed at {path}; restart to activate it",
     "plugin.key_fingerprint_mismatch": "The confirmed fingerprint does not match the package's signing key",
     "plugin.key_revoked": "Signing key revoked; plugins signed with it are skipped after a restart",
@@ -817,7 +817,7 @@
     "backup.restore_torrent_file_missing": "{count} torrent files are missing from the backup and from here; those torrents have to be added again.",
     "backup.restore_reference_dangling": "{count} rows refer to something the copy does not have; the restore is refused.",
     "backup.restore_partial_missing": "The folders of {count} unfinished transfers do not exist here; they start over.",
-    "plugin.bundled_installed": "Services installed; their plugins run from the next start",
+    "plugin.bundled_installed": "Services installed and running",
     "plugin.bundled_partly_installed": "Some plugins could not be installed",
     "plugin.bundled_service_unknown": "The bundle has no service called {service}",
     "plugin.bundled_services_invalid": "Name between 1 and {max} services to install",
@@ -826,13 +826,17 @@
     "storage_root.protected_directory": "A storage root may not be, contain or lie inside a directory the service runs programs, scripts or plugins from or keeps its data in ({directory}).",
     "capture.fetch_address_refused": "The address points at this machine or at an address the service may not request.",
     "plugin.setting_unknown": "This notification destination has no setting of that name",
-    "plugin.setting_invalid": "A setting of this notification target has a value its destination does not offer"
+    "plugin.setting_invalid": "A setting of this notification target has a value its destination does not offer",
+    "extract.tool_outdated": "{tool} {found} is older than the version extraction needs ({minimum} or newer): older versions write outside the destination through links inside the archive. Update {tool}.",
+    "plugin.installed_not_running": "The plugin for this provider is installed; it runs after the next restart",
+    "plugin.bundled_installed_restart_required": "Services installed; some of their plugins run from the next start"
   },
   "capabilities": {
     "media_download": "media downloads",
     "media_merge": "merging video and audio",
     "audio_extraction": "audio extraction to MP3",
     "gallery_download": "gallery downloads",
-    "stream_recording": "live stream recording"
+    "stream_recording": "live stream recording",
+    "archive_extraction": "archive extraction"
   }
 }

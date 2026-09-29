@@ -10,6 +10,8 @@ import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { useExtensionConnection } from '@/composables/useExtensionConnection'
 import { providerText } from '@/i18n/plugins'
 
+/** Something "Your services" installed runs only from the next start (RD-170-12). */
+defineProps<{ restartRequired?: boolean }>()
 const emit = defineEmits<{ 'choose-services': [] }>()
 const { t } = useI18n()
 const activeTab = ref('accounts')
@@ -61,6 +63,15 @@ onMounted(async () => {
 <template>
   <div class="space-y-5">
     <p class="max-w-3xl text-sm leading-6 text-muted">{{ t('wizard.services.intro') }}</p>
+    <UAlert
+      v-if="restartRequired"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-rotate-ccw"
+      :title="t('wizard.services.restart_required_title')"
+      :description="t('wizard.services.restart_required')"
+      data-testid="services-restart-required"
+    />
     <UAlert
       v-if="browserSessionProviders.length && !connected"
       color="warning"

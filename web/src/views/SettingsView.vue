@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -33,7 +33,7 @@ import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { defaultSettings } from '@/settingsDefaults'
-import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
+import { SETTINGS_SECTIONS, routingTab as routingTabFromQuery, settingsSection } from '@/settingsSections'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setTitleStatus } from '@/utils/titleStatus'
@@ -62,7 +62,13 @@ const pageTitle = computed(() => {
   const section = SETTINGS_SECTIONS.find(entry => entry.value === activeSection.value)
   return section ? t(section.labelKey) : t('settings.title')
 })
-const routingTab = ref('roots')
+const routingTab = ref<string>(routingTabFromQuery(route.query.tab) ?? 'roots')
+// The search opens a card on another sub-tab through `?tab=` (RD-170-15); a tab picked by hand
+// afterwards is left alone until the query changes again.
+watch(() => route.query.tab, (tab) => {
+  const target = routingTabFromQuery(tab)
+  if (target) routingTab.value = target
+})
 const confirm = useConfirm()
 const systemTab = ref<InstanceType<typeof SettingsSystemTab> | null>(null)
 const captchaTab = ref<InstanceType<typeof SettingsCaptchaTab> | null>(null)

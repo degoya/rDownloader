@@ -137,7 +137,12 @@
     "collision_label": "Bei Namenskonflikten",
     "collision_description": "Gilt für die Pakete dieser Kategorie, sofern ein Paket keine eigene Regel hat.",
     "collision_inherit": "Globale Einstellung erben",
-    "collision_badge": "Konflikte: {policy}"
+    "collision_badge": "Konflikte: {policy}",
+    "subfolder_label": "Unterordner je Archiv",
+    "subfolder_description": "Jedes Archiv in einen eigenen Ordner entpacken (Erben = globale Einstellung).",
+    "subfolder_inherit": "Erben",
+    "subfolder_on": "An",
+    "subfolder_off": "Aus"
   },
   "rule": {
     "eyebrow": "Klassifizierer",

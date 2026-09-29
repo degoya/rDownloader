@@ -256,6 +256,7 @@
     "all_installed": "Todo el paquete incluido está instalado.",
     "none": "Esta compilación no incluye paquetes. Los plugins llegan entonces de un repositorio.",
     "failed": "No se pudo instalar {name}: {reason}",
-    "installed": "No se instaló nada. | 1 plugin instalado; funciona desde el próximo inicio. | {count} plugins instalados; funcionan desde el próximo inicio."
+    "installed": "No se instaló nada. | 1 plugin instalado; funciona desde el próximo inicio. | {count} plugins instalados; funcionan desde el próximo inicio.",
+    "installed_live": "Nada instalado. | 1 plugin instalado; ya funciona. | {count} plugins instalados; ya funcionan."
   }
 }

@@ -198,10 +198,16 @@ pub fn parse_output(tool: &str, output: &str) -> Option<ToolVersion> {
     match tool {
         // yt-dlp prints the bare version and nothing else.
         "yt-dlp" => ToolVersion::parse(tokens.first()?),
-        // `gallery-dl 1.27.1`, `streamlink 6.7.4`, `UNRAR 6.24 freeware`, `rclone v1.66.0`,
-        // `Apprise v1.13.1`.
-        "gallery-dl" | "streamlink" | "unrar" | "rclone" | "apprise" => {
+        // `gallery-dl 1.27.1`, `streamlink 6.7.4`, `rclone v1.66.0`, `Apprise v1.13.1`.
+        "gallery-dl" | "streamlink" | "rclone" | "apprise" => {
             names(tokens.first()?, tool).then_some(())?;
+            ToolVersion::parse(tokens.get(1)?)
+        }
+        // `UNRAR 6.24 freeware`, or `RAR 7.01` when the full `rar` is configured as the unpacker:
+        // the same code, and the same version floor.
+        "unrar" => {
+            let name = tokens.first()?;
+            (names(name, "unrar") || names(name, "rar")).then_some(())?;
             ToolVersion::parse(tokens.get(1)?)
         }
         // `ffmpeg version 6.1.1-3ubuntu5 Copyright (c) …`
@@ -282,15 +288,29 @@ pub fn clear_cache() {
     }
 }
 
+/// Whether the tool answers with its banner when started without arguments, and knows no
+/// version flag at all.
+///
+/// `unrar` and 7-Zip read `--version` as an unknown switch and exit with a usage error, so
+/// asking them that way never learned anything; started bare, both print their banner and
+/// the usage text. Their exit status is not read either: the banner parser only accepts the
+/// tool's own first line, and a usage error is not a reason to forget a version that the
+/// banner stated. The archive tools' version is a security floor (review 2026-09-28,
+/// finding 5), so reading it matters more here than anywhere else.
+fn answers_with_banner(tool: &str) -> bool {
+    matches!(tool, "unrar" | "7z")
+}
+
 /// Spawns the tool's version flag and reads the first line of what it prints.
 async fn run(tool: &str, path: &Path) -> DetectedVersion {
     let mut command = tokio::process::Command::new(path);
-    // FFmpeg and ffprobe take a single dash; everything else here takes two.
-    command.arg(if tool.starts_with("ff") {
-        "-version"
-    } else {
-        "--version"
-    });
+    // FFmpeg and ffprobe take a single dash, the archive tools none at all; everything else
+    // here takes two.
+    if tool.starts_with("ff") {
+        command.arg("-version");
+    } else if !answers_with_banner(tool) {
+        command.arg("--version");
+    }
     let output = crate::process::run_to_output(
         &mut command,
         std::time::Duration::from_secs(VERSION_TIMEOUT_SECONDS),
@@ -301,15 +321,16 @@ async fn run(tool: &str, path: &Path) -> DetectedVersion {
     let Ok(Ok(output)) = output else {
         return DetectedVersion::default();
     };
-    if !output.status.success() {
+    if !output.status.success() && !answers_with_banner(tool) {
         return DetectedVersion::default();
     }
     let text = String::from_utf8_lossy(&output.stdout);
+    // The first line that says anything: 7-Zip opens its banner with an empty one.
     let raw = text
         .lines()
-        .next()
-        .map(|line| line.trim().chars().take(MAX_RAW_CHARS).collect::<String>())
-        .filter(|line| !line.is_empty());
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(|line| line.chars().take(MAX_RAW_CHARS).collect::<String>());
     DetectedVersion {
         parsed: parse_output(tool, &text),
         raw,
@@ -447,5 +468,53 @@ mod tests {
         );
         assert!(parse_output("7z", "7-Zip").is_none());
         assert!(parse_output("rclone", "").is_none());
+    }
+
+    /// The archive tools' banners as their builds print them when started bare, including the
+    /// old ones the version floor exists to refuse (review 2026-09-28, finding 5).
+    #[test]
+    fn archive_tool_banner_matrix() {
+        let cases = [
+            (
+                "unrar",
+                "\nUNRAR 6.11 freeware      Copyright (c) 1993-2022 Alexander Roshal\n",
+                "6.11",
+            ),
+            (
+                "unrar",
+                "UNRAR 7.01 freeware      Copyright (c) 1993-2024 Alexander Roshal",
+                "7.01",
+            ),
+            (
+                "unrar",
+                "RAR 7.12   Copyright (c) 1993-2025 Alexander Roshal   23 Jun 2025",
+                "7.12",
+            ),
+            (
+                "7z",
+                "\n7-Zip [64] 16.02 : Copyright (c) 1999-2016 Igor Pavlov : 2016-05-21",
+                "16.02",
+            ),
+            (
+                "7z",
+                "\n7-Zip (a) 24.09 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-11-29",
+                "24.09",
+            ),
+            (
+                "7z",
+                "7-Zip 25.01 (x64) : Copyright (c) 1999-2025 Igor Pavlov : 2025-08-03",
+                "25.01",
+            ),
+        ];
+        for (tool, banner, expected) in cases {
+            assert_eq!(
+                parse_output(tool, banner),
+                Some(version(expected)),
+                "{banner}"
+            );
+        }
+        // A usage error without the banner names no version, so it stays unknown.
+        assert!(parse_output("unrar", "ERROR: Unknown option: -version").is_none());
+        assert!(parse_output("7z", "Command Line Error:").is_none());
     }
 }

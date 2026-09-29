@@ -19,7 +19,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="plugins.keys" class="border border-muted bg-default p-5">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.keys.eyebrow')" :title="t('plugins.keys.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ keys.length }}</UBadge>

@@ -74,6 +74,9 @@ pub(crate) fn bwlimit(bytes_per_second: Option<u64>) -> Option<String> {
 /// The rclone invocation for one upload.
 fn command(tool: &Path, context: &UploadContext<'_>, target: &str) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(tool);
+    // The allowlist plus rclone's own configuration, config password and proxy variables
+    // (security review 2026-09-28, finding 7): nothing else of the service's environment.
+    rd_postprocess::restrict_environment(&mut command, rd_postprocess::RCLONE_VARIABLES);
     command
         .arg(context.mode.verb())
         .args(["--use-json-log", "--stats", "1s", "-v"]);

@@ -206,7 +206,7 @@ async function selectFile(event: Event): Promise<void> {
 
     <FormListLayout :list-title="t('siterules.list.title')" :count="rules.rules.value.length">
       <template #form>
-        <div ref="editorElement">
+        <div ref="editorElement" data-settings-anchor="siterules.editor">
           <SiteRuleEditor
             v-model="draft"
             :editing-id="editingId"

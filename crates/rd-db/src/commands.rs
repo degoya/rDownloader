@@ -878,6 +878,11 @@ pub(crate) enum WriterCommand {
     ClearNotificationDeliveries {
         reply: Reply<u64>,
     },
+    /// Deletes the deliveries still queued or retrying, which cancels those notifications,
+    /// and reports how many went (RD-170-11).
+    DiscardPendingNotificationDeliveries {
+        reply: Reply<u64>,
+    },
     CreateBandwidthProfile {
         input: crate::bandwidth_store::NewBandwidthProfile,
         reply: Reply<rd_limits::BandwidthProfile>,

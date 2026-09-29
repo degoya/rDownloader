@@ -21,7 +21,8 @@ pub struct ObjectUpload<'a> {
     pub owner: &'a str,
     pub package_name: &'a str,
     pub directory: &'a Path,
-    /// File names relative to the package directory.
+    /// File paths relative to the package directory, `/` between folders (`Film/film.mkv`);
+    /// the relative path is kept in the object key.
     pub files: &'a [String],
     /// `<bucket>/<prefix>` as configured; the bucket may be left out for a profile bound to one.
     pub destination: &'a str,

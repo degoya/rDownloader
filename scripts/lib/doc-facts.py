@@ -3,13 +3,16 @@
 
     doc-facts.py <repo> [--check] [--wiki DIR] [--date YYYY-MM-DD]
 
-Three facts move with a release and are read from their source, never from a document:
+Four facts move with a release and are read from their source, never from a document:
 
-  version  the workspace version, `[workspace.package]` in Cargo.toml
-  plugins  the number of plugins/*/manifest.toml the bundle ships: the examples
-           (plugins/example-*) are built but not bundled (RD-150-20)
-  wit      the plugin contract, `package rdownloader:plugin@X.Y.Z;` in
-           crates/rd-plugin-api/wit/rdownloader.wit
+  version    the workspace version, `[workspace.package]` in Cargo.toml
+  plugins    the number of plugins/*/manifest.toml the bundle ships: the examples
+             (plugins/example-*) are built but not bundled (RD-150-20)
+  wit        the plugin contract, `package rdownloader:plugin@X.Y.Z;` in
+             crates/rd-plugin-api/wit/rdownloader.wit
+  mcp_tools  the number of MCP tools: the entries of `TOOL_POLICY` in
+             crates/rd-api-mcp/src/policy.rs, which a test holds equal to the tool router in
+             both directions (crates/rd-api/mcp-coverage.md is generated from the same table)
 
 Each sentence that states one is an anchor below: a file and a pattern whose named group is the
 value. Every anchor has to match at least once; one that no longer does was reworded, and the run
@@ -35,6 +38,7 @@ import re
 import sys
 
 WIT = "crates/rd-plugin-api/wit/rdownloader.wit"
+MCP_POLICY = "crates/rd-api-mcp/src/policy.rs"
 
 
 def words(pattern):
@@ -51,12 +55,16 @@ REPO_ANCHORS = [
     ("docs/plugins.md", words(r"all (?P<plugins>\d+) signed components")),
     ("docs/plugins.md", words(r"the plugin package is `rdownloader:plugin@(?P<wit>[^`]+)`")),
     ("docs/development.md", words(r"WIT interface `rdownloader:plugin@(?P<wit>[^`]+)`")),
+    ("docs/development.md", words(r"The endpoint exposes (?P<mcp_tools>\d+) tools\.")),
+    ("docs/feature-list.md", words(r"^- (?P<mcp_tools>\d+) tools: everything the interface does")),
     ("README.md", words(r"versioned contract `rdownloader:plugin@(?P<wit>[^`]+)`")),
     ("sdk/README.md", words(r"The current package is `rdownloader:plugin@(?P<wit>[^`]+)`")),
 ]
 
 WIKI_ANCHORS = [
     ("home.md", words(r"\| Bundled plugins \| (?P<plugins>\d+) signed")),
+    ("integrations/mcp-server.md", words(r"It exposes \*\*(?P<mcp_tools>\d+) tools\*\*")),
+    ("reference/faq.md", words(r"Through the built-in MCP server, (?P<mcp_tools>\d+) tools")),
 ]
 WIKI_EVERYWHERE = r"rdownloader:plugin@(?P<wit>\d+\.\d+\.\d+)"
 
@@ -70,9 +78,17 @@ def read_facts(repo):
     plugins = os.path.join(repo, "plugins")
     count = sum(os.path.isfile(os.path.join(plugins, d, "manifest.toml")) and not d.startswith("example-")
                 for d in os.listdir(plugins))
+    # One `tool("name", ...)` per line: the table is `#[rustfmt::skip]` and kept sorted by a test.
+    policy = re.search(r"^pub const TOOL_POLICY: &\[ToolPolicy\] = &\[\n(.*?)^\];",
+                       open(os.path.join(repo, MCP_POLICY), encoding="utf-8").read(),
+                       re.MULTILINE | re.DOTALL)
+    tools = len(re.findall(r'^\s*tool\("', policy.group(1), re.MULTILINE)) if policy else 0
     if not version or not wit:
         raise SystemExit("could not read the workspace version or the WIT package line")
-    return {"version": version.group(1), "plugins": str(count), "wit": wit.group(1)}
+    if not tools:
+        raise SystemExit(f"could not count the MCP tools: no `TOOL_POLICY` table in {MCP_POLICY}")
+    return {"version": version.group(1), "plugins": str(count), "wit": wit.group(1),
+            "mcp_tools": str(tools)}
 
 
 def long_date(iso):
@@ -145,7 +161,8 @@ def main(argv):
                     run.apply(wiki, os.path.relpath(os.path.join(top, name), wiki),
                               WIKI_EVERYWHERE, required=False)
 
-    summary = f"version {facts['version']}, {facts['plugins']} plugins, rdownloader:plugin@{facts['wit']}"
+    summary = (f"version {facts['version']}, {facts['plugins']} plugins, {facts['mcp_tools']} MCP tools, "
+               f"rdownloader:plugin@{facts['wit']}")
     for line in run.missing:
         print(line, file=sys.stderr)
     if check:

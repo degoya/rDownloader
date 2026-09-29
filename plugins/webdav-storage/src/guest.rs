@@ -29,6 +29,12 @@ impl Guest for Component {
         if let Err(failure) = ensure_collection(&job, &collection) {
             return UploadEnd::Failed(failure);
         }
+        // And each folder the file sits in, for a package that has them (RD-170-16).
+        for folder in target::folder_collections(&collection, &job.file_name) {
+            if let Err(failure) = ensure_collection(&job, &folder) {
+                return UploadEnd::Failed(failure);
+            }
+        }
         let url = target::file_url(&collection, &job.file_name);
 
         // Read the file whole before sending it. WebDAV has no resumable upload in the base

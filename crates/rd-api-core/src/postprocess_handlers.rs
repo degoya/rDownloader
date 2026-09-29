@@ -208,6 +208,7 @@ pub async fn update_category_postprocess(
                 script,
                 cleanup_extensions,
                 recursive_unpack: request.recursive_unpack,
+                unpack_to_subfolder: request.unpack_to_subfolder,
                 sfv_verify: request.sfv_verify,
                 safe_postproc: request.safe_postproc,
                 delete_par2: request.delete_par2,

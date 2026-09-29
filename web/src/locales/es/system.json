@@ -535,6 +535,14 @@
     "notifications": {
       "title": "¿Vaciar el historial de notificaciones?",
       "description": "Se eliminarán definitivamente del historial {count} entregas finalizadas. Las entregas aún en cola o en reintento se mantienen, igual que los destinos, las reglas, el registro del servicio, la auditoría y las estadísticas."
+    },
+    "notifications_pending": {
+      "button": "Descartar pendientes",
+      "stored": "{count} pendientes",
+      "title": "¿Descartar las notificaciones pendientes?",
+      "description": "{count} notificaciones que siguen en cola o en reintento se eliminarán y no se enviarán nunca. Las entregas realizadas y fallidas permanecen en el historial, al igual que los destinos, las reglas, el registro, la auditoría y las estadísticas.",
+      "confirm": "Descartar definitivamente",
+      "done": "{count} notificaciones descartadas"
     }
   },
   "session_limits": {

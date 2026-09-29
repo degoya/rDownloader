@@ -243,7 +243,7 @@ jobs:
       # components (`on_real_components`).
       - name: Crash and restart matrix
         if: runner.os != 'macOS'
-        run: cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup
+        run: cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
       # Azure Blob and Google Cloud Storage are default features of rd-object-storage (RD-150-05).
       # Without them the crate still has to build and pass: S3 works, `az://` and `gs://` are
       # refused with `object_storage.provider_unsupported`.
@@ -315,7 +315,10 @@ jobs:
       # RD-180-06: the Homebrew formula as the tap gets it, rendered by scripts/package-managers.sh
       # — but over an archive in the release layout made from this tree's debug build instead of
       # a published release, so what is tested is this tree's formula. Install from a local tap,
-      # `brew test`, the service through `brew services` up to /api/v1/health, uninstall.
+      # `brew test`, the service through `brew services` up to /api/v1/health, uninstall. The
+      # capture agent's formula is installed and tested too, never started: the runner has no
+      # login session for its tray. The tap is rendered as rdownloader-ci's, so its dependency on
+      # <owner>/rdownloader/rdownloader names this local tap instead of cloning the published one.
       - name: Install through the Homebrew formula
         if: runner.os == 'macOS'
         shell: bash
@@ -342,11 +345,14 @@ jobs:
               || printf '%064d  ./rdownloader-%s\n' 0 "${other}" >> "${fixture}/SHA256SUMS"
           done
           scripts/package-managers.sh "${version}" "${fixture}/SHA256SUMS" "${fixture}/out" \
-            --base-url "file://${fixture}"
-          brew tap-new --no-git rdownloader-ci/local
-          cp "${fixture}/out/rdownloader.rb" "$(brew --repository rdownloader-ci/local)/Formula/"
-          brew install rdownloader-ci/local/rdownloader
-          brew test rdownloader-ci/local/rdownloader
+            --repository rdownloader-ci/rDownloader --base-url "file://${fixture}"
+          brew tap-new --no-git rdownloader-ci/rdownloader
+          cp "${fixture}/out/rdownloader.rb" "${fixture}/out/rdownloader-capture.rb" \
+            "$(brew --repository rdownloader-ci/rdownloader)/Formula/"
+          brew install rdownloader-ci/rdownloader/rdownloader
+          brew test rdownloader-ci/rdownloader/rdownloader
+          brew install rdownloader-ci/rdownloader/rdownloader-capture
+          brew test rdownloader-ci/rdownloader/rdownloader-capture
           log="$(brew --prefix)/var/log/rdownloader.log"
           brew services start rdownloader
           trap 'brew services stop rdownloader || true; cat "${log}" || true' EXIT
@@ -355,7 +361,7 @@ jobs:
           test -f "$(brew --prefix)/var/rdownloader/data/rdownloader.sqlite3"
           brew services stop rdownloader
           trap - EXIT
-          brew uninstall rdownloader
+          brew uninstall rdownloader-capture rdownloader
       - name: Smoke-test Windows executables
         if: runner.os == 'Windows'
         shell: pwsh
@@ -452,6 +458,35 @@ jobs:
             }
             # `persist`: the database is in Scoop's persist folder, where an update finds it.
             if (-not (Test-Path "$env:USERPROFILE\scoop\persist\rdownloader\data\rdownloader.sqlite3")) { throw "the database is not in the persist folder" }
+            # The login entries and the URL handler store Scoop's `current` junction, not this
+            # version's folder, which `scoop update` leaves behind and `scoop cleanup` deletes.
+            # Started from the version folder: the shims already run the executables through
+            # `current`, and the registration would pass without the mapping.
+            $appVersion = (Get-Content (Join-Path $fixture 'out\rdownloader.json') | ConvertFrom-Json).version
+            $versionDir = "$env:USERPROFILE\scoop\apps\rdownloader\$appVersion"
+            $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+            # `autostart install` wants a paired agent; pairing stores the token and asks nobody.
+            '0123456789abcdef0123456789abcdef' | & "$versionDir\rdownloader-capture.exe" configure --token-stdin
+            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture configure failed" }
+            foreach ($entry in @(@('rdownloader.exe', 'rDownloader Service'), @('rdownloader-capture.exe', 'rDownloader Capture'))) {
+              $exe, $name = $entry
+              & "$versionDir\$exe" autostart install
+              if ($LASTEXITCODE -ne 0) { throw "$exe autostart install failed" }
+              # The Run value starts a VBScript wrapper; the executable is in the .cmd beside it.
+              $value = (Get-ItemProperty $runKey).$name
+              if (-not ($value -match '"([^"]+\.vbs)"')) { throw "unexpected Run value ${name}: $value" }
+              $wrapper = Get-Content ([IO.Path]::ChangeExtension($Matches[1], '.cmd')) -Raw
+              if ($wrapper -notlike "*\apps\rdownloader\current\$exe*") { throw "$exe autostart registered a versioned path: $wrapper" }
+              & "$versionDir\$exe" autostart remove
+              if ($LASTEXITCODE -ne 0) { throw "$exe autostart remove failed" }
+              if ($null -ne (Get-ItemProperty $runKey).$name) { throw "$exe autostart remove left the Run value" }
+            }
+            & "$versionDir\rdownloader-capture.exe" scheme install
+            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme install failed" }
+            $handler = (Get-ItemProperty 'HKCU:\Software\Classes\rdownloader\shell\open\command').'(default)'
+            if ($handler -notlike '*\apps\rdownloader\current\rdownloader-capture.exe*') { throw "the URL handler registered a versioned path: $handler" }
+            & "$versionDir\rdownloader-capture.exe" scheme remove
+            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme remove failed" }
             scoop uninstall rdownloader
             if ($LASTEXITCODE -ne 0) { throw "scoop uninstall failed" }
           } finally {

@@ -95,7 +95,7 @@ const incompatible = computed(() =>
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="tools.status" class="border border-muted bg-default p-5">
     <SectionHeader
       :eyebrow="t('settings.vendor.eyebrow')"
       :title="t('settings.vendor.title')"

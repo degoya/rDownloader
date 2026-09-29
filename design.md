@@ -392,9 +392,21 @@ prevent columns from shifting during live updates.
   the shared settings document. Areas that *fetch* expose the same three, under the rule below.
 - Full-page refresh is not the normal update path; SSE or local store updates keep views current.
 - Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `2` LinkGrabber,
-  `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Settings, plus `0`
-  sidebar, `N` import, `P` global start/pause, and `?` help. A new navigation entry takes the
+  `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics, `8` Logs,
+  `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause, and `?` help. A new navigation entry takes the
   number of its place and renumbers what follows, so the keys keep reading top to bottom.
+- **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
+  — the command palette in a modal — on Ctrl/Cmd+K from anywhere, text fields included, on `/`
+  outside them, and on the search button at the top of the sidebar (an icon with a tooltip on
+  the rail). Its groups are *Go to* (the main views, each with its digit), *Settings pages* and
+  *Settings* (cards and fields, the page named beside each). It matches in the interface
+  language on title, description, translated synonyms and names that are the same in every
+  language (ntfy, rclone, S3). Choosing a setting opens its page — and sub-tab — scrolls the
+  card or field to the middle and outlines it for two seconds, still under reduced motion; a
+  field takes the focus, a card does not. What it finds is a declarative table beside the
+  settings sections (`web/src/settingsSearch.ts`) and a `data-settings-anchor` on the element,
+  never a scrape of the rendered page: a page not mounted has nothing to scrape. A new settings
+  page fails a test until it has its row; a new card is found once it has an anchor and a row.
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
   into the same locale namespace at runtime.
 - **German says "du", French "vous", Spanish "tú"** — as the website does (owner, 2026-09-27):
@@ -847,7 +859,11 @@ recognised as drifting.
   unconfirmed one, which is what lets the same action be offered to an agent over MCP.
   `SettingsDataResetButton.vue` is the implementation (RD-120-34). The same button sits at the
   notification history (RD-130-08), where what stays includes the deliveries still queued or
-  retrying — a list that is not empty afterwards must not read as a clear that failed.
+  retrying — a list that is not empty afterwards must not read as a clear that failed. Cancelling
+  those is a second button beside it with its own words ("Discard pending", RD-170-11), never an
+  option of the clear: its question says the notifications will not be sent. It is absent rather
+  than dead while nothing is pending, because in the usual state there is never anything to
+  discard and a permanently disabled second button is noise.
 - **An action that deletes nothing but cannot be undone asks once, without the destructive
   styling.** `useConfirm()` with the action's own icon and no `destructive: true` — the red
   button and the bin say "this is gone", and saying that about a grouping that leaves every link
@@ -1138,6 +1154,25 @@ recognised as drifting.
 
   Below the threshold none of this is switched on: the list renders whole and has no scroll
   viewport of its own, so an ordinary queue looks exactly as it did.
+- **A list with row checkboxes selects a range with Shift+click, like a file manager.** A plain
+  or Ctrl/Cmd click toggles one row and sets the anchor; Shift+click — or Shift+Space on a
+  focused checkbox — sets every row from the anchor to the clicked one to the state the clicked
+  row now has, in the order the rows are on screen. A group row (package, folder) at either end
+  brings its whole content along, as its own checkbox does; in the middle only while it is
+  collapsed, because an open group's rows are in the range themselves. The anchor is a row key
+  that is dropped when its row leaves the list, so a list that changed never selects the wrong
+  rows. `UCheckbox` stays: it reports only its new value, so the list notes the modifier in the
+  capture phase of click and keydown (`useRangeSelection`, RD-170-13). A new list with row
+  checkboxes and multi-select uses the same composable.
+- **The status bar says how much is selected.** While the LinkGrabber or the queue has rows
+  ticked, the transfer rail shows the count and the summed size — `3 selected · 5.4 GiB` — and
+  nothing when the selection is empty or the view is left. The sum runs over the selected
+  files, links and NZB imports only; a package checkbox selects those rows, so a ticked
+  package and its ticked children count once. A size nobody knows yet stays out of the sum,
+  which is then a lower bound written `≥ 5.4 GiB`, with the number of unknown sizes in the
+  tooltip; with no size known there is only the count. On a narrow rail the word goes and the
+  count and size stay. The view keeps its selection and publishes only the summary
+  (`usePublishedSelection`, RD-170-14); another list with sizes publishes the same way.
 - **A list that mixes two kinds of row orders them in one sequence, or it does not order them
   at all.** The LinkGrabber shows collector packages beside NZB imports. Packages carried a
   manual position and a handle; imports carried neither and were interleaved by creation time,

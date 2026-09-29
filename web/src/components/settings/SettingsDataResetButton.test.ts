@@ -29,7 +29,7 @@ const components = {
   }
 }
 
-function renderButton(props: { target: 'logs' | 'audit' | 'stats' | 'notifications', count: number | null }) {
+function renderButton(props: { target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending', count: number | null }) {
   return render(SettingsDataResetButton, { props, global: { plugins: [i18n], components } })
 }
 
@@ -78,6 +78,23 @@ describe('the question', () => {
     expect(options.description).toContain('queued or retrying')
   })
 
+  // The second button at the history (RD-170-11) cancels notifications; its question has to
+  // say that they will not be sent, or it reads like the clear next to it.
+  it('says that discarded notifications will never be sent', async () => {
+    renderButton({ target: 'notifications_pending', count: 3 })
+
+    expect(screen.getByRole('button').textContent).toBe('Discard pending')
+    await fireEvent.click(screen.getByRole('button'))
+
+    await waitFor(() => expect(confirmed).toHaveBeenCalled())
+    const options = confirmed.mock.calls[0]?.[0] as ConfirmOptions & { confirmLabel?: string }
+    expect(options.title).toBe('Discard the pending notifications?')
+    expect(options.description).toContain('3')
+    expect(options.description).toContain('never sent')
+    expect(options.confirmLabel).toBe('Discard for good')
+    expect(options.destructive).toBe(true)
+  })
+
   it('clears nothing when the question is answered with no', async () => {
     confirmed.mockResolvedValue(false)
     renderButton({ target: 'stats', count: 3 })
@@ -104,7 +121,8 @@ describe('the request', () => {
   it.each([
     ['audit', '/api/v1/audit/records/clear'],
     ['stats', '/api/v1/stats/transfers/clear'],
-    ['notifications', '/api/v1/notifications/deliveries/clear']
+    ['notifications', '/api/v1/notifications/deliveries/clear'],
+    ['notifications_pending', '/api/v1/notifications/deliveries/discard-pending']
   ] as const)('%s posts to its own route', async (target, path) => {
     renderButton({ target, count: 2 })
 

@@ -53,9 +53,24 @@ pub struct CrashPoint {
 /// Kept sorted by name so a diff shows an addition rather than a reshuffle.
 pub const CRASH_POINTS: &[CrashPoint] = &[
     CrashPoint {
+        name: "backup.after_database_snapshot",
+        owner: "rd-backup",
+        invariant: "a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination",
+    },
+    CrashPoint {
+        name: "backup.after_retention_removal",
+        owner: "rd-backup",
+        invariant: "an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed",
+    },
+    CrashPoint {
         name: "backup.before_archive_published",
         owner: "rd-backup",
         invariant: "an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging",
+    },
+    CrashPoint {
+        name: "backup.before_archive_recorded",
+        owner: "rd-backup",
+        invariant: "an archive that reached its destination before the ledger recorded it stays there whole and is never removed by retention, which removes only recorded archives; the next start records the run and that destination as interrupted",
     },
     CrashPoint {
         name: "http.after_chunk_mac",
@@ -86,6 +101,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "object_storage.after_part_upload",
         owner: "rd-object-storage",
         invariant: "a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again",
+    },
+    CrashPoint {
+        name: "plugin.before_version_promoted",
+        owner: "rd-plugin-host",
+        invariant: "a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again",
     },
     CrashPoint {
         name: "restore.after_live_set_aside",

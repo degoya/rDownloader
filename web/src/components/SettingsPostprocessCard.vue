@@ -136,7 +136,7 @@ const sampleMiB = byteModel(
 </script>
 
 <template>
-  <section class="space-y-4 border border-muted bg-default p-5">
+  <section data-settings-anchor="postprocess.defaults" class="space-y-4 border border-muted bg-default p-5">
     <div>
       <SectionHeader
         :eyebrow="t('settings.postprocess.eyebrow')"
@@ -151,13 +151,16 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.recursive_unpack.label')" :description="t('settings.postprocess.recursive_unpack.description')" orientation="horizontal">
       <USwitch v-model="settings.recursive_unpack" />
     </UFormField>
+    <UFormField data-settings-anchor="postprocess.unpack_to_subfolder" :label="t('settings.postprocess.unpack_to_subfolder.label')" :description="t('settings.postprocess.unpack_to_subfolder.description')" orientation="horizontal">
+      <USwitch v-model="settings.unpack_to_subfolder" data-testid="unpack-to-subfolder" />
+    </UFormField>
     <UFormField :label="t('settings.postprocess.sfv_verify.label')" :description="t('settings.postprocess.sfv_verify.description')" orientation="horizontal">
       <USwitch v-model="settings.sfv_verify" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.safe_postproc.label')" :description="t('settings.postprocess.safe_postproc.description')" orientation="horizontal">
       <USwitch v-model="settings.safe_postproc" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.delete_par2.label')" :description="t('settings.postprocess.delete_par2.description')" orientation="horizontal">
+    <UFormField data-settings-anchor="postprocess.delete_par2" :label="t('settings.postprocess.delete_par2.label')" :description="t('settings.postprocess.delete_par2.description')" orientation="horizontal">
       <USwitch v-model="settings.delete_par2" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.enable_all_par.label')" :description="t('settings.postprocess.enable_all_par.description')" orientation="horizontal">
@@ -186,7 +189,7 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.pause.label')" :description="t('settings.postprocess.pause.description')" orientation="horizontal">
       <USwitch v-model="settings.pause_during_postprocess" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.cleanup_extensions.label')" :description="t('settings.postprocess.cleanup_extensions.description')">
+    <UFormField data-settings-anchor="postprocess.cleanup_extensions" :label="t('settings.postprocess.cleanup_extensions.label')" :description="t('settings.postprocess.cleanup_extensions.description')">
       <UInputTags v-model="settings.cleanup_extensions" :placeholder="t('settings.postprocess.cleanup_extensions.placeholder')" icon="i-lucide-broom" add-on-blur add-on-paste delimiter="," class="w-full font-mono" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.ignore_samples.label')" :description="t('settings.postprocess.ignore_samples.description')" orientation="horizontal">
@@ -197,10 +200,10 @@ const sampleMiB = byteModel(
         <template #trailing><span class="font-mono text-xs text-muted">MiB</span></template>
       </UInput>
     </UFormField>
-    <UFormField :label="t('settings.postprocess.passwords_file.label')" :description="t('settings.postprocess.passwords_file.description')">
+    <UFormField data-settings-anchor="postprocess.passwords_file" :label="t('settings.postprocess.passwords_file.label')" :description="t('settings.postprocess.passwords_file.description')">
       <UInput v-model="settings.passwords_file" icon="i-lucide-key-round" placeholder="/config/passwords.txt" class="w-full font-mono" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.scripts_directory.label')" :description="t('settings.postprocess.scripts_directory.description')">
+    <UFormField data-settings-anchor="postprocess.scripts_directory" :label="t('settings.postprocess.scripts_directory.label')" :description="t('settings.postprocess.scripts_directory.description')">
       <UInput v-model="settings.scripts_directory" icon="i-lucide-folder-code" placeholder="/config/scripts" class="w-full font-mono" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
@@ -216,13 +219,13 @@ const sampleMiB = byteModel(
         <UInput v-model="settings.archive_max_uncompressed_bytes" inputmode="numeric" class="w-full font-mono" />
       </UFormField>
     </div>
-    <UFormField :label="t('settings.postprocess.rar_executable.label')" :description="t('settings.postprocess.rar_executable.description')">
+    <UFormField data-settings-anchor="postprocess.rar_executable" :label="t('settings.postprocess.rar_executable.label')" :description="t('settings.postprocess.rar_executable.description')">
       <UInput v-model="settings.rar_executable" icon="i-lucide-terminal" placeholder="/usr/bin/unrar" class="w-full font-mono" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.rar_tool')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
+    <UFormField data-settings-anchor="postprocess.upload" :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch v-model="settings.upload_enabled" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.upload_remote.label')" :description="t('settings.postprocess.upload_remote.description')">
@@ -260,7 +263,7 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.upload_mode.label')" :description="t('settings.postprocess.upload_mode.description')">
       <USelect v-model="settings.upload_mode" :items="uploadModeItems" value-key="value" :disabled="!settings.upload_enabled" class="w-full" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.rclone_executable.label')" :description="t('settings.postprocess.rclone_executable.description')">
+    <UFormField data-settings-anchor="postprocess.rclone_executable" :label="t('settings.postprocess.rclone_executable.label')" :description="t('settings.postprocess.rclone_executable.description')">
       <UInput v-model="settings.rclone_executable" icon="i-lucide-terminal" placeholder="/usr/bin/rclone" class="w-full font-mono" />
     </UFormField>
   </section>

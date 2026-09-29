@@ -29,6 +29,7 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
             script: None,
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: None,
+            unpack_to_subfolder: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,

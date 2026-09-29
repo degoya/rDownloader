@@ -187,7 +187,7 @@ async function remove(folder: HotFolder): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="hotfolders.list" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('routing.hotfolder.title')" :count="hotfolders.length">
       <template #form>
         <SectionHeader
@@ -241,7 +241,7 @@ async function remove(folder: HotFolder): Promise<void> {
       </template>
       <template #list>
         <form class="mb-4 border border-muted p-4" data-testid="hotfolder-poll" @submit.prevent="savePollInterval">
-          <UFormField :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
+          <UFormField data-settings-anchor="hotfolders.poll" :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <UInput v-model.number="pollSeconds" type="number" min="5" max="3600" required icon="i-lucide-timer" class="w-32" :aria-label="t('routing.hotfolder.poll_label')">
                 <template #trailing><span class="font-mono text-xs text-muted">s</span></template>

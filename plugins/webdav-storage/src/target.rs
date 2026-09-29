@@ -30,18 +30,33 @@ pub fn collection(destination: &str, package: &str) -> String {
     )
 }
 
-/// The address of one file inside the collection.
-#[must_use]
-pub fn file_url(collection: &str, file_name: &str) -> String {
-    // A file name may carry a directory part when the package has subfolders; each segment is
-    // encoded on its own so the separators survive and nothing else does.
-    let path = file_name
+/// A file name's path segments, each encoded on its own so the separators survive and nothing
+/// else does. A file name carries a directory part when the package has subfolders.
+fn segments(file_name: &str) -> Vec<String> {
+    file_name
         .split(['/', '\\'])
         .filter(|segment| !segment.is_empty() && *segment != "." && *segment != "..")
         .map(encode_segment)
-        .collect::<Vec<_>>()
-        .join("/");
+        .collect()
+}
+
+/// The address of one file inside the collection.
+#[must_use]
+pub fn file_url(collection: &str, file_name: &str) -> String {
+    let path = segments(file_name).join("/");
     format!("{}/{path}", collection.trim_end_matches('/'))
+}
+
+/// The collections a file's folders need, outermost first: `Film/Extras/a.bin` needs
+/// `<collection>/Film` and then `<collection>/Film/Extras`, because a `PUT` below a collection
+/// that does not exist is a 409 on every server (RD-170-16).
+#[must_use]
+pub fn folder_collections(collection: &str, file_name: &str) -> Vec<String> {
+    let segments = segments(file_name);
+    let base = collection.trim_end_matches('/');
+    (1..segments.len())
+        .map(|depth| format!("{base}/{}", segments[..depth].join("/")))
+        .collect()
 }
 
 /// The `PROPFIND` body that asks only for a file's length.
@@ -65,7 +80,7 @@ pub fn content_length(body: &str) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{collection, content_length, file_url};
+    use super::{collection, content_length, file_url, folder_collections};
 
     #[test]
     fn a_package_gets_its_own_collection() {
@@ -86,6 +101,19 @@ mod tests {
             file_url("https://cloud.example/dav/Set", "sub dir/a&b.bin"),
             "https://cloud.example/dav/Set/sub%20dir/a%26b.bin"
         );
+    }
+
+    #[test]
+    fn a_file_in_folders_needs_each_folder_as_a_collection_first() {
+        assert_eq!(
+            folder_collections("https://cloud.example/dav/Set", "Film/Extra Bits/a.bin"),
+            [
+                "https://cloud.example/dav/Set/Film",
+                "https://cloud.example/dav/Set/Film/Extra%20Bits"
+            ]
+        );
+        // A file at the top needs nothing beyond the package's own collection.
+        assert!(folder_collections("https://cloud.example/dav/Set", "a.bin").is_empty());
     }
 
     #[test]

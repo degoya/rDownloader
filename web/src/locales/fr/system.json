@@ -535,6 +535,14 @@
     "notifications": {
       "title": "Vider l'historique des notifications ?",
       "description": "{count} envois terminés seront supprimés définitivement de l'historique. Les envois encore en file d'attente ou en nouvelle tentative restent, tout comme les destinations, les règles, le journal du service, l'audit et les statistiques."
+    },
+    "notifications_pending": {
+      "button": "Abandonner les envois en attente",
+      "stored": "{count} en attente",
+      "title": "Abandonner les notifications en attente ?",
+      "description": "{count} notifications encore en file d'attente ou en nouvelle tentative seront supprimées et ne seront jamais envoyées. Les envois réussis et échoués restent dans l'historique, de même que les destinations, les règles, le journal, l'audit et les statistiques.",
+      "confirm": "Abandonner définitivement",
+      "done": "{count} notifications abandonnées"
     }
   },
   "session_limits": {

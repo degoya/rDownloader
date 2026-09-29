@@ -25,7 +25,7 @@ pub struct StorageUpload<'a> {
     /// Package-scoped handle. Not a path: the plugin names files, never locations.
     pub handle: &'a str,
     pub directory: &'a Path,
-    /// File names relative to the package directory.
+    /// File paths relative to the package directory, `/` between folders (`Film/film.mkv`).
     pub files: &'a [String],
     /// Where this destination writes, as configured. Never a secret.
     pub destination: &'a str,
@@ -222,21 +222,40 @@ pub(crate) async fn run(
     Ok(ok)
 }
 
-/// Deletes the local copies of files the destination confirmed it holds.
+/// Deletes the local copies of files the destination confirmed it holds, then the folders
+/// that deleting them emptied.
 ///
 /// A file that will not delete is reported by count and nothing more: the upload succeeded,
 /// and failing the package because a leftover could not be removed would be the wrong end of
-/// the trade. The package directory itself is left alone — something else may still be in it.
+/// the trade. A folder goes only once it is empty — one that still holds anything, a file that
+/// would not delete or one that was never offered, stays with it — and only a folder one of
+/// these files was in. The package directory itself is left alone — something else may still
+/// be in it.
 pub(crate) async fn remove_local(directory: &Path, files: &[String]) -> usize {
     let mut removed = 0;
+    let mut folders = std::collections::BTreeSet::new();
     for file in files {
         let path = directory.join(file);
         match tokio::fs::remove_file(&path).await {
-            Ok(()) => removed += 1,
+            Ok(()) => {
+                removed += 1;
+                let mut parent = Path::new(file).parent();
+                while let Some(folder) = parent.filter(|folder| !folder.as_os_str().is_empty()) {
+                    folders.insert(folder.to_path_buf());
+                    parent = folder.parent();
+                }
+            }
             Err(error) => {
                 tracing::warn!(path = %path.display(), %error, "uploaded file could not be removed locally");
             }
         }
+    }
+    // Deepest first, so a folder is tried after everything below it. `remove_dir` refuses a
+    // folder that is not empty, which is the whole check.
+    let mut folders: Vec<_> = folders.into_iter().collect();
+    folders.sort_by_key(|folder| std::cmp::Reverse(folder.components().count()));
+    for folder in folders {
+        let _ = tokio::fs::remove_dir(directory.join(folder)).await;
     }
     removed
 }

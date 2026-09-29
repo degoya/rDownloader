@@ -21,6 +21,7 @@ pub mod object_storage_handlers;
 pub mod plugin_bundled;
 pub mod plugin_handlers;
 pub mod plugin_lifecycle;
+mod plugin_live;
 pub mod plugin_repository_dto;
 pub mod plugin_repository_handlers;
 pub mod plugin_update_policy;

@@ -34,6 +34,7 @@ export function defaultSettings(): Settings {
     cleanup_extensions: ['nfo', 'sfv', 'srr', 'url', 'nzb'],
     ignore_samples: true,
     recursive_unpack: false,
+    unpack_to_subfolder: false,
     sfv_verify: true,
     safe_postproc: true,
     delete_par2: false,

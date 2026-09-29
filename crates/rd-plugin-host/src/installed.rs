@@ -24,6 +24,36 @@ pub struct IncompatiblePlugin {
 }
 
 impl PluginInstaller {
+    /// Removes what installs that stopped before their rename left behind; returns how many.
+    /// Called once at start, before anything installs: a staging directory is never the only
+    /// copy of anything, the package it holds is fetched again by the next update pass.
+    pub async fn sweep_install_staging(&self) -> usize {
+        let root = self.root.clone();
+        let listed = tokio::task::spawn_blocking(move || install_stagings(&root))
+            .await
+            .map_err(anyhow::Error::from)
+            .and_then(std::convert::identity);
+        let stagings = match listed {
+            Ok(stagings) => stagings,
+            Err(error) => {
+                tracing::warn!(%error, "leftover plugin install folders could not be listed");
+                return 0;
+            }
+        };
+        let mut removed = 0;
+        for staging in stagings {
+            match tokio::fs::remove_dir_all(&staging).await {
+                Ok(()) => removed += 1,
+                Err(error) => tracing::warn!(
+                    %error,
+                    path = %staging.display(),
+                    "a leftover plugin install folder could not be removed"
+                ),
+            }
+        }
+        removed
+    }
+
     /// Reads all valid installed manifests in stable display order.
     ///
     /// Parsed straight off disk and deliberately unverified, because the Plugins view has to
@@ -190,6 +220,28 @@ impl PluginInstaller {
             load_one(&path, &verifier).map(|package| Some(package.manifest))
         })
         .await?
+    }
+
+    /// One installed version, verified and read in full exactly as a start loads it: the package
+    /// a first install brings into the running service (RD-170-12). `None` when that version is
+    /// not installed or its plugin is switched off, since a switched-off plugin never runs.
+    pub async fn load_installed_version(
+        &self,
+        id: &str,
+        version: &str,
+    ) -> Result<Option<VerifiedPackage>> {
+        if self.is_disabled(id) {
+            return Ok(None);
+        }
+        let path = self
+            .root
+            .join(crate::manifest::safe_segment(id)?)
+            .join(crate::manifest::safe_segment(version)?);
+        if !path.is_dir() {
+            return Ok(None);
+        }
+        let verifier = self.verifier.clone();
+        tokio::task::spawn_blocking(move || load_one(&path, &verifier).map(Some)).await?
     }
 
     /// The manifest of every enabled installed package whose signature still covers what is on
@@ -612,7 +664,9 @@ fn read_locales(directory: &Path) -> Result<Vec<(String, Vec<u8>)>> {
     Ok(locales)
 }
 
-/// Every `<root>/<plugin-id>/<version>` directory, ignoring stray files.
+/// Every `<root>/<plugin-id>/<version>` directory, ignoring stray files and the staging
+/// directory of an install that stopped before its rename (RD-170-07): loading one would list a
+/// second copy of the plugin that `remove_version` cannot address.
 fn version_directories(root: &Path) -> Result<Vec<std::path::PathBuf>> {
     if !root.exists() {
         return Ok(Vec::new());
@@ -625,12 +679,38 @@ fn version_directories(root: &Path) -> Result<Vec<std::path::PathBuf>> {
         }
         for version in std::fs::read_dir(plugin.path())? {
             let version = version?;
-            if version.file_type()?.is_dir() {
+            if version.file_type()?.is_dir() && !is_install_staging(&version.file_name()) {
                 directories.push(version.path());
             }
         }
     }
     Ok(directories)
+}
+
+fn is_install_staging(name: &std::ffi::OsStr) -> bool {
+    name.to_str()
+        .is_some_and(|name| name.starts_with(crate::INSTALL_STAGING_PREFIX))
+}
+
+/// Every staging directory an install left under `root` without renaming it into place.
+fn install_stagings(root: &Path) -> Result<Vec<std::path::PathBuf>> {
+    let mut stagings = Vec::new();
+    if !root.exists() {
+        return Ok(stagings);
+    }
+    for plugin in std::fs::read_dir(root)? {
+        let plugin = plugin?;
+        if !plugin.file_type()?.is_dir() {
+            continue;
+        }
+        for entry in std::fs::read_dir(plugin.path())? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() && is_install_staging(&entry.file_name()) {
+                stagings.push(entry.path());
+            }
+        }
+    }
+    Ok(stagings)
 }
 
 fn version_cmp_desc(left: &str, right: &str) -> std::cmp::Ordering {
@@ -1116,5 +1196,47 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    /// `plugin.before_version_promoted` (RD-170-07, recovery matrix): an update stopped after
+    /// its package was written under the staging name and before the rename that makes it a
+    /// version.
+    #[cfg(feature = "failpoints")]
+    #[tokio::test]
+    async fn an_update_stopped_before_its_rename_is_never_loaded_and_the_start_removes_it() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let signing = SigningKey::from_bytes(&[23_u8; 32]);
+        let installer = installer_with(&signing, directory.path());
+        let (current, _) = signed_archive_named(&signing, "Fixture", "1.2.3", &[]);
+        installer.install_bytes(current).await.expect("install");
+
+        let (update, _) = signed_archive_named(&signing, "Fixture", "1.2.4", &[]);
+        {
+            let guard = rd_core::failpoint::FailpointGuard::once("plugin.before_version_promoted");
+            assert!(installer.install_bytes(update.clone()).await.is_err());
+            assert!(guard.fired(), "the crash point was never reached");
+        }
+        assert_eq!(install_stagings(directory.path()).expect("list").len(), 1);
+        let versions = |manifests: Vec<PluginManifest>| -> Vec<String> {
+            manifests
+                .into_iter()
+                .map(|manifest| manifest.version)
+                .collect()
+        };
+        // The installed version stays the only one, before and after the restart.
+        assert_eq!(
+            versions(installer.list_installed().await.expect("list")),
+            ["1.2.3"]
+        );
+
+        let restarted = installer_with(&signing, directory.path());
+        assert_eq!(restarted.load_verified().await.expect("load").len(), 1);
+        assert_eq!(restarted.sweep_install_staging().await, 1);
+        assert!(install_stagings(directory.path()).expect("list").is_empty());
+        // The next update pass installs it as if nothing had happened.
+        restarted.install_bytes(update).await.expect("update");
+        let mut installed = versions(restarted.list_installed().await.expect("list"));
+        installed.sort();
+        assert_eq!(installed, ["1.2.3", "1.2.4"]);
     }
 }

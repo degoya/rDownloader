@@ -6,13 +6,14 @@
  * bar sits above the list and the list says when it is a full page, per `design.md`: a page
  * that quietly ends is how "nothing matched" gets mistaken for "nothing was asked for".
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { BundleNote, LogLevel, LogRecord } from '@/api/types'
 import { BASE_PATH } from '@/basePath'
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { useRangeSelection } from '@/composables/useRangeSelection'
 import { useLogsStore } from '@/stores/logs'
 import { formatMoment } from '@/utils/format'
 
@@ -62,10 +63,14 @@ function downloadHref(fileName: string): string {
   return `${BASE_PATH}/api/v1/diagnostics/bundles/${encodeURIComponent(fileName)}`
 }
 
-function toggleEntry(id: string, checked: boolean): void {
-  const rest = store.selected.filter(entry => entry !== id)
-  store.selected = checked ? [...rest, id] : rest
-}
+/** Bundle entries: a click toggles one, Shift+click the rows from the last click (RD-170-13). */
+const entryRange = useRangeSelection(
+  computed(() => store.preview?.entries.map(entry => entry.id) ?? []),
+  (ids, checked) => {
+    const rest = store.selected.filter(entry => !ids.includes(entry))
+    store.selected = checked ? [...rest, ...ids] : rest
+  }
+)
 
 onMounted(() => {
   void store.refresh()
@@ -214,12 +219,12 @@ onMounted(() => {
           <div>
             <h3 class="text-sm font-semibold text-highlighted">{{ t('logs.bundle.entries') }}</h3>
             <p class="mb-2 text-xs text-muted">{{ t('logs.bundle.select_hint') }}</p>
-            <ul class="divide-y divide-muted border border-muted">
+            <ul class="divide-y divide-muted border border-muted" @click.capture="entryRange.noteModifier" @keydown.capture="entryRange.noteModifier">
               <li v-for="entry in store.preview.entries" :key="entry.id" class="px-3 py-2">
                 <UCheckbox
                   :model-value="store.selected.includes(entry.id)"
                   :label="entry.path"
-                  @update:model-value="(value: boolean | 'indeterminate') => toggleEntry(entry.id, value === true)"
+                  @update:model-value="(value: boolean | 'indeterminate') => entryRange.pick(entry.id, value === true)"
                 />
                 <p class="mt-1 text-xs text-muted">
                   {{ noteText(entry.description) }} · {{ t('logs.bundle.items', { count: entry.items }) }}

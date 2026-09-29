@@ -56,7 +56,9 @@
     "extension_hint": "{providers} can take over your browser's sign-in — that works only through the paired browser extension, and none has reported in yet. Pair it now, or sign in with a password or an API key.",
     "no_providers_title": "No service with an account installed yet",
     "no_providers": "Pick a hoster, multihoster or cloud service under “Your services”, then add its account here. Usenet servers need no plugin.",
-    "choose_services": "Choose services"
+    "choose_services": "Choose services",
+    "restart_required_title": "A restart is still needed",
+    "restart_required": "Some of the plugins just installed run only after the next restart. You can add their accounts now; they are checked once rDownloader has restarted."
   },
   "actions": {
     "back": "Back",

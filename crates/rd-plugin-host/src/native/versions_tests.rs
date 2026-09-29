@@ -8,7 +8,7 @@ use rd_core::{AccountId, Failure, ResolverPin};
 use rd_plugin_api::{AccountStatus, ResolveRequest, ResolvedDownload, Resolver, ResolverMetadata};
 use url::Url;
 
-use super::ResolverService;
+use super::{Chain, ResolverService};
 
 const PLUGIN: &str = "019d0000-0000-7000-8000-000000001402";
 
@@ -72,7 +72,7 @@ async fn service(directory: &std::path::Path) -> ResolverService {
     let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
         .await
         .expect("secret store");
-    let mut service = ResolverService::new(
+    let service = ResolverService::new(
         database,
         rd_http::ClientPool::default(),
         secrets,
@@ -80,15 +80,15 @@ async fn service(directory: &std::path::Path) -> ResolverService {
         None,
     );
     // 1.0.0 is the default (a rollback, say), 2.0.0 is under test and claims one more host.
-    service.resolvers = Arc::new(vec![
-        Versioned::resolver("1.0.0", vec!["old.example.test"]),
-        Versioned::resolver("2.0.0", vec!["old.example.test", "new.example.test"]),
-    ]);
-    service.pin_only = Arc::new(
-        [(PLUGIN.parse().expect("plugin id"), "2.0.0".to_owned())]
+    service.replace_chain(Chain {
+        resolvers: vec![
+            Versioned::resolver("1.0.0", vec!["old.example.test"]),
+            Versioned::resolver("2.0.0", vec!["old.example.test", "new.example.test"]),
+        ],
+        pin_only: [(PLUGIN.parse().expect("plugin id"), "2.0.0".to_owned())]
             .into_iter()
             .collect(),
-    );
+    });
     service
 }
 

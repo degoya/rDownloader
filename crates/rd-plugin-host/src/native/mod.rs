@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    collections::HashSet,
+    sync::{Arc, PoisonError, RwLock},
+};
 
 use rd_core::{AccountId, Failure, FailureKind, LinkCheckResult, ProxyProfileId, ResolverPin};
 use rd_http::{ClientPool, SharedNetworkDefaults};
@@ -13,6 +16,8 @@ mod bundled_headers_tests;
 mod expand;
 pub(crate) mod granted;
 mod host;
+#[cfg(test)]
+mod live_tests;
 mod references;
 mod signin;
 mod transfer_auth;
@@ -31,12 +36,47 @@ pub use transfer_auth::{provider_download_authorization, provider_download_carri
 #[derive(Clone)]
 pub struct ResolverService {
     database: rd_db::Database,
-    resolvers: Arc<Vec<Arc<dyn Resolver>>>,
+    /// Replaced whole, never edited in place: a lookup takes the chain as it is at that moment
+    /// and keeps it for the rest of the call, so a first install joining it (RD-170-12) never
+    /// blocks a running download or shows it half a chain. Shared by every clone.
+    chain: Arc<RwLock<Arc<Chain>>>,
+    /// Resolver plugins installed while this start runs that are not in the chain: an update of
+    /// a loaded plugin, or a first install that could not be loaded (RD-170-12). An account of
+    /// their provider is told the plugin runs after a restart, not that there is none.
+    waiting: Arc<RwLock<HashSet<rd_core::PluginId>>>,
+    host: Arc<dyn ResolverHost>,
+}
+
+/// The loaded resolvers, and which of them only a pinned job may use.
+#[derive(Default)]
+struct Chain {
+    resolvers: Vec<Arc<dyn Resolver>>,
     /// `(plugin id, version)` of every loaded resolver that is not its plugin's default:
     /// retained versions and a staged one (RD-140-02). They serve a download pinned to them
     /// and are skipped by every unpinned lookup, so new work only ever meets the default.
-    pin_only: Arc<std::collections::HashSet<(rd_core::PluginId, String)>>,
-    host: Arc<dyn ResolverHost>,
+    pin_only: HashSet<(rd_core::PluginId, String)>,
+}
+
+impl Chain {
+    /// Whether an unpinned lookup may pick this resolver: only its plugin's default version.
+    fn selectable(&self, resolver: &Arc<dyn Resolver>) -> bool {
+        let metadata = resolver.metadata();
+        !self
+            .pin_only
+            .contains(&(metadata.plugin_id, metadata.version.clone()))
+    }
+
+    /// Whether `resolver` is the one a job with `pin` may use: exactly the pinned version, or
+    /// without a pin the plugin's default.
+    fn admits(&self, resolver: &Arc<dyn Resolver>, pin: Option<&ResolverPin>) -> bool {
+        match pin {
+            Some(pin) => {
+                let metadata = resolver.metadata();
+                metadata.plugin_id == pin.plugin_id && metadata.version == pin.version
+            }
+            None => self.selectable(resolver),
+        }
+    }
 }
 
 impl ResolverService {
@@ -59,8 +99,8 @@ impl ResolverService {
             database,
             // Nothing is compiled in (RD-150-18): the chain is the installed resolver
             // components, and it is empty until `load_components_from_registry` fills it.
-            resolvers: Arc::default(),
-            pin_only: Arc::default(),
+            chain: Arc::default(),
+            waiting: Arc::default(),
             host,
         }
     }
@@ -73,6 +113,15 @@ impl ResolverService {
     #[must_use]
     pub fn host(&self) -> Arc<dyn ResolverHost> {
         Arc::clone(&self.host)
+    }
+
+    /// The chain as it is now; the lock is held only for the copy of one pointer.
+    fn chain(&self) -> Arc<Chain> {
+        Arc::clone(&*self.chain.read().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    fn replace_chain(&self, chain: Chain) {
+        *self.chain.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(chain);
     }
 
     /// Loads the installed Components from a registry the adapters share, with each resolver
@@ -96,7 +145,7 @@ impl ResolverService {
             crate::ExecutionLog::new(self.database.clone()),
         );
         let count = components.len();
-        let mut pin_only = std::collections::HashSet::new();
+        let mut pin_only = HashSet::new();
         let mut loaded = Vec::with_capacity(count);
         for (resolver, role) in components {
             if role != crate::VersionRole::Default {
@@ -105,35 +154,84 @@ impl ResolverService {
             }
             loaded.push(resolver);
         }
-        self.resolvers = Arc::new(loaded);
-        self.pin_only = Arc::new(pin_only);
+        self.replace_chain(Chain {
+            resolvers: loaded,
+            pin_only,
+        });
         self.release_unsatisfiable_pins().await;
         Ok(count)
     }
 
-    /// Whether an unpinned lookup may pick this resolver: only its plugin's default version.
-    fn selectable(&self, resolver: &Arc<dyn Resolver>) -> bool {
-        let metadata = resolver.metadata();
-        !self
-            .pin_only
-            .contains(&(metadata.plugin_id, metadata.version.clone()))
+    /// Whether any version of this plugin is in the running chain.
+    #[must_use]
+    pub fn has_plugin(&self, id: rd_core::PluginId) -> bool {
+        self.chain()
+            .resolvers
+            .iter()
+            .any(|resolver| resolver.metadata().plugin_id == id)
     }
 
-    /// Whether `resolver` is the one a job with `pin` may use: exactly the pinned version, or
-    /// without a pin the plugin's default.
-    fn admits(&self, resolver: &Arc<dyn Resolver>, pin: Option<&ResolverPin>) -> bool {
-        match pin {
-            Some(pin) => {
-                let metadata = resolver.metadata();
-                metadata.plugin_id == pin.plugin_id && metadata.version == pin.version
-            }
-            None => self.selectable(resolver),
+    /// Joins the resolvers of a plugin this start did not load to the running chain
+    /// (RD-170-12), and returns how many joined.
+    ///
+    /// Only a first install: a plugin id that already has any version in the chain is left
+    /// alone, because a download that started on one version must not meet another half-way
+    /// — an update of a loaded plugin runs from the next start, as it always has. Only the
+    /// default version of each package joins; the chain is swapped whole, so nothing that is
+    /// resolving right now waits for this or sees a chain in between.
+    ///
+    /// Compiles the components, so it belongs on a blocking thread.
+    pub fn activate_first_install(&self, registry: &crate::PluginTypeRegistry) -> usize {
+        let built: Vec<Arc<dyn Resolver>> = compatible_components(
+            registry,
+            Arc::clone(&self.host),
+            crate::ExecutionLog::new(self.database.clone()),
+        )
+        .into_iter()
+        .filter(|(_, role)| *role == crate::VersionRole::Default)
+        .map(|(resolver, _)| resolver)
+        .collect();
+        let mut current = self.chain.write().unwrap_or_else(PoisonError::into_inner);
+        let loaded: HashSet<rd_core::PluginId> = current
+            .resolvers
+            .iter()
+            .map(|resolver| resolver.metadata().plugin_id)
+            .collect();
+        let joining: Vec<Arc<dyn Resolver>> = built
+            .into_iter()
+            .filter(|resolver| !loaded.contains(&resolver.metadata().plugin_id))
+            .collect();
+        if joining.is_empty() {
+            return 0;
         }
+        let mut resolvers = current.resolvers.clone();
+        resolvers.extend(joining.iter().cloned());
+        let pin_only = current.pin_only.clone();
+        *current = Arc::new(Chain {
+            resolvers,
+            pin_only,
+        });
+        drop(current);
+        let mut waiting = self.waiting.write().unwrap_or_else(PoisonError::into_inner);
+        for resolver in &joining {
+            waiting.remove(&resolver.metadata().plugin_id);
+        }
+        joining.len()
+    }
+
+    /// Records a resolver plugin installed while this start runs that is not in the chain, so
+    /// an account of its provider hears that it runs after a restart (RD-170-12).
+    pub fn mark_waiting(&self, id: rd_core::PluginId) {
+        self.waiting
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id);
     }
 
     /// Frees jobs whose pinned resolver version this build cannot provide any more.
     async fn release_unsatisfiable_pins(&self) {
         let available = self
+            .chain()
             .resolvers
             .iter()
             .map(|resolver| {
@@ -175,12 +273,13 @@ impl ResolverService {
             return Err(crate::foreign_address::refused());
         }
         let Some(account_id) = account_id else {
-            let resolver = self.resolvers.iter().find(|resolver| {
+            let chain = self.chain();
+            let resolver = chain.resolvers.iter().find(|resolver| {
                 !resolver.metadata().requires_account
-                    && self.admits(resolver, pin)
+                    && chain.admits(resolver, pin)
                     && resolver.matches(&url)
             });
-            let Some(resolver) = resolver else {
+            let Some(resolver) = resolver.cloned() else {
                 // A hoster link with no free path must fail visibly. Falling through to
                 // direct HTTP would download the hoster's landing page and store it under
                 // the link's name as a completed download.
@@ -233,11 +332,13 @@ impl ResolverService {
     /// will still download, and the scheduler, to serialise a hoster's free downloads.
     #[must_use]
     pub fn free_resolver_plugin(&self, url: &Url) -> Option<rd_core::PluginId> {
-        self.resolvers
+        let chain = self.chain();
+        chain
+            .resolvers
             .iter()
             .find(|resolver| {
                 !resolver.metadata().requires_account
-                    && self.selectable(resolver)
+                    && chain.selectable(resolver)
                     && resolver.matches(url)
             })
             .map(|resolver| resolver.metadata().plugin_id)
@@ -259,38 +360,24 @@ impl ResolverService {
     /// type, and a HEAD against a hoster's landing page would answer `text/html` anyway.
     #[must_use]
     pub fn has_resolver(&self, url: &Url) -> bool {
-        self.resolvers
+        let chain = self.chain();
+        chain
+            .resolvers
             .iter()
-            .any(|resolver| self.selectable(resolver) && resolver.matches(url))
+            .any(|resolver| chain.selectable(resolver) && resolver.matches(url))
     }
 
     /// Runs the provider resolver's redaction-safe account check.
     pub async fn check_account(&self, account_id: AccountId) -> Result<AccountStatus, Failure> {
         let provider = account_provider(&self.database, account_id).await?;
-        let resolver = self
-            .resolver_for_provider(&provider, None)?
-            .ok_or_else(|| {
-                Failure::coded(
-                    FailureKind::Unsupported,
-                    "plugin.resolver_missing",
-                    "No resolver is installed for this provider",
-                )
-            })?;
+        let resolver = self.provider_resolver(&provider)?;
         resolver.check_account(account_id).await
     }
 
     /// Hoster catalogue of the account's provider resolver.
     pub async fn hosters(&self, account_id: AccountId) -> Result<Vec<String>, Failure> {
         let provider = account_provider(&self.database, account_id).await?;
-        let resolver = self
-            .resolver_for_provider(&provider, None)?
-            .ok_or_else(|| {
-                Failure::coded(
-                    FailureKind::Unsupported,
-                    "plugin.resolver_missing",
-                    "No resolver is installed for this provider",
-                )
-            })?;
+        let resolver = self.provider_resolver(&provider)?;
         resolver.hosters(account_id).await
     }
 
@@ -306,15 +393,7 @@ impl ResolverService {
             return Ok(unknown);
         }
         let provider = account_provider(&self.database, account_id).await?;
-        let resolver = self
-            .resolver_for_provider(&provider, None)?
-            .ok_or_else(|| {
-                Failure::coded(
-                    FailureKind::Unsupported,
-                    "plugin.resolver_missing",
-                    "No resolver is installed for this provider",
-                )
-            })?;
+        let resolver = self.provider_resolver(&provider)?;
         let mut checked = resolver
             .check(CheckRequest {
                 urls,
@@ -351,18 +430,56 @@ impl ResolverService {
         }))
     }
 
+    /// The unpinned resolver of an account's provider, or why there is none.
+    fn provider_resolver(&self, provider: &str) -> Result<Arc<dyn Resolver>, Failure> {
+        self.resolver_for_provider(provider, None)?
+            .ok_or_else(|| self.missing_resolver(provider))
+    }
+
+    /// No resolver serves `provider`. When its plugin is installed and only waits for the next
+    /// start (RD-170-12), that is what the person reads — "no resolver is installed" is untrue
+    /// then, and it sent the owner looking for a plugin that was right there.
+    fn missing_resolver(&self, provider: &str) -> Failure {
+        let waiting = rd_provider_registry::by_slug(provider.trim())
+            .and_then(|spec| spec.plugin_id)
+            .and_then(|id| id.parse::<rd_core::PluginId>().ok())
+            .is_some_and(|id| {
+                self.waiting
+                    .read()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .contains(&id)
+            });
+        if waiting {
+            return Failure::coded(
+                FailureKind::Unsupported,
+                "plugin.installed_not_running",
+                "The plugin for this provider is installed; it runs after the next restart",
+            );
+        }
+        Failure::coded(
+            FailureKind::Unsupported,
+            "plugin.resolver_missing",
+            "No resolver is installed for this provider",
+        )
+    }
+
     fn resolver_for_provider(
         &self,
         provider: &str,
         pin: Option<&ResolverPin>,
-    ) -> Result<Option<&Arc<dyn Resolver>>, Failure> {
-        let resolver = self.resolvers.iter().find(|resolver| {
-            let provider_matches = resolver
-                .metadata()
-                .provider_slug
-                .eq_ignore_ascii_case(provider.trim());
-            provider_matches && self.admits(resolver, pin)
-        });
+    ) -> Result<Option<Arc<dyn Resolver>>, Failure> {
+        let chain = self.chain();
+        let resolver = chain
+            .resolvers
+            .iter()
+            .find(|resolver| {
+                let provider_matches = resolver
+                    .metadata()
+                    .provider_slug
+                    .eq_ignore_ascii_case(provider.trim());
+                provider_matches && chain.admits(resolver, pin)
+            })
+            .cloned();
         if pin.is_some() && resolver.is_none() {
             return Err(Failure::coded(
                 FailureKind::Unsupported,
@@ -723,7 +840,7 @@ credentials = "api_key"
             .parse()
             .expect("URL");
 
-        assert!(service.resolvers.is_empty());
+        assert!(service.chain().resolvers.is_empty());
         assert!(!service.has_resolver(&hoster));
         assert!(!service.has_free_resolver(&hoster));
         let failure = service
@@ -740,11 +857,14 @@ credentials = "api_key"
     #[tokio::test]
     async fn a_free_capable_hoster_is_found_without_an_account() {
         let directory = tempfile::tempdir().expect("tempdir");
-        let mut service = service(directory.path()).await;
-        service.resolvers = Arc::new(vec![
-            Claims::resolver(MULTIHOSTER, "premiumize", vec!["*"], true),
-            Claims::resolver(FREE_HOSTER, "katfile", vec!["katfile.biz"], false),
-        ]);
+        let service = service(directory.path()).await;
+        service.replace_chain(super::Chain {
+            resolvers: vec![
+                Claims::resolver(MULTIHOSTER, "premiumize", vec!["*"], true),
+                Claims::resolver(FREE_HOSTER, "katfile", vec!["katfile.biz"], false),
+            ],
+            pin_only: std::collections::HashSet::new(),
+        });
 
         let katfile: url::Url = "https://katfile.biz/abc123xyz/release.rar"
             .parse()
@@ -770,13 +890,11 @@ credentials = "api_key"
     async fn a_plain_link_resolves_to_nothing_even_though_multihosters_match_every_host() {
         super::register_bundled_providers_for_tests();
         let directory = tempfile::tempdir().expect("tempdir");
-        let mut service = service(directory.path()).await;
-        service.resolvers = Arc::new(vec![Claims::resolver(
-            MULTIHOSTER,
-            "premiumize",
-            vec!["*"],
-            true,
-        )]);
+        let service = service(directory.path()).await;
+        service.replace_chain(super::Chain {
+            resolvers: vec![Claims::resolver(MULTIHOSTER, "premiumize", vec!["*"], true)],
+            pin_only: std::collections::HashSet::new(),
+        });
 
         for direct in [
             "http://127.0.0.1:8792/payload.bin",

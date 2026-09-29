@@ -69,7 +69,7 @@ async function toggleNotifications(value: boolean): Promise<void> {
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="interface.appearance" class="border border-muted bg-default p-5">
       <SectionHeader
         :eyebrow="t('settings.appearance.eyebrow')"
         :title="t('settings.appearance.title')"
@@ -77,23 +77,23 @@ async function toggleNotifications(value: boolean): Promise<void> {
         level="sub"
       />
       <div class="mt-4 grid gap-3">
-        <UFormField :label="t('common.preferences.language')" :description="t('settings.appearance.language_description')">
+        <UFormField data-settings-anchor="interface.language" :label="t('common.preferences.language')" :description="t('settings.appearance.language_description')">
           <USelect v-model="localeModel" :items="localeItems" value-key="value" icon="i-lucide-languages" class="w-full" />
         </UFormField>
-        <UFormField :label="t('common.preferences.theme')" :description="t('settings.appearance.theme_description')">
+        <UFormField data-settings-anchor="interface.theme" :label="t('common.preferences.theme')" :description="t('settings.appearance.theme_description')">
           <USelect v-model="theme" :items="themeItems" value-key="value" icon="i-lucide-sun-moon" class="w-full" />
         </UFormField>
-        <UFormField :label="t('settings.appearance.byte_display.label')" :description="t('settings.appearance.byte_display.description')">
+        <UFormField data-settings-anchor="interface.byte_display" :label="t('settings.appearance.byte_display.label')" :description="t('settings.appearance.byte_display.description')">
           <USelect v-model="settings.byte_display" :items="byteDisplayItems" value-key="value" icon="i-lucide-hard-drive" class="w-full" />
         </UFormField>
         <UFormField :label="t('settings.appearance.byte_unit.label')" :description="t('settings.appearance.byte_unit.description')">
           <USelect v-model="settings.byte_unit" :items="byteUnitItems" value-key="value" icon="i-lucide-ruler" class="w-full" />
         </UFormField>
       </div>
-      <UFormField :label="t('settings.appearance.title_status.label')" :description="t('settings.appearance.title_status.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+      <UFormField data-settings-anchor="interface.title_status" :label="t('settings.appearance.title_status.label')" :description="t('settings.appearance.title_status.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
         <USwitch v-model="settings.title_status_enabled" />
       </UFormField>
-      <UFormField :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+      <UFormField data-settings-anchor="interface.browser_notifications" :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
         <template #description>
           {{ t('settings.notifications.description') }}
           <span v-if="!notifications.supported" class="mt-1 block text-warning">{{ t('settings.notifications.unsupported') }}</span>

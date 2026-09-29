@@ -1,8 +1,17 @@
 import { computed, ref, type Ref } from 'vue'
 
 import type { Download, DownloadPackage } from '@/api/types'
+import { useRangeSelection } from '@/composables/useRangeSelection'
+import { sumSelection } from '@/utils/selectionSize'
 
 export interface QueueGroup { package: DownloadPackage, downloads: Download[] }
+
+/** Prefix of a package row in the range order; the row stands for all of the package's files. */
+const PACKAGE_ROW = 'package:'
+
+export function packageRowKey(packageId: string): string {
+  return `${PACKAGE_ROW}${packageId}`
+}
 
 /**
  * File-level selection with tri-state package checkboxes.
@@ -15,12 +24,11 @@ export interface QueueGroup { package: DownloadPackage, downloads: Download[] }
  *
  * `orderedIds` is the order the rows are actually on screen in, which is what a range selection
  * has to follow: with a virtualized list the visible order is the flattened row stream, not the
- * store's order, and a collapsed package contributes nothing to it (RD-106-12).
+ * store's order, and a collapsed package contributes nothing to it (RD-106-12). A package row
+ * takes part as `package:<id>` and brings all of its files along (RD-170-13).
  */
 export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<Download[]>, orderedIds?: Ref<string[]>) {
   const selectedFiles = ref<Set<string>>(new Set())
-  /** Where the last plain click landed; a shift-click selects from here to there. */
-  const anchor = ref<string | null>(null)
 
   /** One pass over the queue instead of one filter per package (that was O(packages x files)). */
   const filesByPackage = computed(() => {
@@ -38,6 +46,10 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     return filesByPackage.value.get(packageId) ?? []
   }
 
+  function fileIdsOf(packageId: string): string[] {
+    return filesOf(packageId).map(download => download.id)
+  }
+
   function setFiles(ids: string[], selected: boolean): void {
     const next = new Set(selectedFiles.value)
     for (const id of ids) selected ? next.add(id) : next.delete(id)
@@ -48,23 +60,24 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     setFiles(filesOf(group.package.id).map(download => download.id), selected)
   }
 
+  const range = useRangeSelection(
+    computed(() => orderedIds?.value ?? groups.value.flatMap(group => [packageRowKey(group.package.id), ...fileIdsOf(group.package.id)])),
+    setFiles,
+    key => key.startsWith(PACKAGE_ROW) ? fileIdsOf(key.slice(PACKAGE_ROW.length)) : undefined
+  )
+  const anchor = range.anchor
+
   /**
    * Picks one file, or — holding shift — everything between the last plain pick and this one.
-   *
-   * The anchor stays put while the range is being stretched, which is what every file list
-   * does and what makes a second shift-click correct the first.
+   * `extend` defaults to the modifier the list noted for this click (`noteModifier`).
    */
-  function pickFile(id: string, selected: boolean, extend = false): void {
-    const order = orderedIds?.value ?? selectableIds.value
-    const from = anchor.value ? order.indexOf(anchor.value) : -1
-    const to = order.indexOf(id)
-    if (extend && from >= 0 && to >= 0) {
-      const [low, high] = from <= to ? [from, to] : [to, from]
-      setFiles(order.slice(low, high + 1), selected)
-      return
-    }
-    anchor.value = id
-    setFiles([id], selected)
+  function pickFile(id: string, selected: boolean, extend?: boolean): void {
+    range.pick(id, selected, extend)
+  }
+
+  /** The package checkbox: every file of the package, or a range of rows ending here. */
+  function pickPackage(packageId: string, selected: boolean, extend?: boolean): void {
+    range.pick(packageRowKey(packageId), selected, extend)
   }
 
   /** Tri-state per package, computed once for the whole queue rather than per rendered row. */
@@ -90,7 +103,7 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
 
   function clear(): void {
     selectedFiles.value = new Set()
-    anchor.value = null
+    range.reset()
   }
 
   const selectedDownloads = computed(() => allDownloads.value.filter(download => selectedFiles.value.has(download.id)))
@@ -98,6 +111,8 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
   /** Packages whose files are all selected (category/priority apply to whole packages). */
   const fullySelectedPackageIds = computed(() => groups.value.filter(group => packageState(group) === 'all').map(group => group.package.id))
   const count = computed(() => selectedIds.value.length)
+  /** The status bar's figure: selected files only, so a ticked package is its files (RD-170-14). */
+  const size = computed(() => sumSelection(selectedDownloads.value.map(download => download.total_bytes)))
   const state = computed<'none' | 'some' | 'all'>(() => {
     const total = selectableIds.value.length
     if (!count.value || !total) return 'none'
@@ -108,5 +123,5 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     state.value === 'all' ? clear() : selectAll()
   }
 
-  return { selectedFiles, selectedDownloads, selectedIds, fullySelectedPackageIds, count, state, anchor, setFiles, pickFile, togglePackage, packageState, selectAll, toggleAll, clear }
+  return { selectedFiles, selectedDownloads, selectedIds, fullySelectedPackageIds, count, size, state, anchor, noteModifier: range.noteModifier, setFiles, pickFile, pickPackage, togglePackage, packageState, selectAll, toggleAll, clear }
 }

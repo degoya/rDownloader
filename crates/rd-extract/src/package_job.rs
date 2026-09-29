@@ -189,7 +189,8 @@ pub(crate) async fn run_package(
     ));
     let package_password = inner.database.package_password(package_id).await?;
     let candidates = password_candidates(package_password.as_deref(), &password_list);
-    let rar_choice = settings::rar_tool(&settings, inner.config.rar_timeout)?;
+    let rar_choice =
+        settings::refuse_outdated(settings::rar_tool(&settings, inner.config.rar_timeout)?).await;
     let rar_tool = rar_choice.tool;
 
     let mut par2_ok = true;
@@ -231,6 +232,16 @@ pub(crate) async fn run_package(
                 "an SFV index verified this package",
             )
             .await?;
+        } else if rar_choice.outdated.is_some() {
+            // Not started at all; the unpack step names the version and the floor.
+            rar_test_job::skip(
+                inner,
+                &owner,
+                &steps,
+                &sets,
+                "the RAR tool is below its security floor",
+            )
+            .await?;
         } else {
             rar_test_ok =
                 rar_test_job::run(inner, &owner, &steps, &sets, rar_tool.as_ref(), &candidates)
@@ -249,6 +260,15 @@ pub(crate) async fn run_package(
 
     let mut unpack_ok = true;
     if level.unpacks() && verification_gate && !sets.is_empty() {
+        // Same precedence as the rest: category override, else the global setting (RD-170-16).
+        let target = if category
+            .and_then(|category| category.unpack_to_subfolder)
+            .unwrap_or(settings.unpack_to_subfolder)
+        {
+            unpack_job::UnpackTarget::OwnFolder
+        } else {
+            unpack_job::UnpackTarget::Package
+        };
         let context = unpack_job::UnpackContext {
             owner: &owner,
             directory: &directory,
@@ -257,8 +277,10 @@ pub(crate) async fn run_package(
             limits: settings::archive_limits(&settings),
             rar_tool: rar_tool.clone(),
             rar_conflict: rar_choice.conflict.clone(),
+            rar_outdated: rar_choice.outdated.clone(),
             delete_volumes: level.deletes(),
             trigger,
+            target,
         };
         unpack_ok = unpack_job::run(inner, &context, &steps, &sets).await?;
         // A torrent payload may still be seeding; deleting the inner intermediates that
@@ -401,7 +423,8 @@ pub(crate) async fn run_package(
 const MAX_RECURSIVE_UNPACK_DEPTH: usize = 3;
 
 /// Extracts archives found inside just-extracted archives, re-scanning the package folder
-/// (a real filesystem walk — inner archives have no download rows) after every pass.
+/// (a real filesystem walk — inner archives have no download rows) after every pass. With a
+/// folder per archive, an inner archive stays inside the folder its outer one went into.
 /// Inner archives are intermediates and are always deleted after a successful extraction,
 /// independent of the package's delete level. Note the `ArchiveLimits` apply per extraction,
 /// so the effective ceiling multiplies with the depth cap.
@@ -426,8 +449,15 @@ async fn unpack_nested(
         limits: outer.limits,
         rar_tool: outer.rar_tool.clone(),
         rar_conflict: outer.rar_conflict.clone(),
+        rar_outdated: outer.rar_outdated.clone(),
         delete_volumes: true,
         trigger: outer.trigger,
+        target: match outer.target {
+            unpack_job::UnpackTarget::Package => unpack_job::UnpackTarget::Package,
+            unpack_job::UnpackTarget::OwnFolder | unpack_job::UnpackTarget::EnclosingFolder => {
+                unpack_job::UnpackTarget::EnclosingFolder
+            }
+        },
     };
     for _ in 0..MAX_RECURSIVE_UNPACK_DEPTH {
         let mut files = Vec::new();
@@ -541,21 +571,40 @@ async fn remux_recording(
     Ok(())
 }
 
-/// The files of a package directory, by name, as a plugin step may see them.
+/// The files of a package directory, by path relative to it with `/` between folders, as a
+/// plugin step or an upload may see them.
 ///
 /// Built here rather than reusing the planner's list: that one holds absolute paths, and what
 /// a step is offered are names relative to its package — it never learns where the package is.
-/// Directories are skipped: `source` reads files.
-async fn package_file_names(directory: &Path) -> Vec<String> {
+/// Folders are walked, because unpacked content can sit in a folder per archive (RD-170-16) or
+/// in the archive's own folders; symbolic links are neither followed nor listed, and a staging
+/// folder an interrupted unpack left behind is skipped. Sorted, so a resumed step sees the same
+/// order.
+pub(crate) async fn package_file_names(directory: &Path) -> Vec<String> {
     let mut names = Vec::new();
-    let Ok(mut entries) = tokio::fs::read_dir(directory).await else {
-        return names;
-    };
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        if entry.file_type().await.is_ok_and(|kind| kind.is_file())
-            && let Some(name) = entry.file_name().to_str()
-        {
-            names.push(name.to_owned());
+    let mut pending = vec![(directory.to_path_buf(), String::new())];
+    while let Some((folder, prefix)) = pending.pop() {
+        let Ok(mut entries) = tokio::fs::read_dir(&folder).await else {
+            continue;
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            // `DirEntry::file_type` does not follow a link, so a link is neither kind.
+            let Ok(kind) = entry.file_type().await else {
+                continue;
+            };
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let relative = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}/{name}")
+            };
+            if kind.is_file() {
+                names.push(relative);
+            } else if kind.is_dir() && !name.starts_with(rd_postprocess::STAGING_PREFIX) {
+                pending.push((entry.path(), relative));
+            }
         }
     }
     names.sort();

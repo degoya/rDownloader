@@ -19,10 +19,17 @@ const { loading, loadError, load: track } = useFetchState()
  * length of the list: queued and retrying deliveries stay, and the list is only the newest 50.
  */
 const clearable = ref<number | null>(null)
+/**
+ * How many deliveries are still queued or retrying: what the second button would discard
+ * (RD-170-11). It only shows while there is something to discard.
+ */
+const pending = ref<number | null>(null)
 
 async function loadClearable(): Promise<void> {
   const response = await api.GET('/api/v1/system/data-reset')
-  if (response.data) clearable.value = response.data.notifications
+  if (!response.data) return
+  clearable.value = response.data.notifications
+  pending.value = response.data.notifications_pending
 }
 
 async function load(): Promise<void> {
@@ -47,13 +54,14 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="notifications.history" class="border border-muted bg-default p-5">
     <div class="mb-4 flex items-start justify-between">
       <div>
         <SectionHeader :eyebrow="t('notifications.history.eyebrow')" :title="t('notifications.history.title')" />
       </div>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <SettingsDataResetButton target="notifications" :count="clearable" @cleared="load" />
+        <SettingsDataResetButton v-if="pending" target="notifications_pending" :count="pending" @cleared="load" />
         <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-refresh-cw" :aria-label="t('common.actions.refresh')" :loading="loading" @click="load" />
       </div>
     </div>

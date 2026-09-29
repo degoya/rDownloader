@@ -8,6 +8,7 @@ import CaptchaDialog from '@/components/CaptchaDialog.vue'
 import LiveAnnouncer from '@/components/LiveAnnouncer.vue'
 import NzbDropOverlay from '@/components/NzbDropOverlay.vue'
 import PreferencesFooter from '@/components/PreferencesFooter.vue'
+import SearchPalette from '@/components/SearchPalette.vue'
 import TransferRail from '@/components/TransferRail.vue'
 import { useAppShortcuts } from '@/composables/useAppShortcuts'
 import { useAppTour } from '@/composables/useAppTour'
@@ -150,6 +151,14 @@ const items = computed<NavigationMenuItem[][]>(() => [[
       </template>
 
       <template #default="{ collapsed }">
+        <!-- The search for mouse users (RD-170-15); Ctrl/Cmd+K and `/` open the same palette.
+             On the rail it is an icon with a tooltip, like every other entry there. -->
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          :label="t('nav.search.button')"
+          :tooltip="collapsed"
+          :class="collapsed ? undefined : 'w-full'"
+        />
         <nav data-tour="nav" :aria-label="t('common.a11y.main_navigation')">
           <!-- Labels wrap instead of being cut: with the settings group open, "Fonctionnement sans
                surveillance" needs 219 px of the 135 px a child entry has (RD-120-53). -->
@@ -257,6 +266,8 @@ const items = computed<NavigationMenuItem[][]>(() => [[
       </main>
       <TransferRail />
     </div>
+    <!-- Inside the group: the sidebar's search button opens it through the dashboard context. -->
+    <SearchPalette />
   </UDashboardGroup>
   <LiveAnnouncer />
   <NzbDropOverlay v-if="dropActive" />

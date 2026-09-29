@@ -285,6 +285,10 @@
     "enrichment": {
       "label": "Interroger les plugins enrichisseurs",
       "description": "Désactivé par défaut. Un enrichisseur interroge un service extérieur à cette machine — SponsorBlock, par exemple — donc rien n'est demandé sans votre accord. Seuls les liens qu'un plugin revendique sont envoyés, et la réponse s'affiche à côté des données du cœur, jamais à leur place."
+    },
+    "unpack_to_subfolder": {
+      "label": "Extraire dans des sous-dossiers",
+      "description": "Extrait chaque archive dans un dossier à part dans le dossier du paquet, nommé d'après l'archive (Film.part1.rar → Film/). Les archives elles-mêmes ne sont pas déplacées."
     }
   },
   "appearance": {

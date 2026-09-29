@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 
 import type { LinkCandidate } from '@/api/types'
-import { grabberKey, isSelectableCandidate, mergeGrabberEntries, type CollectorEntry, type NzbEntry } from '@/composables/useGrabberSelection'
+import { grabberKey, isSelectableCandidate, mergeGrabberEntries, packageRowKey, type CollectorEntry, type NzbEntry } from '@/composables/useGrabberSelection'
 import type { VirtualRow } from '@/composables/useVirtualRows'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
@@ -127,9 +127,13 @@ export function useGrabberRows(view: {
     }
     return result
   })
-  /** The order a range selection follows: what is on screen, not what is in the store. */
+  /**
+   * The order a range selection follows: what is on screen, not what is in the store. A package
+   * row is a stop of its own, so a range can run from package to package (RD-170-13).
+   */
   const orderedSelectionKeys = computed(() => rows.value.flatMap((row) => {
     if (row.kind === 'nzb') return [grabberKey('nzb', row.entry.id)]
+    if (row.kind === 'package') return [packageRowKey(row.entry.id)]
     // A mirror of a group is not a candidate of its own: the group is what gets queued.
     if (row.kind === 'candidate' && !row.member && isSelectableCandidate(row.candidate)) return [grabberKey('collector', row.candidate.id)]
     return []

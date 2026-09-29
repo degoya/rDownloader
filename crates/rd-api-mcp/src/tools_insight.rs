@@ -197,6 +197,26 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "Discard the notifications not yet sent: every delivery still queued or retrying is deleted, so it is never sent. Irreversible, and `confirmed` must be true. Delivered and failed deliveries stay in the history, as do destinations, rules, the logs and the statistics."
+    )]
+    pub async fn discard_pending_notification_deliveries(
+        &self,
+        Parameters(params): Parameters<DataClearToolParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::data_reset_handlers::discard_pending_notification_deliveries(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                axum::Json(DataClearRequest {
+                    confirmed: params.confirmed,
+                }),
+            )
+            .await
+            .map(|response| response.0),
+        )
+    }
+
+    #[tool(
         description = "List the release-page rules that turn a link on a page into the files behind it: every rule of this installation, with its group, whether each is switched on, and whether it is active (a rule in a switched-off group is on but not active)."
     )]
     pub async fn list_site_rules(&self) -> McpToolResult {

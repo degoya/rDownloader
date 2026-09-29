@@ -283,7 +283,10 @@
     "committed": "Validé {total}",
     "remaining": "{total} en attente",
     "eta": "encore {duration}",
-    "eta_title": "Temps restant estimé au rythme actuel"
+    "eta_title": "Temps restant estimé au rythme actuel",
+    "selection_title": "{count} sélectionnés, {size} au total",
+    "selection_partial_title": "{count} sélectionnés, au moins {size} au total – la taille de {unknown} n'est pas encore connue",
+    "selection_unknown_title": "{count} sélectionnés, taille encore inconnue"
   },
   "media": {
     "variant": "Variante :",

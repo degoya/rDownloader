@@ -12,6 +12,10 @@
 //!   types into a browser. Rebinding needs a DNS name; an address is never one;
 //! - `localhost` or a name under `.localhost`, which browsers resolve to loopback themselves
 //!   and never ask DNS about (RFC 6761);
+//! - a name that exists only on the local network and that nobody can register in public DNS:
+//!   a single label (`nas`, `syno-xyz`), a multicast DNS name under `.local` (RFC 6762), or a
+//!   name under the reserved home and private suffixes `.home.arpa` (RFC 8375) and `.internal`.
+//!   An attacker's page carries the attacker's own public name, which is never one of these;
 //! - the host of the configured external URL;
 //! - one of the names the operator added to the allowed host list.
 //!
@@ -79,8 +83,17 @@ pub fn host_permitted(host: &RequestHost, external: Option<&str>, allowed: &[Str
     };
     name == "localhost"
         || name.ends_with(".localhost")
+        || is_local_only(name)
         || external == Some(name)
         || allowed.iter().any(|entry| entry == name)
+}
+
+/// A name public DNS cannot hand out: one label, or under a suffix reserved for local use.
+fn is_local_only(name: &str) -> bool {
+    !name.contains('.')
+        || [".local", ".home.arpa", ".internal"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
 }
 
 /// Lowercases a DNS name and drops a trailing dot; `None` when it is not a name.
@@ -148,10 +161,29 @@ mod tests {
             "attacker.example",
             "attacker.example:8710",
             "localhost.attacker.example",
-            "nas",
+            "nas.lan",
+            "local.attacker.example",
+            "internal.attacker.example",
+            "home.arpa.attacker.example",
             "rd.example.com.evil.test",
         ] {
             assert!(!permitted(value, None, &[]), "{value}");
+        }
+    }
+
+    /// Names that only exist on the local network: nobody can register them in public DNS, so
+    /// no page can rebind to one of them.
+    #[test]
+    fn a_local_only_name_is_permitted() {
+        for value in [
+            "nas",
+            "syno-xyz:8710",
+            "SYNO-XYZ.",
+            "syno-xyz.local:8710",
+            "nas.home.arpa",
+            "rdownloader.internal:8710",
+        ] {
+            assert!(permitted(value, None, &[]), "{value}");
         }
     }
 

@@ -6,7 +6,9 @@
  * default is what needs no account, an installed service is ticked and cannot be unticked, the
  * search narrows the list, "Continue" installs one service per request and resolves only when
  * all of them landed, a failure keeps the wizard on the step, and an accounts step with nothing
- * to offer says so and leads back instead of drawing an empty picker.
+ * to offer says so and leads back instead of drawing an empty picker. Since RD-170-12 a first
+ * install runs at once; what runs only after a restart, the step reports and the accounts step
+ * says.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -65,14 +67,16 @@ const stubs = {
 const Host = defineComponent({
   components: { WizardSelectionStep },
   setup() {
-    const step = ref<{ install: () => Promise<boolean> } | null>(null)
+    const step = ref<{ install: () => Promise<boolean>, restartRequired: boolean } | null>(null)
     const result = ref('')
+    const restart = ref('')
     async function run(): Promise<void> {
       result.value = String(await step.value?.install())
+      restart.value = String(step.value?.restartRequired)
     }
-    return { step, result, run }
+    return { step, result, restart, run }
   },
-  template: '<div><WizardSelectionStep ref="step" /><button type="button" @click="run">continue</button><output data-testid="result">{{ result }}</output></div>'
+  template: '<div><WizardSelectionStep ref="step" /><button type="button" @click="run">continue</button><output data-testid="result">{{ result }}</output><output data-testid="restart">{{ restart }}</output></div>'
 })
 
 function mount(component: unknown) {
@@ -122,6 +126,24 @@ describe('Wizard: your services', () => {
     expect(installBundled.mock.calls).toEqual([[['sha256_postprocess']], [['rapidgator']]])
     // Read again afterwards, so the list shows what is installed now.
     expect(listBundled).toHaveBeenCalledTimes(2)
+    // Both run at once: nothing waits for a restart.
+    expect(screen.getByTestId('restart').textContent).toBe('false')
+  })
+
+  it('reports a plugin that runs only after a restart (RD-170-12)', async () => {
+    installBundled
+      .mockResolvedValueOnce({ ok: true, data: { code: 'plugin.bundled_installed', message: '', installed: [{}], failed: [], restart_required: false } })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { code: 'plugin.bundled_installed_restart_required', message: '', installed: [{}], failed: [], restart_required: true }
+      })
+    mount(Host)
+    await fireEvent.click(await screen.findByLabelText('Rapidgator'))
+
+    await fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+
+    await waitFor(() => expect(screen.getByTestId('result').textContent).toBe('true'))
+    expect(screen.getByTestId('restart').textContent).toBe('true')
   })
 
   it('stays on the step and names what failed', async () => {
@@ -171,5 +193,18 @@ describe('Wizard: the accounts step after it', () => {
 
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/providers'))
     expect(screen.queryByTestId('services-no-providers')).toBeNull()
+    expect(screen.queryByTestId('services-restart-required')).toBeNull()
+  })
+
+  it('says when a plugin just installed runs only after a restart (RD-170-12)', async () => {
+    get.mockImplementation(async (path: string) =>
+      path === '/api/v1/providers'
+        ? { data: [{ slug: 'ddownload', display_name: 'DDownload', kind: 'hoster', credentials: 'login_or_api_key', credential_modes: [], username_required: false, device_flow: false }] }
+        : { data: { browser_extension_connected: false } })
+    mountComponent(WizardServicesStep as never, { messages: { captcha, plugins, system, wizard }, stubs, props: { restartRequired: true } })
+
+    const notice = await screen.findByTestId('services-restart-required')
+    expect(notice.textContent).toContain(wizard.services.restart_required_title)
+    expect(notice.textContent).toContain(wizard.services.restart_required)
   })
 })

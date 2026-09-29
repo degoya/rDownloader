@@ -344,7 +344,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Install bundled services by key, as list_bundled_services reports them: every plugin of each service that is not installed yet. Their provider rows are live at once, so accounts can be added straight away; the plugins run from the next service start. Answers what was installed and what failed."
+        description = "Install bundled services by key, as list_bundled_services reports them: every plugin of each service that is not installed yet. Their provider rows are live at once, so accounts can be added straight away; a first install of a hoster or sign-in plugin runs at once too, and anything else from the next service start (restart_required says so). Answers what was installed and what failed."
     )]
     pub async fn install_bundled_services(
         &self,

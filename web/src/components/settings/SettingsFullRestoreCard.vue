@@ -62,7 +62,7 @@ onMounted(() => void load(read))
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5 xl:col-span-2" data-testid="full-restore">
+  <section data-settings-anchor="backup.full_restore" class="border border-muted bg-default p-5 xl:col-span-2" data-testid="full-restore">
     <SectionHeader
       :eyebrow="t('system.backup.full_restore.eyebrow')"
       :title="t('system.backup.full_restore.title')"

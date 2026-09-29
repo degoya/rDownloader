@@ -135,7 +135,7 @@ async function remove(rule: NotificationRule): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="notifications.rules" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('notifications.rule.title')" :count="rules.length">
       <template #form>
         <SectionHeader

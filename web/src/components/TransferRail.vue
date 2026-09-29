@@ -4,11 +4,13 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
+import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
 import { formatBytes, formatDuration, formatRate } from '@/utils/format'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
+const selection = useSelectionStore()
 const total = computed(() => formatBytes(transfers.totalCommitted))
 const remaining = computed(() => transfers.totalRemaining > 0n ? formatBytes(transfers.totalRemaining) : null)
 const volume = computed(() => remaining.value
@@ -17,6 +19,22 @@ const volume = computed(() => remaining.value
 const parallelDownloads = computed(() => transfers.downloads.filter(download => download.state === 'downloading').length)
 /** Empty while nothing is moving or a size is still unknown — the rail then shows no estimate. */
 const etaLabel = computed(() => formatDuration(transfers.queueEta))
+/**
+ * What the open list has ticked (RD-170-14). A sum that leaves out a size nobody knows yet is a
+ * lower bound and says so with `≥`; with no size known at all there is only the count.
+ */
+const selectionSize = computed(() => {
+  const size = selection.size
+  if (!size || size.unknown === size.count) return null
+  return size.unknown ? `≥ ${formatBytes(size.bytes)}` : formatBytes(size.bytes)
+})
+const selectionTitle = computed(() => {
+  const size = selection.size
+  if (!size) return ''
+  if (size.unknown === size.count) return t('downloads.rail.selection_unknown_title', { count: size.count })
+  const params = { count: size.count, size: formatBytes(size.bytes), unknown: size.unknown }
+  return t(size.unknown ? 'downloads.rail.selection_partial_title' : 'downloads.rail.selection_title', params)
+})
 const serviceVersion = ref('')
 
 const speedInput = ref<number | null>(null)
@@ -98,6 +116,15 @@ onMounted(async () => {
       </div>
     </div>
     <div class="flex min-w-0 flex-1 items-center justify-end gap-4 text-toned">
+      <!-- Short on a narrow rail: the count and the size, the word only once there is room. -->
+      <span v-if="selection.size" data-testid="rail-selection" class="flex min-w-0 items-center gap-1.5" :title="selectionTitle">
+        <UIcon name="i-lucide-list-checks" class="size-3.5 shrink-0 text-primary" />
+        <span class="numeric truncate">
+          <strong class="text-highlighted">{{ selection.size.count }}</strong>
+          <span class="hidden @min-[40rem]:inline">&nbsp;{{ t('common.units.selected') }}</span>
+          <template v-if="selectionSize"> · {{ selectionSize }}</template>
+        </span>
+      </span>
       <span class="hidden min-w-0 truncate font-mono md:inline" :title="volume">{{ volume }}</span>
       <span class="flex shrink-0 items-center gap-1 whitespace-nowrap">
         <!-- The name only where the rail has room for it: at 1280 px beside the open sidebar

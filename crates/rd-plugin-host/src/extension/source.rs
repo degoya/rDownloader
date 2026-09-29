@@ -95,8 +95,9 @@ impl SourceState {
     /// Renames one offered file, keeping the offered list in step.
     ///
     /// `to` is a bare file name: anything carrying a separator, a `..`, or an existing name is
-    /// refused, so a plugin can reorganise the names inside its package and nothing else. The
-    /// list is updated because a later read still addresses files by the name it was given.
+    /// refused, so a plugin can reorganise the names inside its package and nothing else. A file
+    /// in a folder of the package (`Film/film.mkv`, RD-170-16) keeps its folder. The list is
+    /// updated because a later read still addresses files by the name it was given.
     fn rename(&mut self, handle: &str, from: &str, to: &str) -> Result<(), String> {
         let source = self.resolve(handle, from)?;
         if to.is_empty()
@@ -108,17 +109,21 @@ impl SourceState {
         {
             return Err("a new name must be a plain file name".to_owned());
         }
-        if self.files.iter().any(|offered| offered == to) {
+        let renamed = match from.rsplit_once('/') {
+            Some((folder, _)) => format!("{folder}/{to}"),
+            None => to.to_owned(),
+        };
+        if self.files.contains(&renamed) {
             return Err("that name is already taken in this package".to_owned());
         }
-        let target = self.directory.join(to);
+        let target = source.with_file_name(to);
         if target.exists() {
             return Err("that name is already taken in this package".to_owned());
         }
         std::fs::rename(&source, &target).map_err(|error| error.to_string())?;
         for offered in &mut self.files {
             if offered == from {
-                *offered = to.to_owned();
+                offered.clone_from(&renamed);
             }
         }
         Ok(())
@@ -357,5 +362,40 @@ mod tests {
             b"y",
             "and it still holds its own content"
         );
+    }
+
+    /// A file in a folder of the package is renamed where it is, not moved to the top.
+    #[test]
+    fn a_nested_file_is_renamed_inside_its_own_folder() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(directory.path().join("Film")).expect("folder");
+        std::fs::write(
+            directory.path().join("Film").join("Big Buck Bunny.mkv"),
+            b"x",
+        )
+        .expect("write");
+        let mut state = super::SourceState::new(
+            "handle".to_owned(),
+            directory.path().to_path_buf(),
+            vec!["Film/Big Buck Bunny.mkv".to_owned()],
+        );
+
+        state
+            .rename("handle", "Film/Big Buck Bunny.mkv", "Big.Buck.Bunny.mkv")
+            .expect("renamed");
+
+        assert!(
+            directory
+                .path()
+                .join("Film")
+                .join("Big.Buck.Bunny.mkv")
+                .is_file()
+        );
+        assert!(!directory.path().join("Big.Buck.Bunny.mkv").exists());
+        assert_eq!(state.files, ["Film/Big.Buck.Bunny.mkv".to_owned()]);
+        let path = state
+            .resolve("handle", "Film/Big.Buck.Bunny.mkv")
+            .expect("a later read finds it under its new name");
+        assert!(path.is_file());
     }
 }

@@ -393,7 +393,7 @@ fi
 failpoints=0
 if [[ "$full" -eq 1 ]] \
     || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup'; then
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host'; then
     failpoints=1
 fi
 
@@ -607,10 +607,10 @@ if [[ "$run_rust" -eq 1 ]]; then
             # Every owning crate's own feature, not just rd-core's: each crash-test file is
             # gated on the feature of the crate that owns the point, and rd-core/failpoints does
             # not turn those on — a binary compiled to nothing reports success.
-            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints \
-                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup
+            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints \
+                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
         else
-            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, failpoint.rs or the recovery matrix changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then

@@ -62,7 +62,8 @@
     "backup_configured": "Vollsicherung eingerichtet oder geändert",
     "backup_key_changed": "Passphrase der Vollsicherung gesetzt",
     "backup_created": "Vollsicherung geschrieben",
-    "backup_verified": "Archiv der Vollsicherung geprüft"
+    "backup_verified": "Archiv der Vollsicherung geprüft",
+    "notifications_discarded": "Ausstehende Benachrichtigungen verworfen"
   },
   "list": {
     "title": "Einträge",

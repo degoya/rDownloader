@@ -162,7 +162,7 @@ const systems = computed(() => [
       <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.nzb') }}</p><p class="numeric mt-2 text-lg text-highlighted">64 MiB</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.nzb_note') }}</p></div>
     </section>
 
-    <section class="mt-6 border border-muted bg-default p-5" data-testid="log-retention">
+    <section data-settings-anchor="system.logs" class="mt-6 border border-muted bg-default p-5" data-testid="log-retention">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <SectionHeader
           :eyebrow="t('settings.logs.eyebrow')"
@@ -188,7 +188,7 @@ const systems = computed(() => [
       </div>
     </section>
 
-    <section class="mt-6 border border-muted bg-default p-5" data-testid="audit-retention">
+    <section data-settings-anchor="system.audit" class="mt-6 border border-muted bg-default p-5" data-testid="audit-retention">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <SectionHeader
           :eyebrow="t('settings.audit.eyebrow')"
@@ -229,7 +229,7 @@ const systems = computed(() => [
       <SettingsDataResetButton class="mt-4" target="audit" :count="dataCounts.audit" @cleared="loadDataCounts()" />
     </section>
 
-    <section class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
+    <section data-settings-anchor="system.stats_retention" class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
       <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
       <div class="mt-4 grid gap-4">
         <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">

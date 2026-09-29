@@ -256,6 +256,7 @@
     "all_installed": "Alles aus dem Paket-Bündel ist installiert.",
     "none": "Dieser Build bringt kein Paket-Bündel mit. Plugins kommen dann aus einem Repository.",
     "failed": "{name} konnte nicht installiert werden: {reason}",
-    "installed": "Nichts installiert. | 1 Plugin installiert; es läuft ab dem nächsten Start. | {count} Plugins installiert; sie laufen ab dem nächsten Start."
+    "installed": "Nichts installiert. | 1 Plugin installiert; es läuft ab dem nächsten Start. | {count} Plugins installiert; sie laufen ab dem nächsten Start.",
+    "installed_live": "Nichts installiert. | 1 Plugin installiert; es läuft jetzt. | {count} Plugins installiert; sie laufen jetzt."
   }
 }

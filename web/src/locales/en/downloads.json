@@ -283,7 +283,10 @@
     "committed": "Committed {total}",
     "remaining": "{total} queued",
     "eta": "{duration} left",
-    "eta_title": "Estimated remaining time at the current speed"
+    "eta_title": "Estimated remaining time at the current speed",
+    "selection_title": "{count} selected, {size} in total",
+    "selection_partial_title": "{count} selected, at least {size} in total – the size of {unknown} is not known yet",
+    "selection_unknown_title": "{count} selected, size not known yet"
   },
   "media": {
     "variant": "Variant:",

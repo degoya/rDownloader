@@ -386,9 +386,10 @@ jobs:
           generate_release_notes: true
           files: release-assets/*
 
-  # RD-180-06: the Homebrew tap and the Scoop bucket follow the release — the formula and the
-  # manifest rendered by scripts/package-managers.sh from the published SHA256SUMS, each with its
-  # repository's README, pushed to <owner>/homebrew-rdownloader and <owner>/scoop-rdownloader.
+  # RD-180-06: the Homebrew tap and the Scoop bucket follow the release — the two formulas
+  # (rdownloader and its capture agent's login service) and the manifest rendered by
+  # scripts/package-managers.sh from the published SHA256SUMS, each with its repository's README,
+  # pushed to <owner>/homebrew-rdownloader and <owner>/scoop-rdownloader.
   # Each repository has a write deploy key of its own, whose private half is a secret here
   # (HOMEBREW_TAP_DEPLOY_KEY, SCOOP_BUCKET_DEPLOY_KEY); actions/checkout clones with it and leaves
   # the SSH remote for the push, so each channel pushes with its own key only. A channel whose
@@ -433,7 +434,7 @@ jobs:
               echo "${name}=true" >> "${GITHUB_OUTPUT}"
             fi
           done
-      - name: Render the formula, the manifest and their READMEs
+      - name: Render the formulas, the manifest and their READMEs
         id: render
         if: steps.gate.outputs.tap == 'true' || steps.gate.outputs.bucket == 'true'
         shell: bash
@@ -449,7 +450,14 @@ jobs:
           repository: ${{ github.repository_owner }}/homebrew-rdownloader
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           path: tap
-      - name: Push the formula to the Homebrew tap
+      # The capture agent's formula rides in the same commit: the push below adds everything.
+      - name: Stage the capture agent's formula
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        shell: bash
+        run: |
+          mkdir -p tap/Formula
+          cp rendered/rdownloader-capture.rb tap/Formula/rdownloader-capture.rb
+      - name: Push the formulas to the Homebrew tap
         if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
         shell: bash
         env:

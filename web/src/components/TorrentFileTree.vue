@@ -16,6 +16,7 @@ import type {
   TorrentFilePriority,
   TorrentPlanRequest
 } from '@/api/types'
+import { useRangeSelection } from '@/composables/useRangeSelection'
 import { formatBytes } from '@/utils/format'
 
 const { t } = useI18n()
@@ -97,6 +98,25 @@ function sortTree(node: TreeNode): void {
   for (const child of node.children) sortTree(child)
 }
 
+/** Every node by key, collapsed subtrees included, so a range can reach into them. */
+const nodesByKey = computed(() => {
+  const nodes = new Map<string, TreeNode>()
+  const walk = (node: TreeNode): void => {
+    for (const child of node.children) {
+      nodes.set(child.key, child)
+      walk(child)
+    }
+  }
+  walk(tree.value)
+  return nodes
+})
+
+/** The keys of every file below a node. */
+function fileKeysOf(node: TreeNode): string[] {
+  if (node.index !== null) return [node.key]
+  return node.children.flatMap(fileKeysOf)
+}
+
 /** Every file index below a node. */
 function indicesOf(node: TreeNode): number[] {
   if (node.index !== null) return [node.index]
@@ -145,10 +165,19 @@ function currentPlan(): TorrentPlanRequest {
 }
 
 /** Sets a node and everything below it, then reports the whole plan. */
+/** A checkbox click: one node, or with Shift a range of rows ending here (RD-170-13). */
 function toggle(node: TreeNode, value: boolean | 'indeterminate'): void {
   if (props.readonly || props.busy) return
+  range.pick(node.key, value === true)
+}
+
+/** Sets several nodes at once and sends one plan for all of them. */
+function setNodes(keys: string[], value: boolean): void {
   const next = new Map(explicit.value)
-  for (const index of indicesOf(node)) next.set(index, value === true)
+  for (const key of keys) {
+    const node = nodesByKey.value.get(key)
+    if (node) for (const index of indicesOf(node)) next.set(index, value)
+  }
   explicit.value = next
   emit('change', currentPlan())
 }
@@ -211,6 +240,15 @@ const rows = computed(() => {
   return output
 })
 
+const range = useRangeSelection(
+  computed(() => rows.value.map(row => row.node.key)),
+  setNodes,
+  (key) => {
+    const node = nodesByKey.value.get(key)
+    return node && node.index === null ? fileKeysOf(node) : undefined
+  }
+)
+
 /** The pattern that excluded a file, when one did. */
 function patternOf(node: TreeNode): string {
   if (node.index === null) return ''
@@ -242,7 +280,7 @@ function patternOf(node: TreeNode): string {
     <p v-if="props.capabilities && !props.capabilities.sequential_download" class="text-xs text-muted">
       {{ t('torrent.priority.emulated_hint') }}
     </p>
-    <ul class="max-h-80 overflow-y-auto border border-muted bg-default">
+    <ul class="max-h-80 overflow-y-auto border border-muted bg-default" @click.capture="range.noteModifier" @keydown.capture="range.noteModifier">
       <li
         v-for="row in rows"
         :key="row.node.key"

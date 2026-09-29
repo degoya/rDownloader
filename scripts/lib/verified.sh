@@ -212,7 +212,7 @@ rd_full_already_green() {
 # The version files are what scripts/set-version.sh writes; a bump counts as version-only when
 # every line it changed in them is a `version` line, so an edit that rode along in Cargo.toml or
 # Cargo.lock still gets its full run.
-RD_VERSION_FILES=(Cargo.toml Cargo.lock web/package.json extension/manifest.base.json)
+RD_VERSION_FILES=(Cargo.toml Cargo.lock web/package.json extension/manifest.base.json web/openapi.json)
 
 # The workspace version in the Cargo.toml text on stdin, as scripts/set-version.sh reads it.
 rd_workspace_version() {

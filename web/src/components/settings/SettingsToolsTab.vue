@@ -38,6 +38,7 @@ const COMPATIBILITY_OVERRIDE_TOOLS = ['yt-dlp', 'gallery-dl', 'streamlink', 'ffm
     <section class="border border-muted bg-default p-5">
       <SectionHeader :eyebrow="t('settings.vendor.directory.eyebrow')" :title="t('settings.vendor.directory.title')" level="sub" />
       <UFormField
+        data-settings-anchor="tools.vendor_directory"
         class="mt-4"
         :label="t('settings.vendor.directory.label')"
         :description="t('settings.vendor.directory.description')"

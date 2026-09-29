@@ -160,6 +160,9 @@ async fn run_ffmpeg(ffmpeg: &Path, directory: &Path, list: &Path, output: &Path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
+    // Nothing of the service's environment but the allowlist (security review 2026-09-28,
+    // finding 7).
+    rd_postprocess::restrict_environment(&mut command, &[]);
     #[cfg(windows)]
     command.creation_flags(0x0800_0000);
 

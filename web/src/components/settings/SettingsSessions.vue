@@ -113,7 +113,7 @@ function deviceLabel(session: Session): string {
 </script>
 
 <template>
-  <section :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
+  <section data-settings-anchor="security.sessions" :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <SectionHeader :eyebrow="t('system.sessions.eyebrow')" :title="t('system.sessions.title')" :description="t('system.sessions.description')" />

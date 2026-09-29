@@ -21,7 +21,7 @@ const FORMAT_KEYS = ['one_per_line', 'comments', 'www', 'subdomains'] as const
 
 <template>
   <div class="space-y-4">
-    <section class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
+    <section data-settings-anchor="routing.collector" class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -32,6 +32,7 @@ const FORMAT_KEYS = ['one_per_line', 'comments', 'www', 'subdomains'] as const
           />
         </div>
         <UFormField
+          data-settings-anchor="routing.excluded_domains"
           :label="t('settings.collector.excluded_domains.label')"
           :description="t('settings.collector.excluded_domains.description')"
         >
@@ -52,7 +53,7 @@ www.tracker.example
 ads.example.org</pre>
       </div>
     </section>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="routing.dlc" class="border border-muted bg-default p-5">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -84,7 +85,7 @@ ads.example.org</pre>
       </div>
     </section>
 
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="routing.indexer_images" class="border border-muted bg-default p-5">
       <div class="space-y-4">
         <div>
           <SectionHeader

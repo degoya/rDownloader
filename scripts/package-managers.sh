@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 #
-# The Homebrew formula and the Scoop manifest of one release (RD-180-06), rendered from
-# packaging/homebrew/rdownloader.rb.in and packaging/scoop/rdownloader.json.in with the version
-# and the archives' SHA-256 from the release's SHA256SUMS, and the README of the tap and of the
-# bucket from the README.md.in beside each.
+# The Homebrew formulas and the Scoop manifest of one release (RD-180-06), rendered from
+# packaging/homebrew/rdownloader.rb.in, packaging/homebrew/rdownloader-capture.rb.in and
+# packaging/scoop/rdownloader.json.in with the version and the archives' SHA-256 from the
+# release's SHA256SUMS, and the README of the tap and of the bucket from the README.md.in beside
+# each.
 #
 # Usage:
 #   scripts/package-managers.sh <version> <SHA256SUMS> <outdir> [--repository OWNER/NAME]
 #                               [--base-url URL]
 #
-# Writes <outdir>/rdownloader.rb (the tap's Formula/rdownloader.rb), <outdir>/rdownloader.json
-# (the bucket's bucket/rdownloader.json), <outdir>/homebrew-README.md and
-# <outdir>/scoop-README.md (each repository's README.md). The release workflow pushes them after
-# the release is published; ci.yml renders them against archives made from the tree and installs
-# the formula and the manifest.
+# Writes <outdir>/rdownloader.rb and <outdir>/rdownloader-capture.rb (the tap's
+# Formula/rdownloader.rb and Formula/rdownloader-capture.rb), <outdir>/rdownloader.json (the
+# bucket's bucket/rdownloader.json), <outdir>/homebrew-README.md and <outdir>/scoop-README.md
+# (each repository's README.md). The release workflow pushes them after the release is
+# published; ci.yml renders them against archives made from the tree and installs the formulas
+# and the manifest.
 #
 #   --repository   the GitHub repository whose releases they install, default degoya/rDownloader;
 #                  the tap and the bucket are <owner>/homebrew-rdownloader and
@@ -22,7 +24,7 @@
 #                  https://github.com/<repository>/releases/download/v<version>; CI points it at
 #                  a local fixture
 #
-# Every archive the two files name must be in SHA256SUMS (`<sha256>  ./<name>`, as the release
+# Every archive the three files name must be in SHA256SUMS (`<sha256>  ./<name>`, as the release
 # writes it, or `<sha256>  <name>`), and nothing of a template may stay unreplaced.
 set -euo pipefail
 
@@ -81,7 +83,7 @@ values=(
     "TAP=${owner}/homebrew-rdownloader"
     "BUCKET=${owner}/scoop-rdownloader"
 )
-# One placeholder per archive the two files install.
+# One placeholder per archive the formulas and the manifest install.
 missing=0
 for pair in \
     SHA256_MACOS_AARCH64=rdownloader-macos-aarch64.tar.gz \
@@ -116,6 +118,7 @@ render() {
 
 mkdir -p "$outdir"
 render "$ROOT/packaging/homebrew/rdownloader.rb.in" "$outdir/rdownloader.rb"
+render "$ROOT/packaging/homebrew/rdownloader-capture.rb.in" "$outdir/rdownloader-capture.rb"
 render "$ROOT/packaging/scoop/rdownloader.json.in" "$outdir/rdownloader.json"
 render "$ROOT/packaging/homebrew/README.md.in" "$outdir/homebrew-README.md"
 render "$ROOT/packaging/scoop/README.md.in" "$outdir/scoop-README.md"

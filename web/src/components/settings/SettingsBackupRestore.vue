@@ -177,7 +177,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="backup.export" class="border border-muted bg-default p-5">
       <SectionHeader
         :eyebrow="t('system.backup.export.eyebrow')"
         :title="t('system.backup.export.title')"
@@ -194,7 +194,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <USwitch v-model="includeSecrets" />
         </UFormField>
         <template v-if="includeSecrets">
-          <UFormField name="export-passphrase" :label="t('system.backup.export.passphrase')" required>
+          <UFormField data-settings-anchor="backup.export_passphrase" name="export-passphrase" :label="t('system.backup.export.passphrase')" required>
             <UInput v-model="exportPassphrase" type="password" autocomplete="new-password" required class="w-full" />
           </UFormField>
           <UFormField name="export-confirmation" :label="t('system.backup.export.confirm_passphrase')" required>
@@ -211,7 +211,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       </form>
     </section>
 
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="backup.import" class="border border-muted bg-default p-5">
       <SectionHeader
         :eyebrow="t('system.backup.import.eyebrow')"
         :title="t('system.backup.import.title')"

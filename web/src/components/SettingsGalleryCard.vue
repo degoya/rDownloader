@@ -26,7 +26,7 @@ function addDefaultHosts(): void {
 </script>
 
 <template>
-  <section class="space-y-4 border border-muted bg-default p-5">
+  <section data-settings-anchor="media.gallery" class="space-y-4 border border-muted bg-default p-5">
     <div>
       <SectionHeader
         :eyebrow="t('settings.gallery.eyebrow')"

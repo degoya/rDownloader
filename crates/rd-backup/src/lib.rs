@@ -13,8 +13,8 @@
 //!
 //! Where the archive goes is a [`BackupDestination`]: a local folder (a NAS mount included),
 //! a folder of an object storage bucket or an rclone remote ([`remote`], RD-160-02), each
-//! receiving its own copy ([`deliver`]) and keeping as many archives as its [`retention`]
-//! says. [`verify`] checks an archive where it lies. When a run happens is [`schedule`], the
+//! receiving its own copy ([`deliver`]), recorded in the ledger ([`ledger`]), and keeping as many
+//! archives as its [`retention`] says. [`verify`] checks an archive where it lies. When a run happens is [`schedule`], the
 //! cron arithmetic the subscriptions use, read in an IANA zone. Getting an installation back from an archive — preview,
 //! test restore, path remap, cutover — is [`restore`] (RD-160-03).
 
@@ -23,6 +23,7 @@ mod create;
 pub mod crypto;
 pub mod deliver;
 pub mod destination;
+pub mod ledger;
 pub mod manifest;
 pub mod remote;
 pub mod restore;

@@ -13,6 +13,7 @@ mod automation_triggers;
 mod automations;
 mod backup_destinations;
 mod backup_remote;
+mod canaries;
 mod data_reset;
 mod diagnostics;
 mod full_backup;

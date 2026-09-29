@@ -83,6 +83,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("delete_stream_schedule", "/api/v1/streams/schedules/{id}", Method::DELETE),
     tool("delete_subscription", "/api/v1/subscriptions/{id}", Method::DELETE),
     tool("delete_usenet_server", "/api/v1/usenet/servers/{id}", Method::DELETE),
+    tool("discard_pending_notification_deliveries", "/api/v1/notifications/deliveries/discard-pending", Method::POST),
     tool("dry_run_automations", "/api/v1/automations/dry-run", Method::POST),
     tool("enqueue_candidate", "/api/v1/collector/candidates/{id}/enqueue", Method::POST),
     tool("enqueue_collector", "/api/v1/collector/packages/enqueue", Method::POST),

@@ -627,6 +627,7 @@ async fn category_rules_are_applied_when_links_enter_the_collector() {
             script: None,
             cleanup_extensions: None,
             recursive_unpack: None,
+            unpack_to_subfolder: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -1372,6 +1373,7 @@ async fn routing_category(
             script: None,
             cleanup_extensions: None,
             recursive_unpack: None,
+            unpack_to_subfolder: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -1763,6 +1765,7 @@ async fn nzb_routing_metadata_can_change_until_enqueue() {
             script: None,
             cleanup_extensions: None,
             recursive_unpack: None,
+            unpack_to_subfolder: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -3965,6 +3968,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
             script: Some("done.sh".to_owned()),
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: Some(true),
+            unpack_to_subfolder: Some(true),
             sfv_verify: Some(false),
             safe_postproc: Some(false),
             delete_par2: Some(true),
@@ -3974,6 +3978,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
         .await
         .expect("category");
     assert_eq!(created.delete_par2, Some(true));
+    assert_eq!(created.unpack_to_subfolder, Some(true));
     assert_eq!(created.safe_postproc, Some(false));
 
     // The general update path, which is the one that was broken.
@@ -3990,6 +3995,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 script: None,
                 cleanup_extensions: None,
                 recursive_unpack: Some(false),
+                unpack_to_subfolder: Some(false),
                 sfv_verify: Some(true),
                 safe_postproc: Some(true),
                 delete_par2: Some(false),
@@ -4002,6 +4008,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
     assert_eq!(updated.name, "Films");
     assert_eq!(updated.delete_par2, Some(false));
     assert_eq!(updated.safe_postproc, Some(true));
+    assert_eq!(updated.unpack_to_subfolder, Some(false));
 
     // And the post-processing path, which carries the plugin steps.
     database
@@ -4012,6 +4019,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 script: Some("after.sh".to_owned()),
                 cleanup_extensions: Some(vec!["sfv".to_owned()]),
                 recursive_unpack: Some(true),
+                unpack_to_subfolder: Some(true),
                 sfv_verify: Some(false),
                 safe_postproc: Some(false),
                 delete_par2: Some(true),
@@ -4032,6 +4040,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
         .expect("category is still there");
     assert_eq!(stored.delete_par2, Some(true));
     assert_eq!(stored.safe_postproc, Some(false));
+    assert_eq!(stored.unpack_to_subfolder, Some(true));
     assert_eq!(stored.script.as_deref(), Some("after.sh"));
     assert_eq!(
         stored.plugin_steps.as_deref(),

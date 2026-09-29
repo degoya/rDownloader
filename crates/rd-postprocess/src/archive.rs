@@ -45,7 +45,9 @@ pub(crate) fn create_staging(destination: &Path) -> Result<PathBuf> {
 /// archive's own tree, so every character of its name is a character the extracted path can no
 /// longer use. The old `.rdownloader-extract-` spent 27 of them and pushed a perfectly ordinary
 /// release past the Windows limit.
-const STAGING_PREFIX: &str = ".rd-x";
+///
+/// Public so a walk over a package can leave a staging directory a crash left behind alone.
+pub const STAGING_PREFIX: &str = ".rd-x";
 
 /// Staging directory created inside an existing destination (merge mode).
 pub(crate) fn create_staging_inside(destination: &Path) -> Result<PathBuf> {
@@ -110,6 +112,9 @@ pub(crate) fn validate_tree(root: &Path, limits: ArchiveLimits) -> Result<Extrac
             if metadata.is_dir() {
                 directories.push(entry.path());
             } else if metadata.is_file() {
+                if is_hard_linked(&metadata) {
+                    bail!("archive created a hard link");
+                }
                 report.files = report.files.saturating_add(1);
                 report.uncompressed_bytes = report
                     .uncompressed_bytes
@@ -120,6 +125,28 @@ pub(crate) fn validate_tree(root: &Path, limits: ArchiveLimits) -> Result<Extrac
         }
     }
     Ok(report)
+}
+
+/// Whether a regular file has a second name (security review 2026-09-28, finding 5).
+///
+/// A hard link inside staging to a file outside it passes the canonical-path check - the name
+/// is inside, the data is not - and after the promotion the package folder holds a name for,
+/// say, a key file in the home directory, readable by whatever reads the download and writable
+/// through it. Nothing an unpack writes has a reason to have a second name, so any file with
+/// more than one is refused; that includes an archive that links two of its own members, which
+/// a download does not ship.
+///
+/// Unix only: on Windows the link count is `MetadataExt::number_of_links`, which is not stable
+/// Rust, so a hard link there is not detected (a documented residual risk).
+#[cfg(unix)]
+fn is_hard_linked(metadata: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    metadata.nlink() > 1
+}
+
+#[cfg(not(unix))]
+fn is_hard_linked(_metadata: &std::fs::Metadata) -> bool {
+    false
 }
 
 pub(crate) fn safe_relative(name: &str) -> Result<PathBuf> {
@@ -149,7 +176,7 @@ pub(crate) fn enforce_limits(report: ExtractionReport, limits: ArchiveLimits) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{create_staging, create_staging_inside};
+    use super::{ArchiveLimits, create_staging, create_staging_inside, validate_tree};
 
     /// Every character of this name is a character the extracted path can no longer use, and
     /// Windows stops at 260 of them (RD-108-30). The old name spent 27.
@@ -170,5 +197,79 @@ mod tests {
                 name.len()
             );
         }
+    }
+
+    /// Security review 2026-09-28, finding 5: a hard link inside staging to a file outside it
+    /// has a canonical path inside staging, so only the link count gives it away. Without the
+    /// `nlink` check the tree validates and the foreign file would be promoted into the package.
+    #[cfg(unix)]
+    #[test]
+    fn a_hard_link_to_a_file_outside_staging_is_refused() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outside = directory.path().join("id_ed25519");
+        std::fs::write(&outside, b"private key").expect("file outside staging");
+        let staging = directory.path().join("staging");
+        std::fs::create_dir_all(staging.join("nested")).expect("staging");
+        std::fs::write(staging.join("payload.bin"), b"payload").expect("ordinary member");
+        assert!(validate_tree(&staging, ArchiveLimits::default()).is_ok());
+
+        std::fs::hard_link(&outside, staging.join("nested/innocent.txt")).expect("hard link");
+        let error = validate_tree(&staging, ArchiveLimits::default())
+            .expect_err("a hard link out of staging must not validate");
+        assert!(error.to_string().contains("hard link"), "{error}");
+    }
+
+    /// A symbolic link out of staging - to a file, to a directory, or to nothing yet - is
+    /// refused by the tree walk before anything is promoted. The canonical-path check behind it
+    /// is a second line: on a local file system nothing but a link makes an entry's canonical
+    /// path leave the tree, so this test is its proof too.
+    #[cfg(unix)]
+    #[test]
+    fn a_symbolic_link_out_of_staging_is_refused() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outside_file = directory.path().join("authorized_keys");
+        std::fs::write(&outside_file, b"ssh-ed25519 AAAA").expect("file outside staging");
+        let outside_directory = directory.path().join("autostart");
+        std::fs::create_dir_all(&outside_directory).expect("directory outside staging");
+        for (name, target) in [
+            ("file", outside_file.clone()),
+            ("directory", outside_directory.clone()),
+            ("dangling", directory.path().join("not-there-yet")),
+        ] {
+            let staging = directory.path().join(format!("staging-{name}"));
+            std::fs::create_dir_all(staging.join("nested")).expect("staging");
+            std::os::unix::fs::symlink(&target, staging.join("nested/link")).expect("link");
+            let error = validate_tree(&staging, ArchiveLimits::default())
+                .expect_err("a link out of staging must not validate");
+            assert!(
+                error.to_string().contains("symbolic link"),
+                "{name}: {error}"
+            );
+        }
+    }
+
+    /// The limits hold for a tree an external tool wrote, where nothing counted while it was
+    /// written: one file too many, or one byte too many, fails the validation.
+    #[test]
+    fn a_tree_over_either_limit_is_refused() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let staging = directory.path().join("staging");
+        std::fs::create_dir_all(staging.join("nested")).expect("staging");
+        std::fs::write(staging.join("a.bin"), vec![0_u8; 600]).expect("file");
+        std::fs::write(staging.join("nested/b.bin"), vec![0_u8; 600]).expect("file");
+        let at = |max_files, max_uncompressed_bytes| ArchiveLimits {
+            max_files,
+            max_uncompressed_bytes,
+        };
+
+        let report = validate_tree(&staging, at(2, 1_200)).expect("exactly at both limits");
+        assert_eq!((report.files, report.uncompressed_bytes), (2, 1_200));
+        let count = validate_tree(&staging, at(1, u64::MAX)).expect_err("two files over one");
+        assert!(count.to_string().contains("file-count limit"), "{count}");
+        let size = validate_tree(&staging, at(10, 1_199)).expect_err("one byte over");
+        assert!(
+            size.to_string().contains("uncompressed-size limit"),
+            "{size}"
+        );
     }
 }

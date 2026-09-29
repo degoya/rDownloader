@@ -56,7 +56,9 @@
     "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu'avec l'extension du navigateur appairée, et aucune ne s'est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé d'API.",
     "no_providers_title": "Aucun service avec compte n'est encore installé",
     "no_providers": "Choisissez un hébergeur, un multihébergeur ou un service cloud dans « Vos services », puis ajoutez ici son compte. Les serveurs Usenet n'ont pas besoin de plugin.",
-    "choose_services": "Choisir des services"
+    "choose_services": "Choisir des services",
+    "restart_required_title": "Un redémarrage est encore nécessaire",
+    "restart_required": "Certains des plugins qui viennent d'être installés ne fonctionnent qu'après le prochain redémarrage. Vous pouvez déjà ajouter leurs comptes ; ils sont vérifiés dès que rDownloader a redémarré."
   },
   "actions": {
     "back": "Retour",

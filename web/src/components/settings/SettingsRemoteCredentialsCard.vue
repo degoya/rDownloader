@@ -179,7 +179,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="transfers.remote" class="border border-muted bg-default p-5">
 
     <div v-if="pendingKey" class="mb-4 border p-4" :class="pendingKey.changed ? 'border-error bg-error/5' : 'border-warning bg-warning/5'">
       <p class="text-sm font-medium text-highlighted">
@@ -344,6 +344,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
           <UInput v-model.number="settings.remote_timeout_seconds" type="number" min="5" max="600" icon="i-lucide-timer" class="w-full" />
         </UFormField>
         <USwitch
+          data-settings-anchor="transfers.ssh_auto_trust"
           v-model="settings.remote_ssh_auto_trust"
           :label="t('remote.settings.ssh_auto_trust')"
           :description="t('remote.settings.ssh_auto_trust_hint')"

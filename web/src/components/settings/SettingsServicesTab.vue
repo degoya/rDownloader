@@ -25,7 +25,7 @@ const { t } = useI18n()
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="services.switches" class="border border-muted bg-default p-5">
       <div class="flex flex-col gap-4">
         <div>
           <SectionHeader

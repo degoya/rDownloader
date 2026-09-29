@@ -535,6 +535,14 @@
     "notifications": {
       "title": "Clear the notification history?",
       "description": "{count} finished deliveries will be removed from the history for good. Deliveries still queued or retrying stay, as do destinations, rules, the service log, the audit log and the statistics."
+    },
+    "notifications_pending": {
+      "button": "Discard pending",
+      "stored": "{count} pending",
+      "title": "Discard the pending notifications?",
+      "description": "{count} notifications still queued or retrying will be deleted and never sent. Delivered and failed deliveries stay in the history, as do destinations, rules, the service log, the audit log and the statistics.",
+      "confirm": "Discard for good",
+      "done": "{count} notifications discarded"
     }
   },
   "session_limits": {

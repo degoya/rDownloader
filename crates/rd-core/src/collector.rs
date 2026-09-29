@@ -516,6 +516,10 @@ pub struct Category {
     /// Whether packages in this category unpack nested archives recursively; `None` = global default.
     #[serde(default)]
     pub recursive_unpack: Option<bool>,
+    /// Whether packages in this category unpack every archive set into a folder of its own;
+    /// `None` = global default (RD-170-16).
+    #[serde(default)]
+    pub unpack_to_subfolder: Option<bool>,
     /// Whether packages in this category verify `.sfv` checksums; `None` = global default.
     #[serde(default)]
     pub sfv_verify: Option<bool>,

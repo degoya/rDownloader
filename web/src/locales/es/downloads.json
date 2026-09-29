@@ -283,7 +283,10 @@
     "committed": "Confirmado {total}",
     "remaining": "{total} en cola",
     "eta": "quedan {duration}",
-    "eta_title": "Tiempo restante estimado al ritmo actual"
+    "eta_title": "Tiempo restante estimado al ritmo actual",
+    "selection_title": "{count} seleccionados, {size} en total",
+    "selection_partial_title": "{count} seleccionados, al menos {size} en total – de {unknown} aún no se conoce el tamaño",
+    "selection_unknown_title": "{count} seleccionados, tamaño aún desconocido"
   },
   "media": {
     "variant": "Variante:",

@@ -86,7 +86,7 @@ async function createProxy(): Promise<void> {
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="network.proxies" class="border border-muted bg-default p-5">
       <FormListLayout :list-title="t('settings.proxy.list_title')" :count="proxies.length">
         <template #form>
           <SectionHeader
@@ -141,7 +141,7 @@ async function createProxy(): Promise<void> {
       </FormListLayout>
     </section>
 
-    <section class="grid gap-4 border border-muted bg-default p-5">
+    <section data-settings-anchor="network.global_proxy" class="grid gap-4 border border-muted bg-default p-5">
       <SectionHeader
         :eyebrow="t('settings.global_proxy.eyebrow')"
         :title="t('settings.global_proxy.title')"
@@ -151,7 +151,7 @@ async function createProxy(): Promise<void> {
       <UFormField :label="t('settings.global_proxy.label')">
         <USelect v-model="globalProxySelection" :items="proxyItems" class="w-full" />
       </UFormField>
-      <UFormField :label="t('settings.custom_ca.label')" :description="t('settings.custom_ca.description')">
+      <UFormField data-settings-anchor="network.custom_ca" :label="t('settings.custom_ca.label')" :description="t('settings.custom_ca.description')">
         <UTextarea v-model="settings.custom_ca_pem" :rows="7" class="w-full font-mono text-xs" placeholder="-----BEGIN CERTIFICATE-----" />
       </UFormField>
     </section>

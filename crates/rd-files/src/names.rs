@@ -149,6 +149,32 @@ pub fn collision_free_path(directory: &Path, file_name: &str) -> PathBuf {
     directory.join(format!("{}-{}", stem, uuid::Uuid::now_v7()))
 }
 
+/// The folder one archive set is unpacked into when every set gets its own (RD-170-16):
+/// `<directory>/<archive base>`, `Film.part1.rar` → `Film`.
+///
+/// The name comes from a downloaded file, so it goes through the package-folder rules and is
+/// shortened so the extracted files below it still fit the path budget. An existing directory
+/// of that name is the answer — a second run after a crash merges into it. Anything else in the
+/// way (a file, a symlink) moves the name on to ` (1)`, ` (2)`, … in the same order every time,
+/// so a rerun lands in the folder the first run chose.
+#[must_use]
+pub fn extraction_subfolder(directory: &Path, archive_base: &str) -> PathBuf {
+    let name = sanitize_file_name_within(directory, archive_base, MIN_NAME_UTF16_UNITS * 2);
+    // `symlink_metadata`: a link to a directory elsewhere is in the way, not a place to unpack.
+    let usable = |path: &Path| !std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_dir());
+    let direct = directory.join(&name);
+    if usable(&direct) {
+        return direct;
+    }
+    for index in 1..=10_000_u32 {
+        let candidate = directory.join(format!("{name} ({index})"));
+        if usable(&candidate) {
+            return candidate;
+        }
+    }
+    directory.join(format!("{name}-{}", uuid::Uuid::now_v7()))
+}
+
 fn is_windows_reserved(file_name: &str) -> bool {
     let base = file_name
         .split_once('.')
@@ -194,7 +220,7 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        MAX_PATH_UTF16_UNITS, package_directory, package_name_from_file_name,
+        MAX_PATH_UTF16_UNITS, extraction_subfolder, package_directory, package_name_from_file_name,
         renamed_package_directory, sanitize_file_name, sanitize_file_name_within,
     };
 
@@ -296,5 +322,41 @@ mod tests {
     #[test]
     fn a_root_directory_has_nothing_to_rename_inside() {
         assert_eq!(renamed_package_directory(Path::new("/"), "New Name"), None);
+    }
+
+    #[test]
+    fn an_extraction_subfolder_is_named_after_its_archive() {
+        let package = tempfile::tempdir().expect("tempdir");
+        assert_eq!(
+            extraction_subfolder(package.path(), "Film"),
+            package.path().join("Film")
+        );
+        // A separator in a downloaded name cannot walk out of the package folder.
+        assert_eq!(
+            extraction_subfolder(package.path(), "../../etc/x"),
+            package.path().join(".._.._etc_x")
+        );
+        // Nothing usable left: the fixed fallback name, never the package folder itself.
+        assert_eq!(
+            extraction_subfolder(package.path(), " .. "),
+            package.path().join("download")
+        );
+    }
+
+    #[test]
+    fn an_existing_extraction_subfolder_is_reused_and_a_file_is_stepped_around() {
+        let package = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(package.path().join("Film")).expect("folder");
+        std::fs::write(package.path().join("Extras"), b"not a folder").expect("file");
+        // A rerun after a crash merges into what the first run created.
+        assert_eq!(
+            extraction_subfolder(package.path(), "Film"),
+            package.path().join("Film")
+        );
+        let stepped = extraction_subfolder(package.path(), "Extras");
+        assert_eq!(stepped, package.path().join("Extras (1)"));
+        // Deterministic: once that folder exists, the same name leads to it again.
+        std::fs::create_dir(&stepped).expect("folder");
+        assert_eq!(extraction_subfolder(package.path(), "Extras"), stepped);
     }
 }

@@ -45,10 +45,25 @@ use crate::{
 ///
 /// Closed, like [`crate::manifest::MANAGED_TOOLS`], and for the same reason: a rule about a
 /// name nothing ever looks up cannot gate anything, so accepting one would only make the
-/// delivered set look larger than it is. `unrar`, `7z` and `rclone` are absent because no
-/// capability here is derived from their version; their failures are reported by the tools
-/// themselves. `par2` is absent because repair runs in-process, with no binary at all.
+/// delivered set look larger than it is. `rclone` is absent because no capability here is
+/// derived from its version; its failures are reported by the tool itself. `par2` is absent
+/// because repair runs in-process, with no binary at all.
+///
+/// `unrar` and `7z` are absent for the opposite reason: their rule is a security floor
+/// ([`ARCHIVE_TOOL_FLOORS`]), compiled in, and neither a delivered rule nor an override may
+/// name it. A delivered rule about either refuses the whole delivered set like any other
+/// unknown name, and an override naming either is dropped.
 pub const RULED_TOOLS: &[&str] = &["yt-dlp", "gallery-dl", "streamlink", "ffmpeg", "ffprobe"];
+
+/// The archive tools and the oldest version extraction may run (review 2026-09-28, finding 5).
+///
+/// Both tools had link traversals that write outside the extraction directory before anything
+/// here can look at the tree: unrar before 6.12 (CVE-2022-30333) and 7-Zip before 25.00
+/// (CVE-2025-11001, CVE-2025-11002); p7zip 16.02, the last p7zip, is far below the floor.
+/// `validate_tree` only runs once the tool has exited, so the version is the only brake.
+/// Extraction reads the floor from here, through [`assess_archive_tool`], and never from the
+/// rules in force.
+pub const ARCHIVE_TOOL_FLOORS: &[(&str, &str)] = &[("unrar", "6.12"), ("7z", "25.00")];
 
 /// The largest delivered rule set this build reads, so a signed but oversized document is
 /// refused rather than walked.
@@ -73,6 +88,8 @@ pub enum Capability {
     GalleryDownload,
     /// Recording a live stream through Streamlink.
     StreamRecording,
+    /// Unpacking RAR sets and split ZIP sets through `unrar` or 7-Zip.
+    ArchiveExtraction,
 }
 
 impl Capability {
@@ -85,6 +102,7 @@ impl Capability {
             Self::AudioExtraction => "audio_extraction",
             Self::GalleryDownload => "gallery_download",
             Self::StreamRecording => "stream_recording",
+            Self::ArchiveExtraction => "archive_extraction",
         }
     }
 }
@@ -310,7 +328,15 @@ impl CompatRules {
                     known_bad: Vec::new(),
                     affects: vec![Capability::MediaMerge, Capability::AudioExtraction],
                 },
-            ],
+            ]
+            .into_iter()
+            .chain(ARCHIVE_TOOL_FLOORS.iter().map(|(tool, floor)| CompatRule {
+                tool: (*tool).to_owned(),
+                min_version: Some((*floor).to_owned()),
+                known_bad: Vec::new(),
+                affects: vec![Capability::ArchiveExtraction],
+            }))
+            .collect(),
         }
     }
 
@@ -527,6 +553,16 @@ pub async fn assess(tool: &str, path: &Path) -> Assessment {
     assess_detected(tool, &detected)
 }
 
+/// Reads an archive tool's version and judges it against its security floor alone.
+///
+/// Unlike [`assess`], neither the rules a manifest delivered nor an override enter: the floor
+/// is [`ARCHIVE_TOOL_FLOORS`], compiled in. An unreadable version is [`Verdict::Unknown`] as
+/// everywhere else, and the caller decides what that means for its tool.
+pub async fn assess_archive_tool(tool: &str, path: &Path) -> Assessment {
+    let detected = version::detect(tool, path).await;
+    CompatRules::base().assess(tool, &detected, false)
+}
+
 /// Records an override that actually suppressed a block.
 ///
 /// This is the auditable half of "override only explicit and auditable": the setting is the
@@ -682,7 +718,7 @@ mod tests {
     /// nothing either.
     #[test]
     fn a_tool_without_a_rule_neither_warns_nor_blocks() {
-        let assessment = CompatRules::base().assess("unrar", &detected("6.24"), false);
+        let assessment = CompatRules::base().assess("rclone", &detected("1.66.0"), false);
         assert_eq!(assessment.verdict, Verdict::Unknown);
         assert!(assessment.affects.is_empty());
         assert!(!assessment.warns());
@@ -755,5 +791,45 @@ mod tests {
     fn a_packaging_suffix_still_meets_the_floor() {
         let assessment = CompatRules::base().assess("ffmpeg", &detected("4.4-6ubuntu5"), false);
         assert_eq!(assessment.verdict, Verdict::Supported);
+    }
+
+    /// Review 2026-09-28, finding 5: unrar below 6.12 and 7-Zip below 25.00 write through an
+    /// archive's links, p7zip 16.02 included. The floor sits exactly at the fixed releases.
+    #[test]
+    fn the_archive_tools_have_a_security_floor() {
+        let rules = CompatRules::base();
+        for (tool, version, verdict) in [
+            ("unrar", "6.11", Verdict::TooOld),
+            ("unrar", "6.12", Verdict::Supported),
+            ("unrar", "7.01", Verdict::Supported),
+            ("7z", "16.02", Verdict::TooOld),
+            ("7z", "24.09", Verdict::TooOld),
+            ("7z", "25.00", Verdict::Supported),
+            ("7z", "25.01", Verdict::Supported),
+        ] {
+            let assessment = rules.assess(tool, &detected(version), false);
+            assert_eq!(assessment.verdict, verdict, "{tool} {version}");
+            assert_eq!(assessment.affects, vec![Capability::ArchiveExtraction]);
+        }
+    }
+
+    /// The floor is compiled in: a delivered rule cannot lower it, and an override cannot
+    /// lift it.
+    #[test]
+    fn neither_a_delivered_rule_nor_an_override_reaches_the_archive_floor() {
+        for tool in ["unrar", "7z"] {
+            assert!(matches!(
+                CompatRules::layered_over_base(vec![rule(tool, Some("5.0"), &[])]),
+                Err(RuleError::UnknownTool(name)) if name == tool
+            ));
+        }
+        super::set_overrides(&["unrar".to_owned(), "7z".to_owned()]);
+        let assessment = super::assess_detected("unrar", &detected("6.11"));
+        super::set_overrides(&[]);
+        assert!(
+            !assessment.overridden,
+            "an override named the archive floor"
+        );
+        assert!(assessment.blocks(Capability::ArchiveExtraction));
     }
 }

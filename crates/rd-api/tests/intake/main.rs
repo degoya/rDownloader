@@ -9,6 +9,7 @@
 mod common;
 
 mod captcha;
+mod capture_boundary;
 mod capture_file;
 mod capture_intake;
 mod container_json;

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import type { CollectorPackage, LinkCandidate, NzbImport } from '@/api/types'
 
-import { grabberKey, mergeGrabberEntries, useGrabberSelection, type CollectorEntry, type GrabberEntry, type NzbEntry } from './useGrabberSelection'
+import { grabberKey, isSelectableCandidate, mergeGrabberEntries, packageRowKey, useGrabberSelection, type CollectorEntry, type GrabberEntry, type NzbEntry } from './useGrabberSelection'
 
 function candidate(id: string): LinkCandidate {
   return { id, state: 'online', url: `https://files.example.com/${id}` } as LinkCandidate
@@ -109,5 +109,92 @@ describe('useGrabberSelection', () => {
     selection.pickCollector('b', true)
     selection.clear()
     expect(selection.anchor.value).toBeNull()
+  })
+})
+
+describe('useGrabberSelection package ranges (RD-170-13)', () => {
+  /** p1 open with its links on screen, p2 collapsed, then the import and an open p3. */
+  function setup() {
+    const entries = ref<GrabberEntry[]>([
+      collectorEntry('p1', ['a', 'b'], 0),
+      collectorEntry('p2', ['c', 'd'], 1),
+      nzbEntry('n1', 2),
+      collectorEntry('p3', ['e'], 3)
+    ])
+    const ordered = computed(() => [
+      packageRowKey('p1'), grabberKey('collector', 'a'), grabberKey('collector', 'b'),
+      packageRowKey('p2'),
+      grabberKey('nzb', 'n1'),
+      packageRowKey('p3'), grabberKey('collector', 'e')
+    ])
+    return useGrabberSelection(entries, ordered)
+  }
+
+  it('selects every package from the anchor to the shift-clicked one', () => {
+    const selection = setup()
+    selection.pickPackage('p1', true)
+    selection.pickPackage('p3', true, true)
+    expect(selection.collectorIds.value).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(selection.nzbIds.value).toEqual(['n1'])
+  })
+
+  it('takes a collapsed package between a link and an import whole', () => {
+    const selection = setup()
+    selection.pickNzb('n1', true)
+    selection.pickCollector('b', true, true)
+    expect(selection.collectorIds.value).toEqual(['b', 'c', 'd'])
+  })
+
+  /** An open package in the middle adds only the rows it shows, which are in the range anyway. */
+  it('does not pull in the rest of an open package the range only crosses', () => {
+    const selection = setup()
+    selection.pickCollector('b', true)
+    selection.pickPackage('p2', true, true)
+    expect(selection.collectorIds.value).toEqual(['b', 'c', 'd'])
+  })
+})
+
+describe('isSelectableCandidate', () => {
+  // A row shows its checkbox for every state a link may be queued from; a checkbox that
+  // cannot be ticked was the bug for `unsupported` and `error`.
+  it('follows the enqueueable states', () => {
+    for (const state of ['online', 'duplicate', 'offline', 'unsupported', 'error']) {
+      expect(isSelectableCandidate({ state } as LinkCandidate), state).toBe(true)
+    }
+    for (const state of ['unresolvable', 'checking', 'queued']) {
+      expect(isSelectableCandidate({ state } as LinkCandidate), state).toBe(false)
+    }
+  })
+})
+
+describe('useGrabberSelection size', () => {
+  function sized(entry: CollectorEntry, sizes: Record<string, string | null>): CollectorEntry {
+    return { ...entry, candidates: entry.candidates.map(link => ({ ...link, size: sizes[link.id] ?? null })) }
+  }
+
+  it('counts a ticked package and its ticked links once (RD-170-14)', () => {
+    const nzb = nzbEntry('n1', 2)
+    const entries = ref<GrabberEntry[]>([
+      sized(collectorEntry('p1', ['a', 'b'], 1), { a: '1000', b: '2000' }),
+      { ...nzb, item: { ...nzb.item, total_bytes: '500' } }
+    ])
+    const selection = useGrabberSelection(entries)
+
+    selection.pickCollector('a', true)
+    selection.pickPackage('p1', true)
+    selection.pickNzb('n1', true)
+
+    expect(selection.size.value).toEqual({ count: 3, bytes: 3500n, unknown: 0 })
+  })
+
+  it('keeps a link without a size out of the sum and counts it apart', () => {
+    const entries = ref<GrabberEntry[]>([sized(collectorEntry('p1', ['a', 'b']), { a: '1000', b: null })])
+    const selection = useGrabberSelection(entries)
+
+    selection.pickPackage('p1', true)
+
+    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1 })
+    selection.clear()
+    expect(selection.size.value.count).toBe(0)
   })
 })

@@ -1,5 +1,6 @@
 //! User post-processing scripts, invoked like SABnzbd scripts (positional arguments plus
-//! `RD_*` and `SAB_*` environment variables), without a shell.
+//! `RD_*` and `SAB_*` environment variables), without a shell and without the rest of the
+//! service's environment.
 
 use std::{
     path::{Path, PathBuf},
@@ -58,8 +59,21 @@ pub(crate) fn resolve_script(directory: &Path, name: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Builds the command: interpreters by extension, otherwise the file itself.
+/// Builds the command: interpreters by extension, otherwise the file itself, in an environment
+/// of its own.
+///
+/// Security review 2026-09-28, finding 7: a script used to inherit every variable the service
+/// was started with. It now gets the allowlist of `rd_postprocess::restrict_environment` - the
+/// search path, home, temporary directory, time zone, locale and the few Windows needs - and
+/// the `RD_*`/`SAB_*` values its caller sets on top; nothing else of the service's environment.
 pub(crate) fn command_for(script: &Path) -> tokio::process::Command {
+    let mut command = program_for(script);
+    rd_postprocess::restrict_environment(&mut command, &[]);
+    command
+}
+
+/// The program and its leading arguments for `script`.
+fn program_for(script: &Path) -> tokio::process::Command {
     let extension = script
         .extension()
         .and_then(|value| value.to_str())

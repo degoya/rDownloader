@@ -28,7 +28,9 @@ use crate::{
 
 /// The installed OAuth providers, one per claimed provider slug.
 pub struct OAuthProviders {
-    plugins: Vec<Provider>,
+    /// Shared, so a set with a first install joined to it (RD-170-12) is built without
+    /// compiling what is already running a second time.
+    plugins: Vec<Arc<Provider>>,
     /// Provider slug the plugin claims to its index -- the key an account carries.
     by_slug: HashMap<String, usize>,
 }
@@ -85,7 +87,7 @@ impl OAuthProviders {
                 continue;
             }
             let index = plugins.len();
-            plugins.push(provider);
+            plugins.push(Arc::new(provider));
             for slug in claims {
                 by_slug.entry(slug.to_ascii_lowercase()).or_insert(index);
             }
@@ -105,6 +107,29 @@ impl OAuthProviders {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.plugins.is_empty()
+    }
+
+    /// Whether any version of this plugin is in the set.
+    #[must_use]
+    pub fn has_plugin(&self, id: rd_core::PluginId) -> bool {
+        self.plugins
+            .iter()
+            .any(|provider| provider.manifest.id == id)
+    }
+
+    /// This set with the plugins of `addition` joined to it: a first install that runs without
+    /// a restart (RD-170-12). A slug already claimed stays with its plugin, as the first claim
+    /// wins at a start.
+    #[must_use]
+    pub fn joined(&self, addition: Self) -> Self {
+        let mut plugins = self.plugins.clone();
+        let mut by_slug = self.by_slug.clone();
+        let offset = plugins.len();
+        plugins.extend(addition.plugins);
+        for (slug, index) in addition.by_slug {
+            by_slug.entry(slug).or_insert(offset + index);
+        }
+        Self { plugins, by_slug }
     }
 
     /// Whether an installed OAuth plugin claims this provider, whichever way in it serves.
@@ -237,6 +262,7 @@ impl OAuthProviders {
         self.by_slug
             .get(&provider_slug.to_ascii_lowercase())
             .and_then(|index| self.plugins.get(*index))
+            .map(Arc::as_ref)
             .ok_or_else(|| ProviderError::no_plugin(provider_slug))
     }
 }

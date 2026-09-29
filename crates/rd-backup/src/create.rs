@@ -181,6 +181,12 @@ pub async fn seal_backup(
         .snapshot_into(&staging.join(DATABASE_PART))
         .await
         .map_err(BackupError::at("backup.snapshot_failed"))?;
+    // The staging now holds an unencrypted copy of the database; a stop from here on leaves it
+    // for the sweep every start runs.
+    rd_core::failpoint!("backup.after_database_snapshot", || BackupError {
+        code: "backup.interrupted",
+        detail: "crash point".to_owned(),
+    });
     let mut parts = vec![(DATABASE_PART.to_owned(), PartKind::Database)];
     parts.extend(
         collect(&staging, &sources)

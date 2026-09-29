@@ -22,7 +22,8 @@ use crate::{
     audit::{Actor, AuditContext, AuditEvent},
     dto::MessageResponse,
     plugin_handlers::{
-        MAX_PLUGIN_PACKAGE_BYTES, confirm_signing_key, install_error, register_installed,
+        MAX_PLUGIN_PACKAGE_BYTES, confirm_signing_key, install_error, installed_message,
+        register_installed,
     },
     plugin_repository_dto::{
         AddPluginRepositoryQuery, AddPluginRepositoryRequest, PluginOffersResponse,
@@ -310,7 +311,8 @@ pub async fn preview_repository_package(
     Ok(Json(preview(&state, bytes).await?.with_offer(&offer)))
 }
 
-/// Installs one offered package. Active after a restart, like every install.
+/// Installs one offered package. A first install runs at once; an update from the next start
+/// (RD-170-12).
 #[utoipa::path(
     post,
     path = "/api/v1/plugins/repositories/{id}/install",
@@ -436,7 +438,7 @@ async fn install_offer(
         .install_bytes(bytes)
         .await
         .map_err(install_error)?;
-    register_installed(state, &installed).await?;
+    let running = register_installed(state, &installed).await?;
     if let Err(error) = state.plugin_repositories.record_install(offer).await {
         // The install stands; only a later withdrawal by a third-party repository loses its
         // reach over this version, which is the narrower of the two failures.
@@ -462,12 +464,7 @@ async fn install_offer(
         event = event.detail("confirmed_key", fingerprint);
     }
     crate::audit::record(state, event).await;
-    let path = installed.path.display().to_string();
-    Ok(MessageResponse::new(
-        "plugin.installed_restart_required",
-        format!("Plugin installed at {path}; restart to activate it"),
-    )
-    .with_param("path", path))
+    Ok(installed_message(&installed, running))
 }
 
 async fn preview(state: &AppState, bytes: Vec<u8>) -> Result<PluginPreviewResponse, ApiError> {

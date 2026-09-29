@@ -1617,6 +1617,12 @@ impl Database {
         notify_store::count_clearable_deliveries(&self.readers).await
     }
 
+    /// How many deliveries are still queued or retrying: what discarding the pending
+    /// notifications would remove (RD-170-11).
+    pub async fn count_pending_notification_deliveries(&self) -> Result<u64> {
+        notify_store::count_pending_deliveries(&self.readers).await
+    }
+
     /// Deliveries whose next attempt is due.
     pub async fn due_notification_deliveries(
         &self,
@@ -1704,6 +1710,15 @@ impl Database {
     pub async fn clear_notification_deliveries(&self) -> Result<u64> {
         writer::request(&self.writer, |reply| {
             WriterCommand::ClearNotificationDeliveries { reply }
+        })
+        .await
+    }
+
+    /// Cancels every notification still queued or retrying by deleting its delivery, and
+    /// reports how many went (RD-170-11). The finished history stays.
+    pub async fn discard_pending_notification_deliveries(&self) -> Result<u64> {
+        writer::request(&self.writer, |reply| {
+            WriterCommand::DiscardPendingNotificationDeliveries { reply }
         })
         .await
     }

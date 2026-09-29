@@ -285,6 +285,10 @@
     "enrichment": {
       "label": "Ask enricher plugins about links",
       "description": "Off by default. An enricher looks a link up at a service outside this machine — SponsorBlock, for one — so nothing is asked until you say so. Only links a plugin claims are sent, and what comes back is shown beside the core details, never instead of them."
+    },
+    "unpack_to_subfolder": {
+      "label": "Unpack into subfolders",
+      "description": "Unpack each archive into a folder of its own inside the package folder, named after the archive (Film.part1.rar → Film/). The archives themselves are not moved."
     }
   },
   "appearance": {

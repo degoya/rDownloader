@@ -160,8 +160,13 @@ pub async fn test_account(
 /// A check otherwise answers `account.check_failed` with the provider's English reason, which is
 /// all a plugin's own wording can be. A failure the service coded itself and the interface
 /// translates is worth more than that: `captcha.page_without_widget` says what to do in the
-/// reader's language (RD-120-45), where the quoted reason could only say it in English.
-const PASSED_THROUGH_CHECK_CODES: &[&str] = &["captcha.page_without_widget"];
+/// reader's language (RD-120-45), where the quoted reason could only say it in English. So does
+/// `plugin.installed_not_running`: the account's plugin is installed and runs after a restart
+/// (RD-170-12), which is what the person needs to hear right after installing it.
+const PASSED_THROUGH_CHECK_CODES: &[&str] = &[
+    "captcha.page_without_widget",
+    "plugin.installed_not_running",
+];
 
 fn account_check_failed(failure: rd_core::Failure) -> ApiError {
     if let Some(code) = failure.code.as_deref().and_then(|code| {
@@ -643,6 +648,7 @@ pub(crate) async fn validated_category(
             .map(crate::postprocess_handlers::normalize_cleanup_extensions)
             .transpose()?,
         recursive_unpack: request.recursive_unpack,
+        unpack_to_subfolder: request.unpack_to_subfolder,
         sfv_verify: request.sfv_verify,
         safe_postproc: request.safe_postproc,
         delete_par2: request.delete_par2,

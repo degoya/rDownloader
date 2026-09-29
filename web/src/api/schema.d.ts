@@ -2845,6 +2845,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/deliveries/discard-pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discards the notifications still queued or retrying (RD-170-11): their deliveries are
+         *     deleted, so the worker never sends them. The finished history stays; that is what
+         *     [`clear_notification_deliveries`] is for.
+         * @description An attempt already under way when the request arrives still ends; recording its outcome
+         *     then finds no row and changes nothing.
+         */
+        post: operations["discard_pending_notification_deliveries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/destinations": {
         parameters: {
             query?: never;
@@ -3370,8 +3393,9 @@ export interface paths {
          * @description One plugin that fails does not stop the others: the answer lists what was installed and what
          *     was not, and the person sees both. Every service is looked up before anything installs, so a
          *     request naming an unknown one changes nothing. Like every install, the plugins' provider rows
-         *     are live at once — the accounts step can offer them straight away — and the plugins
-         *     themselves run from the next start.
+         *     are live at once — the accounts step can offer them straight away — and a first install of a
+         *     resolver or a sign-in plugin runs at once too (RD-170-12); what does not says so in
+         *     `restart_required`.
          */
         post: operations["install_bundled_services"];
         delete?: never;
@@ -3549,7 +3573,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Installs one offered package. Active after a restart, like every install. */
+        /**
+         * Installs one offered package. A first install runs at once; an update from the next start
+         *     (RD-170-12).
+         */
         post: operations["install_repository_package"];
         delete?: never;
         options?: never;
@@ -3639,9 +3666,9 @@ export interface paths {
         /**
          * Switches one installed plugin off or back on.
          * @description The plugin stays installed and keeps being listed — otherwise it could not be switched back
-         *     on — but it is no longer loaded, compiled or executed. Like installing one, this takes full
-         *     effect on the next start, because resolvers and extension hosts are built when their
-         *     subsystem starts.
+         *     on — but it is no longer loaded, compiled or executed. Like an update, this takes full effect
+         *     on the next start, because resolvers and extension hosts are built when their subsystem
+         *     starts.
          */
         patch: operations["set_plugin_enabled"];
         trace?: never;
@@ -5503,7 +5530,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -6244,6 +6271,7 @@ export interface components {
             script?: string | null;
             sfv_verify?: boolean | null;
             storage_root_name: string;
+            unpack_to_subfolder?: boolean | null;
             upload_enabled?: boolean | null;
             upload_remote?: string | null;
         };
@@ -6365,11 +6393,21 @@ export interface components {
             services: string[];
         };
         BundledInstallResponse: {
-            /** @description `plugin.bundled_installed`, or `plugin.bundled_partly_installed` when something failed. */
+            /**
+             * @description `plugin.bundled_installed` when everything installed runs now,
+             *     `plugin.bundled_installed_restart_required` when some of it runs from the next start, or
+             *     `plugin.bundled_partly_installed` when something failed.
+             */
             code: string;
             failed: components["schemas"]["BundledInstallFailure"][];
             installed: components["schemas"]["BundledPluginResponse"][];
             message: string;
+            /**
+             * @description Whether a plugin installed here runs only from the next start (RD-170-12): an update of
+             *     a running plugin, a type that is not loaded while the service runs, or one that did not
+             *     load. The setup wizard's accounts step says so.
+             */
+            restart_required: boolean;
         };
         /** @description One plugin of a bundled service. */
         BundledPluginResponse: {
@@ -6515,7 +6553,7 @@ export interface components {
          *     that nothing enforces.
          * @enum {string}
          */
-        Capability: "media_download" | "media_merge" | "audio_extraction" | "gallery_download" | "stream_recording";
+        Capability: "media_download" | "media_merge" | "audio_extraction" | "gallery_download" | "stream_recording" | "archive_extraction";
         /** @description Why a target is holding back work; all four numbers are shown verbatim in the UI. */
         CapacityShortfallResponse: {
             free_bytes: components["schemas"]["ByteCount"];
@@ -6827,6 +6865,11 @@ export interface components {
             /** @description Whether packages in this category verify `.sfv` checksums; `None` = global default. */
             sfv_verify?: boolean | null;
             storage_root_id: components["schemas"]["StorageRootId"];
+            /**
+             * @description Whether packages in this category unpack every archive set into a folder of its own;
+             *     `None` = global default (RD-170-16).
+             */
+            unpack_to_subfolder?: boolean | null;
             /** @description Whether packages in this category upload to rclone; `None` = global default. */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form; `None` = the global remote. */
@@ -6871,6 +6914,11 @@ export interface components {
             script?: string | null;
             /** @description Whether packages of this category verify `.sfv` checksums (`null` = global default). */
             sfv_verify?: boolean | null;
+            /**
+             * @description Whether packages of this category unpack every archive set into a folder of its own,
+             *     named after the archive (`null` = global default, RD-170-16).
+             */
+            unpack_to_subfolder?: boolean | null;
             /** @description Whether packages of this category upload to rclone (`null` = global default). */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form (`null` = the global remote). */
@@ -7277,6 +7325,11 @@ export interface components {
             /** @description Whether packages of this category verify `.sfv` checksums (`null` = global default). */
             sfv_verify?: boolean | null;
             storage_root_id: components["schemas"]["StorageRootId"];
+            /**
+             * @description Whether packages of this category unpack every archive set into a folder of its own,
+             *     named after the archive (`null` = global default, RD-170-16).
+             */
+            unpack_to_subfolder?: boolean | null;
             /** @description Whether packages of this category upload to rclone (`null` = global default). */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form (`null` = the global remote). */
@@ -7462,6 +7515,12 @@ export interface components {
              *     still queued or retrying (RD-130-08).
              */
             notifications: number;
+            /**
+             * Format: int64
+             * @description Deliveries still queued or retrying: what discarding the pending notifications would
+             *     remove (RD-170-11).
+             */
+            notifications_pending: number;
             /**
              * Format: int64
              * @description Rows in the transfer statistics: the buckets and the all-time totals together.
@@ -11843,6 +11902,12 @@ export interface components {
              * @default null
              */
             ui_port: number | null;
+            /**
+             * @description Unpack every archive set into a folder of its own below the package folder, named after
+             *     the archive, instead of straight into the package folder. Off by default (RD-170-16).
+             * @default false
+             */
+            unpack_to_subfolder: boolean;
             /**
              * @description Upload finished packages to an rclone remote as the last post-processing step.
              * @default false
@@ -20129,6 +20194,37 @@ export interface operations {
         };
     };
     clear_notification_deliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataClearResponse"];
+                };
+            };
+            /** @description data_reset.not_confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    discard_pending_notification_deliveries: {
         parameters: {
             query?: never;
             header?: never;

@@ -3,8 +3,118 @@
 All notable changes to rDownloader are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), the versioning follows [SemVer](https://semver.org/).
 
-
 ## [Unreleased]
+
+## [1.7.0] - 2026-09-30
+
+### Added
+
+- **Secret canary suite (RD-170-06).** An rd-api integration test plants a fresh canary as every
+  kind of stored credential through its own route — administrator password, provider account
+  key, password and cookies, proxy, object storage, FTP, webhook, ntfy, NNTP, authentication
+  profile, captcha key, backup and export passphrases, API token — makes the checks that use
+  them fail against refusing fixtures, and then searches REST, MCP, the event stream, the
+  captured log lines, a full-backup archive (raw and decrypted) and a diagnostic bundle for
+  them (`docs/security/secret-canaries.md`).
+- **Discard pending notifications (RD-170-11).** The delivery history has a second button next
+  to "Clear", shown while notifications are still queued or retrying: after its own
+  confirmation it deletes those deliveries, so they are never sent. "Clear" keeps them as
+  before. `POST /api/v1/notifications/deliveries/discard-pending` with `confirmed: true`,
+  `api:admin`, audited as `notifications_discarded`; the preview `GET /api/v1/system/data-reset`
+  gains `notifications_pending`, and MCP the tool `discard_pending_notification_deliveries`.
+- **Shift+click range selection in every selection list (RD-170-13).** Click one checkbox, hold
+  Shift and click another: every row between takes the clicked row's state, in the order shown,
+  like a file manager; Shift+Space on a focused checkbox does the same, Ctrl/Cmd+click still
+  toggles one row. Packages in the LinkGrabber and the queue now take part (a collapsed package
+  in the range comes whole), as do the torrent and remote file trees, the diagnostic bundle's
+  entries and a remote job's file choice.
+- **Selection size in the status bar (RD-170-14).** While packages, links, NZB imports or queued
+  files are ticked in the LinkGrabber or the queue, the rail at the bottom shows the count and the
+  summed size ("3 selected · 5.4 GiB"). A package and its ticked children count once; sizes not
+  known yet stay out and mark the sum as a lower bound ("≥ 5.4 GiB"); nothing selected, nothing
+  shown.
+- **Search across every setting (RD-170-15).** Ctrl/Cmd+K (also inside a text field), `/` or the
+  new search button at the top of the sidebar opens a command palette over the main views, the
+  settings pages and the cards and fields on them, in the interface language and by synonyms and
+  product names (ntfy, rclone, 7-Zip, S3). Choosing a setting opens its page (and routing
+  sub-tab), scrolls to it, outlines it briefly and focuses the field; `/settings/routing?tab=`
+  opens a routing sub-tab directly.
+- **The capture agent starts at login through Homebrew (RD-180-06).** A second formula in the
+  tap, `brew install degoya/rdownloader/rdownloader-capture`, carries the capture agent's
+  service: `brew services start rdownloader-capture` runs the `rdownloader-capture` of the
+  `rdownloader` formula, on macOS as a LaunchAgent in the login session so the tray appears, and
+  restarts it after a failure but not after the tray's *Quit*. The release pushes both formulas;
+  CI installs and tests both.
+- **Unpack into a folder per archive (RD-170-16).** A post-processing switch, "Unpack into
+  subfolders", off by default and overridable per category, unpacks every archive set into a
+  folder of its own inside the package folder, named after the archive (`Film.part1.rar` →
+  `Film/`, `Extras.zip` → `Extras/`, `x.7z.001` → `x/`). The archives stay where they are, an
+  archive found inside one is unpacked inside the same folder, a file in the way moves the name
+  on to `Name (1)`, and a rerun merges into the folder the first run chose. Setting
+  `unpack_to_subfolder`, category field of the same name (migration 0111), in the category
+  routes, the routing export and the MCP category tools. Object storage and plugin upload
+  destinations and plugin steps now get every file of the package, folders walked, under its
+  relative path (`<prefix>/<package>/Film/film.mkv`), not only the top-level files; `move`
+  removes a nested file after its confirmation and a folder once that emptied it.
+- **The WebDAV destination creates a package's subfolders before it uploads into them**, since a
+  server refuses an upload into a missing folder (HTTP 409); files keep their path below the
+  package folder. `webdav-storage` 0.9.6.
+- **"Tidy file names" tidies only the file name of a file in a subfolder** and renames it inside
+  that folder, never moving it to the top of the package. `rename-postprocess` 0.9.8.
+
+### Changed
+
+- **An upgrade copies the database first and puts it back when a migration fails
+  (RD-170-07).** A start that finds migrations pending on an existing database writes a
+  consistent copy to `<data>/pre-migration/` before the first one runs, keeping the newest three.
+  When a migration fails, the database is replaced by that copy, so the previous version starts
+  on it again, and the start stops with `db.migration_failed` naming the copy. Four new crash
+  cases cover a backup's staged database copy, an archive at its destination not yet in the
+  ledger, retention stopped between removing and forgetting, and a plugin update stopped before
+  its rename — which the loader used to read as a second copy of the plugin and now skips and
+  removes at start.
+- **The MCP tool count is a release fact.** `scripts/doc-facts.sh` counts the entries of
+  `TOOL_POLICY` in `crates/rd-api-mcp/src/policy.rs` and writes the number into
+  `docs/development.md`, `docs/feature-list.md` and, with `--wiki`, the *MCP server* and *FAQ*
+  pages; `docs-gate` refuses a stale one. Both repository places said 181; there are 193 tools.
+
+### Security
+
+- **unrar below 6.12 and 7-Zip below 25.00 no longer extract (RD-170-06).** Both have link
+  traversals that write outside the destination before rDownloader can look at the result
+  (CVE-2022-30333, CVE-2025-11001/11002; p7zip 16.02 is far below). Such a tool is not started;
+  the set fails with `extract.tool_outdated` naming the tool, its version and the floor, and the
+  tool status and `rdownloader doctor` show it as too old. The floor is compiled in — no manifest
+  rule and no override lifts it — and a version that cannot be read still extracts, with a
+  warning. Both tools' versions are now actually read, from the banner they print when started
+  without arguments.
+- **An unpacked file with a second name is refused (RD-170-06).** A hard link inside the
+  extraction directory to a file outside it passed the containment check, since its path is
+  inside; the promoted package would have held a name for, say, a key in the home directory.
+  Every regular file an unpack writes must now have exactly one name, or the unpack fails
+  before anything is promoted. Linux and macOS; Windows cannot read the link count on stable
+  Rust and stays uncovered.
+- **Scripts and post-processing tools no longer inherit the service's environment
+  (RD-170-06).** A user script, an archive tool, ffmpeg and rclone start from an empty
+  environment plus `PATH`, `HOME`, `TMPDIR`, `TZ`, `LANG`/`LC_*` (on Windows also the system,
+  profile and temporary folders) and the `RD_*`/`SAB_*` values rDownloader sets for the run;
+  rclone keeps its `RCLONE_*`, config-directory and proxy variables. **Behaviour change:** a
+  script that relied on another inherited variable (`PYTHONPATH`, an API key the service was
+  started with) has to set it itself — see "What a script inherits" in the post-processing
+  documentation.
+
+### Fixed
+
+- On Windows a restored database that does not open is put back again: the roll-back now waits
+  for the failed attempt to release the file instead of stopping with "used by another
+  process" and leaving the service unable to start.
+- **A release candidate runs only the GitHub platforms it still needs.** `web/openapi.json` carries the version since 1.6.0 but was missing from the version files the check compares, so the version bump looked like a code change and Linux and Windows ran again (1.6.1).
+
+- **A NAS opened by its local name needs no entry in the allowed host names.** A single-label name (`syno-xyz`), a `.local` name and names under `.home.arpa` or `.internal` exist only on the local network and cannot be registered in public DNS, so no page can rebind to them; the host check now accepts them like an IP address. Other names still need the external URL or an entry in the list.
+
+- **A plugin installed for the first time runs at once (RD-170-12).** The setup wizard installed DDownload, the accounts step offered it, and the account's check failed with "No resolver is installed for this provider", because resolvers were built only at the start. A first install — from the bundle, a repository or an upload — of a hoster or a sign-in plugin now joins the running service, and the plugin manager lists it as running. An update of a plugin that already runs, and the other plugin types, still run from the next start; the install answer says so, the wizard's accounts step says so, and an account whose plugin waits for the restart hears exactly that (`plugin.installed_not_running`) instead of "no resolver".
+
+- **Autostart and the capture agent's handlers survive a Scoop or Homebrew update.** `autostart install` of both binaries and the capture agent's `association install` and `scheme install` stored the running version's folder (`scoop\apps\rdownloader\<version>\`, `Cellar/rdownloader/<version>/`), which kept starting the old version after an update and broke once the cleanup deleted it. They now register the path the package manager keeps current — Scoop's `apps\rdownloader\current\`, Homebrew's `opt/rdownloader/` — and the Scoop CI install checks it.
 
 ## [1.6.1] - 2026-09-29
 

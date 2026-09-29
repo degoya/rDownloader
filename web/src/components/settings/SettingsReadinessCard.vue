@@ -58,7 +58,7 @@ const outstanding = computed(() => checks.value.filter(check => !check.done).len
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="system.readiness" class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('system.readiness.eyebrow')" :title="t('system.readiness.title')" />
     <p class="mt-2 text-sm leading-6 text-muted">
       {{ outstanding === 0 ? t('system.readiness.complete') : t('system.readiness.outstanding', outstanding) }}

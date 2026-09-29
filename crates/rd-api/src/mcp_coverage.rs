@@ -771,9 +771,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
     ),
     covered(
-        "Clearing the notification history",
+        "Clearing the notification history and discarding pending notifications",
         "Settings > Notifications",
-        &[any("/api/v1/notifications/deliveries/clear")],
+        &[
+            any("/api/v1/notifications/deliveries/clear"),
+            any("/api/v1/notifications/deliveries/discard-pending"),
+        ],
     ),
     covered(
         "Subscription items, runs and forced polls",

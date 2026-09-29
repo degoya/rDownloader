@@ -32,7 +32,9 @@ async function installService(key: string): Promise<void> {
     error.value = outcome.failures
       .map(failure => t('plugins.bundled.failed', { name: failure.name, reason: failure.message }))
       .join(' ')
-  } else emit('installed', t('plugins.bundled.installed', outcome.installed))
+  } else {
+    emit('installed', t(outcome.restartRequired ? 'plugins.bundled.installed' : 'plugins.bundled.installed_live', outcome.installed))
+  }
 }
 
 /** Re-read without the skeleton, for the plugin manager's event reload. */

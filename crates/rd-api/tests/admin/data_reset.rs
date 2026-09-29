@@ -1,10 +1,11 @@
-//! Clearing logs, audit records and statistics over REST (RD-120-34), and the notification
-//! history (RD-130-08).
+//! Clearing logs, audit records and statistics over REST (RD-120-34), the notification history
+//! (RD-130-08) and the notifications not yet sent (RD-170-11).
 //!
 //! What is checked here is the contract a client sees: the count arrives before the question,
 //! an unconfirmed request is refused with a stable code, each action empties its own store and
 //! nothing else, the audit clear writes itself into the emptied log, a notification still owed
-//! an attempt survives its history being cleared, and the queue is not touched by any of them.
+//! an attempt survives its history being cleared and goes only when discarded on purpose, and
+//! the queue is not touched by any of them.
 //!
 //! The three-way isolation measured as store counts — including the transfer statistics, which
 //! have no public write — is in `crates/rd-db/tests/data_reset.rs`.
@@ -24,11 +25,12 @@ use serde_json::json;
 const CONFIRMED: fn() -> serde_json::Value = || json!({ "confirmed": true });
 
 /// Every clear this file knows, so a check that holds for all of them names all of them.
-const CLEARS: [&str; 4] = [
+const CLEARS: [&str; 5] = [
     "/api/v1/diagnostics/logs/clear",
     "/api/v1/audit/records/clear",
     "/api/v1/stats/transfers/clear",
     "/api/v1/notifications/deliveries/clear",
+    "/api/v1/notifications/deliveries/discard-pending",
 ];
 
 async fn seed(database: &rd_db::Database) {
@@ -79,6 +81,7 @@ async fn the_preview_names_the_numbers_before_anything_is_cleared() {
     );
     assert!(counts["stats"].is_number(), "{counts}");
     assert_eq!(counts["notifications"], 0, "{counts}");
+    assert_eq!(counts["notifications_pending"], 0, "{counts}");
 }
 
 #[tokio::test]
@@ -288,6 +291,61 @@ async fn clearing_the_notification_history_keeps_a_retry_and_audits_itself() {
     assert_eq!(
         rows[0]["details"][rd_db::CLEARED_DETAIL_KEY],
         "2",
+        "the entry says how many went: {records}"
+    );
+}
+
+/// The second button at the history (RD-170-11): what a clear keeps, a discard removes, and
+/// only that.
+#[tokio::test]
+async fn discarding_the_pending_notifications_keeps_the_history_and_audits_itself() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    seed(&harness.database).await;
+    seed_deliveries(&harness.database).await;
+    let counts = preview(&harness.router).await;
+    assert_eq!(counts["notifications_pending"], 1, "{counts}");
+
+    let (status, body) = post_json(
+        &harness.router,
+        "/api/v1/notifications/deliveries/discard-pending",
+        CONFIRMED(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["removed"], 1, "{body}");
+    let (status, history) =
+        get_json(&harness.router, "/api/v1/notifications/deliveries?limit=50").await;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    let mut states: Vec<&str> = history
+        .as_array()
+        .expect("a list of deliveries")
+        .iter()
+        .filter_map(|delivery| delivery["state"].as_str())
+        .collect();
+    states.sort_unstable();
+    assert_eq!(
+        states,
+        ["delivered", "failed"],
+        "only the notification not yet sent went: {history}"
+    );
+    let counts = preview(&harness.router).await;
+    assert_eq!(counts["notifications_pending"], 0, "{counts}");
+    assert_eq!(counts["notifications"], 2, "{counts}");
+
+    let (status, records) = get_json(
+        &harness.router,
+        "/api/v1/audit/records?action=notifications_discarded&limit=50",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{records}");
+    let rows = records["records"].as_array().expect("records");
+    assert_eq!(rows.len(), 1, "the discard is in the audit log: {records}");
+    assert_eq!(rows[0]["outcome"], "success", "{records}");
+    assert_eq!(
+        rows[0]["details"][rd_db::CLEARED_DETAIL_KEY],
+        "1",
         "the entry says how many went: {records}"
     );
 }

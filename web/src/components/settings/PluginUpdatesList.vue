@@ -107,7 +107,7 @@ async function onInstalled(text: string): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="plugins.updates" class="border border-muted bg-default p-5">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.updates.eyebrow')" :title="t('plugins.updates.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ offers.updates.length }}</UBadge>

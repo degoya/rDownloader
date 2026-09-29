@@ -1,4 +1,5 @@
 import { requestFileImport } from '@/composables/nzbImportRequest'
+import { openPalette } from '@/composables/searchPalette'
 import { toggleSidebarCollapsed } from '@/composables/sidebarCollapse'
 import { i18n } from '@/i18n'
 import { router } from '@/router'
@@ -26,6 +27,11 @@ export interface ShortcutDefinition {
   descriptionKey: string
   group: ShortcutGroup
   handler: () => void
+  /**
+   * `false` for a key that is listed here but bound by the component that owns it:
+   * `UDashboardSearch` binds Ctrl/Cmd+K itself, in text fields too (RD-170-15).
+   */
+  register?: false
 }
 
 interface ShortcutToastOptions {
@@ -131,5 +137,16 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'b', labelKeys: ['b'], descriptionKey: 'common.shortcuts.toggle_sidebar', group: 'actions', handler: guarded(toggleSidebarCollapsed) },
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
-  { keys: '?', labelKeys: ['?'], descriptionKey: 'common.shortcuts.show_help', group: 'actions', handler: guarded(() => openHelp()) }
+  { keys: '?', labelKeys: ['?'], descriptionKey: 'common.shortcuts.show_help', group: 'actions', handler: guarded(() => openHelp()) },
+  // The search (RD-170-15). `/` is a plain key, so like every key above it does nothing while a
+  // text field has the focus; Ctrl/Cmd+K opens the search from anywhere, a text field included.
+  { keys: '/', labelKeys: ['/'], descriptionKey: 'common.shortcuts.open_search', group: 'actions', handler: guarded(openPalette) },
+  { keys: 'meta_k', labelKeys: ['meta', 'k'], descriptionKey: 'common.shortcuts.open_search', group: 'actions', handler: openPalette, register: false }
 ]
+
+/** What `useAppShortcuts()` hands to `defineShortcuts`: every entry this module binds itself. */
+export function registeredShortcuts(): Record<string, () => void> {
+  return Object.fromEntries(SHORTCUT_DEFINITIONS
+    .filter(definition => definition.register !== false)
+    .map(definition => [definition.keys, definition.handler]))
+}

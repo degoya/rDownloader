@@ -703,6 +703,75 @@ async fn a_multipart_upload_continues_after_a_restart_with_the_missing_parts_onl
     );
 }
 
+/// RD-170-16: a file in a folder of the package goes up under its path relative to the
+/// package, the folder kept in the key, beside a file at the top.
+#[tokio::test]
+async fn a_file_in_a_folder_keeps_its_relative_path_in_the_key() {
+    let harness = Harness::start().await;
+    let directory = package_file(&harness, "top.nfo", 1000).await;
+    tokio::fs::create_dir_all(directory.join("Film"))
+        .await
+        .expect("folder");
+    tokio::fs::write(directory.join("Film").join("film.mkv"), payload(2000))
+        .await
+        .expect("file");
+    let files = vec!["Film/film.mkv".to_owned(), "top.nfo".to_owned()];
+
+    let report = upload(&harness, &directory, &files).await;
+
+    assert_eq!(report, UploadReport::Verified { files });
+    for (key, length) in [
+        ("Release_ One_/Film/film.mkv", 2000),
+        ("Release_ One_/top.nfo", 1000),
+    ] {
+        let stored = harness
+            .memory
+            .get_opts(&Path::from(key), object_store::GetOptions::default())
+            .await
+            .expect("object")
+            .bytes()
+            .await
+            .expect("bytes");
+        assert_eq!(stored.as_ref(), payload(length).as_slice(), "{key}");
+    }
+}
+
+/// The part ledger is keyed on the object key, so a nested file continues after a restart
+/// exactly as a file at the top does.
+#[tokio::test]
+async fn a_nested_multipart_upload_continues_after_a_restart() {
+    let harness = Harness::start().await;
+    let directory = harness.directory.path().join("finished");
+    tokio::fs::create_dir_all(directory.join("Film"))
+        .await
+        .expect("folder");
+    tokio::fs::write(directory.join("Film").join("big.bin"), payload(40 * MIB))
+        .await
+        .expect("file");
+    let files = vec!["Film/big.bin".to_owned()];
+    *lock(&harness.parts.fail_part) = Some(1);
+    let first = upload(&harness, &directory, &files).await;
+    assert!(matches!(first, UploadReport::Failed { .. }), "{first:?}");
+
+    let harness = harness.restart().await;
+    let second = upload(&harness, &directory, &files).await;
+
+    assert_eq!(second, UploadReport::Verified { files });
+    assert_eq!(*lock(&harness.parts.sent), vec![0, 1, 2]);
+    let stored = harness
+        .memory
+        .get_opts(
+            &Path::from("Release_ One_/Film/big.bin"),
+            object_store::GetOptions::default(),
+        )
+        .await
+        .expect("object")
+        .bytes()
+        .await
+        .expect("bytes");
+    assert_eq!(stored.len(), 40 * MIB);
+}
+
 #[tokio::test]
 async fn a_changed_file_aborts_its_old_upload_and_starts_over() {
     let harness = Harness::start().await;

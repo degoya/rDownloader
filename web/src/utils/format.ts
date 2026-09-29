@@ -48,7 +48,7 @@ export function byteModel(
 const BINARY_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'] as const
 const DECIMAL_UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'] as const
 
-function toBytes(value: string | bigint): bigint | null {
+export function toBytes(value: string | bigint): bigint | null {
   try {
     return typeof value === 'bigint' ? value : BigInt(value)
   } catch {

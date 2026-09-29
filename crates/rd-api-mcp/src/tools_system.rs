@@ -71,7 +71,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote. Names come from list_postprocess_options."
+        description = "Change only the post-processing of one category (id from list_configuration section categories). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote. Names come from list_postprocess_options."
     )]
     pub async fn update_category_postprocess(
         &self,

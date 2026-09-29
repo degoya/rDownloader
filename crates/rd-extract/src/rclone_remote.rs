@@ -206,6 +206,9 @@ impl RcloneRemote {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
+        // The allowlist plus what rclone reads for itself (security review 2026-09-28,
+        // finding 7), the same as the upload in `rclone_job`.
+        rd_postprocess::restrict_environment(&mut command, rd_postprocess::RCLONE_VARIABLES);
         #[cfg(windows)]
         command.creation_flags(0x0800_0000);
         let output = command

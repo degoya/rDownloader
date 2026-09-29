@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { computed, ref } from 'vue'
 
 import type { Download, DownloadPackage } from '@/api/types'
-import { useQueueSelection } from './useQueueSelection'
+import { packageRowKey, useQueueSelection } from './useQueueSelection'
 
 function file(id: string, packageId: string): Download {
   return { id, package_id: packageId } as Download
@@ -103,5 +103,48 @@ describe('useQueueSelection ranges', () => {
     selection.pickFile('b', true)
     selection.clear()
     expect(selection.anchor.value).toBeNull()
+  })
+})
+
+describe('useQueueSelection package ranges (RD-170-13)', () => {
+  /** p1 open, p2 collapsed, p3 open with one of its two files hidden by a filter. */
+  function setup() {
+    const all = ref([file('a', 'p1'), file('b', 'p1'), file('c', 'p2'), file('d', 'p3'), file('hidden', 'p3')])
+    const groups = ref([group('p1', [all.value[0]!, all.value[1]!]), group('p2', [all.value[2]!]), group('p3', [all.value[3]!])])
+    const ordered = computed(() => [packageRowKey('p1'), 'a', 'b', packageRowKey('p2'), packageRowKey('p3'), 'd'])
+    return useQueueSelection(groups, all, ordered)
+  }
+
+  it('selects every package from the anchor to the shift-clicked one', () => {
+    const selection = setup()
+    selection.pickPackage('p1', true)
+    selection.pickPackage('p3', true, true)
+    expect(selection.selectedIds.value).toEqual(['a', 'b', 'c', 'd', 'hidden'])
+  })
+
+  it('takes a collapsed package inside a file range whole', () => {
+    const selection = setup()
+    selection.pickFile('b', true)
+    selection.pickFile('d', true, true)
+    expect(selection.selectedIds.value).toEqual(['b', 'c', 'd'])
+  })
+})
+
+describe('useQueueSelection size', () => {
+  function sized(id: string, packageId: string, totalBytes: string | null): Download {
+    return { ...file(id, packageId), total_bytes: totalBytes }
+  }
+
+  it('counts a ticked package and its ticked files once (RD-170-14)', () => {
+    const all = ref([sized('a', 'p1', '1000'), sized('b', 'p1', null), sized('c', 'p2', '3000')])
+    const groups = ref([group('p1', [all.value[0]!, all.value[1]!]), group('p2', [all.value[2]!])])
+    const selection = useQueueSelection(groups, all)
+
+    selection.pickFile('a', true)
+    selection.pickPackage('p1', true)
+
+    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1 })
+    selection.selectAll()
+    expect(selection.size.value).toEqual({ count: 3, bytes: 4000n, unknown: 1 })
   })
 })

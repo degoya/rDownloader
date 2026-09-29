@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**83 capabilities, 62 covered by a tool, 21 deliberately out (15 of them on the owner's line of 2026-09-23).** 376 REST operations, 192 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**83 capabilities, 62 covered by a tool, 21 deliberately out (15 of them on the owner's line of 2026-09-23).** 377 REST operations, 193 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -74,7 +74,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Plugin message catalogues | the interface itself | 1 | `get_plugin_messages` |
 | Automation history, vocabulary and dry run | Automation | 4 | `dry_run_automations`, `get_automation_vocabulary`, `list_automation_runs`, `list_automation_versions` |
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |
-| Clearing the notification history | Settings > Notifications | 1 | `clear_notification_deliveries` |
+| Clearing the notification history and discarding pending notifications | Settings > Notifications | 2 | `clear_notification_deliveries`, `discard_pending_notification_deliveries` |
 | Subscription items, runs and forced polls | Subscriptions | 9 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
 | Stream schedules, runs and recording now | Streams | 6 | `create_stream_schedule`, `delete_stream_schedule`, `list_stream_runs`, `list_stream_schedules`, `record_stream_now`, `update_stream_schedule` |
 | The diagnostic bundle: preview | Logs | 1 | `preview_diagnostic_bundle` |

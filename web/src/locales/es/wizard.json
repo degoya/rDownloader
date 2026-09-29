@@ -56,7 +56,9 @@
     "extension_hint": "{providers} pueden tomar el inicio de sesión de tu navegador; eso solo funciona con la extensión del navegador emparejada, y todavía no se ha conectado ninguna. Emparéjala ahora o inicia sesión con contraseña o clave de API.",
     "no_providers_title": "Aún no hay ningún servicio con cuenta instalado",
     "no_providers": "Elige un hoster, multihoster o servicio en la nube en «Tus servicios» y añade aquí su cuenta. Los servidores Usenet no necesitan plugin.",
-    "choose_services": "Elegir servicios"
+    "choose_services": "Elegir servicios",
+    "restart_required_title": "Aún falta un reinicio",
+    "restart_required": "Algunos de los plugins recién instalados solo funcionan tras el próximo reinicio. Ya puedes añadir sus cuentas; se comprueban en cuanto rDownloader se haya reiniciado."
   },
   "actions": {
     "back": "Atrás",

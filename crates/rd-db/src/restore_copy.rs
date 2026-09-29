@@ -166,8 +166,12 @@ async fn open_writable(copy: &Path) -> Result<SqliteConnection> {
         .with_context(|| format!("open database copy {}", copy.display()))
 }
 
-async fn schema_on(connection: &mut SqliteConnection) -> Result<CopySchema> {
-    let migrator = sqlx::migrate!();
+/// Which of `migrator`'s migrations the database on `connection` has applied; the start reads
+/// the same before it migrates the live database (`crate::pre_migration`).
+pub(crate) async fn schema_on(
+    connection: &mut SqliteConnection,
+    migrator: &sqlx::migrate::Migrator,
+) -> Result<CopySchema> {
     let known_versions: Vec<i64> = migrator.iter().map(|migration| migration.version).collect();
     let has_table: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
@@ -207,7 +211,7 @@ async fn schema_on(connection: &mut SqliteConnection) -> Result<CopySchema> {
 /// When the file is no SQLite database.
 pub async fn copy_schema(copy: &Path) -> Result<CopySchema> {
     let mut connection = open_read_only(copy).await?;
-    let schema = schema_on(&mut connection).await;
+    let schema = schema_on(&mut connection, &crate::MIGRATOR).await;
     connection.close().await.ok();
     schema
 }
@@ -220,7 +224,7 @@ pub async fn copy_schema(copy: &Path) -> Result<CopySchema> {
 /// When the copy is from a newer build, or a migration fails on it.
 pub async fn migrate_copy(copy: &Path) -> Result<CopySchema> {
     let mut connection = open_writable(copy).await?;
-    let schema = schema_on(&mut connection).await?;
+    let schema = schema_on(&mut connection, &crate::MIGRATOR).await?;
     connection.close().await.ok();
     if schema.is_newer() {
         anyhow::bail!(
@@ -235,7 +239,7 @@ pub async fn migrate_copy(copy: &Path) -> Result<CopySchema> {
         .connect_with(writable_options(copy))
         .await
         .with_context(|| format!("open database copy {}", copy.display()))?;
-    let migrated = sqlx::migrate!()
+    let migrated = crate::MIGRATOR
         .run(&pool)
         .await
         .context("apply the migrations to the database copy");

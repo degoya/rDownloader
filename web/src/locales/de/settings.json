@@ -285,6 +285,10 @@
     "enrichment": {
       "label": "Enricher-Plugins zu Links befragen",
       "description": "Standardmäßig aus. Ein Enricher fragt einen Dienst außerhalb dieses Rechners — etwa SponsorBlock —, deshalb wird ohne deine Zustimmung nichts gefragt. Gesendet werden nur Links, die ein Plugin beansprucht; die Antwort steht neben den Kerndaten, nie an deren Stelle."
+    },
+    "unpack_to_subfolder": {
+      "label": "In Unterordner entpacken",
+      "description": "Jedes Archiv wird in einen eigenen Ordner im Paketordner entpackt, benannt nach dem Archiv (Film.part1.rar → Film/). Die Archive selbst werden nicht verschoben."
     }
   },
   "appearance": {

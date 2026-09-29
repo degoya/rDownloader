@@ -57,8 +57,12 @@ class Rdownloader < Formula
 
       The service runs in #{var}/rdownloader: the database and the installed plugins in data/,
       the default download folder in downloads/. Upgrades keep both. Leave the autostart to
-      `brew services`: `rdownloader autostart install` would register this version's path,
-      which the next upgrade removes.
+      `brew services`: it starts the service in that folder, while `rdownloader autostart
+      install` would start it with its working folder inside the installation.
+
+      The desktop capture agent (Click'n'Load, clipboard, .nzb files) is installed beside it; its
+      own formula starts it at every login:
+        brew install @OWNER@/rdownloader/rdownloader-capture
 
       Media, stream and archive features need their external tools, for example:
         brew install ffmpeg yt-dlp

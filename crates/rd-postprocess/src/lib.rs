@@ -1,6 +1,7 @@
 //! Isolated PAR2 verification and safe, password-aware archive extraction.
 
 mod archive;
+mod child_env;
 mod error;
 mod extract_set;
 mod multipart;
@@ -16,13 +17,16 @@ mod tool_env;
 mod zip_format;
 
 #[cfg(test)]
+mod boundary_tests;
+#[cfg(test)]
 mod rar_args_tests;
 #[cfg(test)]
 mod seven_zip_args_tests;
 #[cfg(test)]
 mod tests;
 
-pub use archive::{ArchiveLimits, ExtractionReport};
+pub use archive::{ArchiveLimits, ExtractionReport, STAGING_PREFIX};
+pub use child_env::{RCLONE_VARIABLES, restrict_environment};
 pub use error::ExtractionError;
 pub use extract_set::{ExtractRequest, extract_with_passwords};
 pub use multipart::{ArchiveSet, MultiVolumeReader, group_archive_sets};

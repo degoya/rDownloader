@@ -119,6 +119,21 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = SETTINGS_SECTION_GR
   group => group.sections
 )
 
+/** Every page's segment as a type, so a table keyed by page has to name all of them. */
+export type SettingsSectionValue = (typeof SETTINGS_SECTION_GROUPS)[number]['sections'][number]['value']
+
+/**
+ * The routing page's sub-tabs. `/settings/routing?tab=collector` opens one directly, which is how
+ * the search reaches a card on a tab that is not the first (RD-170-15).
+ */
+export const ROUTING_TABS = ['roots', 'categories', 'rules', 'collector'] as const
+export type RoutingTab = (typeof ROUTING_TABS)[number]
+
+/** The routing sub-tab a query value names, or null. */
+export function routingTab(value: unknown): RoutingTab | null {
+  return typeof value === 'string' && (ROUTING_TABS as readonly string[]).includes(value) ? value as RoutingTab : null
+}
+
 /** The page a segment names, or null: an unknown segment belongs on the overview, not on a guess. */
 export function settingsSection(value: unknown): string | null {
   return typeof value === 'string' && SETTINGS_SECTIONS.some(section => section.value === value)

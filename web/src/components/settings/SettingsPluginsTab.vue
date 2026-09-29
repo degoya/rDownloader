@@ -381,7 +381,7 @@ async function revokeKey(keyId: string): Promise<void> {
       <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
       <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
       <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
-        <UFormField class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
+        <UFormField data-settings-anchor="plugins.install" class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
           <input class="mt-2 block w-full border border-muted bg-elevated px-3 py-2 text-sm text-toned file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-primary" type="file" accept=".rdplug,application/octet-stream" @change="selectPackage">
         </UFormField>
         <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
@@ -392,7 +392,7 @@ async function revokeKey(keyId: string): Promise<void> {
 
     <PluginBundledList ref="bundledList" @installed="onInstalled" />
 
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="plugins.installed" class="border border-muted bg-default p-5">
       <div class="mb-4 flex items-center justify-between">
         <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
         <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>

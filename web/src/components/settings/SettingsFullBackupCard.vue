@@ -206,7 +206,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5 xl:col-span-2" data-testid="full-backup">
+  <section data-settings-anchor="backup.full" class="border border-muted bg-default p-5 xl:col-span-2" data-testid="full-backup">
     <SectionHeader
       :eyebrow="t('system.backup.full.eyebrow')"
       :title="t('system.backup.full.title')"
@@ -230,7 +230,7 @@ onUnmounted(() => {
           <UFormField v-if="keyConfigured" name="full-backup-current" :label="t('system.backup.full.key.current')" required>
             <UInput v-model="currentPassphrase" type="password" autocomplete="current-password" class="w-full" data-testid="full-backup-current" />
           </UFormField>
-          <UFormField name="full-backup-passphrase" :label="t('system.backup.full.key.passphrase')" required>
+          <UFormField data-settings-anchor="backup.full_passphrase" name="full-backup-passphrase" :label="t('system.backup.full.key.passphrase')" required>
             <UInput v-model="passphrase" type="password" autocomplete="new-password" class="w-full" />
           </UFormField>
           <UFormField name="full-backup-confirmation" :label="t('system.backup.full.key.confirm')" required>
@@ -256,6 +256,7 @@ onUnmounted(() => {
             <USwitch v-model="enabled" :disabled="!keyConfigured && !enabled" />
           </UFormField>
           <UFormField
+            data-settings-anchor="backup.schedule"
             name="full-backup-cron"
             :label="t('system.backup.full.schedule.cron')"
             :description="t('system.backup.full.schedule.cron_description')"

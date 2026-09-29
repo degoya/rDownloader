@@ -278,6 +278,7 @@ impl Writer {
                 | WriterCommand::QueueNotificationDelivery { .. }
                 | WriterCommand::RecordNotificationAttempt { .. }
                 | WriterCommand::ClearNotificationDeliveries { .. }
+                | WriterCommand::DiscardPendingNotificationDeliveries { .. }
                 | WriterCommand::UpsertAutomation { .. }
                 | WriterCommand::SetAutomationEnabled { .. }
                 | WriterCommand::DeleteAutomation { .. }

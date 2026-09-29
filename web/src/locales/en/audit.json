@@ -62,7 +62,8 @@
     "backup_configured": "Full backup configured",
     "backup_key_changed": "Full backup passphrase set",
     "backup_created": "Full backup written",
-    "backup_verified": "Full backup archive verified"
+    "backup_verified": "Full backup archive verified",
+    "notifications_discarded": "Pending notifications discarded"
   },
   "list": {
     "title": "Records",

@@ -28,6 +28,8 @@ const selectionStep = ref<InstanceType<typeof WizardSelectionStep> | null>(null)
 const advancing = ref(false)
 const finishing = ref(false)
 const counts = ref({ storage_roots: 0, capture_agents: 0, accounts: 0, usenet_servers: 0 })
+/** Something "Your services" installed runs only from the next start (RD-170-12). */
+const restartRequired = ref(false)
 
 const items = computed(() => [
   {
@@ -105,9 +107,11 @@ async function next(): Promise<void> {
   if (blocked.value) return
   advancing.value = true
   if (current.value === 'storage') await storageStep.value?.ensureDefaultCategory()
-  // The chosen services install before the accounts step opens, so it lists them from its
-  // first read. A failure stays on the step, which says what failed; "Skip" still moves on.
+  // The chosen services install before the accounts step opens, and that step mounts afresh and
+  // reads the providers then, so it lists them from its first read. A failure stays on the step,
+  // which says what failed; "Skip" still moves on. What runs only after a restart it says too.
   const installed = current.value === 'selection' ? await selectionStep.value?.install() ?? true : true
+  if (selectionStep.value?.restartRequired) restartRequired.value = true
   advancing.value = false
   if (!installed) return
   const target = STEP_ORDER[index.value + 1]
@@ -178,7 +182,7 @@ async function finish(startTour: boolean): Promise<void> {
           <WizardStorageStep v-else-if="current === 'storage'" ref="storageStep" />
           <SettingsMcpAccess v-else-if="current === 'mcp'" embedded />
           <WizardSelectionStep v-else-if="current === 'selection'" ref="selectionStep" />
-          <WizardServicesStep v-else @choose-services="current = 'selection'" />
+          <WizardServicesStep v-else :restart-required="restartRequired" @choose-services="current = 'selection'" />
         </div>
 
         <footer class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-muted pt-5">

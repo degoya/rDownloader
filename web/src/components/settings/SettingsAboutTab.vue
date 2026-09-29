@@ -112,7 +112,7 @@ const anyOpen = computed(() => open.rust || open.npm)
     <DataState :loading="loading" :error="loadError" :rows="5" />
 
     <template v-if="about">
-      <section class="border border-muted bg-default p-5" data-testid="about-build">
+      <section data-settings-anchor="about.build" class="border border-muted bg-default p-5" data-testid="about-build">
         <SectionHeader :eyebrow="t('settings.about.build.eyebrow')" :title="t('settings.about.build.title')" />
         <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
           <template v-for="fact in facts" :key="fact.key">
@@ -156,7 +156,7 @@ const anyOpen = computed(() => open.rust || open.npm)
         <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
       </section>
 
-      <section class="border border-muted bg-default p-5" data-testid="about-licenses">
+      <section data-settings-anchor="about.licenses" class="border border-muted bg-default p-5" data-testid="about-licenses">
         <SectionHeader :eyebrow="t('settings.about.licenses.eyebrow')" :title="t('settings.about.licenses.title')" />
 
         <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.own') }}</h3>

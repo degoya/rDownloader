@@ -99,11 +99,17 @@ pub struct BundledInstallFailure {
 
 #[derive(Serialize, ToSchema)]
 pub struct BundledInstallResponse {
-    /// `plugin.bundled_installed`, or `plugin.bundled_partly_installed` when something failed.
+    /// `plugin.bundled_installed` when everything installed runs now,
+    /// `plugin.bundled_installed_restart_required` when some of it runs from the next start, or
+    /// `plugin.bundled_partly_installed` when something failed.
     pub code: String,
     pub message: String,
     pub installed: Vec<BundledPluginResponse>,
     pub failed: Vec<BundledInstallFailure>,
+    /// Whether a plugin installed here runs only from the next start (RD-170-12): an update of
+    /// a running plugin, a type that is not loaded while the service runs, or one that did not
+    /// load. The setup wizard's accounts step says so.
+    pub restart_required: bool,
 }
 
 /// The newest installed version of every installed plugin.
@@ -212,8 +218,9 @@ pub async fn list_bundled_services(
 /// One plugin that fails does not stop the others: the answer lists what was installed and what
 /// was not, and the person sees both. Every service is looked up before anything installs, so a
 /// request naming an unknown one changes nothing. Like every install, the plugins' provider rows
-/// are live at once — the accounts step can offer them straight away — and the plugins
-/// themselves run from the next start.
+/// are live at once — the accounts step can offer them straight away — and a first install of a
+/// resolver or a sign-in plugin runs at once too (RD-170-12); what does not says so in
+/// `restart_required`.
 #[utoipa::path(
     post,
     path = "/api/v1/plugins/bundled/install",
@@ -257,6 +264,7 @@ pub async fn install_bundled_services(
         message: String::new(),
         installed: Vec::new(),
         failed: Vec::new(),
+        restart_required: false,
     };
     for service in chosen {
         for package in &service.packages {
@@ -264,13 +272,16 @@ pub async fn install_bundled_services(
                 continue;
             }
             match install_package(&state, &audit, package).await {
-                Ok(installed) => response.installed.push(BundledPluginResponse {
-                    id: installed.manifest.id,
-                    name: installed.manifest.name,
-                    plugin_type: installed.manifest.plugin_type.as_str().to_owned(),
-                    installed_version: Some(installed.manifest.version.clone()),
-                    version: installed.manifest.version,
-                }),
+                Ok((installed, running)) => {
+                    response.restart_required |= !running;
+                    response.installed.push(BundledPluginResponse {
+                        id: installed.manifest.id,
+                        name: installed.manifest.name,
+                        plugin_type: installed.manifest.plugin_type.as_str().to_owned(),
+                        installed_version: Some(installed.manifest.version.clone()),
+                        version: installed.manifest.version,
+                    });
+                }
                 Err(error) => response.failed.push(BundledInstallFailure {
                     service: service.key.clone(),
                     plugin_id: package.manifest.id,
@@ -281,33 +292,36 @@ pub async fn install_bundled_services(
             }
         }
     }
-    let result = if response.failed.is_empty() {
-        MessageResponse::new(
-            "plugin.bundled_installed",
-            "Services installed; their plugins run from the next start",
-        )
-    } else {
+    let result = if !response.failed.is_empty() {
         MessageResponse::new(
             "plugin.bundled_partly_installed",
             "Some plugins could not be installed",
         )
+    } else if response.restart_required {
+        MessageResponse::new(
+            "plugin.bundled_installed_restart_required",
+            "Services installed; some of their plugins run from the next start",
+        )
+    } else {
+        MessageResponse::new("plugin.bundled_installed", "Services installed and running")
     };
     response.code = result.code;
     response.message = result.message;
     Ok(Json(response))
 }
 
+/// Installs one package; the flag says whether it runs now.
 async fn install_package(
     state: &AppState,
     audit: &crate::audit::AuditContext,
     package: &rd_plugin_host::BundledPackage,
-) -> Result<rd_plugin_host::InstalledPackage, ApiError> {
+) -> Result<(rd_plugin_host::InstalledPackage, bool), ApiError> {
     let installed = state
         .plugins
         .install(package.path.clone())
         .await
         .map_err(crate::plugin_handlers::install_error)?;
-    crate::plugin_handlers::register_installed(state, &installed).await?;
+    let running = crate::plugin_handlers::register_installed(state, &installed).await?;
     crate::audit::record(
         state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginInstalled)
@@ -318,5 +332,5 @@ async fn install_package(
             .detail("source", "bundled"),
     )
     .await;
-    Ok(installed)
+    Ok((installed, running))
 }

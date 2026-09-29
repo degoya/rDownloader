@@ -124,11 +124,13 @@ function mountLayout() {
         stubs: {
           LiveAnnouncer: true,
           NzbDropOverlay: true,
+          SearchPalette: true,
           TransferRail: true,
           UButton: { template: '<button type="button" v-bind="$attrs" />' },
           UDashboardGroup: passthrough,
           UDashboardSidebar,
           UDashboardSidebarCollapse,
+          UDashboardSearchButton: { props: ['label', 'collapsed', 'tooltip'], template: '<button type="button">{{ label }}</button>' },
           UDropdownMenu: passthrough,
           UIcon: { template: '<span aria-hidden="true" />' },
           ULink: passthrough,

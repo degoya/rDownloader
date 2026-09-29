@@ -116,7 +116,8 @@
     "toggle_sidebar": "Seitenleiste ein- oder ausklappen",
     "go_stats": "Zu Statistik",
     "go_logs": "Zum Protokoll",
-    "go_audit": "Zum Audit-Protokoll"
+    "go_audit": "Zum Audit-Protokoll",
+    "open_search": "Suche öffnen"
   },
   "a11y": {
     "skip_to_content": "Zum Inhalt springen",

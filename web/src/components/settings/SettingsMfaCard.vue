@@ -166,7 +166,7 @@ async function copy(value: string): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="security.mfa" class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('system.mfa.eyebrow')" :title="t('system.mfa.title')" :description="t('system.mfa.description')" />
 
     <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />

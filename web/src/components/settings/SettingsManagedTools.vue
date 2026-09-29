@@ -144,7 +144,7 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="tools.managed" class="border border-muted bg-default p-5">
     <SectionHeader
       :eyebrow="t('settings.managed_tools.eyebrow')"
       :title="t('settings.managed_tools.title')"

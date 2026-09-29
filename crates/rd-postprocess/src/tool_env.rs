@@ -5,16 +5,24 @@
 //! into different characters than in the user's terminal — the same bytes then derive a different
 //! key and `unrar` reports "Incorrect password" for a password that is correct. Measured:
 //! `LC_ALL=C.UTF-8` succeeds, `LC_ALL=C` exits 11, and so does an empty environment. Clearing the
-//! environment therefore makes it worse; the locale has to be set on purpose.
+//! environment alone therefore makes it worse; the locale has to be set on purpose.
+//!
+//! Since the security review of 2026-09-28 (finding 7) the rest of the service's environment
+//! stays behind all the same ([`crate::child_env`]): the tools keep the allowlist, and the locale
+//! is set on top of it.
+
+use crate::child_env::restrict_environment;
 
 /// Used when nothing inherited names a UTF-8 charset. Built into glibc and always present.
 const FALLBACK_LOCALE: &str = "C.UTF-8";
 
-/// Sets the character encoding the tool must use for its arguments.
+/// Restricts the tool's environment to the allowlist and sets the character encoding it must
+/// use for its arguments.
 ///
 /// An inherited UTF-8 locale is kept (a user who runs `de_DE.UTF-8` keeps their collation);
 /// anything else is replaced, because anything else mangles non-ASCII passwords.
 pub(crate) fn apply_tool_environment(command: &mut tokio::process::Command) {
+    restrict_environment(command, &[]);
     let locale = utf8_locale(|name| std::env::var(name).ok());
     // LC_ALL outranks both of the others, so LC_CTYPE cannot reintroduce a non-UTF-8 charset.
     command.env("LC_ALL", &locale).env("LANG", locale);

@@ -1,5 +1,5 @@
-//! Emptying the log store, the audit log and the transfer statistics (RD-120-34), and the
-//! notification history (RD-130-08).
+//! Emptying the log store, the audit log and the transfer statistics (RD-120-34), the
+//! notification history (RD-130-08) and the notifications not yet sent (RD-170-11).
 //!
 //! Separate actions and deliberately none that does them all. Somebody testing wants to start
 //! a run from an empty log while keeping the statistics that say how the last week went, and a
@@ -25,9 +25,11 @@
 //!
 //! Downloads, packages, candidates, categories, accounts and the settings document. Each
 //! action deletes only from the store it names, and `crates/rd-api/tests/admin/data_reset.rs` holds
-//! that line with a queue that survives all of them. Within the notification history, a
-//! delivery still queued or retrying is never touched either: it is a notification the worker
-//! has yet to send, not a record of one.
+//! that line with a queue that survives all of them. Within the notification history, a clear
+//! never touches a delivery still queued or retrying: it is a notification the worker has yet
+//! to send, not a record of one. Cancelling those is a separate action with its own question,
+//! [`discard_pending_notification_deliveries`] (RD-170-11), so the clear cannot drop an unsent
+//! notification by accident.
 
 use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
@@ -63,6 +65,9 @@ pub struct DataResetPreview {
     /// Deliveries in the notification history a clear would remove: every one except those
     /// still queued or retrying (RD-130-08).
     pub notifications: u64,
+    /// Deliveries still queued or retrying: what discarding the pending notifications would
+    /// remove (RD-170-11).
+    pub notifications_pending: u64,
 }
 
 /// `400` when a clear arrives without its confirmation flag.
@@ -99,6 +104,10 @@ pub async fn data_reset_preview(
         notifications: state
             .database
             .count_clearable_notification_deliveries()
+            .await?,
+        notifications_pending: state
+            .database
+            .count_pending_notification_deliveries()
             .await?,
     }))
 }
@@ -220,6 +229,43 @@ pub async fn clear_notification_deliveries(
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::NotificationsCleared)
+            .by(&audit)
+            .target("notifications", "notification_deliveries")
+            .detail(rd_db::CLEARED_DETAIL_KEY, removed),
+    )
+    .await;
+    Ok(Json(DataClearResponse { removed }))
+}
+
+/// Discards the notifications still queued or retrying (RD-170-11): their deliveries are
+/// deleted, so the worker never sends them. The finished history stays; that is what
+/// [`clear_notification_deliveries`] is for.
+///
+/// An attempt already under way when the request arrives still ends; recording its outcome
+/// then finds no row and changes nothing.
+#[utoipa::path(
+    post,
+    path = "/api/v1/notifications/deliveries/discard-pending",
+    tag = "notifications",
+    request_body = DataClearRequest,
+    responses(
+        (status = 200, body = DataClearResponse),
+        (status = 400, description = "data_reset.not_confirmed"),
+    )
+)]
+pub async fn discard_pending_notification_deliveries(
+    State(state): State<AppState>,
+    audit: AuditContext,
+    Json(request): Json<DataClearRequest>,
+) -> Result<Json<DataClearResponse>, ApiError> {
+    confirm(&request, "notifications_pending")?;
+    let removed = state
+        .database
+        .discard_pending_notification_deliveries()
+        .await?;
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::NotificationsDiscarded)
             .by(&audit)
             .target("notifications", "notification_deliveries")
             .detail(rd_db::CLEARED_DETAIL_KEY, removed),

@@ -290,7 +290,7 @@
     "plugin.http_timeout": "Die HTTP-Anfrage des Resolvers hat das Zeitlimit überschritten",
     "plugin.identity_changed": "Das Plugin hat die gebundene Client-Identität geändert",
     "plugin.install_failed": "Das Plugin konnte nicht installiert werden: {reason}",
-    "plugin.installed": "Plugin installiert unter {path}",
+    "plugin.installed": "Plugin unter {path} installiert; es läuft jetzt",
     "plugin.installed_restart_required": "Plugin unter {path} installiert; zum Aktivieren neu starten",
     "plugin.key_fingerprint_mismatch": "Der bestätigte Fingerabdruck passt nicht zum Signaturschlüssel des Pakets",
     "plugin.key_revoked": "Signaturschlüssel widerrufen; damit signierte Plugins werden nach einem Neustart übersprungen",
@@ -817,7 +817,7 @@
     "backup.restore_torrent_file_missing": "{count} Torrent-Dateien fehlen im Backup und hier; diese Torrents müssen neu hinzugefügt werden.",
     "backup.restore_reference_dangling": "{count} Einträge verweisen auf etwas, das es in der Kopie nicht gibt; die Wiederherstellung wird abgelehnt.",
     "backup.restore_partial_missing": "Die Ordner von {count} unfertigen Übertragungen gibt es hier nicht; sie beginnen von vorn.",
-    "plugin.bundled_installed": "Dienste installiert; ihre Plugins laufen ab dem nächsten Start",
+    "plugin.bundled_installed": "Dienste installiert; sie laufen jetzt",
     "plugin.bundled_partly_installed": "Einige Plugins konnten nicht installiert werden",
     "plugin.bundled_service_unknown": "Das Paket-Bündel enthält keinen Dienst namens {service}",
     "plugin.bundled_services_invalid": "Nenne zwischen 1 und {max} Dienste zum Installieren",
@@ -826,13 +826,17 @@
     "storage_root.protected_directory": "Ein Speicherort darf kein Verzeichnis sein, enthalten oder in einem liegen, aus dem der Dienst Programme, Skripte oder Plugins startet oder in dem er seine Daten hält ({directory}).",
     "capture.fetch_address_refused": "Die Adresse zeigt auf diesen Rechner oder auf eine Adresse, die der Dienst nicht abrufen darf.",
     "plugin.setting_unknown": "Dieses Benachrichtigungsziel hat keine Einstellung dieses Namens",
-    "plugin.setting_invalid": "Eine Einstellung dieses Ziels hat einen Wert, den das Benachrichtigungsziel nicht anbietet"
+    "plugin.setting_invalid": "Eine Einstellung dieses Ziels hat einen Wert, den das Benachrichtigungsziel nicht anbietet",
+    "extract.tool_outdated": "{tool} {found} ist älter als die Version, mit der entpackt wird ({minimum} oder neuer): Ältere Versionen schreiben über Verknüpfungen im Archiv außerhalb des Zielordners. Aktualisiere {tool}.",
+    "plugin.installed_not_running": "Das Plugin für diesen Provider ist installiert; es läuft nach dem nächsten Neustart",
+    "plugin.bundled_installed_restart_required": "Dienste installiert; einige ihrer Plugins laufen ab dem nächsten Start"
   },
   "capabilities": {
     "media_download": "Mediendownloads",
     "media_merge": "dem Zusammenführen von Video und Audio",
     "audio_extraction": "der Umwandlung nach MP3",
     "gallery_download": "Galerie-Downloads",
-    "stream_recording": "Livestream-Aufnahmen"
+    "stream_recording": "Livestream-Aufnahmen",
+    "archive_extraction": "das Entpacken von Archiven"
   }
 }

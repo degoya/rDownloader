@@ -215,7 +215,7 @@ function scopeLabel(token: CaptureToken): string {
 </script>
 
 <template>
-  <section :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
+  <section data-settings-anchor="mcp.access" :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
     <FormListLayout :list-title="t('system.mcp.tokens_eyebrow')" :count="tokens.length">
       <template #form>
         <SectionHeader :eyebrow="t('system.mcp.eyebrow')" :title="t('system.mcp.title')">

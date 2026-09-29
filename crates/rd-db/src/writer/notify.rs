@@ -55,6 +55,11 @@ impl Writer {
                 let result = crate::notify_store::clear_deliveries(&mut self.connection).await;
                 send(reply, result);
             }
+            WriterCommand::DiscardPendingNotificationDeliveries { reply } => {
+                let result =
+                    crate::notify_store::discard_pending_deliveries(&mut self.connection).await;
+                send(reply, result);
+            }
             WriterCommand::UpsertAutomation { id, input, reply } => {
                 let result = crate::automation_store::upsert(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);

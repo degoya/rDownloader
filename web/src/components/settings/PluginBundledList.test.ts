@@ -53,6 +53,20 @@ describe('PluginBundledList', () => {
 
     await waitFor(() => expect(emitted().installed).toHaveLength(1))
     expect(installBundled).toHaveBeenCalledWith(['rapidgator'])
+    // A first install runs at once (RD-170-12).
+    expect(emitted().installed?.[0]).toEqual(['1 plugin installed; it runs now.'])
+  })
+
+  it('says when what it installed runs only from the next start', async () => {
+    installBundled.mockResolvedValue({
+      ok: true,
+      data: { code: 'plugin.bundled_installed_restart_required', message: '', installed: [{ id: 'id-rapidgator' }], failed: [], restart_required: true }
+    })
+    const { emitted } = mountComponent(PluginBundledList, { messages: { plugins } })
+
+    await fireEvent.click(within(await screen.findByTestId('bundled-service-rapidgator')).getByRole('button', { name: plugins.bundled.install }))
+
+    await waitFor(() => expect(emitted().installed).toHaveLength(1))
     expect(emitted().installed?.[0]).toEqual(['1 plugin installed; it runs from the next start.'])
   })
 

@@ -121,7 +121,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="bandwidth.schedule" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('bandwidth.schedule.windows_title')" :count="windows.length">
       <template #form>
         <SectionHeader

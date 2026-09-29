@@ -271,7 +271,7 @@ function proxyName(id: string | null | undefined): string {
     </header>
     <FormListLayout>
       <template #form>
-        <section class="border border-muted bg-default p-5">
+        <section data-settings-anchor="usenet.server" class="border border-muted bg-default p-5">
           <SectionHeader :eyebrow="t('usenet.form.eyebrow')" :title="editingId ? t('usenet.form.title_edit') : t('usenet.form.title_add')" />
           <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
           <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" />
@@ -287,7 +287,7 @@ function proxyName(id: string | null | undefined): string {
             <UFormField :label="t('usenet.form.port')" name="port" required>
               <UInput v-model.number="form.port" required type="number" min="1" max="65535" class="w-full" />
             </UFormField>
-            <UFormField :label="t('usenet.form.connections')" name="max_connections" :description="t('usenet.form.connections_hint')">
+            <UFormField data-settings-anchor="usenet.connections" :label="t('usenet.form.connections')" name="max_connections" :description="t('usenet.form.connections_hint')">
               <UInput v-model.number="form.max_connections" type="number" min="1" max="32" class="w-full" />
             </UFormField>
             <UFormField :label="t('usenet.form.username')" name="username">
@@ -319,7 +319,7 @@ function proxyName(id: string | null | undefined): string {
       </template>
 
       <template #list>
-        <section class="border border-muted bg-default p-5">
+        <section data-settings-anchor="usenet.chain" class="border border-muted bg-default p-5">
           <div class="mb-4 flex items-start justify-between gap-4">
             <div>
               <SectionHeader :eyebrow="t('usenet.chain.eyebrow')" :title="t('usenet.chain.title')" />

@@ -290,7 +290,7 @@
     "plugin.http_timeout": "La requête HTTP du résolveur a expiré",
     "plugin.identity_changed": "Le plugin a modifié l'identité client liée",
     "plugin.install_failed": "Le plugin n'a pas pu être installé : {reason}",
-    "plugin.installed": "Plugin installé dans {path}",
+    "plugin.installed": "Plugin installé dans {path} ; il fonctionne dès maintenant",
     "plugin.installed_restart_required": "Plugin installé dans {path} ; redémarrez pour l’activer",
     "plugin.key_fingerprint_mismatch": "L’empreinte confirmée ne correspond pas à la clé de signature du paquet",
     "plugin.key_revoked": "Clé de signature révoquée ; les plugins signés avec elle seront ignorés après un redémarrage",
@@ -817,7 +817,7 @@
     "backup.restore_torrent_file_missing": "{count} fichiers torrent manquent dans la sauvegarde et ici ; ces torrents doivent être ajoutés à nouveau.",
     "backup.restore_reference_dangling": "{count} lignes renvoient à quelque chose que la copie n'a pas ; la restauration est refusée.",
     "backup.restore_partial_missing": "Les dossiers de {count} transferts inachevés n'existent pas ici ; ils recommencent depuis le début.",
-    "plugin.bundled_installed": "Services installés ; leurs plugins fonctionnent dès le prochain démarrage",
+    "plugin.bundled_installed": "Services installés ; ils fonctionnent dès maintenant",
     "plugin.bundled_partly_installed": "Certains plugins n’ont pas pu être installés",
     "plugin.bundled_service_unknown": "Le lot fourni ne contient aucun service nommé {service}",
     "plugin.bundled_services_invalid": "Indique entre 1 et {max} services à installer",
@@ -826,13 +826,17 @@
     "storage_root.protected_directory": "Un emplacement de stockage ne peut pas être, contenir ou se trouver dans un répertoire depuis lequel le service lance des programmes, des scripts ou des plugins, ou dans lequel il conserve ses données ({directory}).",
     "capture.fetch_address_refused": "L'adresse pointe vers cette machine ou vers une adresse que le service n'a pas le droit de demander.",
     "plugin.setting_unknown": "Cette destination de notification n'a aucun réglage de ce nom",
-    "plugin.setting_invalid": "Un réglage de cette cible a une valeur que la destination de notification ne propose pas"
+    "plugin.setting_invalid": "Un réglage de cette cible a une valeur que la destination de notification ne propose pas",
+    "extract.tool_outdated": "{tool} {found} est antérieur à la version requise pour l’extraction ({minimum} ou plus récente) : les versions plus anciennes écrivent hors du dossier de destination via des liens de l’archive. Mets à jour {tool}.",
+    "plugin.installed_not_running": "Le plugin de ce fournisseur est installé ; il fonctionne après le prochain redémarrage",
+    "plugin.bundled_installed_restart_required": "Services installés ; certains de leurs plugins fonctionnent dès le prochain démarrage"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",
     "media_merge": "la fusion de la vidéo et de l’audio",
     "audio_extraction": "l’extraction audio en MP3",
     "gallery_download": "les téléchargements de galeries",
-    "stream_recording": "l’enregistrement de directs"
+    "stream_recording": "l’enregistrement de directs",
+    "archive_extraction": "l’extraction d’archives"
   }
 }

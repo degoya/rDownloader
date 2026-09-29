@@ -104,6 +104,8 @@ type Seen = Arc<Mutex<Vec<(u64, Option<u64>)>>>;
 #[derive(Default)]
 struct MockWebDav {
     methods: Mutex<Vec<String>>,
+    /// The same requests as `method address`.
+    requests: Mutex<Vec<String>>,
 }
 
 #[async_trait]
@@ -117,6 +119,10 @@ impl ResolverHost for MockWebDav {
             .lock()
             .expect("methods")
             .push(request.method.clone());
+        self.requests
+            .lock()
+            .expect("requests")
+            .push(format!("{} {}", request.method, request.url));
         Ok(HostHttpResponse {
             status: 201,
             final_url: request.url.clone(),
@@ -241,5 +247,62 @@ async fn the_upload_limit_paces_what_the_destination_reads() {
     assert!(
         rate <= RATE as f64 * 1.05,
         "{rate:.0} B/s past the burst, {elapsed:.2} s in all"
+    );
+}
+
+#[tokio::test]
+async fn a_file_in_a_folder_of_the_package_goes_up_below_its_folders() {
+    // RD-170-16: a package unpacked into a folder per archive offers `Film/Extras/a.bin`. A
+    // `PUT` below a collection that does not exist is a 409, so each folder is created first,
+    // outermost first, and the file lands under its relative path.
+    let bytes = component("rd-plugin-webdav-storage");
+    let server = Arc::new(MockWebDav::default());
+    let plugin = StoragePlugin::new(
+        manifest(),
+        &bytes,
+        Some(Arc::clone(&server) as Arc<dyn ResolverHost>),
+    )
+    .expect("satisfies the world");
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(directory.path().join("Film").join("Extras")).expect("folders");
+    std::fs::write(
+        directory.path().join("Film").join("Extras").join("a.bin"),
+        b"payload",
+    )
+    .expect("write");
+    let source = SourceState::new(
+        "package-1".to_owned(),
+        directory.path().to_path_buf(),
+        vec!["Film/Extras/a.bin".to_owned()],
+    );
+
+    let outcome = plugin
+        .put(
+            source,
+            Upload {
+                file_name: "Film/Extras/a.bin",
+                size: 7,
+                destination: "https://cloud.example/dav/Downloads",
+                username: Some("me"),
+                secret_ref: None,
+                checkpoint: None,
+            },
+        )
+        .await
+        .expect("put");
+
+    assert!(
+        matches!(outcome, UploadOutcome::Complete { .. }),
+        "{outcome:?}"
+    );
+    assert_eq!(
+        *server.requests.lock().expect("requests"),
+        [
+            "MKCOL https://cloud.example/dav/Downloads/package-1",
+            "MKCOL https://cloud.example/dav/Downloads/package-1/Film",
+            "MKCOL https://cloud.example/dav/Downloads/package-1/Film/Extras",
+            "PUT https://cloud.example/dav/Downloads/package-1/Film/Extras/a.bin",
+        ]
     );
 }

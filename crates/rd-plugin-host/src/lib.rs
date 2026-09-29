@@ -86,6 +86,8 @@ const MAX_COMPONENT_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_SIGNATURE_BYTES: u64 = 1024;
 
 const MANIFEST_MEMBER: &str = "manifest.toml";
+/// What an install's staging directory beside the version directories is named after.
+const INSTALL_STAGING_PREFIX: &str = ".install-";
 const COMPONENT_MEMBER: &str = "component.wasm";
 const SIGNATURE_MEMBER: &str = "signature.ed25519";
 
@@ -550,9 +552,11 @@ impl PluginInstaller {
     /// Records the versions installed now as the ones this start loads (RD-160-09).
     ///
     /// Called once at start, after the bundled packages are synced and before anything loads a
-    /// plugin. A version installed later lies on disk, but nothing runs it before the next
-    /// start: resolvers and adapters are built once per start. Without this record the newest
-    /// version on disk -- the one just installed -- passed for the one that runs.
+    /// plugin. A version installed later lies on disk, and nothing runs it before the next
+    /// start: resolvers and adapters are built once per start. The one exception is a first
+    /// install that joins the running service, which [`Self::record_started_version`] adds
+    /// (RD-170-12). Without this record the newest version on disk -- the one just installed --
+    /// passed for the one that runs.
     pub async fn record_started_versions(&self) -> Result<()> {
         let mut versions = StartedVersions::new();
         for manifest in self.list_installed().await? {
@@ -565,6 +569,20 @@ impl PluginInstaller {
             *started = Some(versions);
         }
         Ok(())
+    }
+
+    /// Counts one version as loaded by this start: a first install that joined the running
+    /// service instead of waiting for the next start (RD-170-12). Without a record of the start
+    /// every installed version already counts, so there is nothing to add to.
+    pub fn record_started_version(&self, id: &str, version: &str) {
+        if let Ok(mut started) = self.started.write()
+            && let Some(started) = started.as_mut()
+        {
+            let versions = started.entry(id.to_owned()).or_default();
+            if !versions.iter().any(|known| known == version) {
+                versions.push(version.to_owned());
+            }
+        }
     }
 
     /// The versions installed when this start loaded its plugins; `None` when the start did not
@@ -655,12 +673,20 @@ impl PluginInstaller {
             bail!("plugin version is already installed");
         }
         tokio::fs::create_dir_all(&plugin_root).await?;
-        let staging = plugin_root.join(format!(".install-{}", rd_core::PluginId::new()));
+        let staging = plugin_root.join(format!(
+            "{INSTALL_STAGING_PREFIX}{}",
+            rd_core::PluginId::new()
+        ));
         tokio::fs::create_dir(&staging).await?;
         if let Err(error) = write_staging(&staging, &package).await {
             let _ = tokio::fs::remove_dir_all(&staging).await;
             return Err(error);
         }
+        // A stop here leaves the whole package under its staging name: never loaded (see
+        // `installed::version_directories`), removed by the next start (RD-170-07).
+        rd_core::failpoint!("plugin.before_version_promoted", || anyhow::anyhow!(
+            "crash point"
+        ));
         if let Err(error) = tokio::fs::rename(&staging, &destination).await {
             // `version_directories` enumerates every directory under the plugin root, so a
             // leftover `.install-<id>` is loaded and listed as a second copy of the plugin

@@ -43,6 +43,64 @@ pub(crate) struct RarToolChoice {
     /// tool then rejects the command line and, before RD-107-11, that was reported as a wrong
     /// password. Nothing is run at all now, and the contradiction is what the step says.
     pub conflict: Option<String>,
+    /// The tool that was found is below its security floor, so it is not used to extract.
+    pub outdated: Option<OutdatedTool>,
+}
+
+/// An archive tool refused for its version (security review 2026-09-28, finding 5).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OutdatedTool {
+    /// `unrar` or `7z`.
+    pub tool: &'static str,
+    /// The version the tool reported.
+    pub found: String,
+    /// The oldest version extraction runs.
+    pub minimum: String,
+}
+
+/// Takes the tool out of `choice` when its version is below the floor in
+/// `rd_tools::compat::ARCHIVE_TOOL_FLOORS`.
+///
+/// unrar before 6.12 and 7-Zip before 25.00 write through an archive's links before
+/// `validate_tree` can look at the result, so the only brake is not to start them. A version
+/// that cannot be read is not refused: `unknown` is not `old` (the rule of `rd_tools::compat`),
+/// a renamed or wrapped binary would otherwise stop every RAR unpack, and the person sees the
+/// unreadable version in the tool status and in `doctor`. It is logged as a warning here.
+pub(crate) async fn refuse_outdated(choice: RarToolChoice) -> RarToolChoice {
+    let Some(tool) = choice.tool.as_ref() else {
+        return choice;
+    };
+    let name = kind_name(tool.kind);
+    let assessment = rd_tools::compat::assess_archive_tool(name, &tool.executable).await;
+    match assessment.verdict {
+        rd_tools::Verdict::TooOld | rd_tools::Verdict::KnownBad => {
+            let outdated = OutdatedTool {
+                tool: name,
+                found: assessment.version.unwrap_or_else(|| "unknown".to_owned()),
+                minimum: assessment.min_version.unwrap_or_default(),
+            };
+            tracing::warn!(
+                tool = %tool.executable.display(),
+                found = %outdated.found,
+                minimum = %outdated.minimum,
+                "archive tool below its security floor; extraction refused"
+            );
+            RarToolChoice {
+                tool: None,
+                conflict: choice.conflict,
+                outdated: Some(outdated),
+            }
+        }
+        rd_tools::Verdict::Unknown => {
+            tracing::warn!(
+                tool = %tool.executable.display(),
+                version = assessment.version.as_deref().unwrap_or("unreadable"),
+                "archive tool version could not be read; its security floor is not checked"
+            );
+            choice
+        }
+        rd_tools::Verdict::Supported => choice,
+    }
 }
 
 /// The kind a binary's name gives away, or `None` for a name that says nothing.
@@ -93,6 +151,7 @@ pub(crate) fn rar_tool(settings: &PostprocessSettings, timeout: Duration) -> Res
                     kind_name(preferred),
                     kind_name(observed)
                 )),
+                outdated: None,
             });
         }
         return Ok(RarToolChoice {
@@ -102,6 +161,7 @@ pub(crate) fn rar_tool(settings: &PostprocessSettings, timeout: Duration) -> Res
                 timeout,
             }),
             conflict: None,
+            outdated: None,
         });
     }
     let vendor = settings.vendor_directory.as_deref();
@@ -119,6 +179,7 @@ pub(crate) fn rar_tool(settings: &PostprocessSettings, timeout: Duration) -> Res
             })
         }),
         conflict: None,
+        outdated: None,
     })
 }
 
@@ -174,5 +235,61 @@ mod tests {
         let wrapped = rar_tool(&settings, Duration::from_secs(1)).expect("resolve");
         assert!(wrapped.conflict.is_none());
         assert_eq!(wrapped.tool.expect("tool").kind, RarToolKind::Unrar);
+    }
+
+    /// Security review 2026-09-28, finding 5, against a real process: a tool below the floor
+    /// is taken out with its version, one at or above it stays, and one whose version cannot
+    /// be read stays too (unknown is not old).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_archive_tool_below_its_security_floor_is_not_used() {
+        use super::refuse_outdated;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let fake = |name: &str, banner: &str| {
+            let path = directory.path().join(name);
+            std::fs::write(&path, format!("#!/bin/sh\necho '{banner}'\nexit 7\n"))
+                .expect("fake tool");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            path
+        };
+        let settings = |executable: &std::path::Path, kind: &str| PostprocessSettings {
+            rar_tool: kind.to_owned(),
+            rar_executable: Some(executable.to_string_lossy().into_owned()),
+            ..PostprocessSettings::default()
+        };
+        let choose = |settings: PostprocessSettings| async move {
+            refuse_outdated(rar_tool(&settings, Duration::from_secs(1)).expect("resolve")).await
+        };
+
+        let old = fake("unrar", "UNRAR 6.11 freeware      Copyright (c) 1993-2022");
+        let refused = choose(settings(&old, "unrar")).await;
+        assert!(refused.tool.is_none(), "unrar 6.11 must not extract");
+        let outdated = refused.outdated.expect("the refusal names the version");
+        assert_eq!(
+            (
+                outdated.tool,
+                outdated.found.as_str(),
+                outdated.minimum.as_str()
+            ),
+            ("unrar", "6.11", "6.12")
+        );
+
+        let p7zip = fake(
+            "7z",
+            "7-Zip [64] 16.02 : Copyright (c) 1999-2016 Igor Pavlov",
+        );
+        let refused = choose(settings(&p7zip, "7z")).await;
+        assert!(refused.tool.is_none(), "p7zip 16.02 must not extract");
+        assert_eq!(refused.outdated.expect("outdated").minimum, "25.00");
+
+        let current = fake("7zz", "7-Zip (z) 25.01 (x64) : Copyright (c) 1999-2025");
+        let kept = choose(settings(&current, "7z")).await;
+        assert!(kept.tool.is_some() && kept.outdated.is_none());
+
+        let silent = fake("my-unpacker", "");
+        let unknown = choose(settings(&silent, "unrar")).await;
+        assert!(unknown.tool.is_some() && unknown.outdated.is_none());
     }
 }

@@ -16,6 +16,8 @@ rd-files = { path = "../rd-files" }
 rd-limits = { path = "../rd-limits" }
 dunce.workspace = true
 rd-postprocess = { path = "../rd-postprocess" }
+# The version floor of the archive tools (security review 2026-09-28, finding 5).
+rd-tools = { path = "../rd-tools" }
 serde_json.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true

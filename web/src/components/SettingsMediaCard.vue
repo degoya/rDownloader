@@ -64,7 +64,7 @@ function toolDetail(tool: MediaToolStatus): string {
 </script>
 
 <template>
-  <section class="space-y-4 border border-muted bg-default p-5">
+  <section data-settings-anchor="media.media" class="space-y-4 border border-muted bg-default p-5">
     <div>
       <SectionHeader
         :eyebrow="t('settings.media.eyebrow')"

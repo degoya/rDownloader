@@ -580,6 +580,10 @@ pub struct CreateCategoryRequest {
     /// Whether packages of this category unpack nested archives recursively (`null` = global default).
     #[serde(default)]
     pub recursive_unpack: Option<bool>,
+    /// Whether packages of this category unpack every archive set into a folder of its own,
+    /// named after the archive (`null` = global default, RD-170-16).
+    #[serde(default)]
+    pub unpack_to_subfolder: Option<bool>,
     /// Whether packages of this category verify `.sfv` checksums (`null` = global default).
     #[serde(default)]
     pub sfv_verify: Option<bool>,
@@ -609,6 +613,10 @@ pub struct CategoryPostprocessRequest {
     /// Whether packages of this category unpack nested archives recursively (`null` = global default).
     #[serde(default)]
     pub recursive_unpack: Option<bool>,
+    /// Whether packages of this category unpack every archive set into a folder of its own,
+    /// named after the archive (`null` = global default, RD-170-16).
+    #[serde(default)]
+    pub unpack_to_subfolder: Option<bool>,
     /// Whether packages of this category verify `.sfv` checksums (`null` = global default).
     #[serde(default)]
     pub sfv_verify: Option<bool>,

@@ -12,6 +12,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ResolvedRemoteListing } from '@/api/types'
+import { useRangeSelection } from '@/composables/useRangeSelection'
 import { formatBytes } from '@/utils/format'
 
 const { t } = useI18n()
@@ -89,12 +90,18 @@ function filesUnder(node: TreeNode): TreeNode[] {
   return node.isDir ? node.children.flatMap(filesUnder) : [node]
 }
 
+/** A checkbox click: one node, or with Shift a range of rows ending here (RD-170-13). */
 function toggle(node: TreeNode, include: boolean): void {
   if (props.readonly) return
+  range.pick(node.path, include)
+}
+
+/** Sets several files at once and sends one exclusion list for all of them. */
+function setFiles(paths: string[], include: boolean): void {
   const next = new Set(excluded.value)
-  for (const file of filesUnder(node)) {
-    if (include) next.delete(file.path)
-    else next.add(file.path)
+  for (const path of paths) {
+    if (include) next.delete(path)
+    else next.add(path)
   }
   excluded.value = next
   emit('change', [...next])
@@ -130,6 +137,29 @@ const rows = computed(() => {
   walk(tree.value, 0)
   return out
 })
+
+/** Every node by path, collapsed folders included, so a range can reach into them. */
+const nodesByPath = computed(() => {
+  const nodes = new Map<string, TreeNode>()
+  const walk = (list: TreeNode[]): void => {
+    for (const node of list) {
+      nodes.set(node.path, node)
+      walk(node.children)
+    }
+  }
+  walk(tree.value)
+  return nodes
+})
+
+// Only files are ever sent, so a folder row stands for the files below it — even a plain click.
+const range = useRangeSelection(
+  computed(() => rows.value.map(row => row.node.path)),
+  setFiles,
+  (path) => {
+    const node = nodesByPath.value.get(path)
+    return node?.isDir ? filesUnder(node).map(file => file.path) : undefined
+  }
+)
 </script>
 
 <template>
@@ -158,7 +188,7 @@ const rows = computed(() => {
       {{ t('remote.listing.truncated_depth', { limit: 16 }) }}
     </p>
 
-    <div class="max-h-80 overflow-y-auto">
+    <div class="max-h-80 overflow-y-auto" @click.capture="range.noteModifier" @keydown.capture="range.noteModifier">
       <div
         v-for="{ node, depth } in rows"
         :key="node.path"

@@ -4,7 +4,10 @@
 //! `n` seconds"; the waiting is the host's, recorded in the database, so nothing is lost when
 //! the service stops in the middle of a sign-in and the interface only ever reads state.
 
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, PoisonError, RwLock},
+    time::Duration,
+};
 
 use chrono::{DateTime, Utc};
 use rd_core::{AccountId, AuthFlow, AuthFlowState, FailureKind};
@@ -72,8 +75,10 @@ struct Inner {
     database: rd_db::Database,
     plugins: rd_plugin_host::PluginInstaller,
     plugin_host: Arc<dyn rd_plugin_api::ResolverHost>,
-    providers: tokio::sync::OnceCell<Arc<rd_plugin_ext::AuthProviders>>,
-    oauth: tokio::sync::OnceCell<Arc<rd_plugin_ext::OAuthProviders>>,
+    /// Behind a lock once loaded, so a first install can join the set the service runs with
+    /// (RD-170-12); a reader takes the set as it is and never waits for more than that.
+    providers: tokio::sync::OnceCell<RwLock<Arc<rd_plugin_ext::AuthProviders>>>,
+    oauth: tokio::sync::OnceCell<RwLock<Arc<rd_plugin_ext::OAuthProviders>>>,
     shutdown: CancellationToken,
 }
 
@@ -143,54 +148,109 @@ impl AuthFlowService {
         providers: rd_plugin_ext::AuthProviders,
         oauth: rd_plugin_ext::OAuthProviders,
     ) {
-        let _ = self.inner.providers.set(Arc::new(providers));
-        let _ = self.inner.oauth.set(Arc::new(oauth));
+        let _ = self.inner.providers.set(RwLock::new(Arc::new(providers)));
+        let _ = self.inner.oauth.set(RwLock::new(Arc::new(oauth)));
     }
 
-    /// The installed authentication providers, compiled on first use.
-    pub async fn providers(&self) -> Arc<rd_plugin_ext::AuthProviders> {
-        Arc::clone(
-            self.inner
-                .providers
-                .get_or_init(|| async {
+    async fn auth_cell(&self) -> &RwLock<Arc<rd_plugin_ext::AuthProviders>> {
+        self.inner
+            .providers
+            .get_or_init(|| async {
+                RwLock::new(Arc::new(
                     match rd_plugin_ext::AuthProviders::load(
                         &self.inner.plugins,
                         Some(Arc::clone(&self.inner.plugin_host)),
                     )
                     .await
                     {
-                        Ok(providers) => Arc::new(providers),
+                        Ok(providers) => providers,
                         Err(error) => {
                             tracing::warn!(%error, "could not load authentication plugins");
-                            Arc::new(rd_plugin_ext::AuthProviders::none())
+                            rd_plugin_ext::AuthProviders::none()
                         }
-                    }
-                })
-                .await,
-        )
+                    },
+                ))
+            })
+            .await
     }
 
-    /// The installed OAuth providers, compiled on first use.
-    pub async fn oauth_providers(&self) -> Arc<rd_plugin_ext::OAuthProviders> {
-        Arc::clone(
-            self.inner
-                .oauth
-                .get_or_init(|| async {
+    async fn oauth_cell(&self) -> &RwLock<Arc<rd_plugin_ext::OAuthProviders>> {
+        self.inner
+            .oauth
+            .get_or_init(|| async {
+                RwLock::new(Arc::new(
                     match rd_plugin_ext::OAuthProviders::load(
                         &self.inner.plugins,
                         Some(Arc::clone(&self.inner.plugin_host)),
                     )
                     .await
                     {
-                        Ok(providers) => Arc::new(providers),
+                        Ok(providers) => providers,
                         Err(error) => {
                             tracing::warn!(%error, "could not load oauth plugins");
-                            Arc::new(rd_plugin_ext::OAuthProviders::none())
+                            rd_plugin_ext::OAuthProviders::none()
                         }
-                    }
-                })
-                .await,
-        )
+                    },
+                ))
+            })
+            .await
+    }
+
+    /// The installed authentication providers, compiled on first use.
+    pub async fn providers(&self) -> Arc<rd_plugin_ext::AuthProviders> {
+        let cell = self.auth_cell().await;
+        Arc::clone(&*cell.read().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// The installed OAuth providers, compiled on first use.
+    pub async fn oauth_providers(&self) -> Arc<rd_plugin_ext::OAuthProviders> {
+        let cell = self.oauth_cell().await;
+        Arc::clone(&*cell.read().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// Joins the sign-in plugin of a first install to the running sets (RD-170-12) and answers
+    /// whether plugin `id` runs now.
+    ///
+    /// Only a plugin none of whose versions runs: an update waits for the next start, like
+    /// every other. A set nobody has read yet loads from what is installed, the new plugin
+    /// included, and needs nothing joined. Compiling happens on a blocking thread; a reader of
+    /// the sets waits for nothing but the swap of one pointer.
+    pub async fn activate_first_install(
+        &self,
+        registry: rd_plugin_host::PluginTypeRegistry,
+        id: rd_core::PluginId,
+    ) -> bool {
+        let host = Some(Arc::clone(&self.inner.plugin_host));
+        let built = tokio::task::spawn_blocking(move || {
+            (
+                rd_plugin_ext::AuthProviders::from_registry(&registry, host.clone()),
+                rd_plugin_ext::OAuthProviders::from_registry(&registry, host),
+            )
+        })
+        .await;
+        let Ok((auth, oauth)) = built else {
+            return false;
+        };
+        let auth_cell = self.auth_cell().await;
+        let oauth_cell = self.oauth_cell().await;
+        let mut running = false;
+        {
+            let mut current = auth_cell.write().unwrap_or_else(PoisonError::into_inner);
+            if !auth.is_empty() && !current.has_plugin(id) {
+                let joined = current.joined(auth);
+                *current = Arc::new(joined);
+            }
+            running |= current.has_plugin(id);
+        }
+        {
+            let mut current = oauth_cell.write().unwrap_or_else(PoisonError::into_inner);
+            if !oauth.is_empty() && !current.has_plugin(id) {
+                let joined = current.joined(oauth);
+                *current = Arc::new(joined);
+            }
+            running |= current.has_plugin(id);
+        }
+        running
     }
 
     /// Starts a flow for one account, replacing whatever it had.

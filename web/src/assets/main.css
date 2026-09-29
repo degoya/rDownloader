@@ -295,6 +295,29 @@ body {
 }
 
 /*
+ * The card or field the search led to (RD-170-15). `revealAnchor.ts` sets the attribute for two
+ * seconds; the outline fades out over the same time. Without motion it stays still and simply
+ * goes when the attribute does — the fade would otherwise be cut to nothing by the rule above,
+ * and the mark with it.
+ */
+[data-search-highlight] {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 4px;
+  animation: search-highlight 2s ease-in forwards;
+}
+
+@keyframes search-highlight {
+  from { outline-color: var(--ui-primary); }
+  to { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-search-highlight] {
+    animation: none !important;
+  }
+}
+
+/*
  * The skip link (WCAG 2.2, 2.4.1).
  *
  * Off-screen until it has focus, rather than hidden: `display: none` would take it out of the

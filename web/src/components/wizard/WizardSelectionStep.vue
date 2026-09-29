@@ -13,11 +13,13 @@ import { useBundledServices } from '@/composables/useBundledServices'
  * Nothing installs while the person ticks boxes. `install()` runs when the wizard moves on, one
  * service per request with a real progress bar, and resolves only once every provider row is
  * registered — so the accounts step after it never opens on a list that is still filling.
+ * `restartRequired` says whether something installed runs only from the next start (RD-170-12).
  */
 const { t } = useI18n()
 const { services, loading, loadError, load, progress, installing, install: installServices } = useBundledServices()
 const selected = ref<string[]>([])
 const error = ref<string | null>(null)
+const restartRequired = ref(false)
 
 const percent = computed(() => progress.value && progress.value.total
   ? Math.round((progress.value.done / progress.value.total) * 100)
@@ -39,6 +41,7 @@ async function install(): Promise<boolean> {
   if (!pending.value.length) return true
   const outcome = await installServices(pending.value)
   selected.value = []
+  restartRequired.value ||= outcome.restartRequired
   if (outcome.error) {
     error.value = outcome.error
     return false
@@ -52,7 +55,7 @@ async function install(): Promise<boolean> {
   return true
 }
 
-defineExpose({ install, installing })
+defineExpose({ install, installing, restartRequired })
 </script>
 
 <template>

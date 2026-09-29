@@ -13,7 +13,7 @@
  * and sends nothing anywhere. Both go through `useConfirm()` with `destructive: true` and
  * `confirmIcon: 'i-lucide-trash-2'`, which is what `design.md` asks of a destructive action.
  */
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
@@ -24,6 +24,7 @@ import RemoteJobSubmitForm from '@/components/settings/RemoteJobSubmitForm.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFetchState } from '@/composables/useFetchState'
+import { useRangeSelection } from '@/composables/useRangeSelection'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, formatMoment } from '@/utils/format'
 
@@ -82,9 +83,22 @@ function isPicked(job: RemoteJob, id: number): boolean {
   return (picked.value[job.id] ?? []).includes(id)
 }
 
-function togglePicked(job: RemoteJob, id: number, on: boolean): void {
-  const current = picked.value[job.id] ?? []
-  picked.value = { ...picked.value, [job.id]: on ? [...current, id] : current.filter(entry => entry !== id) }
+/** Only one job's choice is open at a time, so one range covers it (RD-170-13). */
+const openJob = computed(() => jobs.value.find(job => job.id === openId.value) ?? null)
+const entryRange = useRangeSelection(
+  computed(() => (openJob.value?.entries ?? []).map(entry => String(entry.id))),
+  (keys, on) => {
+    const job = openJob.value
+    if (!job) return
+    const ids = keys.map(Number)
+    const rest = (picked.value[job.id] ?? []).filter(entry => !ids.includes(entry))
+    picked.value = { ...picked.value, [job.id]: on ? [...rest, ...ids] : rest }
+  }
+)
+
+/** A click picks one entry, a Shift+click the entries from the last click to this one. */
+function togglePicked(id: number, on: boolean): void {
+  entryRange.pick(String(id), on)
 }
 
 async function refresh(): Promise<void> {
@@ -270,12 +284,12 @@ onUnmounted(() => releaseEvents?.())
         >
           <p class="text-sm font-medium text-highlighted">{{ t('remote_jobs.choice.title') }}</p>
           <p class="mt-1 max-w-prose text-xs leading-5 text-muted">{{ t('remote_jobs.choice.description') }}</p>
-          <div class="mt-2 max-h-64 space-y-1 overflow-y-auto">
+          <div class="mt-2 max-h-64 space-y-1 overflow-y-auto" @click.capture="entryRange.noteModifier" @keydown.capture="entryRange.noteModifier">
             <div v-for="entry in job.entries ?? []" :key="entry.id" class="flex items-center gap-2">
               <UCheckbox
                 :model-value="isPicked(job, entry.id)"
                 :label="entry.path"
-                @update:model-value="(on: boolean) => togglePicked(job, entry.id, on)"
+                @update:model-value="(on: boolean) => togglePicked(entry.id, on)"
               />
               <span class="font-mono text-[11px] text-muted">{{ entrySize(entry.size) }}</span>
               <UBadge v-if="entry.selected" color="neutral" variant="outline" size="sm">{{ t('remote_jobs.choice.preselected') }}</UBadge>

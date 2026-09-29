@@ -41,7 +41,7 @@ and taken WSL down more than once.
 | `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
 | `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/pnpm-lock.yaml` changed (`--check` to verify); the Rust part is `cargo tree` per shipped target, so it lists what a package contains; needs `pnpm install` in `web/` and asks the npm registry for the packages of other platforms |
 | `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); with nothing due it only recounts a Job Inventory the catalogs contradict; `--check` names what is due, any open job lying in `archive/` and any miscounted inventory row, and exits 1 — `check.sh` runs it on every change (RD-140-24); refuses uncommitted changes under `docs/roadmap/jobs/` |
-| `doc-facts.sh` | Write the release facts the documentation repeats — feature-list date and version, bundled-plugin count, `rdownloader:plugin@X.Y.Z` — from their sources; `--check` writes nothing and exits 1 on a stale value, 2 on a reworded anchor; `--wiki DIR` includes the user wiki; the pipeline's `doc-facts` step and `docs-gate` run it (RD-140-24) |
+| `doc-facts.sh` | Write the release facts the documentation repeats — feature-list date and version, bundled-plugin count, MCP tool count, `rdownloader:plugin@X.Y.Z` — from their sources; `--check` writes nothing and exits 1 on a stale value, 2 on a reworded anchor; `--wiki DIR` includes the user wiki; the pipeline's `doc-facts` step and `docs-gate` run it (RD-140-24) |
 | `wit-reference.sh` | Generate the plugin contract reference — every world, interface, function, record, variant and enum of `crates/rd-plugin-api/wit/rdownloader.wit` with its doc comments — into the user wiki's `plugins/plugin-reference.md` between `<!-- BEGIN wit-reference -->` and `<!-- END wit-reference -->` (`--wiki DIR`; with `--check` writes nothing and exits 1 when stale); `--print` writes it to stdout; `--check` alone reads the WIT strictly and exits 2 on a construct it does not know — CI runs that; job-id and ADR parentheses of the WIT's comments stay out of the page, a job id elsewhere in one is exit 2; the pipeline's `docs-gate` runs `--wiki --check` (RD-160-04) |
 | `check-sdk-templates.sh` | Every world of the WIT has a template in `sdk/templates/<world>` building that world, with a manifest, the current contract copy, a `README.md` and a unit test, and no template lacks a world; CI's `components` job runs it (RD-160-04) |
 | `compat-check.sh` | The breaking-change gate of the public contracts: `web/openapi.json` and the plugin WIT against the highest `vX.Y.Z` tag not above the workspace version (`--base <ref>` for another); one line per break (`BREAK rest:path-removed:/api/v1/…`), exit 1 unless `compat-breaks.toml` acknowledges it for a later release or, for the WIT, the package version moved a major (before 1.0: a minor) step; the pipeline's `compat` step and CI's supply-chain job run it (RD-170-08) |
@@ -520,9 +520,10 @@ then the real UI in Chromium, driven by the Playwright in the npx cache against 
 `~/.cache/ms-playwright`.
 
 `doc-facts` runs `doc-facts.sh` before `docs-gate` (RD-140-24): the feature list's date and
-source version, the bundled-plugin count and the plugin contract `rdownloader:plugin@X.Y.Z` in
-`README.md`, `docs/` and `sdk/README.md` are written from `Cargo.toml`, `plugins/*/manifest.toml`
-and the WIT package line. It comes after `test` because `test` carries a pre-bump green only over
+source version, the bundled-plugin count, the MCP tool count and the plugin contract
+`rdownloader:plugin@X.Y.Z` in `README.md`, `docs/` and `sdk/README.md` are written from
+`Cargo.toml`, `plugins/*/manifest.toml`, `TOOL_POLICY` in `crates/rd-api-mcp/src/policy.rs` and
+the WIT package line. It comes after `test` because `test` carries a pre-bump green only over
 a bump of version lines alone. `docs-gate` then runs `doc-facts.sh --check`, with the user wiki
 (`RD_WIKI_SRC`, default `~/projects/rdownloader.wiki`) when it exists — the wiki is another
 repository and is written in the wiki pass, not by the chain — and `wit-reference.sh --wiki

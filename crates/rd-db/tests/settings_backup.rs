@@ -32,6 +32,8 @@ fn replacement(label: &str) -> ConfigReplacement {
             script: Some("finish.sh".to_owned()),
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: Some(true),
+            // Non-default (the global setting is off) so the round trip proves it survives.
+            unpack_to_subfolder: Some(true),
             // Non-default (the global setting is on) so the round trip proves it survives.
             sfv_verify: Some(false),
             safe_postproc: Some(false),

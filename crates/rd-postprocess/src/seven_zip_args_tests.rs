@@ -228,3 +228,33 @@ async fn test_rar_refuses_a_seven_zip_password_with_a_quote_on_windows() {
         "{result:?}"
     );
 }
+
+/// T-NUL: a NUL would cut a Windows command line short, so an argument carrying one - the
+/// password or the archive path - is refused for both tools before the start. Outside Windows
+/// the arguments travel as a vector, and the standard library refuses the same argument at
+/// spawn, so no tool starts there either.
+#[tokio::test]
+async fn an_argument_with_a_nul_is_refused_for_both_tools() {
+    for kind in [RarToolKind::Unrar, RarToolKind::SevenZip] {
+        for (archive, password) in [
+            (ARCHIVE, "pass\0word"),
+            ("C:\\down\0loads\\set.part1.rar", "password"),
+        ] {
+            let arguments = rar_arguments(kind, extract(), Path::new(archive), Some(password));
+            let refused = arguments.windows_raw_args(kind);
+            assert!(
+                matches!(&refused, Err(ExtractionError::Other(error)) if error.to_string().contains("NUL")),
+                "{kind:?}, {archive:?}: {refused:?}"
+            );
+            #[cfg(unix)]
+            {
+                let mut command = tokio::process::Command::new("true");
+                arguments
+                    .apply_to(kind, &mut command)
+                    .expect("an argument vector takes the value as it is");
+                let error = command.spawn().expect_err("a NUL argument must not start");
+                assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput, "{error}");
+            }
+        }
+    }
+}

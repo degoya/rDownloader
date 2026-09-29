@@ -1,9 +1,10 @@
 //! Which installed version of a plugin runs: activate, stage, roll back, and how updates
 //! arrive (RD-140-02).
 //!
-//! Every choice here is stored and takes effect at the next start, like installing a plugin:
-//! resolvers and adapters are built once per start, and swapping a component under a running
-//! job is a separate job of its own. The rules that turn the stored pointers into the version
+//! Every choice here is stored and takes effect at the next start, like an update of a running
+//! plugin: resolvers and adapters are built once per start, and swapping a component under a
+//! running job is a separate job of its own. Only a first install joins the running service
+//! (RD-170-12, `plugin_live`). The rules that turn the stored pointers into the version
 //! that runs are `rd_plugin_host::default_version`; this module only writes the pointers, and
 //! refuses a pointer at a version the next start would refuse to load.
 
@@ -141,8 +142,9 @@ pub(crate) fn effective(versions: &[String], choice: Option<&VersionChoice>) -> 
 }
 
 /// The loadable versions of plugin `id` that this start loaded: those already installed when
-/// it began (RD-160-09). A version installed since lies on disk and runs from the next start.
-/// Without a record of the start every loadable version counts, as it did before.
+/// it began (RD-160-09), and a first install that joined the running service (RD-170-12). Any
+/// other version installed since lies on disk and runs from the next start. Without a record of
+/// the start every loadable version counts, as it did before.
 fn loaded_at_start(
     started: Option<&StartedVersions>,
     id: &str,

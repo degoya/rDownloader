@@ -146,7 +146,11 @@ fn links_form_body(links: &[String]) -> String {
 }
 
 pub(crate) fn integration(args: IntegrationArgs, kind: os_integration::Kind) -> Result<()> {
-    let executable = std::env::current_exe().context("locate capture executable")?;
+    // The alias a package manager keeps across updates, not this version's folder: the handler
+    // is started long after `scoop update` or `brew upgrade` may have replaced it.
+    let executable = rd_autostart::stable_executable_path(
+        &std::env::current_exe().context("locate capture executable")?,
+    );
     match args.command {
         IntegrationCommand::Install => os_integration::install(kind, &executable),
         IntegrationCommand::Remove => os_integration::remove(kind),

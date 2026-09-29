@@ -81,10 +81,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="unattended.power" class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('power.card.eyebrow')" :title="t('power.card.title')" :description="t('power.card.description')" class="mb-4" />
 
-    <UFormField :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal" class="border-t border-muted pt-4">
+    <UFormField data-settings-anchor="unattended.quiet_hours" :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch
         :model-value="settings.quiet_hours?.enabled ?? false"
         @update:model-value="settings.quiet_hours = { enabled: Boolean($event), windows: settings.quiet_hours?.windows ?? [] }"
@@ -124,7 +124,7 @@ onMounted(async () => {
     </div>
 
     <div class="mt-4 grid gap-3 border-t border-muted pt-4">
-      <UFormField :label="t('power.completion.label')" :description="t('power.completion.description')">
+      <UFormField data-settings-anchor="unattended.completion" :label="t('power.completion.label')" :description="t('power.completion.description')">
         <USelect v-model="settings.completion_action" :items="actions" value-key="value" class="w-full" />
       </UFormField>
       <UFormField v-if="settings.completion_action === 'script'" :label="t('power.completion.script_label')" :description="t('power.completion.script_description')">
@@ -159,6 +159,7 @@ onMounted(async () => {
         <USwitch v-model="settings.pause_on_metered" :disabled="status?.capabilities.metered === false" />
       </UFormField>
       <UFormField
+        data-settings-anchor="unattended.prevent_standby"
         :label="t('power.context.prevent_standby_label')"
         :description="status && !status.capabilities.inhibit_standby ? t('power.context.unavailable') : t('power.context.prevent_standby_description')"
         orientation="horizontal"

@@ -50,11 +50,11 @@ const warning = computed(() => {
 </script>
 
 <template>
-  <section class="mt-6 border border-muted bg-default p-5">
+  <section data-settings-anchor="security.reverse_proxy" class="mt-6 border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('system.proxy.eyebrow')" :title="t('system.proxy.title')" :description="t('system.proxy.description')" />
 
     <div class="mt-4 grid gap-4">
-      <UFormField :label="t('system.proxy.external_url')" :description="t('system.proxy.external_url_hint')">
+      <UFormField data-settings-anchor="security.external_url" :label="t('system.proxy.external_url')" :description="t('system.proxy.external_url_hint')">
         <UInput
           :model-value="modelValue.external_url ?? ''"
           placeholder="https://rd.example.com/downloads"
@@ -62,7 +62,7 @@ const warning = computed(() => {
           @update:model-value="modelValue.external_url = String($event).trim() || null"
         />
       </UFormField>
-      <UFormField :label="t('system.proxy.allowed_hosts')" :description="t('system.proxy.allowed_hosts_hint')">
+      <UFormField data-settings-anchor="security.allowed_hosts" :label="t('system.proxy.allowed_hosts')" :description="t('system.proxy.allowed_hosts_hint')">
         <UTextarea v-model="allowedHostsText" :rows="2" placeholder="nas.lan&#10;rdownloader" class="w-full font-mono" />
       </UFormField>
       <UFormField :label="t('system.proxy.cookie_label')" :description="t('system.proxy.cookie_hint')">

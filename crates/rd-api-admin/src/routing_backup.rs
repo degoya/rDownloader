@@ -39,6 +39,8 @@ pub struct BundleRoutingCategory {
     #[serde(default)]
     pub recursive_unpack: Option<bool>,
     #[serde(default)]
+    pub unpack_to_subfolder: Option<bool>,
+    #[serde(default)]
     pub sfv_verify: Option<bool>,
     #[serde(default)]
     pub safe_postproc: Option<bool>,
@@ -152,6 +154,7 @@ pub async fn export_routing(
                 script: category.script.clone(),
                 cleanup_extensions: category.cleanup_extensions.clone(),
                 recursive_unpack: category.recursive_unpack,
+                unpack_to_subfolder: category.unpack_to_subfolder,
                 sfv_verify: category.sfv_verify,
                 safe_postproc: category.safe_postproc,
                 delete_par2: category.delete_par2,
@@ -239,6 +242,7 @@ pub async fn import_routing(
             script: entry.script,
             cleanup_extensions: entry.cleanup_extensions,
             recursive_unpack: entry.recursive_unpack,
+            unpack_to_subfolder: entry.unpack_to_subfolder,
             sfv_verify: entry.sfv_verify,
             safe_postproc: entry.safe_postproc,
             delete_par2: entry.delete_par2,

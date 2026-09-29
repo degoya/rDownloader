@@ -20,11 +20,12 @@ import { useOpenSections } from '@/composables/useOpenSections'
 import type { VirtualRow } from '@/composables/useVirtualRows'
 import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
 import { usePackageStorage } from '@/composables/usePackageStorage'
-import { useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
+import { packageRowKey, useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
 import { useRename } from '@/composables/useRename'
 import { useResetConfirm } from '@/composables/useResetConfirm'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { usePostprocessStore } from '@/stores/postprocess'
+import { usePublishedSelection } from '@/stores/selection'
 import { PAUSABLE_STATES, RESETTABLE_STATES, RESUMABLE_STATES, useTransfersStore, type PackageChange } from '@/stores/transfers'
 import { hasExtractable } from '@/utils/format'
 
@@ -117,26 +118,19 @@ const rows = computed<QueueRow[]>(() => {
   }
   return result
 })
-/** The order a range selection follows: what is on screen, not what is in the store. */
-const orderedFileIds = computed(() => rows.value.flatMap(row => row.kind === 'file' ? [row.download.id] : []))
-const selection = useQueueSelection(groups, computed(() => transfers.downloads), orderedFileIds)
+/**
+ * The order a range selection follows: what is on screen, not what is in the store. A package
+ * row is a stop of its own, so a range can run from package to package (RD-170-13).
+ */
+const orderedRowKeys = computed(() => rows.value.map(row => row.kind === 'file' ? row.download.id : packageRowKey(row.group.package.id)))
+const selection = useQueueSelection(groups, computed(() => transfers.downloads), orderedRowKeys)
+// How much is ticked, shown in the status bar while this view is open (RD-170-14).
+usePublishedSelection(selection.size)
 
 const queueList = ref<{
   focusRow: (key: string) => Promise<boolean>
   revealRow: (key: string) => Promise<boolean>
 } | null>(null)
-/**
- * Whether the pick that is about to arrive is holding shift.
- *
- * A checkbox reports `update:modelValue`, not the event that caused it, and the range has to
- * know about the modifier. The capture-phase click on the list runs first, so the flag is set
- * by the time the checkbox reports.
- */
-const extendSelection = ref(false)
-function noteModifier(event: MouseEvent | KeyboardEvent): void {
-  extendSelection.value = event.shiftKey
-}
-
 /** Border frame of a file row: the package's frame carried down its children. */
 function fileFrame(group: QueueGroup): string {
   return `border-x border-b ${selection.packageState(group) !== 'none' ? 'border-primary' : 'border-muted'}`
@@ -265,11 +259,6 @@ function accountLabel(id: string | null | undefined): string | null {
   if (!id) return null
   const account = accounts.value.find(item => item.id === id)
   return account ? `${account.label} (${account.provider})` : null
-}
-
-function togglePackage(id: string, selected: boolean): void {
-  const group = groups.value.find(item => item.package.id === id)
-  if (group) selection.togglePackage(group, selected)
 }
 
 async function changePackages(ids: string[], change: PackageChange): Promise<void> {
@@ -622,8 +611,8 @@ async function removeDownload(id: string): Promise<void> {
             ref="queueList"
             :rows="rows"
             :label="t('downloads.list.aria', { count: rows.length })"
-            @click.capture="noteModifier"
-            @keydown.capture="noteModifier"
+            @click.capture="selection.noteModifier"
+            @keydown.capture="selection.noteModifier"
           >
             <template #row="{ row }">
               <PackageGroup
@@ -641,7 +630,7 @@ async function removeDownload(id: string): Promise<void> {
                 :can-pause="canControlPackage(row.group.package.id, 'pause')"
                 :can-resume="canControlPackage(row.group.package.id, 'resume')"
                 :control-busy="packageControlBusy[row.group.package.id] ?? null"
-                @select="togglePackage"
+                @select="selection.pickPackage"
                 @toggle="openPackages.toggle"
                 @category="(id, categoryId) => changePackages([id], { categoryId })"
                 @priority="(id, value) => changePackages([id], { priority: value })"
@@ -666,7 +655,7 @@ async function removeDownload(id: string): Promise<void> {
                 :destination="row.group.package.destination"
                 :account-label="accountLabel(row.download.account_id)"
                 :selected="selection.selectedFiles.value.has(row.download.id)"
-                @select="(id, value) => selection.pickFile(id, value, extendSelection)"
+                @select="selection.pickFile"
                 @pause="(id) => transfers.control(id, 'pause')"
                 @resume="(id) => transfers.control(id, 'resume')"
                 @cancel="(id) => transfers.control(id, 'cancel')"

@@ -190,11 +190,11 @@ pub(crate) async fn replace_all(
     for value in replacement.categories {
         sqlx::query(
             "INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, \
-             postprocess_level, script, cleanup_extensions, recursive_unpack, sfv_verify, \
-             safe_postproc, delete_par2, \
+             postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, \
+             sfv_verify, safe_postproc, delete_par2, \
              upload_enabled, upload_remote, seeding_json, plugin_steps_json, created_at, \
              updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -211,6 +211,7 @@ pub(crate) async fn replace_all(
                 .transpose()?,
         )
         .bind(value.recursive_unpack)
+        .bind(value.unpack_to_subfolder)
         .bind(value.sfv_verify)
         .bind(value.safe_postproc)
         .bind(value.delete_par2)

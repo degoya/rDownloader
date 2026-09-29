@@ -34,7 +34,7 @@ const { t } = useI18n()
       <SettingsMfaCard />
       <SettingsPasskeysCard />
     </div>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="security.session_limits" class="border border-muted bg-default p-5">
       <SectionHeader
         :eyebrow="t('system.session_limits.eyebrow')"
         :title="t('system.session_limits.title')"

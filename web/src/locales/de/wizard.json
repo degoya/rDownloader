@@ -56,7 +56,9 @@
     "extension_hint": "{providers} können die Anmeldung deines Browsers übernehmen – das geht nur über die gekoppelte Browser-Erweiterung, und es hat sich noch keine gemeldet. Kopple sie jetzt, oder melde dich per Passwort oder API-Schlüssel an.",
     "no_providers_title": "Noch kein Dienst mit Konto installiert",
     "no_providers": "Wähle unter „Deine Dienste“ einen Hoster, Multihoster oder Cloud-Dienst, dann kannst du hier sein Konto anlegen. Usenet-Server brauchen kein Plugin.",
-    "choose_services": "Dienste wählen"
+    "choose_services": "Dienste wählen",
+    "restart_required_title": "Ein Neustart fehlt noch",
+    "restart_required": "Einige der eben installierten Plugins laufen erst nach dem nächsten Neustart. Du kannst ihre Konten schon anlegen; geprüft werden sie, sobald rDownloader neu gestartet ist."
   },
   "actions": {
     "back": "Zurück",

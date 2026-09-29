@@ -169,7 +169,7 @@ function summary(profile: BandwidthProfile): string {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="bandwidth.profiles" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('bandwidth.profile.title')" :count="profiles.length">
       <template #form>
         <SectionHeader
@@ -200,7 +200,7 @@ function summary(profile: BandwidthProfile): string {
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>
           </UFormField>
-          <UFormField :label="t('bandwidth.profile.monthly_label')">
+          <UFormField data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
             <UInput v-model.number="monthlyGiB" type="number" min="0" step="1" class="w-full" icon="i-lucide-calendar-range" :placeholder="t('bandwidth.profile.no_budget')">
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>

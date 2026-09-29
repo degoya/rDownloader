@@ -50,7 +50,7 @@ describe('SHORTCUT_DEFINITIONS', () => {
 
   it('covers every documented key with a navigation or actions group', () => {
     const keys = SHORTCUT_DEFINITIONS.map(definition => definition.keys)
-    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', '?'])
+    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', '?', '/', 'meta_k'])
     for (const definition of SHORTCUT_DEFINITIONS) {
       expect(['navigation', 'actions']).toContain(definition.group)
       expect(definition.labelKeys.length).toBeGreaterThan(0)

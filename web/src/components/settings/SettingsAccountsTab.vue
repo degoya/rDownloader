@@ -587,7 +587,7 @@ function proxyName(id: string | null | undefined): string {
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <section data-settings-anchor="accounts.list" class="border border-muted bg-default p-5">
       <FormListLayout :list-title="t('network.account.title')" :count="accounts.length">
         <template #form>
           <SectionHeader

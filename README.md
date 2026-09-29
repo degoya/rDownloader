@@ -89,7 +89,7 @@ PAR2 applies to Usenet packages; SFV verification works for any package. Which s
 2. Run `start-rdownloader.bat` (Windows), `./start-rdownloader.sh` (Linux) or `./start-rdownloader.command` (macOS).
 3. Open <http://127.0.0.1:8710> and follow the setup wizard: administrator password, pairing the capture agent or browser extension, a storage destination, and optionally MCP access and provider or Usenet settings.
 
-With a package manager instead: `brew install degoya/rdownloader/rdownloader` and `brew services start rdownloader` on macOS and Linux, or `scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader`, `scoop install rdownloader` and `start-rdownloader` on Windows. Both keep the database and downloads across upgrades.
+With a package manager instead: `brew install degoya/rdownloader/rdownloader` and `brew services start rdownloader` on macOS and Linux (the capture agent starts at login with `brew install degoya/rdownloader/rdownloader-capture` and `brew services start rdownloader-capture`), or `scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader`, `scoop install rdownloader` and `start-rdownloader` on Windows. Both keep the database and downloads across upgrades.
 
 For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, volumes, `PUID`/`PGID` and a Synology walkthrough. Autostart is in [Installation](https://github.com/degoya/rDownloader/wiki/installation), and the [capture agent](https://github.com/degoya/rDownloader/wiki/capture-agent), the [browser extension](https://github.com/degoya/rDownloader/wiki/browser-extension) and [building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) have handbook pages of their own.
 

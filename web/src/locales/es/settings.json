@@ -285,6 +285,10 @@
     "enrichment": {
       "label": "Consultar a los plugins enriquecedores",
       "description": "Desactivado de forma predeterminada. Un enriquecedor consulta un servicio fuera de esta máquina —SponsorBlock, por ejemplo—, así que no se pregunta nada sin su permiso. Solo se envían los enlaces que un plugin reclama, y la respuesta se muestra junto a los datos del núcleo, nunca en su lugar."
+    },
+    "unpack_to_subfolder": {
+      "label": "Extraer en subcarpetas",
+      "description": "Extrae cada archivo comprimido en una carpeta propia dentro de la carpeta del paquete, con el nombre del archivo (Film.part1.rar → Film/). Los archivos comprimidos no se mueven."
     }
   },
   "appearance": {

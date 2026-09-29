@@ -109,6 +109,10 @@ pub struct SettingsResponse {
     /// Also extract archives found inside extracted archives (depth-capped).
     #[serde(default)]
     pub recursive_unpack: bool,
+    /// Unpack every archive set into a folder of its own below the package folder, named after
+    /// the archive, instead of straight into the package folder. Off by default (RD-170-16).
+    #[serde(default)]
+    pub unpack_to_subfolder: bool,
     /// Verify the CRC32 checksums of any `.sfv` index in the package before unpacking.
     #[serde(default)]
     pub sfv_verify: bool,
@@ -500,6 +504,7 @@ impl Default for SettingsResponse {
             cleanup_extensions: rd_core::PostprocessSettings::default_cleanup_extensions(),
             ignore_samples: true,
             recursive_unpack: false,
+            unpack_to_subfolder: false,
             sfv_verify: true,
             safe_postproc: true,
             delete_par2: false,

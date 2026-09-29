@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.6.1"
+    "version": "1.7.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -8062,6 +8062,41 @@
         }
       }
     },
+    "/api/v1/notifications/deliveries/discard-pending": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Discards the notifications still queued or retrying (RD-170-11): their deliveries are\ndeleted, so the worker never sends them. The finished history stays; that is what\n[`clear_notification_deliveries`] is for.",
+        "description": "An attempt already under way when the request arrives still ends; recording its outcome\nthen finds no row and changes nothing.",
+        "operationId": "discard_pending_notification_deliveries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataClearResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "data_reset.not_confirmed"
+          }
+        }
+      }
+    },
     "/api/v1/notifications/destinations": {
       "get": {
         "tags": [
@@ -9399,7 +9434,7 @@
           "plugins"
         ],
         "summary": "Installs the plugins of the named services that are not installed yet.",
-        "description": "One plugin that fails does not stop the others: the answer lists what was installed and what\nwas not, and the person sees both. Every service is looked up before anything installs, so a\nrequest naming an unknown one changes nothing. Like every install, the plugins' provider rows\nare live at once — the accounts step can offer them straight away — and the plugins\nthemselves run from the next start.",
+        "description": "One plugin that fails does not stop the others: the answer lists what was installed and what\nwas not, and the person sees both. Every service is looked up before anything installs, so a\nrequest naming an unknown one changes nothing. Like every install, the plugins' provider rows\nare live at once — the accounts step can offer them straight away — and a first install of a\nresolver or a sign-in plugin runs at once too (RD-170-12); what does not says so in\n`restart_required`.",
         "operationId": "install_bundled_services",
         "requestBody": {
           "content": {
@@ -9873,7 +9908,7 @@
         "tags": [
           "plugins"
         ],
-        "summary": "Installs one offered package. Active after a restart, like every install.",
+        "summary": "Installs one offered package. A first install runs at once; an update from the next start\n(RD-170-12).",
         "operationId": "install_repository_package",
         "parameters": [
           {
@@ -10112,7 +10147,7 @@
           "plugins"
         ],
         "summary": "Switches one installed plugin off or back on.",
-        "description": "The plugin stays installed and keeps being listed — otherwise it could not be switched back\non — but it is no longer loaded, compiled or executed. Like installing one, this takes full\neffect on the next start, because resolvers and extension hosts are built when their\nsubsystem starts.",
+        "description": "The plugin stays installed and keeps being listed — otherwise it could not be switched back\non — but it is no longer loaded, compiled or executed. Like an update, this takes full effect\non the next start, because resolvers and extension hosts are built when their subsystem\nstarts.",
         "operationId": "set_plugin_enabled",
         "parameters": [
           {
@@ -14677,6 +14712,7 @@
           "audit_cleared",
           "stats_cleared",
           "notifications_cleared",
+          "notifications_discarded",
           "script_subscription_changed",
           "file_overwritten",
           "collision_decided",
@@ -16934,6 +16970,12 @@
           "storage_root_name": {
             "type": "string"
           },
+          "unpack_to_subfolder": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -17293,12 +17335,13 @@
           "code",
           "message",
           "installed",
-          "failed"
+          "failed",
+          "restart_required"
         ],
         "properties": {
           "code": {
             "type": "string",
-            "description": "`plugin.bundled_installed`, or `plugin.bundled_partly_installed` when something failed."
+            "description": "`plugin.bundled_installed` when everything installed runs now,\n`plugin.bundled_installed_restart_required` when some of it runs from the next start, or\n`plugin.bundled_partly_installed` when something failed."
           },
           "failed": {
             "type": "array",
@@ -17314,6 +17357,10 @@
           },
           "message": {
             "type": "string"
+          },
+          "restart_required": {
+            "type": "boolean",
+            "description": "Whether a plugin installed here runs only from the next start (RD-170-12): an update of\na running plugin, a type that is not loaded while the service runs, or one that did not\nload. The setup wizard's accounts step says so."
           }
         }
       },
@@ -17643,7 +17690,8 @@
           "media_merge",
           "audio_extraction",
           "gallery_download",
-          "stream_recording"
+          "stream_recording",
+          "archive_extraction"
         ]
       },
       "CapacityShortfallResponse": {
@@ -18354,6 +18402,13 @@
           "storage_root_id": {
             "$ref": "#/components/schemas/StorageRootId"
           },
+          "unpack_to_subfolder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages in this category unpack every archive set into a folder of its own;\n`None` = global default (RD-170-16)."
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -18458,6 +18513,13 @@
               "null"
             ],
             "description": "Whether packages of this category verify `.sfv` checksums (`null` = global default)."
+          },
+          "unpack_to_subfolder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category unpack every archive set into a folder of its own,\nnamed after the archive (`null` = global default, RD-170-16)."
           },
           "upload_enabled": {
             "type": [
@@ -19687,6 +19749,13 @@
           "storage_root_id": {
             "$ref": "#/components/schemas/StorageRootId"
           },
+          "unpack_to_subfolder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category unpack every archive set into a folder of its own,\nnamed after the archive (`null` = global default, RD-170-16)."
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -20252,7 +20321,8 @@
           "logs",
           "audit",
           "stats",
-          "notifications"
+          "notifications",
+          "notifications_pending"
         ],
         "properties": {
           "audit": {
@@ -20271,6 +20341,12 @@
             "type": "integer",
             "format": "int64",
             "description": "Deliveries in the notification history a clear would remove: every one except those\nstill queued or retrying (RD-130-08).",
+            "minimum": 0
+          },
+          "notifications_pending": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Deliveries still queued or retrying: what discarding the pending notifications would\nremove (RD-170-11).",
             "minimum": 0
           },
           "stats": {
@@ -30671,6 +30747,11 @@
             "description": "Port the web UI listens on; applied on the next start. `--listen`/`RDOWNLOADER_LISTEN`\noverride it.",
             "default": null,
             "minimum": 0
+          },
+          "unpack_to_subfolder": {
+            "type": "boolean",
+            "description": "Unpack every archive set into a folder of its own below the package folder, named after\nthe archive, instead of straight into the package folder. Off by default (RD-170-16).",
+            "default": false
           },
           "upload_enabled": {
             "type": "boolean",

@@ -18,7 +18,8 @@ pub struct PluginStepJob<'a> {
     /// Package-scoped handle. Not a path: the plugin names files, never locations.
     pub handle: &'a str,
     pub directory: &'a Path,
-    /// File names relative to the package directory, the only ones a step may read.
+    /// File paths relative to the package directory, `/` between folders — the only files a
+    /// step may read.
     pub files: &'a [String],
     /// What this step wrote when it last stopped.
     pub checkpoint: Option<Vec<u8>>,

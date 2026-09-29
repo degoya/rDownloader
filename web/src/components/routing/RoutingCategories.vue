@@ -74,6 +74,7 @@ const form = reactive<CreateCategory>({
   script: null,
   cleanup_extensions: null,
   recursive_unpack: null,
+  unpack_to_subfolder: null,
   sfv_verify: null,
   safe_postproc: null,
   delete_par2: null,
@@ -116,6 +117,15 @@ const recursiveItems = computed(() => [
 const recursiveUnpack = computed({
   get: () => form.recursive_unpack == null ? INHERIT_LEVEL : (form.recursive_unpack ? 'on' : 'off'),
   set: (value: string) => { form.recursive_unpack = value === INHERIT_LEVEL ? null : value === 'on' }
+})
+const subfolderItems = computed(() => [
+  { label: t('routing.category.subfolder_inherit'), value: INHERIT_LEVEL },
+  { label: t('routing.category.subfolder_on'), value: 'on' },
+  { label: t('routing.category.subfolder_off'), value: 'off' }
+])
+const unpackToSubfolder = computed({
+  get: () => form.unpack_to_subfolder == null ? INHERIT_LEVEL : (form.unpack_to_subfolder ? 'on' : 'off'),
+  set: (value: string) => { form.unpack_to_subfolder = value === INHERIT_LEVEL ? null : value === 'on' }
 })
 const sfvItems = computed(() => [
   { label: t('routing.category.sfv_inherit'), value: INHERIT_LEVEL },
@@ -267,6 +277,7 @@ const list = useEditableList<Category, CreateCategory>({
     form.postprocess_level = null
     form.script = null
     form.recursive_unpack = null
+    form.unpack_to_subfolder = null
     form.sfv_verify = null
     form.safe_postproc = null
     form.delete_par2 = null
@@ -295,6 +306,7 @@ async function savePluginSteps(category: Category): Promise<Category | null> {
       script: category.script ?? null,
       cleanup_extensions: category.cleanup_extensions ?? null,
       recursive_unpack: category.recursive_unpack ?? null,
+      unpack_to_subfolder: category.unpack_to_subfolder ?? null,
       sfv_verify: category.sfv_verify ?? null,
       safe_postproc: category.safe_postproc ?? null,
       delete_par2: category.delete_par2 ?? null,
@@ -352,6 +364,7 @@ function edit(category: Category): void {
   form.postprocess_level = category.postprocess_level ?? null
   form.script = category.script ?? null
   form.recursive_unpack = category.recursive_unpack ?? null
+  form.unpack_to_subfolder = category.unpack_to_subfolder ?? null
   form.sfv_verify = category.sfv_verify ?? null
   form.safe_postproc = category.safe_postproc ?? null
   form.delete_par2 = category.delete_par2 ?? null
@@ -394,6 +407,7 @@ async function duplicate(category: Category): Promise<void> {
         script: copy.script ?? null,
         cleanup_extensions: copy.cleanup_extensions ?? null,
         recursive_unpack: copy.recursive_unpack ?? null,
+        unpack_to_subfolder: copy.unpack_to_subfolder ?? null,
         sfv_verify: copy.sfv_verify ?? null,
         safe_postproc: copy.safe_postproc ?? null,
         delete_par2: copy.delete_par2 ?? null,
@@ -434,7 +448,7 @@ async function remove(category: Category): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="routing.categories" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('routing.category.title')" :count="categories.length">
       <template #form>
         <SectionHeader
@@ -472,6 +486,9 @@ async function remove(category: Category): Promise<void> {
           </UFormField>
           <UFormField :label="t('routing.category.recursive_label')" :description="t('routing.category.recursive_description')">
             <USelect v-model="recursiveUnpack" :items="recursiveItems" value-key="value" icon="i-lucide-layers" class="w-full" />
+          </UFormField>
+          <UFormField :label="t('routing.category.subfolder_label')" :description="t('routing.category.subfolder_description')">
+            <USelect v-model="unpackToSubfolder" :items="subfolderItems" value-key="value" icon="i-lucide-folder-tree" class="w-full" />
           </UFormField>
           <UFormField :label="t('routing.category.sfv_label')" :description="t('routing.category.sfv_description')">
             <USelect v-model="sfvVerify" :items="sfvItems" value-key="value" icon="i-lucide-file-check" class="w-full" />

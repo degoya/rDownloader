@@ -30,6 +30,7 @@ import { useOpenSections } from '@/composables/useOpenSections'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
+import { usePublishedSelection } from '@/stores/selection'
 import { sharedText } from '@/utils/sharedLinks'
 import { SORT_OPTIONS, type CollectorSort } from '@/utils/collectorSort'
 
@@ -65,6 +66,8 @@ const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } =
   sort, descending, stateFilter, hidden: hiddenHosters.hidden, openPackages, openMirrors
 })
 const selection = useGrabberSelection(entries, orderedSelectionKeys)
+// How much is ticked, shown in the status bar while this view is open (RD-170-14).
+usePublishedSelection(selection.size)
 
 const grabberList = ref<{
   focusRow: (key: string) => Promise<boolean>
@@ -81,12 +84,6 @@ const {
   dissolveMirror, clearAll, enqueueNzb, deleteNzb, setNzbCategory, setNzbPriority, setCategory,
   setPriority, applyToSelection, setSelectionPostprocessLevel
 } = useGrabberActions({ nzbGroups, selection, bulkBusy })
-
-/** See `DownloadsView`: a checkbox reports its value, not the event that produced it. */
-const extendSelection = ref(false)
-function noteModifier(event: MouseEvent | KeyboardEvent): void {
-  extendSelection.value = event.shiftKey
-}
 
 /** Border frame of a link row: the package's frame carried down its children. */
 function linkFrame(entry: CollectorEntry): string {
@@ -310,8 +307,8 @@ function openNzbHistory(): void {
           ref="grabberList"
           :rows="rows"
           :label="t('linkgrabber.list.aria', { count: rows.length })"
-          @click.capture="noteModifier"
-          @keydown.capture="noteModifier"
+          @click.capture="selection.noteModifier"
+          @keydown.capture="selection.noteModifier"
         >
           <template #row="{ row }">
             <CollectorPackageGroup
@@ -323,7 +320,7 @@ function openNzbHistory(): void {
               :enqueuing-ids="collector.enqueuingIds"
               :dragging="draggingEntry === grabberKey('collector', row.entry.id)"
               :open="openPackages.isOpen(row.entry.id)"
-              @select="selection.setCollector"
+              @select="(_ids: string[], value: boolean) => selection.pickPackage(row.entry.id, value)"
               @toggle="openPackages.toggle"
               @category="(id, categoryId) => setCategory([id], categoryId)"
               @priority="(id, value) => setPriority([id], value)"
@@ -349,7 +346,7 @@ function openNzbHistory(): void {
               @choose-mirror="(id: string, chosen: boolean) => void collector.chooseMirror(id, chosen)"
               @dissolve-mirror="dissolveMirror"
               @hide-hoster="(hoster: string) => void hiddenHosters.setHidden(hoster, true)"
-              @select="(id, value) => selection.pickCollector(id, value, extendSelection)"
+              @select="selection.pickCollector"
               @rename="renameCandidate"
               @enqueue="enqueueCandidate"
               @remove="removeCandidate"
@@ -366,7 +363,7 @@ function openNzbHistory(): void {
               :enqueuing="nzb.enqueuingIds.has(row.entry.id)"
               :deleting="nzb.deletingIds.has(row.entry.id)"
               :dragging="draggingEntry === grabberKey('nzb', row.entry.id)"
-              @select="(id, value) => selection.pickNzb(id, value, extendSelection)"
+              @select="selection.pickNzb"
               @category="setNzbCategory"
               @priority="setNzbPriority"
               @enqueue="enqueueNzb"

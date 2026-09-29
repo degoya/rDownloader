@@ -88,7 +88,7 @@ const uploadLimitMiB = byteModel(
 </script>
 
 <template>
-  <section class="space-y-4 border border-muted bg-default p-5">
+  <section data-settings-anchor="torrent.settings" class="space-y-4 border border-muted bg-default p-5">
     <div>
       <SectionHeader
         :eyebrow="t('settings.torrent.eyebrow')"
@@ -106,7 +106,7 @@ const uploadLimitMiB = byteModel(
       </template>
       <USwitch v-model="settings.torrent_sharing_enabled" data-testid="torrent-sharing" />
     </UFormField>
-    <UFormField :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
+    <UFormField data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
       <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.1" :disabled="!settings.torrent_sharing_enabled" class="w-full">
         <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
       </UInput>
@@ -114,7 +114,7 @@ const uploadLimitMiB = byteModel(
     <UFormField :label="t('settings.torrent.seeding.label')" :description="t('settings.torrent.seeding.description')" orientation="horizontal">
       <USwitch v-model="settings.torrent_seeding_enabled" :disabled="!settings.torrent_sharing_enabled" />
     </UFormField>
-    <UFormField :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
+    <UFormField data-settings-anchor="torrent.seed_ratio" :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
       <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="0.1" :disabled="!seeding" class="w-full" />
     </UFormField>
     <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
@@ -123,6 +123,7 @@ const uploadLimitMiB = byteModel(
       </UInput>
     </UFormField>
     <UFormField
+      data-settings-anchor="torrent.bind_interface"
       v-if="capabilities?.interface_binding"
       :label="t('settings.torrent.bind_interface.label')"
       :description="t('settings.torrent.bind_interface.description')"
@@ -130,6 +131,7 @@ const uploadLimitMiB = byteModel(
       <USelect v-model="bindInterface" :items="interfaceItems" value-key="value" class="w-full" />
     </UFormField>
     <UFormField
+      data-settings-anchor="torrent.kill_switch"
       v-if="capabilities?.interface_binding"
       :label="t('settings.torrent.kill_switch.label')"
       :description="t('settings.torrent.kill_switch.description')"
@@ -143,7 +145,7 @@ const uploadLimitMiB = byteModel(
     >
       <USelect v-model="settings.torrent_listen_mode" :items="listenModeItems" value-key="value" class="w-full" />
     </UFormField>
-    <UFormField :label="t('settings.torrent.listen_port.label')" :description="t('settings.torrent.listen_port.description')">
+    <UFormField data-settings-anchor="torrent.listen_port" :label="t('settings.torrent.listen_port.label')" :description="t('settings.torrent.listen_port.description')">
       <UInput v-model.number="listenPort" type="number" min="1" max="65535" icon="i-lucide-ethernet-port" class="w-full" />
     </UFormField>
     <UFormField
@@ -160,6 +162,7 @@ const uploadLimitMiB = byteModel(
       <USelect v-model="proxyProfile" :items="proxyItems" value-key="value" class="w-full" />
     </UFormField>
     <UFormField
+      data-settings-anchor="torrent.upnp"
       v-if="capabilities?.upnp"
       :label="t('settings.torrent.upnp.label')"
       :description="t('settings.torrent.upnp.description')"
@@ -174,6 +177,7 @@ const uploadLimitMiB = byteModel(
       <UInput v-model.number="announcePort" type="number" min="0" max="65535" class="w-full" />
     </UFormField>
     <UFormField
+      data-settings-anchor="torrent.blocklist"
       v-if="capabilities?.ip_blocklist_url"
       :label="t('settings.torrent.blocklist.label')"
       :description="t('settings.torrent.blocklist.description')"

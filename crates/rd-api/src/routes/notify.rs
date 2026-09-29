@@ -59,6 +59,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/notifications/deliveries/clear",
             post(crate::data_reset_handlers::clear_notification_deliveries),
         )
+        .route(
+            "/api/v1/notifications/deliveries/discard-pending",
+            post(crate::data_reset_handlers::discard_pending_notification_deliveries),
+        )
         .route("/api/v1/power/status", get(power_handlers::power_status))
         .route(
             "/api/v1/reconnect",
@@ -98,6 +102,7 @@ pub(crate) fn routes() -> Router<AppState> {
     notify_handlers::delete_rule,
     notify_handlers::list_deliveries,
     crate::data_reset_handlers::clear_notification_deliveries,
+    crate::data_reset_handlers::discard_pending_notification_deliveries,
     power_handlers::power_status,
     crate::reconnect_handlers::reconnect_status,
     crate::reconnect_handlers::trigger_reconnect,

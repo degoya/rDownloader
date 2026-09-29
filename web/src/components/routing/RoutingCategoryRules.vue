@@ -183,7 +183,7 @@ async function remove(rule: CategoryRule): Promise<void> {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="routing.rules" class="border border-muted bg-default p-5">
     <FormListLayout :list-title="t('routing.rule.title')" :count="rules.length">
       <template #form>
         <SectionHeader
