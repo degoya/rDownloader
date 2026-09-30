@@ -204,6 +204,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('backup.full_restore', 'backup', 'system.backup.full_restore.title', { descriptionKey: 'system.backup.full_restore.description' }),
   // System
   card('system.readiness', 'system', 'system.readiness.title'),
+  card('system.updates', 'system', 'system.updates.title', { descriptionKey: 'system.updates.description', keywordsKey: `${K}.updates`, terms: ['GitHub'] }),
   card('system.logs', 'system', 'settings.logs.title', { descriptionKey: 'settings.logs.description' }),
   card('system.audit', 'system', 'settings.audit.title', { descriptionKey: 'settings.audit.description', terms: ['OTLP', 'OpenTelemetry'] }),
   card('system.stats_retention', 'system', 'stats.retention.title', { descriptionKey: 'stats.retention.description' }),

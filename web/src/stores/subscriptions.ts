@@ -77,15 +77,21 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
 
   async function refresh(): Promise<void> {
     fetching.value = true
-    const response = await api.GET('/api/v1/subscriptions')
-    fetching.value = false
-    settled.value = true
-    if (!response.data) {
-      error.value = responseError(response)
-      return
+    try {
+      const response = await api.GET('/api/v1/subscriptions')
+      if (!response.data) {
+        error.value = responseError(response)
+        return
+      }
+      error.value = null
+      subscriptions.value = response.data
+    } catch {
+      error.value = responseError(undefined)
+    } finally {
+      // `scheduleRefresh` waits for this flag; left set by a rejection it would wait forever.
+      fetching.value = false
+      settled.value = true
     }
-    error.value = null
-    subscriptions.value = response.data
   }
 
   async function loadRuns(id: string): Promise<void> {

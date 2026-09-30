@@ -153,5 +153,9 @@
       "genre": "Género",
       "runtime": "Duración"
     }
+  },
+  "copy": {
+    "failed_title": "No se pudo copiar",
+    "failed_description": "El navegador no permitió acceder al portapapeles. Selecciona el texto y cópialo a mano."
   }
 }

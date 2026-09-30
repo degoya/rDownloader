@@ -311,3 +311,163 @@ async fn the_refresh_installs_only_automatic_updates_that_ask_for_nothing_new() 
     assert_eq!(lifecycle["running_version"], "1.0.0", "{lifecycle}");
     assert_eq!(lifecycle["restart_required"], true, "{lifecycle}");
 }
+
+/// Crash and restart of an automatic update after its version folder exists (RD-180-12,
+/// recovery matrix): the repository row and the version pointers are the two writes that follow
+/// it, and a stop before either leaves the update installed and the choice as it was.
+#[cfg(feature = "failpoints")]
+mod stopped_updates {
+    use super::*;
+
+    /// Installs 1.0.0 of the automatic plugin with an explicit pointer at it, then runs the
+    /// refresh that installs 1.1.0 with `point` armed.
+    async fn update_stopped_at(directory: &std::path::Path, point: &str) -> common::Harness {
+        let harness = common::test_harness(directory).await;
+        let repository = rd_plugin_host::generate_signing_key();
+        let author = rd_plugin_host::generate_signing_key();
+        harness
+            .state
+            .plugins
+            .verifier()
+            .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
+            .expect("trust the author");
+        harness
+            .state
+            .plugins
+            .install_bytes(update_fixture(
+                &author,
+                AUTOMATIC,
+                "1.0.0",
+                r#""example.test""#,
+            ))
+            .await
+            .expect("install 1.0.0");
+        harness
+            .state
+            .plugins
+            .record_started_versions()
+            .await
+            .expect("the start records what it loads");
+        // Pointed at 1.0.0, so an update that followed would move the pointer and one that did
+        // not leaves it where it is: the difference is readable in the row.
+        harness
+            .database
+            .save_plugin_version_choice(rd_db::NewPluginVersionChoice {
+                plugin_id: AUTOMATIC.to_owned(),
+                active_version: Some("1.0.0".to_owned()),
+                previous_version: None,
+                staged_version: None,
+                update_policy: "automatic".to_owned(),
+            })
+            .await
+            .expect("choice");
+
+        let fetcher = std::sync::Arc::new(MapFetcher::default());
+        let mut state = harness.state.clone();
+        state.plugin_repositories =
+            rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+                harness.database.clone(),
+                directory.join("plugin-repositories"),
+                state.plugins.clone(),
+                fetcher.clone(),
+                None,
+            );
+        state
+            .plugin_repositories
+            .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
+                harness.database.clone(),
+            )));
+        let router = rd_api::router(state);
+        fetcher.serve(GOOD_INDEX, signed_index(&repository, 1, &[]));
+        add_repository(&router, GOOD_INDEX, &repository.public_base64).await;
+        let update = update_fixture(&author, AUTOMATIC, "1.1.0", r#""example.test""#);
+        fetcher.serve(&package_url(AUTOMATIC, "1.1.0"), update.clone());
+        fetcher.serve(
+            GOOD_INDEX,
+            signed_index(&repository, 2, &[(AUTOMATIC, "1.1.0", update.as_slice())]),
+        );
+
+        let guard = rd_core::failpoint::FailpointGuard::once(point);
+        let (status, body) = post_json(
+            &router,
+            "/api/v1/plugins/repositories/refresh",
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(guard.fired(), "the crash point was never reached");
+        harness
+    }
+
+    /// Both versions whole and listed once, no staging folder, the pointer still at 1.0.0 —
+    /// and the start after the stop says so too.
+    async fn assert_installed_and_unchosen(directory: &std::path::Path, harness: &common::Harness) {
+        let mut versions: Vec<String> = harness
+            .state
+            .plugins
+            .list_installed()
+            .await
+            .expect("list")
+            .into_iter()
+            .filter(|manifest| manifest.id.to_string() == AUTOMATIC)
+            .map(|manifest| manifest.version)
+            .collect();
+        versions.sort();
+        assert_eq!(versions, ["1.0.0", "1.1.0"]);
+        let leftovers: Vec<String> = std::fs::read_dir(directory.join("plugins").join(AUTOMATIC))
+            .expect("plugin folder")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with('.'))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
+        let choice = harness
+            .database
+            .plugin_version_choice(AUTOMATIC)
+            .await
+            .expect("choice")
+            .expect("a stored choice");
+        assert_eq!(choice.active_version.as_deref(), Some("1.0.0"));
+        assert_eq!(choice.previous_version, None);
+
+        let restarted = common::test_harness(directory).await;
+        let (status, inventory) = get_json(&restarted.router, "/api/v1/plugins").await;
+        assert_eq!(status, StatusCode::OK, "{inventory}");
+        let lifecycle = inventory["lifecycle"]
+            .as_array()
+            .expect("lifecycle")
+            .iter()
+            .find(|entry| entry["plugin_id"] == AUTOMATIC)
+            .cloned()
+            .expect("the plugin");
+        assert_eq!(lifecycle["active_version"], "1.0.0", "{lifecycle}");
+    }
+
+    async fn recorded(harness: &common::Harness) -> bool {
+        harness
+            .database
+            .list_plugin_repository_installs()
+            .await
+            .expect("installs")
+            .iter()
+            .any(|install| install.plugin_id == AUTOMATIC && install.version == "1.1.0")
+    }
+
+    /// `plugin.before_install_recorded`.
+    #[tokio::test]
+    async fn an_update_stopped_before_its_repository_row_stays_installed_and_unchosen() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let harness = update_stopped_at(directory.path(), "plugin.before_install_recorded").await;
+        assert!(!recorded(&harness).await, "the row was written after all");
+        assert_installed_and_unchosen(directory.path(), &harness).await;
+    }
+
+    /// `plugin.before_pointers_followed`.
+    #[tokio::test]
+    async fn an_update_stopped_before_its_pointers_followed_stays_installed_and_unchosen() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let harness = update_stopped_at(directory.path(), "plugin.before_pointers_followed").await;
+        assert!(recorded(&harness).await, "the repository row is missing");
+        assert_installed_and_unchosen(directory.path(), &harness).await;
+    }
+}

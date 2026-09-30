@@ -33,6 +33,11 @@ impl Granted {
         self.0.contains(&scope)
     }
 
+    /// Every scope this credential carries, for a stream that has to notice losing one.
+    pub fn scopes(&self) -> &[rd_core::Scope] {
+        &self.0
+    }
+
     /// Whether an event of this kind may be streamed to this subscriber.
     pub fn may_observe(&self, kind: &rd_core::EventKind) -> bool {
         self.0.contains(&rd_core::Scope::of_event(kind))
@@ -144,15 +149,27 @@ impl AuthService {
             .is_some())
     }
 
-    /// Stores the first administrator password.
+    /// Stores the first administrator password, once.
+    ///
+    /// The early read is only the cheap refusal, so a configured installation does not hash a
+    /// password for every anonymous call. What decides is the write: it only lands on an empty
+    /// key, in one statement. A read followed by a write let two requests racing on a fresh
+    /// installation both find it unconfigured, and the second password silently replaced the
+    /// first (security audit 2026-09-30, finding 7).
     pub async fn setup(&self, state: &AppState, password: &str) -> Result<(), ApiError> {
         if self.is_configured(state).await? {
-            return Err(ApiError::conflict(
-                "auth.setup_completed",
-                "Setup has already been completed",
-            ));
+            return Err(setup_completed());
         }
-        self.store_password(state, password).await
+        validate_password(password)?;
+        let hash = hash_password(password)?;
+        if !state
+            .database
+            .insert_setting_if_absent(PASSWORD_SETTING.to_owned(), serde_json::Value::String(hash))
+            .await?
+        {
+            return Err(setup_completed());
+        }
+        Ok(())
     }
 
     /// Writes `password` as the administrator password, whatever is there now.
@@ -329,10 +346,16 @@ impl AuthService {
 
     /// The `Set-Cookie` value that clears the session cookie.
     ///
-    /// Deliberately without `Secure`: clearing a cookie has to work whatever the current
-    /// configuration says, including after the configuration changed under it.
-    pub const EXPIRED_COOKIE: &'static str =
-        "rd_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0";
+    /// At the path [`Self::cookie`] sets it at: a browser keys a cookie by name *and* path, so
+    /// clearing `Path=/` under a mount point left the session cookie of `Path=/downloads` where it
+    /// was (security audit 2026-09-30, finding 6). Deliberately without `Secure`: clearing a
+    /// cookie has to work whatever the current configuration says, including after the
+    /// configuration changed under it.
+    #[must_use]
+    pub fn expired_cookie(base_path: &str) -> String {
+        let path = if base_path.is_empty() { "/" } else { base_path };
+        format!("{SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path={path}; Max-Age=0")
+    }
 
     /// Creates the `Set-Cookie` value for a session token, kept by the browser for
     /// `max_age_seconds` — the maximum lifetime the session was opened under.
@@ -510,7 +533,10 @@ pub async fn require_session(
     // Captured before anything is awaited; see [`RequestFacts`].
     let facts = RequestFacts::of(&request);
     let (granted, actor) = match facts.as_ref() {
-        Some(facts) => credential(&state, &facts.headers, facts.from_this_machine).await,
+        Some(facts) => match local_control_grant(&state, facts) {
+            Some(grant) => grant,
+            None => credential(&state, &facts.headers, facts.from_this_machine).await,
+        },
         None => (Vec::new(), crate::audit::Actor::anonymous()),
     };
 
@@ -539,6 +565,25 @@ pub async fn require_session(
     // because this is the one place every authenticated request passes through.
     request.extensions_mut().insert(actor);
     Ok(next.run(request).await)
+}
+
+/// The local control token (`crate::local_control`, RD-180-02) opens its own routes and no
+/// other, and only for a request from this machine: `api:admin` on exactly those, which is what
+/// the table prices them at. Any other request falls through to the ordinary credential.
+fn local_control_grant(
+    state: &AppState,
+    facts: &RequestFacts,
+) -> Option<(Vec<rd_core::Scope>, crate::audit::Actor)> {
+    let bearer = bearer_token(&facts.headers)?;
+    (facts.from_this_machine
+        && crate::local_control::covers(&facts.path, &facts.method)
+        && state.local_control.accepts(bearer))
+    .then(|| {
+        (
+            vec![rd_core::Scope::Admin],
+            crate::audit::Actor::local_control(),
+        )
+    })
 }
 
 /// The refusal this route's requirement produces for these scopes, if any.
@@ -589,7 +634,7 @@ pub struct OpenedSession {
 }
 
 /// The stored form of a bearer: hex SHA-256, never the value itself.
-fn digest_of(token: &str) -> String {
+pub(crate) fn digest_of(token: &str) -> String {
     hex::encode(Sha256::digest(token.as_bytes()))
 }
 
@@ -602,7 +647,7 @@ pub fn session_digest(headers: &HeaderMap) -> Option<String> {
 ///
 /// Bearer wins, as it did before: a command-line client that sets both should get the one it
 /// chose deliberately rather than a cookie a browser left behind.
-fn session_token(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn session_token(headers: &HeaderMap) -> Option<&str> {
     bearer_token(headers).or_else(|| cookie_token(headers))
 }
 
@@ -795,20 +840,40 @@ fn hash_password(password: &str) -> Result<String, ApiError> {
         .to_string())
 }
 
+/// The refusal of a second setup, whichever check caught it.
+fn setup_completed() -> ApiError {
+    ApiError::conflict("auth.setup_completed", "Setup has already been completed")
+}
+
+/// The longest password accepted, in characters.
+///
+/// Far beyond any passphrase a person types or a manager generates, and short enough that the
+/// hash a public route computes over it stays cheap: without a ceiling, the only bound was the
+/// request body limit (security audit 2026-09-30, finding 8).
+pub const MAX_PASSWORD_CHARS: usize = 1024;
+
 /// The password policy. One function, so the first password and every later one are judged
 /// by the same rule (RD-120-22).
 pub fn validate_password(password: &str) -> Result<(), ApiError> {
-    if password.chars().count() < 10 {
+    let length = password.chars().count();
+    if length < 10 {
         return Err(ApiError::bad_request(
             "auth.password_too_short",
             "The password must be at least 10 characters long",
         )
         .with_param("min", 10));
     }
+    if length > MAX_PASSWORD_CHARS {
+        return Err(ApiError::bad_request(
+            "auth.password_too_long",
+            "The password must be at most 1024 characters long",
+        )
+        .with_param("max", MAX_PASSWORD_CHARS));
+    }
     Ok(())
 }
 
-fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::AUTHORIZATION)?
         .to_str()
@@ -893,6 +958,25 @@ mod tests {
             "Bearer s3cret".parse().expect("value"),
         );
         assert_eq!(malformed_credential(&headers).expect("a token"), "s3cret");
+    }
+
+    /// Both ends of the policy, and nothing between them refused (audit 2026-09-30, finding 8).
+    #[test]
+    fn a_password_is_bounded_at_both_ends() {
+        assert_eq!(
+            super::validate_password("short")
+                .expect_err("too short")
+                .code(),
+            "auth.password_too_short"
+        );
+        assert!(super::validate_password(&"x".repeat(10)).is_ok());
+        assert!(super::validate_password(&"x".repeat(super::MAX_PASSWORD_CHARS)).is_ok());
+        assert_eq!(
+            super::validate_password(&"x".repeat(super::MAX_PASSWORD_CHARS + 1))
+                .expect_err("too long")
+                .code(),
+            "auth.password_too_long"
+        );
     }
 
     #[test]

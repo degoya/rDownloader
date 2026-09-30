@@ -1,0 +1,36 @@
+# rDownloader's winget default locale manifest (RD-180-07). Rendered from
+# packaging/winget/degoya.rDownloader.locale.en-US.yaml.in in @REPOSITORY@ by
+# scripts/package-managers.sh and submitted to microsoft/winget-pkgs by the release workflow:
+# change the template, not this file.
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+
+PackageIdentifier: degoya.rDownloader
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: degoya
+PublisherUrl: https://github.com/@OWNER@
+PublisherSupportUrl: https://github.com/@REPOSITORY@/issues
+PackageName: rDownloader
+PackageUrl: https://rdownloader.net
+License: GPL-3.0-or-later
+LicenseUrl: https://github.com/@REPOSITORY@/blob/v@VERSION@/LICENSE
+ShortDescription: Local-first download manager with a web interface
+Description: |-
+  rDownloader is a local-first download manager for HTTP, hosters, cloud drives, FTP/SFTP/WebDAV,
+  Usenet, torrents, media, feeds, galleries and livestreams, collected in one LinkGrabber, run
+  from one persistent queue and operated from the browser.
+  Start the service with `start-rdownloader`, then open http://127.0.0.1:8710 for the setup
+  wizard. The database and the default download folder stay in the package folder across
+  `winget upgrade`; stop the service with `stop-rdownloader` before upgrading.
+Moniker: rdownloader
+Tags:
+- download-manager
+- downloader
+- linkgrabber
+- self-hosted
+- torrent
+- usenet
+- yt-dlp
+ReleaseNotesUrl: https://github.com/@REPOSITORY@/releases/tag/v@VERSION@
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0

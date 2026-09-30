@@ -1,4 +1,5 @@
-//! The environment a program started for post-processing inherits from the service.
+//! What a program started by the service inherits from it: its environment and the room its
+//! output takes.
 //!
 //! Security review 2026-09-28, finding 7: user scripts, the archive tools, ffmpeg and rclone
 //! inherited every variable the service was started with. The service itself reads no secret
@@ -8,8 +9,19 @@
 //! program needs to run at all ([`KEPT`], [`KEPT_PREFIXES`]) and whatever its caller sets on
 //! top: a script's `RD_*`/`SAB_*` values, the archive tools' locale. A variable of the service's
 //! own environment named `RD_*` is not passed on either; only the values the service sets are.
+//! The 1.8 engine audit found the downloaders and apprise still inheriting everything; they
+//! follow the same rule with [`TOOL_VARIABLES`] on top.
+//!
+//! Output: a program can print without end, and a buffer that keeps all of it grows the service
+//! with it. [`read_tail`] keeps a bounded end of a stream and reads the rest away, so the child
+//! never blocks on a full pipe either.
 
-use std::ffi::OsString;
+use std::{
+    collections::VecDeque,
+    ffi::{OsStr, OsString},
+};
+
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// Variables passed through by name.
 ///
@@ -53,17 +65,68 @@ pub const RCLONE_VARIABLES: &[&str] = &[
     "ALL_PROXY",
 ];
 
+/// What the downloaders (yt-dlp, gallery-dl, streamlink) and apprise read besides [`KEPT`]:
+/// the proxy they are told to use, in either spelling (the rule ignores ASCII case), the CA
+/// bundle a TLS-intercepting network hands out, and the configuration and cache directories
+/// their own config files live in. A download that works from a shell keeps working from the
+/// service; none of these is a credential of the service's.
+pub const TOOL_VARIABLES: &[&str] = &[
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+];
+
 /// Clears `command`'s environment and passes through only [`KEPT`], [`KEPT_PREFIXES`] and
 /// `extra` from the service's own.
 ///
 /// `extra` follows the same rule as the two lists: an entry ending in `_` is a prefix, any
-/// other names one variable. Values the caller sets afterwards with `env`/`envs` are added on
-/// top, as with any `Command`.
+/// other names one variable. Values the caller set with `env`/`envs` before - or sets
+/// afterwards - stay on top, so this can run where a command is spawned, after whoever built it.
 pub fn restrict_environment(command: &mut tokio::process::Command, extra: &[&str]) {
+    let explicit = command
+        .as_std()
+        .get_envs()
+        .map(|(name, value)| (name.to_owned(), value.map(OsStr::to_owned)))
+        .collect::<Vec<_>>();
     command
         .env_clear()
         .envs(kept_variables(std::env::vars_os(), extra));
+    for (name, value) in explicit {
+        match value {
+            Some(value) => command.env(name, value),
+            None => command.env_remove(name),
+        };
+    }
 }
+
+/// Reads `reader` to its end and keeps the last `limit` bytes of it.
+///
+/// Everything before is read and dropped rather than left in the pipe, so a chatty program
+/// never blocks on a full buffer, and memory stays at `limit` however much it prints. A read
+/// error ends the stream: the pipe is gone, and what was kept is still the best account.
+pub async fn read_tail<R: AsyncRead + Unpin>(mut reader: R, limit: usize) -> Vec<u8> {
+    let mut kept = VecDeque::with_capacity(limit.min(READ_CHUNK));
+    let mut chunk = vec![0_u8; READ_CHUNK];
+    loop {
+        let read = match reader.read(&mut chunk).await {
+            Ok(0) | Err(_) => break,
+            Ok(read) => read,
+        };
+        kept.extend(&chunk[..read]);
+        let excess = kept.len().saturating_sub(limit);
+        kept.drain(..excess);
+    }
+    kept.into()
+}
+
+const READ_CHUNK: usize = 8 * 1024;
 
 /// The variables of `environment` a started program keeps.
 ///
@@ -106,7 +169,7 @@ fn matches_rule(name: &str, rule: &str) -> bool {
 mod tests {
     use std::ffi::OsString;
 
-    use super::{RCLONE_VARIABLES, kept_variables};
+    use super::{RCLONE_VARIABLES, TOOL_VARIABLES, kept_variables, read_tail};
 
     fn environment(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
         pairs
@@ -168,5 +231,75 @@ mod tests {
                 "{secret} reached rclone"
             );
         }
+    }
+
+    /// The downloaders keep their proxy, CA bundle and config directories, in either spelling,
+    /// and nothing that is the service's own.
+    #[test]
+    fn the_downloaders_keep_their_network_settings_and_nothing_else() {
+        let service = environment(&[
+            ("PATH", "/usr/bin"),
+            ("https_proxy", "http://proxy:3128"),
+            ("HTTPS_PROXY", "http://proxy:3128"),
+            ("no_proxy", "localhost"),
+            ("SSL_CERT_FILE", "/etc/ssl/corp.pem"),
+            ("REQUESTS_CA_BUNDLE", "/etc/ssl/corp.pem"),
+            ("XDG_CONFIG_HOME", "/home/rd/.config"),
+            ("RD_TEST_SECRET_CANARY", "canary-4b1f"),
+            ("AWS_SECRET_ACCESS_KEY", "aws"),
+            ("RCLONE_CONFIG_PASS", "rclone"),
+        ]);
+        assert_eq!(
+            names(&kept_variables(service, TOOL_VARIABLES)),
+            [
+                "PATH",
+                "https_proxy",
+                "HTTPS_PROXY",
+                "no_proxy",
+                "SSL_CERT_FILE",
+                "REQUESTS_CA_BUNDLE",
+                "XDG_CONFIG_HOME"
+            ]
+        );
+    }
+
+    /// A value the caller set before the restriction survives it; a secret of this process
+    /// does not reach the child. The child's whole environment is checked against the rule,
+    /// because this process's own environment cannot be changed from a test.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn the_child_sees_the_allowlist_and_what_its_caller_set() {
+        let mut command = tokio::process::Command::new("/usr/bin/env");
+        command.env("RD_SET_BY_CALLER", "kept");
+        super::restrict_environment(&mut command, TOOL_VARIABLES);
+        let output = command.output().await.expect("run env");
+        let text = String::from_utf8_lossy(&output.stdout);
+        let seen = text
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .map(|(name, value)| (OsString::from(name), OsString::from(value)))
+            .collect::<Vec<_>>();
+        assert!(
+            text.lines().any(|line| line == "RD_SET_BY_CALLER=kept"),
+            "{text}"
+        );
+        let allowed = kept_variables(seen.clone(), TOOL_VARIABLES);
+        let extra = seen
+            .iter()
+            .filter(|pair| !allowed.contains(pair) && pair.0 != "RD_SET_BY_CALLER")
+            .map(|(name, _)| name.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert!(extra.is_empty(), "inherited past the allowlist: {extra:?}");
+    }
+
+    /// A program that prints far more than the limit: the end is kept, memory is not.
+    #[tokio::test]
+    async fn only_the_tail_of_a_long_stream_is_kept() {
+        let mut stream = vec![b'x'; 1024 * 1024];
+        stream.extend_from_slice(b"the error at the end");
+        let tail = read_tail(stream.as_slice(), 20).await;
+        assert_eq!(tail, b"the error at the end");
+        assert_eq!(read_tail(&b"short"[..], 20).await, b"short");
+        assert!(read_tail(&b"anything"[..], 0).await.is_empty());
     }
 }

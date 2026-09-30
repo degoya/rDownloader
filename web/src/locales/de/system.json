@@ -471,13 +471,16 @@
       "confirm": "Erzeugen"
     },
     "disable": {
-      "label": "Passwort",
       "hint": "Zum Abschalten genügt das Passwort — nicht ein Code. Ein verlorenes Gerät soll nicht endgültig sein.",
       "action": "Abschalten"
     },
     "enabled_toast": "Zwei-Faktor-Anmeldung ist aktiv",
     "disabled_toast": "Zwei-Faktor-Anmeldung ist aus",
-    "copied": "Kopiert"
+    "copied": "Kopiert",
+    "step_up": {
+      "label": "Passwort",
+      "hint": "Einen Faktor hinzufügen, entfernen oder abschalten verlangt das Passwort noch einmal."
+    }
   },
   "passkeys": {
     "eyebrow": "Passkeys",
@@ -499,7 +502,8 @@
       "title": "Diesen Passkey entfernen?",
       "description": "„{label}“ kann sich dann nicht mehr anmelden. Das Passwort funktioniert weiterhin.",
       "confirm": "Entfernen"
-    }
+    },
+    "step_up_hint": "Einen Passkey hinzufügen oder entfernen verlangt das Passwort noch einmal."
   },
   "password": {
     "eyebrow": "Passwort",
@@ -543,6 +547,22 @@
       "description": "{count} Benachrichtigungen, die noch in der Warteschlange stehen oder wiederholt werden, werden gelöscht und nicht mehr gesendet. Zugestellte und fehlgeschlagene Zustellungen bleiben im Verlauf, ebenso Ziele, Regeln, Protokoll, Audit und Statistik.",
       "confirm": "Endgültig verwerfen",
       "done": "{count} Benachrichtigungen verworfen"
+    },
+    "storage_operations": {
+      "button": "Verlauf leeren",
+      "stored": "{count} Einträge",
+      "title": "Speicherverlauf leeren?",
+      "description": "{count} abgeschlossene, fehlgeschlagene und unterbrochene Verschiebungen und Duplikat-Links werden endgültig aus dem Verlauf entfernt. Ein Vorgang, der noch läuft, bleibt. Keine Datei wird verschoben oder gelöscht, und eine unterbrochene Verschiebung wird beim nächsten Start trotzdem fortgesetzt.",
+      "confirm": "Endgültig leeren",
+      "done": "{count} Verlaufseinträge entfernt"
+    },
+    "content_index": {
+      "button": "Index leeren",
+      "stored": "{count} im Index",
+      "title": "Inhaltsindex leeren?",
+      "description": "{count} Indexeinträge werden entfernt. Dateien und Downloads bleiben unberührt, aber bis eine Datei wieder im Index steht, wird sie nicht als inhaltliches Duplikat erkannt und kann nicht Original eines Duplikat-Links sein. „Inhaltsindex prüfen“ (läuft auch bei jedem Start) nimmt fertige Downloads wieder auf, die noch in der Warteschlange stehen, deren SHA-256 bekannt ist und deren Datei noch an ihrem Platz liegt. Dateien entfernter oder nie gehashter Downloads kommen erst mit einem neuen Download zurück.",
+      "confirm": "Index leeren",
+      "done": "{count} Indexeinträge entfernt"
     }
   },
   "session_limits": {
@@ -568,5 +588,89 @@
     "modal_title": "Browser-Erweiterung koppeln",
     "modal_description": "Die Anmeldung beim Hoster kommt aus deinem Browser, und nur die Erweiterung kann sie übergeben. Kopple sie hier, ohne die Seite zu verlassen.",
     "done": "Fertig"
+  },
+  "updates": {
+    "eyebrow": "Neue Versionen",
+    "title": "Updates",
+    "description": "rDownloader fragt eine signierte Versionsliste bei GitHub ab und sagt dir, wenn eine neue Version erschienen ist. Installiert wird nichts ohne dich.",
+    "enabled_label": "Automatisch prüfen",
+    "enabled_description": "Ruft nur eine öffentliche, signierte Datei ab und sendet nichts über diese Installation.",
+    "channel_label": "Kanal",
+    "channel_description": "Stabil bekommt nur Releases, Beta auch Vorabversionen (vX.Y.Z-beta.N).",
+    "channel_stable": "Stabil",
+    "channel_beta": "Beta",
+    "channel_forced_stable": "Dein Paketmanager veröffentlicht keine Betas, deshalb liest diese Installation den stabilen Kanal.",
+    "interval_label": "Prüfen alle",
+    "interval_description": "Stunden zwischen zwei automatischen Prüfungen (1–168).",
+    "check_now": "Jetzt prüfen",
+    "current": "Installiert: {version}",
+    "installed_as": "Installiert als: {kind}",
+    "kind": {
+      "portable": "Portables Archiv",
+      "msi": "Windows-Installer",
+      "deb": "Debian-Paket",
+      "rpm": "RPM-Paket",
+      "homebrew": "Homebrew",
+      "scoop": "Scoop",
+      "winget": "winget",
+      "aur": "AUR",
+      "docker": "Container-Image",
+      "unknown": "Unbekannt"
+    },
+    "last_checked": "Zuletzt geprüft: {when}",
+    "never_checked": "Noch nicht geprüft",
+    "next_check": "Nächste Prüfung: {when}",
+    "up_to_date": "Du hast die neueste Version.",
+    "available": "Version {version} ist verfügbar",
+    "show_details": "Details",
+    "not_configured": "Dieser Build trägt keinen Update-Schlüssel; die Update-Prüfung ist aus.",
+    "modal": {
+      "title": "rDownloader {version}",
+      "released": "Erschienen: {when}",
+      "notes": "Was ist neu",
+      "no_notes": "Zu dieser Version gibt es keine Notizen.",
+      "full_notes": "Vollständige Versionshinweise",
+      "download": "Herunterladen",
+      "download_hint": "Ersetze die Programmdateien dieser Installation durch die neue Version; deine Einstellungen und Downloads bleiben, wo sie sind.",
+      "command_hint": "Diese Installation verwaltet {kind}. Aktualisiere sie mit:",
+      "copy": "Kopieren",
+      "copied": "Befehl kopiert",
+      "close": "Schließen",
+      "install": "Installieren und neu starten",
+      "install_hint": "rDownloader lädt die neue Version, sichert seine Datenbank, beendet sich, ersetzt seine Programmdateien und startet neu. Deine Einstellungen und Downloads bleiben, wo sie sind.",
+      "rollback_automatic": "Startet die neue Version nicht richtig, kommt die bisherige von selbst zurück.",
+      "rollback_unavailable": "Dieses Update über den Windows-Installer lässt sich nicht von selbst zurücknehmen: Das Installationspaket der laufenden Version wurde nicht aufbewahrt. Ab dem nächsten Update geht das.",
+      "download_package": "Paket herunterladen"
+    },
+    "hints": {
+      "aur_helper": "Mit paru: paru -S rdownloader-bin",
+      "docker_recreate": "Danach den Container neu erstellen, z. B. mit docker compose up -d.",
+      "deb_file": "Das Repository enthält nur Releases. Eine Beta oder ein heruntergeladenes Paket installierst du aus der Datei: sudo apt install ./<datei>.deb",
+      "rpm_file": "Das Repository enthält nur Releases. Eine Beta oder ein heruntergeladenes Paket installierst du aus der Datei: sudo dnf install ./<datei>.rpm"
+    },
+    "notice": "Update verfügbar",
+    "notice_version": "{version} verfügbar",
+    "notice_installing": "Update auf {version} läuft",
+    "notice_updated": "Auf {version} aktualisiert",
+    "install": {
+      "confirm_title": "{version} jetzt installieren?",
+      "confirm_description": "rDownloader hält für etwa eine Minute an und startet als {version} neu. Laufende Downloads werden gesichert und danach fortgesetzt. Diese Seite verbindet sich von selbst wieder.",
+      "anyway": "Trotzdem installieren",
+      "reconnecting": "rDownloader startet neu – warte auf die Antwort …",
+      "lost": "rDownloader antwortet seit Minuten nicht. Starte es von Hand; war das Update unvollständig, kommt die bisherige Version beim Start zurück.",
+      "reload": "Seite neu laden",
+      "reload_hint": "Lade die Seite neu, um die Oberfläche der neuen Version zu verwenden.",
+      "state": {
+        "downloading": "{version} wird heruntergeladen …",
+        "preparing": "Sicherung vor dem Update wird geschrieben …",
+        "restarting": "rDownloader wird für das Update beendet …",
+        "installing": "{version} wird installiert …",
+        "verifying": "{version} startet …",
+        "rolling_back": "{version} startet nicht richtig; {from} wird zurückgeholt …",
+        "done": "Auf {version} aktualisiert.",
+        "rolled_back": "{version} ist nicht richtig gestartet, deshalb läuft wieder {from}.",
+        "failed": "Das Update auf {version} ist fehlgeschlagen."
+      }
+    }
   }
 }

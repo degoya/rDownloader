@@ -75,6 +75,15 @@ impl Writer {
                 let result = crate::auth_flow_store::delete(&mut self.connection, account_id).await;
                 publish_unit_event(reply, result, &self.events);
             }
+            WriterCommand::TakeAuthFlowCallback {
+                callback_state,
+                reply,
+            } => {
+                let result =
+                    crate::auth_flow_store::take_callback(&mut self.connection, &callback_state)
+                        .await;
+                send(reply, result);
+            }
             WriterCommand::SetDownloadAuthProfile {
                 id,
                 selection,

@@ -1089,7 +1089,10 @@ async fn seed_usenet_package_short_of_blocks(
 
 /// The pipeline internals, without the job loop: these tests assert what one pass leaves
 /// behind, and the interesting pass is the one that does *not* end in a terminal state.
-fn extraction_inner(database: &Database, temp: &std::path::Path) -> std::sync::Arc<crate::Inner> {
+pub(crate) fn extraction_inner(
+    database: &Database,
+    temp: &std::path::Path,
+) -> std::sync::Arc<crate::Inner> {
     // The receiver is dropped straight away: these tests call the pipeline directly and
     // nothing ever queues another job through this handle.
     let (jobs, _) = tokio::sync::mpsc::channel(8);
@@ -1105,7 +1108,7 @@ fn extraction_inner(database: &Database, temp: &std::path::Path) -> std::sync::A
         },
         hold: rd_core::PostprocessHold::new(),
         jobs,
-        in_flight: tokio::sync::Mutex::new(std::collections::HashSet::new()),
+        in_flight: tokio::sync::Mutex::new(crate::InFlight::default()),
         shutdown: tokio_util::sync::CancellationToken::new(),
         plugin_steps: None,
         storage: None,
@@ -1520,5 +1523,34 @@ async fn a_package_never_starts_an_archive_tool_below_its_security_floor() {
             .filter(|step| step.kind == PostprocessKind::RarTest)
             .all(|step| step.state == PostprocessState::Skipped),
         "{steps:?}"
+    );
+}
+
+/// Engine audit 1.8, finding 7: a manual trigger while a job waits queues a second one; the
+/// first ending must leave the package pending until the second has run too.
+#[test]
+fn a_package_stays_pending_until_its_last_job_has_run() {
+    use crate::{ExtractionTrigger, InFlight};
+
+    let mut in_flight = InFlight::default();
+    let package = PackageId::new();
+    assert!(in_flight.claim(package, ExtractionTrigger::Auto));
+    assert!(
+        !in_flight.claim(package, ExtractionTrigger::Auto),
+        "an automatic trigger leaves a queued job alone"
+    );
+    assert!(in_flight.claim(package, ExtractionTrigger::Manual));
+    in_flight.release(package);
+    assert!(
+        in_flight.packages().contains(&package),
+        "one job is still to come"
+    );
+    assert!(!in_flight.claim(package, ExtractionTrigger::Auto));
+    in_flight.release(package);
+    assert!(in_flight.packages().is_empty());
+    in_flight.release(package);
+    assert!(
+        in_flight.packages().is_empty(),
+        "a stray release changes nothing"
     );
 }

@@ -47,19 +47,25 @@ export const useAutomationsStore = defineStore('automations', () => {
 
   async function refresh(): Promise<void> {
     fetching.value = true
-    const [list, history] = await Promise.all([
-      api.GET('/api/v1/automations'),
-      api.GET('/api/v1/automations/runs')
-    ])
-    if (list.data) {
-      automations.value = list.data
-      error.value = null
-    } else {
-      error.value = responseError(list)
+    try {
+      const [list, history] = await Promise.all([
+        api.GET('/api/v1/automations'),
+        api.GET('/api/v1/automations/runs')
+      ])
+      if (list.data) {
+        automations.value = list.data
+        error.value = null
+      } else {
+        error.value = responseError(list)
+      }
+      if (history.data) runs.value = history.data
+    } catch {
+      error.value = responseError(undefined)
+    } finally {
+      // `scheduleRefresh` waits for this flag; left set by a rejection it would wait forever.
+      fetching.value = false
+      settled.value = true
     }
-    if (history.data) runs.value = history.data
-    fetching.value = false
-    settled.value = true
   }
 
   /**

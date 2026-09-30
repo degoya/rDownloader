@@ -32,7 +32,8 @@
 #     an unclosed, nested or unopened marker, a page marker below the first line, and any marker
 #     text left in the converted tree.
 #
-# Nothing leaves this machine without --push.
+# Nothing leaves this machine without --push. A pre-release (`X.Y.Z-beta.N`) is refused: the
+# public handbook describes the stable release and follows the next one (owner, 2026-09-30).
 #
 # Usage:
 #   scripts/export-wiki.sh 1.3.0           # convert, commit into the local clone
@@ -50,6 +51,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/public.sh
 source "$ROOT/scripts/lib/public.sh"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
 cd "$ROOT"
 
 WIKI_SRC="${RD_WIKI_SRC:-$HOME/projects/rdownloader.wiki}"
@@ -62,15 +65,19 @@ DO_PUSH=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --push) DO_PUSH=1; shift ;;
-        -h|--help) sed -n '2,47p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,48p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
             VERSION="$1"; shift ;;
     esac
 done
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if ! rd_release_version "$VERSION"; then
     echo "usage: scripts/export-wiki.sh <version> [--push]" >&2
+    exit 2
+fi
+if rd_is_prerelease "$VERSION"; then
+    echo "$VERSION is a pre-release: the public wiki stays on the last stable release until the next one" >&2
     exit 2
 fi
 

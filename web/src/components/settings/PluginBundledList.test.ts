@@ -57,7 +57,7 @@ describe('PluginBundledList', () => {
     expect(emitted().installed?.[0]).toEqual(['1 plugin installed; it runs now.'])
   })
 
-  it('says when what it installed runs only from the next start', async () => {
+  it('says which of what it installed runs at once and which from the next start', async () => {
     installBundled.mockResolvedValue({
       ok: true,
       data: { code: 'plugin.bundled_installed_restart_required', message: '', installed: [{ id: 'id-rapidgator' }], failed: [], restart_required: true }
@@ -67,7 +67,7 @@ describe('PluginBundledList', () => {
     await fireEvent.click(within(await screen.findByTestId('bundled-service-rapidgator')).getByRole('button', { name: plugins.bundled.install }))
 
     await waitFor(() => expect(emitted().installed).toHaveLength(1))
-    expect(emitted().installed?.[0]).toEqual(['1 plugin installed; it runs from the next start.'])
+    expect(emitted().installed?.[0]).toEqual(['1 plugin installed; a hoster or sign-in plugin runs at once, other types from the next start.'])
   })
 
   it('says so when everything in the bundle is installed', async () => {

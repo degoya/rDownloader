@@ -89,6 +89,10 @@ impl Writer {
                     collision_store::forget_indexed_path(&mut self.connection, &path, except).await;
                 send(reply, result);
             }
+            WriterCommand::ClearContentIndex { reply } => {
+                let result = collision_store::clear_content_index(&mut self.connection).await;
+                send(reply, result);
+            }
             WriterCommand::StartStorageOperation { operation, reply } => {
                 let result =
                     storage_ops_store::start_storage_operation(&mut self.connection, operation)
@@ -105,6 +109,11 @@ impl Writer {
                 let result =
                     storage_ops_store::interrupt_running_storage_operations(&mut self.connection)
                         .await;
+                send(reply, result);
+            }
+            WriterCommand::ClearStorageOperations { reply } => {
+                let result =
+                    storage_ops_store::clear_storage_operations(&mut self.connection).await;
                 send(reply, result);
             }
             // Routed here by `Writer::run` only for the variants above; see `handle_plugins`.

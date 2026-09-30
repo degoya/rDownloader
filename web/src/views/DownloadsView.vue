@@ -16,6 +16,7 @@ import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { copyText } from '@/composables/useCopy'
 import { useOpenSections } from '@/composables/useOpenSections'
 import type { VirtualRow } from '@/composables/useVirtualRows'
 import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
@@ -159,12 +160,10 @@ const canExtractSelection = computed(() => hasExtractable(selection.selectedDown
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
 
 async function copyPath(path: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(path)
-    transfers.notice = t('downloads.notices.path_copied', { path })
-  } catch {
-    transfers.notice = t('downloads.notices.destination', { path })
-  }
+  // No toast on failure: the notice names the path, which can be copied from there by hand.
+  transfers.notice = await copyText(path)
+    ? t('downloads.notices.path_copied', { path })
+    : t('downloads.notices.destination', { path })
 }
 
 /**

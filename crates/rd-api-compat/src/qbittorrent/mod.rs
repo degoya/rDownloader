@@ -222,7 +222,7 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
         state.qbittorrent_sessions.forget(&sid);
     }
     // Cleared at the path it was set at, or the browser keeps the one it already holds.
-    // Deliberately without `Secure`, like `AuthService::EXPIRED_COOKIE`: clearing has to work
+    // Deliberately without `Secure`, like `AuthService::expired_cookie`: clearing has to work
     // whatever the configuration says now, including after it changed under the cookie.
     let path = cookie_path(&state).await;
     (

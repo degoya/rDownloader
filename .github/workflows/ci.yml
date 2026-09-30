@@ -10,13 +10,13 @@ on:
     branches: ["**", "!dependabot/**"]
   pull_request:
   # A re-check of one fix need not wait an hour for platforms it cannot affect: dispatched by
-  # hand, the `rust` matrix takes only the runners named here (`docker` still runs; it waits for
-  # `web` alone). Pushes, pull requests, `main` and tags always run all three.
+  # hand, the `rust` and `crash-matrix` matrices take only the runners named here (`docker` still
+  # runs; it waits for `web` alone). Pushes, pull requests, `main` and tags always run all three.
   #   gh workflow run ci.yml --ref ci/1.3.1 -f platforms='["ubuntu-24.04"]'
   workflow_dispatch:
     inputs:
       platforms:
-        description: JSON list of runner images for the rust job
+        description: JSON list of runner images for the rust and crash-matrix jobs
         required: false
         default: '["ubuntu-24.04","windows-2025","macos-15"]'
 
@@ -39,7 +39,9 @@ env:
 # without a commit — `ubuntu-latest` becomes Ubuntu 26.04 from 2026-10-19 — and what it moves is
 # the whole toolchain the checks run on and, in release.yml, the glibc floor of the Linux binary.
 # Moving to a newer image is then a change of its own that CI has to pass, not a surprise.
-# Actions are on their current major versions, all of them on Node 24.
+# Actions are on their current major versions, all of them on Node 24, each pinned to its
+# commit with the release as a comment: a tag can be moved under us, a commit cannot. Dependabot
+# moves pin and comment together; scripts/check-actions-pinned.sh refuses an unpinned `uses:`.
 
 jobs:
   web:
@@ -51,12 +53,12 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The version is the `packageManager` pin in web/package.json (RD-150-14).
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           package_json_file: web/package.json
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -67,7 +69,7 @@ jobs:
       - run: pnpm run build
       # For the `rust` jobs on all three systems and the `docker` job, which embed it and would
       # otherwise each build the frontend again (RD-140-25).
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: web-dist
           path: web/dist
@@ -78,7 +80,7 @@ jobs:
       # AMO's validator on the Firefox build, so a manifest Mozilla would refuse fails here and
       # not in the release after the tag (RD-160-07).
       - run: ../scripts/firefox-amo.sh lint ../artifacts/browser-extensions/firefox
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-extensions
           path: artifacts/browser-extensions/*.zip
@@ -94,9 +96,13 @@ jobs:
     permissions:
       contents: read
     # A hang is cut off rather than billed for six hours: on 2026-09-25 a keychain call blocked the
-    # macOS tests for an hour, at ten times the Linux rate.
-    timeout-minutes: 90
-    env:
+    # macOS tests for an hour, at ten times the Linux rate. On Windows the test build plus the
+    # crash matrix ran past 90 minutes twice in 1.8 (runs 36734111741, 36743221728) and was
+    # cancelled in the matrix step, not hung; the matrix is its own job since, `crash-matrix`.
+    timeout-minutes: 120
+    # `crash-matrix` builds with the same linkers and caches: its env and setup steps are this
+    # job's, by YAML alias.
+    env: &rust-env
       # mold instead of GNU ld on Linux (installed below): the test build links ~40 binaries of
       # up to half a gigabyte each, and mold does it in a fraction of the time and memory. The
       # variable names the Linux target only, so the other two runners never see it.
@@ -112,31 +118,42 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # A debug test build of this workspace does not fit on a hosted runner as it comes: every
       # rd-api integration binary links the whole dependency graph at ~550 MB, and there are 55
       # of them. The first run on GitHub (2026-09-25) filled the Ubuntu runner's disk and the
       # runner died writing its own log (RD-120-67). The Windows image has room to spare.
-      - name: Free runner disk
+      - &free-runner-disk
+        name: Free runner disk
         if: runner.os != 'Windows'
         uses: ./.github/actions/free-runner-disk
-      - name: Install mold
+      - &install-mold
+        name: Install mold
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
       # rust-embed compiles web/dist into rd-api; the `web` job built it once for every system.
-      - uses: actions/download-artifact@v8
+      - &web-dist
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: web-dist
           path: web/dist
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
           components: rustfmt, clippy
       # Before anything that calls cargo, rust-cache included: cargo asks `rustc -vV` through
       # RUSTC_WRAPPER, which has to exist by then.
-      - uses: mozilla-actions/sccache-action@v0.0.11
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@nextest
+      - &sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      # One key for this job and `crash-matrix`: their dependencies build alike (the failpoints
+      # features are the workspace's own), so the matrix restores what this job saved.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+      - &nextest
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest
       - run: cargo fmt --all --check
       # The capture agent stays headless on Linux. The manifest gate in
       # crates/rd-capture/src/platform_gate/ sees only what that crate declares; this holds the
@@ -220,7 +237,7 @@ jobs:
       # run are in there too.
       - name: Upload test reports
         if: always() && runner.os != 'macOS'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: junit-${{ runner.os }}
           path: ${{ runner.temp }}/junit/*.xml
@@ -229,21 +246,14 @@ jobs:
       # What the runner had when a step failed, if it is still alive to say so. A linker that
       # failed prints "No space left on device" or "ld terminated with signal 9 [Killed]" just
       # under "linking with cc failed"; these lines say which limit it was near.
-      - name: Disk and memory after a failure
+      - &disk-after-failure
+        name: Disk and memory after a failure
         if: failure()
         shell: bash
         run: |
           df -h . || true
           du -sh target 2> /dev/null || true
           free -m 2> /dev/null || vm_stat 2> /dev/null || true
-      # The crash matrix (RD-140-04, axis A). Its cases only exist with the feature on, and
-      # the feature is deliberately off everywhere else so the shipped build has no crash
-      # points compiled into it at all. `-P ci` like the test step above: this job builds no
-      # components, and since RD-150-18 a scheduler test runs on the real Rapidgator and DDownload
-      # components (`on_real_components`).
-      - name: Crash and restart matrix
-        if: runner.os != 'macOS'
-        run: cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
       # Azure Blob and Google Cloud Storage are default features of rd-object-storage (RD-150-05).
       # Without them the crate still has to build and pass: S3 works, `az://` and `gs://` are
       # refused with `object_storage.provider_unsupported`.
@@ -392,6 +402,9 @@ jobs:
               }
             }
             if (-not $healthy) { throw "portable server health check failed" }
+            # RD-180-02: the launcher stops the server over its API, not by ending the process.
+            $stopped = cmd /c stop-rdownloader.bat server 2>&1 | Out-String
+            if ($stopped -notmatch 'stopped gracefully') { throw "no graceful stop: $stopped" }
           } finally {
             cmd /c stop-rdownloader.bat server
           }
@@ -499,7 +512,7 @@ jobs:
       # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: sqlx-cli@0.9.0
       - name: Check SQLx offline metadata
@@ -511,13 +524,60 @@ jobs:
           DATABASE_URL: "sqlite::memory:"
         run: cargo sqlx prepare --check --workspace
 
+  # The crash matrix (RD-140-04, axis A), beside `rust` rather than after its tests: on Windows the
+  # two in one job ran past 90 minutes. Its cases only exist with the feature on, and the feature
+  # is deliberately off everywhere else so the shipped build has no crash points compiled into it
+  # at all. Linux and Windows of the `platforms` input; macOS is not tested, as in `rust`.
+  crash-matrix:
+    needs: web
+    # A dispatch for macOS alone leaves this job nothing to run; skipped, not an empty matrix.
+    if: ${{ !inputs.platforms || contains(inputs.platforms, 'ubuntu-') || contains(inputs.platforms, 'windows-') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]') }}
+        exclude:
+          - os: macos-15
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 90
+    env: *rust-env
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *free-runner-disk
+      - *install-mold
+      - *web-dist
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - *sccache
+      # `rust` saves the cache both jobs restore; two writers of one key would race.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: false
+      - *nextest
+      # `-P ci` like `rust`'s tests: this job builds no components, and since RD-150-18 a
+      # scheduler test runs on the real Rapidgator and DDownload components (`on_real_components`).
+      - name: Crash and restart matrix
+        shell: bash
+        run: |
+          cargo nextest run -P ci --no-fail-fast --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints,rd-extract/failpoints,rd-api-core/failpoints,rd-torrent/failpoints,rd-plugin-transfer/failpoints,rd-update/failpoints -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
+          cargo nextest run -P ci --no-fail-fast --features rd-api/failpoints -p rd-api --test admin stopped_updates
+      - *disk-after-failure
+
   components:
     runs-on: ubuntu-24.04
+    # The release's toolchain for the components release.yml takes from this job's cache
+    # (RD-180-12); rust-toolchain.toml alone would build them with the runner's `stable`.
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
     permissions:
       contents: read
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
       # rd-api and its `#[derive(RustEmbed)]`.
       # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's 30 at
@@ -525,17 +585,21 @@ jobs:
       # the same disk the `rust` job ran out of (RD-120-67).
       - name: Free runner disk
         uses: ./.github/actions/free-runner-disk
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
           targets: wasm32-unknown-unknown,wasm32-wasip1
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       # Prebuilt, through cargo-binstall like sqlx-cli above.
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: cargo-component@0.21.1
-      - uses: taiki-e/install-action@nextest
-      - uses: taiki-e/install-action@wasm-tools
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-tools
       # Components are built only when their content changed (RD-150-10). The key is what goes
       # into a component: toolchain, cargo-component, the registry half of Cargo.lock and the root
       # Cargo.toml (`deps`), and every plugin's source hash (`sources`); a miss on `sources`
@@ -545,7 +609,7 @@ jobs:
         id: component-key
         shell: bash
         run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
@@ -721,7 +785,7 @@ jobs:
       RD_S3_LIVE_ACCESS_KEY: minioadmin
       RD_S3_LIVE_SECRET: minioadmin
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Start MinIO
         shell: bash
         run: |
@@ -732,12 +796,14 @@ jobs:
             "${MINIO_IMAGE}"
       - name: Install mold
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
-      - uses: mozilla-actions/sccache-action@v0.0.11
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@nextest
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest
       - name: Build the live S3 tests
         run: cargo nextest run --locked --no-run -p rd-object-storage --test s3_live
       # The build gave MinIO its time; this waits for the rest, then makes the bucket with a
@@ -782,24 +848,24 @@ jobs:
       contents: read
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: web-dist
           path: web/dist
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Build the release binary
         run: cargo build --locked --release -p rdownloader
       - name: Lay out the binary for the build context
         run: |
           mkdir -p dist/docker/linux-amd64
           cp target/release/rdownloader dist/docker/linux-amd64/rdownloader
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build loadable smoke-test image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/Dockerfile
@@ -818,7 +884,7 @@ jobs:
       contents: read
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The compatibility gate compares with the last release tag; the public repository
           # carries one commit per release, so its whole history is small.
@@ -832,7 +898,7 @@ jobs:
       - name: Versions agree
         run: scripts/set-version.sh --check
       # A stale entry in deny.toml's duplicate skip list fails, so the list only shrinks (RD-150-21).
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           command: check
           command-arguments: -D unmatched-skip -D unnecessary-skip

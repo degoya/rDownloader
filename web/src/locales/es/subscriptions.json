@@ -88,8 +88,7 @@
   "list": {
     "title": "Suscripciones",
     "empty": "Aún no hay suscripciones.",
-    "last_run": "Última comprobación {at}",
-    "copy_suffix": "copia"
+    "last_run": "Última comprobación {at}"
   },
   "items": {
     "title": "Elementos",

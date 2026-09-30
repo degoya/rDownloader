@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * The "clear this store" control that sits in a retention section (RD-120-34), and at the
+ * The "clear this store" control that sits in a retention section (RD-120-34), at the
  * notification history (RD-130-08), where a second one discards the notifications not yet
- * sent (RD-170-11).
+ * sent (RD-170-11), and at the storage card, where it empties the storage history and the
+ * content index (RD-180-13).
  *
- * One component used five times rather than five buttons, because they differ only in which
+ * One component used seven times rather than seven buttons, because they differ only in which
  * store they name: the same question, the same confirmation, the same report of what went.
- * The discard differs in its words as well -- it cancels notifications rather than emptying a
- * record -- so it brings its own label, count, confirmation and report.
+ * The discard and the two storage clears differ in their words as well -- "Discard pending",
+ * "Clear history", "Clear index" beside other buttons say more than "Clear" -- so they bring
+ * their own label, count, confirmation and report.
  *
  * Two things it does on purpose:
  *
@@ -30,7 +32,7 @@ import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{
   /** Which store this button empties. */
-  target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending'
+  target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index'
   /** How many records it holds right now, or `null` while the count is still loading. */
   count: number | null
 }>()
@@ -47,12 +49,15 @@ const empty = computed(() => props.count !== null && props.count === 0)
 const discard = computed(() => props.target === 'notifications_pending')
 const icon = computed(() => (discard.value ? 'i-lucide-bell-off' : 'i-lucide-trash-2'))
 
-/** A word the discard says in its own terms, and every clear in the shared ones. */
+/** The targets that name themselves; the others say the shared "Clear". */
+const OWN_WORDS: ReadonlySet<string> = new Set(['notifications_pending', 'storage_operations', 'content_index'])
+
+/** A word in the target's own terms where it has them, and in the shared ones otherwise. */
 function word(key: 'button' | 'stored' | 'confirm' | 'done'): string {
-  return discard.value ? `system.data_reset.notifications_pending.${key}` : `system.data_reset.${key}`
+  return OWN_WORDS.has(props.target) ? `system.data_reset.${props.target}.${key}` : `system.data_reset.${key}`
 }
 
-/** The five routes, spelled out so `openapi-fetch` keeps its per-path body types. */
+/** The seven routes, spelled out so `openapi-fetch` keeps its per-path body types. */
 async function send(): Promise<{ removed: number } | null> {
   const body = { confirmed: true }
   const response =
@@ -64,7 +69,11 @@ async function send(): Promise<{ removed: number } | null> {
           ? await api.POST('/api/v1/stats/transfers/clear', { body })
           : props.target === 'notifications'
             ? await api.POST('/api/v1/notifications/deliveries/clear', { body })
-            : await api.POST('/api/v1/notifications/deliveries/discard-pending', { body })
+            : props.target === 'notifications_pending'
+              ? await api.POST('/api/v1/notifications/deliveries/discard-pending', { body })
+              : props.target === 'storage_operations'
+                ? await api.POST('/api/v1/storage/operations/clear', { body })
+                : await api.POST('/api/v1/storage/content-index/clear', { body })
   if (response.data) return response.data
   error.value = responseError(response)
   return null

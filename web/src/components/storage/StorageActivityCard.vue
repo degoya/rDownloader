@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { api } from '@/api/client'
 import {
   checkContentIndex,
   listLinkSupport,
@@ -13,13 +14,15 @@ import {
   type StorageOperation
 } from '@/api/storage'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, formatMoment } from '@/utils/format'
 
 /**
  * What the storage layer did and can do (RD-150-02): the history of verified moves and dedupe
  * links, which roots take hard links, what each transfer kind reuses of data on disk, and a
- * check of the content index against the disk.
+ * check of the content index against the disk. The history and the index can each be emptied
+ * (RD-180-13); the question names how much goes and what that costs.
  */
 const { t } = useI18n()
 const operations = ref<StorageOperation[]>([])
@@ -28,6 +31,12 @@ const links = ref<LinkSupport[]>([])
 const error = ref<string | null>(null)
 const checkResult = ref<string | null>(null)
 const checking = ref(false)
+/**
+ * What the two clears would remove, from the data-reset preview. Not the length of the list:
+ * a running operation stays, and the list shows only the newest 50.
+ */
+const clearableHistory = ref<number | null>(null)
+const indexed = ref<number | null>(null)
 
 const REUSE_FIELDS: (keyof ReuseCapability)[] = [
   'resume_partial',
@@ -37,7 +46,15 @@ const REUSE_FIELDS: (keyof ReuseCapability)[] = [
   'applies_collision_policy'
 ]
 
+async function loadCounts(): Promise<void> {
+  const response = await api.GET('/api/v1/system/data-reset')
+  if (!response.data) return
+  clearableHistory.value = response.data.storage_operations
+  indexed.value = response.data.content_index
+}
+
 async function load(): Promise<void> {
+  void loadCounts()
   const [history, capabilities, support] = await Promise.all([
     listStorageOperations(50),
     listReuseCapabilities(),
@@ -60,6 +77,12 @@ async function check(): Promise<void> {
     return
   }
   checkResult.value = t('settings.storage.activity.index_checked', { ...answer.data })
+  void loadCounts()
+}
+
+function indexCleared(): void {
+  checkResult.value = null
+  void loadCounts()
 }
 
 function stateColor(state: StorageOperation['state']): 'success' | 'error' | 'warning' | 'neutral' {
@@ -123,7 +146,11 @@ onMounted(() => void load())
           <p class="text-sm font-medium text-highlighted">{{ t('settings.storage.activity.history_title') }}</p>
           <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.storage.activity.history_description') }}</p>
         </div>
+        <SettingsDataResetButton target="storage_operations" :count="clearableHistory" @cleared="load" />
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-3" data-testid="storage-index-actions">
         <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-scan-search" :label="t('settings.storage.activity.check_index')" :loading="checking" @click="check" />
+        <SettingsDataResetButton target="content_index" :count="indexed" @cleared="indexCleared" />
       </div>
       <p v-if="!operations.length" class="mt-2 text-xs text-muted">{{ t('settings.storage.activity.history_empty') }}</p>
       <ul v-else class="mt-2 space-y-2 text-xs" data-testid="storage-history">

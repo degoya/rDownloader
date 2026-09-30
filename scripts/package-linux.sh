@@ -3,7 +3,8 @@
 # Builds the Linux release and assembles artifacts/linux plus the distributable tarball, and
 # puts the verified site-rule file beside it as artifacts/rdownloader-site-rules.json.
 # Mirrors scripts/package-windows.sh; see the comments there for why the job count is capped
-# and why artifacts/linux/vendor is left alone.
+# and why artifacts/linux/vendor is left alone. The tarball has the release layout
+# (scripts/lib/archive-layout.sh): flat, the files release.yml packs, vendor/ not among them.
 #
 # Usage:
 #   scripts/package-linux.sh
@@ -133,8 +134,15 @@ echo "==> verifying the site-rule file"
 install -m 644 crates/rd-siterules/resources/site-rules.json "$SITE_RULES"
 
 echo "==> writing $TARBALL"
+# The entries by name, not the folder: whatever else sits in artifacts/linux (vendor/, the logs
+# and data of a test run) stays out, and the archive unpacks as the published one does.
+# shellcheck source=lib/archive-layout.sh
+source "$ROOT/scripts/lib/archive-layout.sh"
+entries=()
+while IFS= read -r entry; do entries+=("./$entry"); done < <(rd_archive_entries linux)
 rm -f "$TARBALL"
-tar -czf "$TARBALL" -C "$OUT/.." linux
+tar -czf "$TARBALL" -C "$OUT" "${entries[@]}" ./plugins
+rd_check_archive_layout "$TARBALL" linux
 
 echo "==> done"
 ls -la "$OUT/rdownloader" "$OUT/rdownloader-capture" "$TARBALL" "$SITE_RULES"

@@ -63,6 +63,7 @@ use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
     data_reset_handlers, diagnostics_dto, diagnostics_handlers, notify_handlers, plugin_bundled,
     plugin_handlers, plugin_repository_handlers, settings_handlers, stats_handlers, tools_handlers,
+    update_handlers,
 };
 use rd_api_core::{
     ApiError, AppState, audit, auth, client, container_upload, dto, error_codes, hosters,
@@ -107,14 +108,16 @@ queue an NZB. The queue is ordered with reorder_downloads and reorder_packages, 
 with rename_download, update_package and rename_package_folder, tidied with \
 clear_finished_packages and unpacked with extract_packages. get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
-and get_storage_capacity cover the rest; get_about says which build is running. The histories and catalogues beside the editors are \
+and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out. The histories and catalogues beside the editors are \
 here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
 subscription review list and its polls, recording schedules and record-now, plugin runs, \
 power and reconnect status, metrics and the diagnostic bundle's preview. What happens when a \
 finished file meets a taken name is a collision policy (list_collision_policies and the set \
 tools); downloads waiting for an answer are list_collision_prompts and decide_collision. \
 get_download_duplicates explains source and content duplicates apart, dedupe_download links an \
-identical file, and list_storage_operations shows verified moves and links. Ids always come \
+identical file, and list_storage_operations shows verified moves and links; \
+clear_storage_operations empties that history and clear_content_index the content index, both \
+only with confirmed. Ids always come \
 from a list tool first. \
 Passwords, API keys and cookies are never accepted or returned by any tool; a row is \
 created here and its credential is entered in the web UI.";

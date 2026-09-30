@@ -139,4 +139,52 @@ expect_output "docs-gate: the previous release is the highest tag under this one
 expect_output "docs-gate: a changelog unchanged since that release is refused" \
     "CHANGELOG.md is unchanged since v9.9.8"
 
+# A pre-release, X.Y.Z-beta.N and no other form (owner, 2026-09-30): not merged into main, so
+# neither run nor required by the gate; pushed without main; published by the export alone.
+run_status bash "$TREE/scripts/release-pipeline.sh" 9.9.9-rc.1 --plan
+expect_status "a pre-release other than a beta: refused" 2
+expect_output "naming the forms" "X.Y.Z-beta.N for a pre-release"
+run_status bash "$TREE/scripts/release-pipeline.sh" 9.9.9-beta.1 --plan
+expect_status "a beta is a release version" 0
+expect_output "--plan says it is a pre-release" "release 9.9.9-beta.1 (pre-release)"
+expect_output "--plan skips merge-main for it" "  - merge-main (skipped: a pre-release is not merged into main)"
+expect_output "--plan publishes the export only" "  - publish-public (the public export only: no wiki, no website)"
+
+pipeline_beta() {
+    # shellcheck disable=SC1091  # the scratch copy
+    RELEASE_PIPELINE_LIB=1 source "$TREE/scripts/release-pipeline.sh" 9.9.9-beta.1
+}
+beta_case() {
+    run_status bash -c "$(declare -f pipeline_beta record_all); TREE='$TREE'
+        LOG='$TREE/artifacts/release-evidence-9.9.9-beta.1.log'; pipeline_beta; $1"
+}
+beta_case "record_all; step_evidence_gate"
+expect_status "the gate of a beta passes without a merge-main record" 0
+expect_true "and never asks for one" '! grep -qF "merge-main" <<< "$output"'
+gate_with "sed -i '/id=merge-main /d' \"\$LOG\""
+expect_status "the gate of a stable release still requires merge-main" 1
+expect_output "naming it" "merge-main         NO EVIDENCE"
+
+# The three publishing scripts as stubs that note their call.
+for stub in export-public export-wiki update-website; do
+    printf '#!/usr/bin/env bash\necho "%s $*" >> "%s/published"\n' "$stub" "$SCRATCH" > "$TREE/scripts/$stub.sh"
+    chmod +x "$TREE/scripts/$stub.sh"
+done
+beta_case "step_publish_public"
+expect_status "publish-public of a beta passes" 0
+expect "and runs the public export alone" "export-public 9.9.9-beta.1" "$(cat "$SCRATCH/published")"
+rm -f "$SCRATCH/published"
+run_step_case "step_publish_public"
+expect "a stable release publishes all three" \
+    "export-public 9.9.9 export-wiki 9.9.9 update-website 9.9.9" "$(tr '\n' ' ' < "$SCRATCH/published" | sed 's/ $//')"
+
+git init -q --bare "$SCRATCH/origin.git"
+git -C "$TREE" remote add origin "$SCRATCH/origin.git"
+git -C "$TREE" tag v9.9.9-beta.1
+beta_case "step_push"
+expect_status "push of a beta passes" 0
+expect "and publishes the release branch and the tag, not main" \
+    "refs/heads/development refs/tags/v9.9.9-beta.1" \
+    "$(git -C "$SCRATCH/origin.git" for-each-ref --format='%(refname)' | sort | tr '\n' ' ' | sed 's/ $//')"
+
 finish_tests release-evidence

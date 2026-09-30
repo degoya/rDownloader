@@ -1,0 +1,21 @@
+# The desktop capture agent (Click'n'Load, clipboard, .nzb files) as a systemd user unit, shipped
+# by the deb and rpm packages (RD-180-05). It needs a graphical session and a paired server:
+#   rdownloader-capture configure --token-stdin   (the command Settings > Desktop client shows)
+#   systemctl --user enable --now rdownloader-capture
+[Unit]
+Description=rDownloader Capture
+Documentation=https://rdownloader.net
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/rdownloader/rdownloader-capture run
+Restart=on-failure
+RestartSec=5
+# 10: not paired yet, 11: another Click'n'Load listener holds the port. Neither goes away by
+# starting again.
+RestartPreventExitStatus=10 11
+
+[Install]
+WantedBy=graphical-session.target

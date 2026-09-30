@@ -1,0 +1,332 @@
+name: Installers
+
+# RD-180-05: the installers as a user runs them, built from this tree the way release.yml builds
+# them — scripts/package-deb-rpm.sh and scripts/package-msi.sh over a stage in the release layout
+# (debug binaries of this tree, the signed plugins of the latest release). Each is installed
+# silently, started until /api/v1/health answers, given marker files in its data folder,
+# installed again over itself (the upgrade path), started again, and removed; the data folder
+# must still be there with the database and the markers.
+#
+#   deb on Ubuntu 24.04: apt install, the packaged systemd user unit under a lingering user manager
+#   rpm in a Fedora container: dnf install, the service run as a user
+#   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade
+#   macOS: `rdownloader-capture scheme install|remove` against Launch Services, the helper app
+#     built as release.yml builds it
+#
+# Not here, because a runner cannot show it: the MSI's dialogs, a Start menu click, the capture
+# agent under a graphical session, a link opened in a browser on a Mac (the live checklist in
+# docs/roadmap/jobs/180-05-linux-arm64-und-installer.md).
+#
+#   gh workflow run installers.yml --ref <branch>
+on:
+  push:
+    paths:
+      - .github/workflows/installers.yml
+      - packaging/linux/**
+      - packaging/msi/**
+      - resources/macos/**
+      - scripts/package-deb-rpm.sh
+      - scripts/package-msi.sh
+      - scripts/lib/archive-layout.sh
+      - scripts/lib/version-file.sh
+      - scripts/windows/**
+      - crates/rd-autostart/**
+      - crates/rd-capture/src/os_integration.rs
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rust-embed compiles web/dist into the binary.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: installers
+      - run: cargo build --locked -p rdownloader -p rd-capture
+      - name: Pack a release-layout tarball
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source scripts/lib/version-file.sh
+          source scripts/lib/archive-layout.sh
+          mkdir -p stage/plugins
+          cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md stage/
+          cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
+            scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/
+          rd_write_version_file stage "$(scripts/set-version.sh)" "linux x86_64" debug
+          gh release download --repo "${GITHUB_REPOSITORY}" --pattern '*.rdplug' --dir stage/plugins
+          tar --directory stage --create --gzip --file rdownloader-linux-x86_64.tar.gz .
+          rd_check_archive_layout rdownloader-linux-x86_64.tar.gz linux
+      - name: Install nfpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --output "${RUNNER_TEMP}/nfpm.tar.gz" \
+            https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz
+          echo "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783  ${RUNNER_TEMP}/nfpm.tar.gz" | sha256sum --check
+          tar --extract --gzip --file "${RUNNER_TEMP}/nfpm.tar.gz" --directory "${RUNNER_TEMP}" nfpm
+          echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+      - name: Build the deb and the rpm
+        run: scripts/package-deb-rpm.sh rdownloader-linux-x86_64.tar.gz installers
+      # The packaged unit runs under the user manager, which a runner starts only with lingering.
+      - name: Start a systemd user manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo loginctl enable-linger "${USER}"
+          runtime="/run/user/$(id -u)"
+          for _ in $(seq 1 30); do
+            [[ -S "${runtime}/bus" ]] && break
+            sleep 1
+          done
+          test -S "${runtime}/bus"
+          { echo "XDG_RUNTIME_DIR=${runtime}"; echo "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus"; } >> "${GITHUB_ENV}"
+      - name: Install the deb, upgrade over itself, remove, keep the data
+        shell: bash
+        run: |
+          set -euo pipefail
+          home="${HOME}/.local/share/rdownloader"
+          db="${home}/data/rdownloader.sqlite3"
+          trap 'journalctl --user --unit rdownloader --no-pager --lines 80 || true' EXIT
+          serve() {
+            systemctl --user daemon-reload
+            systemctl --user start rdownloader
+            curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+              http://127.0.0.1:8710/api/v1/health > /dev/null
+            test -s "${db}"
+            systemctl --user stop rdownloader
+          }
+          sudo apt-get update -qq
+          sudo apt-get install -y ./installers/rdownloader-linux-x86_64.deb
+          test "$(cat /usr/lib/rdownloader/install-kind)" = deb
+          rdownloader --version
+          serve
+          # The data went to the user, nothing next to the program.
+          test ! -e /usr/lib/rdownloader/data
+          echo "installers deb" > "${home}/data/installers-marker"
+          mkdir -p "${home}/downloads"
+          echo "installers deb" > "${home}/downloads/installers-marker"
+          sudo dpkg --install ./installers/rdownloader-linux-x86_64.deb
+          serve
+          test "$(cat "${home}/data/installers-marker")" = "installers deb"
+          sudo dpkg --purge rdownloader
+          test ! -e /usr/lib/rdownloader
+          test ! -e /usr/lib/systemd/user/rdownloader.service
+          test -s "${db}" || { echo "::error::removing the deb took the database with it"; exit 1; }
+          test "$(cat "${home}/downloads/installers-marker")" = "installers deb"
+      - name: Install the rpm in Fedora, upgrade over itself, remove, keep the data
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --volume "${PWD}/installers:/installers:ro" fedora:44 bash -euo pipefail -c '
+            dnf install --assumeyes /installers/rdownloader-linux-x86_64.rpm
+            test "$(cat /usr/lib/rdownloader/install-kind)" = rpm
+            useradd --create-home tester
+            db=/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3
+            serve() {
+              runuser -u tester -- bash -c "cd /home/tester && rdownloader serve > /tmp/serve.log 2>&1 & echo \$! > /tmp/serve.pid"
+              curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+                http://127.0.0.1:8710/api/v1/health > /dev/null || { cat /tmp/serve.log; exit 1; }
+              kill "$(cat /tmp/serve.pid)"
+              while kill -0 "$(cat /tmp/serve.pid)" 2> /dev/null; do sleep 1; done
+              test -s "${db}"
+            }
+            serve
+            test ! -e /home/tester/data
+            runuser -u tester -- bash -c "echo installers-rpm > /home/tester/.local/share/rdownloader/data/installers-marker"
+            rpm --upgrade --replacepkgs /installers/rdownloader-linux-x86_64.rpm
+            serve
+            rpm --erase rdownloader
+            test ! -e /usr/lib/rdownloader
+            test -s "${db}" || { echo "removing the rpm took the database with it"; exit 1; }
+            test "$(cat /home/tester/.local/share/rdownloader/data/installers-marker)" = installers-rpm
+          '
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: installers
+      - run: cargo build --locked -p rdownloader -p rd-capture
+      - name: Stage the release layout
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source scripts/lib/version-file.sh
+          mkdir -p stage/plugins
+          cp target/debug/rdownloader.exe target/debug/rdownloader-capture.exe LICENSE README.md stage/
+          cp scripts/windows/start-rdownloader.bat scripts/windows/stop-rdownloader.bat \
+            scripts/windows/start-capture.bat scripts/windows/stop-capture.bat stage/
+          rd_write_version_file stage "$(scripts/set-version.sh)" "windows x86_64" debug
+          gh release download --repo "${GITHUB_REPOSITORY}" --pattern '*.rdplug' --dir stage/plugins
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { throw "installing wix failed" }
+          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $env:PATH = "$tools;$env:PATH"
+          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          wix extension add --global WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { throw "adding the WiX extensions failed" }
+      # Two builds of one version: each gets a product code of its own, so the second installs as
+      # the major upgrade of the first, as a release does over the one before it.
+      - name: Build the MSI twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/package-msi.sh stage installers/first/rdownloader-windows-x86_64.msi
+          scripts/package-msi.sh stage installers/second/rdownloader-windows-x86_64.msi
+      - name: Install, upgrade with AUTOSTART=1, uninstall, keep the data
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $program = Join-Path $env:LOCALAPPDATA 'Programs\rDownloader'
+          $home_ = Join-Path $env:LOCALAPPDATA 'rDownloader'
+          $db = Join-Path $home_ 'data\rdownloader.sqlite3'
+          $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\rDownloader'
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          function Msi($arguments, $log) {
+            $process = Start-Process msiexec.exe -ArgumentList "$arguments /qn /l*v $log" -Wait -PassThru
+            if ($process.ExitCode -ne 0) { Get-Content $log -Tail 80; throw "msiexec $arguments exited with $($process.ExitCode)" }
+          }
+          function Serve {
+            $env:RDOWNLOADER_NO_PAUSE = '1'
+            & "$program\start-rdownloader.bat" server
+            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader.bat failed" }
+            $healthy = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try { Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null; $healthy = $true; break } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $healthy) { Get-Content (Join-Path $home_ 'logs\rdownloader.err.log') -ErrorAction SilentlyContinue; throw "no health answer" }
+            if (-not (Test-Path $db)) { throw "no database at $db" }
+          }
+          Msi '/i installers\first\rdownloader-windows-x86_64.msi' first.log
+          if ((Get-Content "$program\install-kind").Trim() -ne 'msi') { throw "install-kind is not msi" }
+          foreach ($entry in 'rDownloader', 'rDownloader Capture', 'Stop rDownloader') {
+            if (-not (Test-Path "$menu\$entry.lnk")) { throw "no Start menu entry $entry" }
+          }
+          Serve
+          # Data and logs with the user, nothing in the program folder.
+          if (Test-Path "$program\data") { throw "the service wrote data into the program folder" }
+          if (-not (Test-Path "$home_\logs\rdownloader.log")) { throw "the launcher's log is not in $home_\logs" }
+          Set-Content "$home_\data\installers-marker" 'installers msi'
+          New-Item -ItemType Directory -Force "$home_\downloads" | Out-Null
+          Set-Content "$home_\downloads\installers-marker" 'installers msi'
+          # The upgrade stops the running service itself (the old version's StopRunning).
+          Msi '/i installers\second\rdownloader-windows-x86_64.msi AUTOSTART=1' second.log
+          if (Get-Process rdownloader -ErrorAction SilentlyContinue) { throw "the upgrade left the old service running" }
+          $autostart = (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue).'rDownloader Service'
+          if (-not $autostart) { throw "AUTOSTART=1 registered no autostart" }
+          Write-Host "autostart: $autostart"
+          Serve
+          if ((Get-Content "$home_\data\installers-marker") -ne 'installers msi') { throw "the data marker did not survive the upgrade" }
+          Msi '/x installers\second\rdownloader-windows-x86_64.msi' remove.log
+          if (Test-Path "$program\rdownloader.exe") { throw "the uninstall left the program behind" }
+          if (Test-Path $menu) { throw "the uninstall left the Start menu folder behind" }
+          if (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue) { throw "the uninstall left the autostart entry behind" }
+          if (-not (Test-Path $db)) { throw "the uninstall took the database with it" }
+          if ((Get-Content "$home_\downloads\installers-marker") -ne 'installers msi') { throw "the uninstall took the downloads with it" }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: installers-msi-logs
+          path: "*.log"
+          retention-days: 7
+
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: installers
+      - run: cargo build --locked -p rd-capture
+      # The helper as release.yml builds it, beside the agent as in the archive.
+      - name: Build the helper app beside the agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir stage
+          cp target/debug/rdownloader-capture stage/
+          osacompile -o "stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
+          cp resources/macos/capture-helper-Info.plist "stage/rDownloader Capture.app/Contents/Info.plist"
+          plutil -lint "stage/rDownloader Capture.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" \
+            "stage/rDownloader Capture.app/Contents/Info.plist" | grep -qx rdownloader
+      - name: Register and remove the rdownloader:// scheme
+        shell: bash
+        run: |
+          set -euo pipefail
+          lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+          claims() { "${lsregister}" -dump | grep -c 'rdownloader:' || true; }
+          before="$(claims)"
+          stage/rdownloader-capture scheme install
+          after="$(claims)"
+          echo "claims of rdownloader: before ${before}, after install ${after}"
+          [[ "${after}" -gt "${before}" ]] || { echo "::error::scheme install left Launch Services without the claim"; exit 1; }
+          stage/rdownloader-capture scheme remove
+          removed="$(claims)"
+          echo "after remove ${removed}"
+          [[ "${removed}" -le "${before}" ]] || { echo "::error::scheme remove left the claim behind"; exit 1; }

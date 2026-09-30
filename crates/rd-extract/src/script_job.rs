@@ -211,13 +211,16 @@ pub(crate) async fn execute(
     let mut child = command
         .spawn()
         .map_err(|error| spawn_error(script, error, "spawn post-processing script"))?;
-    let mut stdout = child.stdout.take().context("script stdout")?;
-    let mut stderr = child.stderr.take().context("script stderr")?;
+    let stdout = child.stdout.take().context("script stdout")?;
+    let stderr = child.stderr.take().context("script stderr")?;
+    // Only the tail is shown, so only the tail is kept - one byte past the limit, so the cut
+    // below still knows it has to mark one. Reading everything first let a script that logs
+    // without end grow the service with it.
     let capture = async {
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let _ = tokio::join!(stdout.read_to_end(&mut out), stderr.read_to_end(&mut err));
-        (out, err)
+        tokio::join!(
+            rd_files::read_tail(stdout, OUTPUT_LIMIT + 1),
+            rd_files::read_tail(stderr, OUTPUT_LIMIT + 1)
+        )
     };
     let result = tokio::time::timeout(timeout, async {
         let (out, err) = capture.await;
@@ -686,5 +689,39 @@ mod tests {
         .expect_err("timeout");
         assert!(error.to_string().contains("timed out"));
         assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    /// Engine audit 1.8, finding 4: a script that logs far past the limit keeps only the end of
+    /// its output, and is drained while it runs, so it finishes instead of blocking on the pipe.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_chatty_script_keeps_only_the_end_of_its_output() {
+        use std::time::Duration;
+
+        use super::{OUTPUT_LIMIT, execute};
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let scripts = temp.path().join("scripts");
+        let pkg = temp.path().join("pkg");
+        std::fs::create_dir_all(&scripts).expect("scripts");
+        std::fs::create_dir_all(&pkg).expect("pkg");
+        std::fs::write(
+            scripts.join("chatty.sh"),
+            "i=0\nwhile [ $i -lt 20000 ]; do echo \"line $i of a long log\"; i=$((i+1)); done\n\
+             echo 'the last word'\n",
+        )
+        .expect("script");
+        let (ok, output) = execute(
+            &scripts.join("chatty.sh"),
+            &scripts,
+            &context(&pkg),
+            Duration::from_secs(30),
+        )
+        .await
+        .expect("run");
+        assert!(ok);
+        assert!(output.starts_with('\u{2026}'), "the cut is marked");
+        assert!(output.len() <= OUTPUT_LIMIT + '\u{2026}'.len_utf8());
+        assert!(output.ends_with("the last word\n"), "{output:.200}");
     }
 }

@@ -354,6 +354,23 @@ pub(crate) async fn list_content_index(pool: &SqlitePool) -> Result<Vec<ContentI
     .collect()
 }
 
+pub(crate) async fn count_content_index(pool: &SqlitePool) -> Result<u64> {
+    let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM content_index")
+        .fetch_one(pool)
+        .await?;
+    Ok(u64::try_from(count).unwrap_or_default())
+}
+
+/// Empties the index and answers how many entries went (RD-180-13). Only the rows: no file on
+/// disk and no download is touched, and the next check backfills every finished download whose
+/// SHA-256 is known and whose file is still where its row says.
+pub(crate) async fn clear_content_index(connection: &mut SqliteConnection) -> Result<u64> {
+    let result = sqlx::query("DELETE FROM content_index")
+        .execute(connection)
+        .await?;
+    Ok(result.rows_affected())
+}
+
 /// Records (or replaces) the entry of one finished file; it is present again, whatever an
 /// earlier check said.
 pub(crate) async fn index_content(

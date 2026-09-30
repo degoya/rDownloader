@@ -13,6 +13,13 @@
 //! remains a third. That is deliberate for a service with no support desk: the recurring
 //! failure here is not "too easy to get in", it is "locked out of your own downloads".
 //!
+//! ## Who may add one
+//!
+//! Precisely because a passkey signs in without the password, adding one is the most powerful
+//! thing the credentials area can do: a token that could enrol its own passkey could open a
+//! session with it. Enrolment is therefore reserved to a signed-in administrator who types the
+//! password again (`crate::step_up`, security audit 2026-09-30), and so is removal.
+//!
 //! ## What is stored, and why it is rewritten on every sign-in
 //!
 //! A credential row holds a label and timestamps; the passkey itself — credential id, public
@@ -80,21 +87,38 @@ pub struct PasskeyLoginRequest {
     pub credential: serde_json::Value,
 }
 
-/// Starts enrolling a passkey. Requires a signed-in session.
+/// Starts enrolling a passkey. Requires a signed-in session and the password.
 #[utoipa::path(
     post,
     path = "/api/v1/mfa/passkey",
     tag = "security",
+    request_body = crate::mfa_handlers::MfaStepUpRequest,
     responses(
         (status = 200, body = PasskeyChallenge),
+        (status = 401, description = "The password did not match", body = crate::error::ErrorBody),
+        (status = 403, description = "Not a signed-in session", body = crate::error::ErrorBody),
         (status = 409, description = "No usable origin for passkeys", body = crate::error::ErrorBody),
     )
 )]
 pub async fn enrol_passkey(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
     client: crate::client::ClientAddress,
     headers: HeaderMap,
+    Json(request): Json<crate::mfa_handlers::MfaStepUpRequest>,
 ) -> Result<Json<PasskeyChallenge>, ApiError> {
+    // Before the ceremony exists: the confirmation below needs its id, and only this step
+    // hands one out.
+    crate::step_up::require_step_up(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        &request.password,
+        rd_core::AuditAction::MfaEnrolled,
+    )
+    .await?;
     let webauthn = relying_party(&state, &headers).await?;
     let handle = user_handle(&state).await?;
 
@@ -139,9 +163,12 @@ pub async fn enrol_passkey(
 )]
 pub async fn confirm_passkey(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
     headers: HeaderMap,
     Json(request): Json<PasskeyConfirmRequest>,
 ) -> Result<(StatusCode, Json<rd_core::MfaCredential>), ApiError> {
+    crate::step_up::require_interactive(&state, &audit, this_machine)?;
     let webauthn = relying_party(&state, &headers).await?;
     let Some(registration) = state.passkey_registrations.take(&request.ceremony_id) else {
         return Err(ApiError::bad_request(
@@ -187,6 +214,15 @@ pub async fn confirm_passkey(
         .into_iter()
         .find(|entry| entry.id == credential.id)
         .unwrap_or(credential);
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::MfaEnrolled)
+            .by(&audit)
+            .target("mfa_credential", stored.id)
+            .named(stored.label.clone())
+            .detail("kind", "passkey"),
+    )
+    .await;
     Ok((StatusCode::CREATED, Json(stored)))
 }
 

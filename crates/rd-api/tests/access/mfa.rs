@@ -17,7 +17,7 @@ async fn enrol(harness: &common::Harness, token: &str) -> (String, String, Vec<S
         &harness.router,
         "/api/v1/mfa/totp",
         token,
-        serde_json::json!({ "label": "Phone" }),
+        serde_json::json!({ "label": "Phone", "password": PASSWORD }),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
@@ -55,7 +55,7 @@ fn base32_decode(value: &str) -> Vec<u8> {
     out
 }
 
-fn current_code(secret_base32: &str) -> String {
+pub(crate) fn current_code(secret_base32: &str) -> String {
     let now = chrono::Utc::now().timestamp().max(0) as u64;
     rd_authn::totp::code_at(&base32_decode(secret_base32), now)
 }

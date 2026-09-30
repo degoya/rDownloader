@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { RoutingBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
+import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -32,28 +33,17 @@ async function exportRouting(part: ExportPart): Promise<void> {
     toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
     return
   }
-  const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
   const suffix = part === 'all' ? '' : `-${part}`
-  anchor.download = `rdownloader-routing${suffix}-${new Date().toISOString().slice(0, 10)}.json`
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  downloadJson(response.data, `routing${suffix}`)
   toast.add({ title: t('routing.backup.export_success'), color: 'success', icon: 'i-lucide-file-check-2' })
 }
 
 function chooseFile(): void {
-  if (!fileInput.value) return
-  fileInput.value.value = ''
-  fileInput.value.click()
+  openFilePicker(fileInput.value)
 }
 
 async function selectFile(event: Event): Promise<void> {
-  const target = event.target
-  const file = target instanceof HTMLInputElement ? target.files?.item(0) : null
+  const file = chosenFile(event)
   if (!file) return
   let bundle: RoutingBundle
   try {

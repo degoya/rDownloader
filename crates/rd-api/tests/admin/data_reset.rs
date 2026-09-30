@@ -1,5 +1,7 @@
 //! Clearing logs, audit records and statistics over REST (RD-120-34), the notification history
-//! (RD-130-08) and the notifications not yet sent (RD-170-11).
+//! (RD-130-08) and the notifications not yet sent (RD-170-11). The storage history and the
+//! content index (RD-180-13) are in the list of clears below; what they keep is measured in
+//! `crates/rd-api/tests/queue/storage_clear.rs`.
 //!
 //! What is checked here is the contract a client sees: the count arrives before the question,
 //! an unconfirmed request is refused with a stable code, each action empties its own store and
@@ -25,12 +27,14 @@ use serde_json::json;
 const CONFIRMED: fn() -> serde_json::Value = || json!({ "confirmed": true });
 
 /// Every clear this file knows, so a check that holds for all of them names all of them.
-const CLEARS: [&str; 5] = [
+const CLEARS: [&str; 7] = [
     "/api/v1/diagnostics/logs/clear",
     "/api/v1/audit/records/clear",
     "/api/v1/stats/transfers/clear",
     "/api/v1/notifications/deliveries/clear",
     "/api/v1/notifications/deliveries/discard-pending",
+    "/api/v1/storage/operations/clear",
+    "/api/v1/storage/content-index/clear",
 ];
 
 async fn seed(database: &rd_db::Database) {
@@ -82,6 +86,8 @@ async fn the_preview_names_the_numbers_before_anything_is_cleared() {
     assert!(counts["stats"].is_number(), "{counts}");
     assert_eq!(counts["notifications"], 0, "{counts}");
     assert_eq!(counts["notifications_pending"], 0, "{counts}");
+    assert_eq!(counts["storage_operations"], 0, "{counts}");
+    assert_eq!(counts["content_index"], 0, "{counts}");
 }
 
 #[tokio::test]

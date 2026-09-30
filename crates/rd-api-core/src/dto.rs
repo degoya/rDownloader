@@ -3,9 +3,11 @@ use utoipa::ToSchema;
 
 mod settings;
 mod settings_validation;
+mod update;
 
 pub use settings::*;
 pub use settings_validation::*;
+pub use update::*;
 
 /// Whether initial setup has been completed.
 #[derive(Serialize, ToSchema)]

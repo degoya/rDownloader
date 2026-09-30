@@ -22,13 +22,24 @@ const components = {
   UBadge: { template: '<span><slot /></span>' },
   UButton: { props: ['label'], template: '<button>{{ label }}<slot /></button>' },
   UFormField: { props: ['label'], template: '<label>{{ label }}<slot /></label>' },
-  UInput: { template: '<input>' }
+  UInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
+  }
 }
 
 const OTPAUTH = 'otpauth://totp/rDownloader:administrator?secret=JBSWY3DPEHPK3PXP&issuer=rDownloader'
 
 function mount() {
   return render(SettingsMfaCard, { global: { plugins: [i18n], components } })
+}
+
+/// Types the password the enrolment asks for again, then starts it.
+async function start() {
+  await waitFor(() => screen.getByText(system.mfa.enrol.start))
+  await fireEvent.update(screen.getByLabelText(system.mfa.step_up.label), 'correct-horse-battery')
+  await fireEvent.click(screen.getByText(system.mfa.enrol.start))
 }
 
 function enrolment(uri: string) {
@@ -71,8 +82,7 @@ describe('SettingsMfaCard', () => {
     vi.mocked(api.POST).mockResolvedValue(enrolment(OTPAUTH) as never)
 
     mount()
-    await waitFor(() => screen.getByText(system.mfa.enrol.start))
-    await fireEvent.click(screen.getByText(system.mfa.enrol.start))
+    await start()
 
     const image = await waitFor(() => screen.getByAltText(system.mfa.enrol.qr_alt))
     expect(decoded(image as HTMLImageElement)).toContain('<svg')
@@ -82,8 +92,7 @@ describe('SettingsMfaCard', () => {
     // Without this the test above would pass just as happily on a constant image.
     vi.mocked(api.POST).mockResolvedValue(enrolment(OTPAUTH) as never)
     mount()
-    await waitFor(() => screen.getByText(system.mfa.enrol.start))
-    await fireEvent.click(screen.getByText(system.mfa.enrol.start))
+    await start()
     const first = decoded((await waitFor(() =>
       screen.getByAltText(system.mfa.enrol.qr_alt))) as HTMLImageElement)
 
@@ -93,8 +102,7 @@ describe('SettingsMfaCard', () => {
 
     vi.mocked(api.POST).mockResolvedValue(enrolment(`${OTPAUTH}&digits=8`) as never)
     mount()
-    await waitFor(() => screen.getByText(system.mfa.enrol.start))
-    await fireEvent.click(screen.getByText(system.mfa.enrol.start))
+    await start()
     const other = decoded((await waitFor(() =>
       screen.getByAltText(system.mfa.enrol.qr_alt))) as HTMLImageElement)
 
@@ -105,13 +113,26 @@ describe('SettingsMfaCard', () => {
     vi.mocked(api.POST).mockResolvedValue(enrolment(OTPAUTH) as never)
 
     mount()
-    await waitFor(() => screen.getByText(system.mfa.enrol.start))
-    await fireEvent.click(screen.getByText(system.mfa.enrol.start))
+    await start()
 
     await waitFor(() => screen.getByAltText(system.mfa.enrol.qr_alt))
     expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.manual)).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.copy_secret)).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.copy_uri)).toBeTruthy()
+  })
+
+  it('sends the password with the enrolment, and not without one', async () => {
+    vi.mocked(api.POST).mockResolvedValue(enrolment(OTPAUTH) as never)
+    mount()
+
+    await waitFor(() => screen.getByText(system.mfa.enrol.start))
+    expect((screen.getByText(system.mfa.enrol.start) as HTMLButtonElement).disabled).toBe(true)
+
+    await start()
+    await waitFor(() => screen.getByAltText(system.mfa.enrol.qr_alt))
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/mfa/totp', {
+      body: { label: null, password: 'correct-horse-battery' }
+    })
   })
 })

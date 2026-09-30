@@ -4,8 +4,12 @@ rem Both EXE files must be next to this script. Output goes below .\logs\ and is
 rem rewritten on every start. On a failure the window stays open so the reason can be read.
 setlocal
 cd /d "%~dp0"
-if not exist "logs" mkdir "logs"
-if not exist "run" mkdir "run"
+rem An installed copy (RD-180-05) keeps its logs and PID files with its data, not in the program
+rem folder an upgrade replaces; the service moves into that folder by itself.
+set "RD_HOME=%~dp0"
+if exist "%~dp0install-kind" set "RD_HOME=%LOCALAPPDATA%\rDownloader\"
+if not exist "%RD_HOME%logs" mkdir "%RD_HOME%logs"
+if not exist "%RD_HOME%run" mkdir "%RD_HOME%run"
 
 set "MODE=%~1"
 if not defined MODE set "MODE=all"
@@ -33,7 +37,7 @@ if /I "%MODE%"=="capture" if errorlevel 1 set "FAILED=1"
 
 if /I not "%MODE%"=="capture" echo Web UI: http://localhost:8710
 if /I not "%MODE%"=="capture" if "%FAILED%"=="0" call :open_browser_if_unconfigured
-echo Logs: %~dp0logs
+echo Logs: %RD_HOME%logs
 if not "%FAILED%"=="0" call :hold
 exit /b %FAILED%
 
@@ -63,10 +67,10 @@ if not exist "%~dp0%~1" (
 )
 set "RD_START_EXE=%~dp0%~1"
 set "RD_START_ARG=%~2"
-set "RD_START_CWD=%~dp0"
-set "RD_START_OUT=%~dp0logs\%~3.log"
-set "RD_START_ERR=%~dp0logs\%~3.err.log"
-set "RD_START_PID=%~dp0run\%~3.pid"
+set "RD_START_CWD=%RD_HOME%"
+set "RD_START_OUT=%RD_HOME%logs\%~3.log"
+set "RD_START_ERR=%RD_HOME%logs\%~3.err.log"
+set "RD_START_PID=%RD_HOME%run\%~3.pid"
 rem Test-SamePath answers three ways on purpose: $true same executable, $false a different one,
 rem and $null "could not tell" -- reading another process's path fails whenever this user may not
 rem open it. Counting that third case as "not running" is what started a second agent on top of
@@ -96,8 +100,8 @@ if errorlevel 11 if not errorlevel 12 (
     exit /b 0
 )
 if errorlevel 1 (
-    echo %~1 could not be started or exited during startup. See logs\%~3.err.log
+    echo %~1 could not be started or exited during startup. See %RD_HOME%logs\%~3.err.log
     exit /b 1
 )
-echo %~1 is running -^> logs\%~3.log
+echo %~1 is running -^> %RD_HOME%logs\%~3.log
 exit /b 0

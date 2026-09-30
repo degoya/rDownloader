@@ -1,5 +1,18 @@
 # shellcheck shell=bash
 #
+# The versions the release chain cuts, and the last release a version comes after.
+#
+# A release is `X.Y.Z`, a pre-release `X.Y.Z-beta.N` (owner, 2026-09-30: beta only, no rc or
+# alpha). A beta is tagged on the release branch and never merged into main; the public export
+# follows it, the public wiki and the website wait for the stable release. The scripts of the
+# chain refuse any other form with rd_release_version, and ask rd_is_prerelease what to skip.
+#
+#   rd_release_version 1.8.0-beta.2   # true; false for 1.8.0-rc.1, 1.8, v1.8.0
+#   rd_is_prerelease 1.8.0-beta.2     # true; false for 1.8.0
+RD_RELEASE_VERSION_PATTERN='^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[1-9][0-9]*)?$'
+rd_release_version() { [[ "${1:-}" =~ $RD_RELEASE_VERSION_PATTERN ]]; }
+rd_is_prerelease() { rd_release_version "${1:-}" && [[ "$1" == *-beta.* ]]; }
+
 # The last release a version comes after, as its tag: the highest `vX.Y.Z` tag not above the
 # version, or with --below the highest one under it. Empty when there is none.
 #

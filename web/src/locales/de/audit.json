@@ -63,7 +63,15 @@
     "backup_key_changed": "Passphrase der Vollsicherung gesetzt",
     "backup_created": "Vollsicherung geschrieben",
     "backup_verified": "Archiv der Vollsicherung geprüft",
-    "notifications_discarded": "Ausstehende Benachrichtigungen verworfen"
+    "notifications_discarded": "Ausstehende Benachrichtigungen verworfen",
+    "service_stop_requested": "Dienst-Stopp angefordert",
+    "update_prepared": "Sicherung vor Update geschrieben",
+    "update_install_started": "Update-Installation gestartet",
+    "storage_history_cleared": "Speicherverlauf geleert",
+    "content_index_cleared": "Inhaltsindex geleert",
+    "setup_completed": "Ersteinrichtung abgeschlossen",
+    "mfa_enrolled": "Zweiter Faktor hinzugefügt",
+    "mfa_removed": "Zweiter Faktor entfernt"
   },
   "list": {
     "title": "Einträge",

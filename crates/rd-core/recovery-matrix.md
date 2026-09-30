@@ -34,8 +34,11 @@ Every case asserts all four. They are not interchangeable, and each has its own 
 Axis A only exists when it is asked for, and it is each *owning* crate's feature that asks:
 
 ```bash
-cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints \
-    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
+cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints,rd-extract/failpoints,rd-api-core/failpoints,rd-torrent/failpoints,rd-plugin-transfer/failpoints,rd-update/failpoints \
+    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host \
+    -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
+# The plugin update's two points sit in rd-api-admin and are driven through the admin suite.
+cargo nextest run --features rd-api/failpoints -j 2 -p rd-api --test admin stopped_updates
 ```
 
 `rd-core/failpoints` on its own is not enough, however plausible it looks. Every crash-test
@@ -46,7 +49,14 @@ those features `rd-http` runs 97 tests, `rd-scheduler` 111, `rd-usenet` 54, `rd-
 and `rd-backup` 52; with them 103, 117, 57, 51 and 54, measured per crate on 2026-09-29.
 RD-170-07 added three `rd-backup` cases and the first `rd-plugin-host` one, all behind the
 features, so those two counts change and are measured again with the next run; `rd-plugin-host`
-has none recorded yet.
+has none recorded yet. RD-180-12 added one case each to `rd-extract`, `rd-api-core`, `rd-torrent`
+and `rd-plugin-transfer` and two to `rd-api`'s admin suite; their counts are measured with the
+next run as well. The `rd-plugin-transfer` case drives the reference backend component, so the
+`no-components` profile (and with it CI's `-P ci`) counts it as skipped; it runs where the
+components are built. RD-180-03 added two `rd-backup` cases (`tests/pre_update_crash.rs`, the
+backup before an update); the count is measured with the next run. RD-180-02 added four
+`rd-update` cases (`tests/install_crash.rs`, the portable self-update's switch); `rd-update` has
+no count recorded yet.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything
@@ -55,7 +65,24 @@ is for. Paying for a spawned process at every crash point to re-prove the state 
 buy nothing; paying for it once per flush that matters is worth it.
 
 **Axis B must not be run on a development machine.** It spawns real service processes, which is
-why its cases are `#[ignore]` and run in CI only.
+why its cases are `#[ignore]` and run in CI only: `crates/rdownloader/tests/kill_restart.rs`, run by
+`.github/workflows/recovery.yml` on Linux with
+`cargo nextest run -p rdownloader --test kill_restart --run-ignored only`. `RD_AXIS_B_BINARY`
+names another binary than the one Cargo built for the test.
+
+The cases start `rdownloader serve` on a fresh data directory and fetch from an origin inside the
+test whose gate holds every connection still once a given number of bytes has gone out, so the
+`SIGKILL` lands at a known point rather than at a moment a timer picked:
+
+- **Mid-download.** One connection, a 32 MiB payload, the gate at 20 MiB: two of the engine's
+  8 MiB checkpoints are behind the transfer when it is killed. Read while nothing runs, the row
+  claims no more than the origin sent and the part file holds exactly the source's bytes up to
+  the checkpoint (invariants 1 and 2). The restart resumes — it fetches at least one recorded
+  checkpoint's worth less than the whole file — and ends with the same SHA-256 and no part file
+  (3 and 4).
+- **Mid-post-processing.** A package whose user script waits is killed while the script runs.
+  The restart does not leave the package `postprocessing`: the interrupted step runs again, the
+  package completes, the payload is unchanged and nothing is left in staging.
 
 ## Registered crash points
 
@@ -65,6 +92,7 @@ row for a point that does not exist.
 
 | Point | Owner | A restart must show |
 | --- | --- | --- |
+| `automation.before_outcome_recorded` | rd-api-core | a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes |
 | `backup.after_database_snapshot` | rd-backup | a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination |
 | `backup.after_retention_removal` | rd-backup | an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed |
 | `backup.before_archive_published` | rd-backup | an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging |
@@ -75,13 +103,23 @@ row for a point that does not exist.
 | `http.after_part_sync` | rd-http | a durable write without its commit falls back to the older checkpoint |
 | `http.before_piece_check` | rd-http | a chunk confirmed but not checked against its piece hashes is checked before anything builds on it, and a piece that fails isolates the source named for it |
 | `object_storage.after_part_upload` | rd-object-storage | a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again |
+| `plugin.before_install_recorded` | rd-api-admin | an automatic update whose version folder exists before its repository row was written stays installed whole and listed once, and the version pointers stay as they were: the next start runs what they chose before the update, the newest version when they chose none |
+| `plugin.before_pointers_followed` | rd-api-admin | an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
+| `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
+| `postprocess.before_unpack_recorded` | rd-extract | an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives |
+| `pre_update.before_archive_published` | rd-backup | an archive sealed and checked before an update but not yet moved into the pre-update folder never appears there; the next start removes the staging with the unencrypted copy it held, and the next preparation seals a whole one |
+| `pre_update.before_copy_published` | rd-backup | a database copy written before an update but not yet checked never carries a copy's name, so no rollback can pick it; the live database is untouched and opens as it was, the next start removes the partial file, and the next preparation writes a whole, checked copy |
 | `restore.after_live_set_aside` | rd-backup | a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
 | `scheduler.before_move_source_removed` | rd-scheduler | a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it |
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
+| `torrent.before_seed_completed` | rd-torrent | a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once |
+| `update.after_new_placed` | rd-update | a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes |
+| `update.after_previous_set_aside` | rd-update | a portable update stopped after an old entry went into .previous and before its new one took its place is taken back by the next start: the entry comes back from .previous, nothing of the new version stays and the database is left as it was, since the new version never ran |
+| `update.before_health_check` | rd-update | a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
 | `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
 
@@ -121,6 +159,31 @@ that the folder is never loaded or listed, that the start (`PluginRepositoryServ
 removes it, that the version installed before stays the only one, and that the update then
 installs. The download itself is kept under `downloads/` by digest, which every start clears.
 The case runs with `rd-plugin-host/failpoints`.
+
+`pre_update.before_copy_published` and `pre_update.before_archive_published` are the two
+publishing steps of the backup the updater asks for before it switches versions (RD-180-03,
+`rd_backup::pre_update`). The database copy is written under a `.partial` name, synced and
+checked — `PRAGMA integrity_check`, the schema this build runs on with nothing pending, the core
+tables readable — and only then renamed; the archive is sealed in `pre-update/staging`, opened
+again under its key and read to its end, and only then moved into the folder. A stop before
+either rename leaves nothing a rollback could mistake for a backup: the cases assert that no file
+carries a final name, that the live database opens as it was, that the sweep every start runs
+removes the leftovers, and that the next preparation writes a whole one. The cases run with
+`rd-backup/failpoints`.
+
+`update.after_previous_set_aside`, `update.after_new_placed` and `update.before_health_check`
+are the portable self-update's switch (RD-180-02, `rd_update::install::portable`). The updater
+unpacks the new archive beside the program, then per top-level entry moves the live one into
+`.previous/` and the new one into its place, and records the switch before it starts the new
+version and waits for its health route to name that version. A stop between two renames leaves
+the program folder a mix of both versions, which no start may run: `recover_at_start` runs before
+the database opens and takes the switch back from any point, and when the program that runs is the
+newer one it starts the restored executable and ends. A switch recorded but never proven is proven
+by the first start that answers (`confirm_started`); a second start without that proof takes it
+back and puts the database copy from before the update in place, since the new version ran. The
+four cases (`crates/rd-update/tests/install_crash.rs`) run with `rd-update/failpoints`. The
+Windows installer has no points of its own: Windows Installer is transactional, and the start
+reads from the version that runs which way its transaction went.
 
 `restore.after_live_set_aside` is the restore's cutover (RD-160-03). A restore never replaces
 the running service's database: it stages the restored state in `restore-staged/` with a marker,
@@ -202,6 +265,56 @@ long as the install lives. Its case therefore asserts the queue-level form of in
 the start that follows finds the group with nobody holding it and gives the turn to the next
 mirror, and it does so without the person touching anything.
 
+`postprocess.before_unpack_recorded` is the pipeline's step between an archive being unpacked
+and its step being recorded (RD-180-12, `rd_extract::unpack_job`). A stop there leaves the payload
+in the package folder, a step still `Running` and a package still `Postprocessing`, which is the
+state `ExtractionService::recover` looks for at every start. Its case asserts that the restart
+unpacks the set again into the same place — replacing what the first run wrote, never beside it —
+records one step for it and completes the package. A kill *inside* the extraction leaves more: the
+staging directory the archive was being written into, with part of its output. Nothing removed
+that before RD-180-12; now every extraction first removes the staging directories a killed one
+left in its destination (only one job runs at a time, so any that is there is stale), and the case
+plants one to prove it goes. The case runs with `rd-extract/failpoints`.
+
+`automation.before_outcome_recorded` is an automation run between an action taking effect and the
+run recording it (RD-180-12, `rd_api_core::automation_service`). The run is claimed as `running`
+before its action executes, and a start queues every `running` run again before it does anything
+else. Its case asserts that the run is not due until that recovery, that the recovery puts it back
+at the same action — which therefore runs a second time: an action is carried out at least once,
+so a webhook's receiver or a script can see the same event twice after a stop — and that it then
+completes, never skipping an action whose outcome nobody recorded. The case runs with `rd-api-core/failpoints`.
+
+`torrent.before_seed_completed` is the end of a seed (RD-180-12, `rd_torrent::seeding`): the seed
+time is folded into its total and the torrent left the session, but the queue row still says
+`seeding`. Its case asserts that the row stays `seeding` rather than being lost or completed
+without its stop, that the start's `recover` takes the torrent up again, that the seeded time is
+the total the first run closed and not that twice, and that stopping it then completes the row.
+Both sessions in the case are offline. The case runs with `rd-torrent/failpoints`.
+
+`plugin_transfer.before_checkpoint_saved` is a plugin transfer that stopped with bytes on disk
+before the runner saved the backend's checkpoint (RD-180-12, `rd_plugin_transfer::runner`). The
+part file is the resume state; the checkpoint only pins it to the backend version that wrote it.
+Its case asserts that the part file holds exactly the source's first bytes, that the next run
+checks the remote file against what the first one saw and continues from the part file's length,
+and that the finished file matches the source byte for byte. The case found a defect on its first
+pass: the runner sized the part file to the whole payload before the transfer began, so a stopped
+transfer continued from its end with nothing but zeros behind what had arrived — any stop, not only
+this one. The part file is no longer preallocated. A stop here also leaves no pin, so a newer
+version of the backend installed before the next run would continue a file the older one began;
+that is recorded below. The case drives the reference backend component and runs with
+`rd-plugin-transfer/failpoints` where the components are built.
+
+`plugin.before_install_recorded` and `plugin.before_pointers_followed` are the two writes an
+automatic update makes after its version folder exists (RD-180-12, `install_offer` in
+`rd_api_admin::plugin_repository_handlers`): the repository row that says where the version came
+from, then the version pointers that follow it. Their cases run the refresh with the point armed
+on a plugin pointed at its installed version, and assert that both versions are installed whole
+and listed once with no staging folder beside them, that the pointer still names the old version
+with no rollback target recorded, and that the start after the stop runs the old version. The
+missing repository row costs a third-party repository its reach over that version when it later
+withdraws it; the pointers that did not move leave the update waiting in the plugin manager to be
+activated by hand. The cases run in the admin suite with `rd-api/failpoints`.
+
 ## Migration baselines
 
 `crates/rd-db/tests/migration_forward/` upgrades a database from each shipped release and
@@ -257,12 +370,16 @@ Axis C covers, in `crates/rd-db/tests/migration_forward/`.
 Recorded here rather than left implicit, because a matrix that only lists what passes reads
 as completeness it does not have:
 
-- Post-processing, automation runs, torrent seeding and the plugin transfer runner have
-  recovery paths in the code but no crash points registered yet. Of an update's steps in the
-  service, the ones after the version folder exists — the repository row and the version
-  pointers following the update — have none either: a stop there leaves the new version
-  installed and not yet chosen, which the plugin manager offers to activate by hand. Usenet assembly has two
-  (RD-108-25, RD-130-22); the resume itself, which CRC-checks every checkpointed range against the disk
-  rather than trusting the database, is covered by `assembly_resume_tests` and
-  `resume_after_crash_tests` without a crash point.
-- Axis B has no cases yet.
+- Usenet assembly has two crash points (RD-108-25, RD-130-22); the resume itself, which
+  CRC-checks every checkpointed range against the disk rather than trusting the database, is
+  covered by `assembly_resume_tests` and `resume_after_crash_tests` without a crash point.
+- A plugin update stopped before its pointers followed is not moved on afterwards: the next
+  refresh sees the version installed and offers nothing. That is on purpose — the rows cannot
+  tell such a version from one somebody installed by hand beside a version they chose to keep —
+  and it costs an activation by hand, never a half-switched plugin.
+- A plugin transfer stopped before its checkpoint was saved is not pinned to the backend version
+  that began it. The next run takes the newest backend for the scheme; only when a different
+  version was installed in between does it continue another build's file. Pinning before the
+  first byte would close that and is not done yet.
+- Axis B has two cases, a download and a post-processing step; the other persistent states are
+  covered by Axis A alone.

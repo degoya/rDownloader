@@ -437,12 +437,13 @@ pub(crate) async fn secret_fragment_ref(
     }))
 }
 
-/// Every reference the rows matching `predicate` hold, read before they are deleted.
+/// Every vault reference the rows matching `predicate` hold, read before they are deleted:
+/// the link fragment (RD-110-38) and the captured request body of a POST replay.
 ///
 /// Read first and removed from the vault afterwards, because the reference is *in* the row:
 /// once the row is gone there is nothing left to find the secret by, and it would sit in the
 /// vault for the life of the installation. The predicate is the same one the delete uses.
-async fn secret_fragment_refs_where(
+async fn vault_refs_where(
     pool: &SqlitePool,
     predicate: &str,
     bind: Option<String>,
@@ -450,7 +451,8 @@ async fn secret_fragment_refs_where(
     use sqlx::Row;
 
     let sql = format!(
-        "SELECT secret_fragment_ref FROM link_candidates WHERE secret_fragment_ref IS NOT NULL AND {predicate}"
+        "SELECT secret_fragment_ref, replay_body_ref FROM link_candidates \
+         WHERE (secret_fragment_ref IS NOT NULL OR replay_body_ref IS NOT NULL) AND {predicate}"
     );
     let mut query = sqlx::query(sqlx::AssertSqlSafe(&*sql));
     if let Some(value) = bind {
@@ -460,25 +462,34 @@ async fn secret_fragment_refs_where(
         .fetch_all(pool)
         .await?
         .into_iter()
-        .filter_map(|row| {
-            row.try_get::<Option<String>, _>("secret_fragment_ref")
-                .ok()
-                .flatten()
+        .flat_map(|row| {
+            ["secret_fragment_ref", "replay_body_ref"]
+                .into_iter()
+                .filter_map(|column| row.try_get::<Option<String>, _>(column).ok().flatten())
+                .collect::<Vec<_>>()
         })
         .collect())
 }
 
+/// The vault references deleting one candidate is about to orphan.
+pub(crate) async fn candidate_vault_refs(
+    pool: &SqlitePool,
+    id: CandidateId,
+) -> Result<Vec<String>> {
+    vault_refs_where(pool, "id = ?", Some(id.to_string())).await
+}
+
 /// The references `delete_candidates` is about to orphan.
-pub(crate) async fn deletable_secret_fragment_refs(pool: &SqlitePool) -> Result<Vec<String>> {
-    secret_fragment_refs_where(pool, "state NOT IN ('resolving', 'enqueued')", None).await
+pub(crate) async fn deletable_vault_refs(pool: &SqlitePool) -> Result<Vec<String>> {
+    vault_refs_where(pool, "state NOT IN ('resolving', 'enqueued')", None).await
 }
 
 /// The references deleting one LinkGrabber package is about to orphan.
-pub(crate) async fn package_secret_fragment_refs(
+pub(crate) async fn package_vault_refs(
     pool: &SqlitePool,
     id: rd_core::CollectorPackageId,
 ) -> Result<Vec<String>> {
-    secret_fragment_refs_where(
+    vault_refs_where(
         pool,
         "package_id = ? AND state != 'enqueued'",
         Some(id.to_string()),

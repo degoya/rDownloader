@@ -1,5 +1,6 @@
 //! Collision policies and prompts, duplicates, dedupe links and the storage history
-//! (RD-150-01, RD-150-02).
+//! (RD-150-01, RD-150-02). The two clears are `data_reset_handlers` beside the other clears
+//! (RD-180-13).
 
 use axum::{
     Router,
@@ -7,7 +8,7 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, collision_handlers, duplicates, storage_handlers};
+use crate::{AppState, collision_handlers, data_reset_handlers, duplicates, storage_handlers};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -58,8 +59,16 @@ pub(crate) fn routes() -> Router<AppState> {
             get(storage_handlers::list_storage_operations),
         )
         .route(
+            "/api/v1/storage/operations/clear",
+            post(data_reset_handlers::clear_storage_operations),
+        )
+        .route(
             "/api/v1/storage/content-index/check",
             post(storage_handlers::check_content_index),
+        )
+        .route(
+            "/api/v1/storage/content-index/clear",
+            post(data_reset_handlers::clear_content_index),
         )
 }
 
@@ -78,6 +87,8 @@ pub(crate) fn routes() -> Router<AppState> {
     storage_handlers::reuse_capabilities,
     storage_handlers::link_support,
     storage_handlers::list_storage_operations,
+    data_reset_handlers::clear_storage_operations,
     storage_handlers::check_content_index,
+    data_reset_handlers::clear_content_index,
 ))]
 pub(crate) struct Doc;

@@ -32,6 +32,7 @@ import {
   useSiteRules,
   type RuleDraft
 } from '@/composables/useSiteRules'
+import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
 
 const { t, te } = useI18n()
 const toast = useToast()
@@ -143,26 +144,15 @@ async function remove(rule: SiteRule): Promise<void> {
 async function exportRules(): Promise<void> {
   const document_ = await rules.exportRules()
   if (!document_) return
-  const blob = new Blob([JSON.stringify(document_, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `rdownloader-site-rules-${new Date().toISOString().slice(0, 10)}.json`
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  downloadJson(document_, 'site-rules')
 }
 
 function chooseFile(): void {
-  if (!fileInput.value) return
-  fileInput.value.value = ''
-  fileInput.value.click()
+  openFilePicker(fileInput.value)
 }
 
 async function selectFile(event: Event): Promise<void> {
-  const target = event.target
-  const file = target instanceof HTMLInputElement ? target.files?.item(0) : null
+  const file = chosenFile(event)
   if (!file) return
   const text = await file.text()
   try {

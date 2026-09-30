@@ -226,8 +226,7 @@
     "duplicated": "Rule copy created",
     "updated": "Rule updated",
     "form_new": "New rule",
-    "duplicate": "Duplicate rule",
-    "copy_suffix": "copy"
+    "duplicate": "Duplicate rule"
   },
   "hotfolder": {
     "eyebrow": "Reconciled intake",
@@ -238,7 +237,7 @@
     "name_description": "Only used to tell your hotfolders apart.",
     "name_placeholder": "Local file inbox",
     "path_label": "Watched folder",
-    "path_description": "Absolute path that is scanned for .nzb and .torrent files.",
+    "path_description": "Absolute path that is scanned for .nzb, .torrent, .dlc, .ccf and .rsdf files.",
     "path_placeholder": "/config/watch",
     "category_label": "Category",
     "category_description": "Assigned to every import from this folder; without it the rules and the default category decide.",
@@ -274,6 +273,5 @@
     "poll_saved": "Poll interval saved",
     "poll_save": "Save interval",
     "copy_path_hint": "A copy needs a folder of its own: change the path before creating it."
-  },
-  "cancel_edit": "Cancel editing"
+  }
 }

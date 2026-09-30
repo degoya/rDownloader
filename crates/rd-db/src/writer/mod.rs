@@ -193,6 +193,7 @@ impl Writer {
                 | WriterCommand::SetAuthFlowPart { .. }
                 | WriterCommand::DeferAuthFlowRenewal { .. }
                 | WriterCommand::DeleteAuthFlow { .. }
+                | WriterCommand::TakeAuthFlowCallback { .. }
                 | WriterCommand::SetDownloadAuthProfile { .. }
                 | WriterCommand::CreateAuthProfile { .. }
                 | WriterCommand::UpdateAuthProfile { .. }
@@ -294,6 +295,7 @@ impl Writer {
                 }
                 command @ (WriterCommand::ReplaceConfig { .. }
                 | WriterCommand::SetSetting { .. }
+                | WriterCommand::InsertSettingIfAbsent { .. }
                 | WriterCommand::CheckpointWal { .. }
                 | WriterCommand::RecoverInterrupted { .. }
                 | WriterCommand::PurgeOldEvents { .. }
@@ -334,9 +336,11 @@ impl Writer {
                 | WriterCommand::MoveIndexedContent { .. }
                 | WriterCommand::MarkIndexedContent { .. }
                 | WriterCommand::ForgetIndexedPath { .. }
+                | WriterCommand::ClearContentIndex { .. }
                 | WriterCommand::StartStorageOperation { .. }
                 | WriterCommand::FinishStorageOperation { .. }
-                | WriterCommand::InterruptStorageOperations { .. }) => {
+                | WriterCommand::InterruptStorageOperations { .. }
+                | WriterCommand::ClearStorageOperations { .. }) => {
                     self.handle_storage(command).await
                 }
             }

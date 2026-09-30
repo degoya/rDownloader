@@ -38,6 +38,9 @@ use tokio::{
 /// would otherwise turn one download into a write storm.
 pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(750);
 
+/// How much of a running tool's stderr is kept: its last 64 KiB.
+pub const STDERR_TAIL: usize = 64 * 1024;
+
 /// `CREATE_NO_WINDOW`. Without it every external tool flashes a console window on Windows,
 /// including for a service started at login with no desktop session to show it in.
 #[cfg(windows)]
@@ -129,7 +132,14 @@ impl ToolProcess {
     /// stderr is drained by a detached task from the moment the process exists. Reading it only
     /// after the child has ended would deadlock the tool the first time it writes more than a
     /// pipe buffer of warnings — which yt-dlp does on any long download.
+    ///
+    /// The environment is the allowlist of [`rd_files::restrict_environment`] plus
+    /// [`rd_files::TOOL_VARIABLES`] and whatever the caller set: none of these tools needs the
+    /// service's own variables, and a credential an operator keeps there is not theirs to read.
+    ///
+    /// Only the last [`STDERR_TAIL`] bytes of stderr are kept; the rest is read and dropped.
     pub fn spawn(command: &mut Command, name: &str, stdout: Stdout) -> Result<Self> {
+        rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
         command
             .stdin(Stdio::null())
             .stdout(match stdout {
@@ -142,14 +152,15 @@ impl ToolProcess {
         command.creation_flags(CREATE_NO_WINDOW);
         let mut child = command.spawn().with_context(|| format!("spawn {name}"))?;
         let stdout = child.stdout.take();
-        let mut handle = child
+        let handle = child
             .stderr
             .take()
             .with_context(|| format!("{name} stderr"))?;
+        // Bounded: a recording that runs for hours can warn about every segment it retries, and
+        // a buffer that kept all of it grew the service with it. The errors the runners look
+        // for are the last thing a tool prints.
         let stderr = tokio::spawn(async move {
-            let mut buffer = Vec::new();
-            let _ = tokio::io::AsyncReadExt::read_to_end(&mut handle, &mut buffer).await;
-            String::from_utf8_lossy(&buffer).into_owned()
+            String::from_utf8_lossy(&rd_files::read_tail(handle, STDERR_TAIL).await).into_owned()
         });
         Ok(Self {
             child,
@@ -180,7 +191,7 @@ impl ToolProcess {
         let _ = self.child.kill().await;
     }
 
-    /// Everything the process wrote to stderr, after it has ended.
+    /// The end of what the process wrote to stderr, after it has ended.
     ///
     /// Empty when the drain task itself was cancelled or panicked — a lost diagnostic must not
     /// change how the run is reported, which is why this returns a `String` and not a `Result`.
@@ -207,7 +218,8 @@ impl ToolProcess {
 ///
 /// stdin is the null device, because a tool that decides to prompt must fail rather than wait
 /// for a keystroke nobody will type, and `kill_on_drop` is on so a run abandoned at the timeout
-/// does not leave a process behind still doing the work nobody is waiting for any more.
+/// does not leave a process behind still doing the work nobody is waiting for any more. The
+/// environment is restricted as in [`ToolProcess::spawn`].
 ///
 /// **There is no stdout/stderr argument, and that is not an omission.**
 /// `tokio::process::Command::output` configures both as pipes *unconditionally*, overriding
@@ -219,6 +231,7 @@ pub async fn run_to_output(
     command: &mut Command,
     timeout: Duration,
 ) -> Result<std::io::Result<Output>, Elapsed> {
+    rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
     command.stdin(Stdio::null()).kill_on_drop(true);
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
@@ -317,6 +330,59 @@ mod tests {
             .expect("/bin/sh spawns");
         assert_eq!(String::from_utf8_lossy(&output.stdout), "out");
         assert_eq!(String::from_utf8_lossy(&output.stderr), "err");
+    }
+
+    /// Engine audit 1.8, finding 5: yt-dlp, gallery-dl and streamlink inherited the service's
+    /// whole environment. A tool now sees the allowlist and what its caller set, nothing else.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_tool_sees_the_allowlist_and_what_its_caller_set() {
+        let mut command = tokio::process::Command::new("/usr/bin/env");
+        command.env("RD_SET_BY_CALLER", "kept");
+        let output = run_to_output(&mut command, Duration::from_secs(30))
+            .await
+            .expect("the tool finished inside the timeout")
+            .expect("env spawns");
+        let mut seen = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        seen.sort();
+        let mut expected = rd_files::kept_variables(std::env::vars_os(), rd_files::TOOL_VARIABLES)
+            .into_iter()
+            .map(|(name, value)| format!("{}={}", name.to_string_lossy(), value.to_string_lossy()))
+            .chain(["RD_SET_BY_CALLER=kept".to_owned()])
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(seen, expected);
+    }
+
+    /// Engine audit 1.8, finding 4: a tool that writes far more to stderr than is kept neither
+    /// blocks on the pipe nor grows the service; the end, where the error is, survives.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_chatty_tool_keeps_only_the_end_of_its_stderr() {
+        let mut command = tokio::process::Command::new("/bin/sh");
+        command.args([
+            "-c",
+            "i=0; while [ $i -lt 20000 ]; do echo \"WARNING: retrying segment $i\" >&2; \
+             i=$((i+1)); done; echo 'ERROR: the last word' >&2",
+        ]);
+        let mut process =
+            super::ToolProcess::spawn(&mut command, "chatty", super::Stdout::Discarded)
+                .expect("spawn");
+        let status = tokio::time::timeout(Duration::from_secs(30), process.wait())
+            .await
+            .expect("the tool never blocked on a full pipe")
+            .expect("wait");
+        assert!(status.success());
+        let stderr = process.stderr().await;
+        assert!(
+            stderr.len() <= super::STDERR_TAIL,
+            "{} bytes kept",
+            stderr.len()
+        );
+        assert!(stderr.ends_with("ERROR: the last word\n"), "{stderr:.200}");
     }
 
     #[cfg(unix)]

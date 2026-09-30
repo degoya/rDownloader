@@ -717,7 +717,8 @@
         "torrent": "Torrent",
         "ftp": "FTP",
         "sftp": "SFTP",
-        "plugin": "Transfert par plugin"
+        "plugin": "Transfert par plugin",
+        "object_storage": "Stockage objet (S3)"
       },
       "history_title": "Historique",
       "history_description": "Les plus récents d’abord. Un déplacement entre périphériques est vérifié par SHA-256 avant la suppression de l’original.",

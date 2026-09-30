@@ -8,6 +8,7 @@ import AuthGate from '@/components/AuthGate.vue'
 import ControlRoomLayout from '@/components/ControlRoomLayout.vue'
 import SetupWizard from '@/components/wizard/SetupWizard.vue'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
+import { resumeEventStream, suspendEventStream } from '@/composables/useEventStream'
 import { useCaptchasStore } from '@/stores/captchas'
 import { useCollectorStore } from '@/stores/collector'
 import { useSessionStore } from '@/stores/session'
@@ -40,18 +41,26 @@ onBeforeUnmount(() => {
 })
 
 watch(() => session.ready, (ready) => {
-  if (ready) {
-    void transfers.refresh()
-    transfers.connectEvents()
-    void collector.refresh()
-    collector.connectEvents()
-    void streams.refresh()
-    // One request at startup: byte formatting is a server setting and applies on every view,
-    // so it has to be known before the first list renders.
-    void loadDisplaySettings()
-    void captchas.refresh()
-    captchas.connectEvents()
+  if (!ready) {
+    // Without a session the stream only collects `401`s, and a store still subscribed from the
+    // last session would turn the next `connectEvents()` into a no-op.
+    transfers.disconnectEvents()
+    collector.disconnectEvents()
+    captchas.disconnectEvents()
+    suspendEventStream()
+    return
   }
+  resumeEventStream()
+  void transfers.refresh()
+  transfers.connectEvents()
+  void collector.refresh()
+  collector.connectEvents()
+  void streams.refresh()
+  // One request at startup: byte formatting is a server setting and applies on every view,
+  // so it has to be known before the first list renders.
+  void loadDisplaySettings()
+  void captchas.refresh()
+  captchas.connectEvents()
 }, { immediate: true })
 </script>
 

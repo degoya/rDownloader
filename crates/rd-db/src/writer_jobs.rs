@@ -714,6 +714,28 @@ impl Writer {
         Ok(())
     }
 
+    /// Writes `value` under `key` unless the key already holds one; `false` when it did.
+    ///
+    /// One statement, so two callers racing for the same key cannot both see it empty and both
+    /// write -- the check and the write are the same row lock.
+    pub(crate) async fn insert_setting_if_absent(
+        &mut self,
+        key: &str,
+        value: &serde_json::Value,
+    ) -> Result<bool> {
+        let written = sqlx::query(
+            "INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?) \
+             ON CONFLICT(key) DO NOTHING",
+        )
+        .bind(key)
+        .bind(serde_json::to_string(value)?)
+        .bind(Utc::now())
+        .execute(&mut self.connection)
+        .await?
+        .rows_affected();
+        Ok(written == 1)
+    }
+
     pub(crate) async fn set_setting(&mut self, key: &str, value: &serde_json::Value) -> Result<()> {
         sqlx::query(
             "INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?) \

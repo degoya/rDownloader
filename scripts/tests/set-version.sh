@@ -89,10 +89,14 @@ expect_true "the dependency's version is untouched" 'grep -qF "serde = { version
 expect_true "package.json keeps its trailing newline" '[[ "$(tail -c1 "$TREE/web/package.json" | od -An -c | tr -d " ")" == "\n" ]]'
 expect "the lock is updated through cargo" "update --workspace --offline" "$(tail -1 "$SCRATCH/cargo.calls")"
 
-set_version 1.5.0-rc.1
+set_version 1.5.0-beta.1
 expect_status "a pre-release version is set" 0
-expect "Cargo.toml carries the suffix" "1.5.0-rc.1" "$("$TREE/scripts/set-version.sh")"
+expect "Cargo.toml carries the suffix" "1.5.0-beta.1" "$("$TREE/scripts/set-version.sh")"
+expect "web/package.json carries it" "1.5.0-beta.1" "$(json_version "$TREE/web/package.json")"
+expect "web/openapi.json info.version carries it" "1.5.0-beta.1" "$(api_version "$TREE/web/openapi.json")"
 expect "the browser manifest drops it" "1.5.0" "$(json_version "$TREE/extension/manifest.base.json")"
+set_version --check
+expect_status "--check on a beta: the bare manifest version agrees" 0
 
 python3 - "$TREE/web/package.json" <<'PY'
 import json, sys

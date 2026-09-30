@@ -226,8 +226,7 @@
     "duplicated": "Copie de la règle créée",
     "updated": "Règle mise à jour",
     "form_new": "Nouvelle règle",
-    "duplicate": "Dupliquer la règle",
-    "copy_suffix": "copie"
+    "duplicate": "Dupliquer la règle"
   },
   "hotfolder": {
     "eyebrow": "Réception réconciliée",
@@ -238,7 +237,7 @@
     "name_description": "Sert uniquement à distinguer vos dossiers surveillés.",
     "name_placeholder": "Réception de fichiers locale",
     "path_label": "Dossier surveillé",
-    "path_description": "Chemin absolu analysé à la recherche de fichiers .nzb et .torrent.",
+    "path_description": "Chemin absolu analysé à la recherche de fichiers .nzb, .torrent, .dlc, .ccf et .rsdf.",
     "path_placeholder": "/config/watch",
     "category_label": "Catégorie",
     "category_description": "Appliquée à chaque import de ce dossier ; sans elle, les règles et la catégorie par défaut décident.",
@@ -274,6 +273,5 @@
     "poll_saved": "Intervalle d'interrogation enregistré",
     "poll_save": "Enregistrer l'intervalle",
     "copy_path_hint": "Une copie a besoin de son propre dossier : modifiez le chemin avant de la créer."
-  },
-  "cancel_edit": "Annuler la modification"
+  }
 }

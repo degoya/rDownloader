@@ -387,44 +387,58 @@ const MACOS_HELPER_NAME: &str = "rDownloader Capture.app";
 
 #[cfg(target_os = "macos")]
 fn macos_install(kind: Kind, executable: &Path) -> Result<()> {
+    let helper = macos_helper(executable)?;
+    let info = std::fs::read_to_string(helper.join("Contents/Info.plist")).with_context(|| {
+        format!(
+            "macOS helper was not found at {}; keep `{MACOS_HELPER_NAME}` next to rdownloader-capture",
+            helper.display()
+        )
+    })?;
     match kind {
         Kind::Association => {
-            let helper = macos_helper(executable)?;
-            if !helper.join("Contents/Info.plist").is_file() {
+            run_macos_launch_services("-f", &helper, "register macOS NZB association")
+        }
+        // A URL scheme on macOS is claimed by `CFBundleURLTypes` in an app bundle's Info.plist
+        // (RD-180-05); Launch Services reads it when the bundle is registered. A helper from
+        // before 1.8 declares none, and registering it would appear to succeed and then never
+        // receive a link.
+        Kind::Scheme => {
+            if !declares_url_scheme(&info) {
                 bail!(
-                    "macOS NZB helper was not found at {}; keep `{MACOS_HELPER_NAME}` next to rdownloader-capture",
+                    "{} declares no rdownloader:// scheme; replace `{MACOS_HELPER_NAME}` with the one from this release",
                     helper.display()
                 );
             }
-            run_macos_launch_services("-f", &helper, "register macOS NZB association")
+            run_macos_launch_services("-f", &helper, "register the rdownloader:// scheme")
         }
-        // A URL scheme on macOS is claimed by `CFBundleURLTypes` in an app bundle's
-        // Info.plist; a bare executable cannot register one at all. Saying so is better
-        // than a call that appears to succeed and then never receives a link.
-        Kind::Scheme => bail!(
-            "registering a URL scheme on macOS requires an application bundle; \
-             `{MACOS_HELPER_NAME}` would have to declare CFBundleURLTypes"
-        ),
     }
 }
 
+/// One registration of the helper carries both the NZB file type and the URL scheme, so
+/// removing either unregisters the helper; `association install` or `scheme install` registers
+/// both again.
 #[cfg(target_os = "macos")]
-fn macos_remove(kind: Kind) -> Result<()> {
-    match kind {
-        Kind::Association => {
-            // The path `install` registered, which is the package manager's stable alias.
-            let executable = rd_autostart::stable_executable_path(
-                &std::env::current_exe().context("locate capture executable")?,
-            );
-            let helper = macos_helper(&executable)?;
-            if helper.exists() {
-                run_macos_launch_services("-u", &helper, "unregister macOS NZB association")?;
-            }
-            Ok(())
-        }
-        // Nothing was ever registered, so removing is a no-op rather than an error.
-        Kind::Scheme => Ok(()),
+fn macos_remove(_kind: Kind) -> Result<()> {
+    // The path `install` registered, which is the package manager's stable alias.
+    let executable = rd_autostart::stable_executable_path(
+        &std::env::current_exe().context("locate capture executable")?,
+    );
+    let helper = macos_helper(&executable)?;
+    if helper.exists() {
+        run_macos_launch_services("-u", &helper, "unregister the macOS helper")?;
     }
+    Ok(())
+}
+
+/// Whether a helper's Info.plist claims `rdownloader://`: a `CFBundleURLSchemes` entry naming
+/// it. A text check, not a plist parser: the file is the one this repository ships, and the
+/// question is only whether it is the one from 1.8 on.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn declares_url_scheme(info_plist: &str) -> bool {
+    info_plist
+        .split_once("<key>CFBundleURLSchemes</key>")
+        .and_then(|(_, rest)| rest.split_once("</array>"))
+        .is_some_and(|(schemes, _)| schemes.contains("<string>rdownloader</string>"))
 }
 
 #[cfg(target_os = "macos")]
@@ -451,6 +465,29 @@ fn run_macos_launch_services(action: &str, helper: &Path, operation: &str) -> Re
 
 #[cfg(test)]
 mod tests {
+    /// The helper the release builds declares the scheme, and the applet hands a link to the
+    /// agent's `handle` command; both are only exercised on a Mac, so they are pinned here.
+    #[test]
+    fn the_macos_helper_declares_the_scheme_and_forwards_links() {
+        let info = include_str!("../../../resources/macos/capture-helper-Info.plist");
+        assert!(super::declares_url_scheme(info));
+        assert!(
+            info.contains("<string>org.rdownloader.nzb</string>"),
+            "{info}"
+        );
+        let applet = include_str!("../../../resources/macos/rdownloader-capture.applescript");
+        assert!(applet.contains("on open location "), "{applet}");
+        assert!(applet.contains("\" handle \" & quoted form of"), "{applet}");
+        // A helper from before 1.8, or one whose schemes name something else.
+        assert!(!super::declares_url_scheme(
+            &info.replace("<key>CFBundleURLSchemes</key>", "<key>Other</key>")
+        ));
+        assert!(!super::declares_url_scheme(&info.replace(
+            "<string>rdownloader</string>",
+            "<string>other</string>"
+        )));
+    }
+
     #[test]
     fn the_windows_scheme_entries_declare_a_protocol_and_quote_the_command() {
         let entries = super::windows_scheme_entries(r"C:\Tools\rdownloader-capture.exe");

@@ -98,7 +98,7 @@ impl KeyRole {
     fn key_id(self) -> &'static str {
         match self {
             Self::Plugin => RELEASE_KEY_ID,
-            Self::Release => "rdownloader-update-v1",
+            Self::Release => rd_sign::UPDATE_KEY_ID,
             Self::ToolManifest => "rdownloader-tools-v1",
             Self::Repository => rd_sign::REPOSITORY_KEY_ID,
             Self::SiteRules => rd_sign::SITE_RULES_KEY_ID,
@@ -234,6 +234,12 @@ async fn keygen(args: &KeygenArgs) -> Result<()> {
         println!(
             "trust flag:  --trusted-plugin-key {RELEASE_KEY_ID}={}",
             generated.public_base64
+        );
+    }
+    if matches!(args.role, KeyRole::Release) {
+        println!(
+            "CI secret:   RDOWNLOADER_UPDATE_SIGNING_KEY = the contents of {}",
+            private_path.display()
         );
     }
     if matches!(args.role, KeyRole::Repository) {

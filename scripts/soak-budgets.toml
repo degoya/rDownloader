@@ -1,0 +1,50 @@
+# The soak run's shape and its budgets (RD-180-12), read by scripts/lib/soak.py.
+#
+# A budget is `<metric>_max` or `<metric>_min`; a run that ends outside one fails and names the
+# metric. The metrics are listed in scripts/lib/soak_budgets.py; a key naming none of them is
+# refused, so a typo cannot turn into a budget that never fails. Values are for the release
+# binary on a hosted Linux runner (ubuntu-24.04); raising one needs the run that shows why.
+# First measured locally (2026-09-30, 30 min): 131 MiB peak and no growth, 41 files, 58
+# threads, 14.8 MiB/s, 20 s longest stall, shutdown 0.12 s.
+
+[run]
+# scripts/soak.sh's default; the nightly workflow passes 2h.
+duration = "5m"
+sample_seconds = 5
+# Downloads kept queued at any time; the service decides how many of them run.
+queue_depth = 12
+
+[fixture]
+# One line shared by every connection, so the throughput budget below means something on any
+# machine: the fixture, not the disk, is the bottleneck.
+rate_mib = 16
+sizes_mib = [1, 4, 16, 48]
+# Every two minutes the fixture refuses connections and cuts off every transfer for 10 s; the
+# service has to retry and resume with a range.
+outage_every_seconds = 120
+outage_for_seconds = 10
+
+[evaluation]
+# The first 10 % of the run is warm-up; growth compares the next 10 % with the last 10 %.
+warmup_percent = 10
+window_percent = 10
+
+[budgets]
+rss_mib_peak_max = 256
+rss_mib_growth_max = 48
+open_files_peak_max = 256
+open_files_growth_max = 16
+threads_peak_max = 192
+threads_growth_max = 24
+# The events table keeps 30 days, so the file grows with every download: ~15 MiB an hour at
+# this load (2026-09-30). The rate is the budget; the peak only catches a runaway.
+db_mib_peak_max = 128
+db_mib_per_hour_max = 32
+# 16 MiB/s offered, less the outages and the retry waits after them.
+throughput_mib_s_min = 8
+throughput_decline_percent_max = 40
+# An outage plus the longest retry wait it causes stays well under this.
+stall_seconds_max = 120
+failed_max = 0
+corrupt_max = 0
+shutdown_seconds_max = 30

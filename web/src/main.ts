@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
 import App from './App.vue'
+import { withBase } from './basePath'
 import { i18n, setLocale, detectLocale } from './i18n'
 import { router } from './router'
 
@@ -18,9 +19,12 @@ const localeReady = setLocale(detectLocale())
 
 // Registered after load so it never competes with the first render. A failure is ignored on
 // purpose: the app works without it, and an install prompt is not worth an error dialog.
+// Under the mount point, so a reverse proxy's path gets a worker whose scope is the app.
 if ('serviceWorker' in navigator && window.isSecureContext) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+    void navigator.serviceWorker
+      .register(withBase('/sw.js'), { scope: withBase('/') })
+      .catch(() => undefined)
   })
 }
 

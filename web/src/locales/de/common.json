@@ -153,5 +153,9 @@
       "genre": "Genre",
       "runtime": "Laufzeit"
     }
+  },
+  "copy": {
+    "failed_title": "Kopieren fehlgeschlagen",
+    "failed_description": "Der Browser hat die Zwischenablage nicht freigegeben. Markiere den Text und kopiere ihn von Hand."
   }
 }

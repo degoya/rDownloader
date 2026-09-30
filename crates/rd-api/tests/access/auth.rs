@@ -358,7 +358,7 @@ async fn a_configured_second_factor_is_not_demanded_again_and_survives_the_chang
         &harness.router,
         "/api/v1/mfa/totp",
         &token,
-        serde_json::json!({ "label": "Phone" }),
+        serde_json::json!({ "label": "Phone", "password": PASSWORD }),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");

@@ -88,6 +88,18 @@ run --date 2026-10-09
 expect "a second write changes nothing, the date included" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "0 file(s) changed" && has "$TREE/docs/feature-list.md" "As of October 2, 2026"'
 expect "a dependency version is not the workspace version" '! has "$SCRATCH/out" "9.9.9"'
 
+# A pre-release is the source version with its suffix, and the stable release after it moves it on.
+sed -i 's/^version = "1.4.0"/version = "1.5.0-beta.1"/' "$TREE/Cargo.toml"
+run --date 2026-10-05
+expect "a beta is written with its suffix" '[[ $status -eq 0 ]] && has "$TREE/docs/feature-list.md" "> As of October 5, 2026 · Source version 1.5.0-beta.1. This document"'
+run --check
+expect "and the anchor still matches it" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "doc facts current: version 1.5.0-beta.1"'
+sed -i 's/^version = "1.5.0-beta.1"/version = "1.5.0"/' "$TREE/Cargo.toml"
+run --check
+expect "the stable release after the beta is a moved version" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "version is 1.5.0-beta.1, the source says 1.5.0"'
+run --date 2026-10-12
+expect "and is written over it" '[[ $status -eq 0 ]] && has "$TREE/docs/feature-list.md" "> As of October 12, 2026 · Source version 1.5.0. This document"'
+
 mkdir -p "$TREE/plugins/c" && touch "$TREE/plugins/c/manifest.toml"
 run --check --wiki "$WIKI"
 expect "a new plugin is named in every place that counts, wrapped lines included" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "docs/feature-list.md:5: plugins is 2, the source says 3" && has "$SCRATCH/out" "docs/plugins.md:1: plugins is 2" && has "$SCRATCH/out" "$WIKI/home.md:1: plugins is 2"'

@@ -125,6 +125,11 @@ pub(crate) async fn stop(service: &TorrentService, id: DownloadId, reason: &str)
     // Fold the running stretch into the total before the row leaves seeding, so a later
     // restart cannot double-count or reset it.
     service.close_seed_clock(id).await;
+    // A stop here leaves the row `seeding` with its seed time closed: the next start takes the
+    // seed up again and counts that time once (RD-180-12, recovery matrix).
+    rd_core::failpoint!("torrent.before_seed_completed", || anyhow::anyhow!(
+        "crash point"
+    ));
     service
         .inner
         .database
@@ -200,3 +205,7 @@ pub(crate) async fn supervise(service: TorrentService) {
         }
     }
 }
+
+#[cfg(all(test, feature = "failpoints"))]
+#[path = "seeding_crash_tests.rs"]
+mod crash_tests;

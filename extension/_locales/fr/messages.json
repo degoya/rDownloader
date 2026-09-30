@@ -23,6 +23,9 @@
   "serverHint": {
     "message": "Adresse de l'interface web rDownloader, p. ex. http://nas.local:8710. 127.0.0.1:8710 et localhost:8710 sont intégrés ; toute autre adresse demande une autorisation."
   },
+  "serverInsecure": {
+    "message": "Non chiffré : cette adresse est jointe en http simple, le jeton de capture circule donc en clair sur le réseau. Utilisez https (par exemple derrière un proxy inverse) pour un service sur une autre machine."
+  },
   "tokenLabel": {
     "message": "Jeton de capture"
   },

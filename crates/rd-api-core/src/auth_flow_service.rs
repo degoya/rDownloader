@@ -311,9 +311,12 @@ impl AuthFlowService {
             .plugin_id(provider_slug)
             .ok_or_else(|| anyhow::anyhow!("no oauth plugin claims {provider_slug}"))?;
         let request = providers.begin(provider_slug, account_id, None).await?;
-        let authorization_url = self
-            .with_client_id(account_id, request.authorization_url)
-            .await?;
+        // The state is what the public callback checks, so it has to be a secret.
+        crate::auth_flow_guard::checked_callback_state(&request.state)?;
+        let authorization_url = crate::auth_flow_guard::checked_sign_in_address(
+            self.with_client_id(account_id, request.authorization_url)
+                .await?,
+        )?;
         let now = Utc::now();
         self.inner
             .database
@@ -363,9 +366,10 @@ impl AuthFlowService {
         let authorization = providers
             .device_begin(provider_slug, account_id, None)
             .await?;
-        let verification_url = self
-            .with_client_id(account_id, authorization.verification_url)
-            .await?;
+        let verification_url = crate::auth_flow_guard::checked_sign_in_address(
+            self.with_client_id(account_id, authorization.verification_url)
+                .await?,
+        )?;
         let now = Utc::now();
         let first_wait = authorization
             .interval_seconds
@@ -400,8 +404,11 @@ impl AuthFlowService {
 
     /// Finishes an OAuth sign-in from what the redirect carried.
     ///
-    /// The lookup by state is the check. A callback quoting a value no flow claims matches
-    /// nothing and is refused here, which is the whole reason the provider is made to echo it.
+    /// The lookup by state is the check, and since the callback is public it is the only one
+    /// (security audit 2026-09-30, finding 5): a callback quoting a value no flow claims matches
+    /// nothing. The state is taken rather than read, so it is answered once, and a flow no longer
+    /// waiting for it — or waiting longer than `auth_flow_guard::CALLBACK_WINDOW_SECONDS` — is
+    /// ended rather than completed.
     pub async fn complete_oauth(
         &self,
         callback_state: &str,
@@ -410,11 +417,25 @@ impl AuthFlowService {
         let Some(flow) = self
             .inner
             .database
-            .auth_flow_by_callback_state(callback_state)
+            .take_auth_flow_callback(callback_state.to_owned())
             .await?
         else {
             anyhow::bail!("no sign-in is waiting for this callback");
         };
+        if !crate::auth_flow_guard::callback_usable(&flow, Utc::now()) {
+            if flow.state == AuthFlowState::WaitingForUser {
+                let _ = self
+                    .store(
+                        flow.account_id,
+                        &flow.plugin_id,
+                        AuthProgress::Failed {
+                            message: "the sign-in window expired".to_owned(),
+                        },
+                    )
+                    .await;
+            }
+            anyhow::bail!("this sign-in is no longer waiting for a callback");
+        }
         let accounts = self.inner.database.list_accounts().await?;
         let Some(account) = accounts
             .into_iter()
@@ -423,16 +444,31 @@ impl AuthFlowService {
             anyhow::bail!("the account this sign-in belongs to is gone");
         };
         let providers = self.oauth_providers().await;
-        let outcome = providers
+        let outcome = match providers
             .poll(
                 &account.provider,
                 flow.account_id,
                 code,
                 flow.flow_state.as_deref(),
             )
-            .await?;
-        self.store(flow.account_id, &flow.plugin_id, token_progress(outcome))
             .await
+        {
+            Ok(outcome) => token_progress(outcome),
+            // The state is spent, so no second callback can finish this flow; left waiting,
+            // it would only look stuck until its window ran out.
+            Err(error) => {
+                let message = callback_failure(&error);
+                let _ = self
+                    .store(
+                        flow.account_id,
+                        &flow.plugin_id,
+                        AuthProgress::Failed { message },
+                    )
+                    .await;
+                return Err(error.into());
+            }
+        };
+        self.store(flow.account_id, &flow.plugin_id, outcome).await
     }
 
     /// The flow of one account, if it has one.
@@ -454,6 +490,27 @@ impl AuthFlowService {
         progress: AuthProgress,
     ) -> anyhow::Result<AuthFlow> {
         let now = Utc::now();
+        // The one place every address a sign-in shows passes through, whichever world and
+        // whichever call produced it: one that is no safe link ends the flow instead.
+        let progress = match progress {
+            AuthProgress::UserAction {
+                verification_url,
+                user_code,
+                expires_in_seconds,
+                flow_state,
+            } => match crate::auth_flow_guard::checked_sign_in_address(verification_url) {
+                Ok(verification_url) => AuthProgress::UserAction {
+                    verification_url,
+                    user_code,
+                    expires_in_seconds,
+                    flow_state,
+                },
+                Err(error) => AuthProgress::Failed {
+                    message: format!("{error:#}"),
+                },
+            },
+            other => other,
+        };
         let input = match progress {
             AuthProgress::Authorized => {
                 // The renewal columns are carried over rather than cleared. By the time a
@@ -827,6 +884,15 @@ fn retry_after(category: &FailureKind) -> Option<i64> {
             .unwrap_or(REFRESH_BACKOFF)
             .max(MIN_INTERVAL),
     )
+}
+
+/// What a failed callback exchange records, in the words the sweep uses for the same failures.
+fn callback_failure(error: &ProviderError) -> String {
+    match error {
+        ProviderError::NoPlugin { .. } => AUTH_PLUGIN_MISSING.to_owned(),
+        ProviderError::UnsupportedFlow { .. } => AUTH_FLOW_UNSUPPORTED.to_owned(),
+        ProviderError::Failed(_) => AUTH_PROVIDER_UNREACHABLE.to_owned(),
+    }
 }
 
 /// What a polled sign-in reports, with a missing plugin told apart from a failed call.

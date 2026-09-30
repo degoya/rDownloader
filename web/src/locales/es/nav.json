@@ -60,7 +60,8 @@
       "allowed_hosts": "nombre de host, dominio, dirección, DNS rebinding",
       "passphrase": "contraseña, cifrado, clave",
       "signature": "firma, clave, editor, confianza",
-      "managed_tools": "descargar herramientas, instalar automáticamente, actualizar"
+      "managed_tools": "descargar herramientas, instalar automáticamente, actualizar",
+      "updates": "actualización, nueva versión, beta, canal de versiones"
     }
   }
 }

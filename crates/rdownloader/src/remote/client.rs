@@ -83,6 +83,21 @@ pub struct Client {
 impl Client {
     /// Builds a client for `server`, authenticating with `token` when one is given.
     pub fn new(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(timeout_seconds))
+            .build()
+            .context("build HTTP client")?;
+        Self::with(http, server, token)
+    }
+
+    /// A client for the service on this machine: [`local_http`]'s, so the local control token
+    /// never travels through a proxy the environment names.
+    pub fn local(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
+        let http = local_http(std::time::Duration::from_secs(timeout_seconds))?;
+        Self::with(http, server, token)
+    }
+
+    fn with(http: reqwest::Client, server: &str, token: Option<String>) -> Result<Self> {
         let base = server.trim_end_matches('/').to_owned();
         if !base.starts_with("http://") && !base.starts_with("https://") {
             return Err(CommandError::new(
@@ -91,14 +106,7 @@ impl Client {
             )
             .into());
         }
-        Ok(Self {
-            http: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(timeout_seconds))
-                .build()
-                .context("build HTTP client")?,
-            base,
-            token,
-        })
+        Ok(Self { http, base, token })
     }
 
     pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
@@ -154,6 +162,21 @@ impl Client {
     }
 }
 
+/// The HTTP client for everything that talks to the service on this machine: `stop`, the
+/// updater's stop and its health checks (security review 2026-09-30, finding 1).
+///
+/// Without a proxy, whatever `HTTP_PROXY`/`ALL_PROXY` or the system settings say: reqwest's
+/// proxy matcher exempts nothing but `NO_PROXY`, not even loopback, so a corporate proxy
+/// received the Bearer token of the local control file and every update failed with
+/// `update.service_did_not_stop`.
+pub fn local_http(timeout: std::time::Duration) -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(timeout)
+        .no_proxy()
+        .build()
+        .context("build HTTP client")
+}
+
 /// Turns an error response into one line, preferring the server's stable code.
 ///
 /// The code is what the web client translates and what a script can branch on, so it is more
@@ -188,6 +211,67 @@ mod tests {
         assert!(Client::new("127.0.0.1:8710", None, 5).is_err());
         assert!(Client::new("http://127.0.0.1:8710", None, 5).is_ok());
         assert!(Client::new("https://nas.local/", None, 5).is_ok());
+    }
+
+    /// Finding 1 of the 2026-09-30 review: a proxy in the environment took the local control
+    /// token. The environment is the child process's own, because a test may not change its
+    /// own: the test binary runs this test once more with a dead proxy set.
+    #[test]
+    fn a_local_client_ignores_the_proxy_the_environment_names() {
+        const CHILD: &str = "RD_TEST_LOCAL_CLIENT_CHILD";
+        const NAME: &str =
+            "remote::client::tests::a_local_client_ignores_the_proxy_the_environment_names";
+        if std::env::var_os(CHILD).is_some() {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime");
+            runtime.block_on(async {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                    .await
+                    .expect("bind");
+                let address = listener.local_addr().expect("address");
+                let router = axum::Router::new().route(
+                    "/ping",
+                    axum::routing::get(|| async {
+                        axum::Json(serde_json::json!({ "pong": true }))
+                    }),
+                );
+                tokio::spawn(async move {
+                    axum::serve(listener, router).await.expect("serve");
+                });
+                let client =
+                    Client::local(&format!("http://{address}"), Some("token".to_owned()), 5)
+                        .expect("client");
+                let answer: serde_json::Value =
+                    client.get("/ping").await.expect("reached past the proxy");
+                assert_eq!(answer["pong"], true);
+            });
+            return;
+        }
+        // A port that was just free: a proxy there refuses every connection.
+        let dead = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind")
+            .local_addr()
+            .expect("address");
+        let proxy = format!("http://{dead}");
+        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args(["--exact", NAME, "--nocapture"])
+            .env(CHILD, "1")
+            .env("HTTP_PROXY", &proxy)
+            .env("http_proxy", &proxy)
+            .env("ALL_PROXY", &proxy)
+            .env("all_proxy", &proxy)
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .output()
+            .expect("run the test binary");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     #[test]

@@ -165,6 +165,40 @@ async fn the_mcp_endpoint_is_reachable_under_the_mount_point() {
     );
 }
 
+/// Signing out clears the cookie at the path it was set at (audit 2026-09-30, finding 6).
+///
+/// A browser keys a cookie by name and path, so a clearing `Set-Cookie` for `Path=/` leaves the
+/// session cookie of `Path=/downloads` in place and the browser keeps presenting it.
+#[tokio::test]
+async fn signing_out_clears_the_cookie_under_the_mount_point() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    mount_under(&harness, "http://rd.example.test/downloads", &[]).await;
+
+    let request = Request::builder()
+        .method("POST")
+        .uri("/downloads/api/v1/auth/logout")
+        .header(header::HOST, "127.0.0.1:8710")
+        .body(Body::empty())
+        .expect("request");
+    let response = harness
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let cookie = response
+        .headers()
+        .get(header::SET_COOKIE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    assert!(cookie.starts_with("rd_session=;"), "{cookie}");
+    assert!(cookie.contains("Path=/downloads;"), "{cookie}");
+    assert!(cookie.contains("Max-Age=0"), "{cookie}");
+}
+
 /// A configuration the service cannot act on is refused when it is saved.
 #[tokio::test]
 async fn an_unusable_proxy_configuration_is_refused_with_a_reason() {

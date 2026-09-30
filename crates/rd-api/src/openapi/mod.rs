@@ -38,6 +38,7 @@ pub fn document() -> utoipa::openapi::OpenApi {
     doc.merge(routes::stats::Doc::openapi());
     doc.merge(routes::storage::Doc::openapi());
     doc.merge(routes::diagnostics::Doc::openapi());
+    doc.merge(routes::lifecycle::Doc::openapi());
     doc.merge(routes::audit::Doc::openapi());
     describe_bare_responses(&mut doc);
     doc

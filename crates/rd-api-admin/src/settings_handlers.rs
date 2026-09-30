@@ -111,9 +111,11 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 /// `admin_login_disabled` is the sharpest: setting it makes `granted_scopes` hand every
 /// caller, authenticated or not, the full `Scope::API`, so an `api:config` token could mint
 /// itself `api:secrets` and `api:admin`. The executable paths and the completion script are
-/// the same problem one step removed: they name a program this service runs.
+/// the same problem one step removed: they name a program this service runs. The outbound
+/// endpoints that receive what the service holds -- the trace export, the DLC decryption
+/// service -- are the third kind: pointing one elsewhere hands somebody else the data.
 fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Option<&'static str> {
-    let fields: [(&'static str, bool); 16] = [
+    let fields: [(&'static str, bool); 18] = [
         (
             "admin_login_disabled",
             current.admin_login_disabled != next.admin_login_disabled,
@@ -162,6 +164,13 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
             "rar_executable",
             current.rar_executable != next.rar_executable,
         ),
+        // The upload tool is a program the service runs like the unpacker, and on Windows the
+        // only one of the four without a fixed name to fall back to (security audit
+        // 2026-09-30, finding 3).
+        (
+            "rclone_executable",
+            current.rclone_executable != next.rclone_executable,
+        ),
         (
             "remote_ssh_auto_trust",
             current.remote_ssh_auto_trust != next.remote_ssh_auto_trust,
@@ -173,6 +182,13 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
             "otlp_endpoint",
             current.otlp_endpoint != next.otlp_endpoint
                 || current.otlp_enabled != next.otlp_enabled,
+        ),
+        // Every imported DLC's key blob goes to this address, and whatever it answers is queued
+        // as the container's links: a service of somebody's choosing would read the person's
+        // imports and choose what they download.
+        (
+            "dlc_service_endpoint",
+            current.dlc_service_endpoint != next.dlc_service_endpoint,
         ),
         (
             "media_ytdlp_executable",
@@ -423,6 +439,7 @@ pub(crate) fn validate_settings(
         ));
     }
     settings.validate_postprocess()?;
+    settings.validate_update()?;
     crate::stats_handlers::validate_stats_settings(settings)?;
     crate::hotfolder_service::validate_hotfolder_settings(settings)?;
     rd_limits::parse_timezone(&settings.bandwidth_timezone).map_err(|_| {

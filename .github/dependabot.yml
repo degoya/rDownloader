@@ -8,8 +8,9 @@
 # repository's settings, not here; the `security` groups only bundle what they open.
 version: 2
 updates:
-  # The actions' major versions: few, small, and each one a line to copy. The composite action
-  # under .github/actions/ uses none, so the workflows are all there is to read.
+  # The actions' versions: few, small, and each one a line to copy. Every action is pinned to a
+  # commit with its release as a comment (scripts/check-actions-pinned.sh); Dependabot moves both.
+  # The composite action under .github/actions/ uses none, so the workflows are all there is to read.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

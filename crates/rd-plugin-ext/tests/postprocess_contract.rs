@@ -25,7 +25,11 @@ const PAYLOAD_SHA256: &str = "0a2e9e1e6f70b6a7b1a5c8f2e2b1a7ec5f7d1fef67e8b1d94a
 fn package(files: &[(&str, &[u8])]) -> (tempfile::TempDir, SourceState) {
     let directory = tempfile::tempdir().expect("tempdir");
     for (name, bytes) in files {
-        std::fs::write(directory.path().join(name), bytes).expect("write");
+        let path = directory.path().join(name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("folder");
+        }
+        std::fs::write(path, bytes).expect("write");
     }
     let names = files.iter().map(|(name, _)| (*name).to_owned()).collect();
     let state = SourceState::new(
@@ -118,6 +122,106 @@ async fn md5_reads_its_own_sidecar_and_ignores_the_other_one() {
     assert_eq!(
         plugin.run(source, None).await.expect("run"),
         StepOutcome::Complete { checkpoint: None }
+    );
+}
+
+#[tokio::test]
+async fn a_sidecar_in_a_subfolder_checks_the_files_beside_it() {
+    // An archive unpacked into a folder of its own brings its sidecar along (RD-170-16). The
+    // host lists `Film/film.mkv`; the sidecar says `film.mkv`, relative to its own folder.
+    for (source, name, sidecar) in [
+        (SHA256, "rd-plugin-sha256-postprocess", "Film/film.sha256"),
+        (MD5, "rd-plugin-md5-postprocess", "Film/film.md5"),
+    ] {
+        let bytes = component(name);
+        let plugin = PostprocessPlugin::new(manifest(source), &bytes, None).expect("compile");
+        let digest = if source == MD5 {
+            md5_hex(PAYLOAD)
+        } else {
+            sha256_hex(PAYLOAD)
+        };
+        let text = format!("{digest}  film.mkv\n");
+        let (_directory, state) =
+            package(&[("Film/film.mkv", PAYLOAD), (sidecar, text.as_bytes())]);
+        assert_eq!(
+            plugin.run(state, None).await.expect("run"),
+            StepOutcome::Complete { checkpoint: None },
+            "{name}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_wrong_checksum_in_a_subfolder_fails_like_one_at_the_top() {
+    let bytes = component("rd-plugin-sha256-postprocess");
+    let plugin = PostprocessPlugin::new(manifest(SHA256), &bytes, None).expect("compile");
+    let sidecar = format!("{PAYLOAD_SHA256}  film.mkv\n");
+    let (_directory, source) = package(&[
+        ("Film/film.mkv", PAYLOAD),
+        ("Film/film.sha256", sidecar.as_bytes()),
+    ]);
+    match plugin.run(source, None).await.expect("run") {
+        StepOutcome::Failed { message } => {
+            assert!(message.contains("Film/film.mkv"), "{message}");
+        }
+        other => panic!("expected a failure, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_listed_file_the_package_lacks_is_a_warning_when_others_matched() {
+    // A release split across two packages: the part that is here verifies, the missing one is
+    // named in the service log (the step contract has no "passed with warnings").
+    let bytes = component("rd-plugin-sha256-postprocess");
+    let plugin = PostprocessPlugin::new(manifest(SHA256), &bytes, None).expect("compile");
+    let digest = sha256_hex(PAYLOAD);
+    let sidecar = format!("{digest}  release.bin\n{digest}  other.bin\n");
+    let (_directory, source) = package(&[
+        ("release.bin", PAYLOAD),
+        ("release.sha256", sidecar.as_bytes()),
+    ]);
+    assert_eq!(
+        plugin.run(source, None).await.expect("run"),
+        StepOutcome::Complete { checkpoint: None }
+    );
+}
+
+#[tokio::test]
+async fn a_sidecar_none_of_whose_files_is_there_fails_rather_than_passing() {
+    // Before RD-190-06 a sidecar whose files all went unfound reported nothing wrong. With not
+    // one file checked, "fine" is not an answer.
+    let bytes = component("rd-plugin-sha256-postprocess");
+    let plugin = PostprocessPlugin::new(manifest(SHA256), &bytes, None).expect("compile");
+    let sidecar = format!("{}  other.bin\n", sha256_hex(PAYLOAD));
+    let (_directory, source) = package(&[
+        ("release.bin", PAYLOAD),
+        ("release.sha256", sidecar.as_bytes()),
+    ]);
+    match plugin.run(source, None).await.expect("run") {
+        StepOutcome::Failed { message } => {
+            assert!(message.contains("other.bin"), "{message}");
+        }
+        other => panic!("expected a failure, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn volumes_the_unpack_already_removed_are_skipped_not_failed() {
+    // At `+Delete` the archive volumes are gone once the unpack succeeded, and this step runs
+    // only after that. A sidecar over the volumes has nothing left to check.
+    let bytes = component("rd-plugin-md5-postprocess");
+    let plugin = PostprocessPlugin::new(manifest(MD5), &bytes, None).expect("compile");
+    let sidecar = format!(
+        "{0}  release.part1.rar\n{0}  release.part2.rar\n",
+        md5_hex(PAYLOAD)
+    );
+    let (_directory, source) = package(&[
+        ("release/film.mkv", PAYLOAD),
+        ("release.md5", sidecar.as_bytes()),
+    ]);
+    assert_eq!(
+        plugin.run(source, None).await.expect("run"),
+        StepOutcome::Skipped
     );
 }
 

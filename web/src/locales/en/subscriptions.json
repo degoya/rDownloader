@@ -88,8 +88,7 @@
   "list": {
     "title": "Subscriptions",
     "empty": "No subscriptions yet.",
-    "last_run": "Last checked {at}",
-    "copy_suffix": "copy"
+    "last_run": "Last checked {at}"
   },
   "items": {
     "title": "Items",

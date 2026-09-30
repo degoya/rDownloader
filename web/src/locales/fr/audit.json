@@ -63,7 +63,15 @@
     "backup_key_changed": "Phrase secrète de la sauvegarde définie",
     "backup_created": "Sauvegarde complète écrite",
     "backup_verified": "Archive de sauvegarde complète vérifiée",
-    "notifications_discarded": "Notifications en attente abandonnées"
+    "notifications_discarded": "Notifications en attente abandonnées",
+    "service_stop_requested": "Arrêt du service demandé",
+    "update_prepared": "Sauvegarde avant mise à jour écrite",
+    "update_install_started": "Installation de la mise à jour lancée",
+    "storage_history_cleared": "Historique du stockage vidé",
+    "content_index_cleared": "Index de contenu vidé",
+    "setup_completed": "Configuration initiale terminée",
+    "mfa_enrolled": "Second facteur ajouté",
+    "mfa_removed": "Second facteur supprimé"
   },
   "list": {
     "title": "Entrées",

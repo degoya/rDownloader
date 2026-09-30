@@ -16,6 +16,9 @@
 # The site's feature text is not touched: where the release's CHANGELOG section changes what the
 # site describes, that is written by hand, like the wiki.
 #
+# A pre-release (`X.Y.Z-beta.N`) is refused: the site offers the stable release, and a beta
+# reaches it only as the stable release it leads to (owner, 2026-09-30).
+#
 # Nothing leaves this machine without --push, and even then only the commit. The script never
 # deploys: scripts/deploy.py in the site repository publishes .output/public/ on the owner's word,
 # and the last line names that directory.
@@ -32,6 +35,10 @@
 #
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
+
 SITE="${RD_WEBSITE_DIR:-$HOME/projects/rdownloader-website}"
 SITE_BRANCH="${RD_WEBSITE_BRANCH:-main}"
 WIKI_DIR="${RD_PUBLIC_WIKI_DIR:-$HOME/projects/rDownloader-public.wiki}"
@@ -42,15 +49,19 @@ DO_PUSH=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --push) DO_PUSH=1; shift ;;
-        -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,34p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
             VERSION="$1"; shift ;;
     esac
 done
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if ! rd_release_version "$VERSION"; then
     echo "usage: scripts/update-website.sh <version> [--push]" >&2
+    exit 2
+fi
+if rd_is_prerelease "$VERSION"; then
+    echo "$VERSION is a pre-release: the website stays on the last stable release until the next one" >&2
     exit 2
 fi
 
@@ -78,7 +89,6 @@ restore() { git -C "$SITE" checkout --quiet -- "$DATA"; }
 trap 'status=$?; [[ $status -eq 0 ]] || restore; exit $status' EXIT
 
 echo "==> setting $DATA to $VERSION"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python3 - "$SITE/$DATA" "$VERSION" "$(date +%F)" "$ROOT/plugins" <<'PY'
 import json
 import os

@@ -2,6 +2,8 @@
 //! scripts for finished downloads (SABnzbd-style levels per package/category).
 
 mod cleanup_job;
+#[cfg(all(test, feature = "failpoints"))]
+mod crash_tests;
 #[cfg(test)]
 mod nested_upload_tests;
 mod object_upload;
@@ -27,7 +29,12 @@ mod unpack_job;
 #[cfg(test)]
 mod unpack_subfolder_tests;
 
-use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use rd_core::{DownloadState, EventKind, PackageId, PostprocessHold, PostprocessState};
@@ -89,12 +96,46 @@ struct Job {
     trigger: ExtractionTrigger,
 }
 
+/// Packages queued for or running in the pipeline, with how many jobs each has.
+///
+/// A set was not enough: a manual trigger queues a second job while the first still waits, and
+/// the first one finishing took the package off the set while the second was still to come, so
+/// `pending` said nothing was left and an automatic trigger could queue a third.
+#[derive(Default)]
+struct InFlight(HashMap<PackageId, usize>);
+
+impl InFlight {
+    /// Counts one more job for `package_id`; `false` when an automatic trigger finds one
+    /// already queued, which it then leaves alone.
+    fn claim(&mut self, package_id: PackageId, trigger: ExtractionTrigger) -> bool {
+        if trigger == ExtractionTrigger::Auto && self.0.contains_key(&package_id) {
+            return false;
+        }
+        *self.0.entry(package_id).or_default() += 1;
+        true
+    }
+
+    /// One job for `package_id` ended, or was never queued.
+    fn release(&mut self, package_id: PackageId) {
+        if let Some(count) = self.0.get_mut(&package_id) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                self.0.remove(&package_id);
+            }
+        }
+    }
+
+    fn packages(&self) -> HashSet<PackageId> {
+        self.0.keys().copied().collect()
+    }
+}
+
 struct Inner {
     database: Database,
     config: ExtractionConfig,
     hold: PostprocessHold,
     jobs: mpsc::Sender<Job>,
-    in_flight: Mutex<HashSet<PackageId>>,
+    in_flight: Mutex<InFlight>,
     shutdown: CancellationToken,
     /// The installed post-processing plugins, or `None` when none are loaded. Injected so
     /// this crate keeps its pipeline testable without a WebAssembly runtime.
@@ -184,7 +225,7 @@ impl ExtractionService {
                 hold: config.hold.clone(),
                 config,
                 jobs: sender,
-                in_flight: Mutex::new(HashSet::new()),
+                in_flight: Mutex::new(InFlight::default()),
                 shutdown: CancellationToken::new(),
                 plugin_steps,
                 storage,
@@ -198,26 +239,26 @@ impl ExtractionService {
 
     /// Queues one package; duplicates while a job is pending are ignored.
     pub async fn request(&self, package_id: PackageId, trigger: ExtractionTrigger) -> Result<()> {
-        {
-            let mut in_flight = self.inner.in_flight.lock().await;
-            if trigger == ExtractionTrigger::Auto && in_flight.contains(&package_id) {
-                return Ok(());
-            }
-            in_flight.insert(package_id);
+        if !self.inner.in_flight.lock().await.claim(package_id, trigger) {
+            return Ok(());
         }
-        self.inner
+        let sent = self
+            .inner
             .jobs
             .send(Job {
                 package_id,
                 trigger,
             })
-            .await
-            .context("post-processing service is not running")
+            .await;
+        if sent.is_err() {
+            self.inner.in_flight.lock().await.release(package_id);
+        }
+        sent.context("post-processing service is not running")
     }
 
     /// Packages waiting for or running in the pipeline.
     pub async fn pending(&self) -> HashSet<PackageId> {
-        self.inner.in_flight.lock().await.clone()
+        self.inner.in_flight.lock().await.packages()
     }
 
     /// Effective scripts directory (settings override or default), created on demand.
@@ -361,7 +402,7 @@ impl ExtractionService {
                 span,
             )
             .await;
-            self.inner.in_flight.lock().await.remove(&job.package_id);
+            self.inner.in_flight.lock().await.release(job.package_id);
             if let Err(error) = result {
                 tracing::warn!(package_id = %job.package_id, %error, "package post-processing failed");
                 let _ = self

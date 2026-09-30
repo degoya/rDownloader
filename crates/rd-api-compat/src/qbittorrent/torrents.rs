@@ -379,9 +379,18 @@ pub(crate) async fn delete(
 fn failed(reason: &str) -> Response {
     (
         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        reason.to_owned(),
+        failure_body(reason),
     )
         .into_response()
+}
+
+/// The body [`failed`] answers with: the reason, redacted.
+///
+/// An error message can quote a signed link or a header it was built from, and this body goes
+/// to an automation client and into its log, which is not a place a credential belongs
+/// (security audit 2026-09-30).
+fn failure_body(reason: &str) -> String {
+    rd_core::redact_text(reason)
 }
 
 fn not_found() -> Response {
@@ -632,4 +641,17 @@ pub(crate) async fn set_share_limits(
         }
     }
     ok()
+}
+
+#[cfg(test)]
+mod tests {
+    /// A refusal quoting a signed link reaches the client without the signature.
+    #[test]
+    fn a_failure_body_carries_no_credential() {
+        let body = super::failure_body(
+            "could not reach https://tracker.example/announce?token=s3cr3t-value&x=1",
+        );
+        assert!(!body.contains("s3cr3t-value"), "{body}");
+        assert!(body.contains("tracker.example"), "{body}");
+    }
 }

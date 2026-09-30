@@ -7,6 +7,7 @@ import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCopy } from '@/composables/useCopy'
 import { BASE_PATH } from '@/basePath'
 import { formatDay } from '@/utils/format'
 import FormActions from '@/components/FormActions.vue'
@@ -30,6 +31,7 @@ const props = defineProps<{
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
+const copy = useCopy()
 
 const pairLabel = ref(props.extension ? t('system.extension.default_label') : 'Windows 11')
 const bearer = ref<string | null>(null)
@@ -59,7 +61,7 @@ async function pair(): Promise<void> {
 
 async function copyCommand(): Promise<void> {
   if (!captureCommand.value) return
-  await navigator.clipboard.writeText(captureCommand.value)
+  if (!(await copy(captureCommand.value))) return
   toast.add({
     title: t('system.pairing.copied_title'),
     description: t('system.pairing.copied_description'),
@@ -70,7 +72,7 @@ async function copyCommand(): Promise<void> {
 
 async function copyToken(): Promise<void> {
   if (!bearer.value) return
-  await navigator.clipboard.writeText(bearer.value)
+  if (!(await copy(bearer.value))) return
   toast.add({
     title: t('system.pairing.copied_title'),
     description: t('system.pairing.token_copied_description'),

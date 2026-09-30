@@ -377,11 +377,17 @@ async fn finished_package_in(
     (package_id, package_directory)
 }
 
-/// Waits until package `id` is out of post-processing, and says what it reads when it never is.
+/// Waits until post-processing of package `id` has finished, and says what it reads when it
+/// never does.
+///
+/// Finished means `completed`, which only the end of the pipeline writes (RD-180-12). "Not
+/// `postprocessing`" was true before the pipeline had even started — the package reads
+/// `downloading` until then — so the wait could return at once and leave the next request to
+/// land inside the very window it was meant to wait out.
 async fn await_package_settled(router: &axum::Router, id: &str) {
     common::eventually_ok(
         common::WAIT,
-        "the package never left post-processing",
+        "the package never finished post-processing",
         || async move {
             let (_, packages) = common::get_json(router, "/api/v1/packages").await;
             let state = packages
@@ -389,10 +395,10 @@ async fn await_package_settled(router: &axum::Router, id: &str) {
                 .and_then(|list| list.iter().find(|row| row["id"] == id))
                 .map(|row| row["state"].clone())
                 .unwrap_or_default();
-            if state.as_str() == Some("postprocessing") {
-                Err(state)
-            } else {
+            if state.as_str() == Some("completed") {
                 Ok(())
+            } else {
+                Err(state)
             }
         },
     )

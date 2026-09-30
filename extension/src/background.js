@@ -4,6 +4,7 @@ import { MESSAGE_TYPES as CAPTCHA_MESSAGES, POLL_ALARM, createCaptchaAnswerer } 
 import { createInterceptor } from './downloads.js'
 import { FILTERED_TYPES, createFileHandover } from './files.js'
 import { MESSAGE_TYPES as HANDOVER_MESSAGES, createHandover } from './handover.js'
+import { fromOwnPage } from './sender.js'
 import { createSessionSharer } from './session.js'
 
 const MENU_LINK = 'rdownloader-link'
@@ -224,6 +225,9 @@ if (typeof api.webRequest?.filterResponseData === 'function') {
 
 api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.type === 'rdownloader:send') {
+    // Only the popup sends links; a content script or another extension must not be able to
+    // push links into the service under this extension's token.
+    if (!fromOwnPage(api.runtime, sender)) return false
     send({ text: request.text, packageName: request.packageName, sourceLabel: request.sourceLabel ?? 'Browser' })
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, message: String(error) }))

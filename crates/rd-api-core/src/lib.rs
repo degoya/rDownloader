@@ -8,6 +8,7 @@
 
 pub mod audit;
 pub mod auth;
+pub mod auth_flow_guard;
 pub mod auth_flow_service;
 pub mod automation_actions;
 pub mod automation_context;
@@ -32,6 +33,7 @@ pub mod hotfolder_service;
 pub mod link_check_cache;
 pub mod link_check_probe;
 pub mod link_check_service;
+pub mod local_control;
 pub mod notify_service;
 pub mod postprocess_handlers;
 pub mod power_service;
@@ -44,10 +46,12 @@ pub mod scope_policy;
 pub mod settings_store;
 pub mod storage_capacity;
 pub mod stream_monitor;
+pub mod stream_standing;
 pub mod subscription_hosts;
 pub mod subscription_service;
 pub mod torrent_intake;
 pub mod trace_context;
+pub mod update_service;
 
 use rd_db::Database;
 use rd_scheduler::SchedulerHandle;
@@ -86,6 +90,9 @@ pub struct AppState {
     pub tools: rd_tools::ManagedToolService,
     /// Signed plugin repositories (RD-140-01): their verified indexes, offers and updates.
     pub plugin_repositories: rd_plugin_host::repository::PluginRepositoryService,
+    /// The application update check (RD-180-01): the signed manifests, the replay floors and
+    /// what this installation is offered.
+    pub updates: update_service::UpdateService,
     /// Background monitor that starts recordings when watched channels go live.
     pub stream_monitor: stream_monitor::StreamMonitorService,
     pub subscriptions: subscription_service::SubscriptionService,
@@ -168,6 +175,16 @@ pub struct AppState {
     pub build: std::sync::Arc<BuildInfo>,
     /// Lets `capture/file` fetch from this machine; see [`Self::with_local_capture_fetches`].
     pub local_capture_fetches: bool,
+    /// The token a launcher or the updater on this machine stops the service with and asks
+    /// for the backup before an update (RD-180-02, RD-180-03); accepts nothing until the binary
+    /// issues one.
+    pub local_control: local_control::LocalControl,
+    /// Cancelled to stop the service gracefully: the listener stops, then the queue checkpoints
+    /// and the binary exits. The binary hands in the token its signal handler cancels too.
+    pub shutdown: tokio_util::sync::CancellationToken,
+    /// How often an open event stream checks that its credential still stands
+    /// (`stream_standing`); see [`Self::with_stream_recheck`].
+    pub stream_recheck: std::time::Duration,
 }
 
 /// The milestone 0.6 transfer services, grouped so they travel as one argument.
@@ -337,6 +354,7 @@ impl AppState {
                 .join("plugin-repositories"),
             plugins.clone(),
         );
+        let updates = update_service::UpdateService::new(database.clone());
         let power_supervisor = power_service::PowerSupervisor::start(
             database.clone(),
             scheduler.clone(),
@@ -363,6 +381,7 @@ impl AppState {
             stream_monitor,
             tools,
             plugin_repositories,
+            updates,
             subscriptions,
             torrent,
             torrent_settings,
@@ -387,6 +406,9 @@ impl AppState {
             storage_destinations: std::sync::Arc::new(rd_plugin_ext::StorageDestinations::none()),
             build: std::sync::Arc::default(),
             local_capture_fetches: false,
+            local_control: local_control::LocalControl::default(),
+            shutdown: tokio_util::sync::CancellationToken::new(),
+            stream_recheck: stream_standing::STREAM_RECHECK,
         }
     }
 
@@ -474,6 +496,20 @@ impl AppState {
         self
     }
 
+    /// Records the local control token this start issued (RD-180-02).
+    #[must_use]
+    pub fn with_local_control(mut self, control: local_control::LocalControl) -> Self {
+        self.local_control = control;
+        self
+    }
+
+    /// Records the token that stops the service, the one the binary's signal handler cancels.
+    #[must_use]
+    pub fn with_shutdown(mut self, shutdown: tokio_util::sync::CancellationToken) -> Self {
+        self.shutdown = shutdown;
+        self
+    }
+
     /// Records the URL schemes the installed transfer backends claim.
     ///
     /// Separate from the constructor because it is discovered rather than configured: the
@@ -493,6 +529,17 @@ impl AppState {
     #[must_use]
     pub fn with_local_capture_fetches(mut self) -> Self {
         self.local_capture_fetches = true;
+        self
+    }
+
+    /// Checks open event streams' credentials this often instead of every thirty seconds.
+    ///
+    /// For tests, which cannot wait half a minute to see a stream end: the service never calls
+    /// it, and no setting reaches it.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn with_stream_recheck(mut self, every: std::time::Duration) -> Self {
+        self.stream_recheck = every;
         self
     }
 }

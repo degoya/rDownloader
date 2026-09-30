@@ -9,6 +9,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsFullBackupCard from '@/components/settings/SettingsFullBackupCard.vue'
 import SettingsFullRestoreCard from '@/components/settings/SettingsFullRestoreCard.vue'
+import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -54,15 +55,7 @@ async function downloadBackup(): Promise<void> {
     exportError.value = responseError(response)
     return
   }
-  const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `rdownloader-settings-${new Date().toISOString().slice(0, 10)}.json`
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  downloadJson(response.data, 'settings')
   exportPassphrase.value = ''
   exportConfirmation.value = ''
   toast.add({
@@ -73,9 +66,7 @@ async function downloadBackup(): Promise<void> {
 }
 
 function chooseFile(): void {
-  if (!fileInput.value) return
-  fileInput.value.value = ''
-  fileInput.value.click()
+  openFilePicker(fileInput.value)
 }
 
 async function selectFile(event: Event): Promise<void> {
@@ -83,8 +74,7 @@ async function selectFile(event: Event): Promise<void> {
   importBundle.value = null
   selectedFileName.value = null
   importPassphrase.value = ''
-  const target = event.target
-  const file = target instanceof HTMLInputElement ? target.files?.item(0) : null
+  const file = chosenFile(event)
   if (!file) return
   try {
     const parsed: unknown = JSON.parse(await file.text())

@@ -17,10 +17,13 @@ pub struct SystemChecksInput {
     pub trusted_proxies: Vec<String>,
     pub external_url: Option<String>,
     pub cookie_security: rd_authn::CookieSecurity,
+    /// The data directory whose permissions are checked; `None` checks nothing.
+    pub data_directory: Option<std::path::PathBuf>,
 }
 
 const HELPERS: &str = "download helpers";
 const PROXY: &str = "Reverse proxy";
+const DATA: &str = "Data directory";
 
 /// The helper binaries looked up by name, in the order `doctor` always printed them.
 const TOOLS: [&str; 8] = [
@@ -77,6 +80,9 @@ pub async fn system_checks(input: &SystemChecksInput) -> Vec<Check> {
         ));
     }
     checks.extend(proxy_checks(input));
+    if let Some(directory) = &input.data_directory {
+        checks.push(data_directory_check(directory.clone()).await);
+    }
     checks
 }
 
@@ -99,6 +105,43 @@ async fn tool_check(tool: &str, found: &rd_core::ResolvedTool) -> Check {
         check = check.note(format!("upgrade: {upgrade}"));
     }
     check
+}
+
+/// Whether the data directory is the service account's alone (security review 2026-09-30,
+/// finding 2): it holds the database, the secrets and the local control token, and whoever may
+/// write it plants the journal an update's next start acts on. The path is not printed, so the
+/// line can travel in a diagnostic bundle.
+async fn data_directory_check(directory: std::path::PathBuf) -> Check {
+    let directory = if directory.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
+    } else {
+        directory
+    };
+    let verdict =
+        tokio::task::spawn_blocking(move || rd_files::private_dir_exposure(&directory)).await;
+    match verdict {
+        Ok(Ok(None)) => Check::new(
+            DATA,
+            "permissions",
+            CheckStatus::Ok,
+            "only the service account has access",
+        ),
+        Ok(Ok(Some(why))) => Check::new(DATA, "permissions", CheckStatus::Warning, why)
+            .note("Other accounts on this machine can read the database and the local")
+            .note("control token, stop the service and plant files an update acts on."),
+        Ok(Err(error)) => Check::new(
+            DATA,
+            "permissions",
+            CheckStatus::Info,
+            format!("could not be read: {error}"),
+        ),
+        Err(error) => Check::new(
+            DATA,
+            "permissions",
+            CheckStatus::Info,
+            format!("could not be read: {error}"),
+        ),
+    }
 }
 
 /// The reverse-proxy contract and anything half-configured about it.

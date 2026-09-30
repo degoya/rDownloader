@@ -264,12 +264,33 @@ test('each menu entry sends what it is about', async () => {
   state.respond = async () => ({ ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) })
 })
 
+/** The popup as a popup: our own extension, no tab. */
+const POPUP = { id: 'self' }
+
+test('a send is answered only for our own pages', async () => {
+  const sendMessage = handlerFor('runtime.onMessage')
+  calls.length = 0
+
+  // A content script carries a tab and the page's own address; another extension its own id.
+  const contentScript = { id: 'self', tab: { id: 4 }, url: 'https://hoster.test/page' }
+  assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, contentScript, () => {}), false)
+  assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, { id: 'other' }, () => {}), false)
+  await settle()
+  assert.ok(!calls.some(([name]) => name === 'fetch'), 'nothing is posted for a foreign sender')
+
+  // The popup opened as a tab is still our own page.
+  const popupTab = { id: 'self', tab: { id: 5 }, url: 'chrome-extension://self/src/popup.html' }
+  assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, popupTab, () => {}), true)
+  await settle()
+  assert.ok(calls.some(([name]) => name === 'fetch'))
+})
+
 test('a send reports the count, the token and a plain failure apart', async () => {
   const sendMessage = handlerFor('runtime.onMessage')
 
   calls.length = 0
   let answer = null
-  assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, (value) => { answer = value }), true)
+  assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value }), true)
   await settle()
   assert.deepEqual(answer, { ok: true })
   assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sentLinks:2'))
@@ -277,21 +298,21 @@ test('a send reports the count, the token and a plain failure apart', async () =
 
   calls.length = 0
   state.respond = async () => ({ ok: false, status: 401, json: async () => ({ error: 'no', code: 'capture.token_required' }) })
-  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, () => {})
+  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sendFailed:errorUnauthorized'))
   assert.deepEqual(calls.filter(([name]) => name === 'badge'), [['badge', '!']])
 
   calls.length = 0
   state.respond = async () => ({ ok: false, status: 500, json: async () => ({ error: 'server exploded' }) })
-  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, () => {})
+  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sendFailed:server exploded'))
 
   // Back to success: the badge gives the "!" up again rather than keeping it for good.
   calls.length = 0
   state.respond = async () => ({ ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) })
-  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, () => {})
+  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.deepEqual(calls.filter(([name]) => name === 'badge'), [['badge', '']])
 })
@@ -299,7 +320,7 @@ test('a send reports the count, the token and a plain failure apart', async () =
 test('an unpaired extension opens its options instead of sending', async () => {
   calls.length = 0
   state.config = { ...state.config, token: '' }
-  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, () => {})
+  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.ok(!calls.some(([name]) => name === 'fetch'), 'nothing is posted without a token')
   assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'notConfigured'))
@@ -310,7 +331,7 @@ test('an unpaired extension opens its options instead of sending', async () => {
 test('a browser without notifications still does the work', async () => {
   calls.length = 0
   state.notificationsWork = false
-  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, {}, () => {})
+  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.ok(calls.some(([name]) => name === 'fetch'), 'the links still go out')
   state.notificationsWork = true

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { resetEventStream, subscribeEvents } from '@/composables/useEventStream'
+import {
+  resetEventStream,
+  resumeEventStream,
+  subscribeEvents,
+  suspendEventStream
+} from '@/composables/useEventStream'
 
 /**
  * Fake `EventSource` recording every instance, so a test can assert how many connections the
@@ -30,6 +35,11 @@ class FakeEventSource {
   close(): void {
     this.closed = true
     this.readyState = FakeEventSource.CLOSED
+  }
+
+  open(): void {
+    this.readyState = FakeEventSource.OPEN
+    this.onopen?.()
   }
 
   /** An error the browser gave up on, as opposed to one it is retrying by itself. */
@@ -161,5 +171,72 @@ describe('useEventStream', () => {
 
     expect(queue).toHaveBeenCalledTimes(1)
     expect(grabber).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes every subscriber once a stream it had to reopen is up', () => {
+    // A new `EventSource` carries no `Last-Event-ID`, so nothing tells the stores what they missed.
+    const queue = vi.fn()
+    subscribeEvents({ 'download.state': queue, 'download.progress': queue })
+
+    FakeEventSource.instances[0]?.open()
+    expect(queue).not.toHaveBeenCalled()
+
+    FakeEventSource.instances[0]?.fail()
+    vi.advanceTimersByTime(1_000)
+    FakeEventSource.instances[1]?.open()
+
+    expect(queue).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops asking while there is no session', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+
+    // The session ended: the service refuses the stream with a 401 and the browser gives up.
+    FakeEventSource.instances[0]?.fail()
+    suspendEventStream()
+    vi.advanceTimersByTime(120_000)
+    subscribeEvents({ 'b.changed': () => {} })
+
+    expect(FakeEventSource.instances).toHaveLength(1)
+  })
+
+  it('opens at once after the next sign-in, whatever the backoff had reached', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+    for (let failure = 0; failure < 5; failure += 1) {
+      FakeEventSource.instances.at(-1)?.fail()
+      vi.advanceTimersByTime(30_000)
+    }
+    const before = FakeEventSource.instances.length
+    suspendEventStream()
+
+    resumeEventStream()
+
+    expect(FakeEventSource.instances).toHaveLength(before + 1)
+    // The backoff starts over: the next failure is retried after one second, not thirty.
+    FakeEventSource.instances.at(-1)?.fail()
+    vi.advanceTimersByTime(1_000)
+    expect(FakeEventSource.instances).toHaveLength(before + 2)
+  })
+
+  it('reconnects as soon as the browser reports the network back', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+    for (let failure = 0; failure < 4; failure += 1) {
+      FakeEventSource.instances.at(-1)?.fail()
+      vi.advanceTimersByTime(30_000)
+    }
+    FakeEventSource.instances.at(-1)?.fail()
+    const before = FakeEventSource.instances.length
+
+    window.dispatchEvent(new Event('online'))
+
+    expect(FakeEventSource.instances).toHaveLength(before + 1)
+  })
+
+  it('leaves a stream the browser is still retrying alone when the network returns', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+
+    window.dispatchEvent(new Event('online'))
+
+    expect(FakeEventSource.instances).toHaveLength(1)
   })
 })

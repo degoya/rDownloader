@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { AreaBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
+import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
 
 /**
  * Export and import for one configuration area.
@@ -43,27 +44,16 @@ async function exportArea(): Promise<void> {
   exporting.value = false
   if (!response.data) return fail(responseError(response))
 
-  const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `rdownloader-${props.area}-${new Date().toISOString().slice(0, 10)}.json`
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  downloadJson(response.data, `${props.area}`)
   toast.add({ title: t('common.backup.export_success'), color: 'success', icon: 'i-lucide-file-check-2' })
 }
 
 function chooseFile(): void {
-  if (!fileInput.value) return
-  fileInput.value.value = ''
-  fileInput.value.click()
+  openFilePicker(fileInput.value)
 }
 
 async function selectFile(event: Event): Promise<void> {
-  const target = event.target
-  const file = target instanceof HTMLInputElement ? target.files?.item(0) : null
+  const file = chosenFile(event)
   if (!file) return
   let bundle: AreaBundle
   try {

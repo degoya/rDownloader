@@ -21,6 +21,8 @@
 # Usage:
 #   scripts/release-start.sh 1.4.0            # start; prints where the log and the PID are
 #   scripts/release-start.sh 1.4.0 --push     # ... and hand --push to the pipeline
+#   scripts/release-start.sh 1.8.0-beta.1     # a pre-release: the pipeline skips what a beta
+#                                             # does not do (scripts/lib/release-tag.sh)
 #
 # Files, under /tmp/claude-<uid>/release-<version>/ (RD_RELEASE_RUN_DIR overrides it):
 #   chain.log   everything the chain prints; the pipeline's evidence log is its own, in artifacts/
@@ -30,6 +32,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
 
 chain=0
 version=""
@@ -38,13 +42,13 @@ for argument in "$@"; do
     case "$argument" in
         --chain) chain=1 ;;
         --push) push=(--push) ;;
-        -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $argument" >&2; exit 2 ;;
         *) version="$argument" ;;
     esac
 done
-if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "usage: scripts/release-start.sh <X.Y.Z> [--push]" >&2
+if ! rd_release_version "$version"; then
+    echo "usage: scripts/release-start.sh <X.Y.Z | X.Y.Z-beta.N> [--push]" >&2
     exit 2
 fi
 

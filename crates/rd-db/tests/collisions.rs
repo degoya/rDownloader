@@ -1,5 +1,6 @@
 //! Collision policies, `ask` prompts, the content index and the storage history survive a
-//! restart and stay consistent with the rows they belong to (RD-150-01, RD-150-02).
+//! restart and stay consistent with the rows they belong to (RD-150-01, RD-150-02); clearing
+//! the history keeps what is running and clearing the index keeps the downloads (RD-180-13).
 
 use rd_core::{
     CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, PackageId,
@@ -365,4 +366,123 @@ async fn a_running_operation_is_interrupted_by_a_restart_and_the_history_is_capp
         cap,
         "the oldest rows beyond the cap are gone"
     );
+}
+
+/// Clearing the history keeps what is still under way (RD-180-13): a running move records how
+/// it ended into its own row, and a restart settles that row as `interrupted`.
+#[tokio::test]
+async fn clearing_the_history_keeps_a_running_operation() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = open(&directory).await;
+    let operation = || NewStorageOperation {
+        kind: StorageOperationKind::Dedupe,
+        package_id: None,
+        download_id: None,
+        source_path: "/a/file.bin".to_owned(),
+        target_path: "/b/file.bin".to_owned(),
+        size_bytes: None,
+    };
+    for outcome in [
+        StorageOperationOutcome::completed(Some(3), Some("abc".to_owned())),
+        StorageOperationOutcome::failed("storage.move_failed", "gone".to_owned()),
+    ] {
+        let id = database
+            .start_storage_operation(operation())
+            .await
+            .expect("start");
+        database
+            .finish_storage_operation(id, outcome)
+            .await
+            .expect("finish");
+    }
+    let running = database
+        .start_storage_operation(operation())
+        .await
+        .expect("start");
+    assert_eq!(
+        database
+            .count_clearable_storage_operations()
+            .await
+            .expect("count"),
+        2,
+        "the count names what a clear removes, not the whole table"
+    );
+
+    assert_eq!(database.clear_storage_operations().await.expect("clear"), 2);
+
+    let history = database.list_storage_operations(10).await.expect("list");
+    assert_eq!(history.len(), 1, "{history:?}");
+    assert_eq!(history[0].id, running);
+    assert_eq!(history[0].state, StorageOperationState::Running);
+    // The kept row still takes its outcome.
+    database
+        .finish_storage_operation(
+            running,
+            StorageOperationOutcome::completed(None, Some("abc".to_owned())),
+        )
+        .await
+        .expect("finish");
+    let history = database.list_storage_operations(10).await.expect("list");
+    assert_eq!(history[0].state, StorageOperationState::Completed);
+    assert_eq!(database.clear_storage_operations().await.expect("clear"), 1);
+    assert_eq!(
+        database.clear_storage_operations().await.expect("clear"),
+        0,
+        "an empty history is already what was asked for"
+    );
+}
+
+/// Clearing the index drops every entry, missing ones included, and nothing else: the
+/// downloads stay, and a new entry can be written right after (RD-180-13).
+#[tokio::test]
+async fn clearing_the_content_index_removes_every_entry_and_no_download() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = open(&directory).await;
+    let (_, first) = download(&database, &directory).await;
+    let (_, second) = download(&database, &directory).await;
+    for id in [first, second] {
+        database
+            .index_content(
+                id,
+                "sha256".to_owned(),
+                "abcdef".to_owned(),
+                3,
+                format!("/data/{id}.bin"),
+            )
+            .await
+            .expect("index");
+    }
+    database
+        .mark_indexed_content(vec![(second, true)])
+        .await
+        .expect("mark");
+    assert_eq!(database.count_content_index().await.expect("count"), 2);
+
+    assert_eq!(database.clear_content_index().await.expect("clear"), 2);
+
+    assert_eq!(database.count_content_index().await.expect("count"), 0);
+    assert!(
+        database
+            .content_index_matches("sha256", "abcdef")
+            .await
+            .expect("matches")
+            .is_empty()
+    );
+    for id in [first, second] {
+        assert!(
+            database.get_download(id).await.expect("read").is_some(),
+            "the download went with its index entry"
+        );
+    }
+    database
+        .index_content(
+            first,
+            "sha256".to_owned(),
+            "abcdef".to_owned(),
+            3,
+            "/data/again.bin".to_owned(),
+        )
+        .await
+        .expect("index again");
+    assert_eq!(database.count_content_index().await.expect("count"), 1);
 }

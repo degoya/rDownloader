@@ -13,6 +13,10 @@
 //! * Recovery codes are issued with the first factor, not offered afterwards.
 //! * Turning the factor off requires the current password, which is the credential that was
 //!   being protected. Requiring a *code* to switch it off would make a lost phone permanent.
+//!
+//! And one rule from outside it (security audit 2026-09-30): only a signed-in administrator
+//! changes any of this, never a bearer token, and adding or removing a factor asks for the
+//! password again — see [`crate::step_up`].
 
 use axum::{
     Json,
@@ -45,6 +49,16 @@ pub struct TotpEnrolRequest {
     /// What to call this factor in the list.
     #[serde(default)]
     pub label: Option<String>,
+    /// The administrator password: adding a factor changes how the account signs in.
+    #[schema(write_only)]
+    pub password: String,
+}
+
+/// The password a change to how the account signs in asks for again.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct MfaStepUpRequest {
+    #[schema(write_only)]
+    pub password: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -94,8 +108,20 @@ pub(crate) async fn status_of(state: &AppState) -> Result<rd_core::MfaStatus, Ap
 )]
 pub async fn enrol_totp(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
     Json(request): Json<TotpEnrolRequest>,
 ) -> Result<(axum::http::StatusCode, Json<TotpEnrolment>), ApiError> {
+    crate::step_up::require_step_up(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        &request.password,
+        rd_core::AuditAction::MfaEnrolled,
+    )
+    .await?;
     let secret = rd_authn::totp::generate_secret();
     // Into the encrypted store, not the database: the seed is a credential, and the same rule
     // that keeps account passwords out of SQLite applies to it.
@@ -150,9 +176,14 @@ pub async fn enrol_totp(
 )]
 pub async fn confirm_totp(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
     Path(id): Path<rd_core::MfaCredentialId>,
     Json(request): Json<MfaCodeRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
+    // No password here: it was asked for when this enrolment started, and the credential it
+    // confirms exists only because that step passed.
+    crate::step_up::require_interactive(&state, &audit, this_machine)?;
     let Some(reference) = state.database.mfa_material(id).await? else {
         return Err(ApiError::not_found(
             "mfa.credential_not_found",
@@ -172,6 +203,16 @@ pub async fn confirm_totp(
         ));
     }
     state.database.confirm_mfa_credential(id).await?;
+    // Recorded here rather than at the enrolment: this is the moment the factor starts to
+    // gate the sign-in.
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::MfaEnrolled)
+            .by(&audit)
+            .target("mfa_credential", id)
+            .detail("kind", "totp"),
+    )
+    .await;
     Ok(Json(MessageResponse::new(
         "mfa.enabled",
         "Two-factor sign-in is on",
@@ -183,12 +224,37 @@ pub async fn confirm_totp(
     path = "/api/v1/mfa/credentials/{id}",
     tag = "security",
     params(("id" = String, Path,)),
-    responses((status = 200, body = MessageResponse))
+    request_body = MfaStepUpRequest,
+    responses(
+        (status = 200, body = MessageResponse),
+        (status = 401, description = "The password did not match", body = crate::error::ErrorBody),
+        (status = 403, description = "Not a signed-in session", body = crate::error::ErrorBody),
+    )
 )]
 pub async fn delete_credential(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
     Path(id): Path<rd_core::MfaCredentialId>,
+    Json(request): Json<MfaStepUpRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
+    crate::step_up::require_step_up(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        &request.password,
+        rd_core::AuditAction::MfaRemoved,
+    )
+    .await?;
+    // Read before the row goes, so the record can say what was removed.
+    let removed = state
+        .database
+        .list_mfa_credentials()
+        .await?
+        .into_iter()
+        .find(|credential| credential.id == id);
     let Some(reference) = state.database.delete_mfa_credential(id).await? else {
         return Err(ApiError::not_found(
             "mfa.credential_not_found",
@@ -200,6 +266,16 @@ pub async fn delete_credential(
     if let Err(error) = state.secrets.remove(&reference).await {
         tracing::warn!(error = %error, "could not remove the second factor's stored secret");
     }
+    let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::MfaRemoved)
+        .by(&audit)
+        .client(client.0)
+        .target("mfa_credential", id);
+    if let Some(removed) = removed {
+        event = event
+            .named(removed.label)
+            .detail("kind", kind_word(removed.kind));
+    }
+    crate::audit::record(&state, event).await;
     Ok(Json(MessageResponse::new(
         "mfa.credential_removed",
         "Second factor removed",
@@ -218,18 +294,23 @@ pub async fn delete_credential(
 )]
 pub async fn disable_mfa(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
     Json(request): Json<MfaDisableRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
     // The password, not a code. Requiring the second factor to switch the second factor off
     // would make a lost phone unrecoverable, which is the failure this whole module is shaped
     // around avoiding.
-    if !state
-        .auth
-        .password_matches(&state, &request.password)
-        .await?
-    {
-        return Err(crate::error_codes::invalid_credentials());
-    }
+    crate::step_up::require_step_up(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        &request.password,
+        rd_core::AuditAction::MfaRemoved,
+    )
+    .await?;
     // Scoped to the authenticator app. Somebody switching off the code prompt is not asking
     // to have their passkeys deleted, and silently taking a working way in is how a settings
     // toggle becomes a lockout.
@@ -238,6 +319,15 @@ pub async fn disable_mfa(
             tracing::warn!(error = %error, "could not remove a second factor's stored secret");
         }
     }
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::MfaRemoved)
+            .by(&audit)
+            .client(client.0)
+            .detail("kind", "totp")
+            .detail("scope", "all"),
+    )
+    .await;
     Ok(Json(MessageResponse::new(
         "mfa.disabled",
         "Two-factor sign-in is off",
@@ -252,13 +342,25 @@ pub async fn disable_mfa(
 )]
 pub async fn regenerate_recovery_codes(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
 ) -> Result<Json<Vec<String>>, ApiError> {
+    // A fresh sheet replaces the one in the drawer, so a token must not be able to swap it.
+    crate::step_up::require_interactive(&state, &audit, this_machine)?;
     let codes = rd_authn::recovery::generate_codes();
     state
         .database
         .replace_recovery_codes(codes.iter().map(|code| code.digest.clone()).collect())
         .await?;
     Ok(Json(codes.into_iter().map(|code| code.plaintext).collect()))
+}
+
+/// The word a credential's kind is recorded under.
+pub(crate) fn kind_word(kind: rd_core::MfaKind) -> &'static str {
+    match kind {
+        rd_core::MfaKind::Totp => "totp",
+        rd_core::MfaKind::Webauthn => "passkey",
+    }
 }
 
 /// What a submitted second-factor code turned out to be, before anything was spent.

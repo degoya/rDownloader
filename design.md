@@ -478,7 +478,11 @@ prevent columns from shifting during live updates.
   named for both, *Language and theme*, never for one of them. The footer takes the sidebar's
   width in both states — its separator and selects run where the navigation's separator runs —
   and on the rail the connection dot and the sign-out button stack, since side by side they need
-  56 of the 32 px between the paddings (RD-120-61). The open sidebar is a share of
+  56 of the 32 px between the paddings (RD-120-61). A newer version is announced in the same
+  footer, above language and theme, and nowhere else: nothing while there is none, one soft
+  button *Version X available* while there is (an icon with a tooltip on the rail), opening a
+  dialog with the notes and the download or the package manager's command to copy — never a
+  banner over the content, never a toast (RD-180-01). The open sidebar is a share of
   the window (15 %, dragged between 14 and 21 %) with a floor of 15rem, 240 px: at 15 % of
   1280 px it was 192 px and cut the application's name, "Téléchargements" and "Entfernte
   Aufträge". Its header carries the logo and the name and nothing under them; the tagline that

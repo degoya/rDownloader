@@ -117,10 +117,17 @@ pub async fn logout(
         event = event.target("session", id);
     }
     crate::audit::record(&state, event).await;
+    let expired = crate::AuthService::expired_cookie(state.proxy.read().await.base_path());
     let mut response = Json(MessageResponse::new("auth.logged_out", "Signed out")).into_response();
     response.headers_mut().insert(
         axum::http::header::SET_COOKIE,
-        axum::http::HeaderValue::from_static(crate::AuthService::EXPIRED_COOKIE),
+        // A base path that is no header value could not have carried the sign-in cookie
+        // either; the root is then the only place a cookie can be.
+        axum::http::HeaderValue::from_str(&expired).unwrap_or_else(|_| {
+            axum::http::HeaderValue::from_static(
+                "rd_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+            )
+        }),
     );
     Ok(response)
 }

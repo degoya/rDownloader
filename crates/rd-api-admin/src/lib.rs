@@ -2,7 +2,8 @@
 //! settings document and its backups, the scheduled full backup (RD-160-01) with its
 //! destinations, retention and verification (RD-160-02) and its restore (RD-160-03), plugins and
 //! their repositories, managed tools, notifications and automations, remote and object storage
-//! profiles, diagnostics, statistics and the head of the About page.
+//! profiles, diagnostics, statistics and the head of the About page; stopping the service and
+//! the backup before an update (RD-180-02, RD-180-03).
 
 pub mod about_page;
 pub mod automation_handlers;
@@ -16,6 +17,7 @@ pub mod data_reset_handlers;
 pub mod diagnostics_checks;
 pub mod diagnostics_dto;
 pub mod diagnostics_handlers;
+pub mod lifecycle_handlers;
 pub mod notify_handlers;
 pub mod object_storage_handlers;
 pub mod plugin_bundled;
@@ -25,6 +27,7 @@ mod plugin_live;
 pub mod plugin_repository_dto;
 pub mod plugin_repository_handlers;
 pub mod plugin_update_policy;
+pub mod pre_update_service;
 mod protected_roots;
 pub mod providers_handlers;
 pub mod remote_handlers;
@@ -43,11 +46,13 @@ pub mod settings_handlers;
 pub mod stats_handlers;
 pub mod stats_retention_service;
 pub mod tools_handlers;
+pub mod update_handlers;
+pub mod update_install_service;
 
 // The modules of the crates below, at this crate's root, so that a module here names them as
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).
 use rd_api_core::{
-    ApiError, AppState, BuildInfo, audit, auth, automation_input, automation_service,
+    ApiError, AppState, BuildInfo, audit, auth, automation_input, automation_service, client,
     config_fields, dto, error, error_codes, host_check, hosters, hotfolder_service, notify_service,
     postprocess_handlers, settings_store,
 };

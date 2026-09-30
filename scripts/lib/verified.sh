@@ -240,12 +240,23 @@ rd_version_bump_only() {
 }
 
 # Whether every line the -U0 diff on stdin removed carried workspace version $1 and every line
-# it added carries $2.
+# it added carries $2. A JSON line may carry the version without its pre-release suffix, as
+# extension/manifest.base.json does (a browser takes integers only; scripts/set-version.sh), so
+# 1.7.0 -> 1.8.0-beta.1 writes `"version": "1.8.0"` there. The TOML form stays exact: a
+# dependency in Cargo.lock that happens to sit at the base version must not pass.
 rd_version_lines_only() {
-    local old="${1//./\\.}" new="${2//./\\.}" lines
+    local old new old_base new_base lines
+    old="$(rd_version_pattern "$1")" new="$(rd_version_pattern "$2")"
+    old_base="$(rd_version_pattern "${1%%[-+]*}")" new_base="$(rd_version_pattern "${2%%[-+]*}")"
     lines="$(grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
-    ! grep -vE "^-[[:space:]]*(\"version\": \"$old\",?|version = \"$old\")\$" <<< "$lines" \
-        | grep -qvE "^\+[[:space:]]*(\"version\": \"$new\",?|version = \"$new\")\$"
+    ! grep -vE "^-[[:space:]]*(\"version\": \"($old|$old_base)\",?|version = \"$old\")\$" <<< "$lines" \
+        | grep -qvE "^\+[[:space:]]*(\"version\": \"($new|$new_base)\",?|version = \"$new\")\$"
+}
+
+# Version $1 as an extended regular expression matching exactly it.
+rd_version_pattern() {
+    local pattern="${1//./\\.}"
+    printf '%s\n' "${pattern//+/\\+}"
 }
 
 # The tree a `--full` Rust green was recorded for in checkout $1 when that tree is HEAD's own and

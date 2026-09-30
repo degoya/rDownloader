@@ -94,25 +94,36 @@ export const useTransfersStore = defineStore('transfers', () => {
     const ticket = ++refreshTicket
     refreshing = true
     pending.value = true
-    const [downloadResponse, packageResponse, rateResponse] = await Promise.all([
-      api.GET('/api/v1/downloads'),
-      api.GET('/api/v1/packages'),
-      api.GET('/api/v1/downloads/rates')
-    ])
-    if (ticket !== refreshTicket) return
-    refreshing = false
-    pending.value = false
-    settled.value = true
-    applyRates(rateResponse.data)
-    if (downloadResponse.data && packageResponse.data) {
-      announce(downloadResponse.data)
-      downloads.value = downloadResponse.data
-      packages.value = packageResponse.data
-      if (error.value === loadError) error.value = null
-      loadError = null
-    } else {
-      loadError = responseError(downloadResponse.data ? packageResponse : downloadResponse)
+    try {
+      const [downloadResponse, packageResponse, rateResponse] = await Promise.all([
+        api.GET('/api/v1/downloads'),
+        api.GET('/api/v1/packages'),
+        api.GET('/api/v1/downloads/rates')
+      ])
+      if (ticket !== refreshTicket) return
+      applyRates(rateResponse.data)
+      if (downloadResponse.data && packageResponse.data) {
+        announce(downloadResponse.data)
+        downloads.value = downloadResponse.data
+        packages.value = packageResponse.data
+        if (error.value === loadError) error.value = null
+        loadError = null
+      } else {
+        loadError = responseError(downloadResponse.data ? packageResponse : downloadResponse)
+        error.value = loadError
+      }
+    } catch {
+      if (ticket !== refreshTicket) return
+      loadError = responseError(undefined)
       error.value = loadError
+    } finally {
+      // Whatever happened, the in-flight flag comes down: a rejection that left it set parked
+      // every later event behind `scheduleRefresh`, and the queue froze until a reload.
+      if (ticket === refreshTicket) {
+        refreshing = false
+        pending.value = false
+        settled.value = true
+      }
     }
   }
 

@@ -159,6 +159,7 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
         trusted_proxies: settings.trusted_proxies.clone(),
         external_url: settings.external_url.clone(),
         cookie_security: settings.cookie_security,
+        data_directory: Some(crate::backup_service::data_directory(state)),
     })
     .await;
     let recent_errors = state

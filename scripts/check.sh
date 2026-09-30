@@ -393,7 +393,7 @@ fi
 failpoints=0
 if [[ "$full" -eq 1 ]] \
     || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host'; then
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host|rd-extract|rd-api-core|rd-torrent|rd-plugin-transfer|rd-api-admin|rd-update'; then
     failpoints=1
 fi
 
@@ -429,6 +429,11 @@ scripts/archive-jobs.sh --check
 # files only.
 step "the version: every copy agrees with Cargo.toml"
 scripts/set-version.sh --check
+
+# Every action a workflow uses is pinned to a commit (1.8): a moved tag runs other code with the
+# workflow's token. Reads files only.
+step "the workflows: every action pinned to a commit"
+scripts/check-actions-pinned.sh
 
 # ---------------------------------------------------------------------------------------------
 # Rust
@@ -607,10 +612,13 @@ if [[ "$run_rust" -eq 1 ]]; then
             # Every owning crate's own feature, not just rd-core's: each crash-test file is
             # gated on the feature of the crate that owns the point, and rd-core/failpoints does
             # not turn those on — a binary compiled to nothing reports success.
-            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints \
-                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host
+            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints,rd-extract/failpoints,rd-api-core/failpoints,rd-torrent/failpoints,rd-plugin-transfer/failpoints,rd-update/failpoints \
+                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
+            # The plugin update's two points sit in rd-api-admin and are driven through the
+            # admin suite, so only those cases of rd-api run here (RD-180-12).
+            run_tests --features rd-api/failpoints -p rd-api --test admin stopped_updates
         else
-            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, rd-extract, rd-api-core, rd-torrent, rd-plugin-transfer, rd-api-admin, rd-update, failpoint.rs or the recovery matrix changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then

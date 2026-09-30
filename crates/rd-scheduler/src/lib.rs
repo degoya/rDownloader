@@ -224,6 +224,11 @@ pub struct SchedulerHandle {
     runners: Arc<runner::RunnerRegistry>,
     /// Smoothed transfer rates, sampled by the supervise loop. In memory only.
     rates: Arc<rates::RateSampler>,
+    /// One package move at a time. The start carries on unfinished moves in the background
+    /// (`recover_storage_work`) while a category change or a completed file can start one for
+    /// the same package; two passes of the move protocol at once each found the other's files
+    /// already gone (seen as `NotFound` in the scheduler's relocation tests under load).
+    relocations: Arc<tokio::sync::Mutex<()>>,
     shutdown: CancellationToken,
 }
 
@@ -333,6 +338,7 @@ impl SchedulerHandle {
             free_slots: Arc::new(Mutex::new(HashMap::new())),
             runners: Arc::new(runner::RunnerRegistry::new(runners)),
             rates: Arc::new(rates::RateSampler::default()),
+            relocations: Arc::new(tokio::sync::Mutex::new(())),
             shutdown: CancellationToken::new(),
         };
         // Closes `scheduler.before_mirror_promoted`: a group whose active member failed while

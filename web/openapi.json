@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.7.0"
+    "version": "1.8.0-beta.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -614,7 +614,7 @@
           "api-tokens"
         ],
         "summary": "Replaces the areas of an existing token, keeping its bearer value.",
-        "description": "## Why this exists, given that it did not\n\nA token used to be born with its areas and keep them until it was revoked, and that was a\nreal promise: a leaked bearer could never become more dangerous than it was on the day it\nleaked. Re-scoping gives that up, and the trade is deliberate. The alternative in practice\nwas not \"narrow tokens forever\" — it was a person minting `api:*` up front because\nreconnecting every client to widen a token later is expensive, which is a worse outcome for\nexactly the same leak. What replaces the old guarantee is the record: issuing, re-scoping\nand revoking all write an event, so \"when did this token gain that area\" has an answer.\n\nTwo limits keep the reversal from being a bridge. The areas go through the same\n[`resolve_scopes`] the minting path uses, so `capture:*` stays unmintable *and*\nungrantable; and only a token the API token list already shows can be re-scoped at all, so\na browser-capture token cannot be turned into an API token by naming its id here.",
+        "description": "## Why this exists, given that it did not\n\nA token used to be born with its areas and keep them until it was revoked, and that was a\nreal promise: a leaked bearer could never become more dangerous than it was on the day it\nleaked. Re-scoping gives that up, and the trade is deliberate. The alternative in practice\nwas not \"narrow tokens forever\" — it was a person minting `api:*` up front because\nreconnecting every client to widen a token later is expensive, which is a worse outcome for\nexactly the same leak. What replaces the old guarantee is the record: issuing, re-scoping\nand revoking all write an event, so \"when did this token gain that area\" has an answer.\n\nThree limits keep the reversal from being a bridge. The areas go through the same\n[`resolve_scopes`] the minting path uses, so `capture:*` stays unmintable *and*\nungrantable; only a token the API token list already shows can be re-scoped at all, so\na browser-capture token cannot be turned into an API token by naming its id here; and the\nnew areas must lie within the caller's own ([`within_grant`]).",
         "operationId": "update_api_token_scopes",
         "parameters": [
           {
@@ -7759,6 +7759,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -7766,6 +7776,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -7818,8 +7848,18 @@
         "tags": [
           "security"
         ],
-        "summary": "Starts enrolling a passkey. Requires a signed-in session.",
+        "summary": "Starts enrolling a passkey. Requires a signed-in session and the password.",
         "operationId": "enrol_passkey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -7827,6 +7867,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PasskeyChallenge"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -12314,6 +12374,41 @@
         }
       }
     },
+    "/api/v1/storage/content-index/clear": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Empties the content index (RD-180-13): duplicate detection by content starts from nothing.",
+        "description": "Only the index rows go. No file on disk and no download is touched, but until a file is\nindexed again it is found neither as a content duplicate nor as the original of a dedupe\nlink. `POST /api/v1/storage/content-index/check` — which also runs at every start — puts\nback every finished download still in the queue whose SHA-256 is known and whose file is\nwhere its row says; a file whose download was removed, or that was never hashed, comes back\nonly when it is downloaded again.",
+        "operationId": "clear_content_index",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataClearResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "data_reset.not_confirmed"
+          }
+        }
+      }
+    },
     "/api/v1/storage/link-support": {
       "get": {
         "tags": [
@@ -12376,6 +12471,41 @@
           },
           "400": {
             "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/storage/operations/clear": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Empties the storage history: the verified moves and dedupe links recorded so far\n(RD-180-13).",
+        "description": "A row still `running` stays, for the reason the notification clear keeps a delivery still\nowed an attempt: its operation is under way, it will record how it ended into that row, and\na restart that finds it running settles it as `interrupted`. Carrying an interrupted move on\nnever reads the history (it follows the package's `previous_destination`), so what goes is\nonly the record, never the recovery.",
+        "operationId": "clear_storage_operations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataClearResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "data_reset.not_confirmed"
           }
         }
       }
@@ -13706,6 +13836,36 @@
         }
       }
     },
+    "/api/v1/system/shutdown": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "shutdown_service",
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceStopResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/tools": {
       "get": {
         "tags": [
@@ -13852,6 +14012,151 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ManagedToolsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/update": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "get_update_status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/update/check": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Checks now and answers with the status. A manifest that was refused or could not be reached\nis the status's `error_code`, not an error of this call: the check ran, and that is its\nresult. A build without the update signing key answers `409 update.not_configured`.",
+        "operationId": "check_for_updates",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This build carries no update signing key"
+          }
+        }
+      }
+    },
+    "/api/v1/system/update/install": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Installs the offered update and restarts (RD-180-02): answers at once with the step it begins\nin, and `GET /api/v1/system/update` follows it through the restart. `Admin` and audited, like\nstopping the service, which it does; no MCP tool, since it ends the session that would ask.",
+        "operationId": "install_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateInstallStatus"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nothing to install, not an installation that installs itself, downloads running, or the program folder is not fit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/update/prepare": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "prepare_update_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -14713,6 +15018,8 @@
           "stats_cleared",
           "notifications_cleared",
           "notifications_discarded",
+          "storage_history_cleared",
+          "content_index_cleared",
           "script_subscription_changed",
           "file_overwritten",
           "collision_decided",
@@ -14720,7 +15027,13 @@
           "backup_configured",
           "backup_key_changed",
           "backup_created",
-          "backup_verified"
+          "backup_verified",
+          "service_stop_requested",
+          "update_prepared",
+          "update_install_started",
+          "setup_completed",
+          "mfa_enrolled",
+          "mfa_removed"
         ]
       },
       "AuditActorKind": {
@@ -20322,13 +20635,21 @@
           "audit",
           "stats",
           "notifications",
-          "notifications_pending"
+          "notifications_pending",
+          "storage_operations",
+          "content_index"
         ],
         "properties": {
           "audit": {
             "type": "integer",
             "format": "int64",
             "description": "Records in the audit log.",
+            "minimum": 0
+          },
+          "content_index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Entries in the content index, missing ones included (RD-180-13).",
             "minimum": 0
           },
           "logs": {
@@ -20353,6 +20674,12 @@
             "type": "integer",
             "format": "int64",
             "description": "Rows in the transfer statistics: the buckets and the all-time totals together.",
+            "minimum": 0
+          },
+          "storage_operations": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rows in the storage history a clear would remove: every one not still running\n(RD-180-13).",
             "minimum": 0
           }
         }
@@ -24513,6 +24840,19 @@
           }
         }
       },
+      "MfaStepUpRequest": {
+        "type": "object",
+        "description": "The password a change to how the account signs in asks for again.",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "writeOnly": true
+          }
+        }
+      },
       "MirrorPreference": {
         "type": "object",
         "description": "What a person prefers when a mirror group offers a choice (RD-110-19).\n\nThree facets, each optional and each combined with the others by conjunction. It is a\n*preference*, not a rule: it decides which member of a group is the chosen one, it never\ndeletes a mirror and it never overrules a member somebody pinned by hand. Stored on the\nserver under its own settings key, so it applies to the next package that arrives and to\nevery package after a restart.\n\nThe three are compared case-insensitively against the values [`CandidateMirror`] carries,\nwhich is what the source named or what the release name spells; the hoster is the link's\nhost without a leading `www.`.",
@@ -27017,6 +27357,161 @@
           },
           "state": {
             "$ref": "#/components/schemas/PowerState"
+          }
+        }
+      },
+      "PreUpdateArchive": {
+        "type": "object",
+        "description": "The checked encrypted full backup.",
+        "required": [
+          "path",
+          "archive_name",
+          "size_bytes",
+          "sha256",
+          "key_fingerprint"
+        ],
+        "properties": {
+          "archive_name": {
+            "type": "string"
+          },
+          "key_fingerprint": {
+            "type": "string",
+            "description": "The fingerprint of the key it is sealed under; restoring it needs that passphrase."
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PreUpdateCopy": {
+        "type": "object",
+        "description": "The checked database copy.",
+        "required": [
+          "path",
+          "size_bytes",
+          "schema_version",
+          "packages",
+          "downloads",
+          "unfinished",
+          "storage_roots",
+          "categories",
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "categories": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "downloads": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "packages": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "path": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The highest migration the copy has applied: the schema the running version needs."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "storage_roots": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unfinished": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PreUpdateRequest": {
+        "type": "object",
+        "description": "What the updater asks for.",
+        "required": [
+          "target_version"
+        ],
+        "properties": {
+          "schema_change": {
+            "type": "boolean",
+            "description": "Whether that version changes the database schema, from the release manifest. When it\ndoes, the encrypted backup is required as well, if a passphrase is set up."
+          },
+          "target_version": {
+            "type": "string",
+            "description": "The version the updater is about to switch to; letters, digits, `.`, `_`, `+` and `-`."
+          }
+        }
+      },
+      "PreUpdateResponse": {
+        "type": "object",
+        "description": "What was written before the update, all of it checked.",
+        "required": [
+          "from_version",
+          "target_version",
+          "schema_change",
+          "directory",
+          "database_copy"
+        ],
+        "properties": {
+          "database_copy": {
+            "$ref": "#/components/schemas/PreUpdateCopy"
+          },
+          "directory": {
+            "type": "string",
+            "description": "`<data directory>/pre-update`."
+          },
+          "encrypted_backup": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PreUpdateArchive"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "encrypted_backup_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why there is no encrypted backup: `backup.key_missing`, or the stable code of the step\nthat failed when the release changes no schema and the update may go ahead without it."
+          },
+          "from_version": {
+            "type": "string",
+            "description": "The version running now, which the copy and the archive belong to."
+          },
+          "schema_change": {
+            "type": "boolean"
+          },
+          "target_version": {
+            "type": "string"
           }
         }
       },
@@ -29624,6 +30119,19 @@
           "finished"
         ]
       },
+      "ServiceStopResponse": {
+        "type": "object",
+        "description": "The answer to a stop request.",
+        "required": [
+          "stopping"
+        ],
+        "properties": {
+          "stopping": {
+            "type": "boolean",
+            "description": "Always `true`: the listener stops accepting now, the queue is checkpointed, then the\nprocess ends and removes its local control file."
+          }
+        }
+      },
       "Session": {
         "type": "object",
         "description": "One session in the inventory. Never carries the bearer, only what it is for.",
@@ -30752,6 +31260,23 @@
             "type": "boolean",
             "description": "Unpack every archive set into a folder of its own below the package folder, named after\nthe archive, instead of straight into the package folder. Off by default (RD-170-16).",
             "default": false
+          },
+          "update_channel": {
+            "type": "string",
+            "description": "Which releases the update check offers: `stable`, or `beta` for the pre-releases too.\nUnset, it is `beta` on a pre-release build and `stable` on every other.",
+            "default": "stable"
+          },
+          "update_check_enabled": {
+            "type": "boolean",
+            "description": "Whether the service checks for a new version by itself (RD-180-01). On by default: a\ncheck fetches a public, signed file and sends nothing about the installation. \"Check\nnow\" works either way.",
+            "default": true
+          },
+          "update_check_interval_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between two automatic update checks (1-168).",
+            "default": 24,
+            "minimum": 0
           },
           "upload_enabled": {
             "type": "boolean",
@@ -33898,6 +34423,9 @@
       },
       "TotpEnrolRequest": {
         "type": "object",
+        "required": [
+          "password"
+        ],
         "properties": {
           "label": {
             "type": [
@@ -33905,6 +34433,11 @@
               "null"
             ],
             "description": "What to call this factor in the list."
+          },
+          "password": {
+            "type": "string",
+            "description": "The administrator password: adding a factor changes how the account signs in.",
+            "writeOnly": true
           }
         }
       },
@@ -34587,6 +35120,54 @@
           }
         }
       },
+      "UpdateInstallRequest": {
+        "type": "object",
+        "description": "What `POST /api/v1/system/update/install` takes.",
+        "properties": {
+          "allow_active": {
+            "type": "boolean",
+            "description": "Install even while downloads run. The stop saves the queue and the downloads resume after\nthe restart; without this the request is refused with `update.transfers_active`."
+          }
+        }
+      },
+      "UpdateInstallStatus": {
+        "type": "object",
+        "description": "The self-update of RD-180-02, as the interface follows it through the restart.",
+        "required": [
+          "state",
+          "from_version",
+          "target_version",
+          "started_at",
+          "updated_at"
+        ],
+        "properties": {
+          "from_version": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stable code of why it failed or was rolled back, e.g. `update.health_timeout`."
+          },
+          "started_at": {
+            "type": "string",
+            "description": "RFC 3339."
+          },
+          "state": {
+            "type": "string",
+            "description": "`downloading`, `preparing` (the backup before the update), `restarting` (the updater\nstops the service), `installing`, `verifying` (the new version started and is asked for\nits version), `rolling_back`, `done`, `rolled_back` or `failed`."
+          },
+          "target_version": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "RFC 3339."
+          }
+        }
+      },
       "UpdateObjectStorageProfileRequest": {
         "type": "object",
         "description": "Editable profile fields. An empty secret or session token keeps the stored one while the\nprovider and the credential source stay what they were.",
@@ -34667,6 +35248,85 @@
               "null"
             ],
             "writeOnly": true
+          }
+        }
+      },
+      "UpdateOffer": {
+        "type": "object",
+        "description": "A newer version and how to get it.",
+        "required": [
+          "version",
+          "channel",
+          "released_at",
+          "notes",
+          "release_url",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`install` (this installation installs the artifact itself and restarts, RD-180-02),\n`download` (the artifact is replaced by hand) or `command` (a package manager or\ncontainer runtime does it)."
+          },
+          "channel": {
+            "type": "string",
+            "description": "`stable` or `beta`."
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The command to run, for `action` = `command`."
+          },
+          "download_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "download_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The artifact for this platform and installation kind, when the release has one."
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A stable code the interface translates beside the command, e.g. `update.hint.docker_recreate`."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Short plain-text release notes; render as text, never as markup."
+          },
+          "release_url": {
+            "type": "string",
+            "description": "The release page with the full notes."
+          },
+          "released_at": {
+            "type": "string",
+            "description": "RFC 3339."
+          },
+          "rollback_available": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "For `install`: whether a new version that does not prove healthy is taken back by\nitself — always for the portable archive; for the Windows installer only when the last\nupdate kept the running version's installer, since a Windows Installer upgrade has no way\nback without the previous package."
+          },
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -34754,6 +35414,99 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "UpdateStatusResponse": {
+        "type": "object",
+        "description": "The update check's state, as `GET /api/v1/system/update` answers it.",
+        "required": [
+          "current_version",
+          "configured",
+          "check_enabled",
+          "channel",
+          "effective_channel",
+          "interval_hours",
+          "install_kind",
+          "checking"
+        ],
+        "properties": {
+          "available": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UpdateOffer",
+                "description": "The newer version this installation is offered, if any."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "description": "The chosen channel, `stable` or `beta` (`update_channel`)."
+          },
+          "check_enabled": {
+            "type": "boolean",
+            "description": "Whether the service checks by itself (`update_check_enabled`)."
+          },
+          "checking": {
+            "type": "boolean",
+            "description": "Whether a check is running right now."
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "Whether this build carries the update signing key. Without it nothing is checked, and\nthe interface says so instead of reporting an error on every check."
+          },
+          "current_version": {
+            "type": "string",
+            "description": "The running version."
+          },
+          "effective_channel": {
+            "type": "string",
+            "description": "The channel actually read: `stable` for an installation whose package manager publishes\nno pre-releases, whatever was chosen."
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stable code of what the last check refused or could not reach, if anything."
+          },
+          "install": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UpdateInstallStatus",
+                "description": "Where an update this installation installs itself stands, or how the last one ended\n(RD-180-02); empty when there is none to tell about."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "install_kind": {
+            "type": "string",
+            "description": "How this installation was installed: `portable`, `msi`, `deb`, `rpm`, `homebrew`,\n`scoop`, `winget`, `aur`, `docker` or `unknown`."
+          },
+          "interval_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between two automatic checks.",
+            "minimum": 0
+          },
+          "last_checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the last check ran, RFC 3339."
+          },
+          "next_check_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the next automatic check is due, RFC 3339; empty when none is scheduled."
           }
         }
       },

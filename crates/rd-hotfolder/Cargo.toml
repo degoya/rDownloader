@@ -12,6 +12,7 @@ dunce.workspace = true
 hex.workspace = true
 notify.workspace = true
 rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
 sha2.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true

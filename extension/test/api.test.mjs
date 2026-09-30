@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { hostPattern, isLoopback, normalizeServer, ping, submitLinks } from '../src/api.js'
+import { hostPattern, isLoopback, normalizeServer, ping, sendsTokenInClear, submitLinks } from '../src/api.js'
 
 test('normalises server urls', () => {
   assert.equal(normalizeServer(''), 'http://127.0.0.1:8710')
@@ -23,6 +23,17 @@ test('isLoopback knows the IPv6 spellings a browser actually produces', () => {
   assert.equal(isLoopback('http://::1'), false)
   assert.equal(hostPattern('http://[::1]:8710'), 'http://[::1]:8710/*')
   assert.equal(hostPattern('::1'), null)
+})
+
+test('the token is flagged as travelling in clear only over plain http to another machine', () => {
+  // The options page warns for these: the capture token would cross the LAN readable.
+  assert.equal(sendsTokenInClear('http://nas.local:8710'), true)
+  assert.equal(sendsTokenInClear('192.168.1.20:8710'), true, 'an address without a scheme is http')
+  assert.equal(sendsTokenInClear('https://nas.local'), false)
+  assert.equal(sendsTokenInClear('http://127.0.0.1:8710'), false)
+  assert.equal(sendsTokenInClear('http://localhost:9000'), false)
+  assert.equal(sendsTokenInClear('http://[::1]:8710'), false)
+  assert.equal(sendsTokenInClear('http://::1'), false, 'not an address at all')
 })
 
 test('submits links with bearer token and reads the candidate count', async () => {

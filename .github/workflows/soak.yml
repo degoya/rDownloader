@@ -1,0 +1,114 @@
+name: Soak
+
+# Hours of queue, reconnect and resource load on the release binary, judged against fixed budgets
+# (RD-180-12). scripts/lib/soak.py runs `rdownloader serve` from a throwaway data directory
+# against a local fixture that cuts every transfer off every two minutes, samples memory, open
+# files, threads, database size and verified throughput, and fails naming each budget in
+# scripts/soak-budgets.toml the run exceeded. The samples, the verdicts and the service log are
+# kept as an artifact either way.
+#
+# Nightly on the default branch, which in the public repository is `main`; by hand on any branch:
+#   gh workflow run soak.yml --ref <branch> -f duration=30m
+#   gh workflow run soak.yml --ref <branch> -f platforms='["ubuntu-24.04","windows-2025"]'
+# Linux only by default: a Windows release build plus two hours cost several times the Linux run
+# (Actions minutes ran out on 2026-09-25), so Windows is run on purpose, not every night.
+on:
+  schedule:
+    - cron: "23 1 * * *"
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: How long the service runs (e.g. 30m, 2h; at most 3h)
+        required: false
+        default: 2h
+      platforms:
+        description: JSON list of runner images
+        required: false
+        default: '["ubuntu-24.04"]'
+
+permissions: {}
+
+# A second run on the same branch waits instead of cutting a soak short.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  soak:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04"]') }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    # The build, three hours at most and the shutdown; a hang is cut off rather than billed.
+    timeout-minutes: 240
+    env:
+      DURATION: ${{ inputs.duration || '2h' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rust-embed compiles web/dist into the binary.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # The binary the budgets are written for: release, as shipped.
+      - name: Build the release binary
+        run: cargo build --locked --release -p rdownloader
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      # /proc is read on Linux; elsewhere the process is sampled through psutil.
+      - name: Install psutil
+        if: runner.os != 'Linux'
+        run: python -m pip install psutil
+      - name: Soak
+        shell: bash
+        run: |
+          binary=target/release/rdownloader
+          [[ "$RUNNER_OS" == "Windows" ]] && binary=target/release/rdownloader.exe
+          set -o pipefail
+          python scripts/lib/soak.py run --binary "$binary" --duration "$DURATION" \
+              --out soak-out 2>&1 | tee soak-out.log
+      - name: Verdicts in the job summary
+        if: always()
+        shell: bash
+        env:
+          RUNNER_IMAGE: ${{ matrix.os }}
+        run: |
+          {
+            echo "### Soak on $RUNNER_IMAGE ($DURATION)"
+            echo '```'
+            grep -E '^    (ok|FAIL|skip|fixture|- )|^==>|^!!' soak-out.log || echo "no verdicts: the run did not get that far"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: soak-${{ matrix.os }}
+          # Not soak-out/data: the throwaway database and the partial downloads a broken run
+          # leaves behind are hundreds of megabytes the log and the samples already explain.
+          path: |
+            soak-out/samples.csv
+            soak-out/summary.json
+            soak-out/server.log
+            soak-out.log
+          if-no-files-found: warn
+          retention-days: 14

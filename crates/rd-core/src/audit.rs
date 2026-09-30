@@ -85,6 +85,11 @@ pub enum AuditAction {
     /// The notifications still queued or retrying were discarded, so they are never sent
     /// (RD-170-11).
     NotificationsDiscarded,
+    /// The storage history was emptied; operations still running stayed (RD-180-13).
+    StorageHistoryCleared,
+    /// The content index was emptied (RD-180-13): duplicate detection by content starts again
+    /// from what the next check finds. No file and no download was touched.
+    ContentIndexCleared,
     /// A script subscription was created or changed (RD-150-08): which script runs on this
     /// machine, when, and with which arguments. The `change`, `script`, `arguments` and
     /// `schedule` details say what it is now.
@@ -108,11 +113,29 @@ pub enum AuditAction {
     /// An archive was checked at its destination (RD-160-02), by hand or by the verification
     /// schedule; a failed check is recorded as a failure with its stable code.
     BackupVerified,
+    /// The service was asked to stop over its API (RD-180-02), by the launcher, the updater or
+    /// `rdownloader stop`.
+    ServiceStopRequested,
+    /// The backup before an update was written and checked, or refused the update (RD-180-03);
+    /// the details name both versions and, on a failure, the stable code of the step.
+    UpdatePrepared,
+    /// An administrator started the self-update (RD-180-02): the details name both versions,
+    /// the installation kind and how many downloads were running. How it ended is the update
+    /// status and the journal in the data directory, since the service that records this stops.
+    UpdateInstallStarted,
+    /// The first administrator password was set: the installation stopped being open to whoever
+    /// reached it first (audit 2026-09-30).
+    SetupCompleted,
+    /// A second factor or a passkey was added; the `kind` detail names which. Enrolling one is a
+    /// new way in, so it is recorded like a sign-in (audit 2026-09-30).
+    MfaEnrolled,
+    /// A second factor or a passkey was removed, or the authenticator app switched off.
+    MfaRemoved,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 45] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -142,6 +165,8 @@ impl AuditAction {
         Self::StatsCleared,
         Self::NotificationsCleared,
         Self::NotificationsDiscarded,
+        Self::StorageHistoryCleared,
+        Self::ContentIndexCleared,
         Self::ScriptSubscriptionChanged,
         Self::FileOverwritten,
         Self::CollisionDecided,
@@ -150,6 +175,12 @@ impl AuditAction {
         Self::BackupKeyChanged,
         Self::BackupCreated,
         Self::BackupVerified,
+        Self::ServiceStopRequested,
+        Self::UpdatePrepared,
+        Self::UpdateInstallStarted,
+        Self::SetupCompleted,
+        Self::MfaEnrolled,
+        Self::MfaRemoved,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -185,6 +216,8 @@ impl AuditAction {
             Self::StatsCleared => "stats_cleared",
             Self::NotificationsCleared => "notifications_cleared",
             Self::NotificationsDiscarded => "notifications_discarded",
+            Self::StorageHistoryCleared => "storage_history_cleared",
+            Self::ContentIndexCleared => "content_index_cleared",
             Self::ScriptSubscriptionChanged => "script_subscription_changed",
             Self::FileOverwritten => "file_overwritten",
             Self::CollisionDecided => "collision_decided",
@@ -193,6 +226,12 @@ impl AuditAction {
             Self::BackupKeyChanged => "backup_key_changed",
             Self::BackupCreated => "backup_created",
             Self::BackupVerified => "backup_verified",
+            Self::ServiceStopRequested => "service_stop_requested",
+            Self::UpdatePrepared => "update_prepared",
+            Self::UpdateInstallStarted => "update_install_started",
+            Self::SetupCompleted => "setup_completed",
+            Self::MfaEnrolled => "mfa_enrolled",
+            Self::MfaRemoved => "mfa_removed",
         }
     }
 
@@ -357,6 +396,8 @@ mod tests {
             "stats_cleared",
             "notifications_cleared",
             "notifications_discarded",
+            "storage_history_cleared",
+            "content_index_cleared",
         ] {
             assert!(AuditAction::parse(word).is_some(), "missing {word}");
         }

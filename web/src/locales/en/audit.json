@@ -63,7 +63,15 @@
     "backup_key_changed": "Full backup passphrase set",
     "backup_created": "Full backup written",
     "backup_verified": "Full backup archive verified",
-    "notifications_discarded": "Pending notifications discarded"
+    "notifications_discarded": "Pending notifications discarded",
+    "service_stop_requested": "Service stop requested",
+    "update_prepared": "Backup before update written",
+    "update_install_started": "Update installation started",
+    "storage_history_cleared": "Storage history cleared",
+    "content_index_cleared": "Content index cleared",
+    "setup_completed": "Initial setup completed",
+    "mfa_enrolled": "Second factor added",
+    "mfa_removed": "Second factor removed"
   },
   "list": {
     "title": "Records",

@@ -153,5 +153,9 @@
       "genre": "Genre",
       "runtime": "Durée"
     }
+  },
+  "copy": {
+    "failed_title": "La copie a échoué",
+    "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement."
   }
 }

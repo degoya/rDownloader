@@ -153,5 +153,9 @@
       "genre": "Genre",
       "runtime": "Runtime"
     }
+  },
+  "copy": {
+    "failed_title": "Copying failed",
+    "failed_description": "The browser did not allow access to the clipboard. Select the text and copy it by hand."
   }
 }

@@ -231,7 +231,7 @@
   "bundled": {
     "eyebrow": "Bundle",
     "title": "Available services",
-    "description": "What this release ships but is not installed — not chosen, removed or new. One click installs a service with all its plugins; they run from the next start.",
+    "description": "What this release ships but is not installed — not chosen, removed or new. One click installs a service with all its plugins; hoster and sign-in plugins run at once, other types from the next start.",
     "search": "Search services",
     "filter_label": "Filter by category",
     "all": "All",
@@ -256,7 +256,7 @@
     "all_installed": "Everything in the bundle is installed.",
     "none": "This build ships no bundle. Plugins then come from a repository.",
     "failed": "{name} could not be installed: {reason}",
-    "installed": "Nothing installed. | 1 plugin installed; it runs from the next start. | {count} plugins installed; they run from the next start.",
+    "installed": "Nothing installed. | 1 plugin installed; a hoster or sign-in plugin runs at once, other types from the next start. | {count} plugins installed; hoster and sign-in plugins run at once, other types from the next start.",
     "installed_live": "Nothing installed. | 1 plugin installed; it runs now. | {count} plugins installed; they run now."
   }
 }

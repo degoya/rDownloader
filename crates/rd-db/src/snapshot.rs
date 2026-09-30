@@ -38,6 +38,32 @@ async fn open(snapshot: &Path) -> Result<SqliteConnection> {
         .with_context(|| format!("open database snapshot {}", snapshot.display()))
 }
 
+/// Checks that a copy is whole with SQLite's own `PRAGMA integrity_check`: every page, every
+/// index against its table, every constraint. Read-only. The copy before an update is not
+/// published under its name until this passed (RD-180-03).
+///
+/// # Errors
+///
+/// When the copy does not open, or the check reports anything but `ok`; the first findings
+/// are in the message.
+pub async fn check_integrity(snapshot: &Path) -> Result<()> {
+    let mut connection = open(snapshot).await?;
+    let findings: Result<Vec<String>> = sqlx::query_scalar("PRAGMA integrity_check")
+        .fetch_all(&mut connection)
+        .await
+        .with_context(|| format!("check the integrity of {}", snapshot.display()));
+    connection.close().await.ok();
+    let findings = findings?;
+    if matches!(findings.as_slice(), [only] if only == "ok") {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} is damaged: {}",
+        snapshot.display(),
+        findings.into_iter().take(5).collect::<Vec<_>>().join("; ")
+    )
+}
+
 /// Every row of each named table, as JSON objects by column name, in insertion order.
 ///
 /// The column list comes from SQLite itself, so a column a later migration adds is carried
@@ -107,4 +133,27 @@ pub async fn read_partial_transfers(snapshot: &Path) -> Result<Vec<serde_json::V
     rows.iter()
         .map(|row| serde_json::from_str(row).context("parse an unfinished download"))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check_integrity;
+
+    /// A copy `VACUUM INTO` wrote passes; the same file cut in half does not, whether SQLite
+    /// refuses to open it or opens it and finds the damage.
+    #[tokio::test]
+    async fn a_whole_copy_passes_and_a_cut_one_does_not() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = crate::Database::open(directory.path().join("live.sqlite3"))
+            .await
+            .expect("database");
+        let copy = directory.path().join("copy.sqlite3");
+        database.snapshot_into(&copy).await.expect("snapshot");
+        check_integrity(&copy).await.expect("a fresh copy is whole");
+
+        let bytes = std::fs::read(&copy).expect("read copy");
+        assert!(bytes.len() > 8192, "the copy is too small to cut");
+        std::fs::write(&copy, &bytes[..bytes.len() / 2]).expect("cut copy");
+        assert!(check_integrity(&copy).await.is_err());
+    }
 }

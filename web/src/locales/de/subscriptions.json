@@ -88,8 +88,7 @@
   "list": {
     "title": "Abonnements",
     "empty": "Noch keine Abonnements.",
-    "last_run": "Zuletzt geprüft {at}",
-    "copy_suffix": "Kopie"
+    "last_run": "Zuletzt geprüft {at}"
   },
   "items": {
     "title": "Einträge",

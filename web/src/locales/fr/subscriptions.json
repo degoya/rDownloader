@@ -88,8 +88,7 @@
   "list": {
     "title": "Abonnements",
     "empty": "Aucun abonnement pour l'instant.",
-    "last_run": "Dernière vérification {at}",
-    "copy_suffix": "copie"
+    "last_run": "Dernière vérification {at}"
   },
   "items": {
     "title": "Éléments",

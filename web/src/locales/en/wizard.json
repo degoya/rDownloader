@@ -70,6 +70,6 @@
   },
   "selection": {
     "progress": "Installing {done} of {total} …",
-    "hint": "Continue installs nothing new. | Continue installs 1 service. New plugins run from the next start; you add accounts in the next step. | Continue installs {count} services. New plugins run from the next start; you add accounts in the next step."
+    "hint": "Continue installs nothing new. | Continue installs 1 service. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step. | Continue installs {count} services. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step."
   }
 }

@@ -7,6 +7,10 @@
 #
 # Local only: the "public" wiki is a bare repository in the scratch directory, gitleaks a stub.
 #
+# At the end, the version forms of the three publishing scripts: a pre-release is X.Y.Z-beta.N
+# only; export-public.sh takes it, export-wiki.sh and update-website.sh refuse it, because the
+# handbook and the website wait for the stable release (owner, 2026-09-30).
+#
 #   scripts/tests/export-wiki.sh
 set -euo pipefail
 
@@ -121,5 +125,32 @@ refused "a page marker below the first line" "counts only as the first line"
 
 printf '\nWrite `<!-- private -->` to hide a section.\n' >> "$RD_WIKI_SRC/home.md"
 refused "marker text inside a sentence" "marker text outside a marker line would be published"
+
+commit_wiki
+before="$(git -C "$RD_PUBLIC_WIKI_DIR" rev-parse HEAD)"
+run_status "$ROOT/scripts/export-wiki.sh" 1.1.0-beta.1
+expect_status "export-wiki: a beta is refused" 2
+expect_output "saying why" "1.1.0-beta.1 is a pre-release: the public wiki stays on the last stable release"
+expect "and the clone is untouched" "$before" "$(git -C "$RD_PUBLIC_WIKI_DIR" rev-parse HEAD)"
+run_status "$ROOT/scripts/export-wiki.sh" 1.1.0-rc.1
+expect_status "export-wiki: another pre-release form is no version" 2
+
+run_status env RD_WEBSITE_DIR="$SCRATCH/no-site" "$ROOT/scripts/update-website.sh" 1.1.0-beta.1
+expect_status "update-website: a beta is refused" 2
+expect_output "saying why" "1.1.0-beta.1 is a pre-release: the website stays on the last stable release"
+run_status env RD_WEBSITE_DIR="$SCRATCH/no-site" "$ROOT/scripts/update-website.sh" 1.1.0
+expect_status "update-website: a release gets past the version, to the missing site" 1
+expect_output "naming it" "$SCRATCH/no-site/app/data/release.json not found"
+
+# export-public.sh takes a beta: past the version check, it stops at the ref this test names.
+run_status env RD_PUBLIC_DIR="$SCRATCH/no-public" "$ROOT/scripts/export-public.sh" 1.1.0-beta.1 --ref refs/no/such-ref
+expect_status "export-public: a beta is a release version" 1
+expect_output "and gets as far as the ref" "no such commit in this repository: refs/no/such-ref"
+run_status env RD_PUBLIC_DIR="$SCRATCH/no-public" "$ROOT/scripts/export-public.sh" 1.1.0-rc.1 --ref refs/no/such-ref
+expect_status "export-public: another pre-release form is refused" 2
+expect_output "naming the forms" "X.Y.Z-beta.N for a pre-release"
+run_status env RD_PUBLIC_DIR="$SCRATCH/no-public" "$ROOT/scripts/export-public.sh" 1.1.0-beta.1 --branch ci/1.1.0-beta.1 --ref refs/no/such-ref
+expect_status "export-public --branch ci/<beta>: the branch name is taken" 1
+expect_output "up to the ref" "no such commit in this repository: refs/no/such-ref"
 
 finish_tests export-wiki

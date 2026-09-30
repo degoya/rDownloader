@@ -1,5 +1,6 @@
 //! Shared domain contracts for rDownloader.
 
+mod address;
 mod audit;
 mod auth_flow;
 mod auth_profile;
@@ -41,6 +42,7 @@ mod trace;
 mod transform;
 mod usenet;
 
+pub use address::{AddressScope, address_scope};
 pub use audit::{
     AUDIT_RETENTION_DAYS_RANGE, AUDIT_RETENTION_RECORDS_RANGE, AUDIT_TOKEN_USE_INTERVAL_SECONDS,
     AuditAction, AuditActorKind, AuditOutcome, AuditRetentionSettings,

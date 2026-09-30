@@ -471,13 +471,16 @@
       "confirm": "Generar"
     },
     "disable": {
-      "label": "Contraseña",
       "hint": "Para desactivarlo basta la contraseña, no un código. Un dispositivo perdido no debe ser definitivo.",
       "action": "Desactivar"
     },
     "enabled_toast": "El inicio de sesión en dos pasos está activo",
     "disabled_toast": "El inicio de sesión en dos pasos está desactivado",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "step_up": {
+      "label": "Contraseña",
+      "hint": "Añadir, quitar o desactivar un factor vuelve a pedir la contraseña."
+    }
   },
   "passkeys": {
     "eyebrow": "Claves de acceso",
@@ -499,7 +502,8 @@
       "title": "¿Quitar esta clave de acceso?",
       "description": "«{label}» dejará de poder iniciar sesión. Tu contraseña sigue funcionando.",
       "confirm": "Quitar"
-    }
+    },
+    "step_up_hint": "Añadir o quitar una passkey vuelve a pedir la contraseña."
   },
   "password": {
     "eyebrow": "Contraseña",
@@ -543,6 +547,22 @@
       "description": "{count} notificaciones que siguen en cola o en reintento se eliminarán y no se enviarán nunca. Las entregas realizadas y fallidas permanecen en el historial, al igual que los destinos, las reglas, el registro, la auditoría y las estadísticas.",
       "confirm": "Descartar definitivamente",
       "done": "{count} notificaciones descartadas"
+    },
+    "storage_operations": {
+      "button": "Vaciar historial",
+      "stored": "{count} entradas",
+      "title": "¿Vaciar el historial de almacenamiento?",
+      "description": "{count} traslados y enlaces de duplicado completados, fallidos o interrumpidos se eliminarán del historial definitivamente. Una operación que sigue en curso permanece. Ningún archivo se mueve ni se borra, y un traslado interrumpido se reanuda igualmente en el próximo inicio.",
+      "confirm": "Vaciar definitivamente",
+      "done": "{count} entradas del historial eliminadas"
+    },
+    "content_index": {
+      "button": "Vaciar índice",
+      "stored": "{count} indexados",
+      "title": "¿Vaciar el índice de contenido?",
+      "description": "Se eliminarán {count} entradas del índice. Los archivos y las descargas no se tocan, pero hasta que un archivo vuelva a estar indexado no se reconoce como duplicado de contenido ni puede ser el original de un enlace de duplicado. «Comprobar el índice de contenido» (también se ejecuta en cada inicio) vuelve a indexar las descargas terminadas que siguen en la cola, cuyo SHA-256 se conoce y cuyo archivo sigue en su sitio. Los archivos de descargas eliminadas o nunca calculadas solo vuelven al descargarlos de nuevo.",
+      "confirm": "Vaciar el índice",
+      "done": "{count} entradas del índice eliminadas"
     }
   },
   "session_limits": {
@@ -568,5 +588,89 @@
     "modal_title": "Emparejar la extensión del navegador",
     "modal_description": "El inicio de sesión en el hoster viene de tu navegador y solo la extensión puede entregarlo. Emparéjala aquí sin salir de la página.",
     "done": "Listo"
+  },
+  "updates": {
+    "eyebrow": "Nuevas versiones",
+    "title": "Actualizaciones",
+    "description": "rDownloader consulta una lista firmada de versiones en GitHub y te avisa cuando sale una nueva versión. No se instala nada sin ti.",
+    "enabled_label": "Comprobar automáticamente",
+    "enabled_description": "Solo descarga un archivo público y firmado y no envía nada sobre esta instalación.",
+    "channel_label": "Canal",
+    "channel_description": "Estable recibe solo versiones finales, Beta también versiones preliminares (vX.Y.Z-beta.N).",
+    "channel_stable": "Estable",
+    "channel_beta": "Beta",
+    "channel_forced_stable": "Tu gestor de paquetes no publica betas, así que esta instalación lee el canal estable.",
+    "interval_label": "Comprobar cada",
+    "interval_description": "Horas entre dos comprobaciones automáticas (1–168).",
+    "check_now": "Comprobar ahora",
+    "current": "Instalada: {version}",
+    "installed_as": "Instalada como: {kind}",
+    "kind": {
+      "portable": "Archivo portátil",
+      "msi": "Instalador de Windows",
+      "deb": "Paquete Debian",
+      "rpm": "Paquete RPM",
+      "homebrew": "Homebrew",
+      "scoop": "Scoop",
+      "winget": "winget",
+      "aur": "AUR",
+      "docker": "Imagen de contenedor",
+      "unknown": "Desconocida"
+    },
+    "last_checked": "Última comprobación: {when}",
+    "never_checked": "Aún no comprobado",
+    "next_check": "Próxima comprobación: {when}",
+    "up_to_date": "Tienes la versión más reciente.",
+    "available": "La versión {version} está disponible",
+    "show_details": "Detalles",
+    "not_configured": "Esta compilación no lleva clave de actualización; la comprobación está desactivada.",
+    "modal": {
+      "title": "rDownloader {version}",
+      "released": "Publicada: {when}",
+      "notes": "Novedades",
+      "no_notes": "Esta versión no tiene notas.",
+      "full_notes": "Notas completas de la versión",
+      "download": "Descargar",
+      "download_hint": "Sustituye los archivos del programa de esta instalación por la nueva versión; tus ajustes y descargas se quedan donde están.",
+      "command_hint": "{kind} gestiona esta instalación. Actualízala con:",
+      "copy": "Copiar",
+      "copied": "Comando copiado",
+      "close": "Cerrar",
+      "install": "Instalar y reiniciar",
+      "install_hint": "rDownloader descarga la nueva versión, hace una copia de su base de datos, se detiene, sustituye sus archivos de programa y vuelve a arrancar. Tus ajustes y descargas se quedan donde están.",
+      "rollback_automatic": "Si la nueva versión no arranca bien, la anterior vuelve por sí sola.",
+      "rollback_unavailable": "Esta actualización con el instalador de Windows no se puede deshacer sola: no se guardó el instalador de la versión actual. A partir de la próxima actualización sí.",
+      "download_package": "Descargar el paquete"
+    },
+    "hints": {
+      "aur_helper": "Con paru: paru -S rdownloader-bin",
+      "docker_recreate": "Después vuelve a crear el contenedor, p. ej. con docker compose up -d.",
+      "deb_file": "El repositorio solo contiene versiones estables. Una beta, o un paquete instalado desde una descarga, se instala desde el archivo: sudo apt install ./<archivo>.deb",
+      "rpm_file": "El repositorio solo contiene versiones estables. Una beta, o un paquete instalado desde una descarga, se instala desde el archivo: sudo dnf install ./<archivo>.rpm"
+    },
+    "notice": "Actualización disponible",
+    "notice_version": "{version} disponible",
+    "notice_installing": "Actualizando a {version}",
+    "notice_updated": "Actualizado a {version}",
+    "install": {
+      "confirm_title": "¿Instalar {version} ahora?",
+      "confirm_description": "rDownloader se detiene durante aproximadamente un minuto y vuelve a arrancar como {version}. Las descargas en curso se guardan y continúan después. Esta página se vuelve a conectar sola.",
+      "anyway": "Instalar de todos modos",
+      "reconnecting": "rDownloader se está reiniciando: esperando su respuesta …",
+      "lost": "rDownloader lleva minutos sin responder. Arráncalo a mano; si la actualización quedó incompleta, la versión anterior vuelve al arrancar.",
+      "reload": "Recargar la página",
+      "reload_hint": "Recarga la página para usar la interfaz de la nueva versión.",
+      "state": {
+        "downloading": "Descargando {version} …",
+        "preparing": "Escribiendo la copia previa a la actualización …",
+        "restarting": "Deteniendo rDownloader para la actualización …",
+        "installing": "Instalando {version} …",
+        "verifying": "Arrancando {version} …",
+        "rolling_back": "{version} no arranca bien; recuperando {from} …",
+        "done": "Actualizado a {version}.",
+        "rolled_back": "{version} no arrancó bien, así que vuelve a funcionar {from}.",
+        "failed": "La actualización a {version} ha fallado."
+      }
+    }
   }
 }

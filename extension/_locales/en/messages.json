@@ -23,6 +23,9 @@
   "serverHint": {
     "message": "Address of the rDownloader web interface, e.g. http://nas.local:8710. 127.0.0.1:8710 and localhost:8710 are built in; any other address asks for a permission."
   },
+  "serverInsecure": {
+    "message": "Unencrypted: this address is reached over plain http, so the capture token travels readable through the network. Use https (for example behind a reverse proxy) for a service on another machine."
+  },
   "tokenLabel": {
     "message": "Capture token"
   },

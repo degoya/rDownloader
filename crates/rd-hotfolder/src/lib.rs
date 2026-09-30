@@ -66,6 +66,9 @@ pub trait IntakeSink: Send + Sync + 'static {
 pub struct WatchOptions {
     pub reconciliation_interval: PollInterval,
     pub stability_window: Duration,
+    /// The first wait after the folder itself failed (missing, unreadable, unmounted); each
+    /// further failure in a row doubles it up to [`MAX_RETRY_DELAY`].
+    pub retry_delay: Duration,
 }
 
 impl Default for WatchOptions {
@@ -73,11 +76,20 @@ impl Default for WatchOptions {
         Self {
             reconciliation_interval: PollInterval::default(),
             stability_window: DEFAULT_STABILITY,
+            retry_delay: DEFAULT_RETRY_DELAY,
         }
     }
 }
 
+const DEFAULT_RETRY_DELAY: Duration = Duration::from_secs(5);
+/// The longest a failed folder waits before it is tried again.
+pub const MAX_RETRY_DELAY: Duration = Duration::from_secs(300);
+
 /// Starts one native watcher plus an unconditional reconciliation scan.
+///
+/// The task ends with an error only for a configuration that can never work (an empty path, a
+/// destination outside the folder); a folder that fails at run time is retried with a backoff
+/// until the token is cancelled.
 pub fn spawn(
     config: HotFolderConfig,
     sink: Arc<dyn IntakeSink>,
@@ -97,8 +109,61 @@ async fn run(
         return Ok(());
     }
     let root = dunce_path(&config.path)?;
-    tokio::fs::create_dir_all(&root).await?;
-    let root = dunce::canonicalize(&root)?;
+    destination_path(&root, &config.processed_path)?;
+    destination_path(&root, &config.failed_path)?;
+    // Kept across attempts, so a folder that comes back does not import a file twice.
+    let mut imported = HashSet::new();
+    let mut delay = options.retry_delay;
+    loop {
+        let mut healthy = false;
+        let error = match watch(
+            &config,
+            &root,
+            &sink,
+            &cancellation,
+            &options,
+            &mut imported,
+            &mut healthy,
+        )
+        .await
+        {
+            Ok(()) => return Ok(()),
+            Err(error) => error,
+        };
+        if healthy {
+            delay = options.retry_delay;
+        }
+        // A folder that stops working used to end this task for good, with nothing but a dead
+        // `JoinHandle` to say so; a network share that is back after a reboot was never
+        // watched again until the service restarted.
+        tracing::error!(
+            error = %format!("{error:#}"),
+            folder = %config.name,
+            path = %root.display(),
+            retry_in_seconds = delay.as_secs(),
+            "hotfolder cannot watch this folder; it is tried again"
+        );
+        tokio::select! {
+            () = cancellation.cancelled() => return Ok(()),
+            () = tokio::time::sleep(delay) => {}
+        }
+        delay = delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+    }
+}
+
+/// One attempt at watching the folder: `Ok` when cancelled, an error when the folder itself
+/// failed. `healthy` turns true once a full scan went through, which resets the backoff.
+async fn watch(
+    config: &HotFolderConfig,
+    root: &Path,
+    sink: &Arc<dyn IntakeSink>,
+    cancellation: &CancellationToken,
+    options: &WatchOptions,
+    imported: &mut HashSet<String>,
+    healthy: &mut bool,
+) -> Result<()> {
+    tokio::fs::create_dir_all(root).await?;
+    let root = dunce::canonicalize(root)?;
     let processed = destination_path(&root, &config.processed_path)?;
     let failed = destination_path(&root, &config.failed_path)?;
     tokio::fs::create_dir_all(&processed).await?;
@@ -117,15 +182,18 @@ async fn run(
         },
     )?;
 
-    let mut scanner = Scanner::new(
-        config,
+    let mut scanner = Scanner {
+        config: config.clone(),
         root,
         processed,
         failed,
-        sink,
-        options.stability_window,
-    );
+        sink: Arc::clone(sink),
+        stability: options.stability_window,
+        observed: HashMap::new(),
+        imported,
+    };
     scanner.scan().await?;
+    *healthy = true;
     // `options` holds the interval's sender for as long as this loop runs, so `changed()`
     // never reports a closed channel here.
     let mut interval = options.reconciliation_interval.subscribe();
@@ -141,8 +209,17 @@ async fn run(
                 ticker = new_ticker(*interval.borrow_and_update());
             }
             path = event_rx.recv() => {
+                // The watcher holds the sender, so the channel stays open while it lives.
                 let Some(path) = path else { return Ok(()) };
-                scanner.inspect(path).await?;
+                // One file that cannot be handled - locked by the program still writing it on
+                // Windows, a move that failed - is the next pass's business, as in `scan`.
+                if let Err(error) = scanner.inspect(path.clone()).await {
+                    tracing::warn!(
+                        %error,
+                        path = %path.display(),
+                        "hotfolder could not process this file; it stays for the next pass"
+                    );
+                }
             }
         }
     }
@@ -169,7 +246,7 @@ fn make_watcher(sender: mpsc::UnboundedSender<PathBuf>) -> Result<RecommendedWat
     Ok(watcher)
 }
 
-struct Scanner {
+struct Scanner<'a> {
     config: HotFolderConfig,
     root: PathBuf,
     processed: PathBuf,
@@ -177,7 +254,7 @@ struct Scanner {
     sink: Arc<dyn IntakeSink>,
     stability: Duration,
     observed: HashMap<PathBuf, Observation>,
-    imported: HashSet<String>,
+    imported: &'a mut HashSet<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -187,27 +264,7 @@ struct Observation {
     unchanged_since: tokio::time::Instant,
 }
 
-impl Scanner {
-    fn new(
-        config: HotFolderConfig,
-        root: PathBuf,
-        processed: PathBuf,
-        failed: PathBuf,
-        sink: Arc<dyn IntakeSink>,
-        stability: Duration,
-    ) -> Self {
-        Self {
-            config,
-            root,
-            processed,
-            failed,
-            sink,
-            stability,
-            observed: HashMap::new(),
-            imported: HashSet::new(),
-        }
-    }
-
+impl Scanner<'_> {
     /// One pass over the folder. A file that cannot be handled is logged and left where it is.
     ///
     /// Propagating a per-file error from here ended the watcher task for good: a file that
@@ -274,8 +331,7 @@ impl Scanner {
         let content = tokio::fs::read(&path).await?;
         let sha256 = hex::encode(Sha256::digest(&content));
         if self.imported.contains(&sha256) {
-            move_verified(&path, &unique_destination(&self.processed, &path), &sha256).await?;
-            return Ok(());
+            return move_aside(&path, &unique_destination(&self.processed, &path)).await;
         }
         let intake = HotFolderIntake {
             source_path: path.clone(),
@@ -314,14 +370,14 @@ impl Scanner {
         if let Some(failure) = failure {
             self.sink.record_failure(failure).await;
         }
-        move_verified(&path, &destination, &sha256).await
+        move_aside(&path, &destination).await
     }
 }
 
 /// Every candidate file below `root`.
 ///
-/// The root has to be readable — if it is not, the watch is misconfigured and the caller
-/// should hear about it. A single sub-directory that is not is skipped instead, so one
+/// The root has to be readable - if it is not, the folder itself failed and the watcher starts
+/// over after a backoff. A single sub-directory that is not is skipped instead, so one
 /// permission problem somewhere in the tree does not stop the whole folder.
 async fn list_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
@@ -353,19 +409,15 @@ async fn list_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-async fn move_verified(source: &Path, destination: &Path, expected_hash: &str) -> Result<()> {
+/// Moves a handled file to `destination`, a name [`unique_destination`] found free.
+///
+/// Across devices the copy is verified before the original goes, streamed rather than read
+/// into memory, and a file that took the name in the meantime is never overwritten.
+async fn move_aside(source: &Path, destination: &Path) -> Result<()> {
     if let Some(parent) = destination.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    if tokio::fs::rename(source, destination).await.is_ok() {
-        return Ok(());
-    }
-    tokio::fs::copy(source, destination).await?;
-    let copied = tokio::fs::read(destination).await?;
-    if hex::encode(Sha256::digest(&copied)) != expected_hash {
-        bail!("copy verification failed for {}", destination.display());
-    }
-    tokio::fs::remove_file(source).await?;
+    rd_files::verified_move_file(source, destination).await?;
     Ok(())
 }
 
@@ -388,26 +440,11 @@ fn reason(error: &anyhow::Error) -> String {
 const MAX_REASON_CHARS: usize = 500;
 
 fn unique_destination(directory: &Path, source: &Path) -> PathBuf {
-    let name = source.file_name().unwrap_or_default();
-    let direct = directory.join(name);
-    if !direct.exists() {
-        return direct;
-    }
-    let stem = source
-        .file_stem()
+    let name = source
+        .file_name()
         .and_then(|value| value.to_str())
-        .unwrap_or("import");
-    let extension = source
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or("nzb");
-    for index in 1_u32.. {
-        let candidate = directory.join(format!("{stem} ({index}).{extension}"));
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-    unreachable!("an available filename exists")
+        .unwrap_or("import.nzb");
+    rd_files::collision_free_path(directory, name)
 }
 
 fn destination_path(root: &Path, configured: &str) -> Result<PathBuf> {
@@ -516,6 +553,7 @@ mod tests {
         WatchOptions {
             reconciliation_interval: PollInterval::new(Duration::from_millis(20)),
             stability_window: Duration::from_millis(30),
+            retry_delay: Duration::from_millis(20),
         }
     }
 
@@ -540,6 +578,7 @@ mod tests {
             WatchOptions {
                 reconciliation_interval: interval.clone(),
                 stability_window: Duration::from_millis(30),
+                retry_delay: Duration::from_millis(20),
             },
         );
         assert!(
@@ -669,6 +708,169 @@ mod tests {
         .await
         .expect("processed move");
         assert!(processed.exists());
+        cancellation.cancel();
+        handle.await.expect("watcher task").expect("watcher result");
+    }
+
+    async fn wait_for(path: &std::path::Path) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !path.exists() {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("{} did not appear", path.display()));
+    }
+
+    /// A file the watcher cannot read - on Windows, one the program writing it still holds
+    /// locked - ended the whole watcher when a native event, not the scan, found it stable.
+    /// The reconciliation interval is an hour here, so only events drive the watcher.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_file_that_cannot_be_read_does_not_stop_the_watcher() {
+        use std::{io::Write, os::unix::fs::OpenOptionsExt};
+
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let (sender, mut receiver) = mpsc::channel(1);
+        let cancellation = CancellationToken::new();
+        let interval = PollInterval::new(Duration::from_secs(3600));
+        let handle = spawn(
+            config(directory.path()),
+            Arc::new(ChannelSink(sender)),
+            cancellation.clone(),
+            WatchOptions {
+                reconciliation_interval: interval.clone(),
+                stability_window: Duration::ZERO,
+                retry_delay: Duration::from_secs(3600),
+            },
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let locked = directory.path().join("locked.nzb");
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o000)
+            .open(&locked)
+            .expect("create unreadable NZB");
+        file.write_all(b"<nzb/>").expect("write NZB");
+        drop(file);
+        if std::fs::read(&locked).is_ok() {
+            // Running as root: nothing can be made unreadable, so there is nothing to test.
+            cancellation.cancel();
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert!(
+            !handle.is_finished(),
+            "the watcher ended on one unreadable file"
+        );
+
+        // Scans from here on, so the next file does not depend on how many events a
+        // platform coalesces one write into.
+        interval.set(Duration::from_millis(20));
+        tokio::fs::write(directory.path().join("sample.nzb"), b"<nzb/>")
+            .await
+            .expect("write NZB");
+        let intake = tokio::time::timeout(Duration::from_secs(2), receiver.recv())
+            .await
+            .expect("imported after the unreadable file")
+            .expect("intake");
+        assert!(intake.source_path.ends_with("sample.nzb"));
+        cancellation.cancel();
+        handle.await.expect("watcher task").expect("watcher result");
+    }
+
+    /// A folder that is not there yet (an unmounted share, a path below a file) is tried again
+    /// with a backoff instead of ending the watcher, and watched once it works.
+    #[tokio::test]
+    async fn a_folder_that_fails_is_watched_once_it_works() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let blocker = directory.path().join("share");
+        tokio::fs::write(&blocker, b"not a directory")
+            .await
+            .expect("write blocker");
+        let root = blocker.join("watch");
+        let (sender, mut receiver) = mpsc::channel(1);
+        let cancellation = CancellationToken::new();
+        let handle = spawn(
+            config(&root),
+            Arc::new(ChannelSink(sender)),
+            cancellation.clone(),
+            options(),
+        );
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        assert!(!handle.is_finished(), "the watcher gave up on the folder");
+
+        tokio::fs::remove_file(&blocker)
+            .await
+            .expect("remove blocker");
+        wait_for(&root.join("processed")).await;
+        tokio::fs::write(root.join("sample.nzb"), b"<nzb/>")
+            .await
+            .expect("write NZB");
+        let intake = tokio::time::timeout(Duration::from_secs(2), receiver.recv())
+            .await
+            .expect("imported once the folder works")
+            .expect("intake");
+        assert_eq!(intake.content, b"<nzb/>");
+        cancellation.cancel();
+        handle.await.expect("watcher task").expect("watcher result");
+    }
+
+    /// A configuration that can never work still ends the task, with the reason.
+    #[tokio::test]
+    async fn a_destination_outside_the_folder_ends_the_watcher() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let mut config = config(directory.path());
+        config.processed_path = "../elsewhere".to_owned();
+        let (sender, _receiver) = mpsc::channel(1);
+        let handle = spawn(
+            config,
+            Arc::new(ChannelSink(sender)),
+            CancellationToken::new(),
+            options(),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(2), handle)
+            .await
+            .expect("ends at once")
+            .expect("watcher task");
+        assert!(result.is_err());
+    }
+
+    /// The name in `processed/` is taken by an earlier file: the new one gets ` (1)`, and the
+    /// earlier one keeps its bytes.
+    #[tokio::test]
+    async fn a_taken_name_is_never_overwritten() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let processed = directory.path().join("processed");
+        tokio::fs::create_dir_all(&processed)
+            .await
+            .expect("processed directory");
+        tokio::fs::write(processed.join("sample.nzb"), b"earlier")
+            .await
+            .expect("write earlier NZB");
+        let (sender, mut receiver) = mpsc::channel(1);
+        let cancellation = CancellationToken::new();
+        let handle = spawn(
+            config(directory.path()),
+            Arc::new(ChannelSink(sender)),
+            cancellation.clone(),
+            options(),
+        );
+        tokio::fs::write(directory.path().join("sample.nzb"), b"<nzb/>")
+            .await
+            .expect("write NZB");
+        tokio::time::timeout(Duration::from_secs(2), receiver.recv())
+            .await
+            .expect("receive before timeout")
+            .expect("intake");
+        wait_for(&processed.join("sample (1).nzb")).await;
+        assert_eq!(
+            tokio::fs::read(processed.join("sample.nzb"))
+                .await
+                .expect("earlier NZB"),
+            b"earlier"
+        );
         cancellation.cancel();
         handle.await.expect("watcher task").expect("watcher result");
     }

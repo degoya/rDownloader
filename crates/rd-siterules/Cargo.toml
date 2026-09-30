@@ -12,6 +12,7 @@ base64.workspace = true
 chrono.workspace = true
 hex.workspace = true
 percent-encoding.workspace = true
+rd-core = { path = "../rd-core" }
 rd-sign = { path = "../rd-sign" }
 regex.workspace = true
 serde.workspace = true

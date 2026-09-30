@@ -10,6 +10,7 @@ import NzbDropOverlay from '@/components/NzbDropOverlay.vue'
 import PreferencesFooter from '@/components/PreferencesFooter.vue'
 import SearchPalette from '@/components/SearchPalette.vue'
 import TransferRail from '@/components/TransferRail.vue'
+import UpdateNotice from '@/components/UpdateNotice.vue'
 import { useAppShortcuts } from '@/composables/useAppShortcuts'
 import { useAppTour } from '@/composables/useAppTour'
 import { useFileImportDropZone } from '@/composables/useNzbDropZone'
@@ -220,6 +221,7 @@ const items = computed<NavigationMenuItem[][]>(() => [[
              states; on the rail the dot and the sign-out stack, since side by side they need
              56 of the 32 px between the paddings (RD-120-61). -->
         <div data-testid="sidebar-footer" class="w-full min-w-0 border-t border-muted pt-2">
+          <UpdateNotice :collapsed="collapsed" />
           <PreferencesFooter :collapsed="collapsed" />
           <UTooltip :text="t('nav.connected')" :disabled="!collapsed">
             <div

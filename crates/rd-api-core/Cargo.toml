@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
+failpoints = ["rd-core/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 argon2.workspace = true
@@ -45,6 +49,7 @@ rd-stream = { path = "../rd-stream" }
 rd-subscription = { path = "../rd-subscription" }
 rd-tools = { path = "../rd-tools" }
 rd-torrent = { path = "../rd-torrent" }
+rd-update = { path = "../rd-update" }
 rd-webdav = { path = "../rd-webdav" }
 regex.workspace = true
 reqwest.workspace = true

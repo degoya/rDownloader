@@ -2,8 +2,9 @@
 #
 # scripts/package-managers.sh against a fixture SHA256SUMS in the release's format (RD-180-06):
 # every archive's hash lands beside its own URL in both formulas, the capture formula depends on
-# the tap's rdownloader and runs its agent, the Scoop manifest is JSON, and a release that lacks
-# an archive renders nothing.
+# the tap's rdownloader and runs its agent, the Scoop manifest is JSON, the winget manifests and
+# the AUR's PKGBUILD and .SRCINFO name the same archives and hashes (RD-180-07, RD-180-08), and a
+# release that lacks an archive renders nothing.
 #
 #   scripts/tests/package-managers.sh
 set -euo pipefail
@@ -85,6 +86,84 @@ expect "the bucket's README adds the bucket" \
     "$(grep '^scoop bucket add' "$SCRATCH/out/scoop-README.md")"
 expect "both READMEs name the version" "2" "$(cat "$SCRATCH"/out/*-README.md | grep -c 'Current version: 1.6.0\.')"
 
+# winget (RD-180-07): three manifests of one version, the portable ZIP with its folder on PATH.
+winget="$SCRATCH/out/winget"
+installer="$winget/degoya.rDownloader.installer.yaml"
+locale="$winget/degoya.rDownloader.locale.en-US.yaml"
+expect "the three winget manifests" \
+    "degoya.rDownloader.installer.yaml degoya.rDownloader.locale.en-US.yaml degoya.rDownloader.yaml" \
+    "$(ls "$winget" | tr '\n' ' ' | sed 's/ $//')"
+expect "every manifest names the version" "3" "$(cat "$winget"/*.yaml | grep -c '^PackageVersion: 1.6.0$')"
+expect "every manifest names the package" "3" \
+    "$(cat "$winget"/*.yaml | grep -c '^PackageIdentifier: degoya.rDownloader$')"
+expect "the installer is the Windows ZIP" \
+    "  InstallerUrl: $base/rdownloader-windows-x86_64.zip" "$(grep '^  InstallerUrl: ' "$installer")"
+expect "with its hash in upper case" "  InstallerSha256: $(hash_of F)" "$(grep '^  InstallerSha256: ' "$installer")"
+expect "a portable inside a zip" "InstallerType: zip NestedInstallerType: portable" \
+    "$(grep -E '^(Nested)?InstallerType: ' "$installer" | tr '\n' ' ' | sed 's/ $//')"
+expect "both executables, each under its own name" \
+    "- RelativeFilePath: rdownloader.exe - RelativeFilePath: rdownloader-capture.exe" \
+    "$(grep '^- RelativeFilePath: ' "$installer" | tr '\n' ' ' | sed 's/ $//')"
+expect "the package folder goes on PATH, not a symlink" "ArchiveBinariesDependOnPath: true" \
+    "$(grep '^ArchiveBinariesDependOnPath: ' "$installer")"
+expect "user scope only" "Scope: user" "$(grep '^Scope: ' "$installer")"
+expect "the release notes of the tag" \
+    "ReleaseNotesUrl: https://github.com/degoya/rDownloader/releases/tag/v1.6.0" \
+    "$(grep '^ReleaseNotesUrl: ' "$locale")"
+expect "the licence of the tag" "LicenseUrl: https://github.com/degoya/rDownloader/blob/v1.6.0/LICENSE" \
+    "$(grep '^LicenseUrl: ' "$locale")"
+expect "no placeholder is left in the manifests" "0" "$(cat "$winget"/*.yaml | grep -c '@[A-Z0-9_]*@' || true)"
+if python3 -c 'import yaml' 2> /dev/null; then
+    expect "the manifests are YAML of one schema version" "1.10.0 1.10.0 1.10.0" \
+        "$(python3 -c 'import sys, yaml; print(" ".join(yaml.safe_load(open(f))["ManifestVersion"] for f in sys.argv[1:]))' \
+            "$winget"/*.yaml)"
+else
+    echo "skip the manifests are YAML: no PyYAML on this machine"
+fi
+
+# AUR (RD-180-08): rdownloader-bin from both Linux archives, .SRCINFO beside it.
+aur="$SCRATCH/out/aur"
+pkgbuild="$aur/PKGBUILD"
+expect "the AUR repository's files" "PKGBUILD rdownloader-capture.service rdownloader.service" \
+    "$(ls "$aur" | tr '\n' ' ' | sed 's/ $//')"
+expect "and its .SRCINFO" "pkgbase = rdownloader-bin" "$(head -n 1 "$aur/.SRCINFO")"
+expect "pkgver is the version" "pkgver=1.6.0" "$(grep '^pkgver=' "$pkgbuild")"
+expect "x86_64: its archive" \
+    "source_x86_64=(\"rdownloader-1.6.0-x86_64.tar.gz::$base/rdownloader-linux-x86_64.tar.gz\")" \
+    "$(grep '^source_x86_64=' "$pkgbuild")"
+expect "x86_64: its hash" "sha256sums_x86_64=('$(hash_of c)')" "$(grep '^sha256sums_x86_64=' "$pkgbuild")"
+expect "aarch64: its archive" \
+    "source_aarch64=(\"rdownloader-1.6.0-aarch64.tar.gz::$base/rdownloader-linux-aarch64.tar.gz\")" \
+    "$(grep '^source_aarch64=' "$pkgbuild")"
+expect "aarch64: its hash" "sha256sums_aarch64=('$(hash_of b)')" "$(grep '^sha256sums_aarch64=' "$pkgbuild")"
+service_hash="$(sha256sum "$ROOT/packaging/aur/rdownloader.service" | awk '{ print $1 }')"
+capture_hash="$(sha256sum "$ROOT/packaging/aur/rdownloader-capture.service" | awk '{ print $1 }')"
+expect "the units' hashes, in the order of source=()" "sha256sums=('$service_hash' '$capture_hash')" \
+    "$(sed -n '/^sha256sums=(/,/)/p' "$pkgbuild" | tr -s ' \n' ' ' | sed 's/ $//')"
+expect "the units are copied as they are" "" \
+    "$(diff "$ROOT/packaging/aur/rdownloader.service" "$aur/rdownloader.service"; \
+       diff "$ROOT/packaging/aur/rdownloader-capture.service" "$aur/rdownloader-capture.service")"
+expect ".SRCINFO: the same version" "	pkgver = 1.6.0" "$(grep $'^\tpkgver = ' "$aur/.SRCINFO")"
+# What makepkg reads from the PKGBUILD, in .SRCINFO's order and spelling (the PKGBUILD only assigns
+# at its top level, so sourcing it runs nothing); package-channels.yml compares the whole file
+# with `makepkg --printsrcinfo` on Arch.
+srcinfo_fields() {
+    # shellcheck disable=SC1090,SC2154
+    bash -c 'source "$1"
+        for name in depends optdepends source sha256sums source_x86_64 sha256sums_x86_64 \
+            source_aarch64 sha256sums_aarch64; do
+            eval "values=(\"\${${name}[@]}\")"
+            for value in "${values[@]}"; do printf "\t%s = %s\n" "$name" "$value"; done
+        done' _ "$1"
+}
+expect ".SRCINFO: the PKGBUILD's dependencies, archives and hashes" "$(srcinfo_fields "$pkgbuild")" \
+    "$(grep -E $'^\t(depends|optdepends|source|sha256sums)(_x86_64|_aarch64)? = ' "$aur/.SRCINFO")"
+expect "the marker the update check reads" "1" "$(grep -c '^  echo aur > "$pkgdir/usr/lib/rdownloader/install-kind"$' "$pkgbuild")"
+expect "no placeholder is left in PKGBUILD or .SRCINFO" "0" \
+    "$(cat "$pkgbuild" "$aur/.SRCINFO" | grep -c '@[A-Z0-9_]*@' || true)"
+run_status bash -n "$pkgbuild"
+expect_status "the PKGBUILD is bash" 0
+
 # A fork and a local fixture: the repository names tap, bucket and URLs, --base-url the archives.
 run_status render 1.6.1-rc.1 "$SUMS" "$SCRATCH/fork" --repository someone/rDownloader \
     --base-url "file:///tmp/fixture/"
@@ -101,6 +180,14 @@ expect "the fork's capture formula depends on the fork's tap" \
     '  depends_on "someone/rdownloader/rdownloader"' "$(grep '^  depends_on ' "$SCRATCH/fork/rdownloader-capture.rb")"
 expect "the fork's bucket" "True" \
     "$(manifest "$SCRATCH/fork/rdownloader.json" '"someone/scoop-rdownloader" in m["##"]')"
+expect "the pre-release's pkgver has no hyphen" "pkgver=1.6.1_rc.1" "$(grep '^pkgver=' "$SCRATCH/fork/aur/PKGBUILD")"
+expect "but its archive keeps the version" \
+    'source_x86_64=("rdownloader-1.6.1-rc.1-x86_64.tar.gz::file:///tmp/fixture/rdownloader-linux-x86_64.tar.gz")' \
+    "$(grep '^source_x86_64=' "$SCRATCH/fork/aur/PKGBUILD")"
+expect "the pre-release's winget version" "PackageVersion: 1.6.1-rc.1" \
+    "$(grep '^PackageVersion: ' "$SCRATCH/fork/winget/degoya.rDownloader.yaml")"
+expect "the fork's release notes" "ReleaseNotesUrl: https://github.com/someone/rDownloader/releases/tag/v1.6.1-rc.1" \
+    "$(grep '^ReleaseNotesUrl: ' "$SCRATCH/fork/winget/degoya.rDownloader.locale.en-US.yaml")"
 
 # sha256sum's other spellings: no ./, binary mode's *, upper case.
 sed -e 's#  \./rdownloader-linux#  rdownloader-linux#' -e 's#  \./rdownloader-macos# *rdownloader-macos#' \
@@ -110,6 +197,9 @@ expect_status "names without ./ or with * are found" 0
 expect "the same formula either way" "" "$(diff "$formula" "$SCRATCH/spellings-out/rdownloader.rb")"
 expect "the same manifest either way, hash in lower case" "" \
     "$(diff "$scoop" "$SCRATCH/spellings-out/rdownloader.json")"
+expect "the same winget installer either way, hash in upper case" "" \
+    "$(diff "$installer" "$SCRATCH/spellings-out/winget/degoya.rDownloader.installer.yaml")"
+expect "the same PKGBUILD either way" "" "$(diff "$pkgbuild" "$SCRATCH/spellings-out/aur/PKGBUILD")"
 
 grep -v 'rdownloader-linux-aarch64' "$SUMS" > "$SCRATCH/incomplete"
 run_status render 1.6.0 "$SCRATCH/incomplete" "$SCRATCH/incomplete-out"

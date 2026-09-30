@@ -335,7 +335,11 @@ for captured links, the `/api/v1/capture/captchas` routes for widget captchas,
 `/api/v1/capture/browser-sessions` routes when you hand a session over to an account. The last
 two are the ones your cookies travel over, each for the single origin it names. Over plain HTTP the
 token is visible on the network; put a reverse proxy with TLS in front of rDownloader for remote
-access.
+access. The options page says so under the address while it names another machine over `http://`.
+
+Only the extension's own pages may ask the background to send links: `rdownloader:send` checks
+the sender like the captcha and handover messages do, so a content script or another extension
+cannot push links into the service under this extension's token.
 
 ## Supported browsers
 

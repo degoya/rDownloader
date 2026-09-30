@@ -480,7 +480,7 @@ pub async fn account_for_candidate(
     }
     // No matching or covering account is not an error: the download proceeds without an
     // account as a free/direct attempt, exactly like the direct-add path in download_handlers.
-    Ok(crate::hosters::fallback_account(state, &candidate.url).await)
+    Ok(crate::hosters::fallback_account(state, accounts, &candidate.url).await)
 }
 
 /// Expands a reviewed remote directory into one [`FileSpec`] per selected file.

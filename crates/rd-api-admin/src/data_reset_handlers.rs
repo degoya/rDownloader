@@ -1,5 +1,6 @@
 //! Emptying the log store, the audit log and the transfer statistics (RD-120-34), the
-//! notification history (RD-130-08) and the notifications not yet sent (RD-170-11).
+//! notification history (RD-130-08), the notifications not yet sent (RD-170-11), and the
+//! storage history and the content index (RD-180-13).
 //!
 //! Separate actions and deliberately none that does them all. Somebody testing wants to start
 //! a run from an empty log while keeping the statistics that say how the last week went, and a
@@ -29,7 +30,9 @@
 //! never touches a delivery still queued or retrying: it is a notification the worker has yet
 //! to send, not a record of one. Cancelling those is a separate action with its own question,
 //! [`discard_pending_notification_deliveries`] (RD-170-11), so the clear cannot drop an unsent
-//! notification by accident.
+//! notification by accident. The storage history keeps every row still `running` the same way:
+//! that operation is under way and will write its outcome into it. Clearing the content index
+//! deletes its rows and nothing else — no file on disk, no download.
 
 use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
@@ -68,6 +71,11 @@ pub struct DataResetPreview {
     /// Deliveries still queued or retrying: what discarding the pending notifications would
     /// remove (RD-170-11).
     pub notifications_pending: u64,
+    /// Rows in the storage history a clear would remove: every one not still running
+    /// (RD-180-13).
+    pub storage_operations: u64,
+    /// Entries in the content index, missing ones included (RD-180-13).
+    pub content_index: u64,
 }
 
 /// `400` when a clear arrives without its confirmation flag.
@@ -109,6 +117,8 @@ pub async fn data_reset_preview(
             .database
             .count_pending_notification_deliveries()
             .await?,
+        storage_operations: state.database.count_clearable_storage_operations().await?,
+        content_index: state.database.count_content_index().await?,
     }))
 }
 
@@ -268,6 +278,78 @@ pub async fn discard_pending_notification_deliveries(
         crate::audit::AuditEvent::success(rd_core::AuditAction::NotificationsDiscarded)
             .by(&audit)
             .target("notifications", "notification_deliveries")
+            .detail(rd_db::CLEARED_DETAIL_KEY, removed),
+    )
+    .await;
+    Ok(Json(DataClearResponse { removed }))
+}
+
+/// Empties the storage history: the verified moves and dedupe links recorded so far
+/// (RD-180-13).
+///
+/// A row still `running` stays, for the reason the notification clear keeps a delivery still
+/// owed an attempt: its operation is under way, it will record how it ended into that row, and
+/// a restart that finds it running settles it as `interrupted`. Carrying an interrupted move on
+/// never reads the history (it follows the package's `previous_destination`), so what goes is
+/// only the record, never the recovery.
+#[utoipa::path(
+    post,
+    path = "/api/v1/storage/operations/clear",
+    tag = "system",
+    request_body = DataClearRequest,
+    responses(
+        (status = 200, body = DataClearResponse),
+        (status = 400, description = "data_reset.not_confirmed"),
+    )
+)]
+pub async fn clear_storage_operations(
+    State(state): State<AppState>,
+    audit: AuditContext,
+    Json(request): Json<DataClearRequest>,
+) -> Result<Json<DataClearResponse>, ApiError> {
+    confirm(&request, "storage_operations")?;
+    let removed = state.database.clear_storage_operations().await?;
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::StorageHistoryCleared)
+            .by(&audit)
+            .target("storage", "storage_operations")
+            .detail(rd_db::CLEARED_DETAIL_KEY, removed),
+    )
+    .await;
+    Ok(Json(DataClearResponse { removed }))
+}
+
+/// Empties the content index (RD-180-13): duplicate detection by content starts from nothing.
+///
+/// Only the index rows go. No file on disk and no download is touched, but until a file is
+/// indexed again it is found neither as a content duplicate nor as the original of a dedupe
+/// link. `POST /api/v1/storage/content-index/check` — which also runs at every start — puts
+/// back every finished download still in the queue whose SHA-256 is known and whose file is
+/// where its row says; a file whose download was removed, or that was never hashed, comes back
+/// only when it is downloaded again.
+#[utoipa::path(
+    post,
+    path = "/api/v1/storage/content-index/clear",
+    tag = "system",
+    request_body = DataClearRequest,
+    responses(
+        (status = 200, body = DataClearResponse),
+        (status = 400, description = "data_reset.not_confirmed"),
+    )
+)]
+pub async fn clear_content_index(
+    State(state): State<AppState>,
+    audit: AuditContext,
+    Json(request): Json<DataClearRequest>,
+) -> Result<Json<DataClearResponse>, ApiError> {
+    confirm(&request, "content_index")?;
+    let removed = state.database.clear_content_index().await?;
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::ContentIndexCleared)
+            .by(&audit)
+            .target("storage", "content_index")
             .detail(rd_db::CLEARED_DETAIL_KEY, removed),
     )
     .await;

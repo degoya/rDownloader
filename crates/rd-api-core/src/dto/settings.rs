@@ -433,6 +433,18 @@ pub struct SettingsResponse {
     /// 3600, one value for all folders, taken over by running watchers without a restart.
     #[serde(default = "default_hotfolder_poll_seconds")]
     pub hotfolder_poll_seconds: u32,
+    /// Whether the service checks for a new version by itself (RD-180-01). On by default: a
+    /// check fetches a public, signed file and sends nothing about the installation. "Check
+    /// now" works either way.
+    #[serde(default = "default_true")]
+    pub update_check_enabled: bool,
+    /// Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
+    /// Unset, it is `beta` on a pre-release build and `stable` on every other.
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
+    /// Hours between two automatic update checks (1-168).
+    #[serde(default = "default_update_check_interval_hours")]
+    pub update_check_interval_hours: u32,
 }
 
 /// Bounds of the two retention settings, in days.
@@ -454,6 +466,14 @@ const fn default_hotfolder_poll_seconds() -> u32 {
     rd_core::DEFAULT_HOTFOLDER_POLL_SECONDS
 }
 
+fn default_update_channel() -> String {
+    rd_update::UpdateSettings::default().update_channel
+}
+
+const fn default_update_check_interval_hours() -> u32 {
+    rd_update::settings::DEFAULT_INTERVAL_HOURS
+}
+
 impl Default for SettingsResponse {
     fn default() -> Self {
         Self {
@@ -467,6 +487,9 @@ impl Default for SettingsResponse {
             otlp_endpoint: String::new(),
             otlp_timeout_seconds: default_otlp_timeout_seconds(),
             hotfolder_poll_seconds: default_hotfolder_poll_seconds(),
+            update_check_enabled: true,
+            update_channel: default_update_channel(),
+            update_check_interval_hours: default_update_check_interval_hours(),
             max_connections_per_host: default_connections_per_host(),
             nntp_connections_per_file: 0,
             nntp_parallel_files: 0,

@@ -6,10 +6,12 @@ wit_bindgen::generate!({
     world: "postprocess-plugin",
 });
 
+use std::collections::BTreeSet;
+
 use exports::rdownloader::plugin::postprocess::{Guest, StepEnd, StepInput};
 use md5::{Digest, Md5};
 use rdownloader::plugin::{
-    source,
+    host, source,
     types::{Failure, FailureKind},
 };
 
@@ -38,20 +40,28 @@ impl Guest for Component {
         }
         // Everything the sidecars ask for, flattened and ordered, so a checkpoint is just
         // "how many of these are done" and resuming needs no bookkeeping of its own.
+        let files: BTreeSet<&str> = input.files.iter().map(String::as_str).collect();
         let mut wanted = Vec::new();
+        let mut unchecked = Vec::new();
         for name in sidecars {
             let text = match read_text(&input.handle, name) {
                 Ok(text) => text,
                 Err(failure) => return StepEnd::Failed(failure),
             };
-            for entry in sidecar::parse(&text) {
-                // A sidecar may list files that are not in this package — a release split
-                // across two folders does that. Verifying what is here is the useful answer.
-                if input.files.contains(&entry.file) {
-                    wanted.push(entry);
+            // Each entry is read from the sidecar's own folder (`Film/film.mkv`, RD-170-16).
+            match sidecar::wanted(&files, name, &text) {
+                Ok(plan) => {
+                    wanted.extend(plan.entries);
+                    unchecked.extend(
+                        plan.unchecked
+                            .into_iter()
+                            .map(|file| format!("{file} (in {name})")),
+                    );
                 }
+                Err(problem) => return StepEnd::Failed(unverifiable(name, problem)),
             }
         }
+        // Every listed file was one post-processing had already unpacked and removed.
         if wanted.is_empty() {
             return StepEnd::Skipped;
         }
@@ -73,6 +83,10 @@ impl Guest for Component {
                 Err(failure) => return StepEnd::Failed(failure),
             }
             source::progress((index + 1) as u64, Some(total as u64));
+        }
+        // A step can only pass or fail, so a pass with files left unchecked says so in the log.
+        if !unchecked.is_empty() {
+            host::log("warn", &unchecked_warning(&unchecked));
         }
         StepEnd::Complete(None)
     }
@@ -127,6 +141,50 @@ fn mismatch(file: &str, expected: &str, actual: &str) -> Failure {
         code: Some("md5_postprocess.mismatch".to_owned()),
         params: vec![("file".to_owned(), file.to_owned())],
     }
+}
+
+/// A sidecar none of whose files is here, or that lists none: nothing it promises was checked.
+fn unverifiable(name: &str, problem: sidecar::Unverifiable) -> Failure {
+    let (code, message, file) = match problem {
+        sidecar::Unverifiable::Missing(file) => (
+            "md5_postprocess.missing",
+            format!("none of the files {name} lists is in this package, {file} among them"),
+            file,
+        ),
+        sidecar::Unverifiable::Empty => (
+            "md5_postprocess.empty",
+            format!("{name} lists no MD5 checksum"),
+            name.to_owned(),
+        ),
+    };
+    Failure {
+        // The package's files do not change between attempts, so neither would the answer.
+        category: FailureKind::Permanent,
+        message,
+        code: Some(code.to_owned()),
+        params: vec![("file".to_owned(), file)],
+    }
+}
+
+/// The warning for listed files the package lacks while others verified: a release split
+/// across packages, or a file a cleanup rule removed. Named, so a pass is never read as "all".
+fn unchecked_warning(files: &[String]) -> String {
+    /// Names spelt out; a longer list is counted, since a log line is no inventory.
+    const NAMED: usize = 20;
+    let mut warning = format!(
+        "MD5 checksums matched, but {} listed file(s) are not in this package and were not checked: {}",
+        files.len(),
+        files
+            .iter()
+            .take(NAMED)
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    if files.len() > NAMED {
+        warning.push_str(&format!(", and {} more", files.len() - NAMED));
+    }
+    warning
 }
 
 fn refuse(message: String) -> Failure {

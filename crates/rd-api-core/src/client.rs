@@ -49,6 +49,33 @@ impl FromRequestParts<AppState> for ClientAddress {
     }
 }
 
+/// The address the service's listener is bound to, attached to every request by `rd_api::serve`.
+///
+/// Bound to one address of a network interface rather than to loopback or every interface, a
+/// client on this machine that connects to that address — the local control file names it —
+/// arrives from it: the operating system picks the destination as the source when both are this
+/// machine's own. No other machine can open a TCP connection from an address of this one, the
+/// handshake's answer would never reach it (security review 2026-09-30, finding 3).
+#[derive(Clone, Copy, Debug)]
+pub struct ListenAddress(pub SocketAddr);
+
+/// The headers a proxy sets on a request it passes on. Any of them takes the trust of
+/// [`from_this_machine`] away: `X-Forwarded-For`, `Forwarded` and `X-Real-IP` name the client;
+/// `Via`, `X-Forwarded-Host` and `X-Forwarded-Proto` are what a proxy configured to forward no
+/// address still sets; `CF-Connecting-IP` and `True-Client-IP` are the CDNs' own (security review
+/// 2026-09-30, finding 4). A proxy that sets none of them cannot be told from a local client —
+/// `docs/reverse-proxy.md` asks for `X-Forwarded-For`.
+pub const FORWARDING_HEADERS: [&str; 8] = [
+    rd_authn::client_ip::X_FORWARDED_FOR,
+    rd_authn::client_ip::FORWARDED,
+    "x-real-ip",
+    "via",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "cf-connecting-ip",
+    "true-client-ip",
+];
+
 /// Whether a request came straight from a process on this machine.
 ///
 /// A switched-off administrator login trusts exactly these callers and nobody else (security
@@ -57,24 +84,28 @@ impl FromRequestParts<AppState> for ClientAddress {
 /// container's port mapping, a reverse proxy's whole audience.
 ///
 /// Two conditions, both about the connection rather than anything the caller claims: the peer
-/// is a loopback address, and no forwarding header is present. A reverse proxy on the same
-/// machine connects from loopback on behalf of somebody else, and says so in one of those
-/// headers; a local client has no reason to send one, and sending one only takes the trust
-/// away. No connect info means the router is driven in-process — the tests do that, the
-/// service's listener never does (`serve` always attaches it) — and there is no network peer
+/// is a loopback address — or the one address a listener bound to a single interface listens on
+/// ([`ListenAddress`]) — and no forwarding header ([`FORWARDING_HEADERS`]) is present. A reverse
+/// proxy on the same machine connects from loopback on behalf of somebody else, and says so in
+/// one of those headers; a local client has no reason to send one, and sending one only takes
+/// the trust away. No connect info means the router is driven in-process — the tests do that,
+/// the service's listener never does (`serve` always attaches it) — and there is no network peer
 /// to distrust.
 pub fn from_this_machine(extensions: &Extensions, headers: &HeaderMap) -> bool {
-    let forwarded = [
-        rd_authn::client_ip::X_FORWARDED_FOR,
-        rd_authn::client_ip::FORWARDED,
-        "x-real-ip",
-    ]
-    .iter()
-    .any(|name| headers.contains_key(*name));
+    let forwarded = FORWARDING_HEADERS
+        .iter()
+        .any(|name| headers.contains_key(*name));
+    let listen = extensions
+        .get::<ListenAddress>()
+        .map(|ListenAddress(address)| address.ip().to_canonical())
+        .filter(|ip| !ip.is_unspecified());
     !forwarded
         && extensions
             .get::<ConnectInfo<SocketAddr>>()
-            .is_none_or(|ConnectInfo(address)| address.ip().to_canonical().is_loopback())
+            .is_none_or(|ConnectInfo(address)| {
+                let peer = address.ip().to_canonical();
+                peer.is_loopback() || listen == Some(peer)
+            })
 }
 
 /// [`from_this_machine`] as an extractor, for a handler that answers differently to it.
@@ -185,7 +216,16 @@ mod tests {
             );
         }
         let loopback = connected("127.0.0.1".parse().expect("address"));
-        for header in ["x-forwarded-for", "forwarded", "x-real-ip"] {
+        for header in [
+            "x-forwarded-for",
+            "forwarded",
+            "x-real-ip",
+            "via",
+            "x-forwarded-host",
+            "x-forwarded-proto",
+            "cf-connecting-ip",
+            "true-client-ip",
+        ] {
             let mut forwarded = HeaderMap::new();
             forwarded.insert(header, HeaderValue::from_static("203.0.113.9"));
             assert!(
@@ -193,6 +233,48 @@ mod tests {
                 "a proxy on this machine speaks for somebody else: {header}"
             );
         }
+    }
+
+    /// Finding 3 of the 2026-09-30 review: bound to one LAN address, `rdownloader stop` and the
+    /// updater connect to that address and arrive from it, and were refused as another machine.
+    #[test]
+    fn a_listener_bound_to_one_address_trusts_that_address_and_no_other() {
+        use axum::http::{HeaderMap, HeaderValue};
+        let none = HeaderMap::new();
+        let bound = |peer: &str, listen: &str| {
+            let mut extensions = connected(peer.parse().expect("peer"));
+            extensions.insert(super::ListenAddress(listen.parse().expect("listen")));
+            extensions
+        };
+        assert!(super::from_this_machine(
+            &bound("192.168.1.5", "192.168.1.5:8710"),
+            &none
+        ));
+        assert!(super::from_this_machine(
+            &bound("::ffff:192.168.1.5", "192.168.1.5:8710"),
+            &none
+        ));
+        assert!(super::from_this_machine(
+            &bound("127.0.0.1", "192.168.1.5:8710"),
+            &none
+        ));
+        assert!(!super::from_this_machine(
+            &bound("192.168.1.20", "192.168.1.5:8710"),
+            &none
+        ));
+        // Bound to every interface, the local control client connects over loopback; another
+        // address of this machine proves nothing about the peer.
+        assert!(!super::from_this_machine(
+            &bound("192.168.1.5", "0.0.0.0:8710"),
+            &none
+        ));
+        assert!(!super::from_this_machine(&bound("::", "[::]:8710"), &none));
+        let mut forwarded = HeaderMap::new();
+        forwarded.insert("via", HeaderValue::from_static("1.1 proxy"));
+        assert!(!super::from_this_machine(
+            &bound("192.168.1.5", "192.168.1.5:8710"),
+            &forwarded
+        ));
     }
 
     /// The bug this guards against: a sibling path that merely starts with the same letters.

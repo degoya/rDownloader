@@ -53,21 +53,30 @@ export const useCollectorStore = defineStore('collector', () => {
     const ticket = ++refreshTicket
     refreshing = true
     fetching.value = true
-    const [packageResponse, candidateResponse] = await Promise.all([
-      api.GET('/api/v1/collector/packages'),
-      api.GET('/api/v1/collector/candidates'),
-      nzb.refresh()
-    ])
-    if (ticket !== refreshTicket) return
-    refreshing = false
-    fetching.value = false
-    settled.value = true
-    if (packageResponse.data && candidateResponse.data) {
-      packages.value = packageResponse.data
-      candidates.value = candidateResponse.data
-      error.value = null
-    } else {
-      error.value = responseError(packageResponse.data ? candidateResponse : packageResponse)
+    try {
+      const [packageResponse, candidateResponse] = await Promise.all([
+        api.GET('/api/v1/collector/packages'),
+        api.GET('/api/v1/collector/candidates'),
+        nzb.refresh()
+      ])
+      if (ticket !== refreshTicket) return
+      if (packageResponse.data && candidateResponse.data) {
+        packages.value = packageResponse.data
+        candidates.value = candidateResponse.data
+        error.value = null
+      } else {
+        error.value = responseError(packageResponse.data ? candidateResponse : packageResponse)
+      }
+    } catch {
+      if (ticket === refreshTicket) error.value = responseError(undefined)
+    } finally {
+      // A rejection must not leave the flag set: `scheduleRefresh` would re-arm behind it for
+      // good and the LinkGrabber would stop following events until a reload.
+      if (ticket === refreshTicket) {
+        refreshing = false
+        fetching.value = false
+        settled.value = true
+      }
     }
   }
 

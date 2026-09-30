@@ -17,4 +17,5 @@ mod reconnect;
 mod reorder;
 mod service_switches;
 mod storage_capacity;
+mod storage_clear;
 mod storage_roots;

@@ -1,0 +1,28 @@
+pkgbase = rdownloader-bin
+	pkgdesc = Local-first download manager with a web interface (release binaries)
+	pkgver = @PKGVER@
+	pkgrel = 1
+	url = https://rdownloader.net
+	arch = x86_64
+	arch = aarch64
+	license = GPL-3.0-or-later
+	depends = gcc-libs
+	depends = glibc>=2.39
+	optdepends = ffmpeg: merging video and audio streams, audio extraction
+	optdepends = yt-dlp: media downloads
+	optdepends = 7zip: unpacking RAR sets and split ZIP sets
+	optdepends = unrar: unpacking RAR sets
+	provides = rdownloader
+	conflicts = rdownloader
+	options = !strip
+	options = !debug
+	source = rdownloader.service
+	source = rdownloader-capture.service
+	sha256sums = @SHA256_AUR_SERVICE@
+	sha256sums = @SHA256_AUR_CAPTURE_SERVICE@
+	source_x86_64 = rdownloader-@VERSION@-x86_64.tar.gz::@BASE_URL@/rdownloader-linux-x86_64.tar.gz
+	sha256sums_x86_64 = @SHA256_LINUX_X86_64@
+	source_aarch64 = rdownloader-@VERSION@-aarch64.tar.gz::@BASE_URL@/rdownloader-linux-aarch64.tar.gz
+	sha256sums_aarch64 = @SHA256_LINUX_AARCH64@
+
+pkgname = rdownloader-bin

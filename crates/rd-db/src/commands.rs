@@ -178,6 +178,11 @@ pub(crate) enum WriterCommand {
         account_id: rd_core::AccountId,
         reply: Reply<()>,
     },
+    /// Hands back the flow waiting for an OAuth callback and forgets its state in the same write.
+    TakeAuthFlowCallback {
+        callback_state: String,
+        reply: Reply<Option<rd_core::AuthFlow>>,
+    },
     /// Writes the row that stands for one remote job, before the provider is asked for
     /// anything (RD-107-06). Refused when the account already has one for that content.
     ClaimRemoteJob {
@@ -452,6 +457,12 @@ pub(crate) enum WriterCommand {
         key: String,
         value: serde_json::Value,
         reply: Reply<()>,
+    },
+    /// Writes a setting only if the key holds nothing yet; replies whether it did.
+    InsertSettingIfAbsent {
+        key: String,
+        value: serde_json::Value,
+        reply: Reply<bool>,
     },
     TrustPluginKey {
         input: crate::NewPluginTrustedKey,
@@ -1209,6 +1220,10 @@ pub(crate) enum WriterCommand {
         except: DownloadId,
         reply: Reply<u64>,
     },
+    /// Empties the content index (RD-180-13).
+    ClearContentIndex {
+        reply: Reply<u64>,
+    },
     /// Records the start of a verified move or a dedupe link (RD-150-02).
     StartStorageOperation {
         operation: crate::NewStorageOperation,
@@ -1220,6 +1235,10 @@ pub(crate) enum WriterCommand {
         reply: Reply<()>,
     },
     InterruptStorageOperations {
+        reply: Reply<u64>,
+    },
+    /// Empties the storage history except the rows still running (RD-180-13).
+    ClearStorageOperations {
         reply: Reply<u64>,
     },
     /// Writes a consistent copy of the whole database to `path` (RD-160-01).

@@ -9,7 +9,7 @@ use utoipa::OpenApi;
 use crate::{
     AppState, about, about_page, candidate_handlers, capture_summary, collector_handlers,
     data_reset_handlers, handlers, login_handlers, nzb_handlers, package_handlers,
-    settings_handlers, tools_handlers,
+    settings_handlers, tools_handlers, update_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -25,6 +25,18 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/system/data-reset",
             get(data_reset_handlers::data_reset_preview),
+        )
+        .route(
+            "/api/v1/system/update",
+            get(update_handlers::get_update_status),
+        )
+        .route(
+            "/api/v1/system/update/check",
+            post(update_handlers::check_for_updates),
+        )
+        .route(
+            "/api/v1/system/update/install",
+            post(update_handlers::install_update),
         )
         .route(
             "/api/v1/system/tools",
@@ -111,6 +123,9 @@ pub(crate) fn routes() -> Router<AppState> {
     tools_handlers::install_managed_tool,
     tools_handlers::activate_managed_tool,
     tools_handlers::rollback_managed_tool,
+    update_handlers::get_update_status,
+    update_handlers::check_for_updates,
+    update_handlers::install_update,
     handlers::capture_ping,
     crate::capture_file::capture_file,
     candidate_handlers::list_batches,

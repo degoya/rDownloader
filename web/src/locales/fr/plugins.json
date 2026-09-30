@@ -231,7 +231,7 @@
   "bundled": {
     "eyebrow": "Lot fourni",
     "title": "Services disponibles",
-    "description": "Ce que cette version fournit sans être installé : non choisi, supprimé ou nouveau. Un clic installe un service avec tous ses plugins ; ils fonctionnent dès le prochain démarrage.",
+    "description": "Ce que cette version fournit sans être installé : non choisi, supprimé ou nouveau. Un clic installe un service avec tous ses plugins ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
     "search": "Rechercher un service",
     "filter_label": "Filtrer par catégorie",
     "all": "Tous",
@@ -256,7 +256,7 @@
     "all_installed": "Tout le lot fourni est installé.",
     "none": "Cette version ne fournit aucun lot. Les plugins viennent alors d'un dépôt.",
     "failed": "{name} n'a pas pu être installé : {reason}",
-    "installed": "Rien n'a été installé. | 1 plugin installé ; il fonctionne dès le prochain démarrage. | {count} plugins installés ; ils fonctionnent dès le prochain démarrage.",
+    "installed": "Rien n'a été installé. | 1 plugin installé ; un plugin d’hébergeur ou de connexion fonctionne aussitôt, les autres types dès le prochain démarrage. | {count} plugins installés ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
     "installed_live": "Rien n'a été installé. | 1 plugin installé ; il fonctionne dès maintenant. | {count} plugins installés ; ils fonctionnent dès maintenant."
   }
 }

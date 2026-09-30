@@ -34,6 +34,13 @@ const LAGGED_EVENT = 'stream.lagged'
  */
 const EXPIRED_EVENT = 'stream.expired'
 
+/**
+ * What subscribers receive when a stream this module had to open afresh is up again. A new
+ * `EventSource` carries no `Last-Event-ID`, so the service cannot say what was missed in between:
+ * every subscriber re-reads, exactly as for the lag marker.
+ */
+const RESUMED_EVENT = 'stream.resumed'
+
 /** Event name -> the subscribers interested in it. A name may have several (e.g. `usenet.changed`). */
 const listeners = new Map<string, Set<StreamListener>>()
 /** Names already bound on the live `EventSource`; reset on every reconnect. */
@@ -42,6 +49,10 @@ const bound = new Set<string>()
 let source: EventSource | null = null
 let reconnectTimer: number | null = null
 let attempt = 0
+/** No session: nothing may open until `resumeEventStream()`, whoever still subscribes. */
+let suspended = false
+/** The next stream to open replaces one that closed, so its subscribers re-read on `open`. */
+let resync = false
 
 function dispatch(name: string, event: Event): void {
   const subscribers = listeners.get(name)
@@ -88,7 +99,7 @@ function clearReconnect(): void {
 }
 
 function open(): void {
-  if (source || listeners.size === 0) return
+  if (source || suspended || listeners.size === 0) return
   const stream = new EventSource(ENDPOINT, { withCredentials: true })
   source = stream
   bound.clear()
@@ -99,7 +110,12 @@ function open(): void {
   stream.addEventListener(EXPIRED_EVENT, event => dispatchLagged(event))
   bound.add(EXPIRED_EVENT)
   for (const name of listeners.keys()) bind(name)
-  stream.onopen = () => { attempt = 0 }
+  stream.onopen = () => {
+    attempt = 0
+    if (!resync) return
+    resync = false
+    dispatchLagged(new MessageEvent(RESUMED_EVENT, { data: '{}' }))
+  }
   stream.onerror = () => {
     // Only tear down if this is still the current stream; a late error from a replaced one
     // must not close its successor.
@@ -120,17 +136,21 @@ function open(): void {
     const delay = Math.min(BASE_RECONNECT_MS * 2 ** attempt, MAX_RECONNECT_MS)
     attempt += 1
     clearReconnect()
-    reconnectTimer = window.setTimeout(() => { reconnectTimer = null; open() }, delay)
+    reconnectTimer = window.setTimeout(() => { reconnectTimer = null; resync = true; open() }, delay)
   }
 }
 
-function closeIfIdle(): void {
-  if (listeners.size > 0) return
+function closeStream(): void {
   clearReconnect()
   attempt = 0
   source?.close()
   source = null
   bound.clear()
+}
+
+function closeIfIdle(): void {
+  if (listeners.size > 0) return
+  closeStream()
 }
 
 /**
@@ -160,8 +180,46 @@ export function subscribeEvents(handlers: Record<string, StreamListener>): () =>
   }
 }
 
+/**
+ * Closes the stream while there is no session, and keeps it closed.
+ *
+ * The service answers the stream with `401` once the session has ended, and the backoff above
+ * kept asking — up to every 30 s — for as long as the sign-in screen stood open. Subscribers stay
+ * registered; `resumeEventStream()` after the next sign-in opens the stream for them at once.
+ */
+export function suspendEventStream(): void {
+  suspended = true
+  resync = false
+  closeStream()
+}
+
+/** Lifts `suspendEventStream()` and opens the stream straight away, with a fresh backoff. */
+export function resumeEventStream(): void {
+  suspended = false
+  if (source) return
+  clearReconnect()
+  attempt = 0
+  open()
+}
+
+/**
+ * Opens the stream now if it is down and waiting out its backoff — the browser reported the
+ * network back (`online`). Every subscriber re-reads once it is open, since the gap is unknown.
+ */
+export function reconnectEventStream(): void {
+  // A live `source` is either open or being retried by the browser itself, with the resume id.
+  if (suspended || source || listeners.size === 0) return
+  closeStream()
+  resync = true
+  open()
+}
+
+window.addEventListener('online', reconnectEventStream)
+
 /** Test seam: drops every subscription and closes the stream. */
 export function resetEventStream(): void {
   listeners.clear()
+  suspended = false
+  resync = false
   closeIfIdle()
 }

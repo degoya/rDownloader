@@ -118,14 +118,99 @@ async fn an_approved_post_download_survives_a_restart_with_its_template() {
         .decode(secrecy::ExposeSecret::expose_secret(&encoded).as_bytes())
         .expect("base64");
     assert_eq!(String::from_utf8(bytes).expect("utf-8"), BODY);
+}
 
-    // Nothing dangling: the body has an owner, so no sweep would remove it.
+/// Deleting the download is the body's end: its template row cascades away with it, so the
+/// reference has to be read and forgotten before, or the form data stays in the vault.
+#[tokio::test]
+async fn deleting_a_post_download_takes_its_body_out_of_the_vault() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    // Parked, so the queued row is not started and the delete needs no pause first.
+    let harness = common::parked_harness(directory.path()).await;
+    harness
+        .database
+        .install_secret_vault(harness.secrets.clone());
+    let (_, payload) = common::post_capture(&harness.router, post_capture_payload()).await;
+    let candidate_id = payload["candidates"][0]["id"].as_str().expect("id");
+    let package_id = payload["packages"][0]["id"].as_str().expect("package");
+    let (_, preview) = common::get_json(
+        &harness.router,
+        &format!("/api/v1/collector/candidates/{candidate_id}/replay-preview"),
+    )
+    .await;
+    let hash = preview["template_hash"].as_str().expect("hash");
+    let (status, _) = common::post_json(
+        &harness.router,
+        &format!("/api/v1/collector/candidates/{candidate_id}/replay-consent"),
+        serde_json::json!({ "template_hash": hash }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    common::wait_for_candidates_ready(&harness.router).await;
+    let (status, enqueued) = common::post_json(
+        &harness.router,
+        &format!("/api/v1/collector/packages/{package_id}/enqueue"),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{enqueued}");
+    let (_, downloads) = common::get_json(&harness.router, "/api/v1/downloads").await;
+    let download_id = downloads[0]["id"].as_str().expect("download id").to_owned();
+    let reference = harness
+        .database
+        .request_body_ref(download_id.parse().expect("id"))
+        .await
+        .expect("body ref")
+        .expect("the download owns the body");
     assert!(
-        database
-            .orphaned_replay_body_refs()
-            .await
-            .expect("sweep")
-            .is_empty()
+        harness.secrets.get(&reference).await.is_ok(),
+        "stored first"
+    );
+
+    let (status, body) =
+        common::delete_json(&harness.router, &format!("/api/v1/downloads/{download_id}")).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(
+        harness.secrets.get(&reference).await.is_err(),
+        "the captured body outlived its download"
+    );
+}
+
+/// A captured POST body belongs to its LinkGrabber entry until an enqueue hands it over;
+/// removing the entry removes the body from the vault.
+#[tokio::test]
+async fn deleting_a_captured_candidate_takes_its_body_out_of_the_vault() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    harness
+        .database
+        .install_secret_vault(harness.secrets.clone());
+    let (_, payload) = common::post_capture(&harness.router, post_capture_payload()).await;
+    let candidate_id = payload["candidates"][0]["id"]
+        .as_str()
+        .expect("id")
+        .to_owned();
+    let reference = harness
+        .database
+        .candidate_body_ref(candidate_id.parse().expect("id"))
+        .await
+        .expect("candidate ref")
+        .expect("a captured body is vaulted");
+    assert!(
+        harness.secrets.get(&reference).await.is_ok(),
+        "stored first"
+    );
+
+    common::wait_for_candidates_ready(&harness.router).await;
+    let (status, body) = common::delete_json(
+        &harness.router,
+        &format!("/api/v1/collector/candidates/{candidate_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(
+        harness.secrets.get(&reference).await.is_err(),
+        "the captured body outlived its LinkGrabber entry"
     );
 }
 

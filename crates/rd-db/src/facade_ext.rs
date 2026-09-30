@@ -108,11 +108,11 @@ impl Database {
 
     /// Removes one LinkGrabber candidate that is not currently being enqueued.
     ///
-    /// Its vaulted link fragment goes with it (RD-110-38). Read before the delete, because
-    /// the reference is a column of the row being removed: a secret nothing points at is a
-    /// leak with a delay.
+    /// Its vaulted link fragment (RD-110-38) and captured request body go with it. Read before
+    /// the delete, because the references are columns of the row being removed: a secret
+    /// nothing points at is a leak with a delay.
     pub async fn delete_candidate(&self, id: rd_core::CandidateId) -> Result<()> {
-        let orphaned = crate::collector_store::secret_fragment_ref(&self.readers, id)
+        let orphaned = crate::collector_store::candidate_vault_refs(&self.readers, id)
             .await
             .unwrap_or_default();
         writer::request(&self.writer, |reply| WriterCommand::DeleteCandidate {
@@ -120,7 +120,7 @@ impl Database {
             reply,
         })
         .await?;
-        self.forget_secrets(orphaned.into_iter().collect()).await;
+        self.forget_secrets(orphaned).await;
         Ok(())
     }
 
@@ -129,7 +129,7 @@ impl Database {
     /// The same predicate as the delete itself, so a candidate that is kept -- one being
     /// resolved, one already enqueued -- keeps its secret too.
     pub async fn delete_candidates(&self) -> Result<u64> {
-        let orphaned = crate::collector_store::deletable_secret_fragment_refs(&self.readers)
+        let orphaned = crate::collector_store::deletable_vault_refs(&self.readers)
             .await
             .unwrap_or_default();
         let removed = writer::request(&self.writer, |reply| WriterCommand::DeleteCandidates {

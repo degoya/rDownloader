@@ -7,6 +7,7 @@ import { renderSVG } from 'uqr'
 import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCopy } from '@/composables/useCopy'
 import { formatMoment } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -28,11 +29,14 @@ const pending = ref<{
 } | null>(null)
 const confirmCode = ref('')
 const confirmError = ref<string | null>(null)
-const disablePassword = ref('')
+/// The password every change here asks for again: adding or removing a factor, or switching it
+/// off. A session alone is not enough, because a session somebody walked away from is still one.
+const password = ref('')
 const freshCodes = ref<string[] | null>(null)
 
 const confirm = useConfirm()
 const toast = useToast()
+const copyToClipboard = useCopy()
 
 const enabled = computed(() => status.value?.enabled ?? false)
 /// Passkeys live in the same table but are a different feature, and have their own card.
@@ -70,12 +74,13 @@ async function load(): Promise<void> {
 
 async function startEnrolment(): Promise<void> {
   busy.value = true
-  const response = await api.POST('/api/v1/mfa/totp', { body: { label: null } })
+  const response = await api.POST('/api/v1/mfa/totp', { body: { label: null, password: password.value } })
   busy.value = false
   if (!response.data) {
     error.value = responseError(response)
     return
   }
+  password.value = ''
   pending.value = {
     credentialId: response.data.credential_id,
     provisioningUri: response.data.provisioning_uri,
@@ -115,12 +120,14 @@ async function removeCredential(credential: MfaCredential): Promise<void> {
   })
   if (!confirmed) return
   const response = await api.DELETE('/api/v1/mfa/credentials/{id}', {
-    params: { path: { id: credential.id } }
+    params: { path: { id: credential.id } },
+    body: { password: password.value }
   })
   if (!response.data) {
     error.value = responseError(response)
     return
   }
+  password.value = ''
   await load()
 }
 
@@ -128,14 +135,14 @@ async function disable(): Promise<void> {
   busy.value = true
   error.value = null
   const response = await api.POST('/api/v1/mfa/disable', {
-    body: { password: disablePassword.value }
+    body: { password: password.value }
   })
   busy.value = false
   if (!response.data) {
     error.value = responseError(response)
     return
   }
-  disablePassword.value = ''
+  password.value = ''
   await load()
   toast.add({ title: t('system.mfa.disabled_toast'), color: 'success', icon: 'i-lucide-shield-off' })
 }
@@ -159,7 +166,7 @@ async function regenerate(): Promise<void> {
 }
 
 async function copy(value: string): Promise<void> {
-  await navigator.clipboard.writeText(value)
+  if (!(await copyToClipboard(value))) return
   toast.add({ title: t('system.mfa.copied'), color: 'success', icon: 'i-lucide-copy-check' })
 }
 
@@ -212,9 +219,14 @@ async function copy(value: string): Promise<void> {
       </form>
     </div>
 
+    <!-- The password every change below asks for again. -->
+    <UFormField v-else class="mt-4" :label="t('system.mfa.step_up.label')" :description="t('system.mfa.step_up.hint')">
+      <UInput v-model="password" type="password" autocomplete="current-password" class="w-full sm:max-w-sm" />
+    </UFormField>
+
     <!-- Not enrolled and nothing in progress. -->
-    <div v-else-if="!enabled" class="mt-4">
-      <UButton icon="i-lucide-shield-plus" :label="t('system.mfa.enrol.start')" :loading="busy" @click="startEnrolment" />
+    <div v-if="!pending && !enabled" class="mt-4">
+      <UButton icon="i-lucide-shield-plus" :label="t('system.mfa.enrol.start')" :loading="busy" :disabled="!password" @click="startEnrolment" />
     </div>
 
     <!-- Enrolled. -->
@@ -230,7 +242,7 @@ async function copy(value: string): Promise<void> {
             </p>
             <p class="mt-1 text-xs text-muted">{{ t('system.mfa.last_used', { moment: formatMoment(credential.last_used_at) || t('system.mfa.never_used') }) }}</p>
           </div>
-          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('system.mfa.remove.action')" :title="t('system.mfa.remove.action')" @click="removeCredential(credential)" />
+          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('system.mfa.remove.action')" :title="t('system.mfa.remove.action')" :disabled="!password" @click="removeCredential(credential)" />
         </li>
       </ul>
     </template>
@@ -251,11 +263,9 @@ async function copy(value: string): Promise<void> {
         </ul>
       </div>
 
-      <form class="flex flex-wrap items-end gap-2 border-t border-muted pt-4" @submit.prevent="disable">
-        <UFormField class="flex-1" :label="t('system.mfa.disable.label')" :description="t('system.mfa.disable.hint')">
-          <UInput v-model="disablePassword" type="password" autocomplete="current-password" class="w-full" />
-        </UFormField>
-        <UButton type="submit" color="neutral" variant="soft" icon="i-lucide-shield-off" :label="t('system.mfa.disable.action')" :loading="busy" :disabled="!disablePassword" />
+      <form class="flex flex-wrap items-center gap-3 border-t border-muted pt-4" @submit.prevent="disable">
+        <p class="flex-1 text-sm text-toned">{{ t('system.mfa.disable.hint') }}</p>
+        <UButton type="submit" color="neutral" variant="soft" icon="i-lucide-shield-off" :label="t('system.mfa.disable.action')" :loading="busy" :disabled="!password" />
       </form>
     </div>
   </section>

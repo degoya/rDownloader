@@ -7,11 +7,7 @@
 <p align="center"><strong>One downloader. Every workflow.</strong></p>
 
 <p align="center">
-  A local-first download manager for HTTP, hosters, cloud drives, FTP/SFTP/WebDAV, Usenet, torrents, media, feeds, galleries and livestreams — with one persistent queue and automation around it.
-</p>
-
-<p align="center">
-  <a href="https://github.com/degoya/rDownloader/releases">Download</a> ·
+  <a href="https://rdownloader.net/download/">Download</a> ·
   <a href="https://rdownloader.net">Website</a> ·
   <a href="https://github.com/degoya/rDownloader/wiki">Handbook</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
@@ -24,156 +20,72 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="License: GPL-3.0-or-later"></a>
 </p>
 
-> **Status: early public release (alpha).** rDownloader has been public since 1.3. Expect
-> rough edges, and read the note under *Supported sources* on what has and has not been run
-> against real provider accounts. The project website is <https://rdownloader.net>, and the user
-> handbook is the [wiki](https://github.com/degoya/rDownloader/wiki).
+rDownloader is a local-first download manager for HTTP, hosters, cloud drives, FTP/SFTP/WebDAV,
+Usenet, torrents, media, feeds, galleries and livestreams — collected in one LinkGrabber, run
+from one persistent queue, and finished by automation. It is a Rust server with an embedded,
+installable Vue web interface, for Windows, macOS, Linux and Docker.
+
+> **Early public release.** Expect rough edges. Most provider integrations are tested against
+> recorded answers rather than live accounts; the handbook says where.
 
 ![The Downloads view: packages with progress, categories and the queue status](.github/readme/downloads.png)
 
-## What is rDownloader?
+## Features
 
-rDownloader brings different download sources into one local, persistent workflow. Collect links, files, feeds and subscriptions in the LinkGrabber, review and organize them as packages, control one shared queue, and automate what happens after a download: verification, repair, extraction, cleanup, scripts, notifications and upload.
+- **One queue across sources** — HTTP, hosters and multihosters, cloud drives, FTP/FTPS, SFTP, WebDAV, Usenet/NZB, BitTorrent, video and audio, feeds, galleries and livestreams.
+- **A real LinkGrabber** — collect from the browser, the clipboard, Click'n'Load, files, feeds and hotfolders; check, group mirrors, rename and route before queuing.
+- **Jobs at your provider** — hand a magnet, torrent, NZB or link to a debrid or cloud account and pick the finished files.
+- **Post-processing** — checksums and SFV, PAR2 repair, extraction, cleanup, scripts and upload destinations.
+- **Automation** — categories, schedules, bandwidth profiles, subscriptions and trigger/condition/action rules.
+- **Notifications** — signed webhooks, e-mail, ntfy, Apprise and notification plugins.
+- **Local-first** — binds to `127.0.0.1` by default, keeps credentials in an encrypted vault and scopes every API token.
+- **Integrations** — REST API with OpenAPI and Server-Sent Events, a built-in MCP server, SABnzbd- and qBittorrent-compatible adapters for the *arr tools, a remote CLI.
+- **Signed WebAssembly plugins** — sandboxed extensions built against the versioned contract `rdownloader:plugin@0.9.0`, with signed repositories and an SDK.
+- **Restart-safe** — transfers, post-processing and seeding resume after a restart; logs, audit log, statistics and Prometheus metrics stay local.
+- **Four languages** — English, German, French and Spanish, in the interface and the browser extension.
 
-The server is written in Rust and carries its responsive, installable Vue web interface inside the binary. Release builds target Windows, macOS and Linux, and a container image is built for `amd64` and `arm64`.
+## Install
 
-## Why rDownloader?
+Download the archive for your platform from [rdownloader.net/download](https://rdownloader.net/download/) or [GitHub Releases](https://github.com/degoya/rDownloader/releases), run `start-rdownloader`, and open <http://127.0.0.1:8710> for the setup wizard. Linux binaries need glibc 2.39 or newer; use Docker on older systems.
 
-- **One queue across sources** — HTTP and hosters, cloud drives, FTP/FTPS, SFTP, WebDAV, Usenet/NZB, BitTorrent, video and audio, feeds, galleries and livestream recordings.
-- **A real LinkGrabber** — collect from text, the clipboard, Click'n'Load 2, the browser extension, the web app's share target, `rdownloader://` links, hotfolders, feeds, NZB/torrent/DLC imports, REST, the remote CLI or MCP; then check, group, rename, route and queue.
-- **Jobs at your provider** — hand a magnet, `.torrent`, NZB or link to a supported debrid or cloud account, follow it across a restart, and pick the finished files in the LinkGrabber.
-- **Automation during and after download** — categories, schedules, bandwidth profiles, trigger/condition/action rules, checksums and SFV, PAR2, extraction, cleanup, scripts, notifications and storage/upload destinations.
-- **Local-first** — binds to `127.0.0.1` by default, keeps credentials in an encrypted vault, scopes every machine token to the areas it needs, and restricts downloads to configured storage roots.
-- **Extensible** — a native REST API with OpenAPI and Server-Sent Events, a built-in MCP server, SABnzbd- and qBittorrent-compatible adapters, a remote CLI, and signed WebAssembly plugins with an SDK and conformance tooling.
-- **Restart-safe and observable** — transfers, post-processing and seeding pick up after a restart; a searchable log, an append-only audit log, transfer statistics and Prometheus metrics stay on your machine.
-- **Four languages** — the interface and the browser extension speak English, German, French and Spanish.
+```bash
+# macOS and Linux (Homebrew)
+brew install degoya/rdownloader/rdownloader && brew services start rdownloader
 
-## Supported sources
+# Windows (Scoop)
+scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader
+scoop install rdownloader
 
-| Source | What rDownloader does | Requirement or note |
-| --- | --- | --- |
-| HTTP/HTTPS | parallel range chunks, safe resume, checksums, proxies, bandwidth limit | Range parallelism depends on the server |
-| Hosters and multihosters | bundled resolvers, including a generic one for XFileSharing sites, MEGA with decryption on write, account selection, anonymous free flows, mirror failover | Accounts where a hoster needs one; a widget captcha needs the browser extension or a solver service |
-| Cloud drives | Google Drive, OneDrive/SharePoint, Dropbox, Box and pCloud through their official APIs; files and folders | An account and an OAuth application you register yourself |
-| Jobs at a provider | magnets, `.torrent`, NZB and links handed to Premiumize, TorBox, Offcloud, Put.io, Seedr or Real-Debrid; restart-safe; results in the LinkGrabber | An account at the provider |
-| FTP/FTPS, SFTP, WebDAV | directory review, encrypted logins, validated resume, SSH host-key trust | Resume depends on the server; a changed SFTP host key is blocked |
-| Usenet/NZB | NNTP connection pools, yEnc/CRC, segment resume, PAR2 repair | Your own Usenet access |
-| BitTorrent | file and priority plans, trackers, peer and piece views, network controls, seeding | No BEP 19 web seeds |
-| Video/audio | format filters, audio and subtitles, metadata, SponsorBlock, templates, subscriptions | `yt-dlp`; `ffmpeg`/`ffprobe` for the full workflow |
-| Feeds and indexers | RSS/Atom, podcasts, Newznab/Torznab, filters, persistent history, your own scripts that print links | Reachable feeds and configured indexers |
-| Galleries | one gallery per queue job, retries that skip what is already there | `gallery-dl` |
-| Livestreams | record now or on a schedule, sidecars, split/remux, reconnect | `streamlink`; what works depends on the source |
-
-Hosters, providers and upstream tools change. Most provider integrations were built against their documented APIs and tested against recorded answers rather than live accounts; the handbook's [Hosters and accounts](https://github.com/degoya/rDownloader/wiki/hosters-and-accounts) and [Remote jobs](https://github.com/degoya/rDownloader/wiki/remote-jobs) pages say where a run against a real account is still missing.
-
-## From capture to completion
-
-```mermaid
-flowchart LR
-    A[Browser / clipboard / files / feeds / CLI / API / MCP] --> B[LinkGrabber]
-    B --> C[Persistent queue]
-    C --> D[Download runners]
-    D --> E[PAR2 repair]
-    E --> F[SFV verify]
-    F --> G[Extract]
-    G --> H[Clean up]
-    H --> I[Run script]
-    I --> J[Storage / upload destination]
+# Docker (amd64/arm64); docker/README.md covers Compose, volumes and NAS setups
+docker run -d --name rdownloader -p 127.0.0.1:8710:8710 \
+  -v rdownloader-config:/config -v "$HOME/Downloads:/downloads" \
+  -e PUID="$(id -u)" -e PGID="$(id -g)" \
+  ghcr.io/degoya/rdownloader:latest
 ```
 
-PAR2 applies to Usenet packages; SFV verification works for any package. Which steps run is decided by package, category, global and automation settings — see [Post-processing](https://github.com/degoya/rDownloader/wiki/post-processing) in the handbook.
+The browser extension is in the [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda) and on [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/).
 
-## Quick start
+## Documentation
 
-1. Download the archive for your platform from [Releases](https://github.com/degoya/rDownloader/releases) and extract it. Linux comes as `rdownloader-linux-x86_64.tar.gz` and `rdownloader-linux-aarch64.tar.gz`.
-2. Run `start-rdownloader.bat` (Windows), `./start-rdownloader.sh` (Linux) or `./start-rdownloader.command` (macOS).
-3. Open <http://127.0.0.1:8710> and follow the setup wizard: administrator password, pairing the capture agent or browser extension, a storage destination, and optionally MCP access and provider or Usenet settings.
+The [handbook](https://github.com/degoya/rDownloader/wiki) covers everything in detail:
 
-With a package manager instead: `brew install degoya/rdownloader/rdownloader` and `brew services start rdownloader` on macOS and Linux (the capture agent starts at login with `brew install degoya/rdownloader/rdownloader-capture` and `brew services start rdownloader-capture`), or `scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader`, `scoop install rdownloader` and `start-rdownloader` on Windows. Both keep the database and downloads across upgrades.
+- **Getting started** — [Installation](https://github.com/degoya/rDownloader/wiki/installation) · [First run](https://github.com/degoya/rDownloader/wiki/first-run) · [Your first download](https://github.com/degoya/rDownloader/wiki/first-download)
+- **Using** — [LinkGrabber](https://github.com/degoya/rDownloader/wiki/linkgrabber) · [Download queue](https://github.com/degoya/rDownloader/wiki/download-queue) · [Hosters and accounts](https://github.com/degoya/rDownloader/wiki/hosters-and-accounts) · [Post-processing](https://github.com/degoya/rDownloader/wiki/post-processing) · [Automation](https://github.com/degoya/rDownloader/wiki/automation)
+- **Integrations** — [Browser extension](https://github.com/degoya/rDownloader/wiki/browser-extension) · [MCP server](https://github.com/degoya/rDownloader/wiki/mcp-server) · [REST API](https://github.com/degoya/rDownloader/wiki/rest-api) · [Sonarr, Radarr and other *arr tools](https://github.com/degoya/rDownloader/wiki/automation-tool-compatibility) · [Command line client](https://github.com/degoya/rDownloader/wiki/command-line-client)
+- **Plugins** — [Overview](https://github.com/degoya/rDownloader/wiki/overview) · [Installing and trust](https://github.com/degoya/rDownloader/wiki/installing-and-trust) · [Bundled plugins](https://github.com/degoya/rDownloader/wiki/bundled-plugins)
+- **Operating** — [Docker and NAS](https://github.com/degoya/rDownloader/wiki/docker-and-nas) · [Reverse proxy](https://github.com/degoya/rDownloader/wiki/reverse-proxy) · [Backup and restore](https://github.com/degoya/rDownloader/wiki/backup-and-restore) · [Troubleshooting](https://github.com/degoya/rDownloader/wiki/troubleshooting)
+- **Security and privacy** — [Security and privacy](https://github.com/degoya/rDownloader/wiki/security-and-privacy) · [Accounts, sessions and permissions](https://github.com/degoya/rDownloader/wiki/accounts-sessions-and-permissions)
+- **Plugin development** — [Developing a plugin](https://github.com/degoya/rDownloader/wiki/developing-a-plugin) · [Plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) · [`sdk/README.md`](sdk/README.md)
+- **Building from source** — [Building from source](https://github.com/degoya/rDownloader/wiki/building-from-source)
 
-For Docker, [`docker/README.md`](docker/README.md) covers the image, Compose, volumes, `PUID`/`PGID` and a Synology walkthrough. Autostart is in [Installation](https://github.com/degoya/rDownloader/wiki/installation), and the [capture agent](https://github.com/degoya/rDownloader/wiki/capture-agent), the [browser extension](https://github.com/degoya/rDownloader/wiki/browser-extension) and [building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) have handbook pages of their own.
+## Contributing
 
-> Media, gallery, stream, archive, Apprise and rclone features need their external tools. The Docker image ships FFmpeg, yt-dlp, streamlink, gallery-dl, 7-Zip, par2 and Apprise. A native install finds them in a `vendor/` folder beside the executable or on `PATH`, and can download managed yt-dlp and FFmpeg builds on Linux and Windows. RAR extraction needs `unrar` 6.10 or newer. Details: [External tools](https://github.com/degoya/rDownloader/wiki/external-tools). Each Windows and Linux package names its version and commit in `VERSION.txt`.
+Issues and focused pull requests are welcome; [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how a pull request is applied and credited, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Running a hosting, debrid, Usenet or cloud service? A [provider support request](https://github.com/degoya/rDownloader/issues/new?template=provider_support.yml) is welcome — never post credentials there.
 
-## Platforms
+## Security
 
-| Platform | Server | Capture agent | Notes |
-| --- | --- | --- | --- |
-| Windows x86-64 | Native | Tray app | Portable binaries, `.nzb` association |
-| macOS Intel and Apple Silicon | Native | Menu-bar app | LaunchAgent autostart; built and linted in CI, tests run on Linux and Windows |
-| Linux x86-64 and arm64 | Native | Headless | systemd user-service autostart; needs glibc 2.39 or newer (below) |
-| Docker `amd64`/`arm64` | Container | Not included | Use the browser extension or a desktop agent elsewhere |
-
-**Linux needs glibc 2.39 or newer.** Both Linux binaries are built on Ubuntu 24.04 and linked against its glibc 2.39, so they run on Ubuntu 24.04 and newer, Debian 13 and current Fedora and Arch — but not on Debian 12 or Raspberry Pi OS based on it (bookworm, glibc 2.36), where the binary refuses to start with `GLIBC_2.39 not found`. Use the Docker image there; it brings its own glibc and runs on `amd64` and `arm64`, a Raspberry Pi with a 64-bit OS included. `ldd --version` shows what a system has.
-
-The browser extension targets Chrome/Edge and Firefox from one Manifest V3 codebase ([`extension/README.md`](extension/README.md)); install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda) or [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/); each release submits both for the stores' review.
-
-## LinkGrabber
-
-![The LinkGrabber: checked packages with online states, sizes and hosters](.github/readme/linkgrabber.png)
-
-Collected links wait in the LinkGrabber before anything is queued. It takes browser and share-target captures, NZB and torrent files, DLC/CCF/RSDF/`.txt` containers, cloud and shared folders, release pages recognised by site rules, and subscription hits; checks them as each source allows; groups mirrors of the same file into one row; and can hide the links of chosen hosters. It asks before replaying a browser request that carries credentials, shows metadata and duplicates, groups multipart archives, and lets you set category, priority, archive password, processing level and script per package. Queue everything, a selection, or add it paused.
-
-## MCP, REST and events
-
-- MCP (Streamable HTTP): `/mcp`
-- JSON API: `/api/v1`, described by `/api/v1/openapi.json`
-- Server-Sent Events: `/api/v1/events`
-
-API tokens are labelled, revocable and scoped to the permission areas a client needs; a read-only scope suits dashboards, and a metrics-only scope suits Prometheus. MCP and REST share the same application logic and validation, and each MCP tool costs the same area as the REST route behind it. The toolbox covers adding and controlling work, the LinkGrabber link by link, container and NZB imports, jobs at a provider, logs, audit records, statistics and the configuration. Tools that would hand out or take in a secret, give a consent, or change something outside the machine irreversibly are deliberately left out.
-
-The SABnzbd and qBittorrent adapters implement documented subsets for Sonarr, Radarr, Lidarr, Readarr and similar clients. They are verified against the call sequence those clients issue, not yet against running instances — [Automation tool compatibility](https://github.com/degoya/rDownloader/wiki/automation-tool-compatibility) lists every endpoint. Setup for [MCP clients](https://github.com/degoya/rDownloader/wiki/mcp-server), the [CLI](https://github.com/degoya/rDownloader/wiki/command-line-client) and [metrics](https://github.com/degoya/rDownloader/wiki/statistics) is in the handbook.
-
-## Signed WebAssembly plugins
-
-Hosters, cloud drives, multihosters and many other extensions are signed `.rdplug` packages built against the versioned contract `rdownloader:plugin@0.9.0`, for every extension point: resolver, transfer, intake parser, authentication, OAuth, folder crawler, metadata enricher, notification destination, post-processing step, storage destination, remote job and stream transform. Plugins run without WASI inside a resource-limited sandbox, and their manifests declare the network, secret, resource, filesystem and process capabilities they need.
-
-Every package, uploaded or from a repository, is shown before it is installed: name, version, publisher with key id and fingerprint, the permissions it declares and, from a repository, its release notes. A package signed by a third-party key is installed only after that key is explicitly approved in the same preview. Signed plugin repositories bring hoster fixes without a full release: the official repository is built in, a third-party one is usable only after its key is approved, updates are shown and installed on a click, offline only an index that still verifies is used, and switching a repository off keeps what was installed from it. A repository only delivers; every package still needs a plugin key you trust. Version pinning for running jobs, switching a plugin off without removing it, key and per-package revocation, execution history, scaffolding, conformance checks and a reusable CI template support its lifecycle. Per plugin, a version can be made active, tried on a single download before it is activated, and rolled back; each choice applies from the next start. See the [plugin overview](https://github.com/degoya/rDownloader/wiki/overview), the [plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) and [`sdk/README.md`](sdk/README.md).
-
-## Subscriptions, automations and notifications
-
-Media and gallery subscriptions, RSS/Atom and podcast feeds, Newznab/Torznab indexers and your own scripts feed the LinkGrabber or the queue on a schedule, with persistent item history, filters and backlog protection.
-
-The automation editor connects intake, resolution, start, completion, failure, extraction, script, upload and storage events to conditions and actions, with idempotency, retries and a run history. Signed webhooks, e-mail, ntfy (including your own server), Apprise-compatible services and notification plugins deliver filtered events while the browser is closed.
-
-## Security and remote access
-
-rDownloader binds to `127.0.0.1` by default. Provider, proxy and NNTP secrets live in an encrypted local vault; API tokens are stored only as SHA-256 digests. Sign-in takes a passkey or a password with an optional authenticator code, and sessions can be listed and ended. Authentication profiles are bound to their domains and redirects are contained. Security-relevant actions go to an append-only audit log.
-
-rDownloader is a single-administrator application with no multi-user or role management. For remote access, put it behind a TLS reverse proxy and configure trusted proxies and the external URL; `rdownloader doctor` warns about half-configured setups ([Reverse proxy](https://github.com/degoya/rDownloader/wiki/reverse-proxy)). The interface targets WCAG 2.2 AA ([Keyboard and accessibility](https://github.com/degoya/rDownloader/wiki/keyboard-and-accessibility)).
-
-Report vulnerabilities privately through GitHub — [`SECURITY.md`](SECURITY.md) has the details.
-
-## Architecture
-
-```text
-Rust server
-├── Axum REST / SSE / MCP
-├── Embedded Vue web app
-├── SQLite persistence and a prioritized scheduler
-├── HTTP / Usenet / torrent / FTP / SFTP / WebDAV and plugin-transfer runners
-├── Media / gallery / stream runners
-├── LinkGrabber, subscriptions, feeds and hotfolders
-├── Bandwidth, power, capacity and notification services
-├── Automation and compatibility adapters
-├── Post-processing pipeline
-├── Wasmtime plugin host
-└── Encrypted secret vault
-```
-
-## Development and contributing
-
-[Building from source](https://github.com/degoya/rDownloader/wiki/building-from-source) in the handbook covers running from source, building for every platform, the plugin components and the quality checks. This repository receives one export per release. Issues and focused pull requests are welcome; [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how a pull request is applied in the development repository and credited, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## For providers
-
-Run a hosting, debrid, Usenet or cloud service and would like rDownloader to support it? Sponsored
-accounts for testing and integration are very welcome — open a
-[provider support request](https://github.com/degoya/rDownloader/issues/new?template=provider_support.yml). Never post credentials there; the account handover is arranged
-privately.
+Report vulnerabilities privately through GitHub; [`SECURITY.md`](SECURITY.md) has the details.
 
 ## License
 
-rDownloader is developed by Alexander Herling and licensed under the [GNU General Public License v3.0 or later](LICENSE). The version history is in [`CHANGELOG.md`](CHANGELOG.md).
-
-Use rDownloader only for content you are permitted to access and download.
+rDownloader is developed by Alexander Herling and licensed under the [GNU General Public License v3.0 or later](LICENSE). Use it only for content you are permitted to access and download.

@@ -175,6 +175,34 @@ impl Database {
         .await
     }
 
+    /// Entries in the content index, missing ones included.
+    pub async fn count_content_index(&self) -> Result<u64> {
+        collision_store::count_content_index(&self.readers).await
+    }
+
+    /// Empties the content index; answers how many entries went (RD-180-13). Files and
+    /// downloads stay; the next check backfills what it can find through the rows.
+    pub async fn clear_content_index(&self) -> Result<u64> {
+        writer::request(&self.writer, |reply| WriterCommand::ClearContentIndex {
+            reply,
+        })
+        .await
+    }
+
+    /// History rows a clear would remove: every one not still running.
+    pub async fn count_clearable_storage_operations(&self) -> Result<u64> {
+        storage_ops_store::count_clearable_storage_operations(&self.readers).await
+    }
+
+    /// Empties the storage history except the rows still running; answers how many went
+    /// (RD-180-13).
+    pub async fn clear_storage_operations(&self) -> Result<u64> {
+        writer::request(&self.writer, |reply| {
+            WriterCommand::ClearStorageOperations { reply }
+        })
+        .await
+    }
+
     /// Newest first, at most `limit`.
     pub async fn list_storage_operations(&self, limit: u32) -> Result<Vec<StorageOperation>> {
         storage_ops_store::list_storage_operations(&self.readers, limit).await

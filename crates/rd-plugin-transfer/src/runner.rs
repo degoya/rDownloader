@@ -173,7 +173,10 @@ impl ExternalRunner for PluginTransferRunner {
         // old ones, which is the one way a resume can corrupt without ever erroring.
         let committed = if remote.resumable { committed } else { 0 };
 
-        let part = PartFile::open(part_path.clone(), remote.size).await?;
+        // Not preallocated: the resume above reads how far the file got from its length, and a
+        // file sized to the whole payload up front made a stopped transfer continue from its end,
+        // with nothing but zeros behind the bytes that had arrived (RD-180-12).
+        let part = PartFile::open(part_path.clone(), None).await?;
         let state = self.state(
             &backend,
             file.id,
@@ -204,6 +207,11 @@ impl ExternalRunner for PluginTransferRunner {
                 committed,
                 checkpoint,
             }) => {
+                // A stop here leaves the bytes on disk without the checkpoint that pins them to
+                // this backend version (RD-180-12, recovery matrix).
+                rd_core::failpoint!("plugin_transfer.before_checkpoint_saved", || {
+                    anyhow::anyhow!("crash point")
+                });
                 self.persist(file, &plugin_id, &version, Some(checkpoint))
                     .await;
                 let _ = self

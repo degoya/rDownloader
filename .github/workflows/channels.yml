@@ -1,0 +1,281 @@
+name: Package channels
+
+# RD-180-06: rDownloader installed from the channels users install from — the published Homebrew
+# tap and Scoop bucket, not a formula rendered from the tree as in ci.yml. It runs after every
+# Release run of a plain `vX.Y.Z` tag, when the `package-managers` job has pushed the tap and the
+# bucket, and then also checks that the channel carries that version: the release moved it
+# without anyone's hand. Betas never reach the tap or the bucket (release.yml takes the newest
+# plain tag only), so a Release run of a beta tag is skipped here.
+#
+# With `upgrade_from`, the older release is installed first — from the tap's and the bucket's own
+# history, the formula and the manifest exactly as that release published them — started, given a
+# marker file, stopped, and then upgraded by `brew upgrade` or `scoop update` to what the channel
+# carries now. The database must still be there with every migration it had, and the markers in
+# data/ and downloads/ too. Uninstalling at the end must leave the data behind.
+#
+# Not here, because a runner cannot do it: the capture agent's tray through
+# `brew services start rdownloader-capture` (no login session) and `brew audit --strict`
+# against the tap (the owner's live checklist).
+#
+#   gh workflow run channels.yml -f upgrade_from=v1.6.1
+#   gh workflow run channels.yml -f expect_version=1.7.0
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      upgrade_from:
+        description: Older release to install first and upgrade from, e.g. v1.6.1 (empty installs the current one only)
+        required: false
+        default: ""
+      expect_version:
+        description: Version the channels must carry, e.g. 1.7.0 (empty takes whatever they carry)
+        required: false
+        default: ""
+
+permissions: {}
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
+  HOMEBREW_NO_ENV_HINTS: "1"
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      expect: ${{ steps.gate.outputs.expect }}
+      from: ${{ steps.gate.outputs.from }}
+    steps:
+      - name: Decide whether and against what to check
+        id: gate
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_REF: ${{ github.event.workflow_run.head_branch }}
+          EXPECT: ${{ inputs.expect_version }}
+          FROM: ${{ inputs.upgrade_from }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT}" == workflow_dispatch ]]; then
+            if [[ -n "${FROM}" && ! "${FROM}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::upgrade_from must be a plain release tag like v1.6.1, not '${FROM}'"
+              exit 1
+            fi
+            if [[ -n "${EXPECT}" && ! "${EXPECT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::expect_version must be a version like 1.7.0, not '${EXPECT}'"
+              exit 1
+            fi
+            { echo "run=true"; echo "expect=${EXPECT}"; echo "from=${FROM}"; } >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          # A tag-triggered run names its tag in head_branch.
+          if [[ "${CONCLUSION}" != success || ! "${RUN_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::notice::Release run of '${RUN_REF}' (${CONCLUSION}) does not move the channels; nothing to check"
+            echo "run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          { echo "run=true"; echo "expect=${RUN_REF#v}"; echo "from="; } >> "${GITHUB_OUTPUT}"
+
+  homebrew:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPECT: ${{ needs.gate.outputs.expect }}
+      FROM: ${{ needs.gate.outputs.from }}
+      TAP: ${{ github.repository_owner }}/rdownloader
+    steps:
+      # The Ubuntu image carries Homebrew without putting it on PATH.
+      - name: Put Homebrew on PATH
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=/home/linuxbrew/.linuxbrew
+          test -x "${prefix}/bin/brew"
+          { echo "${prefix}/bin"; echo "${prefix}/sbin"; } >> "${GITHUB_PATH}"
+      # `brew services` drives `systemctl --user` on Linux, and a runner has no user manager
+      # until lingering starts one.
+      - name: Start a systemd user manager
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo loginctl enable-linger "${USER}"
+          runtime="/run/user/$(id -u)"
+          for _ in $(seq 1 30); do
+            [[ -S "${runtime}/bus" ]] && break
+            sleep 1
+          done
+          test -S "${runtime}/bus"
+          { echo "XDG_RUNTIME_DIR=${runtime}"; echo "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus"; } >> "${GITHUB_ENV}"
+      - name: Install from the tap, upgrade, keep the data
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew tap "${TAP}"
+          repo="$(brew --repository "${TAP}")"
+          var="$(brew --prefix)/var/rdownloader"
+          db="${var}/data/rdownloader.sqlite3"
+          log="$(brew --prefix)/var/log/rdownloader.log"
+          trap 'brew services stop rdownloader > /dev/null 2>&1 || true; cat "${log}" 2>/dev/null || true' EXIT
+          current="$(sed -n 's/^  version "\(.*\)"$/\1/p' "${repo}/Formula/rdownloader.rb")"
+          echo "the tap carries rdownloader ${current}"
+          if [[ -n "${EXPECT}" && "${current}" != "${EXPECT}" ]]; then
+            echo "::error::the tap carries ${current}, the release was ${EXPECT}: the release did not move it"
+            exit 1
+          fi
+          serve() {
+            brew services start rdownloader
+            curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+              http://127.0.0.1:8710/api/v1/health
+            echo
+            test -f "${db}"
+            brew services stop rdownloader
+          }
+          migrations() {
+            python3 -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' "${db}"
+          }
+          if [[ -n "${FROM}" ]]; then
+            # The tap's own commit for that release, as the release workflow wrote it.
+            commit="$(git -C "${repo}" log --format=%H -1 --grep="^rdownloader ${FROM#v}\$" -- Formula/rdownloader.rb)"
+            if [[ -z "${commit}" ]]; then
+              echo "::error::the tap has no commit for ${FROM}; its history starts with 1.6.0"
+              exit 1
+            fi
+            git -C "${repo}" show "${commit}:Formula/rdownloader.rb" > "${repo}/Formula/rdownloader.rb"
+            brew install "${TAP}/rdownloader"
+            rdownloader --version | grep -F "${FROM#v}"
+            serve
+            before="$(migrations)"
+            [[ -n "${before}" ]] || { echo "::error::no migrations in the ${FROM} database"; exit 1; }
+            echo "channels ${FROM}" > "${var}/data/channels-marker"
+            mkdir -p "${var}/downloads"
+            echo "channels ${FROM}" > "${var}/downloads/channels-marker"
+            git -C "${repo}" checkout -- Formula/rdownloader.rb
+            brew upgrade "${TAP}/rdownloader"
+          else
+            brew install "${TAP}/rdownloader"
+          fi
+          brew test "${TAP}/rdownloader"
+          rdownloader --version | grep -F "${current}"
+          serve
+          if [[ -n "${FROM}" ]]; then
+            after="$(migrations)"
+            echo "migrations before: ${before}"
+            echo "migrations after:  ${after}"
+            for version in ${before}; do
+              grep -qw -- "${version}" <<< "${after}" || { echo "::error::migration ${version} is gone after the upgrade"; exit 1; }
+            done
+            grep -qx "channels ${FROM}" "${var}/data/channels-marker"
+            grep -qx "channels ${FROM}" "${var}/downloads/channels-marker"
+          fi
+          # Installed and tested, never started: the tray needs a login session.
+          brew install "${TAP}/rdownloader-capture"
+          brew test "${TAP}/rdownloader-capture"
+          trap - EXIT
+          brew uninstall rdownloader-capture rdownloader
+          # Homebrew's var/ is the user's, not the keg's.
+          test -f "${db}"
+          brew untap "${TAP}"
+
+  scoop:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPECT: ${{ needs.gate.outputs.expect }}
+      FROM: ${{ needs.gate.outputs.from }}
+      BUCKET_URL: https://github.com/${{ github.repository_owner }}/scoop-rdownloader
+    steps:
+      - name: Install from the bucket, update, keep the data
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+          $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
+          scoop bucket add rdownloader $env:BUCKET_URL
+          if ($LASTEXITCODE -ne 0) { throw "scoop bucket add failed" }
+          $bucket = "$env:USERPROFILE\scoop\buckets\rdownloader"
+          $persist = "$env:USERPROFILE\scoop\persist\rdownloader"
+          $db = "$persist\data\rdownloader.sqlite3"
+          $current = (Get-Content "$bucket\bucket\rdownloader.json" | ConvertFrom-Json).version
+          Write-Host "the bucket carries rdownloader $current"
+          if ($env:EXPECT -and $current -ne $env:EXPECT) { throw "the bucket carries $current, the release was $($env:EXPECT): the release did not move it" }
+          function Serve {
+            start-rdownloader server
+            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader failed" }
+            try {
+              $healthy = $false
+              for ($attempt = 0; $attempt -lt 60; $attempt++) {
+                try {
+                  Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
+                  $healthy = $true
+                  break
+                } catch {
+                  Start-Sleep -Seconds 1
+                }
+              }
+              if (-not $healthy) { throw "the Scoop install's server did not answer" }
+            } finally {
+              stop-rdownloader server
+            }
+            if (-not (Test-Path $db)) { throw "the database is not in the persist folder" }
+          }
+          function Migrations {
+            $versions = python -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' $db
+            if ($LASTEXITCODE -ne 0 -or -not $versions) { throw "cannot read the migrations of $db" }
+            return $versions
+          }
+          if ($env:FROM) {
+            $old = $env:FROM.TrimStart('v')
+            # The bucket's own commit for that release, as the release workflow wrote it.
+            $commit = git -C $bucket log --format=%H -1 "--grep=^rdownloader $old`$" -- bucket/rdownloader.json
+            if (-not $commit) { throw "the bucket has no commit for $($env:FROM); its history starts with 1.6.0" }
+            git -C $bucket show "${commit}:bucket/rdownloader.json" | Set-Content -Encoding utf8NoBOM "$bucket\bucket\rdownloader.json"
+            scoop install rdownloader
+            if ($LASTEXITCODE -ne 0) { throw "scoop install of $($env:FROM) failed" }
+            if ((rdownloader --version | Out-String) -notmatch [regex]::Escape($old)) { throw "not $old after installing $($env:FROM)" }
+            Serve
+            $before = (Migrations).Trim() -split ' '
+            Set-Content "$persist\data\channels-marker" "channels $($env:FROM)"
+            New-Item -ItemType Directory -Force "$persist\downloads" | Out-Null
+            Set-Content "$persist\downloads\channels-marker" "channels $($env:FROM)"
+            git -C $bucket checkout -- bucket/rdownloader.json
+            scoop update rdownloader
+            if ($LASTEXITCODE -ne 0) { throw "scoop update failed" }
+          } else {
+            scoop install rdownloader
+            if ($LASTEXITCODE -ne 0) { throw "scoop install failed" }
+          }
+          if ((rdownloader --version | Out-String) -notmatch [regex]::Escape($current)) { throw "rdownloader --version is not $current" }
+          Serve
+          if ($env:FROM) {
+            $after = (Migrations).Trim() -split ' '
+            Write-Host "migrations before: $before"
+            Write-Host "migrations after:  $after"
+            foreach ($version in $before) { if ($after -notcontains $version) { throw "migration $version is gone after the update" } }
+            if ((Get-Content "$persist\data\channels-marker") -ne "channels $($env:FROM)") { throw "the data marker did not survive the update" }
+            if ((Get-Content "$persist\downloads\channels-marker") -ne "channels $($env:FROM)") { throw "the downloads marker did not survive the update" }
+          }
+          scoop uninstall rdownloader
+          if ($LASTEXITCODE -ne 0) { throw "scoop uninstall failed" }
+          # Without --purge, Scoop leaves the persist folder for the next install.
+          if (-not (Test-Path $db)) { throw "scoop uninstall took the database with it" }
+          exit 0

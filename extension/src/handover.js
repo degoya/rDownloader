@@ -17,6 +17,7 @@
 // - The grant is given back afterwards: `cookies` unless a site allowed to hand files over
 //   stands on it (RD-130-16), the origin unless it was already held before this consent.
 
+import { fromOwnPage as isOwnPage } from './sender.js'
 import { declineHandover, deliverHandover, listHandovers } from './handover-api.js'
 import { holdsCookieConsent } from './files.js'
 
@@ -159,10 +160,7 @@ export function createHandover({
 
   /** Only our own popup (or the popup opened as a tab) may consent, deliver or decline. */
   function fromOwnPage(sender) {
-    if (!sender || sender.id !== api.runtime.id) return false
-    if (!sender.tab) return true
-    const own = api.runtime.getURL('')
-    return typeof sender.url === 'string' && own !== '' && sender.url.startsWith(own)
+    return isOwnPage(api.runtime, sender)
   }
 
   function reasonOf(result) {

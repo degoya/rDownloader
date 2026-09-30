@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { api, noticeLostSession, onSessionLost, responseError } from './client'
+import { api, NETWORK_UNREACHABLE, noticeLostSession, onSessionLost, responseError } from './client'
 
 describe('responseError', () => {
   it('shows the API error body returned by openapi-fetch', () => {
@@ -58,5 +58,27 @@ describe('a lapsed session (RD-130-09)', () => {
     expect(listener).toHaveBeenCalledOnce()
     // The caller still gets its own error to show.
     expect(response.error).toMatchObject({ code: 'auth.session_required' })
+  })
+})
+
+describe('a request that never reached the service', () => {
+  it('comes back as a refusal with a stable code instead of a rejection', async () => {
+    // A service restarting during an update, a dropped network, a machine waking from standby:
+    // `fetch` rejects, and a caller without `try` used to stop half way with its flags set.
+    const response = await api.GET('/api/v1/settings', {
+      baseUrl: 'http://localhost',
+      fetch: () => Promise.reject(new TypeError('Failed to fetch'))
+    })
+    expect(response.data).toBeUndefined()
+    expect(response.response.status).toBe(503)
+    expect(response.error).toMatchObject({ code: NETWORK_UNREACHABLE })
+  })
+
+  it('leaves an abort to the caller that asked for it', async () => {
+    const request = api.GET('/api/v1/settings', {
+      baseUrl: 'http://localhost',
+      fetch: () => Promise.reject(new DOMException('aborted', 'AbortError'))
+    })
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

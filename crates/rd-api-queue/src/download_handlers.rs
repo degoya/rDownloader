@@ -299,7 +299,10 @@ pub async fn create_download_inner(
     validate_network_selection(state, request.account_id, request.proxy_profile_id).await?;
     let account_id = match request.account_id {
         Some(id) => Some(id),
-        None => crate::hosters::fallback_account(state, &url).await,
+        None => match state.database.list_accounts().await {
+            Ok(accounts) => crate::hosters::fallback_account(state, &accounts, &url).await,
+            Err(_) => None,
+        },
     };
     let destination = crate::destination::download_destination(state, request.category_id).await?;
     let options = rd_scheduler::PackageOptions {

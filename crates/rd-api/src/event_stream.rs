@@ -12,6 +12,10 @@
 //! the live stream -- a replay must never show a connection an event it would not have been
 //! shown live -- and is told with a marker when the buffer no longer reaches back that far.
 //! Every stream opens with the `retry:` the service wants its clients to reconnect at.
+//!
+//! Both streams end when the credential they were opened with stops standing -- signed out,
+//! revoked, expired, narrowed (`rd_api_core::stream_standing`, security audit 2026-09-30). The
+//! client reconnects as it would after any drop, and the reconnect is authorised afresh.
 
 use std::{convert::Infallible, sync::Arc, time::Duration};
 
@@ -67,18 +71,27 @@ const LAST_EVENT_ID: &str = "last-event-id";
 pub async fn events(
     State(state): State<AppState>,
     granted: Option<Extension<Granted>>,
+    crate::client::ThisMachine(from_this_machine): crate::client::ThisMachine,
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     // Shared rather than cloned per event: the closure runs once per message for the life of
-    // the stream, and the scope set never changes after the request was authorised.
+    // the stream. The scope set is fixed for that life, which is why the stream ends rather
+    // than widening or narrowing once the credential behind it changes.
     let granted = Arc::new(granted.map_or_else(Granted::default, |Extension(granted)| granted));
+    let lapsed = rd_api_core::stream_standing::api_lapsed(
+        state.clone(),
+        headers.clone(),
+        from_this_machine,
+        granted.scopes().to_vec(),
+    );
     let frame = move |event: EventEnvelope| {
         granted
             .may_observe(&event.kind)
             .then(|| full_frame(&event))
             .flatten()
     };
-    Sse::new(open(&state.database, &headers, frame)).keep_alive(KeepAlive::default())
+    Sse::new(open(&state.database, &headers, frame).take_until(lapsed))
+        .keep_alive(KeepAlive::default())
 }
 
 /// The event stream a paired capture agent may subscribe to. See the module documentation
@@ -87,7 +100,9 @@ pub async fn capture_events(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    Sse::new(open(&state.database, &headers, capture_frame)).keep_alive(KeepAlive::default())
+    let lapsed = rd_api_core::stream_standing::capture_lapsed(state.clone(), headers.clone());
+    Sse::new(open(&state.database, &headers, capture_frame).take_until(lapsed))
+        .keep_alive(KeepAlive::default())
 }
 
 /// Opens one stream: the `retry:` hint, then the replay or the expiry marker, then the live

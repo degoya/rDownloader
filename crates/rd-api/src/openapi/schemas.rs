@@ -303,6 +303,7 @@ use crate::{
     dto::SettingsResponse,
     mfa_handlers::MfaCodeRequest,
     mfa_handlers::MfaDisableRequest,
+    mfa_handlers::MfaStepUpRequest,
     mfa_handlers::TotpEnrolRequest,
     mfa_handlers::TotpEnrolment,
     passkey_handlers::PasskeyChallenge,

@@ -72,7 +72,6 @@ pub(crate) async fn extract_rar_into(
     let mut stderr = child.stderr.take().context("RAR tool stderr")?;
     let run = async {
         let mut stdout_text = String::new();
-        let mut stderr_buffer = Vec::new();
         let reader = async {
             let mut buffer = [0_u8; 512];
             loop {
@@ -98,10 +97,9 @@ pub(crate) async fn extract_rar_into(
             }
             Ok::<_, std::io::Error>(())
         };
-        let (read_result, stderr_result) =
-            tokio::join!(reader, stderr.read_to_end(&mut stderr_buffer));
+        let (read_result, stderr_buffer) =
+            tokio::join!(reader, rd_files::read_tail(&mut stderr, OUTPUT_TAIL));
         read_result?;
-        stderr_result?;
         let status = child.wait().await?;
         Ok::<_, std::io::Error>((status, stdout_text, stderr_buffer))
     };
@@ -149,6 +147,10 @@ pub(crate) async fn extract_rar_into(
             .context("join RAR validation")??,
     )
 }
+
+/// How much of a RAR tool's stderr, and of `t`'s listing, is kept for the verdict: the last
+/// 64 KiB. The messages `classify_failure` looks for are the tool's last words.
+const OUTPUT_TAIL: usize = 64 * 1024;
 
 /// How long the size watcher waits between two measurements of the staging tree: two seconds.
 ///
@@ -304,14 +306,12 @@ pub async fn test_rar(
     let mut stdout = child.stdout.take().context("RAR tool stdout")?;
     let mut stderr = child.stderr.take().context("RAR tool stderr")?;
     let run = async {
-        let mut stdout_buffer = Vec::new();
-        let mut stderr_buffer = Vec::new();
-        let (out, err) = tokio::join!(
-            stdout.read_to_end(&mut stdout_buffer),
-            stderr.read_to_end(&mut stderr_buffer)
+        // `t` lists every member it tested, so a large set prints a line per file; only the end,
+        // where the verdict is, is kept.
+        let (stdout_buffer, stderr_buffer) = tokio::join!(
+            rd_files::read_tail(&mut stdout, OUTPUT_TAIL),
+            rd_files::read_tail(&mut stderr, OUTPUT_TAIL)
         );
-        out?;
-        err?;
         let status = child.wait().await?;
         Ok::<_, std::io::Error>((status, stdout_buffer, stderr_buffer))
     };

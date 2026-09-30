@@ -16,7 +16,8 @@
 //! receiving its own copy ([`deliver`]), recorded in the ledger ([`ledger`]), and keeping as many
 //! archives as its [`retention`] says. [`verify`] checks an archive where it lies. When a run happens is [`schedule`], the
 //! cron arithmetic the subscriptions use, read in an IANA zone. Getting an installation back from an archive — preview,
-//! test restore, path remap, cutover — is [`restore`] (RD-160-03).
+//! test restore, path remap, cutover — is [`restore`] (RD-160-03). The verified database copy and
+//! archive the updater asks for before it switches versions are [`pre_update`] (RD-180-03).
 
 pub mod archive;
 mod create;
@@ -25,6 +26,7 @@ pub mod deliver;
 pub mod destination;
 pub mod ledger;
 pub mod manifest;
+pub mod pre_update;
 pub mod remote;
 pub mod restore;
 pub mod retention;

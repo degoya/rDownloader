@@ -40,6 +40,17 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         .unwrap_or_else(|| std::path::Path::new("."))
         .to_path_buf();
     rd_core::set_data_directory(&data_directory);
+    // Before anything the service writes lands in it — the local control token, the journal of
+    // an update (security review 2026-09-30, finding 2). A folder that keeps other accounts in
+    // is a warning, not a refusal; `doctor` reports it.
+    let private = if data_directory.as_os_str().is_empty() {
+        std::path::Path::new(".")
+    } else {
+        data_directory.as_path()
+    };
+    if let Err(error) = rd_files::protect_private_dir(private) {
+        tracing::warn!(%error, path = %private.display(), "the data directory could not be made private; other accounts on this machine may read the database and the local control token");
+    }
     let layout = cutover::Layout::new(&paths.database);
     let mut restore = cutover::apply_pending(&layout)?;
     let database = match Database::open(&paths.database).await {
@@ -394,6 +405,9 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
             state.database.clone(),
         )));
     rd_api::prepare_plugin_repositories(state).await;
+    // The application update check (RD-180-01): spawned, its first run minutes after the start,
+    // so it never holds the start up.
+    state.updates.start();
     state.hotfolders.start_existing().await?;
     Ok(())
 }

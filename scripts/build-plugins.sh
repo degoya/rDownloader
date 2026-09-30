@@ -243,7 +243,9 @@ fi
 # for $GITHUB_OUTPUT. `sources` covers every plugin's source hash, so an exact hit is a set of
 # components built from exactly these sources. `deps` covers what a stamp deliberately leaves
 # out and a component still depends on: the registry packages in Cargo.lock, the root Cargo.toml
-# (workspace dependencies, features, the release profile) and .cargo/config.toml. The workspace
+# (workspace dependencies, features, the release profile), .cargo/config.toml and the compiler
+# cargo resolves here (`rustc -vV`, RUSTUP_TOOLCHAIN or rust-toolchain.toml's channel), so a
+# toolchain change is a miss even where the key's literal version was not moved. The workspace
 # version is taken out of both files first — every release moves it, and no component reads it.
 # The workflow restores by `deps` alone when `sources` misses, and this script's staleness check
 # then rebuilds exactly the plugins whose stamps no longer match.
@@ -252,6 +254,7 @@ if [[ "$cache_key_only" -eq 1 ]]; then
         awk 'BEGIN { RS = "" } /\nsource = / { print; print "" }' Cargo.lock
         sed '/^\[workspace\.package\]/,/^\[/{/^version = /d;}' Cargo.toml
         [[ ! -f .cargo/config.toml ]] || cat .cargo/config.toml
+        rustc -vV
     } | sha256_files - | cut -c1-64 | sed 's/^/deps=/'
     for manifest in plugins/*/manifest.toml; do
         name="$(basename "$(dirname "$manifest")")"

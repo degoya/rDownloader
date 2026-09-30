@@ -77,6 +77,10 @@ pub async fn recover(state: &AppState) {
     {
         tracing::warn!(%error, "the backup verification folder could not be emptied");
     }
+    // What a preparation for an update left when the process stopped in it (RD-180-03).
+    if let Err(error) = rd_backup::pre_update::sweep(&data_directory(state)).await {
+        tracing::warn!(%error, "the pre-update folder could not be swept");
+    }
 }
 
 /// One look at the schedule at `now`; returns the id of the run it started, if any.
@@ -365,17 +369,9 @@ async fn produce(
     // No key, no backup: there is no path that writes one unsealed.
     let record = config
         .key
+        .as_ref()
         .ok_or_else(|| failure("backup.key_missing", "no backup passphrase has been set up"))?;
-    let key_bytes = state
-        .secrets
-        .get_bytes(&record.reference)
-        .await
-        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))?;
-    let salt = STANDARD
-        .decode(&record.salt)
-        .map_err(|error| failure("backup.key_unavailable", error.to_string()))?;
-    let key = BackupKey::from_stored(&key_bytes, &salt)
-        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))?;
+    let key = load_key(state, record).await?;
 
     let records: Vec<_> = config
         .destinations
@@ -421,18 +417,7 @@ async fn produce(
         }));
     }
 
-    let bundle = build_settings_bundle(state, SecretSealing::BackupKey(&key))
-        .await
-        .map_err(|error| failure("backup.settings_failed", error.message()))?;
-    let settings_bundle = serde_json::to_vec_pretty(&bundle)
-        .map_err(|error| failure("backup.settings_failed", error.to_string()))?;
-    let sources = BackupSources {
-        settings_bundle,
-        torrent_session: Some(state.torrent.session_directory()),
-        torrent_files: Some(state.torrent.torrent_file_directory()),
-        app_version: env!("CARGO_PKG_VERSION").to_owned(),
-        instance_id: config.instance_id.clone(),
-    };
+    let sources = backup_sources(state, &key, &config.instance_id).await?;
     let sealed = rd_backup::seal_backup(
         &state.database,
         sources,
@@ -474,5 +459,44 @@ async fn produce(
         parts: sealed.manifest.parts,
         delivered,
         failed,
+    })
+}
+
+/// The configured key, out of the secret store. Also what the backup before an update seals
+/// with (`crate::pre_update_service`, RD-180-03).
+pub(crate) async fn load_key(
+    state: &AppState,
+    record: &rd_db::BackupKeyRecord,
+) -> Result<BackupKey, BackupError> {
+    let key_bytes = state
+        .secrets
+        .get_bytes(&record.reference)
+        .await
+        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))?;
+    let salt = STANDARD
+        .decode(&record.salt)
+        .map_err(|error| failure("backup.key_unavailable", error.to_string()))?;
+    BackupKey::from_stored(&key_bytes, &salt)
+        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))
+}
+
+/// What an archive holds besides the database: the settings bundle sealed under `key`, the
+/// torrent session and the stored `.torrent` files.
+pub(crate) async fn backup_sources(
+    state: &AppState,
+    key: &BackupKey,
+    instance_id: &str,
+) -> Result<BackupSources, BackupError> {
+    let bundle = build_settings_bundle(state, SecretSealing::BackupKey(key))
+        .await
+        .map_err(|error| failure("backup.settings_failed", error.message()))?;
+    let settings_bundle = serde_json::to_vec_pretty(&bundle)
+        .map_err(|error| failure("backup.settings_failed", error.to_string()))?;
+    Ok(BackupSources {
+        settings_bundle,
+        torrent_session: Some(state.torrent.session_directory()),
+        torrent_files: Some(state.torrent.torrent_file_directory()),
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        instance_id: instance_id.to_owned(),
     })
 }

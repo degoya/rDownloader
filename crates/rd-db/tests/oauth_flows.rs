@@ -128,6 +128,39 @@ async fn a_callback_finds_its_flow_by_the_value_the_provider_echoed() {
     assert!(stranger.is_none(), "an unknown callback matches no flow");
 }
 
+/// A callback state is answered once (security audit 2026-09-30, finding 5): taking the flow
+/// forgets the state, so the same redirect delivered again finds nothing.
+#[tokio::test]
+async fn a_callback_state_is_taken_once() {
+    let directory = TempDir::new().expect("directory");
+    let database = database(&directory).await;
+    let account_id = account(&database).await;
+    database
+        .upsert_auth_flow(flow(account_id))
+        .await
+        .expect("upsert");
+
+    let taken = database
+        .take_auth_flow_callback("the-echoed-value".to_owned())
+        .await
+        .expect("take");
+    assert_eq!(taken.map(|flow| flow.account_id), Some(account_id));
+
+    let again = database
+        .take_auth_flow_callback("the-echoed-value".to_owned())
+        .await
+        .expect("take");
+    assert!(again.is_none(), "a state was answered twice");
+    // The flow itself stays, for the exchange to record its outcome on.
+    assert!(
+        database
+            .auth_flow(account_id)
+            .await
+            .expect("read")
+            .is_some()
+    );
+}
+
 #[tokio::test]
 async fn renewal_becomes_due_only_once_the_expiry_is_within_reach() {
     let directory = TempDir::new().expect("directory");

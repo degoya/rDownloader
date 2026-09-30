@@ -471,13 +471,16 @@
       "confirm": "Issue them"
     },
     "disable": {
-      "label": "Password",
       "hint": "Switching it off takes the password, not a code. A lost device must not be final.",
       "action": "Switch off"
     },
     "enabled_toast": "Two-factor sign-in is on",
     "disabled_toast": "Two-factor sign-in is off",
-    "copied": "Copied"
+    "copied": "Copied",
+    "step_up": {
+      "label": "Password",
+      "hint": "Adding, removing or switching off a factor asks for the password again."
+    }
   },
   "passkeys": {
     "eyebrow": "Passkeys",
@@ -499,7 +502,8 @@
       "title": "Remove this passkey?",
       "description": "“{label}” will stop being able to sign in. Your password still works.",
       "confirm": "Remove"
-    }
+    },
+    "step_up_hint": "Adding or removing a passkey asks for the password again."
   },
   "password": {
     "eyebrow": "Password",
@@ -543,6 +547,22 @@
       "description": "{count} notifications still queued or retrying will be deleted and never sent. Delivered and failed deliveries stay in the history, as do destinations, rules, the service log, the audit log and the statistics.",
       "confirm": "Discard for good",
       "done": "{count} notifications discarded"
+    },
+    "storage_operations": {
+      "button": "Clear history",
+      "stored": "{count} entries",
+      "title": "Clear the storage history?",
+      "description": "{count} completed, failed and interrupted moves and duplicate links will be removed from the history for good. An operation still running stays. No file is moved or deleted, and an interrupted move is still carried on at the next start.",
+      "confirm": "Clear for good",
+      "done": "{count} history entries removed"
+    },
+    "content_index": {
+      "button": "Clear index",
+      "stored": "{count} indexed",
+      "title": "Clear the content index?",
+      "description": "{count} index entries will be removed. Files and downloads stay untouched, but until a file is indexed again it is not recognised as a content duplicate and cannot be the original of a duplicate link. “Check the content index” (also run at every start) re-indexes finished downloads still in the queue whose SHA-256 is known and whose file is still in place. Files of removed or never hashed downloads come back only when downloaded again.",
+      "confirm": "Clear the index",
+      "done": "{count} index entries removed"
     }
   },
   "session_limits": {
@@ -568,5 +588,89 @@
     "modal_title": "Pair the browser extension",
     "modal_description": "The sign-in at the hoster comes from your browser, and only the extension can hand it over. Pair it here without leaving the page.",
     "done": "Done"
+  },
+  "updates": {
+    "eyebrow": "New versions",
+    "title": "Updates",
+    "description": "rDownloader reads a signed list of releases from GitHub and tells you when a new version is out. Nothing is installed without you.",
+    "enabled_label": "Check automatically",
+    "enabled_description": "Fetches a public, signed file only and sends nothing about this installation.",
+    "channel_label": "Channel",
+    "channel_description": "Stable gets releases only, Beta also gets pre-releases (vX.Y.Z-beta.N).",
+    "channel_stable": "Stable",
+    "channel_beta": "Beta",
+    "channel_forced_stable": "Your package manager publishes no betas, so this installation reads the stable channel.",
+    "interval_label": "Check every",
+    "interval_description": "Hours between two automatic checks (1–168).",
+    "check_now": "Check now",
+    "current": "Installed: {version}",
+    "installed_as": "Installed as: {kind}",
+    "kind": {
+      "portable": "Portable archive",
+      "msi": "Windows installer",
+      "deb": "Debian package",
+      "rpm": "RPM package",
+      "homebrew": "Homebrew",
+      "scoop": "Scoop",
+      "winget": "winget",
+      "aur": "AUR",
+      "docker": "Container image",
+      "unknown": "Unknown"
+    },
+    "last_checked": "Last checked: {when}",
+    "never_checked": "Not checked yet",
+    "next_check": "Next check: {when}",
+    "up_to_date": "You have the newest version.",
+    "available": "Version {version} is available",
+    "show_details": "Details",
+    "not_configured": "This build carries no update key; the update check is off.",
+    "modal": {
+      "title": "rDownloader {version}",
+      "released": "Released: {when}",
+      "notes": "What’s new",
+      "no_notes": "This release has no notes.",
+      "full_notes": "Full release notes",
+      "download": "Download",
+      "download_hint": "Replace the program files of this installation with the new version; your settings and downloads stay where they are.",
+      "command_hint": "{kind} manages this installation. Update it with:",
+      "copy": "Copy",
+      "copied": "Command copied",
+      "close": "Close",
+      "install": "Install and restart",
+      "install_hint": "rDownloader downloads the new version, backs up its database, stops, replaces its program files and starts again. Your settings and downloads stay where they are.",
+      "rollback_automatic": "If the new version does not start properly, the previous one comes back by itself.",
+      "rollback_unavailable": "This update through the Windows installer cannot be taken back by itself: the installer of the running version was not kept. From the next update on it can.",
+      "download_package": "Download the package"
+    },
+    "hints": {
+      "aur_helper": "With paru: paru -S rdownloader-bin",
+      "docker_recreate": "Then recreate the container, e.g. with docker compose up -d.",
+      "deb_file": "The repository carries releases only. A beta, or a package installed from a download, is installed from the file: sudo apt install ./<file>.deb",
+      "rpm_file": "The repository carries releases only. A beta, or a package installed from a download, is installed from the file: sudo dnf install ./<file>.rpm"
+    },
+    "notice": "Update available",
+    "notice_version": "{version} available",
+    "notice_installing": "Updating to {version}",
+    "notice_updated": "Updated to {version}",
+    "install": {
+      "confirm_title": "Install {version} now?",
+      "confirm_description": "rDownloader stops for about a minute and starts again as {version}. Running downloads are saved and continue afterwards. This page reconnects by itself.",
+      "anyway": "Install anyway",
+      "reconnecting": "rDownloader is restarting – waiting for it to answer …",
+      "lost": "rDownloader has not answered for minutes. Start it by hand; if the update was left incomplete, the previous version comes back at that start.",
+      "reload": "Reload the page",
+      "reload_hint": "Reload the page to use the new version’s interface.",
+      "state": {
+        "downloading": "Downloading {version} …",
+        "preparing": "Writing the backup before the update …",
+        "restarting": "Stopping rDownloader for the update …",
+        "installing": "Installing {version} …",
+        "verifying": "Starting {version} …",
+        "rolling_back": "{version} does not start properly; bringing back {from} …",
+        "done": "Updated to {version}.",
+        "rolled_back": "{version} did not start properly, so {from} runs again.",
+        "failed": "The update to {version} failed."
+      }
+    }
   }
 }

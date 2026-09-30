@@ -226,8 +226,7 @@
     "duplicated": "Regelkopie angelegt",
     "updated": "Regel aktualisiert",
     "form_new": "Neue Regel",
-    "duplicate": "Regel duplizieren",
-    "copy_suffix": "Kopie"
+    "duplicate": "Regel duplizieren"
   },
   "hotfolder": {
     "eyebrow": "Abgeglichener Eingang",
@@ -238,7 +237,7 @@
     "name_description": "Dient nur dazu, deine Hotfolder auseinanderzuhalten.",
     "name_placeholder": "Lokaler Datei-Eingang",
     "path_label": "Überwachter Ordner",
-    "path_description": "Absoluter Pfad, der auf .nzb- und .torrent-Dateien geprüft wird.",
+    "path_description": "Absoluter Pfad, der auf .nzb-, .torrent-, .dlc-, .ccf- und .rsdf-Dateien geprüft wird.",
     "path_placeholder": "/config/watch",
     "category_label": "Kategorie",
     "category_description": "Gilt für jeden Import aus diesem Ordner; ohne Auswahl entscheiden die Regeln und die Standardkategorie.",
@@ -274,6 +273,5 @@
     "poll_saved": "Abfrageintervall gespeichert",
     "poll_save": "Intervall speichern",
     "copy_path_hint": "Eine Kopie braucht einen eigenen Ordner: vor dem Anlegen den Pfad ändern."
-  },
-  "cancel_edit": "Bearbeitung abbrechen"
+  }
 }

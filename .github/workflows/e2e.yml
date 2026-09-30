@@ -1,0 +1,199 @@
+name: E2E
+
+# End to end on the operating systems themselves (RD-180-12): the capture agent against a fresh
+# service on Linux, Windows and macOS — pairing, `configure`, `run`, a link through the
+# `rdownloader://` handler and one through Click'n'Load, both asserted in the LinkGrabber, and
+# the autostart entry installed and removed — and on Linux the built Chrome extension in
+# Chromium, paired through its options page, sending a page from its popup. The same test files
+# run locally through scripts/e2e.sh. Firefox cannot load an unpacked extension under Playwright;
+# its build is linted by ci.yml (`web-ext lint`) and its run is a live-checklist item in
+# docs/development.md.
+#
+# Each step has a time budget (web/e2e/lib/service.mjs, BUDGET_MS); a step over it fails the run.
+
+on:
+  push:
+    branches: ["**", "!dependabot/**"]
+    paths:
+      - ".github/workflows/e2e.yml"
+      - "Cargo.lock"
+      - "crates/rdownloader/**"
+      - "crates/rd-api*/**"
+      - "crates/rd-autostart/**"
+      - "crates/rd-capture/**"
+      - "crates/rd-collector/**"
+      - "crates/rd-core/**"
+      - "crates/rd-db/**"
+      - "extension/**"
+      - "scripts/e2e.sh"
+      - "web/e2e/**"
+      - "web/package.json"
+      - "web/pnpm-lock.yaml"
+  # The same list as above; keep the two in step.
+  pull_request:
+    paths:
+      - ".github/workflows/e2e.yml"
+      - "Cargo.lock"
+      - "crates/rdownloader/**"
+      - "crates/rd-api*/**"
+      - "crates/rd-autostart/**"
+      - "crates/rd-capture/**"
+      - "crates/rd-collector/**"
+      - "crates/rd-core/**"
+      - "crates/rd-db/**"
+      - "extension/**"
+      - "scripts/e2e.sh"
+      - "web/e2e/**"
+      - "web/package.json"
+      - "web/pnpm-lock.yaml"
+  # By hand for any ref, optionally on fewer runners:
+  #   gh workflow run e2e.yml --ref <branch> -f platforms='["ubuntu-24.04"]'
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: JSON list of runner images for the smoke job
+        required: false
+        default: '["ubuntu-24.04","windows-2025","macos-15"]'
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm run build
+        working-directory: web
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 1
+      - run: scripts/build-extension.sh --skip-tests
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-chrome-extension
+          path: artifacts/browser-extensions/chrome
+          if-no-files-found: error
+          retention-days: 1
+
+  smoke:
+    needs: web
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]') }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    # A keychain call that waits for ever is cut off here, not after six hours.
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      EXE: ${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-web-dist
+          path: web/dist
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # `release-test`: the release profile without its single codegen unit and LTO, so the run
+      # tests release code in a fraction of the release build's time.
+      - name: Build the service and the capture agent
+        run: cargo build --locked --profile release-test -p rdownloader -p rd-capture
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # A hosted Linux runner has no login session, so `systemctl --user` has no manager to talk
+      # to. Lingering starts one; its bus is what `autostart install` enables the unit through.
+      - name: Start a systemd user manager
+        if: runner.os == 'Linux'
+        run: |
+          sudo loginctl enable-linger "$USER"
+          bus="/run/user/$(id -u)/bus"
+          for _ in $(seq 1 30); do [[ -S "$bus" ]] && break; sleep 1; done
+          [[ -S "$bus" ]] || { echo "no user bus at $bus" >&2; exit 1; }
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=$bus" >> "$GITHUB_ENV"
+      # The runner's login keychain is locked, and a keychain call against it waits for ever
+      # (the 1.2.4 captcha-test hang). An unlocked default keychain of the job's own takes the
+      # service's master key and the agent's capture token without a prompt.
+      - name: Unlocked default keychain
+        if: runner.os == 'macOS'
+        run: |
+          keychain="$RUNNER_TEMP/rd-e2e.keychain-db"
+          security create-keychain -p rd-e2e "$keychain"
+          security set-keychain-settings "$keychain"
+          security unlock-keychain -p rd-e2e "$keychain"
+          # shellcheck disable=SC2046 # one argument per keychain the list names
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -d user -s "$keychain"
+
+      - name: Capture agent smoke
+        env:
+          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader${{ env.EXE }}
+          RD_E2E_CAPTURE: ${{ github.workspace }}/target/release-test/rdownloader-capture${{ env.EXE }}
+          RD_E2E_OS_INTEGRATION: "1"
+          RD_E2E_WORK: ${{ runner.temp }}/e2e-capture
+        run: node --test --test-reporter=spec web/e2e/capture.e2e.mjs
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        if: runner.os == 'Linux'
+        with:
+          package_json_file: web/package.json
+      - name: Install Playwright's Chromium
+        if: runner.os == 'Linux'
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: runner.os == 'Linux'
+        with:
+          name: e2e-chrome-extension
+          path: ${{ runner.temp }}/chrome-extension
+      - name: Chrome extension end to end
+        if: runner.os == 'Linux'
+        env:
+          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader
+          RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
+          RD_E2E_WORK: ${{ runner.temp }}/e2e-extension
+        run: node --test --test-reporter=spec web/e2e/extension.e2e.mjs
+
+      # Logs only: the work directories also hold the throwaway vault key and capture token.
+      - name: Upload the service and agent logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-logs-${{ runner.os }}
+          path: ${{ runner.temp }}/e2e-*/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7

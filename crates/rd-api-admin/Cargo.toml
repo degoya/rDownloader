@@ -8,6 +8,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
+failpoints = ["rd-core/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 argon2.workspace = true
@@ -39,6 +43,7 @@ rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 rd-stream = { path = "../rd-stream" }
 rd-tools = { path = "../rd-tools" }
+rd-update = { path = "../rd-update" }
 regex.workspace = true
 secrecy.workspace = true
 serde.workspace = true

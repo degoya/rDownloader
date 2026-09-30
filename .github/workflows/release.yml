@@ -21,13 +21,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - run: scripts/build-extension.sh
       # The stores get these ZIPs after the release, in `extension-stores` (RD-170-10).
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-extensions
           path: artifacts/browser-extensions/*.zip
@@ -35,22 +35,28 @@ jobs:
 
   plugins:
     runs-on: ubuntu-24.04
+    # The toolchain the step below installs, as in the binary jobs (RD-180-12); without it
+    # rust-toolchain.toml's `stable` would build the components and the packager.
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
       # rd-api and its `#[derive(RustEmbed)]`.
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: release-plugins
       - run: cargo install cargo-component --version 0.21.1 --locked
       # For the import check scripts/build-plugins.sh runs on every component it builds, and the
       # one below over all of them.
-      - uses: taiki-e/install-action@wasm-tools
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-tools
       - name: Collect the bundled plugins
         id: plugins
         shell: bash
@@ -81,7 +87,7 @@ jobs:
         id: component-key
         shell: bash
         run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
@@ -105,6 +111,12 @@ jobs:
       # packages it writes are the same bytes either way, and the embedded roots are the same.
       - name: Build the packager
         run: cargo build --locked --profile release-test -p rd-pack
+      # RD-180-01: `publish` builds the update manifest with it, after the checksums exist.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packager
+          path: target/release-test/rd-pack
+          if-no-files-found: error
       - name: Package and sign bundled plugins
         env:
           RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
@@ -125,7 +137,7 @@ jobs:
               --output "dist/plugins/${plugin}-${version}.rdplug"
             target/release-test/rd-pack plugin verify "dist/plugins/${plugin}-${version}.rdplug"
           done
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plugins
           path: dist/plugins/*.rdplug
@@ -151,7 +163,7 @@ jobs:
             --notes dist/plugin-notes
           target/release-test/rd-pack plugin index verify \
             dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plugin-index
           path: dist/plugin-index/rdownloader-plugin-index.json
@@ -166,7 +178,7 @@ jobs:
           mkdir -p dist/site-rules
           cp crates/rd-siterules/resources/site-rules.json dist/site-rules/rdownloader-site-rules.json
           target/release-test/rd-pack site-rules verify dist/site-rules/rdownloader-site-rules.json
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-rules
           path: dist/site-rules/rdownloader-site-rules.json
@@ -179,6 +191,11 @@ jobs:
   # waits for Linux alone and not for Windows and macOS (RD-150-10). Both jobs run the same steps,
   # written once here and taken over by the YAML anchor `binary-steps`.
   linux-binaries:
+    # RD-180-12: the toolchain every release binary is built with. rust-toolchain.toml names the
+    # channel `stable`, which is whatever the runner has, and outranks the 1.98.0 the step below
+    # installs; RUSTUP_TOOLCHAIN outranks the file. `binaries` sets the same.
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
     strategy:
       fail-fast: false
       matrix:
@@ -195,26 +212,40 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps: &binary-steps
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The version is the `packageManager` pin in web/package.json (RD-150-14).
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           package_json_file: web/package.json
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@stable
+      # With RUSTUP_TOOLCHAIN set this is the toolchain cargo builds with, targets included; before
+      # it, rust-toolchain.toml's `stable` was, and 1.5.0's release failed on a target installed
+      # here but missing there ("can't find crate for `std`" for x86_64-apple-darwin).
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.0
           targets: ${{ matrix.target }}
-      # rust-toolchain.toml selects its own channel inside the checkout, so the target the step
-      # above installed for 1.98.0 is not the one cargo builds with. The Intel macOS binary is
-      # cross-built on the Apple Silicon runner since RD-150-10, and 1.5.0's release failed on
-      # exactly this: "can't find crate for `std`" for x86_64-apple-darwin.
-      - run: rustup target add ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      # The environment repro.yml rebuilds the Linux x86_64 binaries in, from the same script:
+      # SOURCE_DATE_EPOCH and the stamp VERSION.txt and the About page carry from the tag's
+      # commit instead of the clock — RD_VERSION, RD_BUILD_TIME, and RD_BUILD_COMMIT as
+      # `Release-Build X.Y.Z (Basis <sha>)` through rd_build_stamp, which stops the build on a tag
+      # that is not Cargo.toml's version (RD-180-05) — and on Linux the checkout, cargo and rustup
+      # homes remapped through the target's own flags, never RUSTFLAGS, which would drop Windows'
+      # `+crt-static` (docs/reproducible-builds.md).
+      - name: Fix the build environment
+        shell: bash
+        run: scripts/release-build-env.sh --target ${{ matrix.target }} --release-tag "${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+      # rust-cache stays: cargo reuses a cached dependency only when its fingerprint, the flags
+      # above included, matches, and rustc gives the same bytes for the same input, so the cache
+      # shortens the build without changing it — repro.yml's comparison of the published binary
+      # with two uncached rebuilds is what checks that claim. No sccache in a release: it would
+      # not change the output either, but a build made once per tag gains little from it, and it
+      # would be one more shared state that claim has to cover.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: release-${{ matrix.target }}
       - run: pnpm --dir web install --frozen-lockfile
@@ -222,8 +253,19 @@ jobs:
       - run: pnpm --dir web run typecheck:full
       - run: pnpm --dir web run build
       - run: cargo build --locked --release --target ${{ matrix.target }} -p rdownloader -p rd-capture
-      - run: mkdir stage
+      # VERSION.txt, as in the local packages (scripts/lib/archive-layout.sh): the archives carried
+      # none until 1.8 (RD-180-05). The platform in the words the About page uses.
+      - name: Write VERSION.txt
         shell: bash
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          mkdir stage
+          source scripts/lib/version-file.sh
+          platform="${ARTIFACT#rdownloader-}"
+          rd_write_version_file stage "${RD_VERSION}" "${platform%%-*} ${platform#*-}" release
+          cat stage/VERSION.txt
       - name: Smoke-test Windows executables
         if: runner.os == 'Windows'
         shell: pwsh
@@ -237,6 +279,9 @@ jobs:
           osacompile -o "stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
           cp resources/macos/capture-helper-Info.plist "stage/rDownloader Capture.app/Contents/Info.plist"
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          # Apple allows digits and periods only in both keys (at most three integers), so a
+          # beta's `-beta.N` stays out: 1.8.0-beta.2 is 1.8.0 here, as in the browser manifest.
+          version="${version%%[-+]*}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
           plutil -lint "stage/rDownloader Capture.app/Contents/Info.plist"
@@ -271,7 +316,7 @@ jobs:
           Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat,scripts/windows/start-capture.bat,scripts/windows/stop-capture.bat stage/
           Copy-Item LICENSE, README.md stage/
           Compress-Archive -Path stage/* -DestinationPath "${{ matrix.artifact }}.unpacked.zip"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unpacked-${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.unpacked.*
@@ -279,6 +324,8 @@ jobs:
           retention-days: 3
 
   binaries:
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
     strategy:
       fail-fast: false
       matrix:
@@ -306,11 +353,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/download-artifact@v8
+      # For the layout check and the deb/rpm configuration.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: plugins
           path: layer/plugins
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: unpacked-*
           path: unpacked
@@ -339,30 +388,119 @@ jobs:
           # One archive per binary target; fewer means a platform is missing from the release.
           [[ ${count} -eq 5 ]] || { echo "::error::expected 5 archives, found ${count}"; exit 1; }
           ls -l packages
-      - uses: actions/upload-artifact@v7
+      # The one layout, the same check scripts/release-pipeline.sh runs on the local packages
+      # (RD-180-05): flat, the listed files, VERSION.txt, the signed plugins, nothing else.
+      - name: Check the archive layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/lib/archive-layout.sh
+          for archive in packages/*.tar.gz packages/*.zip; do
+            name="$(basename "${archive}")"
+            platform="${name#rdownloader-}"
+            rd_check_archive_layout "${archive}" "${platform%%-*}"
+            echo "ok   ${name}"
+          done
+      # nfpm writes both formats for both architectures from here: it runs nothing it packs.
+      # Pinned with its published checksum.
+      - name: Install nfpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --output "${RUNNER_TEMP}/nfpm.tar.gz" \
+            https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz
+          echo "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783  ${RUNNER_TEMP}/nfpm.tar.gz" | sha256sum --check
+          tar --extract --gzip --file "${RUNNER_TEMP}/nfpm.tar.gz" --directory "${RUNNER_TEMP}" nfpm
+          echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+      # RD-180-05: the deb and rpm of each architecture, from the finished tarball.
+      - name: Build the deb and rpm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for arch in x86_64 aarch64; do
+            scripts/package-deb-rpm.sh "packages/rdownloader-linux-${arch}.tar.gz" installers
+          done
+          ls -l installers
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-packages
           path: packages/*
           if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-linux-installers
+          path: installers/*
+          if-no-files-found: error
+
+  # RD-180-05: the Windows installer, from the finished zip, so it holds exactly its files. WiX
+  # needs Windows; WiX 5 because 6 and later ask for their maintenance-fee EULA.
+  msi:
+    needs: packages
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-packages
+          path: packages
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { throw "installing wix failed" }
+          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $env:PATH = "$tools;$env:PATH"
+          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          wix extension add --global WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { throw "adding the WiX extensions failed" }
+      - name: Unpack the release zip
+        shell: pwsh
+        run: Expand-Archive -Path packages/rdownloader-windows-x86_64.zip -DestinationPath stage
+      - name: Build the MSI
+        shell: bash
+        run: scripts/package-msi.sh stage installers/rdownloader-windows-x86_64.msi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-msi
+          path: installers/rdownloader-windows-x86_64.msi
+          if-no-files-found: error
 
   publish:
-    needs: [extensions, plugins, packages]
+    needs: [extensions, plugins, packages, msi]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      # All tags: the update manifest's schema_change compares the migrations with the release
+      # before this one (scripts/update-schema-change.sh).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The packager builds the update manifest below and is not a release file (RD-180-01). It
+      # is fetched by its own artifact name: out of the merged download below, any artifact that
+      # carried a file named `rd-pack` could have become the program that writes the manifest
+      # (security review 2026-09-30, finding 10).
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: packager
+          path: ${{ runner.temp }}/packager
+      - name: Set the packager aside
+        run: |
+          mv "${RUNNER_TEMP}/packager/rd-pack" "${RUNNER_TEMP}/rd-pack"
+          chmod +x "${RUNNER_TEMP}/rd-pack"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: release-assets
           merge-multiple: true
-      # The archives without their plugins are `packages`' input, not something to publish.
+      # The archives without their plugins are `packages`' input, not something to publish; the
+      # packager came along with every other artifact and is not one either.
       - name: Drop the intermediate archives
-        run: rm -f release-assets/*.unpacked.*
+        run: rm -f release-assets/*.unpacked.* release-assets/rd-pack
       - name: Generate SPDX SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           path: release-assets
           format: spdx-json
@@ -376,14 +514,47 @@ jobs:
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print0 \
             | sort --zero-terminated \
             | xargs --null sha256sum > SHA256SUMS
-      - uses: sigstore/cosign-installer@v4.1.2
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign checksum manifest with Sigstore
         working-directory: release-assets
         run: cosign sign-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json --yes
+      # RD-180-01: the signed update manifest of this release, built from the SHA256SUMS above,
+      # the files beside it and the version's CHANGELOG section: rdownloader-update-stable.json on
+      # a plain vX.Y.Z tag, rdownloader-update-beta.json on a vX.Y.Z-beta.N pre-release. `verify`
+      # checks it against the root this build embeds, which also catches a secret that is not the
+      # update key. It is signed itself and therefore not in SHA256SUMS. Without the secret the
+      # release carries no manifest, and installations report `update.not_published`.
+      - name: Build and sign the update manifest
+        env:
+          RDOWNLOADER_UPDATE_SIGNING_KEY: ${{ secrets.RDOWNLOADER_UPDATE_SIGNING_KEY }}
+          REF_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if [[ -z "${RDOWNLOADER_UPDATE_SIGNING_KEY}" ]]; then
+            echo "::warning::RDOWNLOADER_UPDATE_SIGNING_KEY is not set; this release publishes no update manifest"
+            exit 0
+          fi
+          # RD-180-02: whether crates/rd-db/migrations/ changed since the release before this
+          # one on its channel; `true` whenever that cannot be told.
+          schema_change="$(scripts/update-schema-change.sh "${REF_NAME}")"
+          "${RUNNER_TEMP}/rd-pack" update manifest build \
+            --version "${REF_NAME}" \
+            --schema-change "${schema_change}" \
+            --checksums release-assets/SHA256SUMS \
+            --assets release-assets \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${REF_NAME}/" \
+            --changelog CHANGELOG.md \
+            --out release-assets
+          for manifest in release-assets/rdownloader-update-*.json; do
+            "${RUNNER_TEMP}/rd-pack" update manifest verify "${manifest}" --assets release-assets
+          done
+      # A vX.Y.Z-beta.N tag is a pre-release: GitHub's `latest` then stays on the newest plain
+      # release, which is where the stable update manifest and the plugin index are found.
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: release-assets/*
 
   # RD-180-06: the Homebrew tap and the Scoop bucket follow the release — the two formulas
@@ -397,46 +568,60 @@ jobs:
   # by then, so nothing here may fail it: the job continues on error, and the bucket is still
   # pushed when the tap failed. Only the newest plain vX.Y.Z tag is pushed, as with the image's
   # `:latest`, so a re-run of an old tag or a pre-release cannot move the channels back.
+  # The same job submits the winget manifests (RD-180-07) as a pull request to
+  # microsoft/winget-pkgs with komac, from the fork under the account of the classic token in
+  # WINGET_TOKEN (scope public_repo), and pushes the AUR package rdownloader-bin (RD-180-08) to
+  # ssh://aur@aur.archlinux.org/rdownloader-bin.git with the key in AUR_SSH_KEY, against the AUR's
+  # published host key; the AUR push also needs the repository variable AUR_ENABLED set to true,
+  # which stays off until the AUR account exists.
   package-managers:
     needs: publish
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     continue-on-error: true
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # A secret cannot be tested in `if:`, so this step says which channels have their key.
-      - name: Decide whether the tap and the bucket move
+      - name: Decide which channels move
         id: gate
         shell: bash
         env:
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_ENABLED: ${{ vars.AUR_ENABLED }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           newest="$(git ls-remote --tags --refs origin 'refs/tags/v*' \
             | sed 's#.*refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
             | sort -V | tail -n 1)"
           if [[ "${REF_NAME}" != "${newest}" ]]; then
-            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); the tap and the bucket stay where they are"
-            echo "tap=false" >> "${GITHUB_OUTPUT}"
-            echo "bucket=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); no package channel moves"
+            printf '%s=false\n' tap bucket winget aur >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          for channel in tap:HOMEBREW_TAP_DEPLOY_KEY bucket:SCOOP_BUCKET_DEPLOY_KEY; do
+          for channel in tap:HOMEBREW_TAP_DEPLOY_KEY bucket:SCOOP_BUCKET_DEPLOY_KEY winget:WINGET_TOKEN aur:AUR_SSH_KEY; do
             name="${channel%%:*}"
             secret="${channel#*:}"
             if [[ -z "${!secret}" ]]; then
               echo "::warning::${secret} is not set; the ${name} stays on its last release"
               echo "${name}=false" >> "${GITHUB_OUTPUT}"
+            elif [[ "${name}" == aur && "${AUR_ENABLED}" != true ]]; then
+              # Until the AUR account exists the key alone does not move the AUR package.
+              echo "::notice::the repository variable AUR_ENABLED is not true; the AUR package is not pushed"
+              echo "aur=false" >> "${GITHUB_OUTPUT}"
             else
               echo "${name}=true" >> "${GITHUB_OUTPUT}"
             fi
           done
-      - name: Render the formulas, the manifest and their READMEs
+      - name: Render the formulas, the manifests, the PKGBUILD and their READMEs
         id: render
-        if: steps.gate.outputs.tap == 'true' || steps.gate.outputs.bucket == 'true'
+        if: >-
+          steps.gate.outputs.tap == 'true' || steps.gate.outputs.bucket == 'true' ||
+          steps.gate.outputs.winget == 'true' || steps.gate.outputs.aur == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -444,7 +629,7 @@ jobs:
         run: |
           gh release download "${REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern SHA256SUMS --dir release
           scripts/package-managers.sh "${REF_NAME}" release/SHA256SUMS rendered --repository "${GITHUB_REPOSITORY}"
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
         with:
           repository: ${{ github.repository_owner }}/homebrew-rdownloader
@@ -483,7 +668,7 @@ jobs:
           git -C "${CHECKOUT}" commit --quiet --message "rdownloader ${REF_NAME#v}"
           git -C "${CHECKOUT}" push --quiet origin HEAD
           echo "${CHECKOUT}: rdownloader ${REF_NAME#v}"
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.bucket == 'true' }}
         with:
           repository: ${{ github.repository_owner }}/scoop-rdownloader
@@ -499,6 +684,194 @@ jobs:
           README: rendered/scoop-README.md
           REF_NAME: ${{ github.ref_name }}
         run: *push-channel
+      # komac forks microsoft/winget-pkgs under the token's account if needed and opens the pull
+      # request from there; the token reaches it as GITHUB_TOKEN, never on a command line.
+      - name: Submit the manifests to winget-pkgs
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.winget == 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          KOMAC_VERSION: 2.16.0
+          KOMAC_SHA256: 7d2707fa6210f2789a3702de49fbd150b736dbf426ee0b9bc8e098736f9fd82d
+          KOMAC_CREATED_WITH: rDownloader release workflow
+          KOMAC_CREATED_WITH_URL: https://github.com/${{ github.repository }}/blob/main/.github/workflows/release.yml
+        run: |
+          set -euo pipefail
+          archive="komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 --output "${RUNNER_TEMP}/${archive}" \
+            "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/${archive}"
+          echo "${KOMAC_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check --quiet
+          tar --extract --gzip --file "${RUNNER_TEMP}/${archive}" --directory "${RUNNER_TEMP}" komac
+          "${RUNNER_TEMP}/komac" submit rendered/winget --yes
+      # The AUR accepts only its own host key; the fingerprint is the one aur.archlinux.org
+      # publishes. The key file lives in the runner's temporary folder and is never printed.
+      - name: Push the package to the AUR
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.aur == 'true' }}
+        shell: bash
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_HOST_FINGERPRINT: SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ssh_dir="${RUNNER_TEMP}/aur-ssh"
+          install -d -m 700 "${ssh_dir}"
+          ( umask 077; printf '%s\n' "${AUR_SSH_KEY}" > "${ssh_dir}/key" )
+          ssh-keyscan -t ed25519 aur.archlinux.org > "${ssh_dir}/known_hosts" 2> /dev/null
+          if [[ "$(ssh-keygen -l -f "${ssh_dir}/known_hosts" | awk '{ print $2 }')" != "${AUR_HOST_FINGERPRINT}" ]]; then
+            echo "::error::aur.archlinux.org did not present its published host key"
+            exit 1
+          fi
+          export GIT_SSH_COMMAND="ssh -i ${ssh_dir}/key -o IdentitiesOnly=yes -o UserKnownHostsFile=${ssh_dir}/known_hosts -o StrictHostKeyChecking=yes"
+          # A package name that does not exist yet clones as an empty repository; the first push
+          # creates it.
+          git clone --quiet ssh://aur@aur.archlinux.org/rdownloader-bin.git aur
+          cp rendered/aur/PKGBUILD rendered/aur/.SRCINFO rendered/aur/rdownloader.service \
+            rendered/aur/rdownloader-capture.service aur/
+          git -C aur config user.name "github-actions[bot]"
+          git -C aur config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C aur add --all
+          if git -C aur diff --cached --quiet; then
+            echo "aur: already at ${REF_NAME}"
+            exit 0
+          fi
+          git -C aur commit --quiet --message "rdownloader-bin ${REF_NAME#v}"
+          git -C aur push --quiet origin HEAD:master
+          echo "aur: rdownloader-bin ${REF_NAME#v}"
+
+  # RD-180-10: the apt and dnf repositories follow the release. The release's .deb and .rpm
+  # packages (whatever their asset names) go into <owner>/rdownloader-packages, whose `main` GitHub
+  # Pages serves as <owner>.github.io/rdownloader-packages; scripts/package-repo.sh files them into
+  # the pool, drops what is beyond the newest two per package and architecture, signs the rpms
+  # and both indexes with the key of the secret PACKAGES_GPG_KEY (ASCII-armored, no passphrase)
+  # and renders rdownloader.sources, rdownloader.repo, the public key and the README. The key must
+  # be the one PACKAGES_KEY_FINGERPRINT names, so a wrong secret signs nothing. The push uses the
+  # repository's write deploy key, the secret PACKAGES_DEPLOY_KEY. The clone is by hand, not
+  # actions/checkout, because the repository starts empty. `main` is replaced by one commit each
+  # time: the pool is the archive, not the history, and a history of every package ever published
+  # would outgrow the repository. Without either secret, or without
+  # packages on the release, the job warns and the repositories stay; it continues on error, and
+  # only the newest plain vX.Y.Z tag moves them, as with the tap and the bucket.
+  package-repository:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      PACKAGES_KEY_FINGERPRINT: 47562DABFCFC3F17C78567CE395FA7C2B11721D1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Decide whether the repositories move
+        id: gate
+        shell: bash
+        env:
+          PACKAGES_DEPLOY_KEY: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+          PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          newest="$(git ls-remote --tags --refs origin 'refs/tags/v*' \
+            | sed 's#.*refs/tags/##' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
+            | sort -V | tail -n 1)"
+          if [[ "${REF_NAME}" != "${newest}" ]]; then
+            echo "::notice::${REF_NAME} is not the newest release tag (${newest:-none}); the apt and dnf repositories stay where they are"
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          for secret in PACKAGES_DEPLOY_KEY PACKAGES_GPG_KEY; do
+            if [[ -z "${!secret}" ]]; then
+              echo "::warning::${secret} is not set; the apt and dnf repositories stay on their last release"
+              echo "publish=false" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          done
+          echo "publish=true" >> "${GITHUB_OUTPUT}"
+      - name: Download the release's deb and rpm packages
+        id: download
+        if: steps.gate.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release download "${REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
+            --pattern '*.deb' --pattern '*.rpm' --dir incoming || true
+          if ! compgen -G 'incoming/*.deb' > /dev/null && ! compgen -G 'incoming/*.rpm' > /dev/null; then
+            echo "::warning::${REF_NAME} carries no .deb or .rpm; the apt and dnf repositories stay on their last release"
+            echo "found=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          ls -l incoming
+          echo "found=true" >> "${GITHUB_OUTPUT}"
+      - name: Install the repository tools
+        if: steps.download.outputs.found == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends apt-utils rpm createrepo-c
+      # GitHub's published SSH host key, pinned as actions/checkout pins it. Cloning an empty
+      # repository succeeds with a warning, and the first push creates `main`.
+      - name: Clone the packages repository
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          PACKAGES_DEPLOY_KEY: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          install -m 0600 /dev/null "${RUNNER_TEMP}/packages-deploy-key"
+          printf '%s\n' "${PACKAGES_DEPLOY_KEY}" > "${RUNNER_TEMP}/packages-deploy-key"
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+            > "${RUNNER_TEMP}/github-known-hosts"
+          ssh_command="ssh -i ${RUNNER_TEMP}/packages-deploy-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${RUNNER_TEMP}/github-known-hosts"
+          echo "GIT_SSH_COMMAND=${ssh_command}" >> "${GITHUB_ENV}"
+          GIT_SSH_COMMAND="${ssh_command}" git clone --quiet --depth 1 \
+            "git@github.com:${OWNER}/rdownloader-packages.git" site
+      # The key goes from the secret into a keyring of this run only; nothing prints it.
+      - name: Update and sign the repositories
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="${RUNNER_TEMP}/gnupg"
+          install -d -m 0700 "${GNUPGHOME}"
+          printf '%s\n' "${PACKAGES_GPG_KEY}" | gpg --batch --quiet --import
+          scripts/package-repo.sh incoming site --key "${PACKAGES_KEY_FINGERPRINT}" \
+            --base-url "https://${OWNER,,}.github.io/rdownloader-packages"
+          gpgconf --kill all
+      - name: Push the repositories
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # GitHub refuses files over 100 MB, and Pages publishes at most 1 GB.
+          large="$(find site -path site/.git -prune -o -type f -size +99M -print)"
+          if [[ -n "${large}" ]]; then
+            echo "::error::over GitHub's 100 MB file limit: ${large//$'\n'/, }"
+            exit 1
+          fi
+          size_mb="$(du -sm --exclude=.git site | cut -f1)"
+          if [[ "${size_mb}" -gt 950 ]]; then
+            echo "::error::the repositories are ${size_mb} MB, GitHub Pages publishes at most 1 GB; lower --keep"
+            exit 1
+          fi
+          cd site
+          if [[ -z "$(git status --porcelain)" ]] && git rev-parse --verify --quiet HEAD > /dev/null; then
+            echo "the apt and dnf repositories are already at ${REF_NAME}"
+            exit 0
+          fi
+          git checkout --quiet --orphan publish
+          git add --all
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet --message "rdownloader ${REF_NAME#v}"
+          git push --quiet --force origin HEAD:refs/heads/main
+          echo "the apt and dnf repositories: rdownloader ${REF_NAME#v} (${size_mb} MB)"
 
   # RD-170-10: the extension follows the release into the two stores — the Chrome ZIP is uploaded
   # to the Chrome Web Store and submitted for review (scripts/chrome-webstore.sh, API v2, secrets
@@ -517,7 +890,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Decide whether the stores get this release
         id: gate
         shell: bash
@@ -533,11 +906,11 @@ jobs:
           else
             echo "submit=true" >> "${GITHUB_OUTPUT}"
           fi
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.gate.outputs.submit == 'true'
         with:
           node-version: 24
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: steps.gate.outputs.submit == 'true'
         with:
           name: browser-extensions
@@ -582,12 +955,12 @@ jobs:
       group: release-container-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: plugins
           path: dist/plugins
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: unpacked-rdownloader-linux-*
           path: release-binaries
@@ -606,10 +979,10 @@ jobs:
               --directory "dist/docker/linux-${docker_arch}" ./rdownloader
             file "dist/docker/linux-${docker_arch}/rdownloader"
           done
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build the amd64 image for the smoke test
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/Dockerfile
@@ -619,7 +992,7 @@ jobs:
           tags: rdownloader:smoke
       - name: Smoke-test the image before anything is pushed
         run: scripts/docker-smoke.sh rdownloader:smoke
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -647,7 +1020,7 @@ jobs:
           printf 'pushing:\n%s\n' "${tags}"
       - name: Build and publish multiarch image
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/Dockerfile
@@ -657,6 +1030,6 @@ jobs:
           tags: ${{ steps.image.outputs.tags }}
           provenance: mode=max
           sbom: true
-      - uses: sigstore/cosign-installer@v4.1.2
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign multiarch image with Sigstore
         run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"

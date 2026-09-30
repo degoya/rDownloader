@@ -717,7 +717,8 @@
         "torrent": "Torrent",
         "ftp": "FTP",
         "sftp": "SFTP",
-        "plugin": "Plugin-Übertragung"
+        "plugin": "Plugin-Übertragung",
+        "object_storage": "Objektspeicher (S3)"
       },
       "history_title": "Verlauf",
       "history_description": "Neueste zuerst. Eine Verschiebung zwischen Geräten wird per SHA-256 geprüft, bevor das Original gelöscht wird.",

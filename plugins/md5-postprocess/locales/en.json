@@ -2,6 +2,8 @@
   "name": "MD5 checksums",
   "description": "Verifies .md5 sidecar files against the package they belong to.",
   "codes": {
-    "md5_postprocess.mismatch": "A file did not match its recorded MD5."
+    "md5_postprocess.mismatch": "A file did not match its recorded MD5.",
+    "md5_postprocess.missing": "None of the files an MD5 checksum file names is in the package.",
+    "md5_postprocess.empty": "An MD5 checksum file lists no checksum that could be read."
   }
 }

@@ -95,10 +95,6 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/accounts/{id}/auth",
             get(auth_flow_handlers::get_auth).delete(auth_flow_handlers::cancel_auth),
         )
-        .route(
-            "/api/v1/oauth/callback",
-            get(auth_flow_handlers::oauth_callback),
-        )
         // Jobs that run at a provider (RD-108-04). Deleting at the provider and removing the
         // row from this list are separate paths on purpose: the first is a POST that has to
         // carry a confirmation, the second a plain DELETE that sends nothing anywhere.

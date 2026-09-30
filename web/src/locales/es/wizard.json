@@ -70,6 +70,6 @@
   },
   "selection": {
     "progress": "Instalando {done} de {total}…",
-    "hint": "Continuar no instala nada nuevo. | Continuar instala 1 servicio. Los plugins nuevos funcionan desde el próximo inicio; las cuentas las añades en el siguiente paso. | Continuar instala {count} servicios. Los plugins nuevos funcionan desde el próximo inicio; las cuentas las añades en el siguiente paso."
+    "hint": "Continuar no instala nada nuevo. | Continuar instala 1 servicio. Los plugins de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio; las cuentas las añades en el siguiente paso. | Continuar instala {count} servicios. Los plugins de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio; las cuentas las añades en el siguiente paso."
   }
 }

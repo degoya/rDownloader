@@ -4,11 +4,12 @@
 //! The plugin host has the first one (`validate_request_domain`, re-checked after every
 //! redirect by `validate_redirect`); it does not have the second, because a plugin carries a
 //! fixed domain list in its signed manifest. A rule's address comes out of the rule, so the
-//! ban on private ranges is built here — and it is checked against the *resolved* address,
+//! ban on private ranges is applied here — with the ranges of `rd_core::address_scope`, which
+//! the download engine's guard uses too — and it is checked against the *resolved* address,
 //! never against the name. A name is free to point wherever its owner likes, and
 //! `localtest.me` pointing at `127.0.0.1` is a public name.
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 
 use url::{Host, Url};
 
@@ -47,121 +48,19 @@ pub(crate) fn literal_address(url: &Url) -> Option<IpAddr> {
 /// Whether an address is one a rule may be pointed at: routable, on the public internet, and
 /// not this machine or its neighbours.
 ///
-/// Refusing is the default. Anything reserved, local, private or otherwise not a public
-/// unicast address is out, and an IPv4 address wearing an IPv6 costume is judged as the IPv4
-/// address it is *as well as* by the IPv6 rules: both have to pass.
+/// Refusing is the default: anything but [`rd_core::AddressScope::Public`] is out. The ranges
+/// are `rd_core::address_scope`, the classification the download engine's guard uses too; this
+/// crate kept its own copy until the security audit of 2026-09-30 (R1) found it had let the
+/// site-local block `fec0::/10` through while the engine refused it.
 #[must_use]
 pub(crate) fn is_public(address: IpAddr) -> bool {
-    match address {
-        IpAddr::V4(v4) => is_public_v4(v4),
-        IpAddr::V6(v6) => match embedded_v4(v6) {
-            Some(v4) => is_public_v4(v4) && is_public_v6(v6),
-            None => is_public_v6(v6),
-        },
-    }
-}
-
-fn is_public_v4(address: Ipv4Addr) -> bool {
-    let [a, b, c, _] = address.octets();
-    !(address.is_loopback()
-        || address.is_private()
-        || address.is_link_local()
-        || address.is_unspecified()
-        || address.is_multicast()
-        || address.is_broadcast()
-        // 0.0.0.0/8, "this network".
-        || a == 0
-        // 100.64.0.0/10, carrier-grade NAT: the provider's own network, not the internet.
-        || (a == 100 && (64..128).contains(&b))
-        // 192.0.0.0/24, IETF protocol assignments.
-        || (a == 192 && b == 0 && c == 0)
-        // 198.18.0.0/15, benchmarking.
-        || (a == 198 && (b == 18 || b == 19))
-        // 240.0.0.0/4, reserved.
-        || a >= 240)
-}
-
-fn is_public_v6(address: Ipv6Addr) -> bool {
-    let segments = address.segments();
-    !(address.is_loopback()
-        || address.is_unspecified()
-        || address.is_multicast()
-        // fc00::/7, unique local.
-        || (segments[0] & 0xfe00) == 0xfc00
-        // fe80::/10, link local.
-        || (segments[0] & 0xffc0) == 0xfe80
-        // 100::/64, discard-only (RFC 6666).
-        || (segments[0] == 0x0100 && segments[1..4].iter().all(|segment| *segment == 0))
-        // 64:ff9b:1::/48, NAT64 with a network-specific prefix (RFC 8215). The embedded
-        // address cannot be read out, because RFC 6052 spreads it differently for each of
-        // six prefix lengths and the address does not say which one is in force. Refused as
-        // a block instead of guessed.
-        || (segments[0] == 0x0064 && segments[1] == 0xff9b && segments[2] == 0x0001)
-        // 2001::/32, Teredo (RFC 4380). The client's IPv4 address is in there, obfuscated
-        // by a bitwise NOT, but a Teredo address routes to a relay rather than to that
-        // host, so decoding it would judge the wrong machine. Refused as a block.
-        || (segments[0] == 0x2001 && segments[1] == 0x0000)
-        // 2001:2::/48, benchmarking (RFC 5180).
-        || (segments[0] == 0x2001 && segments[1] == 0x0002 && segments[2] == 0)
-        // 2001:10::/28 and 2001:20::/28, ORCHID and ORCHIDv2 (RFC 4843, RFC 7343).
-        || (segments[0] == 0x2001 && matches!(segments[1] & 0xfff0, 0x0010 | 0x0020))
-        // 2001:db8::/32 and 3fff::/20, documentation (RFC 3849, RFC 9637).
-        || (segments[0] == 0x2001 && segments[1] == 0x0db8)
-        || (segments[0] & 0xfff0) == 0x3ff0)
-}
-
-/// The IPv4 address an IPv6 address carries inside it, for the forms that put one there in a
-/// place the address itself identifies.
-///
-/// Without this, `2002:0a00:0001::` — which is `10.0.0.1` in 6to4 clothing — reads as an
-/// ordinary global address and passes, both as a request target and as a link handed to the
-/// download engine.
-///
-/// **Deliberately not decoded**, and refused as whole blocks in [`is_public_v6`] instead:
-/// Teredo (`2001::/32`), because the embedded address is the client's and the packet goes to
-/// a relay; and NAT64 with a network-specific prefix (`64:ff9b:1::/48`), because RFC 6052
-/// lays the address out differently for each of six prefix lengths and nothing in the
-/// address says which. Anything that carries an IPv4 address without saying so — a tunnel
-/// endpoint written into an arbitrary interface identifier — cannot be recognised at all;
-/// the host bolt is what bounds that case, since a rule may only point at the hosts its
-/// `match` names.
-fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
-    let segments = address.segments();
-    let octets = address.octets();
-    let last_32 = || Ipv4Addr::new(octets[12], octets[13], octets[14], octets[15]);
-    // ::ffff:a.b.c.d -- IPv4-mapped (RFC 4291).
-    if let Some(mapped) = address.to_ipv4_mapped() {
-        return Some(mapped);
-    }
-    // 2002:aabb:ccdd::/48 -- 6to4 (RFC 3056): the IPv4 address sits in bits 16 to 47.
-    if segments[0] == 0x2002 {
-        return Some(Ipv4Addr::new(octets[2], octets[3], octets[4], octets[5]));
-    }
-    // 64:ff9b::/96 -- the NAT64 well-known prefix (RFC 6052): the IPv4 address is the last
-    // 32 bits. Only this prefix length is defined for the well-known prefix.
-    if segments[0] == 0x0064
-        && segments[1] == 0xff9b
-        && segments[2..6].iter().all(|segment| *segment == 0)
-    {
-        return Some(last_32());
-    }
-    // ...:0000:5efe:a.b.c.d and ...:0200:5efe:a.b.c.d -- an ISATAP interface identifier
-    // (RFC 5214), which may sit under any prefix, global ones included. The tunnel endpoint
-    // it names is usually inside a site rather than on the internet.
-    if matches!(segments[4], 0x0000 | 0x0200) && segments[5] == 0x5efe {
-        return Some(last_32());
-    }
-    // ::a.b.c.d -- IPv4-compatible (deprecated by RFC 4291, still routed by some stacks).
-    // `::` and `::1` are not compatible addresses; the IPv6 rules already refuse them.
-    if segments[..6].iter().all(|segment| *segment == 0) && !(segments[6] == 0 && segments[7] <= 1)
-    {
-        return Some(last_32());
-    }
-    None
+    rd_core::address_scope(address) == rd_core::AddressScope::Public
 }
 
 #[cfg(test)]
 mod tests {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
     use super::*;
     use crate::format::tests::example;
 
@@ -222,6 +121,8 @@ mod tests {
             "::",
             "fc00::1",
             "fd12:3456::1",
+            // Site-local (RFC 3879): the range the two copies of this list disagreed on.
+            "fec0::1",
             "fe80::1",
             "ff02::1",
             "::ffff:127.0.0.1",

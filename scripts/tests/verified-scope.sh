@@ -129,6 +129,19 @@ bump
 echo new > untracked.txt
 expect "a bump with an untracked file: run" "" "$(rd_prebump_full_green "$repo")"
 reset
+# A beta as set-version.sh writes it: the browser manifest takes the version without the suffix.
+beta_bump() {
+    sed -i 's/^version = "1\.0\.0"/version = "1.1.0-beta.1"/' Cargo.toml Cargo.lock
+    sed -i 's/"version": "1\.0\.0"/"version": "1.1.0-beta.1"/' web/package.json web/openapi.json
+    sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' extension/manifest.base.json
+}
+beta_bump
+expect "a bump to a beta, the browser manifest without the suffix: skip" "$tree" "$(rd_prebump_full_green "$repo")"
+reset
+beta_bump
+sed -i 's/^version = "1\.1\.0-beta\.1"/version = "1.1.0"/' Cargo.lock
+expect "a beta bump with a Cargo.lock line at the bare version: run" "" "$(rd_prebump_full_green "$repo")"
+reset
 bump
 rd_record_full "$repo" rust "$(git rev-parse 'HEAD~1^{tree}')"
 expect "a --full green of another tree: run" "" "$(rd_prebump_full_green "$repo")"

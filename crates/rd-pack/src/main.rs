@@ -27,6 +27,9 @@ enum Command {
     /// Signs and verifies the rule file that recognises release pages.
     #[command(subcommand)]
     SiteRules(rd_pack::site_rules::SiteRulesCommand),
+    /// Builds and verifies the signed application update manifest.
+    #[command(subcommand)]
+    Update(rd_pack::update_manifest::UpdateCommand),
 }
 
 #[tokio::main]
@@ -42,5 +45,6 @@ async fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Plugin(command) => rd_pack::plugin::run(command).await,
         Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
+        Command::Update(command) => rd_pack::update_manifest::run(command).await,
     }
 }

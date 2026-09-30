@@ -1,0 +1,56 @@
+name: Recovery
+
+# Axis B of the recovery matrix (RD-180-12, crates/rd-core/recovery-matrix.md): a real
+# `rdownloader serve` is killed with SIGKILL mid-download and mid-post-processing, started again
+# on the same data, and held to the matrix's invariants. The cases are `#[ignore]` everywhere
+# else, because each spawns a service; this job is where they run. Linux only: SIGKILL is the
+# point, and the state machine behind it is the same on every system (axis A, ci.yml).
+on:
+  push:
+    branches: ["**", "!dependabot/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  axis-b:
+    name: Kill and restart (axis B)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free runner disk
+        uses: ./.github/actions/free-runner-disk
+      - name: Install mold
+        run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      # rust-embed compiles web/dist into rd-api. These cases never open the interface, so a
+      # placeholder page stands in for the web build the `web` job of ci.yml makes.
+      - name: Placeholder web interface
+        run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest
+      # `--run-ignored only`: exactly the axis B cases, one spawned service each. The service
+      # logs of a failed case are part of its failure message.
+      - name: Kill and restart cases
+        run: cargo nextest run --locked --no-fail-fast -p rdownloader --test kill_restart --run-ignored only

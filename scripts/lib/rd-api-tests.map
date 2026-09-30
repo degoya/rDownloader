@@ -54,13 +54,14 @@
 # --- rd-api, by area -------------------------------------------------------------------------
 ^crates/rd-api(-[a-z]+)?/src/(about|about_page|build_info)\.rs$                           api_tokens scope_matrix mcp
 ^crates/rd-api/licenses/                                                                  api_tokens
-^crates/rd-api(-[a-z]+)?/src/api_tokens\.rs$                                              api_tokens audit
+^crates/rd-api(-[a-z]+)?/src/api_tokens\.rs$                                              api_tokens grant_ceiling audit
 ^crates/rd-api(-[a-z]+)?/src/area_backup\.rs$                                             area_backup
 ^crates/rd-api(-[a-z]+)?/src/(audit|audit_dto|audit_handlers|routes/audit)\.rs$           audit data_reset api_tokens
-^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_profile_handlers)\.rs$   auth_profiles media_cookie_profile browser_session capture_intake
+^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_flow_guard|auth_profile_handlers)\.rs$   auth_profiles media_cookie_profile browser_session capture_intake oauth_callback
+^crates/rd-db/src/auth_flow_store\.rs$                                                     + oauth_callback
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service\.rs$                                     auto_remove
 ^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)\.rs$                 automations automation_triggers area_backup
-^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+\.rs$                                        full_backup backup_destinations backup_remote mcp
+^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+\.rs$                                        full_backup backup_destinations backup_remote mcp service_lifecycle
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers\.rs$                                      bandwidth
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers\.rs$                                        captcha
@@ -70,17 +71,18 @@
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions\.rs$   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)\.rs$        containers container_json dlc capture_file
-^crates/rd-api(-[a-z]+)?/src/data_reset_handlers\.rs$                                     data_reset
+^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)\.rs$   service_lifecycle
+^crates/rd-api(-[a-z]+)?/src/data_reset_handlers\.rs$                                     data_reset storage_clear
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)\.rs$                diagnostics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)\.rs$                        api_tokens audit auto_remove category_move_and_reset compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets
 ^crates/rd-api(-[a-z]+)?/src/download_sources\.rs$                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service\.rs$                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)\.rs$                 media_cookie_profile media_manifest
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)\.rs$   metrics data_reset
-^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers)\.rs$                        mfa passkeys auth
+^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)\.rs$                mfa passkeys auth step_up
 ^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)\.rs$          notifications automations
 ^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)\.rs$                        auto_remove category_move_and_reset reorder
-^crates/rd-api(-[a-z]+)?/src/passkey_handlers\.rs$                                        passkeys
+^crates/rd-api(-[a-z]+)?/src/passkey_handlers\.rs$                                        passkeys step_up
 ^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)\.rs$   plugin_enabled plugin_bundled plugin_versions plugin_repositories plugin_auto_updates audit
 ^crates/rd-api(-[a-z]+)?/src/plugin_bundled\.rs$                                        plugin_bundled audit
 ^crates/rd-api(-[a-z]+)?/src/plugin_repository_[a-z_]+\.rs$                               plugin_repositories plugin_auto_updates audit
@@ -92,15 +94,18 @@
 ^crates/rd-api(-[a-z]+)?/src/routes/security\.rs$                                         auth mfa passkeys sessions api_tokens reverse_proxy
 # The host allowlist and the proxy contract it lives in (security review 2026-09-28, finding 3).
 ^crates/rd-authn/src/(host|proxy)\.rs$                                                     + host_check reverse_proxy
-^crates/rd-api(-[a-z]+)?/src/session_handlers\.rs$                                        sessions auth
+^crates/rd-api(-[a-z]+)?/src/session_handlers\.rs$                                        sessions auth reverse_proxy
+^crates/rd-api(-[a-z]+)?/src/stream_standing\.rs$                                         stream_revocation event_resume
+^crates/rd-db/src/(session_store|capture_store)\.rs$                                      + stream_revocation
 ^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*\.rs$                                  settings_backup full_backup backup_destinations protected_roots
 ^crates/rd-api(-[a-z]+)?/src/protected_roots\.rs$                                         storage_roots protected_roots mcp
 ^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)\.rs$                  site_rules
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity\.rs$                                        storage_capacity
-^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)\.rs$   collisions
+^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)\.rs$   collisions storage_clear
 ^crates/rd-api(-[a-z]+)?/src/stream_[a-z_]+\.rs$                                          stream_schedules area_backup
 ^crates/rd-api(-[a-z]+)?/src/(subscription_[a-z_]+\.rs|subscription_service/)             subscriptions feeds indexers area_backup
 ^crates/rd-api(-[a-z]+)?/src/tools_handlers\.rs$                                          managed_tools data_reset
+^crates/rd-api(-[a-z]+)?/src/(update_handlers|update_service|update_install_service|update_service/[a-z_]+)\.rs$   updates
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)\.rs$                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)\.rs$                         nzb_paused container_json indexers compat_sabnzbd
 
@@ -115,7 +120,7 @@
 ^crates/rd-core/src/failpoint\.rs$                                                        -
 ^crates/rd-core/recovery-matrix\.md$                                                      -
 ^crates/rd-core/tests/                                                                    -
-^crates/rd-core/src/audit\.rs$                                                            audit data_reset api_tokens mcp
+^crates/rd-core/src/audit\.rs$                                                            audit data_reset api_tokens public_surface step_up mcp
 ^crates/rd-core/src/(auth_flow|auth_profile|cookie_file)\.rs$                             auth_profiles media_cookie_profile browser_session capture_intake mcp
 ^crates/rd-core/src/session\.rs$                                                          sessions auth mfa passkeys browser_session
 ^crates/rd-core/src/backup\.rs$                                                           full_backup backup_destinations mcp
@@ -126,11 +131,12 @@
 ^crates/rd-core/src/diagnostics\.rs$                                                      diagnostics data_reset mcp
 ^crates/rd-core/src/hotfolder\.rs$                                                        hotfolder_poll
 ^crates/rd-core/src/media/                                                                media_cookie_profile media_manifest mcp
-^crates/rd-core/src/mfa\.rs$                                                              mfa passkeys auth
+^crates/rd-core/src/mfa\.rs$                                                              mfa passkeys auth step_up
 ^crates/rd-core/src/(recording|stream|stream_schedule)\.rs$                               stream_schedules area_backup mcp
 ^crates/rd-core/src/storage\.rs$                                                          storage_roots storage_capacity category_move_and_reset collisions mcp
 ^crates/rd-core/src/(dedupe|source_identity)\.rs$                                          collisions storage_capacity category_move_and_reset mcp
 ^crates/rd-core/src/(subscription\.rs|subscription/)                                      subscriptions feeds indexers area_backup mcp
 ^crates/rd-core/src/toolpath\.rs$                                                         managed_tools
+^crates/rd-update/                                                                        updates
 ^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
 ^crates/rd-core/src/usenet\.rs$                                                           nzb_paused container_json indexers compat_sabnzbd mcp

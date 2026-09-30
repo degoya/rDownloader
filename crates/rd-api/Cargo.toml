@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Compiles the crash cases of the admin suite (crates/rd-core/recovery-matrix.md, RD-180-12).
+failpoints = ["rd-api-admin/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
@@ -61,6 +65,7 @@ rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 rd-siterules = { path = "../rd-siterules" }
 rd-stream = { path = "../rd-stream" }
+rd-update = { path = "../rd-update" }
 regex.workspace = true
 secrecy.workspace = true
 sha2.workspace = true

@@ -72,6 +72,9 @@ pub const TOOL_MANIFEST_KEY_ID: &str = "rdownloader-tools-v1";
 /// Key id the shipped site-rule pack is signed under (RD-110-04).
 pub const SITE_RULES_KEY_ID: &str = "rdownloader-siterules-v1";
 
+/// Key id the application update manifests are signed under (RD-180-01).
+pub const UPDATE_KEY_ID: &str = "rdownloader-update-v1";
+
 /// Key id the official plugin repository index is signed under (RD-140-01).
 pub const REPOSITORY_KEY_ID: &str = "rdownloader-repository-v1";
 
@@ -90,10 +93,10 @@ pub const REPOSITORY_KEY_ID: &str = "rdownloader-repository-v1";
 /// manifest, and the domain separator keeps a signature from crossing over, but a shared key
 /// would still make one compromise vouch for both.
 ///
-/// The release and repository roles carry no key yet: those features publish nothing signed so
-/// far, and an empty entry states that honestly instead of inventing a key nobody holds. The
-/// repository entry is the root the official plugin index verifies against
-/// (`rd_plugin_host::index`, RD-140-01); until it is filled, no index verifies.
+/// The release entry is the root the update manifests verify against (`rd_update::manifest`,
+/// RD-180-01); the repository entry the official plugin index (`rd_plugin_host::index`,
+/// RD-140-01). An entry left empty states honestly that a feature publishes nothing signed yet,
+/// and [`keys_for`] skips it.
 /// `rdownloader plugin keygen --role <role>` produces a pair; paste the printed base64 public
 /// key here and keep the private PEM as a CI secret.
 pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
@@ -105,8 +108,8 @@ pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
     },
     EmbeddedKey {
         role: Role::Release,
-        key_id: "rdownloader-update-v1",
-        public_key: "",
+        key_id: UPDATE_KEY_ID,
+        public_key: "VB5ZJWlQt753fi1fhs7isk7YtjVdmryDnszmqCOhWgA=",
         not_after: None,
     },
     EmbeddedKey {
@@ -222,11 +225,42 @@ mod tests {
         }
     }
 
-    /// A role with no key configured yields an empty store rather than an error.
+    /// An entry with no key configured is skipped rather than reported.
     #[test]
-    fn a_role_without_a_key_yields_an_empty_store() {
+    fn an_entry_without_a_key_is_skipped() {
+        let unset = [EmbeddedKey {
+            role: Role::Release,
+            key_id: "unset",
+            public_key: "",
+            not_after: None,
+        }];
+        assert!(keys_in(&unset, Role::Release, now()).is_empty());
+    }
+
+    /// The update manifests have a root of their own (RD-180-01), shared with no other role.
+    #[test]
+    fn the_release_root_is_configured_under_its_own_key() {
+        assert_eq!(Role::Release.as_str(), "release");
+        let keys = keys_for(Role::Release, now());
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].key_id, UPDATE_KEY_ID);
         let store = trust_store_for(Role::Release, now()).expect("store");
-        assert!(store.key_ids().expect("ids").is_empty());
+        assert_eq!(
+            store.key_ids().expect("ids"),
+            vec![UPDATE_KEY_ID.to_owned()]
+        );
+        for other in [
+            Role::Plugin,
+            Role::ToolManifest,
+            Role::Repository,
+            Role::SiteRules,
+        ] {
+            assert!(
+                keys_for(other, now())
+                    .iter()
+                    .all(|key| key.public_key != keys[0].public_key)
+            );
+        }
     }
 
     /// Roles must not share a key id, or one role's root would satisfy another's check.

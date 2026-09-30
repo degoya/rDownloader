@@ -36,7 +36,8 @@ pub use rd_api_admin::{
 pub use rd_api_core::{
     ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService,
     RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused, RemoteJobService,
-    RemoteJobSubmitOutcome, RemoteServices, policy_rows, required_scope, service_switches,
+    RemoteJobSubmitOutcome, RemoteServices, local_control, policy_rows, required_scope,
+    service_switches,
 };
 pub use rd_api_intake::{site_rules_service, site_rules_service::catalogue as site_rule_catalogue};
 
@@ -49,11 +50,11 @@ use rd_api_access::{
 };
 use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
-    data_reset_handlers, diagnostics_dto, diagnostics_handlers, notify_handlers,
-    object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
+    data_reset_handlers, diagnostics_dto, diagnostics_handlers, lifecycle_handlers,
+    notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
     plugin_repository_handlers, providers_handlers, remote_handlers, restore_handlers,
     restore_uploads, routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
-    settings_handlers, stats_handlers, stats_retention_service, tools_handlers,
+    settings_handlers, stats_handlers, stats_retention_service, tools_handlers, update_handlers,
 };
 use rd_api_compat as compat;
 use rd_api_core::{
@@ -74,6 +75,9 @@ use rd_api_queue::{
     replay_dto, replay_handlers, storage_handlers, torrent_control, torrent_handlers,
     torrent_trackers, usenet_handlers,
 };
+
+/// The body limit of the routes reachable without a credential: sign-in, setup, passkeys.
+pub const PUBLIC_BODY_LIMIT_BYTES: usize = 64 * 1024;
 
 /// OpenAPI document generated from the Rust handler contracts.
 /// Builds the complete same-origin API and SPA router.
@@ -106,7 +110,20 @@ pub fn router(state: AppState) -> Router {
             post(passkey_handlers::passkey_login),
         )
         .route("/api/v1/auth/logout", post(session_handlers::logout))
-        .route("/api/v1/openapi.json", get(handlers::openapi));
+        // The provider's redirect back from an OAuth sign-in. Public because it arrives from the
+        // provider's site, which a `SameSite=Strict` session cookie does not travel from; the
+        // `state` it echoes is its credential (`rd_api_core::auth_flow_guard`, security audit
+        // 2026-09-30, finding 5).
+        .route(
+            "/api/v1/oauth/callback",
+            get(auth_flow_handlers::oauth_callback),
+        )
+        .route("/api/v1/openapi.json", get(handlers::openapi))
+        // Nobody signed in reaches these, so nobody may send them the 65 MiB the upload routes
+        // need: a sign-in is a few hundred bytes and a passkey assertion a few kilobytes
+        // (security audit 2026-09-30, finding 8). Set closer to the handlers than the
+        // service-wide limit below, so it is the one the body extractors read.
+        .layer(DefaultBodyLimit::max(PUBLIC_BODY_LIMIT_BYTES));
 
     let protected = routes::protected().route_layer(middleware::from_fn_with_state(
         state.clone(),
@@ -248,14 +265,18 @@ pub async fn serve(
         );
     }
     let listener = tokio::net::TcpListener::bind(address).await?;
+    let bound = listener.local_addr()?;
     tracing::info!(%address, "rDownloader listening");
     // With connect info, so a handler can see who is actually calling. Without it the peer
     // address is unreachable anywhere in the application, which makes both rate limiting and
     // the session inventory impossible to do honestly — the first would have nothing to key
-    // on and the second nothing to show.
+    // on and the second nothing to show. The bound address beside it tells a peer on this
+    // machine's own interface address from another machine (`client::from_this_machine`).
     axum::serve(
         listener,
-        router(state).into_make_service_with_connect_info::<SocketAddr>(),
+        router(state)
+            .layer(axum::Extension(rd_api_core::client::ListenAddress(bound)))
+            .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .with_graceful_shutdown(shutdown.cancelled_owned())
     .await?;

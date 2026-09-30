@@ -46,7 +46,11 @@ async fn enrol(router: &Router, token: &str, label: &str) -> SoftToken {
     let (mut authenticator, _) = SoftToken::new(true).expect("a software authenticator");
     let (status, challenge, _) = send_with_cookie(
         router,
-        from_origin("/api/v1/mfa/passkey", Some(token), &serde_json::json!({})),
+        from_origin(
+            "/api/v1/mfa/passkey",
+            Some(token),
+            &serde_json::json!({ "password": PASSWORD }),
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{challenge}");
@@ -230,7 +234,10 @@ async fn a_revoked_passkey_stops_working() {
         .uri(format!("/api/v1/mfa/credentials/{id}"))
         .header(header::HOST, "localhost:8710")
         .header(header::COOKIE, format!("rd_session={token}"))
-        .body(Body::empty())
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            serde_json::json!({ "password": PASSWORD }).to_string(),
+        ))
         .expect("request");
     let (status, body, _) = send_with_cookie(&harness.router, request).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -315,7 +322,9 @@ async fn an_unusable_origin_is_refused_with_an_explanation() {
         .header(header::ORIGIN, "https://downloads.example.com")
         .header(header::COOKIE, format!("rd_session={token}"))
         .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from("{}"))
+        .body(Body::from(
+            serde_json::json!({ "password": PASSWORD }).to_string(),
+        ))
         .expect("request");
     let (status, body, _) = send_with_cookie(&harness.router, request).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");

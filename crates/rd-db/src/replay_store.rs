@@ -188,24 +188,3 @@ pub(crate) async fn reset_transfer(
     .await?;
     Ok(())
 }
-
-/// Every `vault://` reference no live candidate or download owns any more.
-///
-/// Used after a restart to sweep bodies whose owner was deleted while the service was down.
-pub(crate) async fn orphaned_body_refs(pool: &SqlitePool) -> Result<Vec<String>> {
-    let rows = sqlx::query(
-        "SELECT body_ref AS reference FROM download_request_templates \
-           WHERE body_ref IS NOT NULL \
-             AND download_id NOT IN (SELECT id FROM downloads) \
-         UNION \
-         SELECT replay_body_ref AS reference FROM link_candidates \
-           WHERE replay_body_ref IS NOT NULL \
-             AND batch_id NOT IN (SELECT id FROM collector_batches)",
-    )
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .into_iter()
-        .filter_map(|row| row.try_get::<Option<String>, _>("reference").ok().flatten())
-        .collect())
-}

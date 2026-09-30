@@ -13,6 +13,8 @@
       #status { margin-top: 12px; min-height: 1.2em; }
       .ok { color: #0f938f; } .error { color: #cf3832; }
       p.hint { color: #64748b; font-size: 12px; margin: 4px 0 0; }
+      p.warning { color: #b45309; font-size: 12px; margin: 4px 0 0; }
+      @media (prefers-color-scheme: dark) { p.warning { color: #fbbf24; } }
       label.check { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; }
       label.check input { width: auto; }
       #file-sites { list-style: none; padding: 0; margin: 8px 0 0; }
@@ -25,6 +27,7 @@
     <label for="server" data-i18n="serverLabel"></label>
     <input id="server" type="url" placeholder="http://127.0.0.1:8710" autocomplete="off" />
     <p class="hint" data-i18n="serverHint"></p>
+    <p class="warning" id="server-insecure" role="status" data-i18n="serverInsecure" hidden></p>
     <label for="token" data-i18n="tokenLabel"></label>
     <input id="token" type="password" autocomplete="off" />
     <p class="hint" data-i18n="tokenHint"></p>

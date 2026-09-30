@@ -8,10 +8,10 @@
 //! environment alone therefore makes it worse; the locale has to be set on purpose.
 //!
 //! Since the security review of 2026-09-28 (finding 7) the rest of the service's environment
-//! stays behind all the same ([`crate::child_env`]): the tools keep the allowlist, and the locale
+//! stays behind all the same ([`rd_files::restrict_environment`]): the tools keep the allowlist, and the locale
 //! is set on top of it.
 
-use crate::child_env::restrict_environment;
+use rd_files::restrict_environment;
 
 /// Used when nothing inherited names a UTF-8 charset. Built into glibc and always present.
 const FALLBACK_LOCALE: &str = "C.UTF-8";

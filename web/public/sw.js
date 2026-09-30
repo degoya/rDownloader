@@ -8,11 +8,31 @@
  * has actually failed.
  */
 
-const SHELL_CACHE = 'rdownloader-shell-v1'
-const SHELL = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest']
+// v2: the shell is stored under the scope's own addresses since the base-path fix; the activate
+// step below drops a v1 cache that may hold API answers stored under a reverse-proxy path.
+const SHELL_CACHE = 'rdownloader-shell-v2'
 
-/** Paths whose responses must never come from a cache. */
-const LIVE_PREFIXES = ['/api/', '/mcp', '/sabnzbd/', '/api/v2/']
+/**
+ * Where the app is mounted, taken from the worker's own scope: `/` at the root, `/downloads/`
+ * behind a reverse proxy that puts it under a path. Every address below is relative to it, so
+ * the same file serves both — absolute paths missed the shell and let `/downloads/api/…` through
+ * to the cache.
+ */
+const SCOPE = new URL(self.registration.scope)
+const inScope = path => new URL(path, SCOPE).href
+
+const SHELL = ['./', 'index.html', 'favicon.svg', 'manifest.webmanifest'].map(inScope)
+const INDEX = inScope('index.html')
+
+/** Paths, relative to the scope, whose responses must never come from a cache. */
+const LIVE_PREFIXES = ['api/', 'mcp', 'sabnzbd/']
+
+function isLive(pathname) {
+  const relative = pathname.startsWith(SCOPE.pathname)
+    ? pathname.slice(SCOPE.pathname.length)
+    : pathname.replace(/^\/+/, '')
+  return LIVE_PREFIXES.some(prefix => relative.startsWith(prefix))
+}
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -42,14 +62,14 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return
   // Live state is fetched, never cached and never substituted. A cached queue that says a
   // download is still running long after it finished is worse than no answer at all.
-  if (LIVE_PREFIXES.some(prefix => url.pathname.startsWith(prefix))) return
+  if (isLive(url.pathname)) return
 
   if (request.mode === 'navigate') {
     // Network first: a running service always wins over the stored shell, so an updated
     // build is picked up on the next visit rather than after a cache expires.
     event.respondWith(
       fetch(request).catch(() =>
-        caches.match('/index.html').then(cached => cached ?? Response.error())
+        caches.match(INDEX).then(cached => cached ?? Response.error())
       )
     )
     return

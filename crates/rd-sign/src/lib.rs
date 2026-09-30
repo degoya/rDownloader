@@ -29,7 +29,7 @@ pub use envelope::{
 pub use replay::{Freshness, StaleError};
 pub use roots::{
     EMBEDDED_KEYS, EmbeddedKey, PLUGIN_RELEASE_KEY_ID, REPOSITORY_KEY_ID, Role, SITE_RULES_KEY_ID,
-    TOOL_MANIFEST_KEY_ID, keys_for, keys_for_now, trust_store_for,
+    TOOL_MANIFEST_KEY_ID, UPDATE_KEY_ID, keys_for, keys_for_now, trust_store_for,
 };
 pub use trust::{TrustStore, decode_public_key, key_fingerprint};
 

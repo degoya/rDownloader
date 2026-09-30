@@ -134,21 +134,54 @@ async fn occurrences_are_planned_and_planning_again_adds_nothing() {
     // after a restart, and a second pass over the same range must produce no second run.
     let temp = tempfile::tempdir().expect("tempdir");
     let planned;
+    let database_path;
     {
-        let router = test_router(temp.path()).await;
-        let channel_id = channel(&router).await;
+        let harness = common::test_harness(temp.path()).await;
+        let router = &harness.router;
+        let channel_id = channel(router).await;
         let (status, created) =
-            post_json(&router, "/api/v1/streams/schedules", weekly(&channel_id)).await;
+            post_json(router, "/api/v1/streams/schedules", weekly(&channel_id)).await;
         assert_eq!(status, StatusCode::CREATED, "{created}");
 
-        planned = wait_for_runs(&router).await;
+        planned = wait_for_runs(router).await;
         // Two weeks of planning, one occurrence a week.
         assert!(planned >= 2, "expected planned occurrences, got {planned}");
+        database_path = harness.database_path.clone();
+        // Stopped with the service, so no pass of this one can stand in for the restart's.
+        harness.state.stream_monitor.shutdown();
     }
 
-    // A restart re-plans the same range.
+    // The witness that the restart planned at all (RD-180-12): the last occurrence is taken
+    // out while the service is down, and only a planner that ran after the restart puts it
+    // back. Without it the old rows alone satisfied the count, planner or not.
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", database_path.display()))
+        .await
+        .expect("pool");
+    let removed = sqlx::query(
+        "DELETE FROM stream_scheduled_runs WHERE id = \
+         (SELECT id FROM stream_scheduled_runs ORDER BY starts_at DESC LIMIT 1)",
+    )
+    .execute(&pool)
+    .await
+    .expect("remove the last occurrence")
+    .rows_affected();
+    assert_eq!(removed, 1);
+    pool.close().await;
+
+    // A restart re-plans the same range: the missing occurrence comes back, and nothing twice.
     let router = test_router(temp.path()).await;
-    let after_restart = wait_for_runs(&router).await;
+    let after_restart = common::eventually(
+        common::WAIT,
+        "the restart did not plan the removed occurrence again",
+        || {
+            let router = &router;
+            async move {
+                let count = run_count(router).await;
+                (count >= planned).then_some(count)
+            }
+        },
+    )
+    .await;
     assert_eq!(
         after_restart, planned,
         "re-planning after a restart must not duplicate occurrences"
@@ -209,10 +242,14 @@ async fn wait_for_runs(router: &axum::Router) -> usize {
         common::WAIT,
         "the planner produced no runs",
         || async move {
-            let (_, runs) = get_json(router, "/api/v1/streams/runs").await;
-            let count = runs.as_array().map(Vec::len).unwrap_or_default();
+            let count = run_count(router).await;
             (count > 0).then_some(count)
         },
     )
     .await
+}
+
+async fn run_count(router: &axum::Router) -> usize {
+    let (_, runs) = get_json(router, "/api/v1/streams/runs").await;
+    runs.as_array().map(Vec::len).unwrap_or_default()
 }

@@ -283,6 +283,32 @@ pub(crate) async fn by_callback_state(
     row.map(TryInto::try_into).transpose()
 }
 
+/// The flow waiting for this OAuth callback, with its state forgotten in the same write.
+///
+/// A redirect is answered once. Reading the row and clearing the state apart would let two
+/// deliveries of the same callback both find it (security audit 2026-09-30, finding 5); on the
+/// writer's connection the two statements cannot be separated by another write.
+pub(crate) async fn take_callback(
+    connection: &mut SqliteConnection,
+    callback_state: &str,
+) -> Result<Option<AuthFlow>> {
+    let row = sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
+        "{SELECT} WHERE callback_state = ?"
+    )))
+    .bind(callback_state)
+    .fetch_optional(&mut *connection)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let flow = AuthFlow::try_from(row)?;
+    sqlx::query("UPDATE auth_flows SET callback_state = NULL WHERE account_id = ?")
+        .bind(flow.account_id.to_string())
+        .execute(&mut *connection)
+        .await?;
+    Ok(Some(flow))
+}
+
 /// Holds a renewal back until `next_poll_at`.
 ///
 /// `next_poll_at` is free on an authorised row -- the sign-in sweep only ever looks at rows

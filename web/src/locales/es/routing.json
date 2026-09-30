@@ -226,8 +226,7 @@
     "duplicated": "Copia de la regla creada",
     "updated": "Regla actualizada",
     "form_new": "Nueva regla",
-    "duplicate": "Duplicar regla",
-    "copy_suffix": "copia"
+    "duplicate": "Duplicar regla"
   },
   "hotfolder": {
     "eyebrow": "Entrada conciliada",
@@ -238,7 +237,7 @@
     "name_description": "Solo sirve para distinguir tus carpetas vigiladas.",
     "name_placeholder": "Entrada local de archivos",
     "path_label": "Carpeta vigilada",
-    "path_description": "Ruta absoluta que se examina en busca de archivos .nzb y .torrent.",
+    "path_description": "Ruta absoluta que se examina en busca de archivos .nzb, .torrent, .dlc, .ccf y .rsdf.",
     "path_placeholder": "/config/watch",
     "category_label": "Categoría",
     "category_description": "Se aplica a cada importación de esta carpeta; sin ella deciden las reglas y la categoría por defecto.",
@@ -274,6 +273,5 @@
     "poll_saved": "Intervalo de sondeo guardado",
     "poll_save": "Guardar intervalo",
     "copy_path_hint": "Una copia necesita su propia carpeta: cambia la ruta antes de crearla."
-  },
-  "cancel_edit": "Cancelar edición"
+  }
 }

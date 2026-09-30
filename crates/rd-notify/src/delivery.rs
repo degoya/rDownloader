@@ -229,6 +229,9 @@ async fn send_apprise(
     let tool = rd_core::locate_tool(config.executable.as_deref(), vendor_directory, "apprise")
         .context("apprise is not installed or not configured")?;
     let mut command = tokio::process::Command::new(&tool.path);
+    // Like the downloaders, apprise gets the allowlist and its network settings, not the
+    // service's environment; the one variable it is meant to read is set below.
+    rd_files::restrict_environment(&mut command, rd_files::TOOL_VARIABLES);
     // The target URL carries the service token, so it must not be an argument: argv stands in
     // the process list for every other user on the machine to read, the environment only for
     // the same user. `APPRISE_URLS` is the CLI's own source for URLs when argv names none and

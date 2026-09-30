@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
+failpoints = ["rd-core/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true

@@ -63,7 +63,15 @@
     "backup_key_changed": "Frase de la copia completa establecida",
     "backup_created": "Copia completa escrita",
     "backup_verified": "Archivo de copia completa verificado",
-    "notifications_discarded": "Notificaciones pendientes descartadas"
+    "notifications_discarded": "Notificaciones pendientes descartadas",
+    "service_stop_requested": "Detención del servicio solicitada",
+    "update_prepared": "Copia previa a la actualización escrita",
+    "update_install_started": "Instalación de la actualización iniciada",
+    "storage_history_cleared": "Historial de almacenamiento vaciado",
+    "content_index_cleared": "Índice de contenido vaciado",
+    "setup_completed": "Configuración inicial completada",
+    "mfa_enrolled": "Segundo factor añadido",
+    "mfa_removed": "Segundo factor eliminado"
   },
   "list": {
     "title": "Registros",

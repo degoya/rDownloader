@@ -117,6 +117,9 @@ fn the_costly_tools_are_priced_accordingly() {
     assert_eq!(tool_scope("get_torrent_details"), Some(Scope::Read));
     assert_eq!(tool_scope("get_storage_capacity"), Some(Scope::Read));
     assert_eq!(tool_scope("get_about"), Some(Scope::Read));
+    // RD-180-01: reading the status is the About page's price, checking the administrator's.
+    assert_eq!(tool_scope("get_update_status"), Some(Scope::Read));
+    assert_eq!(tool_scope("check_for_updates"), Some(Scope::Admin));
     assert_eq!(tool_scope("list_candidates"), Some(Scope::Queue));
     assert_eq!(tool_scope("clear_finished_packages"), Some(Scope::Queue));
     assert_eq!(tool_scope("enqueue_nzb_import"), Some(Scope::Queue));

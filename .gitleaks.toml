@@ -105,3 +105,10 @@ targetRules = ["private-key"]
 condition = "AND"
 paths = ['''(^|/)crates/rd-object-storage/src/connect/gcs\.rs$''']
 regexes = ['''MIIE\\n-----END PRIVATE KEY-----''']
+
+[[allowlists]]
+description = "The public fingerprint of the apt/dnf repository signing key (RD-180-10)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)\.github/workflows/release\.yml$''']
+regexes = ['''47562DABFCFC3F17C78567CE395FA7C2B11721D1''']

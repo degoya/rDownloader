@@ -1,0 +1,19 @@
+# rDownloader's service as a systemd user unit, shipped by the deb and rpm packages (RD-180-05).
+# The binary moves into the user's data folder itself (~/.local/share/rdownloader: data/,
+# downloads/), because the package marks it installed. Enable it per user:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rdownloader
+[Unit]
+Description=rDownloader Service
+Documentation=https://rdownloader.net
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/rdownloader/rdownloader serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -64,6 +64,17 @@ impl Actor {
         }
     }
 
+    /// A launcher, the updater or `rdownloader stop` on this machine, holding the local control
+    /// token (`crate::local_control`): no person's credential, so the service's own kind, with
+    /// a label saying which door it came through.
+    pub fn local_control() -> Self {
+        Self {
+            kind: AuditActorKind::System,
+            id: None,
+            label: Some("local_control".to_owned()),
+        }
+    }
+
     pub(crate) fn token(id: impl Into<String>, label: impl Into<String>) -> Self {
         Self {
             kind: AuditActorKind::Token,

@@ -3,12 +3,14 @@
 mod archive_names;
 mod capacity;
 mod checksum;
+mod child_process;
 mod link;
 mod long_path;
 mod moves;
 mod names;
 mod part_file;
 mod persistence;
+mod private_dir;
 mod protected;
 mod storage;
 mod template;
@@ -17,6 +19,9 @@ mod verified_move;
 pub use archive_names::{ArchiveKind, ArchiveVolume, parse_archive_volume, strip_password_marker};
 pub use capacity::{CapacityService, CapacityShortfall, CapacityVerdict, RootLimit, StorageTarget};
 pub use checksum::{ComputedChecksum, checksum_range, compute_checksum, has_par2_magic};
+pub use child_process::{
+    RCLONE_VARIABLES, TOOL_VARIABLES, kept_variables, read_tail, restrict_environment,
+};
 pub use link::{
     LinkError, LinkSupport, LinkedDuplicate, link_duplicate, probe_link_support, same_file_system,
 };
@@ -28,6 +33,10 @@ pub use names::{
 };
 pub use part_file::{PartFile, existing_bytes, part_path};
 pub use persistence::{PathPersistence, PersistenceProbe};
+pub use private_dir::{
+    create_private_dir_all, private_dir_exposure, protect_private_dir, restrict_to_owner,
+    sid_from_whoami, unix_exposure, windows_exposure,
+};
 pub use protected::{ProtectedDirectory, protected_collision};
 pub use storage::{StorageRoot, StorageRootProblem, ensure_usable};
 pub use template::{

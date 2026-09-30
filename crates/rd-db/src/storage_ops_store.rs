@@ -159,6 +159,27 @@ pub(crate) async fn list_storage_operations(
     .collect()
 }
 
+/// Rows a clear would remove: every one that is no longer running.
+pub(crate) async fn count_clearable_storage_operations(pool: &SqlitePool) -> Result<u64> {
+    let count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM storage_operations WHERE state != 'running'",
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(u64::try_from(count).unwrap_or_default())
+}
+
+/// Empties the history and answers how many rows went (RD-180-13). A row still `running`
+/// stays: its operation is under way and will record how it ended, and a restart settles it
+/// as `interrupted` — the history is where that shows. Recovery itself never reads the rows
+/// (it follows `packages.previous_destination`), so what goes is only the record.
+pub(crate) async fn clear_storage_operations(connection: &mut SqliteConnection) -> Result<u64> {
+    let result = sqlx::query("DELETE FROM storage_operations WHERE state != 'running'")
+        .execute(connection)
+        .await?;
+    Ok(result.rows_affected())
+}
+
 /// Records a starting operation and answers its id; drops the oldest rows beyond the cap.
 pub(crate) async fn start_storage_operation(
     connection: &mut SqliteConnection,

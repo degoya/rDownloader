@@ -1,0 +1,108 @@
+name: Self-update
+
+# RD-180-02: the portable self-update with real binaries on Linux and Windows. Two debug builds of
+# this tree — the second with the patch version raised by scripts/set-version.sh — and
+# scripts/self-update-smoke.sh, which runs the first as a portable installation and hands it
+# three updates the way the service does: the next version (installed, answers, old files kept in
+# .previous/), a candidate whose program ends at once (rolled back, database copy put back), and a
+# candidate that answers but is declared unhealthy through RD_UPDATE_TEST_FAIL_HEALTH, which only
+# a debug build honours (stopped and rolled back).
+#
+# The signed manifest, the verified download and the service's hand-over are rd-api's
+# `admin::updates` suite, with a test key served from memory: no build here carries a trust root
+# other than the release key, on purpose. The MSI's way (msiexec, the kept installer) needs a
+# published previous MSI and is part of the live check beta.1 → beta.2
+# (docs/roadmap/jobs/180-02-atomare-updates-und-rollback.md).
+#
+#   gh workflow run self-update.yml --ref <branch>
+on:
+  push:
+    paths:
+      - .github/workflows/self-update.yml
+      - scripts/self-update-smoke.sh
+      - crates/rd-update/**
+      - crates/rdownloader/src/updater_cli.rs
+      - crates/rdownloader/src/stop_cli.rs
+      - crates/rd-api-core/src/local_control.rs
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rust-embed compiles web/dist into the binary.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: self-update
+      - name: Build this version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked -p rdownloader
+          ext=""
+          [[ "$RUNNER_OS" == Windows ]] && ext=".exe"
+          mkdir -p smoke
+          cp "target/debug/rdownloader$ext" "smoke/old$ext"
+          echo "EXT=$ext" >> "$GITHUB_ENV"
+          echo "OLD_VERSION=$(scripts/set-version.sh)" >> "$GITHUB_ENV"
+      - name: Build the next version
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=. read -r major minor patch <<< "${OLD_VERSION%%-*}"
+          next="$major.$minor.$((patch + 1))"
+          scripts/set-version.sh "$next"
+          cargo build -p rdownloader
+          cp "target/debug/rdownloader$EXT" "smoke/new$EXT"
+          echo "NEW_VERSION=$next" >> "$GITHUB_ENV"
+      - name: Update, and take back what does not start
+        shell: bash
+        env:
+          RD_SMOKE_DEBUG_BUILD: "1"
+          RD_SMOKE_LOGS: ${{ runner.temp }}/self-update-logs
+        run: |
+          set -euo pipefail
+          scripts/self-update-smoke.sh "smoke/old$EXT" "$OLD_VERSION" "smoke/new$EXT" "$NEW_VERSION" \
+            > "$RUNNER_TEMP/self-update.log" 2>&1 || { cat "$RUNNER_TEMP/self-update.log"; exit 1; }
+          cat "$RUNNER_TEMP/self-update.log"
+          grep -qx '==> all requested checks passed' "$RUNNER_TEMP/self-update.log"
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: self-update-logs-${{ matrix.os }}
+          path: ${{ runner.temp }}/self-update-logs
+          if-no-files-found: ignore

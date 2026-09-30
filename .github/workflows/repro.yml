@@ -1,0 +1,277 @@
+name: Reproducibility
+
+# RD-180-12: the Linux x86_64 release binaries built twice, independently, from the same tag and
+# compared byte for byte with each other and with the ones the release published. Two jobs on two
+# fresh runners, each with its own checkout path, its own cargo home and no cache at all, so
+# nothing one build left behind can reach the other; the same toolchain (1.98.0), `--locked`, the
+# time of the tag's commit as SOURCE_DATE_EPOCH and the build paths remapped. Equal SHA-256 across
+# all three is the green; a mismatch runs diffoscope and uploads its report.
+# How to read a result and the known sources of difference: docs/reproducible-builds.md in the
+# development repository (not part of the public export; the job summary and the diffoscope
+# report below stand on their own).
+#
+# The build is release.yml's `linux-binaries` job — the web interface built and embedded through
+# rust-embed, the toolchain pinned through RUSTUP_TOOLCHAIN, the environment from the tag's own
+# scripts/release-build-env.sh, `cargo build --locked --release --target x86_64-unknown-linux-gnu
+# -p rdownloader -p rd-capture` — without its caches (rust-cache, the pnpm store), which would be
+# state the two rebuilds share.
+#
+# It runs when the Release workflow of a tag has succeeded, so the published archive exists, and
+# by hand for any tag; a tag without a published Linux x86_64 archive is then compared with
+# itself only. Tags before 1.8.0 predate the script and are refused.
+#
+#   gh workflow run repro.yml -f tag=v1.8.0
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build twice, e.g. v1.8.0
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTUP_TOOLCHAIN: 1.98.0
+  TARGET: x86_64-unknown-linux-gnu
+  # A tag push's run names its tag as the branch.
+  TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+  # The published archive the rebuilds are compared with (release.yml, `packages`).
+  ASSET: rdownloader-linux-x86_64.tar.gz
+
+jobs:
+  build:
+    # Only a Release run that published, and only one started by a tag push, not a re-run from a
+    # fork's pull request (Release has no such trigger, the condition says so anyway).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Leg a builds where release.yml builds: the default checkout and cargo home.
+          - leg: a
+            source: .
+            cargo_home: ""
+          # Leg b moves both, so a path that escapes the remapping shows up as a difference.
+          - leg: b
+            source: rebuild/elsewhere/rdownloader
+            cargo_home: cargo-home-b
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          path: ${{ matrix.source }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: ${{ matrix.source }}/web/package.json
+      # No pnpm cache: the store would be one more thing the two builds share.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.0
+          targets: x86_64-unknown-linux-gnu
+      # The script release.yml's binary jobs run, from the tag being rebuilt: SOURCE_DATE_EPOCH
+      # and the About page's stamp from the commit, the paths remapped for the target only.
+      - name: Fix the build environment
+        shell: bash
+        env:
+          SOURCE: ${{ matrix.source }}
+          CARGO_HOME_B: ${{ matrix.cargo_home }}
+        run: |
+          set -euo pipefail
+          script="${SOURCE}/scripts/release-build-env.sh"
+          if [[ ! -f "${script}" ]]; then
+            echo "::error::${TAG} predates scripts/release-build-env.sh (1.8.0): its release was not built in a reproducible environment"
+            exit 1
+          fi
+          # --release-tag as in release.yml: the commit line reads `Release-Build X.Y.Z (Basis
+          # <sha>)` there, and it is compiled into the About page.
+          args=(--target "${TARGET}" --release-tag "${TAG}" --source "${SOURCE}")
+          if [[ -n "${CARGO_HOME_B}" ]]; then
+            args+=(--cargo-home "${RUNNER_TEMP}/${CARGO_HOME_B}")
+          fi
+          bash "${script}" "${args[@]}" | tee -a "${GITHUB_ENV}"
+      - name: Build the web interface
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --dir "${SRC}/web" install --frozen-lockfile
+          pnpm --dir "${SRC}/web" run build
+      - name: Build the release binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${SRC}"
+          cargo build --locked --release --target "${TARGET}" -p rdownloader -p rd-capture
+      - name: Collect the binaries and what they were built with
+        shell: bash
+        env:
+          LEG: ${{ matrix.leg }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/repro-${LEG}"
+          mkdir -p "${out}"
+          cp "${SRC}/target/${TARGET}/release/rdownloader" "${SRC}/target/${TARGET}/release/rdownloader-capture" "${out}/"
+          (cd "${out}" && sha256sum rdownloader rdownloader-capture) > "${out}/SHA256SUMS"
+          # The embedded web interface file by file: a difference there names the file at once.
+          (cd "${SRC}/web/dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "${out}/web-dist.sha256"
+          {
+            echo "leg            ${LEG}"
+            echo "source         ${SRC}"
+            echo "cargo home     ${CARGO_HOME:-${HOME}/.cargo}"
+            echo "commit         $(git -C "${SRC}" rev-parse HEAD)"
+            echo "epoch          ${SOURCE_DATE_EPOCH}"
+            echo "runner image   ${ImageOS:-?} ${ImageVersion:-?}"
+            echo "node           $(node --version)"
+            echo "pnpm           $(pnpm --version)"
+            echo "cc             $(cc --version | head -n 1)"
+            echo "ld             $(ld --version | head -n 1)"
+            rustc -Vv
+          } > "${out}/environment.txt"
+          cat "${out}/environment.txt" "${out}/SHA256SUMS"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repro-${{ matrix.leg }}
+          path: ${{ runner.temp }}/repro-${{ matrix.leg }}
+          if-no-files-found: error
+          retention-days: 14
+
+  compare:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: repro-*
+          path: repro
+      # The archive the release published, checked against the release's own SHA256SUMS first so
+      # the comparison is about the bytes a user downloads. A run after Release must find it; a
+      # run by hand for a tag that was never released compares the two rebuilds only.
+      - name: Fetch the published binaries
+        id: published
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p repro/published
+          cd repro/published
+          if ! gh release download "${TAG}" --repo "${REPOSITORY}" --pattern "${ASSET}" --pattern SHA256SUMS; then
+            if [[ "${GITHUB_EVENT_NAME}" == workflow_run ]]; then
+              echo "::error::the release of ${TAG} has no ${ASSET} or no SHA256SUMS"
+              exit 1
+            fi
+            echo "::notice::${TAG} has no published ${ASSET}; only the two rebuilds are compared"
+            echo "found=" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          sha256sum --check --ignore-missing SHA256SUMS
+          tar -xzf "${ASSET}" ./rdownloader ./rdownloader-capture
+          echo "found=1" >> "${GITHUB_OUTPUT}"
+      - name: Compare the builds
+        id: compare
+        shell: bash
+        env:
+          PUBLISHED: ${{ steps.published.outputs.found }}
+        run: |
+          set -euo pipefail
+          cd repro
+          # Each difference as file:left:right, the two directories diffoscope compares.
+          pairs=()
+          {
+            echo "### Reproducibility of ${TAG}"
+            echo
+            echo "| File | Build a | Build b | Published |"
+            echo "| --- | --- | --- | --- |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          for file in rdownloader rdownloader-capture; do
+            a="$(sha256sum "repro-a/${file}" | cut -d' ' -f1)"
+            b="$(sha256sum "repro-b/${file}" | cut -d' ' -f1)"
+            p="not published"
+            if [[ -n "${PUBLISHED}" ]]; then
+              p="$(sha256sum "published/${file}" | cut -d' ' -f1)"
+              [[ "${a}" == "${p}" ]] || pairs+=("${file}:repro-a:published")
+            fi
+            echo "| \`${file}\` | \`${a}\` | \`${b}\` | \`${p}\` |" >> "${GITHUB_STEP_SUMMARY}"
+            [[ "${a}" == "${b}" ]] || pairs+=("${file}:repro-a:repro-b")
+          done
+          if ! diff -u repro-a/web-dist.sha256 repro-b/web-dist.sha256 > web-dist.diff; then
+            echo "::warning::the embedded web interface differs; web-dist.diff names the files"
+            cat web-dist.diff
+          fi
+          if [[ ${#pairs[@]} -eq 0 ]]; then
+            if [[ -n "${PUBLISHED}" ]]; then
+              echo "Both builds are identical, and identical with the published binaries." >> "${GITHUB_STEP_SUMMARY}"
+            else
+              echo "Both builds are identical; nothing published to compare with." >> "${GITHUB_STEP_SUMMARY}"
+            fi
+            echo "pairs=" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Different: ${pairs[*]} — see the diffoscope report." >> "${GITHUB_STEP_SUMMARY}"
+            echo "pairs=${pairs[*]}" >> "${GITHUB_OUTPUT}"
+          fi
+      # Only on a mismatch; the report is what tells a timestamp from a path from a real change.
+      - name: Explain the difference with diffoscope
+        if: steps.compare.outputs.pairs != ''
+        shell: bash
+        env:
+          PAIRS: ${{ steps.compare.outputs.pairs }}
+        run: |
+          set -uo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends diffoscope-minimal > /dev/null
+          mkdir -p report
+          cp repro/web-dist.diff report/ 2>/dev/null || true
+          cp repro/repro-a/environment.txt report/environment-a.txt
+          cp repro/repro-b/environment.txt report/environment-b.txt
+          for pair in ${PAIRS}; do
+            IFS=: read -r file left right <<< "${pair}"
+            name="${file}-${left}-${right}"
+            # A stripped 60 MB executable can keep diffoscope busy for a long time; the cut-off
+            # still leaves the part of the report written so far.
+            timeout 40m diffoscope --max-report-size 20000000 \
+              --html "report/${name}.html" --text "report/${name}.txt" \
+              "repro/${left}/${file}" "repro/${right}/${file}"
+            head -c 20000 "report/${name}.txt" || true
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.compare.outputs.pairs != ''
+        with:
+          name: diffoscope
+          path: report
+          retention-days: 30
+      # Rebuild against rebuild is the build not being reproducible; rebuild against published
+      # alone is the release having been built in a different environment than release.yml's.
+      - name: Fail on a difference
+        if: steps.compare.outputs.pairs != ''
+        shell: bash
+        env:
+          PAIRS: ${{ steps.compare.outputs.pairs }}
+        run: |
+          for pair in ${PAIRS}; do
+            case "${pair}" in
+              *:repro-b) echo "::error::not reproducible: ${pair%%:*} differs between the two rebuilds (artifact: diffoscope)" ;;
+              *:published) echo "::error::${pair%%:*} as published differs from its rebuild (artifact: diffoscope)" ;;
+            esac
+          done
+          exit 1

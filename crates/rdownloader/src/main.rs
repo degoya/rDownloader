@@ -16,8 +16,10 @@ mod plugin_cli;
 mod remote;
 mod site_rules_cli;
 mod startup;
+mod stop_cli;
 mod tools_cli;
 mod trusted_keys;
+mod updater_cli;
 
 #[derive(Parser)]
 #[command(
@@ -45,12 +47,21 @@ enum Command {
     /// Signs and verifies the rule file that recognises release pages.
     #[command(subcommand)]
     SiteRules(rd_pack::site_rules::SiteRulesCommand),
+    /// Builds and verifies the signed application update manifest.
+    #[command(subcommand)]
+    Update(rd_pack::update_manifest::UpdateCommand),
     /// Installs or removes per-user service autostart.
     Autostart(IntegrationArgs),
     /// Lists and controls the download queue of a local or remote server.
     Queue(remote::QueueArgs),
     /// Hands links to the LinkGrabber of a local or remote server and reviews them.
     Links(remote::LinksArgs),
+    /// Stops the service running on this machine gracefully and waits until it has ended.
+    Stop(stop_cli::StopArgs),
+    /// Installs a downloaded update and takes it back when the new version does not answer
+    /// (RD-180-02). Started by the service from a copy of itself, not by hand.
+    #[command(name = "apply-update", hide = true)]
+    ApplyUpdate(updater_cli::ApplyArgs),
 }
 
 #[derive(Args)]
@@ -139,8 +150,14 @@ struct OpenapiArgs {
 async fn main() -> Result<()> {
     let telemetry = init_tracing();
     match Cli::parse().command {
-        Command::Serve(args) => serve(args, telemetry).await,
-        Command::Doctor(args) => doctor(args).await,
+        Command::Serve(args) => {
+            enter_installed_home()?;
+            serve(args, telemetry).await
+        }
+        Command::Doctor(args) => {
+            enter_installed_home()?;
+            doctor(args).await
+        }
         Command::Openapi(args) => {
             let document = serde_json::to_vec_pretty(&rd_api::openapi_document())?;
             if let Some(output) = args.output {
@@ -158,12 +175,34 @@ async fn main() -> Result<()> {
         Command::Plugin(args) => plugin_cli::run(args).await,
         Command::Tools(args) => tools_cli::run(args).await,
         Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
+        Command::Update(command) => rd_pack::update_manifest::run(command).await,
         Command::Autostart(args) => autostart(args),
         // Remote commands end the process themselves so a script can branch on why they
         // failed rather than on a single catch-all exit code.
         Command::Queue(args) => remote::finish(remote::queue(args).await),
         Command::Links(args) => remote::finish(remote::links(args).await),
+        Command::Stop(args) => {
+            // The control file lives in the data folder, which an installed build keeps in the
+            // user's folder: the Start menu's "Stop rDownloader" runs from the program folder.
+            enter_installed_home()?;
+            remote::finish(stop_cli::run(args).await)
+        }
+        Command::ApplyUpdate(args) => updater_cli::run(args).await,
     }
+}
+
+/// Moves an installed build into the user's data folder (RD-180-05), so the relative defaults
+/// (`data/`, `downloads`) resolve there as they resolve beside the executable in the portable
+/// package, whose launcher starts it in its own folder. Only for the commands that open the
+/// data (`serve`, `doctor`, `stop`): every other one keeps the working folder its relative
+/// arguments were written against.
+fn enter_installed_home() -> Result<()> {
+    let executable = std::env::current_exe().context("locate rDownloader executable")?;
+    if let Some(home) = rd_autostart::installed_home(&executable)? {
+        std::fs::create_dir_all(&home).with_context(|| format!("create {}", home.display()))?;
+        std::env::set_current_dir(&home).with_context(|| format!("enter {}", home.display()))?;
+    }
+    Ok(())
 }
 
 fn autostart(args: IntegrationArgs) -> Result<()> {
@@ -182,6 +221,12 @@ fn autostart(args: IntegrationArgs) -> Result<()> {
 }
 
 async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
+    // An update the journal records ends before the database opens (RD-180-02): taken back when
+    // it was interrupted, and when the files are the previous version again but this process is
+    // the newer one, that previous program starts in its place.
+    if updater_cli::recover(&args.paths.database)? {
+        return Ok(());
+    }
     let startup::Store {
         data_directory,
         database,
@@ -245,6 +290,8 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     )
     .await?;
     scheduler.update_runtime_settings(runtime).await?;
+    // Cancelled by a signal, and by `POST /api/v1/system/shutdown` (RD-180-02): the one way to
+    // stop the service gracefully on Windows, where a console-less process gets no Ctrl-C.
     let shutdown = CancellationToken::new();
     let signal = shutdown.clone();
     tokio::spawn(async move {
@@ -328,12 +375,21 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         env!("RD_BUILD_COMMIT"),
         env!("RD_BUILD_TIME"),
     ));
+    // Written only now, with everything the stop route needs in place; removed as the last
+    // step of this function, so `rdownloader stop --wait` sees it gone once the queue is safe.
+    let (local_control, _control_file) =
+        rd_api::local_control::LocalControl::issue(&data_directory, listen)
+            .context("write the local control file")?;
+    let state = state
+        .with_local_control(local_control)
+        .with_shutdown(shutdown.clone());
     startup::prepare_state(&state).await?;
     startup::finish_restore(&args.paths, &restore);
     let hotfolders = state.hotfolders.clone();
     let state_link_check = state.link_check.clone();
     let remote_jobs = state.remote_jobs.clone();
     let stream_monitor = state.stream_monitor.clone();
+    updater_cli::confirm_when_answering(&args.paths.database, listen);
     let result = rd_api::serve(state, listen, shutdown).await;
     stream_monitor.shutdown();
     torrent_service.shutdown();
@@ -537,6 +593,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
             trusted_proxies: settings.trusted_proxies.clone(),
             external_url: settings.external_url.clone(),
             cookie_security: settings.cookie_security,
+            data_directory: rd_core::data_directory().map(std::path::Path::to_path_buf),
         })
         .await;
     print!("{}", rd_api::diagnostics_checks::render_checks(&checks));
@@ -595,11 +652,12 @@ async fn site_rules_selftest(
 }
 
 async fn ensure_paths(paths: &CommonPaths) -> Result<()> {
+    // The data directory is the service account's alone from its creation on (security review
+    // 2026-09-30, finding 8); Windows gets its access list in `startup::open_store`.
     if let Some(parent) = paths.database.parent()
         && !parent.as_os_str().is_empty()
     {
-        tokio::fs::create_dir_all(parent)
-            .await
+        rd_files::create_private_dir_all(parent)
             .with_context(|| format!("create {}", parent.display()))?;
     }
     tokio::fs::create_dir_all(&paths.downloads)
@@ -622,7 +680,24 @@ async fn wait_for_shutdown_signal() {
             _ = terminate.recv() => {}
         }
     }
-    #[cfg(not(unix))]
+    // Ctrl-C, the console window closed, and the system shutting down (RD-180-02). Windows ends
+    // the process a few seconds after a close or shutdown event whatever it does, so this is
+    // the best effort; `rdownloader stop` is the stop that waits for the queue.
+    #[cfg(windows)]
+    {
+        use tokio::signal::windows::{ctrl_close, ctrl_shutdown};
+
+        let (Ok(mut close), Ok(mut system)) = (ctrl_close(), ctrl_shutdown()) else {
+            let _ = tokio::signal::ctrl_c().await;
+            return;
+        };
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => { let _ = result; }
+            _ = close.recv() => {}
+            _ = system.recv() => {}
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = tokio::signal::ctrl_c().await;
     }

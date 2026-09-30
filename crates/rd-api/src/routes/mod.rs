@@ -5,6 +5,7 @@ pub(crate) mod automations;
 pub(crate) mod collector;
 pub(crate) mod config;
 pub(crate) mod diagnostics;
+pub(crate) mod lifecycle;
 pub(crate) mod media;
 pub(crate) mod notify;
 pub(crate) mod plugins;
@@ -41,5 +42,6 @@ pub(crate) fn protected() -> Router<AppState> {
         .merge(stats::routes())
         .merge(storage::routes())
         .merge(diagnostics::routes())
+        .merge(lifecycle::routes())
         .merge(audit::routes())
 }

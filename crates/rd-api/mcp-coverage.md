@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**83 capabilities, 62 covered by a tool, 21 deliberately out (15 of them on the owner's line of 2026-09-23).** 377 REST operations, 193 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**87 capabilities, 64 covered by a tool, 23 deliberately out (15 of them on the owner's line of 2026-09-23).** 384 REST operations, 197 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -65,7 +65,9 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Answering a collision prompt | Downloads | 2 | `decide_collision`, `list_collision_prompts` |
 | Source and content duplicates | Downloads > package, LinkGrabber | 3 | `dedupe_download`, `get_download_duplicates`, `lookup_duplicates` |
 | Storage history, reuse and the content index | Settings > Storage | 4 | `check_content_index`, `get_link_support`, `get_storage_reuse`, `list_storage_operations` |
+| Clearing the storage history and the content index | Settings > Storage | 2 | `clear_content_index`, `clear_storage_operations` |
 | About rDownloader | Settings > About | 2 | `get_about` |
+| Application updates | Settings > System | 2 | `check_for_updates`, `get_update_status` |
 | Writing a site rule | Settings > Site rules | 4 | `create_site_rule`, `delete_site_rule`, `test_site_rule`, `update_site_rule` |
 | Which providers can take a remote job | Remote jobs | 1 | `list_remote_job_providers` |
 | Power actions | Settings > Power | 2 | `cancel_power_action`, `get_power_status` |
@@ -108,5 +110,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time. |
 | Bandwidth budgets and quiet hours | Settings > Bandwidth | 8 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. |
 | The health probe | - | 1 | Public by design: a load balancer asks it without a token, so no permission prices it, and mcp::tool_scope refuses a tool priced by a public route rather than making it free. What it answers -- the service is up, its name and version -- is what the MCP initialize handshake already carries in its server_info. |
+| Stopping the service and the backup before an update | - | 2 | Refused from anywhere but the machine the service runs on, and meant for the launchers and the updater there. A tool that stops the service ends the MCP session that called it, and the backup before an update is the first step of a version switch that no agent performs. |
+| Installing an update | Settings > System | 1 | Installing stops the service, replaces its program and starts it again: the MCP session that asked ends with the process, and a version switch is the administrator's decision in the interface, not an agent's. get_update_status shows what an install is doing. |
 
 <!-- END generated -->

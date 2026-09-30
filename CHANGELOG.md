@@ -5,6 +5,258 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.0-beta.1] - 2026-09-30
+
+### Added
+
+- **Clearing the storage history and the content index (RD-180-13).** *Moves, links and reuse*
+  has a "Clear history" button at the history and a "Clear index" button beside the index
+  check, each asking with the count first. The history keeps operations still running; the index
+  clear touches no file and no download, and its question says that "Check the content index"
+  (also run at every start) re-indexes finished downloads still in the queue with a known
+  SHA-256. `POST /api/v1/storage/operations/clear` and `POST /api/v1/storage/content-index/clear`
+  (`confirmed: true`, `api:admin`, audited as `storage_history_cleared` and
+  `content_index_cleared`), two new counts in `GET /api/v1/system/data-reset`, and the MCP tools
+  `clear_storage_operations` and `clear_content_index`.
+- **Update check (RD-180-01).** Every installation checks a signed update manifest on GitHub —
+  the stable channel for releases, the beta channel for `vX.Y.Z-beta.N` pre-releases too — and
+  shows a notice in the sidebar with the release notes and what to do: the download for a
+  portable archive or installer, the command for Homebrew, Scoop, winget, the AUR or Docker. The
+  manifest is verified against a new compiled-in update key (`rdownloader-update-v1`), bound to its
+  channel, and refused when replayed, expired or dated ahead; nothing older than the running
+  version and no beta on stable is ever offered. Settings > System > Updates holds the switch,
+  the channel, the interval and "check now"; `GET /api/v1/system/update`,
+  `POST /api/v1/system/update/check` and the MCP tools `get_update_status` and
+  `check_for_updates` read and trigger the same. The new crate `rd-update` also detects the
+  installation kind (path, the `install-kind` marker file package builds write, containers) and
+  downloads an artifact only as the verified file the manifest describes. The release workflow
+  builds and signs the manifest (`rd-pack update manifest build`) and publishes beta tags as
+  pre-releases. Nothing is installed yet.
+- **Install and restart (RD-180-02).** A portable archive and the Windows installer install an
+  offered update on one click in the update dialog, after a confirmation: the verified download,
+  the backup before the update, a graceful stop, the program files switched with the previous
+  ones kept in `.previous/` (or `msiexec` silently), the new version started and asked for its
+  version for up to 90 seconds. When it ends, does not answer or answers wrongly, the previous
+  version comes back with the database copy from before the update, and the dialog, which follows
+  the restart and reconnects by itself, says why. The updater runs as `rdownloader apply-update`
+  from a copy outside the program folder and writes a journal before every step, so the next start
+  finishes or takes back an interrupted update (crash points `update.after_previous_set_aside`,
+  `update.after_new_placed`, `update.before_health_check`). `POST /api/v1/system/update/install`
+  (`api:admin`, audited as `update_install_started`, no MCP tool); the status carries `install`.
+  deb and rpm now show the `apt`/`dnf` command instead of the download. New workflow
+  `self-update.yml` (Linux, Windows) with `scripts/self-update-smoke.sh`.
+- **Update manifest: new fields no longer break older installations (RD-180-01, RD-180-02).** The
+  manifest and its artifacts ignore fields a reader does not know; an incompatible change raises
+  `schema_version` instead. New optional `schema_change` (absent reads as `true`), set by the
+  release workflow when `crates/rd-db/migrations/` changed since the release before on the channel
+  (`scripts/update-schema-change.sh`, `update manifest build --schema-change`); the backup before
+  a self-update requires the encrypted backup only then.
+- **winget and AUR packages (RD-180-07, RD-180-08).** Every stable release submits its
+  winget manifests (`degoya.rDownloader`, the portable ZIP with its folder on `PATH`) to
+  `microsoft/winget-pkgs` with `komac`, and pushes `rdownloader-bin` to the AUR — binaries in
+  `/usr/lib/rdownloader`, systemd user units for the service (data in
+  `~/.local/share/rdownloader`) and the capture agent; the AUR push waits for the AUR account
+  (`AUR_ENABLED`). `scripts/package-managers.sh` renders both from `packaging/winget/` and
+  `packaging/aur/`; the new `package-channels.yml` validates, installs, upgrades and uninstalls
+  through winget on Windows and builds, lints (`namcap`) and installs the AUR package on Arch
+  against a published release.
+- **Backup before an update and a real stop on every platform (RD-180-03, RD-180-02).**
+  `POST /api/v1/system/update/prepare` writes a copy of the database to `<data>/pre-update/`,
+  checks it (`PRAGMA integrity_check`, the running schema, the core tables) before it carries its
+  name, and — when a backup passphrase is set up — seals, reopens and reads to its end the
+  encrypted full backup beside it; three of each stay. A copy that cannot be written, or with a
+  schema change an encrypted backup that cannot, refuses the update (`update.backup_failed`).
+  `POST /api/v1/system/shutdown` and `rdownloader stop [--wait <secs>]` stop the service
+  gracefully; both routes answer only on this machine and accept the per-start local control
+  token in `<data>/local-control.json`. `stop-rdownloader.bat` uses it before `taskkill`, and the
+  Windows service also stops on a closed console or a system shutdown.
+- **End-to-end runs for the extension and the capture agent (RD-180-12).** A new workflow,
+  `e2e.yml`, starts a fresh service on Linux, Windows and macOS, pairs `rdownloader-capture`
+  through `configure --token-stdin`, hands one link over through the `rdownloader://` handler and
+  one through Click'n'Load, checks both in the LinkGrabber, and installs and removes the agent's
+  autostart entry. On Linux it also loads the built Chrome extension into Chromium (Playwright,
+  now a `devDependency` of `web/`), pairs it through its options page and sends a page from its
+  popup. Each step has a time budget and fails the run when over it; `scripts/e2e.sh` runs the
+  same files locally. Firefox stays a live check (`docs/development.md#end-to-end-runs`).
+- **Soak runs with budgets (RD-180-12).** `scripts/soak.sh` and the nightly
+  `.github/workflows/soak.yml` (two hours on `ubuntu-24.04`, any duration and Windows by hand)
+  run the release binary against a local ranged HTTP fixture that cuts every transfer off every
+  two minutes, verify every completed file byte for byte, sample memory, open files, threads,
+  database size and throughput, and fail naming each budget of `scripts/soak-budgets.toml` the run
+  exceeded; `scripts/tests/soak.sh` shows a lowered budget failing the same samples.
+- **Kill and restart cases for every remaining persistent state (RD-180-12).** Six new crash
+  points with a case each — post-processing, automation runs, the end of a seed, the plugin
+  transfer runner, and the repository row and version pointers after an automatic plugin
+  update — and the first Axis B cases, which `SIGKILL` a real `rdownloader serve` mid-download
+  and mid-post-processing (new `recovery.yml` workflow). Two tests that could pass without the
+  behaviour they check now wait for a witness of it.
+- **Reproducibility check and support matrix (RD-180-12).** `.github/workflows/repro.yml` builds
+  the Linux x86_64 executables of every tag twice, on separate runners, in different paths and
+  without caches (toolchain 1.98.0, `SOURCE_DATE_EPOCH` from the tag commit, remapped paths, the
+  About page's build time from the commit), compares them by SHA-256 and uploads a diffoscope
+  report on a difference (`docs/reproducible-builds.md`). `docs/support-matrix.md` lists every
+  supported system, architecture, browser, external tool, automation client and package channel
+  with the CI job or checklist that proves it, and says which are untested.
+- **Install check against the published tap and bucket (RD-180-06).**
+  `.github/workflows/channels.yml` runs after every stable release: it installs from
+  `degoya/rdownloader` (macOS, Linux) and `degoya/scoop-rdownloader` (Windows), checks that the
+  channel carries the released version, starts the service to its health check and uninstalls
+  keeping the data; with `upgrade_from` it upgrades from an older release out of the channel's
+  own history and checks that the database and data survive.
+- **Installers: MSI, deb and rpm (RD-180-05).** Every release carries
+  `rdownloader-windows-x86_64.msi` (per user, no UAC, Start menu entries, autostart from the
+  finish page or `AUTOSTART=1`, silent with `/qn`) and a deb and an rpm for Linux x86_64 and
+  aarch64 (program in `/usr/lib/rdownloader`, systemd user units for the service and the capture
+  agent, glibc 2.39 floor, ffmpeg, yt-dlp and 7zip recommended). An installed build keeps its data
+  in `%LOCALAPPDATA%\rDownloader` or `~/.local/share/rdownloader`, which no upgrade or removal
+  touches; `.github/workflows/installers.yml` installs, upgrades and removes all three and checks
+  that the data stays. On macOS the NZB helper now declares the `rdownloader://` scheme and
+  `rdownloader-capture scheme install` registers it with Launch Services. The local archives are
+  now flat like the published ones (no `linux/` or `windows/` folder, `vendor/` stays local), and
+  the published ones carry `VERSION.txt` too.
+- **apt and dnf repositories (RD-180-10).** `scripts/package-repo.sh` files a release's `.deb`
+  and `.rpm` packages into a signed apt repository (pool, per-architecture indexes,
+  `InRelease`/`Release.gpg`) and a dnf repository (rpms signed with `rpmsign`, `repomd.xml.asc`),
+  keeps the newest two versions per architecture for downgrades and renders
+  `rdownloader.sources`, `rdownloader.repo` and the public key. The Release workflow's new
+  `package-repository` job publishes them to the GitHub Pages of `degoya/rdownloader-packages`
+  (secrets `PACKAGES_GPG_KEY`, `PACKAGES_DEPLOY_KEY`); `.github/workflows/packages-repo.yml`
+  installs, upgrades and downgrades from a fixture repository with apt (Ubuntu 24.04, Debian) and
+  dnf (Fedora) and checks that an altered index is refused.
+
+### Changed
+
+- **Release binaries are built reproducibly (RD-180-12).** The release's binary jobs now build
+  with the pinned toolchain 1.98.0 instead of the runner's `stable`, take `SOURCE_DATE_EPOCH` and
+  the About page's build time and commit from the tag's commit instead of the clock, and remap the
+  build paths on Linux — the environment `scripts/release-build-env.sh` prints, which
+  `repro.yml`'s rebuilds use too. `repro.yml` now runs after a successful release and also
+  compares its two rebuilds with the published Linux x86_64 archive (`docs/reproducible-builds.md`).
+  The plugin components are built with 1.98.0 too, in the release and in CI's component cache,
+  whose key now includes the compiler.
+- **A shorter README.** The repository README keeps what it is, one screenshot, a feature list,
+  the install commands and a link list into the handbook's sections; the source table, platform
+  notes, architecture sketch and feature chapters live in the wiki, `SECURITY.md` and
+  `CONTRIBUTING.md`. The unused LinkGrabber screenshot under `.github/readme/` is gone.
+- **The release chain cuts betas.** `scripts/release-start.sh` and `release-pipeline.sh` take
+  `X.Y.Z-beta.N` (no other pre-release form): a beta is tagged on `development` and never merged
+  into `main`, pushes `development` and its tag, and is published by the public export alone —
+  the public wiki and the website refuse it and wait for the stable release. A pre-release build
+  reads the beta update channel until somebody chooses one, so a beta installation is offered the
+  next beta; the macOS helper app carries the version without the suffix, as Apple requires.
+- **CI's crash matrix is a job of its own.** `ci.yml`'s crash and restart matrix moved out of
+  the `rust` job into `crash-matrix` (Linux and Windows of the `platforms` input, 90 minutes), which
+  runs beside `rust` instead of after its tests: on Windows the two in one job ran past 90 minutes
+  twice. `rust` is limited to 120 minutes again; both share one Rust cache key.
+
+### Fixed
+
+- **Two moves of one package no longer run at once.** A start carries on unfinished category
+  moves in the background while a category change or a finished file can start one for the same
+  package; the two could each find the other's files gone. Package moves now take turns.
+- **The queue and the LinkGrabber no longer freeze after one failed request.** A service
+  restarting during an update, a dropped network or a machine waking from standby made a
+  refresh reject half way; its in-flight flag stayed set and every later event was ignored until
+  a reload. A request that never reached the service now comes back as a refusal
+  (`network.unreachable`), the refreshes release their flag whatever happens, and the event
+  stream reconnects as soon as the browser reports the network back, with every list re-read.
+- **After a session ran out the event stream stops asking** instead of retrying with `401` every
+  30 s, and opens at once after the next sign-in.
+- **Copying a token, an MFA recovery code or a command works over plain HTTP on the LAN**, where
+  the browser offers no clipboard API, and says so when the browser refuses; it failed silently.
+- **The installable app works under a reverse-proxy path:** the service worker is registered
+  under the mount point and never answers `…/api/` from its cache there.
+- **The bandwidth status card stops polling** when the page is left during its first load.
+- **Browser extension:** only its own pages may ask it to send links, like the captcha and
+  handover messages already required, and the options page warns while the service address
+  sends the capture token over plain `http://` to another machine.
+- **A paused or interrupted plugin transfer no longer leaves zeros in the finished file.** A
+  transfer through a transfer plugin created its part file at full size up front and resumed
+  from the end of it after any pause or stop, so the missing bytes stayed zero; it now resumes
+  from what was actually written.
+- **An extraction stopped half way no longer leaves its staging folder behind.** The next
+  extraction of the package removes a leftover `.rd-x…` folder first.
+- **The watched-folder hint names every file type it picks up:** `.nzb`, `.torrent`, `.dlc`,
+  `.ccf` and `.rsdf`, not only the first two.
+- **The setup wizard and the plugin manager say which plugins run at once.** Since 1.7.0 a
+  first-installed hoster or sign-in plugin runs immediately; the hints still said every new
+  plugin runs only from the next start.
+- **The storage history names object-storage transfers** ("Object storage (S3)") instead of
+  showing the raw key `settings.storage.activity.runner.object_storage`; a test now fails for any
+  download kind without a label.
+- **A watched folder keeps watching (engine audit 1.8).** One file it could not read or move —
+  on Windows, one still locked by the program writing it — ended the watcher until the service
+  restarted, and so did a folder that was briefly missing; saving the folder again did not
+  restart it either. Such a file now waits for the next pass, a failing folder is retried with a
+  backoff, and a moved file is verified without being read into memory and never overwrites one
+  already in `processed/` or `failed/`.
+- **Resetting "Episode 1" no longer deletes "Episode 10"'s partial streams.** The reset's
+  cleanup of yt-dlp's `.part`/`.ytdl` files matched by bare prefix; it now takes only the
+  download's own files and leaves those of other downloads in the folder.
+- **A paused waiting mirror starts when it gets its turn.** Pausing, cancelling or removing a
+  download that was not running left a stop mark behind, so a mirror paused while it waited was
+  skipped for good once the first link died.
+- **A chatty tool or script no longer grows the service's memory.** yt-dlp, gallery-dl and
+  streamlink warnings, a post-processing script's log and the RAR tools' output are kept as
+  their last 64 KiB instead of in full.
+- **A manually started post-processing run no longer hides a queued one:** the package stays
+  pending until both have run.
+- **Enqueueing many links no longer asks for the accounts once per link**, and a hoster
+  catalogue an account's resolver could not deliver is not asked for again for five minutes.
+- **An MD5 or SHA-256 sidecar in a subfolder checks the files beside it** (RD-190-06). Its
+  entries are read from its own folder (`Film/film.md5` + `film.mkv` → `Film/film.mkv`), never
+  across `..`, an absolute path or a drive letter; before, such a sidecar found none of its files
+  and the step passed without checking anything. A sidecar none of whose files is in the package,
+  one without a readable line, and any mismatch fail the step; listed files missing beside ones
+  that matched (a release split across packages, a custom cleanup rule) pass with a warning in
+  the service log that names them. Archive volumes, PAR2 files and the default cleanup extensions,
+  which post-processing removes itself, count as done. `md5-postprocess` 0.9.7 and
+  `sha256-postprocess` 0.9.6.
+
+### Security
+
+- **The update and local-control surface is hardened (security review of 2026-09-30).**
+  `rdownloader stop` and the updater no longer send the local control token through a proxy from
+  `HTTP_PROXY`/`ALL_PROXY`. On Windows every start gives the data folder an access list of its own
+  (your account, `SYSTEM`, Administrators) when other accounts could reach it — a portable folder
+  under `C:\` let every signed-in user read the database and the token — and the updater starts
+  `msiexec` by its full path; on Unix the data folder and `pre-update/` are created `0700`.
+  `rdownloader doctor` and the diagnostic bundle report a data folder other accounts can open.
+  A start refuses an update journal that names paths outside its installation (moved to
+  `update/journal.rejected.json`), the updater unpacks and installs from the very file handle it
+  hashed and reinstalls a kept MSI only while its SHA-256 matches, manifest artifacts must lie
+  under the repository's release downloads, and the release workflow fetches its manifest
+  packager by name. A service bound to one LAN address accepts its own `stop` again, and `Via`,
+  `X-Forwarded-Host`, `X-Forwarded-Proto`, `CF-Connecting-IP` and `True-Client-IP` count as
+  forwarded like `X-Forwarded-For` (`docs/security/updates.md`).
+- **Sign-in, tokens and streams are hardened (security audit of 2026-09-30,
+  `docs/security/access.md`).** A token can no longer hand out more than it holds: minting or
+  re-scoping with areas the calling credential lacks is refused (`api.scope_exceeds_grant`), so an
+  `api:secrets` token cannot mint `api:*` or widen itself. Second factors and passkeys are added,
+  removed and switched off only in a signed-in session and with the password typed again
+  (`mfa.session_required`) — a passkey signs in without the password, so a token able to enrol one
+  could make itself administrator; both are now in the audit log. `rclone_executable` and
+  `dlc_service_endpoint` cost `api:admin` like the other executable paths (a configuration token
+  could name any program as rclone). Open event streams end within 30 seconds of a sign-out,
+  revocation or expiry. The OAuth callback works with the login switched on: it is public now and
+  its single-use `state` of at least 32 characters, valid for 15 minutes, is its credential;
+  sign-in addresses must be `https`. Signing out under a mount point clears the cookie at its own
+  path, the first-run setup cannot set two passwords when requests race and is audited, the
+  public routes accept 64 KiB instead of 65 MiB, a password is at most 1024 characters, the
+  qBittorrent adapter redacts its error texts, and the site-rule address guard shares the download
+  engine's ranges (it let `fec0::/10` through).
+- **Downloaders and apprise no longer inherit the service's environment (engine audit 1.8).**
+  yt-dlp, gallery-dl, streamlink, apprise and the version probes start with the allowlist
+  post-processing programs already get, plus their proxy, CA-bundle and XDG config/cache
+  variables (`docs/external-tools.md`); a credential the service was started with stays behind.
+- **A captured POST body leaves the secret store with its owner (engine audit 1.8).** Deleting a
+  LinkGrabber entry, all entries, a LinkGrabber package or the download it was handed to left the
+  encrypted body in the vault for good; it is now removed with the row.
+- **Every GitHub Action is pinned to a commit.** All workflows name each action by its full
+  commit SHA with the release as a comment (`uses: owner/repo@<sha> # v7.0.1`), so a moved tag
+  cannot run other code with a workflow's token; Dependabot keeps pin and comment current, and
+  `scripts/check-actions-pinned.sh`, run by `check.sh`, refuses an unpinned `uses:`.
+
 ## [1.7.0] - 2026-09-30
 
 ### Added

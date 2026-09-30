@@ -10,6 +10,7 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCopy } from '@/composables/useCopy'
 import { useFetchState } from '@/composables/useFetchState'
 import { withBase } from '@/basePath'
 import { formatDay } from '@/utils/format'
@@ -46,6 +47,7 @@ const savingId = ref<string | null>(null)
 const editError = ref<string | null>(null)
 const confirm = useConfirm()
 const toast = useToast()
+const copyToClipboard = useCopy()
 
 const mcpEndpoint = `${window.location.origin}${withBase('/mcp')}`
 // Shown for every token: the MCP transport accepts any API area, and which of the sixteen
@@ -170,7 +172,7 @@ async function saveScopes(token: CaptureToken): Promise<void> {
 }
 
 async function copy(value: string, description: string): Promise<void> {
-  await navigator.clipboard.writeText(value)
+  if (!(await copyToClipboard(value))) return
   toast.add({
     title: t('system.mcp.copied_title'),
     description,

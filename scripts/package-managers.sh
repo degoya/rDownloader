@@ -4,7 +4,8 @@
 # packaging/homebrew/rdownloader.rb.in, packaging/homebrew/rdownloader-capture.rb.in and
 # packaging/scoop/rdownloader.json.in with the version and the archives' SHA-256 from the
 # release's SHA256SUMS, and the README of the tap and of the bucket from the README.md.in beside
-# each.
+# each; the same for the winget manifests (RD-180-07, packaging/winget/) and the AUR package
+# rdownloader-bin (RD-180-08, packaging/aur/).
 #
 # Usage:
 #   scripts/package-managers.sh <version> <SHA256SUMS> <outdir> [--repository OWNER/NAME]
@@ -13,9 +14,12 @@
 # Writes <outdir>/rdownloader.rb and <outdir>/rdownloader-capture.rb (the tap's
 # Formula/rdownloader.rb and Formula/rdownloader-capture.rb), <outdir>/rdownloader.json (the
 # bucket's bucket/rdownloader.json), <outdir>/homebrew-README.md and <outdir>/scoop-README.md
-# (each repository's README.md). The release workflow pushes them after the release is
-# published; ci.yml renders them against archives made from the tree and installs the formulas
-# and the manifest.
+# (each repository's README.md); <outdir>/winget/ the three winget manifests
+# (degoya.rDownloader.yaml, .installer.yaml, .locale.en-US.yaml), and <outdir>/aur/ the AUR
+# repository: PKGBUILD, .SRCINFO and the two systemd user units. The release workflow pushes or
+# submits them after the release is published; ci.yml renders the formulas and the manifest
+# against archives made from the tree and installs them, package-channels.yml validates the
+# winget manifests, installs through them and builds the AUR package against a release.
 #
 #   --repository   the GitHub repository whose releases they install, default degoya/rDownloader;
 #                  the tap and the bucket are <owner>/homebrew-rdownloader and
@@ -24,7 +28,11 @@
 #                  https://github.com/<repository>/releases/download/v<version>; CI points it at
 #                  a local fixture
 #
-# Every archive the three files name must be in SHA256SUMS (`<sha256>  ./<name>`, as the release
+# The AUR's pkgver is the version with `-` as `_` (1.8.0-beta.1 is 1.8.0_beta.1): pacman
+# allows no hyphen there. .SRCINFO is rendered from packaging/aur/SRCINFO.in, not by makepkg,
+# which runs on Arch only; package-channels.yml compares the two.
+#
+# Every archive the files name must be in SHA256SUMS (`<sha256>  ./<name>`, as the release
 # writes it, or `<sha256>  <name>`), and nothing of a template may stay unreplaced.
 set -euo pipefail
 
@@ -65,6 +73,15 @@ owner="${repository%%/*}"
 base_url="${base_url:-https://github.com/${repository}/releases/download/v${version}}"
 base_url="${base_url%/}"
 
+# sha256sum on Linux and Windows' Git Bash, shasum on macOS.
+file_sha256() {
+    if command -v sha256sum > /dev/null; then
+        sha256sum "$1" | awk '{ print $1 }'
+    else
+        shasum -a 256 "$1" | awk '{ print $1 }'
+    fi
+}
+
 # macOS's /bin/bash is 3.2: no associative arrays, so KEY=value pairs and a lookup by awk.
 hash_of() {
     awk -v wanted="$1" '{
@@ -82,6 +99,9 @@ values=(
     "BASE_URL=$base_url"
     "TAP=${owner}/homebrew-rdownloader"
     "BUCKET=${owner}/scoop-rdownloader"
+    "PKGVER=${version//-/_}"
+    "SHA256_AUR_SERVICE=$(file_sha256 "$ROOT/packaging/aur/rdownloader.service")"
+    "SHA256_AUR_CAPTURE_SERVICE=$(file_sha256 "$ROOT/packaging/aur/rdownloader-capture.service")"
 )
 # One placeholder per archive the formulas and the manifest install.
 missing=0
@@ -99,6 +119,10 @@ for pair in \
         continue
     fi
     values+=("${pair%%=*}=$hash")
+    # winget-pkgs writes InstallerSha256 in upper case.
+    if [[ "${pair%%=*}" == SHA256_WINDOWS_X86_64 ]]; then
+        values+=("SHA256_WINDOWS_X86_64_UPPER=$(printf '%s' "$hash" | tr 'a-f' 'A-F')")
+    fi
 done
 [[ "$missing" -eq 0 ]] || exit 1
 
@@ -122,3 +146,13 @@ render "$ROOT/packaging/homebrew/rdownloader-capture.rb.in" "$outdir/rdownloader
 render "$ROOT/packaging/scoop/rdownloader.json.in" "$outdir/rdownloader.json"
 render "$ROOT/packaging/homebrew/README.md.in" "$outdir/homebrew-README.md"
 render "$ROOT/packaging/scoop/README.md.in" "$outdir/scoop-README.md"
+mkdir -p "$outdir/winget" "$outdir/aur"
+for manifest in degoya.rDownloader.yaml degoya.rDownloader.installer.yaml \
+    degoya.rDownloader.locale.en-US.yaml; do
+    render "$ROOT/packaging/winget/$manifest.in" "$outdir/winget/$manifest"
+done
+render "$ROOT/packaging/aur/PKGBUILD.in" "$outdir/aur/PKGBUILD"
+render "$ROOT/packaging/aur/SRCINFO.in" "$outdir/aur/.SRCINFO"
+cp "$ROOT/packaging/aur/rdownloader.service" "$ROOT/packaging/aur/rdownloader-capture.service" \
+    "$outdir/aur/"
+echo "wrote $outdir/aur/rdownloader.service and rdownloader-capture.service"

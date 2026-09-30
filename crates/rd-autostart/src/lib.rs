@@ -1,11 +1,14 @@
-//! Per-user autostart registration for the portable rDownloader binaries.
+//! Per-user autostart registration for the rDownloader binaries, and where an installed build
+//! keeps its data.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+mod installed;
 mod stable_path;
 
+pub use installed::{INSTALL_KIND_FILE, install_kind, installed_home};
 pub use stable_path::stable_executable_path;
 
 /// One independently installable rDownloader background process.
@@ -69,11 +72,16 @@ impl Registration {
         if !executable.is_absolute() {
             bail!("autostart executable must be an absolute path");
         }
-        let working_directory = executable
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .context("autostart executable has no parent directory")?
-            .to_owned();
+        // An installed build starts in the user's data folder, as its service would move there
+        // anyway; its logs must not land in a program folder it may not write (RD-180-05).
+        let working_directory = match installed_home(executable)? {
+            Some(home) => home,
+            None => executable
+                .parent()
+                .filter(|path| !path.as_os_str().is_empty())
+                .context("autostart executable has no parent directory")?
+                .to_owned(),
+        };
         let log_directory = working_directory.join("logs");
         std::fs::create_dir_all(&log_directory)
             .with_context(|| format!("create {}", log_directory.display()))?;
@@ -108,6 +116,15 @@ pub fn install(target: Target, executable: &Path) -> Result<()> {
 /// Removes the current user's registration without stopping a running process.
 pub fn remove(target: Target) -> Result<()> {
     platform::remove(target)
+}
+
+/// Whether `target` has its `Run` entry for the next login. The updater asks before it takes a
+/// failed MSI update back (RD-180-02): removing the newer package removes the entry too, and the
+/// reinstalled previous one only gets it back when it is registered again.
+#[cfg(windows)]
+#[must_use]
+pub fn is_registered(target: Target) -> bool {
+    platform::is_registered(target)
 }
 
 /// The text of a Windows autostart wrapper path, refused when it carries a control character.
@@ -242,6 +259,15 @@ mod platform {
         }
         command.args(["/t", "REG_SZ", "/d", value, "/f"]);
         run(&mut command, "write Windows registry")
+    }
+
+    pub(super) fn is_registered(target: Target) -> bool {
+        Command::new("reg.exe")
+            .args(["query", RUN_KEY, "/v", target.display_name()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success())
     }
 
     fn reg_delete_value_if_present(key: &str, name: &str) -> Result<()> {

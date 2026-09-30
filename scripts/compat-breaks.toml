@@ -15,3 +15,21 @@
 # release = "1.7.0"
 # finding = "rest:path-removed:/api/v1/example"
 # reason = "Replaced by /api/v1/example-v2 since 1.6.0; the web UI and the extension use the new route."
+
+# Security audit 2026-09-30, finding 2 (RD-180, 1.8.0-beta.1): enrolling or removing a second
+# factor or a passkey needs a signed-in session and the password again. The web UI sends it; a
+# script that enrolled with a token alone must now sign in and send the password.
+[[break]]
+release = "1.8.0"
+finding = "rest:request-body-required:DELETE /api/v1/mfa/credentials/{id}"
+reason = "Removing a second factor takes the password again (step-up); the body carries it."
+
+[[break]]
+release = "1.8.0"
+finding = "rest:request-body-required:POST /api/v1/mfa/passkey"
+reason = "Starting a passkey registration takes the password again (step-up); the body carries it."
+
+[[break]]
+release = "1.8.0"
+finding = "rest:request-property-required:schemas.TotpEnrolRequest.password"
+reason = "TOTP enrolment takes the password again (step-up), so a token alone cannot add a factor."

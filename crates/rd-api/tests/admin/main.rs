@@ -28,5 +28,7 @@ mod plugin_repositories;
 mod plugin_versions;
 mod protected_roots;
 mod routing_backup;
+mod service_lifecycle;
 mod settings_backup;
 mod site_rules;
+mod updates;

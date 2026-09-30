@@ -485,14 +485,13 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/nzb/imports/{id}/enqueue", Method::POST, QUEUE),
     entry("/api/v1/nzb/imports/{id}/files", Method::GET, QUEUE),
     entry("/api/v1/nzb/imports/{id}/postprocess", Method::GET, QUEUE),
-    // The OAuth redirect lands here, and it costs the same scope as every other route that
-    // touches an account's credentials. It could have been argued the other way -- a provider
-    // sends the browser back with no idea what a session is, and a session that lapsed while
-    // the person was away loses the code -- but the request arrives in the browser that
-    // started the flow seconds earlier, so the cookie is there in every ordinary case. Making
-    // it public would put an unauthenticated token exchange in the surface for a convenience
-    // nobody usually needs, and a lost code costs one more press of the sign-in button.
-    entry("/api/v1/oauth/callback", Method::GET, SECRETS),
+    // The OAuth redirect lands here, and it cannot cost a scope: it arrives from the provider's
+    // site, and the session cookie is `SameSite=Strict`, so a browser does not send it on that
+    // navigation. Priced `SECRETS` it refused every sign-in with the login switched on (security
+    // audit 2026-09-30, finding 5). The credential is the `state` instead: issued to a caller
+    // holding `api:secrets` when the flow began, at least 32 characters, answered once and
+    // within fifteen minutes (`auth_flow_guard`).
+    entry("/api/v1/oauth/callback", Method::GET, PUBLIC),
     // Object storage profiles hold key pairs, like the remote logins beside them (RD-150-04).
     entry("/api/v1/object-storage/profiles", Method::GET, SECRETS),
     entry("/api/v1/object-storage/profiles", Method::POST, SECRETS),
@@ -682,8 +681,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         QUEUE,
     ),
     entry("/api/v1/storage/content-index/check", Method::POST, QUEUE),
+    // Checking the index is queue work; throwing the index or the history away costs what the
+    // other clears cost (RD-180-13).
+    entry("/api/v1/storage/content-index/clear", Method::POST, ADMIN),
     entry("/api/v1/storage/link-support", Method::GET, READ),
     entry("/api/v1/storage/operations", Method::GET, READ),
+    entry("/api/v1/storage/operations/clear", Method::POST, ADMIN),
     entry("/api/v1/storage/reuse", Method::GET, READ),
     entry("/api/v1/streams/channels", Method::GET, CONFIG),
     entry("/api/v1/streams/channels", Method::POST, CONFIG),
@@ -727,6 +730,10 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // how long it has run, which is the same disclosure the audit log is priced for.
     entry("/api/v1/system/data-reset", Method::GET, ADMIN),
     entry("/api/v1/system/media", Method::GET, READ),
+    // Stopping the service and the backup before an update (RD-180-02, RD-180-03): the service
+    // itself. Refused from anywhere but this machine by the handlers; the local control token
+    // opens these two and nothing else (`crate::local_control`).
+    entry("/api/v1/system/shutdown", Method::POST, ADMIN),
     entry("/api/v1/system/tools", Method::GET, READ),
     entry(
         "/api/v1/system/tools/manifest/refresh",
@@ -736,6 +743,13 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/system/tools/{name}/activate", Method::POST, CONFIG),
     entry("/api/v1/system/tools/{name}/install", Method::POST, CONFIG),
     entry("/api/v1/system/tools/{name}/rollback", Method::POST, CONFIG),
+    // Which version runs and which is offered, like the About page (RD-180-01); checking makes
+    // the service reach out on the caller's word, and is the administrator's.
+    entry("/api/v1/system/update", Method::GET, READ),
+    entry("/api/v1/system/update/check", Method::POST, ADMIN),
+    // Installing the offered update stops and replaces the service (RD-180-02).
+    entry("/api/v1/system/update/install", Method::POST, ADMIN),
+    entry("/api/v1/system/update/prepare", Method::POST, ADMIN),
     entry("/api/v1/torrents/capabilities", Method::GET, READ),
     entry("/api/v1/torrents/import", Method::POST, INTAKE),
     entry("/api/v1/torrents/network/interfaces", Method::GET, CONFIG),
@@ -840,7 +854,7 @@ mod tests {
         );
     }
 
-    /// Only the five pre-authentication routes may cost nothing.
+    /// Only the pre-authentication routes may cost nothing.
     ///
     /// `Public` is the one value that turns the check off, so it is worth naming exactly
     /// which routes carry it rather than trusting that nobody adds a sixth.
@@ -866,6 +880,9 @@ mod tests {
             "/api/v1/auth/setup",
             "/api/v1/auth/status",
             "/api/v1/health",
+            // The provider's redirect: a cross-site navigation carries no session cookie, so
+            // the `state` it echoes is its credential (security audit 2026-09-30, finding 5).
+            "/api/v1/oauth/callback",
             "/api/v1/openapi.json",
         ]
         .into_iter()

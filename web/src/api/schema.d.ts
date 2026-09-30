@@ -206,10 +206,11 @@ export interface paths {
          *     exactly the same leak. What replaces the old guarantee is the record: issuing, re-scoping
          *     and revoking all write an event, so "when did this token gain that area" has an answer.
          *
-         *     Two limits keep the reversal from being a bridge. The areas go through the same
+         *     Three limits keep the reversal from being a bridge. The areas go through the same
          *     [`resolve_scopes`] the minting path uses, so `capture:*` stays unmintable *and*
-         *     ungrantable; and only a token the API token list already shows can be re-scoped at all, so
-         *     a browser-capture token cannot be turned into an API token by naming its id here.
+         *     ungrantable; only a token the API token list already shows can be re-scoped at all, so
+         *     a browser-capture token cannot be turned into an API token by naming its id here; and the
+         *     new areas must lie within the caller's own ([`within_grant`]).
          */
         patch: operations["update_api_token_scopes"];
         trace?: never;
@@ -2732,7 +2733,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Starts enrolling a passkey. Requires a signed-in session. */
+        /** Starts enrolling a passkey. Requires a signed-in session and the password. */
         post: operations["enrol_passkey"];
         delete?: never;
         options?: never;
@@ -4594,6 +4595,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/content-index/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Empties the content index (RD-180-13): duplicate detection by content starts from nothing.
+         * @description Only the index rows go. No file on disk and no download is touched, but until a file is
+         *     indexed again it is found neither as a content duplicate nor as the original of a dedupe
+         *     link. `POST /api/v1/storage/content-index/check` — which also runs at every start — puts
+         *     back every finished download still in the queue whose SHA-256 is known and whose file is
+         *     where its row says; a file whose download was removed, or that was never hashed, comes back
+         *     only when it is downloaded again.
+         */
+        post: operations["clear_content_index"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/link-support": {
         parameters: {
             query?: never;
@@ -4621,6 +4647,31 @@ export interface paths {
         get: operations["list_storage_operations"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/operations/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Empties the storage history: the verified moves and dedupe links recorded so far
+         *     (RD-180-13).
+         * @description A row still `running` stays, for the reason the notification clear keeps a delivery still
+         *     owed an attempt: its operation is under way, it will record how it ended into that row, and
+         *     a restart that finds it running settles it as `interrupted`. Carrying an interrupted move on
+         *     never reads the history (it follows the package's `previous_destination`), so what goes is
+         *     only the record, never the recovery.
+         */
+        post: operations["clear_storage_operations"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5110,6 +5161,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/shutdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["shutdown_service"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/tools": {
         parameters: {
             query?: never;
@@ -5184,6 +5251,80 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rollback_managed_tool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_update_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/update/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Checks now and answers with the status. A manifest that was refused or could not be reached
+         *     is the status's `error_code`, not an error of this call: the check ran, and that is its
+         *     result. A build without the update signing key answers `409 update.not_configured`.
+         */
+        post: operations["check_for_updates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/update/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Installs the offered update and restarts (RD-180-02): answers at once with the step it begins
+         *     in, and `GET /api/v1/system/update` follows it through the restart. `Admin` and audited, like
+         *     stopping the service, which it does; no MCP tool, since it ends the session that would ask.
+         */
+        post: operations["install_update"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/update/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["prepare_update_backup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5530,7 +5671,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -7506,6 +7647,11 @@ export interface components {
             audit: number;
             /**
              * Format: int64
+             * @description Entries in the content index, missing ones included (RD-180-13).
+             */
+            content_index: number;
+            /**
+             * Format: int64
              * @description Records in the service log.
              */
             logs: number;
@@ -7526,6 +7672,12 @@ export interface components {
              * @description Rows in the transfer statistics: the buckets and the all-time totals together.
              */
             stats: number;
+            /**
+             * Format: int64
+             * @description Rows in the storage history a clear would remove: every one not still running
+             *     (RD-180-13).
+             */
+            storage_operations: number;
         };
         /**
          * Format: int32
@@ -9147,6 +9299,10 @@ export interface components {
              */
             recovery_codes_remaining: number;
         };
+        /** @description The password a change to how the account signs in asks for again. */
+        MfaStepUpRequest: {
+            password: string;
+        };
         /**
          * @description What a person prefers when a mirror group offers a choice (RD-110-19).
          *
@@ -10070,6 +10226,65 @@ export interface components {
             /** Format: date-time */
             quiet_until?: string | null;
             state: components["schemas"]["PowerState"];
+        };
+        /** @description The checked encrypted full backup. */
+        PreUpdateArchive: {
+            archive_name: string;
+            /** @description The fingerprint of the key it is sealed under; restoring it needs that passphrase. */
+            key_fingerprint: string;
+            path: string;
+            sha256: string;
+            /** Format: int64 */
+            size_bytes: number;
+        };
+        /** @description The checked database copy. */
+        PreUpdateCopy: {
+            /** Format: int64 */
+            accounts: number;
+            /** Format: int64 */
+            categories: number;
+            /** Format: int64 */
+            downloads: number;
+            /** Format: int64 */
+            packages: number;
+            path: string;
+            /**
+             * Format: int64
+             * @description The highest migration the copy has applied: the schema the running version needs.
+             */
+            schema_version: number;
+            /** Format: int64 */
+            size_bytes: number;
+            /** Format: int64 */
+            storage_roots: number;
+            /** Format: int64 */
+            unfinished: number;
+        };
+        /** @description What the updater asks for. */
+        PreUpdateRequest: {
+            /**
+             * @description Whether that version changes the database schema, from the release manifest. When it
+             *     does, the encrypted backup is required as well, if a passphrase is set up.
+             */
+            schema_change?: boolean;
+            /** @description The version the updater is about to switch to; letters, digits, `.`, `_`, `+` and `-`. */
+            target_version: string;
+        };
+        /** @description What was written before the update, all of it checked. */
+        PreUpdateResponse: {
+            database_copy: components["schemas"]["PreUpdateCopy"];
+            /** @description `<data directory>/pre-update`. */
+            directory: string;
+            encrypted_backup?: components["schemas"]["PreUpdateArchive"] | null;
+            /**
+             * @description Why there is no encrypted backup: `backup.key_missing`, or the stable code of the step
+             *     that failed when the release changes no schema and the update may go ahead without it.
+             */
+            encrypted_backup_code?: string | null;
+            /** @description The version running now, which the copy and the archive belong to. */
+            from_version: string;
+            schema_change: boolean;
+            target_version: string;
         };
         /** @description One comparison. */
         Predicate: {
@@ -11080,6 +11295,14 @@ export interface components {
          * @enum {string}
          */
         SegmentEnd: "open" | "split" | "disconnect" | "finished";
+        /** @description The answer to a stop request. */
+        ServiceStopResponse: {
+            /**
+             * @description Always `true`: the listener stops accepting now, the queue is checkpointed, then the
+             *     process ends and removes its local control file.
+             */
+            stopping: boolean;
+        };
         /** @description One session in the inventory. Never carries the bearer, only what it is for. */
         Session: {
             /** @description Where the session was created from, as the proxy rules resolved it. */
@@ -11908,6 +12131,25 @@ export interface components {
              * @default false
              */
             unpack_to_subfolder: boolean;
+            /**
+             * @description Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
+             *     Unset, it is `beta` on a pre-release build and `stable` on every other.
+             * @default stable
+             */
+            update_channel: string;
+            /**
+             * @description Whether the service checks for a new version by itself (RD-180-01). On by default: a
+             *     check fetches a public, signed file and sends nothing about the installation. "Check
+             *     now" works either way.
+             * @default true
+             */
+            update_check_enabled: boolean;
+            /**
+             * Format: int32
+             * @description Hours between two automatic update checks (1-168).
+             * @default 24
+             */
+            update_check_interval_hours: number;
             /**
              * @description Upload finished packages to an rclone remote as the last post-processing step.
              * @default false
@@ -13323,6 +13565,8 @@ export interface components {
         TotpEnrolRequest: {
             /** @description What to call this factor in the list. */
             label?: string | null;
+            /** @description The administrator password: adding a factor changes how the account signs in. */
+            password: string;
         };
         /** @description What enrolment hands back: the thing to scan, and the thing to write down. */
         TotpEnrolment: {
@@ -13553,6 +13797,31 @@ export interface components {
             manual_timeout_seconds?: number | null;
             solver?: components["schemas"]["SolverKind"] | null;
         };
+        /** @description What `POST /api/v1/system/update/install` takes. */
+        UpdateInstallRequest: {
+            /**
+             * @description Install even while downloads run. The stop saves the queue and the downloads resume after
+             *     the restart; without this the request is refused with `update.transfers_active`.
+             */
+            allow_active?: boolean;
+        };
+        /** @description The self-update of RD-180-02, as the interface follows it through the restart. */
+        UpdateInstallStatus: {
+            from_version: string;
+            /** @description The stable code of why it failed or was rolled back, e.g. `update.health_timeout`. */
+            reason?: string | null;
+            /** @description RFC 3339. */
+            started_at: string;
+            /**
+             * @description `downloading`, `preparing` (the backup before the update), `restarting` (the updater
+             *     stops the service), `installing`, `verifying` (the new version started and is asked for
+             *     its version), `rolling_back`, `done`, `rolled_back` or `failed`.
+             */
+            state: string;
+            target_version: string;
+            /** @description RFC 3339. */
+            updated_at: string;
+        };
         /**
          * @description Editable profile fields. An empty secret or session token keeps the stored one while the
          *     provider and the credential source stay what they were.
@@ -13573,6 +13842,40 @@ export interface components {
             region?: string | null;
             secret_access_key?: string | null;
             session_token?: string | null;
+        };
+        /** @description A newer version and how to get it. */
+        UpdateOffer: {
+            /**
+             * @description `install` (this installation installs the artifact itself and restarts, RD-180-02),
+             *     `download` (the artifact is replaced by hand) or `command` (a package manager or
+             *     container runtime does it).
+             */
+            action: string;
+            /** @description `stable` or `beta`. */
+            channel: string;
+            /** @description The command to run, for `action` = `command`. */
+            command?: string | null;
+            download_sha256?: string | null;
+            /** Format: int64 */
+            download_size?: number | null;
+            /** @description The artifact for this platform and installation kind, when the release has one. */
+            download_url?: string | null;
+            /** @description A stable code the interface translates beside the command, e.g. `update.hint.docker_recreate`. */
+            hint?: string | null;
+            /** @description Short plain-text release notes; render as text, never as markup. */
+            notes: string;
+            /** @description The release page with the full notes. */
+            release_url: string;
+            /** @description RFC 3339. */
+            released_at: string;
+            /**
+             * @description For `install`: whether a new version that does not prove healthy is taken back by
+             *     itself — always for the portable archive; for the Windows installer only when the last
+             *     update kept the running version's installer, since a Windows Installer upgrade has no way
+             *     back without the previous package.
+             */
+            rollback_available?: boolean | null;
+            version: string;
         };
         /** @description Body of `PATCH /api/v1/plugins/repositories/{id}`. */
         UpdatePluginRepositoryRequest: {
@@ -13595,6 +13898,45 @@ export interface components {
             protocol: components["schemas"]["RemoteProtocol"];
             secret?: string | null;
             username?: string | null;
+        };
+        /** @description The update check's state, as `GET /api/v1/system/update` answers it. */
+        UpdateStatusResponse: {
+            available?: components["schemas"]["UpdateOffer"] | null;
+            /** @description The chosen channel, `stable` or `beta` (`update_channel`). */
+            channel: string;
+            /** @description Whether the service checks by itself (`update_check_enabled`). */
+            check_enabled: boolean;
+            /** @description Whether a check is running right now. */
+            checking: boolean;
+            /**
+             * @description Whether this build carries the update signing key. Without it nothing is checked, and
+             *     the interface says so instead of reporting an error on every check.
+             */
+            configured: boolean;
+            /** @description The running version. */
+            current_version: string;
+            /**
+             * @description The channel actually read: `stable` for an installation whose package manager publishes
+             *     no pre-releases, whatever was chosen.
+             */
+            effective_channel: string;
+            /** @description The stable code of what the last check refused or could not reach, if anything. */
+            error_code?: string | null;
+            install?: components["schemas"]["UpdateInstallStatus"] | null;
+            /**
+             * @description How this installation was installed: `portable`, `msi`, `deb`, `rpm`, `homebrew`,
+             *     `scoop`, `winget`, `aur`, `docker` or `unknown`.
+             */
+            install_kind: string;
+            /**
+             * Format: int32
+             * @description Hours between two automatic checks.
+             */
+            interval_hours: number;
+            /** @description When the last check ran, RFC 3339. */
+            last_checked_at?: string | null;
+            /** @description When the next automatic check is due, RFC 3339; empty when none is scheduled. */
+            next_check_at?: string | null;
         };
         /** @description Editable NNTP endpoint. An omitted password preserves the stored password. */
         UpdateUsenetServerRequest: {
@@ -19983,7 +20325,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaStepUpRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -19992,6 +20338,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -20036,7 +20400,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaStepUpRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -20045,6 +20413,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PasskeyChallenge"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description No usable origin for passkeys */
@@ -23756,6 +24142,37 @@ export interface operations {
             };
         };
     };
+    clear_content_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataClearResponse"];
+                };
+            };
+            /** @description data_reset.not_confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     link_support: {
         parameters: {
             query?: never;
@@ -23798,6 +24215,37 @@ export interface operations {
                 };
             };
             /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clear_storage_operations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataClearResponse"];
+                };
+            };
+            /** @description data_reset.not_confirmed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24856,6 +25304,35 @@ export interface operations {
             };
         };
     };
+    shutdown_service: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceStopResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_managed_tools: {
         parameters: {
             query?: never;
@@ -24969,6 +25446,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
+                };
+            };
+        };
+    };
+    get_update_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatusResponse"];
+                };
+            };
+        };
+    };
+    check_for_updates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatusResponse"];
+                };
+            };
+            /** @description This build carries no update signing key */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    install_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInstallRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateInstallStatus"];
+                };
+            };
+            /** @description Nothing to install, not an installation that installs itself, downloads running, or the program folder is not fit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    prepare_update_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreUpdateResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

@@ -149,6 +149,7 @@ pub(crate) async fn run(
             .await?;
             continue;
         }
+        remove_stale_staging(&destination).await;
         crate::steps::stage(
             inner,
             context.owner,
@@ -215,6 +216,11 @@ pub(crate) async fn run(
         }
         match result {
             Ok((report, _)) => {
+                // A stop here leaves the set unpacked and its step `Running`: the next start
+                // unpacks it again into the same place (RD-180-12, recovery matrix).
+                rd_core::failpoint!("postprocess.before_unpack_recorded", || anyhow::anyhow!(
+                    "crash point"
+                ));
                 checkpoint(
                     inner,
                     context.owner,
@@ -248,6 +254,34 @@ pub(crate) async fn run(
         }
     }
     Ok(ok)
+}
+
+/// Removes the staging directories a killed extraction left in `destination` (RD-180-12).
+///
+/// A job unpacks one set at a time and removes its own staging directory once the merge is done,
+/// so a `.rd-x` directory that is there before an extraction starts belongs to a run that was
+/// killed half way. Its partial output is not package content, and left alone it would stay in
+/// the folder for good.
+async fn remove_stale_staging(destination: &Path) {
+    let Ok(mut entries) = tokio::fs::read_dir(rd_files::long_path(destination)).await else {
+        return;
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let staging = entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(rd_postprocess::STAGING_PREFIX);
+        if staging
+            && entry.file_type().await.is_ok_and(|kind| kind.is_dir())
+            && let Err(error) = tokio::fs::remove_dir_all(entry.path()).await
+        {
+            tracing::warn!(
+                path = %entry.path().display(),
+                %error,
+                "a staging directory an interrupted extraction left could not be removed"
+            );
+        }
+    }
 }
 
 /// The step outcome for a tool refused for its version: the code with the tool, the version it

@@ -54,6 +54,7 @@ pub struct Options {
     parked: bool,
     local_capture_fetches: bool,
     tokens: Vec<(&'static str, &'static str)>,
+    stream_recheck: Option<std::time::Duration>,
 }
 
 impl Options {
@@ -83,6 +84,13 @@ impl Options {
     /// refuses that otherwise (`AppState::with_local_capture_fetches`).
     pub fn local_capture_fetches(mut self) -> Self {
         self.local_capture_fetches = true;
+        self
+    }
+
+    /// Open event streams check their credential this often instead of every thirty seconds
+    /// (`AppState::with_stream_recheck`).
+    pub fn stream_recheck(mut self, every: std::time::Duration) -> Self {
+        self.stream_recheck = Some(every);
         self
     }
 
@@ -219,6 +227,10 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
         state.with_local_capture_fetches()
     } else {
         state
+    };
+    let state = match options.stream_recheck {
+        Some(every) => state.with_stream_recheck(every),
+        None => state,
     };
     // Capture intake authenticates with its own token; reading candidates back is a session
     // route, so the default stands in for an installation without an admin password.

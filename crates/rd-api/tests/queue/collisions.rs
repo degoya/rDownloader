@@ -6,10 +6,10 @@ use axum::http::StatusCode;
 use rd_core::{DownloadFile, DownloadState};
 use rd_scheduler::{FileSpec, PackageSpec};
 
-const SOURCE: &str = "https://example.invalid/release/file.bin";
+pub(crate) const SOURCE: &str = "https://example.invalid/release/file.bin";
 
 /// A paused package with one file named `file.bin` from `source`, below `base`.
-async fn paused_download(
+pub(crate) async fn paused_download(
     harness: &common::Harness,
     base: &std::path::Path,
     name: &str,
@@ -53,7 +53,7 @@ async fn paused_download(
 }
 
 /// Finishes a paused download on `bytes` written to `path`, indexed like the worker does.
-async fn finished(
+pub(crate) async fn finished(
     harness: &common::Harness,
     file: &DownloadFile,
     path: &std::path::Path,

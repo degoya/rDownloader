@@ -18,138 +18,25 @@
 //! [`check_target`], and on every redirect hop by [`AddressPolicy::hop_refusal`], which the
 //! client pool bakes into a guarded client's redirect policy.
 //!
-//! `rd-siterules` keeps its own copy of the ranges (`exec/guard.rs`): it is a leaf crate that
-//! depends on neither `rd-core` nor this one, and it only ever needs "public or not".
+//! Which range an address falls in is `rd_core::address_scope`, the one classification this
+//! guard and the site-rule guard (`rd-siterules`, `exec/guard.rs`) share. Each used to keep its
+//! own copy, and the copies drifted apart.
 
 use std::{
     error::Error as StdError,
     fmt,
     future::Future,
     io,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     pin::Pin,
     sync::Arc,
 };
 
 use url::{Host, Url};
 
-/// How far from the internet an address is. Ordered from the most to the least reachable, so
-/// the stricter of two judgements is their maximum.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum AddressScope {
-    /// Routable on the internet.
-    Public,
-    /// The person's own network: RFC 1918, carrier-grade NAT, IPv6 unique-local and the
-    /// deprecated site-local block.
-    Private,
-    /// Never the home of a remote file: loopback, unspecified, link-local (the cloud metadata
-    /// endpoint among it), multicast, broadcast and the reserved and special-purpose blocks.
-    Local,
-}
-
-/// Which scope an address belongs to. An IPv4 address wearing an IPv6 costume is judged as the
-/// IPv4 address it carries *as well as* by the IPv6 rules, and the stricter answer wins.
-#[must_use]
-pub fn address_scope(address: IpAddr) -> AddressScope {
-    match address {
-        IpAddr::V4(v4) => scope_v4(v4),
-        IpAddr::V6(v6) => {
-            let own = scope_v6(v6);
-            embedded_v4(v6).map_or(own, |v4| own.max(scope_v4(v4)))
-        }
-    }
-}
-
-fn scope_v4(address: Ipv4Addr) -> AddressScope {
-    let [a, b, c, _] = address.octets();
-    let local = address.is_loopback()
-        || address.is_link_local()
-        || address.is_unspecified()
-        || address.is_multicast()
-        || address.is_broadcast()
-        // 0.0.0.0/8, "this network".
-        || a == 0
-        // 192.0.0.0/24, IETF protocol assignments.
-        || (a == 192 && b == 0 && c == 0)
-        // 198.18.0.0/15, benchmarking.
-        || (a == 198 && (b == 18 || b == 19))
-        // 240.0.0.0/4, reserved.
-        || a >= 240;
-    if local {
-        AddressScope::Local
-    } else if address.is_private()
-        // 100.64.0.0/10, carrier-grade NAT: the provider's network, not the internet.
-        || (a == 100 && (64..128).contains(&b))
-    {
-        AddressScope::Private
-    } else {
-        AddressScope::Public
-    }
-}
-
-fn scope_v6(address: Ipv6Addr) -> AddressScope {
-    let segments = address.segments();
-    let local = address.is_loopback()
-        || address.is_unspecified()
-        || address.is_multicast()
-        // fe80::/10, link local.
-        || (segments[0] & 0xffc0) == 0xfe80
-        // 100::/64, discard-only (RFC 6666).
-        || (segments[0] == 0x0100 && segments[1..4].iter().all(|segment| *segment == 0))
-        // 64:ff9b:1::/48, NAT64 with a network-specific prefix (RFC 8215): the embedded
-        // address cannot be read out without knowing the prefix length, so the block goes.
-        || (segments[0] == 0x0064 && segments[1] == 0xff9b && segments[2] == 0x0001)
-        // 2001::/32, Teredo: the packet goes to a relay, not to the address inside.
-        || (segments[0] == 0x2001 && segments[1] == 0x0000)
-        // 2001:2::/48, benchmarking (RFC 5180).
-        || (segments[0] == 0x2001 && segments[1] == 0x0002 && segments[2] == 0)
-        // 2001:10::/28 and 2001:20::/28, ORCHID and ORCHIDv2.
-        || (segments[0] == 0x2001 && matches!(segments[1] & 0xfff0, 0x0010 | 0x0020))
-        // 2001:db8::/32 and 3fff::/20, documentation.
-        || (segments[0] == 0x2001 && segments[1] == 0x0db8)
-        || (segments[0] & 0xfff0) == 0x3ff0;
-    if local {
-        AddressScope::Local
-    } else if (segments[0] & 0xfe00) == 0xfc00 || (segments[0] & 0xffc0) == 0xfec0 {
-        // fc00::/7 unique local, fec0::/10 the site-local block it replaced.
-        AddressScope::Private
-    } else {
-        AddressScope::Public
-    }
-}
-
-/// The IPv4 address an IPv6 address carries where the address itself says so: IPv4-mapped,
-/// 6to4, the NAT64 well-known prefix, an ISATAP interface identifier and IPv4-compatible.
-/// Without this, `::ffff:127.0.0.1` reads as an ordinary IPv6 address.
-fn embedded_v4(address: Ipv6Addr) -> Option<Ipv4Addr> {
-    let segments = address.segments();
-    let octets = address.octets();
-    let last_32 = || Ipv4Addr::new(octets[12], octets[13], octets[14], octets[15]);
-    if let Some(mapped) = address.to_ipv4_mapped() {
-        return Some(mapped);
-    }
-    // 2002:aabb:ccdd::/48, 6to4: the IPv4 address sits in bits 16 to 47.
-    if segments[0] == 0x2002 {
-        return Some(Ipv4Addr::new(octets[2], octets[3], octets[4], octets[5]));
-    }
-    // 64:ff9b::/96, the NAT64 well-known prefix: the last 32 bits.
-    if segments[0] == 0x0064
-        && segments[1] == 0xff9b
-        && segments[2..6].iter().all(|segment| *segment == 0)
-    {
-        return Some(last_32());
-    }
-    // ...:0000:5efe:a.b.c.d and ...:0200:5efe:a.b.c.d, ISATAP under any prefix.
-    if matches!(segments[4], 0x0000 | 0x0200) && segments[5] == 0x5efe {
-        return Some(last_32());
-    }
-    // ::a.b.c.d, IPv4-compatible; `::` and `::1` are not, and the IPv6 rules refuse them.
-    if segments[..6].iter().all(|segment| *segment == 0) && !(segments[6] == 0 && segments[7] <= 1)
-    {
-        return Some(last_32());
-    }
-    None
-}
+// The classification itself is `rd_core::address_scope`, shared with `rd-siterules` so the two
+// guards cannot drift apart again (security audit 2026-09-30, R1).
+pub use rd_core::{AddressScope, address_scope};
 
 /// The literal address a URL's host *is*, when it is one rather than a name.
 #[must_use]

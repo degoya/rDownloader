@@ -1,0 +1,47 @@
+# rDownloader's AUR package rdownloader-bin (RD-180-08). Rendered from packaging/aur/PKGBUILD.in
+# in @REPOSITORY@ by scripts/package-managers.sh and pushed to the AUR by the release workflow:
+# change the template, not this file.
+# Maintainer: AUR_MAINTAINER <AUR_MAINTAINER_EMAIL>
+# (placeholder: replaced in packaging/aur/PKGBUILD.in by the AUR account's name and address once
+# the account exists, RD-180-08)
+
+pkgname=rdownloader-bin
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc='Local-first download manager with a web interface (release binaries)'
+arch=('x86_64' 'aarch64')
+url='https://rdownloader.net'
+license=('GPL-3.0-or-later')
+depends=('gcc-libs' 'glibc>=2.39')
+optdepends=('ffmpeg: merging video and audio streams, audio extraction'
+            'yt-dlp: media downloads'
+            '7zip: unpacking RAR sets and split ZIP sets'
+            'unrar: unpacking RAR sets')
+provides=('rdownloader')
+conflicts=('rdownloader')
+options=('!strip' '!debug')
+source=('rdownloader.service'
+        'rdownloader-capture.service')
+source_x86_64=("rdownloader-@VERSION@-x86_64.tar.gz::@BASE_URL@/rdownloader-linux-x86_64.tar.gz")
+source_aarch64=("rdownloader-@VERSION@-aarch64.tar.gz::@BASE_URL@/rdownloader-linux-aarch64.tar.gz")
+sha256sums=('@SHA256_AUR_SERVICE@'
+            '@SHA256_AUR_CAPTURE_SERVICE@')
+sha256sums_x86_64=('@SHA256_LINUX_X86_64@')
+sha256sums_aarch64=('@SHA256_LINUX_AARCH64@')
+
+package() {
+  # The archive's portable layout stays together in /usr/lib/rdownloader: the service installs
+  # its bundled plugins from plugins/ beside the executable, which Linux resolves through the
+  # /usr/bin symlink. The launcher scripts are left out; the systemd user units start the service
+  # in ~/.local/share/rdownloader and the capture agent in the graphical session.
+  install -Dm755 rdownloader rdownloader-capture -t "$pkgdir/usr/lib/rdownloader"
+  install -Dm644 plugins/*.rdplug -t "$pkgdir/usr/lib/rdownloader/plugins"
+  # Read by the update check (RD-180-01): this installation is updated by pacman, not by itself.
+  echo aur > "$pkgdir/usr/lib/rdownloader/install-kind"
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s /usr/lib/rdownloader/rdownloader "$pkgdir/usr/bin/rdownloader"
+  ln -s /usr/lib/rdownloader/rdownloader-capture "$pkgdir/usr/bin/rdownloader-capture"
+  install -Dm644 rdownloader.service rdownloader-capture.service -t "$pkgdir/usr/lib/systemd/user"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+  install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+}

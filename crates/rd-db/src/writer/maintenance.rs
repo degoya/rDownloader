@@ -22,6 +22,9 @@ impl Writer {
             WriterCommand::SetSetting { key, value, reply } => {
                 send(reply, self.set_setting(&key, &value).await);
             }
+            WriterCommand::InsertSettingIfAbsent { key, value, reply } => {
+                send(reply, self.insert_setting_if_absent(&key, &value).await);
+            }
             WriterCommand::CheckpointWal { reply } => {
                 send(reply, self.checkpoint_wal().await);
             }

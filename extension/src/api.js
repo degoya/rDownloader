@@ -39,6 +39,19 @@ export function isLoopback(server) {
   }
 }
 
+/**
+ * True when the capture token would cross the network readable: plain `http` to a host that is
+ * not this machine. The options page warns then; it does not refuse, since a trusted LAN is a
+ * choice the owner may make.
+ */
+export function sendsTokenInClear(server) {
+  try {
+    return new URL(normalizeServer(server)).protocol === 'http:' && !isLoopback(server)
+  } catch {
+    return false
+  }
+}
+
 async function readBody(response) {
   try {
     return await response.json()

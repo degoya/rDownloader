@@ -26,6 +26,9 @@ const toast = useToast()
 /// whether their authenticator would even produce a key.
 const naming = ref<{ ceremonyId: string; credential: unknown } | null>(null)
 const label = ref('')
+/// Adding or removing a passkey asks for the password again: a passkey signs in without one, so
+/// a session alone must not be enough to create one.
+const password = ref('')
 
 const empty = computed(() => credentials.value.length === 0)
 /** True until the first fetch settles: an absent list and an unfetched one look identical. */
@@ -47,7 +50,7 @@ async function load(): Promise<void> {
 async function add(): Promise<void> {
   busy.value = true
   error.value = null
-  const started = await api.POST('/api/v1/mfa/passkey')
+  const started = await api.POST('/api/v1/mfa/passkey', { body: { password: password.value } })
   if (!started.data) {
     busy.value = false
     error.value = responseError(started)
@@ -62,6 +65,7 @@ async function add(): Promise<void> {
       ceremonyId: started.data.ceremony_id,
       credential: await createCredential(options)
     }
+    password.value = ''
     label.value = defaultLabel()
   } catch (cause) {
     // A dismissed dialog is a decision, not a fault. Reporting it as an error would tell
@@ -102,12 +106,14 @@ async function remove(credential: MfaCredential): Promise<void> {
   })
   if (!confirmed) return
   const response = await api.DELETE('/api/v1/mfa/credentials/{id}', {
-    params: { path: { id: credential.id } }
+    params: { path: { id: credential.id } },
+    body: { password: password.value }
   })
   if (!response.data) {
     error.value = responseError(response)
     return
   }
+  password.value = ''
   await load()
 }
 
@@ -158,6 +164,7 @@ function defaultLabel(): string {
           icon="i-lucide-trash-2"
           :aria-label="t('system.passkeys.remove.action')"
           :title="t('system.passkeys.remove.action')"
+          :disabled="!password"
           @click="remove(credential)"
         />
       </li>
@@ -171,14 +178,19 @@ function defaultLabel(): string {
       <UButton type="submit" icon="i-lucide-check" :label="t('system.passkeys.save')" :loading="busy" />
     </form>
 
-    <UButton
-      v-else
-      class="mt-4"
-      icon="i-lucide-key-round"
-      :label="t('system.passkeys.add')"
-      :loading="busy"
-      :disabled="!supported"
-      @click="add"
-    />
+    <template v-else>
+      <!-- The password adding or removing a passkey asks for again. -->
+      <UFormField class="mt-4" :label="t('system.mfa.step_up.label')" :description="t('system.passkeys.step_up_hint')">
+        <UInput v-model="password" type="password" autocomplete="current-password" class="w-full sm:max-w-sm" />
+      </UFormField>
+      <UButton
+        class="mt-4"
+        icon="i-lucide-key-round"
+        :label="t('system.passkeys.add')"
+        :loading="busy"
+        :disabled="!supported || !password"
+        @click="add"
+      />
+    </template>
   </section>
 </template>

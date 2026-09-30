@@ -387,13 +387,24 @@ impl Database {
         // The third owner of vaulted material on this row (RD-120-11): the transform key.
         // Read before the delete for the same reason, and forgotten with the fragment.
         let key_reference = self.download_transform_key_ref(id).await.unwrap_or(None);
+        // The fourth: the captured body of a POST replay. Its template row cascades with the
+        // download (migration 0027), so after the delete nothing names it any more.
+        let body_reference = replay_store::template_body_ref(&self.readers, id)
+            .await
+            .unwrap_or(None);
         writer::request(&self.writer, |reply| WriterCommand::DeleteDownload {
             id,
             reply,
         })
         .await?;
-        self.forget_secrets(orphaned.into_iter().chain(key_reference).collect())
-            .await;
+        self.forget_secrets(
+            orphaned
+                .into_iter()
+                .chain(key_reference)
+                .chain(body_reference)
+                .collect(),
+        )
+        .await;
         Ok(())
     }
 
@@ -705,11 +716,6 @@ impl Database {
             reply,
         })
         .await
-    }
-
-    /// Every vaulted request body whose owning candidate or download is gone.
-    pub async fn orphaned_replay_body_refs(&self) -> Result<Vec<String>> {
-        replay_store::orphaned_body_refs(&self.readers).await
     }
 
     /// Atomically reserves the single resolver refresh allowed after HTTP 401/403.
@@ -1111,6 +1117,18 @@ impl Database {
         crate::auth_flow_store::by_callback_state(&self.readers, callback_state).await
     }
 
+    /// Takes the flow an OAuth callback belongs to, so the same state is never answered twice.
+    pub async fn take_auth_flow_callback(
+        &self,
+        callback_state: String,
+    ) -> Result<Option<rd_core::AuthFlow>> {
+        writer::request(&self.writer, |reply| WriterCommand::TakeAuthFlowCallback {
+            callback_state,
+            reply,
+        })
+        .await
+    }
+
     /// Every open authentication flow whose next poll is due.
     pub async fn due_auth_flows(
         &self,
@@ -1476,6 +1494,23 @@ impl Database {
     /// Persists a JSON setting.
     pub async fn set_setting(&self, key: String, value: serde_json::Value) -> Result<()> {
         writer::request(&self.writer, |reply| WriterCommand::SetSetting {
+            key,
+            value,
+            reply,
+        })
+        .await
+    }
+
+    /// Writes a JSON setting only if the key holds nothing yet, and says whether it did.
+    ///
+    /// For a value that may be set exactly once, such as the first administrator password: a
+    /// read followed by [`Self::set_setting`] lets two requests both find the key empty.
+    pub async fn insert_setting_if_absent(
+        &self,
+        key: String,
+        value: serde_json::Value,
+    ) -> Result<bool> {
+        writer::request(&self.writer, |reply| WriterCommand::InsertSettingIfAbsent {
             key,
             value,
             reply,

@@ -471,13 +471,16 @@
       "confirm": "Générer"
     },
     "disable": {
-      "label": "Mot de passe",
       "hint": "La désactivation demande le mot de passe, pas un code. Un appareil perdu ne doit pas être définitif.",
       "action": "Désactiver"
     },
     "enabled_toast": "La connexion à deux facteurs est active",
     "disabled_toast": "La connexion à deux facteurs est désactivée",
-    "copied": "Copié"
+    "copied": "Copié",
+    "step_up": {
+      "label": "Mot de passe",
+      "hint": "Ajouter, retirer ou désactiver un facteur demande à nouveau le mot de passe."
+    }
   },
   "passkeys": {
     "eyebrow": "Clés d'accès",
@@ -499,7 +502,8 @@
       "title": "Retirer cette clé d'accès ?",
       "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours.",
       "confirm": "Retirer"
-    }
+    },
+    "step_up_hint": "Ajouter ou retirer une passkey demande à nouveau le mot de passe."
   },
   "password": {
     "eyebrow": "Mot de passe",
@@ -543,6 +547,22 @@
       "description": "{count} notifications encore en file d'attente ou en nouvelle tentative seront supprimées et ne seront jamais envoyées. Les envois réussis et échoués restent dans l'historique, de même que les destinations, les règles, le journal, l'audit et les statistiques.",
       "confirm": "Abandonner définitivement",
       "done": "{count} notifications abandonnées"
+    },
+    "storage_operations": {
+      "button": "Vider l’historique",
+      "stored": "{count} entrées",
+      "title": "Vider l’historique du stockage ?",
+      "description": "{count} déplacements et liens de doublon terminés, échoués ou interrompus seront supprimés définitivement de l’historique. Une opération encore en cours reste. Aucun fichier n’est déplacé ni supprimé, et un déplacement interrompu reprend quand même au prochain démarrage.",
+      "confirm": "Vider définitivement",
+      "done": "{count} entrées d’historique supprimées"
+    },
+    "content_index": {
+      "button": "Vider l’index",
+      "stored": "{count} indexés",
+      "title": "Vider l’index de contenu ?",
+      "description": "{count} entrées d’index seront supprimées. Les fichiers et les téléchargements restent intacts, mais tant qu’un fichier n’est pas réindexé, il n’est pas reconnu comme doublon de contenu et ne peut pas être l’original d’un lien de doublon. « Vérifier l’index de contenu » (exécuté aussi à chaque démarrage) réindexe les téléchargements terminés encore dans la file dont le SHA-256 est connu et dont le fichier est toujours en place. Les fichiers de téléchargements supprimés ou jamais hachés ne reviennent qu’en les téléchargeant à nouveau.",
+      "confirm": "Vider l’index",
+      "done": "{count} entrées d’index supprimées"
     }
   },
   "session_limits": {
@@ -568,5 +588,89 @@
     "modal_title": "Appairer l'extension du navigateur",
     "modal_description": "La connexion à l'hébergeur vient de votre navigateur, et seule l'extension peut la transmettre. Appairez-la ici sans quitter la page.",
     "done": "Terminé"
+  },
+  "updates": {
+    "eyebrow": "Nouvelles versions",
+    "title": "Mises à jour",
+    "description": "rDownloader consulte une liste signée des versions sur GitHub et te prévient quand une nouvelle version paraît. Rien n’est installé sans toi.",
+    "enabled_label": "Vérifier automatiquement",
+    "enabled_description": "Récupère seulement un fichier public et signé, sans rien envoyer sur cette installation.",
+    "channel_label": "Canal",
+    "channel_description": "Stable ne reçoit que les versions finales, Bêta aussi les préversions (vX.Y.Z-beta.N).",
+    "channel_stable": "Stable",
+    "channel_beta": "Bêta",
+    "channel_forced_stable": "Ton gestionnaire de paquets ne publie pas de bêtas, cette installation lit donc le canal stable.",
+    "interval_label": "Vérifier toutes les",
+    "interval_description": "Heures entre deux vérifications automatiques (1–168).",
+    "check_now": "Vérifier maintenant",
+    "current": "Installée : {version}",
+    "installed_as": "Installée en tant que : {kind}",
+    "kind": {
+      "portable": "Archive portable",
+      "msi": "Installateur Windows",
+      "deb": "Paquet Debian",
+      "rpm": "Paquet RPM",
+      "homebrew": "Homebrew",
+      "scoop": "Scoop",
+      "winget": "winget",
+      "aur": "AUR",
+      "docker": "Image de conteneur",
+      "unknown": "Inconnue"
+    },
+    "last_checked": "Dernière vérification : {when}",
+    "never_checked": "Pas encore vérifié",
+    "next_check": "Prochaine vérification : {when}",
+    "up_to_date": "Tu as la version la plus récente.",
+    "available": "La version {version} est disponible",
+    "show_details": "Détails",
+    "not_configured": "Cette version ne contient pas de clé de mise à jour ; la vérification est désactivée.",
+    "modal": {
+      "title": "rDownloader {version}",
+      "released": "Publiée : {when}",
+      "notes": "Nouveautés",
+      "no_notes": "Cette version n’a pas de notes.",
+      "full_notes": "Notes de version complètes",
+      "download": "Télécharger",
+      "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; tes réglages et téléchargements restent où ils sont.",
+      "command_hint": "{kind} gère cette installation. Mets-la à jour avec :",
+      "copy": "Copier",
+      "copied": "Commande copiée",
+      "close": "Fermer",
+      "install": "Installer et redémarrer",
+      "install_hint": "rDownloader télécharge la nouvelle version, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Tes réglages et téléchargements restent où ils sont.",
+      "rollback_automatic": "Si la nouvelle version ne démarre pas correctement, la précédente revient d’elle-même.",
+      "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
+      "download_package": "Télécharger le paquet"
+    },
+    "hints": {
+      "aur_helper": "Avec paru : paru -S rdownloader-bin",
+      "docker_recreate": "Recrée ensuite le conteneur, par ex. avec docker compose up -d.",
+      "deb_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo apt install ./<fichier>.deb",
+      "rpm_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo dnf install ./<fichier>.rpm"
+    },
+    "notice": "Mise à jour disponible",
+    "notice_version": "{version} disponible",
+    "notice_installing": "Mise à jour vers {version}",
+    "notice_updated": "Mis à jour vers {version}",
+    "install": {
+      "confirm_title": "Installer {version} maintenant ?",
+      "confirm_description": "rDownloader s’arrête environ une minute et redémarre en {version}. Les téléchargements en cours sont enregistrés et reprennent ensuite. Cette page se reconnecte d’elle-même.",
+      "anyway": "Installer quand même",
+      "reconnecting": "rDownloader redémarre – en attente de sa réponse …",
+      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Démarre-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
+      "reload": "Recharger la page",
+      "reload_hint": "Recharge la page pour utiliser l’interface de la nouvelle version.",
+      "state": {
+        "downloading": "Téléchargement de {version} …",
+        "preparing": "Écriture de la sauvegarde avant la mise à jour …",
+        "restarting": "Arrêt de rDownloader pour la mise à jour …",
+        "installing": "Installation de {version} …",
+        "verifying": "Démarrage de {version} …",
+        "rolling_back": "{version} ne démarre pas correctement ; retour à {from} …",
+        "done": "Mis à jour vers {version}.",
+        "rolled_back": "{version} n’a pas démarré correctement, {from} fonctionne donc à nouveau.",
+        "failed": "La mise à jour vers {version} a échoué."
+      }
+    }
   }
 }

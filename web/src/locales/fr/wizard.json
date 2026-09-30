@@ -70,6 +70,6 @@
   },
   "selection": {
     "progress": "Installation de {done} sur {total}…",
-    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les nouveaux plugins fonctionnent dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les nouveaux plugins fonctionnent dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante."
+    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante."
   }
 }

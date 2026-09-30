@@ -24,6 +24,15 @@
 #                                                     # the public export
 #   scripts/release-pipeline.sh 1.0.1 --resume        # continue the run this log already started
 #   scripts/release-pipeline.sh 1.0.1 --plan          # print the steps and exit
+#   scripts/release-pipeline.sh 1.8.0-beta.1 --push   # a pre-release (see below)
+#
+# A pre-release is `X.Y.Z-beta.N`, and nothing else (owner, 2026-09-30). It runs the same steps
+# with the same evidence, except three: merge-main is skipped and not required by the gate — the
+# tag goes on the release commit on the release branch, and main stays on the last stable
+# release; push publishes the release branch and the tag, not main; publish-public runs only the
+# public export, whose main and README then show the beta until the stable release, while the
+# public wiki and the website wait for it. The CHANGELOG gets a `## [X.Y.Z-beta.N]` section per
+# beta, and docs/roadmap.md names the beta, as docs-gate checks for any release.
 #
 # There is deliberately no --skip-tests, --no-verify or --force. Every flag this script does not
 # have is a green it cannot report falsely.
@@ -63,7 +72,7 @@ while [[ $# -gt 0 ]]; do
         --push) DO_PUSH=1; shift ;;
         --resume) RESUME=1; shift ;;
         --plan) PLAN_ONLY=1; shift ;;
-        -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,39p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *) VERSION="$1"; shift ;;
     esac
@@ -73,10 +82,12 @@ if [[ -z "$VERSION" ]]; then
     echo "usage: scripts/release-pipeline.sh <version> [--push] [--resume] [--plan]" >&2
     exit 2
 fi
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "not a release version: $VERSION" >&2
+if ! rd_release_version "$VERSION"; then
+    echo "not a release version: $VERSION (X.Y.Z, or X.Y.Z-beta.N for a pre-release)" >&2
     exit 2
 fi
+PRERELEASE=0
+rd_is_prerelease "$VERSION" && PRERELEASE=1
 
 # artifacts/ is gitignored, which is exactly where the evidence log belongs: it must not be able
 # to end up in the release commit it is evidence for.
@@ -151,12 +162,18 @@ GATE_REQUIRES=(
     preflight compat version-bump test clippy web sign-plugins build-linux build-windows
     verify-artifacts smoke doc-facts docs-gate archive-jobs commit-guard commit merge-main
 )
+# A pre-release is never merged into main, so its gate cannot ask for that step's record.
+if [[ "$PRERELEASE" -eq 1 ]]; then
+    mapfile -t GATE_REQUIRES < <(printf '%s\n' "${GATE_REQUIRES[@]}" | grep -vx merge-main)
+fi
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
-    echo "release $VERSION — $(( ${#STEP_IDS[@]} - 1 )) steps, push $([[ $DO_PUSH -eq 1 ]] && echo enabled || echo disabled)"
+    echo "release $VERSION$([[ $PRERELEASE -eq 1 ]] && echo " (pre-release)") — $(( ${#STEP_IDS[@]} - 1 )) steps, push $([[ $DO_PUSH -eq 1 ]] && echo enabled || echo disabled)"
     lanes="$(rd_lanes)" || exit 2
     for id in "${STEP_IDS[@]}"; do
         [[ "$id" =~ ^(push|public-ci)$ && "$DO_PUSH" -eq 0 ]] && { echo "  - $id (skipped: --push not given)"; continue; }
+        [[ "$id" == merge-main && "$PRERELEASE" -eq 1 ]] && { echo "  - $id (skipped: a pre-release is not merged into $MAIN_BRANCH)"; continue; }
+        [[ "$id" == publish-public && "$PRERELEASE" -eq 1 ]] && { echo "  - $id (the public export only: no wiki, no website)"; continue; }
         if [[ "$lanes" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then
             echo "  - $id (in parallel with the other package, RD_LANES=$lanes)"
             continue
@@ -328,7 +345,11 @@ run_steps_parallel() {
 # ---------------------------------------------------------------------------------------------
 
 step_preflight() {
-    echo "release $VERSION from $RELEASE_BRANCH into $MAIN_BRANCH"
+    if [[ "$PRERELEASE" -eq 1 ]]; then
+        echo "pre-release $VERSION on $RELEASE_BRANCH; $MAIN_BRANCH stays on the last stable release"
+    else
+        echo "release $VERSION from $RELEASE_BRANCH into $MAIN_BRANCH"
+    fi
     echo "run nonce: $NONCE"
 
     local branch; branch="$(git rev-parse --abbrev-ref HEAD)"
@@ -465,7 +486,7 @@ step_verify_artifacts() {
     local absent=0 path
     for path in artifacts/linux/rdownloader artifacts/linux/rdownloader-capture \
                 artifacts/windows/rdownloader.exe artifacts/windows/rdownloader-capture.exe \
-                artifacts/rdownloader-windows-x86_64.zip \
+                artifacts/rdownloader-linux-x86_64.tar.gz artifacts/rdownloader-windows-x86_64.zip \
                 artifacts/rdownloader-site-rules.json; do
         if [[ -s "$path" ]]; then
             echo "ok   $path ($(stat -c %s "$path") bytes)"
@@ -480,6 +501,12 @@ step_verify_artifacts() {
     windows_plugins="$(ls -1 artifacts/windows/plugins/*.rdplug 2>/dev/null | wc -l)"
     echo "plugins: linux $linux_plugins, windows $windows_plugins, expected $expected"
     [[ "$linux_plugins" -eq "$expected" && "$windows_plugins" -eq "$expected" ]] || absent=1
+
+    # The archives unpack as the published ones do: flat, the same files (RD-180-05).
+    # shellcheck source=lib/archive-layout.sh
+    source "$ROOT/scripts/lib/archive-layout.sh"
+    rd_check_archive_layout artifacts/rdownloader-linux-x86_64.tar.gz linux || absent=1
+    rd_check_archive_layout artifacts/rdownloader-windows-x86_64.zip windows || absent=1
 
     # Built with the release profile, not a test package's (RD-150-20).
     for path in artifacts/linux/VERSION.txt artifacts/windows/VERSION.txt; do
@@ -705,11 +732,14 @@ step_tag() {
     git --no-pager show --stat --oneline "v$VERSION" | sed -n '1,20p'
 }
 
+# A pre-release pushes no main: merge-main did not run, and main keeps the last stable release.
 step_push() {
-    git push origin "$MAIN_BRANCH"
-    git push origin "$RELEASE_BRANCH"
-    git push origin "v$VERSION"
-    echo "pushed $MAIN_BRANCH, $RELEASE_BRANCH and v$VERSION to origin"
+    if [[ "$PRERELEASE" -eq 0 ]]; then
+        git push origin "$MAIN_BRANCH" || return 1
+    fi
+    git push origin "$RELEASE_BRANCH" || return 1
+    git push origin "v$VERSION" || return 1
+    echo "pushed $([[ $PRERELEASE -eq 0 ]] && echo "$MAIN_BRANCH, ")$RELEASE_BRANCH and v$VERSION to origin"
 }
 
 # The public CI on the candidate, before the tag (RD-130-23). GitHub's free runners check Linux,
@@ -757,10 +787,17 @@ step_public_ci() {
 # The user handbook follows into the repository's GitHub wiki, and the website's release facts
 # follow both, all under the same --push rule. The website is never deployed here: the owner
 # uploads the directory update-website.sh names by hand.
+#
+# A pre-release is exported alone: the handbook and the website describe the stable release, and
+# both scripts refuse a beta, so they wait for it.
 step_publish_public() {
     local push=()
     [[ "$DO_PUSH" -eq 0 ]] || push=(--push)
     scripts/export-public.sh "$VERSION" "${push[@]}" || return 1
+    if [[ "$PRERELEASE" -eq 1 ]]; then
+        echo "pre-release: the public wiki and the website stay on the last stable release"
+        return 0
+    fi
     scripts/export-wiki.sh "$VERSION" "${push[@]}" || return 1
     scripts/update-website.sh "$VERSION" "${push[@]}"
 }
@@ -802,7 +839,12 @@ for id in "${STEP_IDS[@]}"; do
     if [[ "$id" == "push" && "$DO_PUSH" -eq 0 ]]; then
         echo
         echo "==> [push] not requested — nothing is pushed."
-        echo "    publish with: git push origin $MAIN_BRANCH $RELEASE_BRANCH v$VERSION"
+        echo "    publish with: git push origin $([[ $PRERELEASE -eq 0 ]] && echo "$MAIN_BRANCH ")$RELEASE_BRANCH v$VERSION"
+        continue
+    fi
+    if [[ "$id" == "merge-main" && "$PRERELEASE" -eq 1 ]]; then
+        echo
+        echo "==> [merge-main] a pre-release is not merged into $MAIN_BRANCH; the tag goes on $RELEASE_BRANCH."
         continue
     fi
     if [[ "$LANES" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then

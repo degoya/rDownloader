@@ -50,6 +50,7 @@ members = [
   "crates/rd-tools",
   "crates/rd-torrent",
   "crates/rd-transfer-file",
+  "crates/rd-update",
   "crates/rd-usenet",
   "crates/rd-webdav",
   "crates/rdownloader",
@@ -143,7 +144,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.7.0"
+version = "1.8.0-beta.1"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.98"
@@ -174,6 +175,8 @@ dunce = "1"
 directories = "6"
 ed25519-dalek = { version = "3", features = ["pem", "pkcs8"] }
 embed-resource = "3.0.11"
+# Gzip for the portable archive the self-update unpacks (RD-180-02); `zip` pulls it in already.
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 futures-util = "0.3"
 # Free and total space of a volume; the maintained fork of `fs2`, same functions.
 fs4 = { version = "1.1", default-features = false }

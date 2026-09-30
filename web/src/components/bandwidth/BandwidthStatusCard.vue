@@ -29,10 +29,12 @@ function usage(used: string, limit: string | null | undefined): string {
 }
 
 onMounted(async () => {
+  // Armed before the first await: an unmount while the first answers are still on their way
+  // runs `onUnmounted` before a later assignment, and the interval would then poll for good.
+  timer = setInterval(() => void load(), 10_000)
   await load()
   const response = await api.GET('/api/v1/bandwidth/capabilities')
   if (response.data) capabilities.value = response.data
-  timer = setInterval(() => void load(), 10_000)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)

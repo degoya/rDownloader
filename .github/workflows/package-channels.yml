@@ -1,0 +1,286 @@
+name: winget and AUR
+
+# RD-180-07, RD-180-08: the winget manifests and the AUR package as scripts/package-managers.sh
+# renders them from this tree's templates, against a published release's archives — the newest
+# release, or the one named by hand. Not channels.yml, which installs from the published Homebrew
+# tap and Scoop bucket: winget-pkgs takes the release's manifests only after its own review, and
+# the AUR package is proven here before the release job pushes it.
+#
+# winget, on windows-2025: `winget validate` on the three manifests, then `winget install
+# --manifest` of the release's ZIP (with `upgrade_from`, the older release first, started, given
+# marker files, stopped and upgraded with `winget upgrade --manifest`), `start-rdownloader` from
+# PATH up to the health check, the database in the package folder, and `winget uninstall` leaving
+# it there.
+#
+# AUR, in an archlinux container: .SRCINFO against `makepkg --printsrcinfo`, `makepkg` as a
+# user of its own, `namcap` on the PKGBUILD and the package without an error, `pacman -U`, and the
+# installed service started as the user unit starts it — /usr/lib/rdownloader/rdownloader serve in
+# a folder of its own — up to the health check and its bundled plugins. The unit itself needs a
+# user session a container does not have; it is on the live checklist.
+#
+#   gh workflow run package-channels.yml -f release=v1.8.0 -f upgrade_from=v1.7.0
+on:
+  push:
+    branches: ["**", "!dependabot/**"]
+    paths:
+      - ".github/workflows/package-channels.yml"
+      - "packaging/aur/**"
+      - "packaging/winget/**"
+      - "scripts/package-managers.sh"
+  # The same list as above; keep the two in step.
+  pull_request:
+    paths:
+      - ".github/workflows/package-channels.yml"
+      - "packaging/aur/**"
+      - "packaging/winget/**"
+      - "scripts/package-managers.sh"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release whose archives the packages install, e.g. v1.8.0 (empty takes the newest release)
+        required: false
+        default: ""
+      upgrade_from:
+        description: Older release winget installs first and upgrades from, e.g. v1.7.0 (empty installs the release only)
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.gate.outputs.release }}
+      from: ${{ steps.gate.outputs.from }}
+    steps:
+      - name: Decide which release to install
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          FROM: ${{ inputs.upgrade_from }}
+        run: |
+          set -euo pipefail
+          tag='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if [[ -z "${RELEASE}" ]]; then
+            RELEASE="$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName)"
+          fi
+          for value in "${RELEASE}" ${FROM:+"${FROM}"}; do
+            if [[ ! "${value}" =~ ${tag} ]]; then
+              echo "::error::'${value}' is not a release tag like v1.8.0"
+              exit 1
+            fi
+          done
+          echo "installing ${RELEASE}${FROM:+, upgraded from ${FROM}}"
+          { echo "release=${RELEASE}"; echo "from=${FROM}"; } >> "${GITHUB_OUTPUT}"
+
+  winget:
+    needs: gate
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      RELEASE: ${{ needs.gate.outputs.release }}
+      FROM: ${{ needs.gate.outputs.from }}
+      RDOWNLOADER_NO_PAUSE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Render the manifests of each release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for release in "${RELEASE}" ${FROM:+"${FROM}"}; do
+            gh release download "${release}" --repo "${GITHUB_REPOSITORY}" --pattern SHA256SUMS \
+              --dir "${RUNNER_TEMP}/sums/${release}"
+            scripts/package-managers.sh "${release}" "${RUNNER_TEMP}/sums/${release}/SHA256SUMS" \
+              "${RUNNER_TEMP}/rendered/${release}" --repository "${GITHUB_REPOSITORY}"
+          done
+      # The runner image's winget can be older than the manifests' schema; the current client
+      # comes from the PowerShell module winget itself publishes.
+      - name: Bring winget up to date
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
+          Install-Module -Name Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
+          Repair-WinGetPackageManager -Latest -Force
+          winget --version
+          if ($LASTEXITCODE -ne 0) { throw "winget is not usable" }
+          winget settings --enable LocalManifestFiles
+          if ($LASTEXITCODE -ne 0) { throw "cannot allow local manifests" }
+      - name: Validate, install, upgrade, keep the data
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $common = @('--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
+          $new = Join-Path $env:RUNNER_TEMP "rendered\$($env:RELEASE)\winget"
+          winget validate --manifest $new
+          if ($LASTEXITCODE -ne 0) { throw "winget validate refused the manifests of $($env:RELEASE) ($LASTEXITCODE)" }
+          function Refresh-Path {
+            # winget puts the package folder on the user's PATH; a new shell would see it.
+            $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'User') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'Machine')
+          }
+          function Package-Folder {
+            $folders = @(Get-ChildItem -Directory "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter 'degoya.rDownloader_*')
+            if ($folders.Count -ne 1) { throw "expected one degoya.rDownloader_* package folder, found $($folders.Count)" }
+            Write-Host "package folder: $($folders[0].FullName)"
+            return $folders[0].FullName
+          }
+          function Serve($folder) {
+            start-rdownloader server
+            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader failed" }
+            try {
+              $healthy = $false
+              for ($attempt = 0; $attempt -lt 60; $attempt++) {
+                try {
+                  Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
+                  $healthy = $true
+                  break
+                } catch {
+                  Start-Sleep -Seconds 1
+                }
+              }
+              if (-not $healthy) { throw "the winget install's server did not answer" }
+            } finally {
+              stop-rdownloader server
+            }
+            if (-not (Test-Path "$folder\data\rdownloader.sqlite3")) { throw "the database is not in the package folder" }
+          }
+          function Migrations($db) {
+            $versions = python -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' $db
+            if ($LASTEXITCODE -ne 0 -or -not $versions) { throw "cannot read the migrations of $db" }
+            return $versions
+          }
+          if ($env:FROM) {
+            $old = Join-Path $env:RUNNER_TEMP "rendered\$($env:FROM)\winget"
+            winget install --manifest $old @common
+            if ($LASTEXITCODE -ne 0) { throw "winget install of $($env:FROM) failed ($LASTEXITCODE)" }
+            Refresh-Path
+            if ((rdownloader --version | Out-String) -notmatch [regex]::Escape($env:FROM.TrimStart('v'))) { throw "not $($env:FROM) after installing it" }
+            $folder = Package-Folder
+            Serve $folder
+            $before = (Migrations "$folder\data\rdownloader.sqlite3").Trim() -split ' '
+            Set-Content "$folder\data\channels-marker" "winget $($env:FROM)"
+            New-Item -ItemType Directory -Force "$folder\downloads" | Out-Null
+            Set-Content "$folder\downloads\channels-marker" "winget $($env:FROM)"
+            winget upgrade --manifest $new @common
+            if ($LASTEXITCODE -ne 0) { throw "winget upgrade to $($env:RELEASE) failed ($LASTEXITCODE)" }
+          } else {
+            winget install --manifest $new @common
+            if ($LASTEXITCODE -ne 0) { throw "winget install of $($env:RELEASE) failed ($LASTEXITCODE)" }
+          }
+          Refresh-Path
+          if ((rdownloader --version | Out-String) -notmatch [regex]::Escape($env:RELEASE.TrimStart('v'))) { throw "rdownloader --version is not $($env:RELEASE)" }
+          $folder = Package-Folder
+          # The executables run from the package folder itself, not from a link in WinGet\Links.
+          $resolved = (Get-Command rdownloader).Source
+          if ((Split-Path $resolved) -ne $folder) { throw "rdownloader resolves to $resolved, not into $folder" }
+          Serve $folder
+          if ($env:FROM) {
+            $after = (Migrations "$folder\data\rdownloader.sqlite3").Trim() -split ' '
+            Write-Host "migrations before: $before"
+            Write-Host "migrations after:  $after"
+            foreach ($version in $before) { if ($after -notcontains $version) { throw "migration $version is gone after the upgrade" } }
+            if ((Get-Content "$folder\data\channels-marker") -ne "winget $($env:FROM)") { throw "the data marker did not survive the upgrade" }
+            if ((Get-Content "$folder\downloads\channels-marker") -ne "winget $($env:FROM)") { throw "the downloads marker did not survive the upgrade" }
+          }
+          winget uninstall --manifest $new @common
+          if ($LASTEXITCODE -ne 0) { throw "winget uninstall failed ($LASTEXITCODE)" }
+          # Without --purge winget removes only what it extracted and leaves the folder.
+          if (-not (Test-Path "$folder\data\rdownloader.sqlite3")) { throw "winget uninstall took the database with it" }
+          if (Test-Path "$folder\rdownloader.exe") { throw "winget uninstall left rdownloader.exe behind" }
+          exit 0
+
+  aur:
+    needs: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    container:
+      image: archlinux:base-devel
+    env:
+      RELEASE: ${{ needs.gate.outputs.release }}
+    steps:
+      - name: Install namcap and git
+        run: pacman -Syu --noconfirm --needed git namcap python
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The runner's SHA256SUMS through the release's public download URL: no gh in the container.
+      - name: Render the package of the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --output /tmp/SHA256SUMS \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE}/SHA256SUMS"
+          scripts/package-managers.sh "${RELEASE}" /tmp/SHA256SUMS /tmp/rendered --repository "${GITHUB_REPOSITORY}"
+          useradd --create-home builder
+          install -d -o builder /home/builder/aur
+          cp -a /tmp/rendered/aur/. /home/builder/aur/
+          chown -R builder /home/builder/aur
+      - name: .SRCINFO is what makepkg prints
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /home/builder/aur
+          su builder -c 'makepkg --printsrcinfo' > /tmp/printsrcinfo
+          diff -u /tmp/printsrcinfo .SRCINFO
+      - name: Build and lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /home/builder/aur
+          su builder -c 'makepkg --noconfirm --cleanbuild'
+          # namcap reports errors as "E:", warnings as "W:"; only an error fails.
+          namcap PKGBUILD rdownloader-bin-*.pkg.tar.zst | tee /tmp/namcap.log
+          if grep -q ' E: ' /tmp/namcap.log; then
+            echo "::error::namcap reported an error"
+            exit 1
+          fi
+      - name: Install and start
+        shell: bash
+        run: |
+          set -euo pipefail
+          pacman -U --noconfirm /home/builder/aur/rdownloader-bin-*.pkg.tar.zst
+          rdownloader --version | grep -F "${RELEASE#v}"
+          test "$(cat /usr/lib/rdownloader/install-kind)" = aur
+          test -n "$(ls /usr/lib/rdownloader/plugins/*.rdplug)"
+          # The unit's command in a folder of its own, as the builder user. Every bundled plugin,
+          # not only the wizard's choice, so that plugins/ beside the real executable is proven
+          # found through the /usr/bin symlink.
+          home="$(mktemp -d)"
+          chown builder "${home}"
+          su builder -c "cd '${home}' && RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS=true exec /usr/lib/rdownloader/rdownloader serve" \
+            > /tmp/serve.log 2>&1 &
+          server=$!
+          ready=0
+          for _ in $(seq 90); do
+            if curl --fail --silent http://127.0.0.1:8710/api/v1/health > /dev/null \
+              && [[ -n "$(ls -A "${home}/data/plugins" 2> /dev/null)" ]]; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          kill "${server}" || true
+          wait "${server}" || true
+          if [[ "${ready}" != 1 ]]; then
+            cat /tmp/serve.log
+            echo "::error::the installed service did not answer or installed no bundled plugin"
+            exit 1
+          fi
+          test -f "${home}/data/rdownloader.sqlite3"
+          pacman -R --noconfirm rdownloader-bin
+          # pacman never owned the data.
+          test -f "${home}/data/rdownloader.sqlite3"

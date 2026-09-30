@@ -439,6 +439,11 @@ async fn install_offer(
         .await
         .map_err(install_error)?;
     let running = register_installed(state, &installed).await?;
+    // The version folder exists from here on. A stop at either point below leaves it installed
+    // and the pointers where they were (RD-180-12, recovery matrix).
+    rd_core::failpoint!("plugin.before_install_recorded", || ApiError::from(
+        anyhow::anyhow!("crash point")
+    ));
     if let Err(error) = state.plugin_repositories.record_install(offer).await {
         // The install stands; only a later withdrawal by a third-party repository loses its
         // reach over this version, which is the narrower of the two failures.
@@ -448,6 +453,9 @@ async fn install_offer(
     // and the plugin manager still offers the new version to activate by hand.
     let id = installed.manifest.id.to_string();
     let version = &installed.manifest.version;
+    rd_core::failpoint!("plugin.before_pointers_followed", || ApiError::from(
+        anyhow::anyhow!("crash point")
+    ));
     if let Err(error) = crate::plugin_update_policy::follow_update(state, &id, version).await {
         tracing::warn!(
             code = error.code(),

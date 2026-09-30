@@ -179,8 +179,16 @@ fn needs_copy(schema: &CopySchema) -> bool {
 /// `rdownloader-<from>-to-<to>-<timestamp>.sqlite3`; the timestamp is the last segment, fixed
 /// width, so the names of one folder sort by it.
 fn snapshot_name(from: i64, to: i64, at: chrono::DateTime<chrono::Utc>) -> String {
+    copy_name(&format!("{from:04}"), &format!("{to:04}"), at)
+}
+
+/// The name of a copy from `from` to `to` taken at `at`, as [`rotate`] recognises it. The
+/// copy before an update (`rd_backup::pre_update`, RD-180-03) names app versions where this
+/// start names migrations; neither may contain a path separator.
+#[must_use]
+pub fn copy_name(from: &str, to: &str, at: chrono::DateTime<chrono::Utc>) -> String {
     format!(
-        "{PREFIX}{from:04}-to-{to:04}-{}{EXTENSION}",
+        "{PREFIX}{from}-to-{to}-{}{EXTENSION}",
         at.format("%Y%m%dT%H%M%S%3fZ")
     )
 }
@@ -246,7 +254,7 @@ async fn put_back(path: &Path, snapshot: &Path) -> Result<()> {
 
 /// Removes every copy but the newest `keep`. Files this module did not name are left alone,
 /// and a copy that cannot be removed is a warning for the next pass.
-pub(crate) async fn rotate(directory: &Path, keep: usize) {
+pub async fn rotate(directory: &Path, keep: usize) {
     let Ok(mut entries) = tokio::fs::read_dir(directory).await else {
         return;
     };

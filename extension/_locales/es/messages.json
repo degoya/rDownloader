@@ -23,6 +23,9 @@
   "serverHint": {
     "message": "Dirección de la interfaz web de rDownloader, p. ej. http://nas.local:8710. 127.0.0.1:8710 y localhost:8710 están incluidos; cualquier otra dirección pide un permiso."
   },
+  "serverInsecure": {
+    "message": "Sin cifrar: esta dirección se alcanza por http simple, así que el token de captura viaja legible por la red. Usa https (por ejemplo detrás de un proxy inverso) para un servicio en otra máquina."
+  },
   "tokenLabel": {
     "message": "Token de captura"
   },

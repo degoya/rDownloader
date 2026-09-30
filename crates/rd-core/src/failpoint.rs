@@ -53,6 +53,11 @@ pub struct CrashPoint {
 /// Kept sorted by name so a diff shows an addition rather than a reshuffle.
 pub const CRASH_POINTS: &[CrashPoint] = &[
     CrashPoint {
+        name: "automation.before_outcome_recorded",
+        owner: "rd-api-core",
+        invariant: "a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes",
+    },
+    CrashPoint {
         name: "backup.after_database_snapshot",
         owner: "rd-backup",
         invariant: "a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination",
@@ -103,9 +108,39 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again",
     },
     CrashPoint {
+        name: "plugin.before_install_recorded",
+        owner: "rd-api-admin",
+        invariant: "an automatic update whose version folder exists before its repository row was written stays installed whole and listed once, and the version pointers stay as they were: the next start runs what they chose before the update, the newest version when they chose none",
+    },
+    CrashPoint {
+        name: "plugin.before_pointers_followed",
+        owner: "rd-api-admin",
+        invariant: "an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none",
+    },
+    CrashPoint {
         name: "plugin.before_version_promoted",
         owner: "rd-plugin-host",
         invariant: "a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again",
+    },
+    CrashPoint {
+        name: "plugin_transfer.before_checkpoint_saved",
+        owner: "rd-plugin-transfer",
+        invariant: "bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte",
+    },
+    CrashPoint {
+        name: "postprocess.before_unpack_recorded",
+        owner: "rd-extract",
+        invariant: "an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives",
+    },
+    CrashPoint {
+        name: "pre_update.before_archive_published",
+        owner: "rd-backup",
+        invariant: "an archive sealed and checked before an update but not yet moved into the pre-update folder never appears there; the next start removes the staging with the unencrypted copy it held, and the next preparation seals a whole one",
+    },
+    CrashPoint {
+        name: "pre_update.before_copy_published",
+        owner: "rd-backup",
+        invariant: "a database copy written before an update but not yet checked never carries a copy's name, so no rollback can pick it; the live database is untouched and opens as it was, the next start removes the partial file, and the next preparation writes a whole, checked copy",
     },
     CrashPoint {
         name: "restore.after_live_set_aside",
@@ -136,6 +171,26 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "scheduler.before_promote",
         owner: "rd-scheduler",
         invariant: "a payload already in its final place is adopted by the next pass, never fetched a second time",
+    },
+    CrashPoint {
+        name: "torrent.before_seed_completed",
+        owner: "rd-torrent",
+        invariant: "a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once",
+    },
+    CrashPoint {
+        name: "update.after_new_placed",
+        owner: "rd-update",
+        invariant: "a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes",
+    },
+    CrashPoint {
+        name: "update.after_previous_set_aside",
+        owner: "rd-update",
+        invariant: "a portable update stopped after an old entry went into .previous and before its new one took its place is taken back by the next start: the entry comes back from .previous, nothing of the new version stays and the database is left as it was, since the new version never ran",
+    },
+    CrashPoint {
+        name: "update.before_health_check",
+        owner: "rd-update",
+        invariant: "a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions",
     },
     CrashPoint {
         name: "usenet.after_article_write",

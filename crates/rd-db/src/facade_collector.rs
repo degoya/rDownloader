@@ -149,7 +149,7 @@ impl Database {
     pub async fn delete_collector_package(&self, id: CollectorPackageId) -> Result<()> {
         // Read before the delete: the reference lives in the row, so after the delete there
         // is nothing left to find the vault entry by (RD-110-38).
-        let orphaned = crate::collector_store::package_secret_fragment_refs(&self.readers, id)
+        let orphaned = crate::collector_store::package_vault_refs(&self.readers, id)
             .await
             .unwrap_or_default();
         writer::request(&self.writer, |reply| {

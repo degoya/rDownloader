@@ -13,6 +13,7 @@
 //   objects and markup are not touched (RD-107-20 measured what happens when they are).
 // - The token goes to the server and nowhere else: not into a notification, not into storage.
 
+import { fromOwnPage as isOwnPage } from './sender.js'
 import { answerWidget, listWidgets, reportPageWithoutWidget, skipWidget } from './captcha-api.js'
 import {
   ANSWER_FIELDS,
@@ -411,17 +412,11 @@ export function createCaptchaAnswerer({
   }
 
   /**
-   * Only an extension page of our own - the popup, or the popup opened as a tab - may announce
-   * a grant or ask for a tab. A content script always carries `sender.tab`; the popup as a
-   * popup carries none, and the popup opened as a tab carries one, so the URL decides that
-   * case: it has to be one of our own pages. Anything else must not be able to pin an origin
-   * grant or open an attacker-chosen page.
+   * Only an extension page of our own may announce a grant or ask for a tab: anything else must
+   * not be able to pin an origin grant or open an attacker-chosen page.
    */
   function fromOwnPage(sender) {
-    if (!sender || sender.id !== api.runtime.id) return false
-    if (!sender.tab) return true
-    const own = api.runtime.getURL('')
-    return typeof sender.url === 'string' && own !== '' && sender.url.startsWith(own)
+    return isOwnPage(api.runtime, sender)
   }
 
   /**

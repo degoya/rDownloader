@@ -13,6 +13,7 @@ hex.workspace = true
 lzma-rust2.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
+rd-files = { path = "../rd-files" }
 rd-sign = { path = "../rd-sign" }
 reqwest.workspace = true
 semver.workspace = true

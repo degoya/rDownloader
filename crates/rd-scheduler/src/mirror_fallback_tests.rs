@@ -151,6 +151,52 @@ async fn a_mirror_that_went_offline_hands_the_turn_over_instead_of_failing_the_f
     );
 }
 
+/// A pause of a waiting mirror left its stop reason behind, and the dispatcher skips every id
+/// that has one: woken to `Queued` when the first link died, it never started.
+#[tokio::test]
+async fn a_paused_waiting_mirror_that_is_woken_can_start() {
+    let directory = tempfile::tempdir().expect("temp");
+    let (scheduler, database, files) = mirror_group(directory.path(), 2).await;
+
+    scheduler
+        .pause(files[1].id)
+        .await
+        .expect("pause the mirror");
+    crate::failures::record_error(&scheduler, &files[0], offline())
+        .await
+        .expect("record");
+
+    assert!(taking_its_turn(state_of(&database, &files[1]).await.state));
+    let active = scheduler.active.lock().await;
+    assert!(
+        active.tokens.contains_key(&files[1].id) || !active.reasons.contains_key(&files[1].id),
+        "a stop reason keeps the dispatcher off the woken mirror"
+    );
+}
+
+/// The same for a cancel or a removal of a file nothing runs: no reason outlives the write.
+#[tokio::test]
+async fn stopping_an_idle_file_leaves_no_stop_reason_behind() {
+    let directory = tempfile::tempdir().expect("temp");
+    let (scheduler, database, files) = mirror_group(directory.path(), 3).await;
+
+    scheduler.pause(files[0].id).await.expect("pause");
+    scheduler.cancel(files[0].id).await.expect("cancel");
+    assert_eq!(
+        state_of(&database, &files[0]).await.state,
+        DownloadState::Cancelled
+    );
+    scheduler.remove(files[2].id).await.expect("remove");
+    let active = scheduler.active.lock().await;
+    for file in [&files[0], &files[2]] {
+        assert!(
+            !active.reasons.contains_key(&file.id),
+            "{} kept a stop reason",
+            file.source
+        );
+    }
+}
+
 #[tokio::test]
 async fn a_page_instead_of_the_file_hands_the_mirror_turn_over() {
     let directory = tempfile::tempdir().expect("temp");

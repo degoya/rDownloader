@@ -12,6 +12,7 @@ hex.workspace = true
 hmac.workspace = true
 lettre.workspace = true
 rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
 reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true

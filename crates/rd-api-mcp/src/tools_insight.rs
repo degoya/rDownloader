@@ -106,7 +106,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "How many records a clear would remove right now: the service log, the audit log, the transfer statistics and the notification history (its finished deliveries only), each counted separately. Ask this before clearing anything, and say the numbers to the person."
+        description = "How many records a clear would remove right now: the service log, the audit log, the transfer statistics, the notification history (its finished deliveries only), the pending notifications, the storage history (rows not still running) and the content index, each counted separately. Ask this before clearing anything, and say the numbers to the person."
     )]
     pub async fn get_data_reset_preview(&self) -> McpToolResult {
         respond(
@@ -205,6 +205,46 @@ impl RdMcpServer {
     ) -> McpToolResult {
         respond(
             crate::data_reset_handlers::discard_pending_notification_deliveries(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                axum::Json(DataClearRequest {
+                    confirmed: params.confirmed,
+                }),
+            )
+            .await
+            .map(|response| response.0),
+        )
+    }
+
+    #[tool(
+        description = "Empty the storage history: the recorded verified moves and duplicate links. Rows of an operation still running stay, because it will record how it ended. Irreversible, and `confirmed` must be true. No file is moved or deleted, and an interrupted move is still carried on at the next start."
+    )]
+    pub async fn clear_storage_operations(
+        &self,
+        Parameters(params): Parameters<DataClearToolParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::data_reset_handlers::clear_storage_operations(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                axum::Json(DataClearRequest {
+                    confirmed: params.confirmed,
+                }),
+            )
+            .await
+            .map(|response| response.0),
+        )
+    }
+
+    #[tool(
+        description = "Empty the content index, so duplicate detection by content starts from nothing. Irreversible, and `confirmed` must be true. No file and no download is touched, but until a file is indexed again it is neither reported as a content duplicate nor accepted as the original of a dedupe link. check_content_index (also run at every start) re-indexes the finished downloads still in the queue whose SHA-256 is known and whose file is still in place; anything else comes back only when downloaded again."
+    )]
+    pub async fn clear_content_index(
+        &self,
+        Parameters(params): Parameters<DataClearToolParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::data_reset_handlers::clear_content_index(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
                 axum::Json(DataClearRequest {

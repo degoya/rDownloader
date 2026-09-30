@@ -1,4 +1,4 @@
-import { hostPattern, isLoopback, normalizeServer, ping } from './api.js'
+import { hostPattern, isLoopback, normalizeServer, ping, sendsTokenInClear } from './api.js'
 import { api, loadConfig, message, saveConfig } from './browser.js'
 import { loadSites, revokeSite } from './files.js'
 
@@ -49,6 +49,12 @@ function localize() {
   document.title = message('extName')
 }
 
+/** Shows the warning under the address while it points at another machine over plain http. */
+function showTransportWarning() {
+  const server = document.getElementById('server').value.trim()
+  document.getElementById('server-insecure').hidden = !server || !sendsTokenInClear(server)
+}
+
 function setStatus(text, ok) {
   const status = document.getElementById('status')
   status.textContent = text
@@ -86,6 +92,8 @@ async function init() {
   void renderFileSites()
   const config = await loadConfig()
   document.getElementById('server').value = config.server
+  document.getElementById('server').addEventListener('input', showTransportWarning)
+  showTransportWarning()
   document.getElementById('token').value = config.token
   document.getElementById('intercept').checked = config.interceptDownloads !== false
   document.getElementById('save').addEventListener('click', async () => {

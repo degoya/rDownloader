@@ -18,6 +18,11 @@ use url::Url;
 use crate::{ApiError, AppState, dto::AccountHostersResponse};
 
 const CACHE_TTL: Duration = Duration::from_secs(60 * 60);
+/// How long a catalogue the resolver could not deliver is not asked for again.
+///
+/// Without it every link of an enqueue asked the resolver once more for a catalogue it had just
+/// failed to deliver: 500 links, 500 failing calls, each with its own timeout.
+const FAILURE_TTL: Duration = Duration::from_secs(5 * 60);
 
 struct Entry {
     fetched_at: Instant,
@@ -25,6 +30,26 @@ struct Entry {
 }
 
 static CATALOGUES: OnceLock<Mutex<HashMap<AccountId, Entry>>> = OnceLock::new();
+static FAILURES: OnceLock<Mutex<HashMap<AccountId, Instant>>> = OnceLock::new();
+
+fn failed_recently(account_id: AccountId) -> bool {
+    FAILURES
+        .get()
+        .and_then(|lock| lock.lock().ok())
+        .and_then(|guard| guard.get(&account_id).copied())
+        .is_some_and(|failed_at| failed_at.elapsed() < FAILURE_TTL)
+}
+
+fn remember_failure(account_id: AccountId, failed: bool) {
+    let lock = FAILURES.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(mut guard) = lock.lock() {
+        if failed {
+            guard.insert(account_id, Instant::now());
+        } else {
+            guard.remove(&account_id);
+        }
+    }
+}
 
 fn cached(account_id: AccountId, allow_stale: bool) -> Option<Vec<String>> {
     let lock = CATALOGUES.get_or_init(|| Mutex::new(HashMap::new()));
@@ -46,26 +71,34 @@ fn remember(account_id: AccountId, hosters: &[String]) {
     }
 }
 
-/// Drops the cached catalogue of an account (after edits or deletion).
+/// Drops the cached catalogue of an account (after edits or deletion), and a remembered
+/// failure with it, so the next lookup asks the resolver again.
 pub fn forget(account_id: AccountId) {
     if let Some(mut guard) = CATALOGUES.get().and_then(|lock| lock.lock().ok()) {
         guard.remove(&account_id);
     }
+    remember_failure(account_id, false);
 }
 
 /// Hoster domains the account can download from, cached for an hour per account.
-/// Resolver failures log a warning and fall back to the last known list (or nothing).
+/// Resolver failures log a warning and fall back to the last known list (or nothing); the
+/// resolver is then left alone for [`FAILURE_TTL`].
 pub async fn catalogue(resolvers: &ResolverService, account_id: AccountId) -> Vec<String> {
     if let Some(hosters) = cached(account_id, false) {
         return hosters;
     }
+    if failed_recently(account_id) {
+        return cached(account_id, true).unwrap_or_default();
+    }
     match resolvers.hosters(account_id).await {
         Ok(hosters) => {
             remember(account_id, &hosters);
+            remember_failure(account_id, false);
             hosters
         }
         Err(error) => {
             tracing::warn!(%account_id, error = %error.message, "hoster catalogue unavailable");
+            remember_failure(account_id, true);
             cached(account_id, true).unwrap_or_default()
         }
     }
@@ -87,11 +120,17 @@ pub fn supports(hosters: &[String], url: &Url) -> bool {
     })
 }
 
-/// Picks the first enabled account whose catalogue covers the link's hoster.
-pub async fn fallback_account(state: &AppState, url: &Url) -> Option<AccountId> {
-    let accounts = state.database.list_accounts().await.ok()?;
+/// Picks the first enabled account of `accounts` whose catalogue covers the link's hoster.
+///
+/// The caller lists the accounts, once: an enqueue of many links asks this for each of them,
+/// and listing them here read the table once per link.
+pub async fn fallback_account(
+    state: &AppState,
+    accounts: &[rd_core::Account],
+    url: &Url,
+) -> Option<AccountId> {
     let resolvers = state.scheduler.resolvers();
-    for account in accounts.into_iter().filter(|account| account.enabled) {
+    for account in accounts.iter().filter(|account| account.enabled) {
         if supports(&catalogue(&resolvers, account.id).await, url) {
             return Some(account.id);
         }
@@ -120,7 +159,22 @@ pub async fn list_account_hosters(
 
 #[cfg(test)]
 mod tests {
-    use super::supports;
+    use super::{failed_recently, forget, remember_failure, supports};
+
+    /// Engine audit 1.8, finding 8: a failed catalogue is remembered, so the next link does
+    /// not ask the resolver again; editing the account forgets it.
+    #[test]
+    fn a_failed_catalogue_is_not_asked_for_again_until_it_is_forgotten() {
+        let account = rd_core::AccountId::new();
+        assert!(!failed_recently(account));
+        remember_failure(account, true);
+        assert!(failed_recently(account));
+        forget(account);
+        assert!(!failed_recently(account));
+        remember_failure(account, true);
+        remember_failure(account, false);
+        assert!(!failed_recently(account), "a success clears it");
+    }
 
     #[test]
     fn matches_hoster_and_subdomains_case_insensitively() {

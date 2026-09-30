@@ -8,6 +8,9 @@
 //! administration and as "revisit if the code on the row proves too thin"; both are now one
 //! call to the route that answers the screen.
 //!
+//! `get_update_status` and `check_for_updates` are the update card of Settings > System
+//! (RD-180-01): what runs, what is offered and what to run for it.
+//!
 //! `get_about` reads the About page's head (RD-130-12). Not its licence list: a thousand
 //! entries answer no question an agent is asked, and the route stays one call away for a person.
 
@@ -25,7 +28,10 @@ use super::{
         PostprocessOptions, PostprocessOptionsParams, StorageTargetParams, body,
     },
 };
-use crate::{ApiError, postprocess_handlers as postprocess, tools_handlers as tools};
+use crate::{
+    ApiError, postprocess_handlers as postprocess, tools_handlers as tools,
+    update_handlers as updates,
+};
 
 fn value<T: serde::Serialize>(answer: T) -> Result<serde_json::Value, ApiError> {
     serde_json::to_value(answer)
@@ -170,6 +176,25 @@ impl RdMcpServer {
     ) -> McpToolResult {
         respond(
             crate::storage_capacity::resume_storage(State(self.state.clone()), Path(params.target))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes and what to do about it (a download, or the package manager's command). Read-only; check_for_updates asks GitHub again."
+    )]
+    pub async fn get_update_status(&self) -> McpToolResult {
+        let Json(answer) = updates::get_update_status(State(self.state.clone())).await;
+        respond(Ok::<_, ApiError>(answer))
+    }
+
+    #[tool(
+        description = "Check for a new rDownloader version now, against the signed update manifest of the configured channel, and answer with the same status as get_update_status. Installs nothing. A manifest that is refused or unreachable is reported in error_code."
+    )]
+    pub async fn check_for_updates(&self) -> McpToolResult {
+        respond(
+            updates::check_for_updates(State(self.state.clone()))
                 .await
                 .map(|Json(answer)| answer),
         )

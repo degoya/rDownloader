@@ -1,0 +1,150 @@
+name: Package repositories
+
+# RD-180-10: the apt and dnf repositories that scripts/package-repo.sh writes, installed from as a
+# user would. The `build` job runs scripts/tests/package-repo.sh with every tool it needs, so both
+# halves run, and keeps two states of a fixture repository signed with the test's throwaway key:
+# 1 holds rdownloader 1.0.0, 2 holds 1.1.0 and 1.2.0 (1.0.0 dropped by --keep 2). Each install job
+# serves a state at file:///repo, adds the key and the .sources or .repo file exactly as the
+# README says, installs, upgrades to the next state, downgrades to the kept older version, and
+# then shows that a repository whose signed index was altered offers nothing — the signature is
+# checked, nothing says trusted=yes. The fixture packages only carry a version file; what the real
+# packages do on upgrade and removal is RD-180-05's installer CI.
+on:
+  push:
+    branches: ["**", "!dependabot/**"]
+    paths:
+      - ".github/workflows/packages-repo.yml"
+      - "packaging/repository/**"
+      - "scripts/package-repo.sh"
+      - "scripts/tests/package-repo.sh"
+  # The same list as above; keep the two in step.
+  pull_request:
+    paths:
+      - ".github/workflows/packages-repo.yml"
+      - "packaging/repository/**"
+      - "scripts/package-repo.sh"
+      - "scripts/tests/package-repo.sh"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the repository tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends apt-utils rpm createrepo-c
+      - name: Test scripts/package-repo.sh and keep two repository states
+        run: scripts/tests/package-repo.sh --out repo-states
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-repo-states
+          path: repo-states
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  apt:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:stable"]
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    permissions: {}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: package-repo-states
+          path: states
+      - name: Install from the repository, upgrade and downgrade
+        run: |
+          set -euxo pipefail
+          installed() { cat /usr/lib/rdownloader-fixture/version; }
+          ln -sfn "$PWD/states/1" /repo
+          install -d -m 0755 /etc/apt/keyrings
+          cp /repo/rdownloader.asc /etc/apt/keyrings/rdownloader.asc
+          cp /repo/rdownloader.sources /etc/apt/sources.list.d/rdownloader.sources
+          # `!` would not stop the step under set -e, hence the if.
+          if grep -i 'trusted=' /etc/apt/sources.list.d/rdownloader.sources; then exit 1; fi
+          apt-get update
+          apt-get install -y rdownloader
+          [[ "$(installed)" == 1.0.0 ]]
+          ln -sfn "$PWD/states/2" /repo
+          apt-get update
+          apt-get upgrade -y
+          [[ "$(installed)" == 1.2.0 ]]
+          apt-get install -y --allow-downgrades rdownloader=1.1.0-1
+          [[ "$(installed)" == 1.1.0 ]]
+      - name: An altered index is refused
+        run: |
+          set -euxo pipefail
+          cp -a states/2 tampered
+          sed -i 's/^Label: rDownloader$/Label: someone else/' \
+            tampered/deb/dists/stable/InRelease tampered/deb/dists/stable/Release
+          ln -sfn "$PWD/tampered" /repo
+          apt-get purge -y rdownloader
+          rm -rf /var/lib/apt/lists/*
+          apt-get update || true
+          if apt-cache show rdownloader; then
+            echo "::error::apt offers rdownloader from a repository whose signed index was altered"
+            exit 1
+          fi
+
+  dnf:
+    needs: build
+    runs-on: ubuntu-24.04
+    container: fedora:latest
+    permissions: {}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: package-repo-states
+          path: states
+      - name: Install from the repository, upgrade and downgrade
+        run: |
+          set -euxo pipefail
+          installed() { cat /usr/lib/rdownloader-fixture/version; }
+          ln -sfn "$PWD/states/1" /repo
+          cp /repo/rdownloader.repo /etc/yum.repos.d/rdownloader.repo
+          # gpgcheck=1 makes dnf refuse an unsigned rpm, so the install proves the package signature.
+          grep -x 'gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
+          grep -x 'repo_gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
+          dnf install -y rdownloader
+          [[ "$(installed)" == 1.0.0 ]]
+          ln -sfn "$PWD/states/2" /repo
+          dnf upgrade -y --refresh rdownloader
+          [[ "$(installed)" == 1.2.0 ]]
+          dnf downgrade -y rdownloader
+          [[ "$(installed)" == 1.1.0 ]]
+      - name: An altered repomd.xml is refused
+        run: |
+          set -euxo pipefail
+          cp -a states/2 tampered
+          sed -i 's#<revision>#<revision>1#' tampered/rpm/repodata/repomd.xml
+          ln -sfn "$PWD/tampered" /repo
+          dnf remove -y rdownloader
+          dnf clean all
+          if dnf makecache --refresh --repo rdownloader; then
+            echo "::error::dnf accepts a repomd.xml that no longer matches its signature"
+            exit 1
+          fi

@@ -493,12 +493,27 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/storage/content-index"),
         ],
     ),
+    // Offered like the other clears: local records only, and `confirmed` is an argument the
+    // caller has to set (RD-180-13).
+    covered(
+        "Clearing the storage history and the content index",
+        "Settings > Storage",
+        &[
+            any("/api/v1/storage/operations/clear"),
+            any("/api/v1/storage/content-index/clear"),
+        ],
+    ),
     // The licence list beneath it is claimed too: reading the page is the capability, and a
     // thousand dependency rows are not an answer an agent needs a tool of its own for.
     covered(
         "About rDownloader",
         "Settings > About",
         &[any("/api/v1/system/about")],
+    ),
+    covered(
+        "Application updates",
+        "Settings > System",
+        &[any("/api/v1/system/update")],
     ),
     covered(
         "Writing a site rule",
@@ -722,6 +737,28 @@ pub(crate) static COVERAGE: &[Capability] = &[
          it, and mcp::tool_scope refuses a tool priced by a public route rather than making \
          it free. What it answers -- the service is up, its name and version -- is what the \
          MCP initialize handshake already carries in its server_info.",
+    ),
+    // ---- RD-180-02, RD-180-03 ----
+    omitted(
+        "Stopping the service and the backup before an update",
+        "-",
+        &[
+            any("/api/v1/system/shutdown"),
+            any("/api/v1/system/update/prepare"),
+        ],
+        "Refused from anywhere but the machine the service runs on, and meant for the \
+         launchers and the updater there. A tool that stops the service ends the MCP session \
+         that called it, and the backup before an update is the first step of a version \
+         switch that no agent performs.",
+    ),
+    omitted(
+        "Installing an update",
+        "Settings > System",
+        &[any("/api/v1/system/update/install")],
+        "Installing stops the service, replaces its program and starts it again: the MCP \
+         session that asked ends with the process, and a version switch is the administrator's \
+         decision in the interface, not an agent's. get_update_status shows what an install is \
+         doing.",
     ),
     // ---- taken by RD-120-55: the thirteen RD-120-32 left unclassified ----
     // Checked one by one against the four marks of the owner's line. Where a part of one meets

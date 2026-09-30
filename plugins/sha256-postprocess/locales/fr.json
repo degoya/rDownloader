@@ -2,6 +2,8 @@
   "name": "SHA-256 checksums",
   "description": "Vérifie les fichiers .sha256 associés au paquet auquel ils appartiennent.",
   "codes": {
-    "sha256_postprocess.mismatch": "Un fichier ne correspondait pas à sa somme SHA-256 enregistrée."
+    "sha256_postprocess.mismatch": "Un fichier ne correspondait pas à sa somme SHA-256 enregistrée.",
+    "sha256_postprocess.missing": "Aucun des fichiers cités dans un fichier de sommes SHA-256 ne se trouve dans le paquet.",
+    "sha256_postprocess.empty": "Un fichier de sommes SHA-256 ne contient aucune somme lisible."
   }
 }

@@ -96,11 +96,14 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY dist/plugins /usr/local/lib/rdownloader/plugins
 VOLUME ["/config", "/downloads"]
 EXPOSE 8710
+# RDOWNLOADER_INSTALL_KIND: the update check shows `docker pull` rather than a download
+# (RD-180-01), also under a runtime that leaves no /.dockerenv behind.
 ENV RDOWNLOADER_DATABASE=/config/rdownloader.sqlite3 \
     RDOWNLOADER_DOWNLOADS=/downloads \
     RDOWNLOADER_PLUGIN_ROOT=/config/plugins \
     RDOWNLOADER_BUNDLED_PLUGINS=/usr/local/lib/rdownloader/plugins \
     RDOWNLOADER_LISTEN=0.0.0.0:8710 \
+    RDOWNLOADER_INSTALL_KIND=docker \
     PUID=10001 \
     PGID=10001 \
     TZ=UTC

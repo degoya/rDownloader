@@ -1,0 +1,46 @@
+[package]
+name = "rd-update"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Application updates (RD-180-01): the signed update manifest, the check against it, how this
+# installation was installed and what its person does about a new version, and the verified
+# download the updater of RD-180-02 installs from. A leaf on purpose: that updater runs before the
+# application is known to be healthy, so nothing here may pull in the database, the queue or the
+# plugin host and with it wasmtime. The install half (RD-180-02, `install`) is the same kind of leaf:
+# the files of a switch, its journal and its recovery, with `rd-core` for the crash points only.
+
+[features]
+# Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
+failpoints = ["rd-core/failpoints"]
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+flate2.workspace = true
+fs4.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+rd-core = { path = "../rd-core" }
+rd-sign = { path = "../rd-sign" }
+reqwest.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

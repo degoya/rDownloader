@@ -29,7 +29,9 @@ const components = {
   }
 }
 
-function renderButton(props: { target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending', count: number | null }) {
+type Target = 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index'
+
+function renderButton(props: { target: Target, count: number | null }) {
   return render(SettingsDataResetButton, { props, global: { plugins: [i18n], components } })
 }
 
@@ -95,6 +97,41 @@ describe('the question', () => {
     expect(options.destructive).toBe(true)
   })
 
+  // The storage history keeps a running operation (RD-180-13); the question says so, and that
+  // no file moves.
+  it('says that a running operation stays when the storage history is cleared', async () => {
+    renderButton({ target: 'storage_operations', count: 7 })
+
+    expect(screen.getByRole('button').textContent).toBe('Clear history')
+    await fireEvent.click(screen.getByRole('button'))
+
+    await waitFor(() => expect(confirmed).toHaveBeenCalled())
+    const options = confirmed.mock.calls[0]?.[0] as ConfirmOptions
+    expect(options.title).toBe('Clear the storage history?')
+    expect(options.description).toContain('7')
+    expect(options.description).toContain('still running stays')
+    expect(options.description).toContain('No file is moved or deleted')
+  })
+
+  // What clearing the index costs, and what brings it back (RD-180-13): without it the person
+  // cannot tell a clear from losing duplicate detection for good.
+  it('names what an emptied content index no longer recognises and how it comes back', async () => {
+    renderButton({ target: 'content_index', count: 40 })
+
+    expect(screen.getByRole('button').textContent).toBe('Clear index')
+    await fireEvent.click(screen.getByRole('button'))
+
+    await waitFor(() => expect(confirmed).toHaveBeenCalled())
+    const options = confirmed.mock.calls[0]?.[0] as ConfirmOptions & { confirmLabel?: string }
+    expect(options.title).toBe('Clear the content index?')
+    expect(options.description).toContain('40')
+    expect(options.description).toContain('not recognised as a content duplicate')
+    expect(options.description).toContain('Check the content index')
+    expect(options.description).toContain('downloaded again')
+    expect(options.confirmLabel).toBe('Clear the index')
+    expect(options.destructive).toBe(true)
+  })
+
   it('clears nothing when the question is answered with no', async () => {
     confirmed.mockResolvedValue(false)
     renderButton({ target: 'stats', count: 3 })
@@ -122,7 +159,9 @@ describe('the request', () => {
     ['audit', '/api/v1/audit/records/clear'],
     ['stats', '/api/v1/stats/transfers/clear'],
     ['notifications', '/api/v1/notifications/deliveries/clear'],
-    ['notifications_pending', '/api/v1/notifications/deliveries/discard-pending']
+    ['notifications_pending', '/api/v1/notifications/deliveries/discard-pending'],
+    ['storage_operations', '/api/v1/storage/operations/clear'],
+    ['content_index', '/api/v1/storage/content-index/clear']
   ] as const)('%s posts to its own route', async (target, path) => {
     renderButton({ target, count: 2 })
 
@@ -137,6 +176,15 @@ describe('what it shows', () => {
   it('shows how much is stored', () => {
     renderButton({ target: 'logs', count: 41 })
     expect(screen.getByTestId('data-reset-logs-count').textContent).toContain('41')
+  })
+
+  it('reports what a storage clear removed in its own words', async () => {
+    renderButton({ target: 'content_index', count: 41 })
+
+    await fireEvent.click(screen.getByRole('button'))
+
+    await waitFor(() => expect(added).toHaveBeenCalled())
+    expect((added.mock.calls[0]?.[0] as { title: string }).title).toBe('41 index entries removed')
   })
 
   it('reports the number of records removed', async () => {

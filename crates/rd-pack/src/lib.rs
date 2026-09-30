@@ -1,4 +1,5 @@
-//! The publishing half of the command line: plugin packages, their index and the site-rule file.
+//! The publishing half of the command line: plugin packages, their index, the site-rule file and
+//! the application update manifest.
 //!
 //! `rdownloader plugin …` and `rdownloader site-rules …` call these commands, and so does the
 //! `rd-pack` binary built from this crate (RD-150-20). `scripts/build-plugins.sh` used to build
@@ -10,3 +11,4 @@
 pub mod plugin;
 pub mod plugin_index;
 pub mod site_rules;
+pub mod update_manifest;

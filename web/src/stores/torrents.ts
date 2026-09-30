@@ -59,15 +59,21 @@ export const useTorrentsStore = defineStore('torrents', () => {
     if (busy.value[key]) return
     busy.value[key] = true
     errors.value[key] = ''
-    const response = scope === 'candidate'
-      ? await api.GET('/api/v1/collector/candidates/{id}/torrent', { params: { path: { id } } })
-      : await api.GET('/api/v1/downloads/{id}/torrent', { params: { path: { id } } })
-    busy.value[key] = false
-    if (response.data) {
-      details.value[key] = response.data
-      capabilities.value = response.data.capabilities
-    } else {
-      errors.value[key] = responseError(response)
+    try {
+      const response = scope === 'candidate'
+        ? await api.GET('/api/v1/collector/candidates/{id}/torrent', { params: { path: { id } } })
+        : await api.GET('/api/v1/downloads/{id}/torrent', { params: { path: { id } } })
+      if (response.data) {
+        details.value[key] = response.data
+        capabilities.value = response.data.capabilities
+      } else {
+        errors.value[key] = responseError(response)
+      }
+    } catch {
+      errors.value[key] = responseError(undefined)
+    } finally {
+      // The guard above turns every later load away while this is set.
+      busy.value[key] = false
     }
   }
 

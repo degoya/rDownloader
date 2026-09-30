@@ -1,0 +1,90 @@
+# The deb and rpm packages of rDownloader (RD-180-05), for nfpm. Rendered by
+# scripts/package-deb-rpm.sh from a release tarball, once per format: @STAGE@ is the unpacked
+# tarball, @KIND_FILE@ the install-kind marker naming the format. Change this template, not a
+# rendered copy.
+#
+# The program lives in /usr/lib/rdownloader, with the bundled plugins beside the binaries where the
+# service looks for them, and the two commands are linked into /usr/bin. The data never lives
+# here: the install-kind marker moves the service into ~/.local/share/rdownloader. No maintainer
+# script touches that folder, so removing or upgrading the package keeps it.
+name: rdownloader
+arch: "@ARCH@"
+platform: linux
+version: "@VERSION@"
+version_schema: semver
+section: net
+priority: optional
+maintainer: Alexander Herling
+description: |-
+  Local-first download manager with a web interface
+  Links, NZB files, torrents and media pages in one queue, run as a user service with a web
+  interface on 127.0.0.1:8710; a desktop capture agent takes Click'n'Load, the clipboard and
+  .nzb files.
+vendor: rDownloader
+homepage: https://rdownloader.net
+license: GPL-3.0-or-later
+
+# The glibc floor of the release binaries: they are built on Ubuntu 24.04.
+depends:
+  - libc6 (>= 2.39)
+  - libgcc-s1
+recommends:
+  - ffmpeg
+  - yt-dlp
+  - 7zip
+overrides:
+  rpm:
+    depends:
+      - glibc >= 2.39
+      - libgcc
+    # Fedora ships ffmpeg-free, RPM Fusion ffmpeg; either one serves.
+    recommends:
+      - (ffmpeg or ffmpeg-free)
+      - yt-dlp
+      - 7zip
+
+contents:
+  - src: "@STAGE@/rdownloader"
+    dst: /usr/lib/rdownloader/rdownloader
+    file_info:
+      mode: 0755
+  - src: "@STAGE@/rdownloader-capture"
+    dst: /usr/lib/rdownloader/rdownloader-capture
+    file_info:
+      mode: 0755
+  - src: "@STAGE@/plugins"
+    dst: /usr/lib/rdownloader/plugins
+    type: tree
+  - src: "@STAGE@/VERSION.txt"
+    dst: /usr/lib/rdownloader/VERSION.txt
+    file_info:
+      mode: 0644
+  - src: "@KIND_FILE@"
+    dst: /usr/lib/rdownloader/install-kind
+    file_info:
+      mode: 0644
+  - src: /usr/lib/rdownloader/rdownloader
+    dst: /usr/bin/rdownloader
+    type: symlink
+  - src: /usr/lib/rdownloader/rdownloader-capture
+    dst: /usr/bin/rdownloader-capture
+    type: symlink
+  - src: "@PACKAGING@/rdownloader.service"
+    dst: /usr/lib/systemd/user/rdownloader.service
+    file_info:
+      mode: 0644
+  - src: "@PACKAGING@/rdownloader-capture.service"
+    dst: /usr/lib/systemd/user/rdownloader-capture.service
+    file_info:
+      mode: 0644
+  - src: "@STAGE@/README.md"
+    dst: /usr/share/doc/rdownloader/README.md
+    file_info:
+      mode: 0644
+  - src: "@STAGE@/LICENSE"
+    dst: /usr/share/doc/rdownloader/LICENSE
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: "@PACKAGING@/postinstall.sh"

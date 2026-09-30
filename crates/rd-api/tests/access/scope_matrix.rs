@@ -150,11 +150,11 @@ async fn the_public_routes_need_no_credential() {
         );
         checked += 1;
     }
-    // health, openapi.json, auth status/setup/login/logout, and the two passkey sign-in
-    // halves. Pinned as a number so *adding* a public route is a deliberate act: the
-    // loop above can only check the routes it is given, and a new one arriving unnoticed
-    // is exactly the regression worth catching.
-    assert_eq!(checked, 8, "the set of public routes changed");
+    // health, openapi.json, auth status/setup/login/logout, the two passkey sign-in
+    // halves and the OAuth callback. Pinned as a number so *adding* a public route is a
+    // deliberate act: the loop above can only check the routes it is given, and a new one
+    // arriving unnoticed is exactly the regression worth catching.
+    assert_eq!(checked, 9, "the set of public routes changed");
 }
 
 /// Clearing the notification history costs `api:admin`, like the other clears (RD-130-08), and
@@ -254,9 +254,10 @@ async fn a_config_token_cannot_change_how_long_a_sign_in_lasts() {
 }
 
 /// Every settings field that names a program the service runs costs `api:admin` on its own
-/// (security review 2026-09-28, `docs/security/scripts.md` T-PRIV): the tests above reach the
-/// privileged list through the login and session fields, and a field dropped from it would go
-/// unnoticed. The four media executables share one entry and report its name.
+/// (security review 2026-09-28, `docs/security/scripts.md` T-PRIV), and so does the address
+/// imported DLCs are sent to (audit 2026-09-30): the tests above reach the privileged list
+/// through the login and session fields, and a field dropped from it would go unnoticed. The
+/// four media executables share one entry and report its name.
 #[tokio::test]
 async fn a_config_token_cannot_change_what_the_service_executes() {
     let directory = tempfile::tempdir().expect("tempdir");
@@ -272,6 +273,11 @@ async fn a_config_token_cannot_change_what_the_service_executes() {
         ("completion_action", "script", "completion_action"),
         ("vendor_directory", "/tmp/rd-vendor", "vendor_directory"),
         ("rar_executable", "/tmp/rd-vendor/unrar", "rar_executable"),
+        (
+            "rclone_executable",
+            "/tmp/rd-vendor/rclone",
+            "rclone_executable",
+        ),
         (
             "media_ytdlp_executable",
             "/tmp/rd-vendor/yt-dlp",
@@ -291,6 +297,12 @@ async fn a_config_token_cannot_change_what_the_service_executes() {
             "record_streamlink_executable",
             "/tmp/rd-vendor/streamlink",
             "media_ytdlp_executable",
+        ),
+        // Not a program but a recipient: every imported DLC is sent there (audit 2026-09-30).
+        (
+            "dlc_service_endpoint",
+            "https://dlc.example.test/decrypt",
+            "dlc_service_endpoint",
         ),
     ] {
         assert_ne!(

@@ -22,6 +22,10 @@
 #   scripts/export-public.sh 1.3.0 --branch ci-check --skip-push-ci
 #                                                     # ... with no CI started by the push itself
 #
+# A pre-release (`X.Y.Z-beta.N`, scripts/lib/release-tag.sh) is exported like a release: the
+# commit "Release <version>" on main, tagged there. Accepted on purpose (owner, 2026-09-30): the
+# public main and its README show the beta until the stable release replaces it.
+#
 # The user handbook is not part of this tree; it goes to the repository's GitHub wiki through
 # scripts/export-wiki.sh.
 #
@@ -47,6 +51,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/public.sh
 source "$ROOT/scripts/lib/public.sh"
+# shellcheck source=lib/release-tag.sh
+source "$ROOT/scripts/lib/release-tag.sh"
 cd "$ROOT"
 
 PUBLIC_DIR="${RD_PUBLIC_DIR:-$HOME/projects/rDownloader-public}"
@@ -66,7 +72,7 @@ while [[ $# -gt 0 ]]; do
         --ref) REF="${2:?--ref needs a ref}"; shift 2 ;;
         --branch) BRANCH="${2:?--branch needs a branch name}"; shift 2 ;;
         --skip-push-ci) SKIP_PUSH_CI=1; shift ;;
-        -h|--help) sed -n '2,43p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,47p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *)
             [[ -z "$VERSION" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
@@ -78,8 +84,8 @@ if [[ -z "$VERSION" ]]; then
     echo "usage: scripts/export-public.sh <version> [--push] [--ref <ref>] [--branch <name> [--skip-push-ci]]" >&2
     exit 2
 fi
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "not a release version: $VERSION" >&2
+if ! rd_release_version "$VERSION"; then
+    echo "not a release version: $VERSION (X.Y.Z, or X.Y.Z-beta.N for a pre-release)" >&2
     exit 2
 fi
 if [[ "$SKIP_PUSH_CI" -eq 1 && -z "$BRANCH" ]]; then

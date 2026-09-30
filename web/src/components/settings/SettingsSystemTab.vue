@@ -7,6 +7,7 @@ import type { CaptureToken, Settings, UsenetServer } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import SettingsReadinessCard from '@/components/settings/SettingsReadinessCard.vue'
+import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
 import { useAppTour } from '@/composables/useAppTour'
 import { useSessionStore } from '@/stores/session'
 
@@ -161,6 +162,8 @@ const systems = computed(() => [
       <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.hotfolder') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ settings.hotfolder_poll_seconds }} s</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.hotfolder_note') }}</p></div>
       <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.nzb') }}</p><p class="numeric mt-2 text-lg text-highlighted">64 MiB</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.nzb_note') }}</p></div>
     </section>
+
+    <SettingsUpdateCard v-model="settings" />
 
     <section data-settings-anchor="system.logs" class="mt-6 border border-muted bg-default p-5" data-testid="log-retention">
       <div class="flex flex-wrap items-start justify-between gap-4">

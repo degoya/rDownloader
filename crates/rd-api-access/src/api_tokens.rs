@@ -9,9 +9,17 @@
 //! widens a request. A call that names no areas at all gets read access, because the
 //! alternative default is "everything" and a default of everything makes the whole model
 //! decorative.
+//!
+//! ## Nobody hands out more than they hold
+//!
+//! Minting and re-scoping cost `api:secrets`, and `api:secrets` confers nothing else — so
+//! without a ceiling, a token holding only that area could mint `api:*` or re-scope itself to
+//! it, and the ladder would end at the credentials area (security audit 2026-09-30, finding 1).
+//! Every area a request names, with everything it implies, has to be one the caller's own
+//! credential holds. A session holds every area, so the administrator is not limited by this.
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
 };
@@ -21,6 +29,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     ApiError, AppState,
+    auth::Granted,
     dto::{
         ApiTokenRequest, ApiTokenScopesRequest, CapturePairResponse, MessageResponse,
         ScopeDescriptor,
@@ -71,9 +80,11 @@ async fn pair_with_scopes(
 pub async fn pair_api_token(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
+    granted: Option<Extension<Granted>>,
     Json(request): Json<ApiTokenRequest>,
 ) -> Result<(StatusCode, Json<CapturePairResponse>), ApiError> {
     let scopes = requested_scopes(&request)?;
+    within_grant(granted.as_ref().map(|Extension(granted)| granted), &scopes)?;
     let response =
         pair_with_scopes(&state, &request.label, scopes.clone(), "api.label_length").await?;
     // The scopes, the label and the id. Never `response.bearer`: that value exists in this
@@ -133,6 +144,25 @@ fn resolve_scopes(requested_names: &[String]) -> Result<Vec<String>, ApiError> {
     resolved.sort_unstable();
     resolved.dedup();
     Ok(resolved)
+}
+
+/// Refuses a set of areas the caller's own credential does not cover.
+///
+/// Compared after expansion on both sides: `api:queue` implies reading, so handing it out needs
+/// reading too, and `api:*` needs every area there is. A missing grant — a handler mounted
+/// outside the session layer — covers nothing, the same safe reading the event stream gives it.
+fn within_grant(granted: Option<&Granted>, scopes: &[String]) -> Result<(), ApiError> {
+    let exceeded = rd_core::granted_scopes(scopes.iter().map(String::as_str))
+        .into_iter()
+        .find(|scope| !granted.is_some_and(|granted| granted.holds(*scope)));
+    match exceeded {
+        None => Ok(()),
+        Some(scope) => Err(ApiError::forbidden(
+            "api.scope_exceeds_grant",
+            "A token cannot be given an area the credential handing it out does not hold",
+        )
+        .with_param("scope", scope.as_str())),
+    }
 }
 
 /// The areas a token can be given, with what each one actually reaches.
@@ -201,10 +231,11 @@ fn api_token_scopes() -> Vec<&'static str> {
 /// exactly the same leak. What replaces the old guarantee is the record: issuing, re-scoping
 /// and revoking all write an event, so "when did this token gain that area" has an answer.
 ///
-/// Two limits keep the reversal from being a bridge. The areas go through the same
+/// Three limits keep the reversal from being a bridge. The areas go through the same
 /// [`resolve_scopes`] the minting path uses, so `capture:*` stays unmintable *and*
-/// ungrantable; and only a token the API token list already shows can be re-scoped at all, so
-/// a browser-capture token cannot be turned into an API token by naming its id here.
+/// ungrantable; only a token the API token list already shows can be re-scoped at all, so
+/// a browser-capture token cannot be turned into an API token by naming its id here; and the
+/// new areas must lie within the caller's own ([`within_grant`]).
 #[utoipa::path(
     patch,
     path = "/api/v1/api-tokens/{id}",
@@ -216,6 +247,7 @@ fn api_token_scopes() -> Vec<&'static str> {
 pub async fn update_api_token_scopes(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
+    granted: Option<Extension<Granted>>,
     Path(id): Path<rd_core::CaptureTokenId>,
     Json(request): Json<ApiTokenScopesRequest>,
 ) -> Result<Json<rd_core::CaptureToken>, ApiError> {
@@ -229,6 +261,9 @@ pub async fn update_api_token_scopes(
         ));
     }
     let scopes = resolve_scopes(&request.scopes)?;
+    // The same ceiling as minting, and the reason a token cannot re-scope itself upwards: its
+    // own grant is the one compared against.
+    within_grant(granted.as_ref().map(|Extension(granted)| granted), &scopes)?;
     let tokens = state
         .database
         .list_capture_tokens(&api_token_scopes())

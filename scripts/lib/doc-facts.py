@@ -5,7 +5,8 @@
 
 Four facts move with a release and are read from their source, never from a document:
 
-  version    the workspace version, `[workspace.package]` in Cargo.toml
+  version    the workspace version, `[workspace.package]` in Cargo.toml, a pre-release suffix
+             included: the feature list of 1.8.0-beta.1 says so (scripts/lib/release-tag.sh)
   plugins    the number of plugins/*/manifest.toml the bundle ships: the examples
              (plugins/example-*) are built but not bundled (RD-150-20)
   wit        the plugin contract, `package rdownloader:plugin@X.Y.Z;` in
@@ -49,7 +50,7 @@ def words(pattern):
 # (file, pattern) — the named group is the fact the pattern states.
 REPO_ANCHORS = [
     ("docs/feature-list.md",
-     r"^> As of (?P<date>[A-Z][a-z]+ \d{1,2}, \d{4}) · Source version (?P<version>\d+\.\d+\.\d+)\."),
+     r"^> As of (?P<date>[A-Z][a-z]+ \d{1,2}, \d{4}) · Source version (?P<version>\d+\.\d+\.\d+(?:-beta\.\d+)?)\."),
     ("docs/feature-list.md", words(r"\| Bundled plugins \| (?P<plugins>\d+) signed")),
     ("docs/feature-list.md", words(r"Versioned WIT interface `rdownloader:plugin@(?P<wit>[^`]+)`")),
     ("docs/plugins.md", words(r"all (?P<plugins>\d+) signed components")),

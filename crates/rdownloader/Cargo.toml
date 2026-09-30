@@ -19,6 +19,7 @@ rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-diagnostics = { path = "../rd-diagnostics" }
 rd-extract = { path = "../rd-extract" }
+rd-files = { path = "../rd-files" }
 rd-ftp = { path = "../rd-ftp" }
 rd-gallery = { path = "../rd-gallery" }
 rd-media = { path = "../rd-media" }
@@ -36,6 +37,7 @@ rd-siterules = { path = "../rd-siterules" }
 rd-stream = { path = "../rd-stream" }
 rd-tools = { path = "../rd-tools" }
 rd-torrent = { path = "../rd-torrent" }
+rd-update = { path = "../rd-update" }
 rd-usenet = { path = "../rd-usenet" }
 reqwest.workspace = true
 serde.workspace = true

@@ -3,7 +3,8 @@
 # Builds the Windows release from WSL and assembles artifacts/windows plus the distributable
 # zip. Everything the package needs that is *not* built here — the vendored helper binaries in
 # artifacts/windows/vendor — is left untouched, because those are downloaded third-party tools
-# rather than build output.
+# rather than build output. They stay in the folder: the zip has the release layout
+# (scripts/lib/archive-layout.sh), flat and with the files release.yml packs.
 #
 # Usage:
 #   scripts/package-windows.sh              # full run
@@ -167,8 +168,15 @@ else
 fi
 
 echo "==> writing $ZIP"
+# The entries by name, as for the Linux tarball; UNVERIFIED.txt goes with them when it exists.
+# shellcheck source=lib/archive-layout.sh
+source "$ROOT/scripts/lib/archive-layout.sh"
+entries=()
+while IFS= read -r entry; do entries+=("$entry"); done < <(rd_archive_entries windows)
+[[ -f "$OUT/UNVERIFIED.txt" ]] && entries+=(UNVERIFIED.txt)
 rm -f "$ZIP"
-(cd "$OUT/.." && zip -qr "$ZIP" windows)
+(cd "$OUT" && zip -qr "$ZIP" "${entries[@]}" plugins)
+rd_check_archive_layout "$ZIP" windows
 
 echo "==> done"
 ls -la "$OUT/rdownloader.exe" "$OUT/rdownloader-capture.exe" "$ZIP"

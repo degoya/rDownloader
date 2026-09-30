@@ -23,6 +23,9 @@
   "serverHint": {
     "message": "Adresse der rDownloader-Oberfläche, z. B. http://nas.local:8710. Eingebaut sind 127.0.0.1:8710 und localhost:8710; jede andere Adresse fragt nach einer Berechtigung."
   },
+  "serverInsecure": {
+    "message": "Unverschlüsselt: Diese Adresse wird über einfaches http erreicht, das Capture-Token geht also lesbar durchs Netz. Nutze für einen Dienst auf einem anderen Rechner https (zum Beispiel hinter einem Reverse Proxy)."
+  },
   "tokenLabel": {
     "message": "Capture-Token"
   },

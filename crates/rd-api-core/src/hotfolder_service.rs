@@ -73,7 +73,7 @@ impl HotFolderService {
             return Ok(());
         }
         let mut tasks = self.tasks.lock().await;
-        if tasks.contains_key(&config.id) {
+        if still_running(&mut tasks, config.id).await {
             return Ok(());
         }
         let id = config.id;
@@ -134,6 +134,28 @@ impl HotFolderService {
             }
         }
     }
+}
+
+/// Whether the watcher for `id` is still running. A finished one - a configuration that can
+/// never work ends its task - is taken out and its result logged, so saving the folder again
+/// starts a new watcher instead of being refused by a dead handle.
+async fn still_running(
+    tasks: &mut HashMap<HotFolderId, tokio::task::JoinHandle<Result<()>>>,
+    id: HotFolderId,
+) -> bool {
+    match tasks.get(&id) {
+        None => return false,
+        Some(task) if !task.is_finished() => return true,
+        Some(_) => {}
+    }
+    if let Some(task) = tasks.remove(&id) {
+        match task.await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => tracing::error!(%error, "hotfolder watcher had stopped"),
+            Err(error) => tracing::error!(%error, "hotfolder watcher task failed"),
+        }
+    }
+    false
 }
 
 struct DatabaseSink {
@@ -433,10 +455,41 @@ fn path_string(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, time::Duration};
+    use std::{collections::HashMap, path::PathBuf, time::Duration};
 
-    use super::{nzb_failure_record, poll_interval_of, validate_hotfolder_settings};
+    use rd_core::HotFolderId;
+
+    use super::{nzb_failure_record, poll_interval_of, still_running, validate_hotfolder_settings};
     use crate::dto::SettingsResponse;
+
+    /// A watcher that ended no longer blocks a restart; a running one still does.
+    #[tokio::test]
+    async fn a_finished_watcher_is_taken_out_so_the_folder_can_start_again() {
+        let mut tasks = HashMap::new();
+        let dead = HotFolderId::new();
+        let alive = HotFolderId::new();
+        let finished: tokio::task::JoinHandle<anyhow::Result<()>> =
+            tokio::spawn(async { anyhow::bail!("destination escapes") });
+        while !finished.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        tasks.insert(dead, finished);
+        let token = tokio_util::sync::CancellationToken::new();
+        let waiting = token.clone();
+        tasks.insert(
+            alive,
+            tokio::spawn(async move {
+                waiting.cancelled().await;
+                Ok(())
+            }),
+        );
+
+        assert!(!still_running(&mut tasks, dead).await);
+        assert!(!tasks.contains_key(&dead));
+        assert!(still_running(&mut tasks, alive).await);
+        assert!(!still_running(&mut tasks, HotFolderId::new()).await);
+        token.cancel();
+    }
 
     /// RD-110-31: the bounds, and the code a value outside them is refused with.
     #[test]

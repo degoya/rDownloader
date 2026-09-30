@@ -8,7 +8,7 @@ mod queue_cmd;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-pub(crate) use client::{Client, CommandError, DEFAULT_SERVER, Failure};
+pub(crate) use client::{Client, CommandError, DEFAULT_SERVER, Failure, local_http};
 pub(crate) use output::Format;
 
 /// Connection options shared by every remote command.

@@ -23,7 +23,9 @@ impl SchedulerHandle {
         };
         if let Some(token) = token {
             token.cancel();
-        } else {
+            return Ok(());
+        }
+        let written = async {
             let current = self
                 .database
                 .get_download(id)
@@ -37,8 +39,25 @@ impl SchedulerHandle {
                     .transition_download(id, DownloadState::Paused)
                     .await?;
             }
+            anyhow::Ok(())
         }
-        Ok(())
+        .await;
+        self.release_stop_guard(id).await;
+        written
+    }
+
+    /// Lets go of the stop reason recorded for a file no worker runs, once its row is written.
+    ///
+    /// The reason is recorded first all the same, because the dispatcher skips every id that
+    /// has one: that keeps it from starting the file between the check and the write. Left in
+    /// place afterwards it outlived its purpose - only a worker's end, a resume or a reset took
+    /// it out, so a paused mirror that was woken to `Queued` later, or a row set back some
+    /// other way, was skipped for good until the process restarted.
+    pub(crate) async fn release_stop_guard(&self, id: DownloadId) {
+        let mut active = self.active.lock().await;
+        if !active.tokens.contains_key(&id) {
+            active.reasons.remove(&id);
+        }
     }
 
     /// Moves a paused, failed, blocked or cancelled job back to the queue.
@@ -99,21 +118,27 @@ impl SchedulerHandle {
         if let Some(token) = token {
             token.cancel();
         } else {
-            let current = self
-                .database
-                .get_download(id)
-                .await?
-                .context(StoreError::not_found("download not found"))?;
-            // Tagged, so the interface can say why instead of reporting an internal error.
-            if !current.state.can_transition_to(DownloadState::Cancelled) {
-                bail!(StoreError::wrong_state(format!(
-                    "a download in state {} cannot be cancelled",
-                    current.state
-                )));
+            let written = async {
+                let current = self
+                    .database
+                    .get_download(id)
+                    .await?
+                    .context(StoreError::not_found("download not found"))?;
+                // Tagged, so the interface can say why instead of reporting an internal error.
+                if !current.state.can_transition_to(DownloadState::Cancelled) {
+                    bail!(StoreError::wrong_state(format!(
+                        "a download in state {} cannot be cancelled",
+                        current.state
+                    )));
+                }
+                self.database
+                    .transition_download(id, DownloadState::Cancelled)
+                    .await?;
+                anyhow::Ok(())
             }
-            self.database
-                .transition_download(id, DownloadState::Cancelled)
-                .await?;
+            .await;
+            self.release_stop_guard(id).await;
+            written?;
         }
         // Cancelling the member that held the group's turn is as final as running out of
         // retries; without this its mirrors wait for a link that is never coming back.
@@ -178,6 +203,14 @@ impl SchedulerHandle {
             }
             active.reasons.insert(id, StopReason::Cancelled);
         }
+        let removed = self.remove_idle(current).await;
+        self.release_stop_guard(id).await;
+        removed
+    }
+
+    /// The part of [`Self::remove`] that runs while the stop reason keeps the dispatcher off.
+    async fn remove_idle(&self, current: DownloadFile) -> Result<()> {
+        let id = current.id;
         let package = self
             .database
             .list_packages()
@@ -257,14 +290,12 @@ impl SchedulerHandle {
             // anywhere, until the process restarts.
             active.reasons.remove(&id);
         }
-        let package = self
-            .database
-            .list_packages()
-            .await?
-            .into_iter()
+        let packages = self.database.list_packages().await?;
+        let package = packages
+            .iter()
             .find(|package| package.id == current.package_id)
             .filter(|package| !package.destination.is_empty());
-        if let Some(package) = &package {
+        if let Some(package) = package {
             let usenet_import = (current.kind == rd_core::DownloadKind::Usenet)
                 .then_some(package.nzb_import_id)
                 .flatten();
@@ -277,7 +308,21 @@ impl SchedulerHandle {
             if let Err(error) = removal {
                 tracing::warn!(download_id = %id, %error, "incomplete staging file was not discarded");
             }
-            if let Err(error) = discard_scratch_files(&package.destination, &current).await {
+            let folder = packages
+                .iter()
+                .filter(|other| other.destination == package.destination)
+                .map(|other| other.id)
+                .collect::<std::collections::HashSet<_>>();
+            let neighbours = self
+                .database
+                .list_downloads()
+                .await?
+                .into_iter()
+                .filter(|other| other.id != id && folder.contains(&other.package_id))
+                .collect::<Vec<_>>();
+            if let Err(error) =
+                discard_scratch_files(&package.destination, &current, &neighbours).await
+            {
                 tracing::warn!(download_id = %id, %error, "leftover scratch files were not discarded");
             }
             if delete_completed_files {
@@ -301,6 +346,7 @@ impl SchedulerHandle {
     ///
     /// Nothing to do, and no error, when the package has no outstanding move recorded.
     pub async fn relocate_package(&self, package_id: PackageId) -> Result<()> {
+        let _one_move_at_a_time = self.relocations.lock().await;
         let Some(previous) = self
             .database
             .package_previous_destination(package_id)
@@ -683,16 +729,30 @@ async fn remove_file_if_present(path: &Path) -> Result<()> {
 /// yt-dlp writes its stream fragments as `<stem>.f137.mp4.part` and its resume state as
 /// `<stem>.info.json.ytdl` next to the output rather than into the staging directory, so a
 /// reset that ignored them would resume a half-merged stream. Only those two suffixes are
-/// considered, and only below the file's own stem — everything else in a package folder is
-/// downloaded data.
-async fn discard_scratch_files(destination: &str, file: &rd_core::DownloadFile) -> Result<()> {
-    let stem = Path::new(&file.file_name)
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or(file.file_name.as_str());
+/// considered, and only below the file's own stem and a dot - everything else in a package
+/// folder is downloaded data.
+///
+/// `neighbours` are the other downloads writing into the same folder. A bare prefix match took
+/// `Episode 10.f137.mp4.part` for a scratch file of `Episode 1`; the dot rules that out, and a
+/// neighbour whose stem is longer (`Episode 1.5`) or the same and still running keeps its files.
+async fn discard_scratch_files(
+    destination: &str,
+    file: &rd_core::DownloadFile,
+    neighbours: &[rd_core::DownloadFile],
+) -> Result<()> {
+    let stem = file_stem(&file.file_name);
     if stem.is_empty() {
         return Ok(());
     }
+    let own = format!("{stem}.");
+    let protected = neighbours
+        .iter()
+        .filter_map(|neighbour| {
+            let other = file_stem(&neighbour.file_name);
+            (other.len() > stem.len() || (other == stem && is_active(neighbour.state)))
+                .then(|| format!("{other}."))
+        })
+        .collect::<Vec<_>>();
     let Some(root) = open_destination(destination).await? else {
         return Ok(());
     };
@@ -702,11 +762,23 @@ async fn discard_scratch_files(destination: &str, file: &rd_core::DownloadFile) 
         let Some(name) = name.to_str() else {
             continue;
         };
-        if name.starts_with(stem) && (name.ends_with(".part") || name.ends_with(".ytdl")) {
+        if name.starts_with(&own)
+            && (name.ends_with(".part") || name.ends_with(".ytdl"))
+            && !protected
+                .iter()
+                .any(|other| name.starts_with(other.as_str()))
+        {
             remove_file_if_present(&entry.path()).await?;
         }
     }
     Ok(())
+}
+
+fn file_stem(file_name: &str) -> &str {
+    Path::new(file_name)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(file_name)
 }
 
 /// Drops the staging directory and the package directory once the package's last file is
@@ -1010,6 +1082,72 @@ mod tests {
         assert_eq!(current.state, rd_core::DownloadState::Queued);
         assert_eq!(current.committed_bytes.get(), 0, "progress starts at zero");
         assert_eq!(current.retry_count, 0, "and so does the retry budget");
+    }
+
+    /// `Episode 1` resetting must not take `Episode 10`'s or `Episode 1.5`'s stream fragments
+    /// with it; its own fragments and resume state go.
+    #[tokio::test]
+    async fn a_reset_discards_only_its_own_scratch_files() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (_scheduler, file, destination) = paused_package(temporary.path()).await;
+        tokio::fs::create_dir_all(&destination)
+            .await
+            .expect("destination");
+        let named = |name: &str, state: DownloadState| DownloadFile {
+            id: rd_core::DownloadId::new(),
+            file_name: name.to_owned(),
+            state,
+            ..file.clone()
+        };
+        let own = named("Episode 1.mp4", DownloadState::Paused);
+        let neighbours = [
+            named("Episode 10.mp4", DownloadState::Downloading),
+            named("Episode 1.5.mp4", DownloadState::Paused),
+        ];
+        let names = [
+            "Episode 1.f137.mp4.part",
+            "Episode 1.info.json.ytdl",
+            "Episode 10.f137.mp4.part",
+            "Episode 10.info.json.ytdl",
+            "Episode 1.5.f137.mp4.part",
+            "Episode 1.mp4",
+        ];
+        for name in names {
+            tokio::fs::write(destination.join(name), b"x")
+                .await
+                .expect("scratch file");
+        }
+
+        super::discard_scratch_files(&destination.to_string_lossy(), &own, &neighbours)
+            .await
+            .expect("discard");
+
+        let left = |name: &str| destination.join(name).exists();
+        assert!(!left("Episode 1.f137.mp4.part"));
+        assert!(!left("Episode 1.info.json.ytdl"));
+        assert!(left("Episode 10.f137.mp4.part"), "a neighbour's fragment");
+        assert!(
+            left("Episode 10.info.json.ytdl"),
+            "a neighbour's resume state"
+        );
+        assert!(
+            left("Episode 1.5.f137.mp4.part"),
+            "a longer stem's fragment"
+        );
+        assert!(left("Episode 1.mp4"), "downloaded data");
+
+        // The same stem, still running: its fragments cannot be told apart from ours.
+        tokio::fs::write(destination.join("Episode 1.f137.mp4.part"), b"x")
+            .await
+            .expect("scratch file");
+        let running = [named("Episode 1.mkv", DownloadState::Downloading)];
+        super::discard_scratch_files(&destination.to_string_lossy(), &own, &running)
+            .await
+            .expect("discard");
+        assert!(
+            left("Episode 1.f137.mp4.part"),
+            "a running namesake's fragment"
+        );
     }
 
     #[tokio::test]

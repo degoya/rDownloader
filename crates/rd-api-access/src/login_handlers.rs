@@ -51,9 +51,19 @@ pub async fn auth_status(
 #[utoipa::path(post, path = "/api/v1/auth/setup", tag = "handlers", request_body = SetupRequest, responses((status = 200, body = MessageResponse)))]
 pub async fn setup(
     State(state): State<AppState>,
+    client: crate::client::ClientAddress,
     Json(request): Json<SetupRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
     state.auth.setup(&state, &request.password).await?;
+    // Who set the first password, and from where: until this moment the installation belonged
+    // to whoever reached it first, so the address is the one fact worth having afterwards.
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::SetupCompleted)
+            .actor(crate::audit::Actor::anonymous())
+            .client(client.0),
+    )
+    .await;
     Ok(Json(MessageResponse::new(
         "auth.setup_done",
         "Setup completed",

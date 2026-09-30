@@ -70,6 +70,6 @@
   },
   "selection": {
     "progress": "Installiere {done} von {total} …",
-    "hint": "Weiter installiert nichts Neues. | Weiter installiert 1 Dienst. Neue Plugins laufen ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an. | Weiter installiert {count} Dienste. Neue Plugins laufen ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an."
+    "hint": "Weiter installiert nichts Neues. | Weiter installiert 1 Dienst. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an. | Weiter installiert {count} Dienste. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an."
   }
 }

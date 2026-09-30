@@ -46,6 +46,29 @@ export async function noticeLostSession(response: Response): Promise<void> {
 
 api.use({ onResponse: ({ response }) => noticeLostSession(response) })
 
+/** The code a request carries when it never reached the service; translated like a server code. */
+export const NETWORK_UNREACHABLE = 'network.unreachable'
+
+/**
+ * Turns a request that never reached the service into an ordinary refusal.
+ *
+ * `fetch` rejects when the service restarts during an update, the network drops or the
+ * machine wakes from standby. `openapi-fetch` passes that rejection on, and 67 of the 284
+ * call sites had no `try`: a store's `refresh()` stopped half way with its in-flight flag
+ * still set, and every later event was deferred behind it until a reload. As a `503` with a
+ * stable code every caller meets the failure in `{ error }`, where it already handles refusals.
+ * An abort is left alone: it is the caller's own decision, not a failure to report.
+ */
+export function networkFailure(error: unknown): Response | undefined {
+  if (error instanceof DOMException && error.name === 'AbortError') return undefined
+  return new Response(
+    JSON.stringify({ error: 'The service could not be reached', code: NETWORK_UNREACHABLE }),
+    { status: 503, headers: { 'Content-Type': 'application/json' } }
+  )
+}
+
+api.use({ onError: ({ error }) => networkFailure(error) })
+
 /** Turns an error payload (`{ error, code, params }`, a string or unknown) into translated text. */
 export function errorMessage(error: unknown): string {
   if (typeof error === 'string') {

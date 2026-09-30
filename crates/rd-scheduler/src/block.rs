@@ -65,17 +65,22 @@ impl SchedulerHandle {
             token.cancel();
             return Ok(());
         }
-        let current = self
-            .database
-            .get_download(id)
-            .await?
-            .context("download not found")?;
-        if matches!(
-            current.state,
-            DownloadState::Downloading | DownloadState::Resolving
-        ) {
-            self.database.block_download(id, reason.as_str()).await?;
+        let written = async {
+            let current = self
+                .database
+                .get_download(id)
+                .await?
+                .context("download not found")?;
+            if matches!(
+                current.state,
+                DownloadState::Downloading | DownloadState::Resolving
+            ) {
+                self.database.block_download(id, reason.as_str()).await?;
+            }
+            anyhow::Ok(())
         }
-        Ok(())
+        .await;
+        self.release_stop_guard(id).await;
+        written
     }
 }
