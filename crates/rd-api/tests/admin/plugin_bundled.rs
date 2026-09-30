@@ -6,7 +6,7 @@
 //! provider row live at once — so the accounts step can offer it without a restart — and a
 //! request naming a service the bundle does not have installs nothing. A first install runs at
 //! once (RD-170-12): the account check right after it reaches the plugin, and one that could not
-//! load says it runs after a restart.
+//! load says it runs after a restart. Removing a service is `plugin_bundled_removal`.
 
 use crate::common;
 
@@ -14,9 +14,9 @@ use axum::http::StatusCode;
 use common::{get_json, post_json, test_harness};
 
 const EMPTY_COMPONENT: &[u8] = b"\0asm\x0d\0\x01\0";
-const DEV_PUBLIC_KEY: &str = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY=";
+pub(crate) const DEV_PUBLIC_KEY: &str = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY=";
 /// Unique to this suite: the provider registry is one per process.
-const SLUG: &str = "bundlefixture";
+pub(crate) const SLUG: &str = "bundlefixture";
 
 fn resolver_manifest() -> String {
     format!(
@@ -70,13 +70,26 @@ claims = ["{SLUG}"]
 
 /// Writes the bundle directory and lets the start-up sync read it, installing nothing new —
 /// the state of every start after the first.
-async fn offer_bundle(harness: &common::Harness, directory: &std::path::Path) {
+pub(crate) async fn offer_bundle(harness: &common::Harness, directory: &std::path::Path) {
+    offer_packages(harness, directory, Vec::new()).await;
+}
+
+/// [`offer_bundle`] with more packages beside the fixture service.
+pub(crate) async fn offer_packages(
+    harness: &common::Harness,
+    directory: &std::path::Path,
+    extra: Vec<(&str, String)>,
+) {
     let bundle = directory.join("bundle");
     std::fs::create_dir_all(&bundle).expect("bundle dir");
+    let expected = 2 + extra.len();
     for (name, manifest) in [
         ("fixture.rdplug", resolver_manifest()),
         ("fixture-auth.rdplug", auth_manifest()),
-    ] {
+    ]
+    .into_iter()
+    .chain(extra)
+    {
         let package =
             rd_plugin_host::package_plugin(manifest.as_bytes(), EMPTY_COMPONENT, &[], None)
                 .expect("package");
@@ -89,10 +102,10 @@ async fn offer_bundle(harness: &common::Harness, directory: &std::path::Path) {
     )
     .await
     .expect("sync");
-    assert_eq!(report.available, 2, "{:?}", report.rejected);
+    assert_eq!(report.available, expected, "{:?}", report.rejected);
 }
 
-fn provider_offered(providers: &serde_json::Value) -> bool {
+pub(crate) fn provider_offered(providers: &serde_json::Value) -> bool {
     providers
         .as_array()
         .is_some_and(|rows| rows.iter().any(|row| row["slug"] == SLUG))

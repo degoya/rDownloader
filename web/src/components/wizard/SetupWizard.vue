@@ -107,10 +107,11 @@ async function next(): Promise<void> {
   if (blocked.value) return
   advancing.value = true
   if (current.value === 'storage') await storageStep.value?.ensureDefaultCategory()
-  // The chosen services install before the accounts step opens, and that step mounts afresh and
-  // reads the providers then, so it lists them from its first read. A failure stays on the step,
-  // which says what failed; "Skip" still moves on. What runs only after a restart it says too.
-  const installed = current.value === 'selection' ? await selectionStep.value?.install() ?? true : true
+  // The chosen services install, and the unticked ones go (RD-180-14), before the accounts step
+  // opens, and that step mounts afresh and reads the providers then, so it lists them from its
+  // first read. A failure stays on the step, which says what failed; "Skip" still moves on. What
+  // runs only after a restart it says too.
+  const installed = current.value === 'selection' ? await selectionStep.value?.apply() ?? true : true
   if (selectionStep.value?.restartRequired) restartRequired.value = true
   advancing.value = false
   if (!installed) return
@@ -118,7 +119,7 @@ async function next(): Promise<void> {
   if (target) current.value = target
 }
 
-/** Skipping installs nothing: the step's choice is dropped, not applied. */
+/** Skipping installs and removes nothing: the step's choice is dropped, not applied. */
 function skip(): void {
   const target = STEP_ORDER[index.value + 1]
   if (target) current.value = target

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.8.0-beta.1"
+    "version": "1.8.0-beta.2"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -9540,6 +9540,58 @@
         }
       }
     },
+    "/api/v1/plugins/bundled/remove": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Removes every installed version of every plugin of the named services (RD-180-14).",
+        "description": "What the setup wizard's \"Your services\" step does with an unticked service. Like a delete in\nthe plugin manager, the provider rows go at once and the plugins stop at the next start. A\nversion an unfinished download is bound to refuses with `plugin.version_in_use` and keeps its\nwhole service — half a service would be a sign-in without its hoster — while the others\nproceed; one that is not installed is skipped.",
+        "operationId": "remove_bundled_services",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundledRemoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundledRemoveResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The bundle has no service of that key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/i18n/{locale}": {
       "get": {
         "tags": [
@@ -17600,7 +17652,7 @@
       },
       "BundledInstallFailure": {
         "type": "object",
-        "description": "One plugin that could not be installed.",
+        "description": "One plugin that could not be installed, or removed.",
         "required": [
           "service",
           "plugin_id",
@@ -17706,6 +17758,54 @@
           "version": {
             "type": "string",
             "description": "The version in the bundle."
+          }
+        }
+      },
+      "BundledRemoveRequest": {
+        "type": "object",
+        "description": "Body of `POST /api/v1/plugins/bundled/remove`.",
+        "required": [
+          "services"
+        ],
+        "properties": {
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the services to remove, as the catalogue lists them."
+          }
+        }
+      },
+      "BundledRemoveResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "removed",
+          "failed"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "`plugin.bundled_removed` when every named service is gone, or\n`plugin.bundled_partly_removed` when something stayed."
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledInstallFailure"
+            },
+            "description": "What stayed: a version an unfinished download is bound to (`plugin.version_in_use`)\nkeeps its whole service, or a removal that failed."
+          },
+          "message": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Keys of the services whose plugins were all removed."
           }
         }
       },
@@ -31264,7 +31364,7 @@
           "update_channel": {
             "type": "string",
             "description": "Which releases the update check offers: `stable`, or `beta` for the pre-releases too.\nUnset, it is `beta` on a pre-release build and `stable` on every other.",
-            "default": "stable"
+            "default": "beta"
           },
           "update_check_enabled": {
             "type": "boolean",

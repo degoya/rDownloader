@@ -820,7 +820,7 @@
     "plugin.bundled_installed": "Services installed and running",
     "plugin.bundled_partly_installed": "Some plugins could not be installed",
     "plugin.bundled_service_unknown": "The bundle has no service called {service}",
-    "plugin.bundled_services_invalid": "Name between 1 and {max} services to install",
+    "plugin.bundled_services_invalid": "Name between 1 and {max} services",
     "extract.password_has_quote": "The password contains a quotation mark (\"), which 7-Zip cannot receive on Windows, so it could not be tried.",
     "request.host_not_allowed": "This service does not answer to the name {host}. Open it by its address or add the name to the allowed host names in the settings.",
     "storage_root.protected_directory": "A storage root may not be, contain or lie inside a directory the service runs programs, scripts or plugins from or keeps its data in ({directory}).",
@@ -883,7 +883,9 @@
     "auth.password_too_long": "The password must be at most {max} characters long",
     "api.scope_exceeds_grant": "A token cannot be given the {scope} permission, because the credential handing it out does not hold it",
     "mfa.session_required": "Second factors and passkeys can only be changed from a signed-in session, not with an API token",
-    "network.unreachable": "The service could not be reached. Check that it is running and the connection is up."
+    "network.unreachable": "The service could not be reached. Check that it is running and the connection is up.",
+    "plugin.bundled_removed": "Services removed; their plugins stop at the next start",
+    "plugin.bundled_partly_removed": "Some services could not be removed"
   },
   "capabilities": {
     "media_download": "media downloads",

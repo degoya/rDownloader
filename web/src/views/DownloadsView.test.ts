@@ -15,6 +15,7 @@ import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import type { Download, DownloadPackage } from '@/api/types'
+import { SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import torrent from '@/locales/en/torrent.json'
@@ -35,9 +36,18 @@ vi.mock('@/api/client', () => ({
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
 }))
-// The dialogs run through Nuxt UI's overlay, which only exists inside the app shell.
+// The dialogs run through Nuxt UI's overlay, which only exists inside the app shell. What was
+// asked is kept, and the answer is `false` unless a case says otherwise.
+const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false }))
 vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }) }),
+  useOverlay: () => ({
+    create: () => ({
+      open: (props: unknown) => {
+        dialogs.opened.push(props)
+        return { result: Promise.resolve(dialogs.answer) }
+      }
+    })
+  }),
   useToast: () => ({ add: vi.fn() })
 }))
 
@@ -154,6 +164,8 @@ function handleOf(container: Element, key: string): HTMLElement {
 beforeEach(() => {
   setActivePinia(createPinia())
   localStorage.clear()
+  dialogs.opened = []
+  dialogs.answer = false
 })
 
 describe('DownloadsView', () => {
@@ -383,5 +395,56 @@ describe('DownloadsView metadata switch', () => {
     await fireEvent.click(toggle(second.container))
     await settle()
     expect(chips(second.container)).toHaveLength(1)
+  })
+})
+
+/**
+ * `k` removes the finished packages (RD-180-17): the very action of the "Remove completed
+ * packages" menu item, with its question, and only while this page is mounted. Which keypress
+ * reaches the handler is `useAppShortcuts.test.ts`'s half.
+ */
+describe('the `k` shortcut', () => {
+  const pressK = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'k')!.handler
+
+  it('asks the menu item\'s question and then clears the completed packages', async () => {
+    const store = seedQueue(1, 2, 'completed')
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    dialogs.answer = true
+    mountView()
+    await nextTick()
+
+    pressK()
+    await settle()
+
+    expect(dialogs.opened).toEqual([expect.objectContaining({ description: downloads.confirm.clear_completed, destructive: true })])
+    expect(clear.mock.calls).toEqual([['completed']])
+  })
+
+  it('clears nothing when the question is declined', async () => {
+    const store = seedQueue(1, 2, 'completed')
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    mountView()
+    await nextTick()
+
+    pressK()
+    await settle()
+
+    expect(dialogs.opened).toHaveLength(1)
+    expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('does nothing once the page is left', async () => {
+    const store = seedQueue(1, 2, 'completed')
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    dialogs.answer = true
+    const view = mountView()
+    await nextTick()
+    view.unmount()
+
+    pressK()
+    await settle()
+
+    expect(dialogs.opened).toEqual([])
+    expect(clear).not.toHaveBeenCalled()
   })
 })

@@ -4,7 +4,7 @@
  * separate, redacted API document, saved by the page-level save button through `saveCaptcha`,
  * the way the network page used to forward it.
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -18,7 +18,10 @@ async function saveCaptcha(): Promise<boolean> {
   return await captchaCard.value?.save() ?? true
 }
 
-defineExpose({ saveCaptcha })
+/** The card holds its own form, which the page loses when it leaves this section (RD-180-16). */
+const dirty = computed(() => captchaCard.value?.dirty ?? false)
+
+defineExpose({ saveCaptcha, dirty })
 </script>
 
 <template>

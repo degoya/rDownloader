@@ -23,6 +23,7 @@ mod metrics;
 mod notifications;
 mod plugin_auto_updates;
 mod plugin_bundled;
+mod plugin_bundled_removal;
 mod plugin_enabled;
 mod plugin_repositories;
 mod plugin_versions;

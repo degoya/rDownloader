@@ -525,6 +525,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // Choosing which of the release's own services are installed (RD-160-05).
     entry("/api/v1/plugins/bundled", Method::GET, ADMIN),
     entry("/api/v1/plugins/bundled/install", Method::POST, ADMIN),
+    entry("/api/v1/plugins/bundled/remove", Method::POST, ADMIN),
     entry("/api/v1/plugins/i18n/{locale}", Method::GET, READ),
     entry("/api/v1/plugins/install", Method::POST, ADMIN),
     entry("/api/v1/plugins/keys", Method::GET, SECRETS),

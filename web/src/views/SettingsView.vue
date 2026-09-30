@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -32,8 +32,10 @@ import SettingsUnattendedTab from '@/components/settings/SettingsUnattendedTab.v
 import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
+import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { defaultSettings } from '@/settingsDefaults'
-import { SETTINGS_SECTIONS, routingTab as routingTabFromQuery, settingsSection } from '@/settingsSections'
+import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setTitleStatus } from '@/utils/titleStatus'
@@ -62,13 +64,11 @@ const pageTitle = computed(() => {
   const section = SETTINGS_SECTIONS.find(entry => entry.value === activeSection.value)
   return section ? t(section.labelKey) : t('settings.title')
 })
-const routingTab = ref<string>(routingTabFromQuery(route.query.tab) ?? 'roots')
-// The search opens a card on another sub-tab through `?tab=` (RD-170-15); a tab picked by hand
-// afterwards is left alone until the query changes again.
-watch(() => route.query.tab, (tab) => {
-  const target = routingTabFromQuery(tab)
-  if (target) routingTab.value = target
-})
+/**
+ * The sub-tab of a page that has them, from `?tab=` (RD-180-15). Owned here rather than by each
+ * page because the save bar below depends on it, and one page is mounted at a time.
+ */
+const { tabs: subTabs, active: subTab } = useSettingsSubTab(() => activeSection.value)
 const confirm = useConfirm()
 const systemTab = ref<InstanceType<typeof SettingsSystemTab> | null>(null)
 const captchaTab = ref<InstanceType<typeof SettingsCaptchaTab> | null>(null)
@@ -80,11 +80,45 @@ const captchaTab = ref<InstanceType<typeof SettingsCaptchaTab> | null>(null)
  */
 const DOCUMENT_TABS = [
   'general', 'interface', 'unattended', 'postprocess', 'captcha', 'torrent', 'media', 'transfers',
-  'services', 'tools', 'network', 'security'
+  'services', 'tools'
 ]
-/** Routing saves itself everywhere except its collector pane, which edits the settings document. */
-const showSaveBar = computed(() => DOCUMENT_TABS.includes(activeSection.value)
-  || (activeSection.value === 'routing' && routingTab.value === 'collector'))
+/**
+ * On a page with sub-tabs the tab decides: routing saves itself everywhere except its collector
+ * pane, and network, security and system only have document fields on some of theirs (`saveBar`
+ * in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its update and retention fields were
+ * saved only by the button of another page.
+ */
+const showSaveBar = computed(() => subTabs.value.length
+  ? subTabs.value.some(tab => tab.value === subTab.value && tab.saveBar)
+  : DOCUMENT_TABS.includes(activeSection.value))
+
+/**
+ * What leaving would lose (RD-180-16): the document as last loaded or saved against the one on
+ * screen. `hotfolder_poll_seconds` is left out — the hotfolders page saves it itself and then
+ * writes the stored value in here, which is no edit. Keys are sorted, so an object built here in
+ * another order than the server's compares equal.
+ */
+function documentState(): string {
+  return JSON.stringify({ ...settings, hotfolder_poll_seconds: undefined, speedMiB: speedMiB.value }, sortedKeys)
+}
+
+function sortedKeys(_key: string, value: unknown): unknown {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+    : value
+}
+
+const savedDocument = ref(documentState())
+const captchaDirty = computed(() => captchaTab.value?.dirty ?? false)
+/**
+ * Another page or sub-tab of this view keeps the document, which lives here; only the captcha
+ * card's own form unmounts with its page. So a switch inside the settings asks only for that, and
+ * leaving the settings or closing the tab asks for either.
+ */
+useUnsavedGuard(
+  () => documentState() !== savedDocument.value || captchaDirty.value,
+  { dropsEdits: to => captchaDirty.value && to.params.section !== 'captcha' }
+)
 
 const { loading: proxiesLoading, loadError: proxiesError, load: trackProxies } = useFetchState()
 
@@ -110,6 +144,7 @@ function applyLoadedSettings(value: Settings): void {
   speedMiB.value = value.speed_limit_bytes_per_second
     ? Number(value.speed_limit_bytes_per_second) / MIB
     : null
+  savedDocument.value = documentState()
 }
 
 /**
@@ -225,7 +260,7 @@ async function resetSettings(): Promise<void> {
             <SettingsDesktopTab />
           </div>
           <div v-if="activeSection === 'routing'" class="pt-4">
-            <SettingsRoutingTab :model-value="settings" v-model:sub-tab="routingTab" />
+            <SettingsRoutingTab :model-value="settings" v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'hotfolders'" class="pt-4">
             <SettingsHotfoldersTab :model-value="settings" />
@@ -264,7 +299,7 @@ async function resetSettings(): Promise<void> {
             <SettingsServicesTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'plugins'" class="pt-4">
-            <SettingsPluginsTab />
+            <SettingsPluginsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'tools'" class="pt-4">
             <SettingsToolsTab :model-value="settings" />
@@ -279,12 +314,13 @@ async function resetSettings(): Promise<void> {
             <SettingsNetworkTab
               :model-value="settings"
               v-model:proxies="proxies"
+              v-model:sub-tab="subTab"
               :proxies-loading="proxiesLoading"
               :proxies-error="proxiesError"
             />
           </div>
           <div v-if="activeSection === 'security'" class="pt-4">
-            <SettingsSecurityTab :model-value="settings" />
+            <SettingsSecurityTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'backup'" class="pt-4">
             <SettingsBackupRestore @imported="handleSettingsImported" />
@@ -295,6 +331,7 @@ async function resetSettings(): Promise<void> {
           <div v-if="activeSection === 'system'" class="pt-4">
             <SettingsSystemTab
               ref="systemTab"
+              v-model:sub-tab="subTab"
               :model-value="settings"
               :resetting="pending"
               @reset="resetSettings"
@@ -306,7 +343,8 @@ async function resetSettings(): Promise<void> {
         <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
         <template v-if="showSaveBar">
           <div class="flex flex-wrap items-center justify-end gap-2">
-            <UButton type="button" icon="i-lucide-rotate-ccw" :label="t('settings.reset.button')" color="neutral" variant="outline" :disabled="pending" @click="resetSettings" />
+            <!-- System carries the same reset in its own header, on every tab. -->
+            <UButton v-if="activeSection !== 'system'" type="button" icon="i-lucide-rotate-ccw" :label="t('settings.reset.button')" color="neutral" variant="outline" :disabled="pending" @click="resetSettings" />
             <UButton type="button" icon="i-lucide-save" :label="t('settings.save')" :loading="pending" @click="save" />
           </div>
         </template>

@@ -117,7 +117,8 @@
     "go_stats": "Aller aux statistiques",
     "go_logs": "Aller au journal",
     "go_audit": "Aller à l'audit",
-    "open_search": "Ouvrir la recherche"
+    "open_search": "Ouvrir la recherche",
+    "clear_completed": "Retirer les paquets terminés (dans les téléchargements)"
   },
   "a11y": {
     "skip_to_content": "Aller au contenu",
@@ -157,5 +158,10 @@
   "copy": {
     "failed_title": "La copie a échoué",
     "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement."
+  },
+  "unsaved": {
+    "title": "Abandonner les modifications non enregistrées ?",
+    "description": "Certaines modifications ne sont pas encore enregistrées. Si vous quittez la page maintenant, elles seront perdues.",
+    "discard": "Abandonner"
   }
 }

@@ -5,10 +5,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.0-beta.2] - 2026-10-01
+
+The first published pre-release of 1.8: the tag v1.8.0-beta.1 stayed without a GitHub release,
+because its release run stopped at the MSI build (fixed below).
+
+### Added
+
+- **A warning before unsaved settings are lost (RD-180-16).** Leaving the settings with a change
+  behind a save bar asks *Discard* or *Cancel*, and closing or reloading the browser tab gets the
+  browser's question. Moving between settings pages and sub-tabs keeps the change and asks
+  nothing; a changed captcha form asks before its page is left.
+- **`K` clears the finished packages from the download list (RD-180-17).** On Downloads the key
+  runs *Remove completed packages* with the same question as the menu item, which now shows the
+  key; the files stay where they are. It does nothing while typing, with a dialog open or on
+  another page, and Ctrl/Cmd+K still opens the search. The `?` help lists it.
+- **Site rules fetch once per list entry (RD-180-18).** When a placeholder in the address of a
+  `fetch` or `fetch-json` step holds a list, the step runs once per entry and collects the results
+  in order, instead of using the first entry only — a rule for an API that lists link ids and
+  answers each id's address separately (hide.cx) now finds every part. Each request counts against
+  the run's limits; two list placeholders in one address are refused; an empty list makes no
+  request. Rules whose placeholders hold one value work as before.
+
+### Changed
+
+- **Long settings pages are split into tabs (RD-180-15).** Plugins has five — *Installed*, *Add*
+  (package file and the bundle's available services), *Updates* (the count of waiting updates in
+  its badge), *Repositories* and *Trust* (withdrawn packages and confirmed publishers); Security
+  has *Sign-in*, *Sessions* and *Reverse proxy*; Network *Proxies & TLS*, *Authentication* and
+  *Reconnect*; System *Status*, *Updates* and *Retention*. The rule that decides it — more than
+  five cards, a form-and-list editor counting as two — is in `design.md`; every other page stays
+  one scroll. The tab is in the address (`/settings/plugins?tab=trust`), so reload, back and
+  forward and the settings search land on it, and the save bar shows only under tabs that edit
+  the settings document. The search also finds *Available services* and *Packages this machine
+  refuses* now.
+
+### Fixed
+
+- **The Windows installer builds again.** `packaging/msi/rdownloader.wxs` set `ARPNOMODIFY`,
+  which the WiX dialog set it uses already defines; every MSI build stopped with `WIX0091`, the
+  release run of v1.8.0-beta.1 with it. The installer tests on GitHub now also reach the rpm half
+  (Fedora's image lacks `runuser`) and wait long enough for a debug build's first start, and
+  `scripts/set-version.sh` reads its copies on Windows without the line end that made every one
+  of them disagree.
+- **The System page saves its own fields (RD-180-15).** Update check, log, audit and statistics
+  retention and the trace export are settings-document fields, but the page had no save bar, so a
+  change there was saved only by the button of another settings page. The *Updates* and
+  *Retention* tabs now carry it; the reset stays in the page header.
+- **The cleanup takes a folder it emptied with it.** Removing a sample left its `Sample` folder
+  behind, empty; a folder below the package that the cleanup empties now goes too. A folder with
+  anything else in it, one that was empty before, and the package folder itself stay.
+
 ## [1.8.0-beta.1] - 2026-09-30
 
 ### Added
 
+- **Unticking bundled services in the setup wizard (RD-180-14).** A fresh installation's first
+  start installs every bundled service that needs no account; *Your services* now says so and
+  lets you untick one. *Continue* asks once, naming the services and saying they stop at the next
+  start, then removes every plugin of each; a service an unfinished download still uses stays and
+  is named, the rest go, and nothing removed comes back at a later start.
+  `POST /api/v1/plugins/bundled/remove` (`api:admin`, one `plugin_removed` audit record per
+  version, `plugin.version_in_use` keeps the whole service) and the MCP tool
+  `remove_bundled_services`. The plugin manager's *Available services* list stays add-only.
 - **Clearing the storage history and the content index (RD-180-13).** *Moves, links and reuse*
   has a "Clear history" button at the history and a "Clear index" button beside the index
   check, each asking with the count first. The history keeps operations still running; the index

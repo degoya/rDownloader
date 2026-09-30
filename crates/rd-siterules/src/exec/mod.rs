@@ -181,6 +181,9 @@ impl<'a> Executor<'a> {
 }
 
 #[cfg(test)]
+#[path = "each_tests.rs"]
+mod each_tests;
+#[cfg(test)]
 #[path = "exec_tests.rs"]
 mod exec_tests;
 #[cfg(test)]

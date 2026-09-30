@@ -9,6 +9,7 @@ import system from '@/locales/en/system.json'
 import tour from '@/locales/en/tour.json'
 import usenet from '@/locales/en/usenet.json'
 import wizard from '@/locales/en/wizard.json'
+import { uiStubs } from '@/test/mount'
 
 import SettingsSystemTab from './SettingsSystemTab.vue'
 
@@ -40,7 +41,9 @@ const components = {
   USwitch: { template: '<input type="checkbox" />' },
   UButton: { props: ['label'], template: '<button>{{ label }}</button>' },
   UBadge: { template: '<span><slot /></span>' },
-  UIcon: { props: ['name'], template: '<span :data-icon="name" />' }
+  UIcon: { props: ['name'], template: '<span :data-icon="name" />' },
+  // The three sub-tabs (RD-180-15); every panel stays in the DOM, so the order below still reads.
+  UTabs: uiStubs.UTabs
 }
 const stubs = { SettingsReadinessCard: { template: '<div data-testid="readiness-card" />' } }
 

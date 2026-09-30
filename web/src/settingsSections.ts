@@ -122,16 +122,64 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = SETTINGS_SECTION_GR
 /** Every page's segment as a type, so a table keyed by page has to name all of them. */
 export type SettingsSectionValue = (typeof SETTINGS_SECTION_GROUPS)[number]['sections'][number]['value']
 
-/**
- * The routing page's sub-tabs. `/settings/routing?tab=collector` opens one directly, which is how
- * the search reaches a card on a tab that is not the first (RD-170-15).
- */
-export const ROUTING_TABS = ['roots', 'categories', 'rules', 'collector'] as const
-export type RoutingTab = (typeof ROUTING_TABS)[number]
+export interface SettingsSubTab {
+  /** The `?tab=` value and the name of the page's slot for it. */
+  value: string
+  labelKey: string
+  icon: string
+  /** The tab edits the settings document, so the page's save bar belongs under it. */
+  saveBar?: true
+}
 
-/** The routing sub-tab a query value names, or null. */
-export function routingTab(value: unknown): RoutingTab | null {
-  return typeof value === 'string' && (ROUTING_TABS as readonly string[]).includes(value) ? value as RoutingTab : null
+/**
+ * The pages split into sub-tabs, and their tabs in order (RD-180-15). A page with more than five
+ * cards gets them — `design.md` has the rule and how the cards are counted; a page not in this
+ * table has none. `/settings/plugins?tab=updates` opens one directly, which is how the search
+ * and every other link reach a card on a tab that is not the first (RD-170-15).
+ */
+export const SETTINGS_SUB_TABS = {
+  routing: [
+    { value: 'roots', labelKey: 'routing.tabs.roots', icon: 'i-lucide-hard-drive' },
+    { value: 'categories', labelKey: 'routing.tabs.categories', icon: 'i-lucide-folder-tree' },
+    { value: 'rules', labelKey: 'routing.tabs.rules', icon: 'i-lucide-git-branch' },
+    { value: 'collector', labelKey: 'routing.tabs.collector', icon: 'i-lucide-shield-ban', saveBar: true }
+  ],
+  plugins: [
+    { value: 'installed', labelKey: 'plugins.tabs.installed', icon: 'i-lucide-blocks' },
+    { value: 'add', labelKey: 'plugins.tabs.add', icon: 'i-lucide-package-plus' },
+    { value: 'updates', labelKey: 'plugins.tabs.updates', icon: 'i-lucide-refresh-cw' },
+    { value: 'repositories', labelKey: 'plugins.tabs.repositories', icon: 'i-lucide-library' },
+    { value: 'trust', labelKey: 'plugins.tabs.trust', icon: 'i-lucide-badge-check' }
+  ],
+  network: [
+    { value: 'proxies', labelKey: 'settings.subtabs.network.proxies', icon: 'i-lucide-waypoints', saveBar: true },
+    { value: 'auth', labelKey: 'settings.subtabs.network.auth', icon: 'i-lucide-key-square' },
+    { value: 'reconnect', labelKey: 'settings.subtabs.network.reconnect', icon: 'i-lucide-router', saveBar: true }
+  ],
+  security: [
+    { value: 'signin', labelKey: 'settings.subtabs.security.signin', icon: 'i-lucide-key-round' },
+    { value: 'sessions', labelKey: 'settings.subtabs.security.sessions', icon: 'i-lucide-monitor-smartphone', saveBar: true },
+    { value: 'proxy', labelKey: 'settings.subtabs.security.proxy', icon: 'i-lucide-shield', saveBar: true }
+  ],
+  system: [
+    { value: 'status', labelKey: 'settings.subtabs.system.status', icon: 'i-lucide-activity' },
+    { value: 'updates', labelKey: 'settings.subtabs.system.updates', icon: 'i-lucide-refresh-cw', saveBar: true },
+    { value: 'retention', labelKey: 'settings.subtabs.system.retention', icon: 'i-lucide-archive', saveBar: true }
+  ]
+} as const satisfies Partial<Record<SettingsSectionValue, readonly SettingsSubTab[]>>
+
+export type SettingsSubTabSection = keyof typeof SETTINGS_SUB_TABS
+/** Every sub-tab value of every page; which page each belongs to, the table and its test say. */
+export type SettingsSubTabValue = (typeof SETTINGS_SUB_TABS)[SettingsSubTabSection][number]['value']
+
+/** A page's sub-tabs, or none. */
+export function settingsSubTabs(section: string): readonly SettingsSubTab[] {
+  return (SETTINGS_SUB_TABS as Partial<Record<string, readonly SettingsSubTab[]>>)[section] ?? []
+}
+
+/** The sub-tab of this page a query value names, or null. */
+export function settingsSubTab(section: string, value: unknown): string | null {
+  return typeof value === 'string' && settingsSubTabs(section).some(tab => tab.value === value) ? value : null
 }
 
 /** The page a segment names, or null: an unknown segment belongs on the overview, not on a guess. */

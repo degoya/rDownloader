@@ -886,5 +886,22 @@
   "upload_limit": {
     "label": "Limite d'envoi",
     "description": "S'applique à chaque envoi : partage torrent, stockage objet, rclone et destinations d'envoi. Vide signifie illimité"
+  },
+  "subtabs": {
+    "network": {
+      "proxies": "Proxys et TLS",
+      "auth": "Authentification",
+      "reconnect": "Reconnexion"
+    },
+    "security": {
+      "signin": "Connexion",
+      "sessions": "Sessions",
+      "proxy": "Proxy inverse"
+    },
+    "system": {
+      "status": "État",
+      "updates": "Mises à jour",
+      "retention": "Rétention"
+    }
   }
 }

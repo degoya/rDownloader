@@ -17,7 +17,7 @@ use super::{
     guard::{is_public, literal_address},
     ports::{CaptchaRequest, Method},
     run::Run,
-    value::{CAPTCHA_VARIABLE, PAGE_URL_VARIABLE, Value},
+    value::{CAPTCHA_VARIABLE, ExpandError, Expansion, PAGE_URL_VARIABLE, Value},
 };
 use crate::{
     format::PackageSource,
@@ -31,9 +31,17 @@ impl Run<'_> {
         match step {
             Step::Fetch { url, into } => {
                 let target = match url {
-                    Some(template) => {
-                        self.target(index, "fetch", &self.expand(index, "fetch", template)?)?
-                    }
+                    Some(template) => match self.expand_each(index, "fetch", template)? {
+                        Expansion::One(expanded) => self.target(index, "fetch", &expanded)?,
+                        Expansion::Each(entries) => {
+                            let bodies = self
+                                .fetch_each(index, "fetch", &entries, |body| Ok(Value::One(body)))
+                                .await?;
+                            self.variables
+                                .set(into.as_deref().unwrap_or(PAGE_VARIABLE), bodies);
+                            return Ok(());
+                        }
+                    },
                     None => self.address.clone(),
                 };
                 let (_, response) = self
@@ -43,7 +51,18 @@ impl Run<'_> {
                     .set(into.as_deref().unwrap_or(PAGE_VARIABLE), response.body);
             }
             Step::FetchJson { url, path, into } => {
-                let expanded = self.expand(index, "fetch-json", url)?;
+                let expanded = match self.expand_each(index, "fetch-json", url)? {
+                    Expansion::One(expanded) => expanded,
+                    Expansion::Each(entries) => {
+                        let found = self
+                            .fetch_each(index, "fetch-json", &entries, |body| {
+                                json_at(index, &body, path)
+                            })
+                            .await?;
+                        self.variables.set(into, found);
+                        return Ok(());
+                    }
+                };
                 let target = self.target(index, "fetch-json", &expanded)?;
                 let (_, response) = self
                     .fetch_page(target, Method::Get, BTreeMap::new())
@@ -231,6 +250,64 @@ impl Run<'_> {
                 kind,
                 detail: format!("nothing has written the variable {:?}", missing.0),
             })
+    }
+
+    /// [`Self::expand`] for the two steps that run once per entry of a list (RD-180-18).
+    fn expand_each(
+        &self,
+        index: usize,
+        kind: &'static str,
+        template: &str,
+    ) -> Result<Expansion, RunError> {
+        self.variables
+            .expand_each(template)
+            .map_err(|error| RunError::Structure {
+                step: index,
+                kind,
+                detail: match error {
+                    ExpandError::Missing(missing) => {
+                        format!("nothing has written the variable {:?}", missing.0)
+                    }
+                    ExpandError::SeveralLists(names) => format!(
+                        "the variables {names:?} are all lists; an address runs over one list, \
+                         not several"
+                    ),
+                },
+            })
+    }
+
+    /// One GET per entry of a list placeholder (RD-180-18), with what `parse` makes of each
+    /// answer collected in order into one list.
+    ///
+    /// Every target is resolved before the first request, against the page the step started
+    /// from, so a relative template does not drift onto the page the previous entry fetched.
+    /// The entries are siblings: each sits one request below that page, and the run goes on
+    /// from the deepest of them. Every request passes `fetch_page` and so every bolt and
+    /// budget on its own; `max_pages` is what ends a list longer than the run may ask.
+    async fn fetch_each(
+        &mut self,
+        index: usize,
+        kind: &'static str,
+        entries: &[String],
+        parse: impl Fn(String) -> Result<Value, RunError>,
+    ) -> Result<Value, RunError> {
+        let targets = entries
+            .iter()
+            .map(|entry| self.target(index, kind, entry))
+            .collect::<Result<Vec<_>, _>>()?;
+        let start = self.depth;
+        let mut deepest = start;
+        let mut found = Vec::new();
+        for target in targets {
+            self.depth = start;
+            let (_, response) = self
+                .fetch_page(target, Method::Get, BTreeMap::new())
+                .await?;
+            deepest = deepest.max(self.depth);
+            found.extend(parse(response.body)?.iter().map(str::to_owned));
+        }
+        self.depth = deepest;
+        Ok(Value::list(found))
     }
 
     fn read(&self, index: usize, kind: &'static str, name: &str) -> Result<Value, RunError> {

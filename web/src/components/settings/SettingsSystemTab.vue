@@ -9,14 +9,22 @@ import SettingsDataResetButton from '@/components/settings/SettingsDataResetButt
 import SettingsReadinessCard from '@/components/settings/SettingsReadinessCard.vue'
 import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
 import { useAppTour } from '@/composables/useAppTour'
+import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useSessionStore } from '@/stores/session'
 
 const settings = defineModel<Settings>({ required: true })
+/**
+ * Owned by the settings view, which keeps it in the address (RD-180-15). Seven blocks became
+ * three tabs: what is running, the updates, and how long the service keeps its records. The
+ * header with the reset, wizard and tour buttons stays above them.
+ */
+const activeTab = defineModel<string>('subTab', { default: 'status' })
 defineProps<{ resetting?: boolean }>()
 const emit = defineEmits<{ reset: [] }>()
 const { t } = useI18n()
 const session = useSessionStore()
 const { startTour } = useAppTour()
+const tabItems = computed(() => subTabItems('system', t))
 // Only for the status card below; pairing itself lives in the desktop client section.
 const agents = ref<CaptureToken[]>([])
 const usenetServers = ref<UsenetServer[]>([])
@@ -142,111 +150,128 @@ const systems = computed(() => [
         />
       </div>
     </header>
-    <div class="grid gap-3 lg:grid-cols-3">
-      <article v-for="system in systems" :key="system.icon" class="relative overflow-hidden border border-muted bg-default p-5">
-        <div class="mb-8 flex items-start justify-between">
-          <div class="grid size-10 place-items-center bg-elevated text-primary"><UIcon :name="system.icon" class="size-5" /></div>
-          <UBadge :color="system.color" variant="subtle">{{ system.status }}</UBadge>
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      :unmount-on-hide="false"
+      variant="pill"
+      class="w-full"
+      :ui="{ content: 'pt-4' }"
+    >
+      <template #status>
+        <div>
+          <div class="grid gap-3 lg:grid-cols-3">
+            <article v-for="system in systems" :key="system.icon" class="relative overflow-hidden border border-muted bg-default p-5">
+              <div class="mb-8 flex items-start justify-between">
+                <div class="grid size-10 place-items-center bg-elevated text-primary"><UIcon :name="system.icon" class="size-5" /></div>
+                <UBadge :color="system.color" variant="subtle">{{ system.status }}</UBadge>
+              </div>
+              <SectionHeader :eyebrow="system.eyebrow" :title="system.title" :description="system.description" />
+              <div class="transfer-stripe absolute inset-x-0 bottom-0 h-1 opacity-50" />
+            </article>
+          </div>
+
+          <SettingsReadinessCard class="mt-6" />
+
+          <section class="mt-6 grid gap-px border border-muted bg-muted md:grid-cols-3 lg:grid-cols-5" data-testid="system-facts">
+            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.about') }}</p><p class="mt-2 text-lg text-highlighted">rDownloader <span class="numeric text-sm text-muted">{{ serviceVersion || '…' }}</span></p><p class="mt-1 text-xs text-muted">Alexander Herling · GPL-3.0-or-later</p></div>
+            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.web_ui') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ uiAddress }}</p><p class="mt-1 text-xs text-muted">{{ settings.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') }}</p></div>
+            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.cnl2') }}</p><p class="numeric mt-2 text-lg text-highlighted">127.0.0.1:9666</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.loopback_only') }}</p></div>
+            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.hotfolder') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ settings.hotfolder_poll_seconds }} s</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.hotfolder_note') }}</p></div>
+            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.nzb') }}</p><p class="numeric mt-2 text-lg text-highlighted">64 MiB</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.nzb_note') }}</p></div>
+          </section>
         </div>
-        <SectionHeader :eyebrow="system.eyebrow" :title="system.title" :description="system.description" />
-        <div class="transfer-stripe absolute inset-x-0 bottom-0 h-1 opacity-50" />
-      </article>
-    </div>
+      </template>
+      <template #updates>
+        <SettingsUpdateCard v-model="settings" />
+      </template>
+      <template #retention>
+        <div>
+          <section data-settings-anchor="system.logs" class="border border-muted bg-default p-5" data-testid="log-retention">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <SectionHeader
+                :eyebrow="t('settings.logs.eyebrow')"
+                :title="t('settings.logs.title')"
+                :description="t('settings.logs.description')"
+              />
+              <UButton
+                icon="i-lucide-scroll-text"
+                color="neutral"
+                variant="subtle"
+                :label="t('settings.logs.open')"
+                to="/logs"
+              />
+            </div>
+            <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
+            <div class="mt-4 grid gap-4">
+              <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
+                <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1000" icon="i-lucide-database" class="mt-2 w-full" />
+              </UFormField>
+              <UFormField :label="t('settings.logs.days_label')" :description="t('settings.logs.days_description')">
+                <UInput v-model.number="settings.log_retention_days" type="number" min="1" max="365" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+              </UFormField>
+            </div>
+          </section>
 
-    <SettingsReadinessCard class="mt-6" />
+          <section data-settings-anchor="system.audit" class="mt-6 border border-muted bg-default p-5" data-testid="audit-retention">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <SectionHeader
+                :eyebrow="t('settings.audit.eyebrow')"
+                :title="t('settings.audit.title')"
+                :description="t('settings.audit.description')"
+              />
+              <UButton
+                icon="i-lucide-shield-check"
+                color="neutral"
+                variant="subtle"
+                :label="t('settings.audit.open')"
+                to="/audit"
+              />
+            </div>
+            <div class="mt-4 grid gap-4">
+              <UFormField :label="t('settings.audit.records_label')" :description="t('settings.audit.records_description')">
+                <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="10000" icon="i-lucide-database" class="mt-2 w-full" />
+              </UFormField>
+              <UFormField :label="t('settings.audit.days_label')" :description="t('settings.audit.days_description')">
+                <UInput v-model.number="settings.audit_retention_days" type="number" min="30" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+              </UFormField>
+            </div>
+            <div class="mt-4 border-t border-muted pt-4">
+              <UFormField :label="t('settings.audit.otlp_enabled_label')" :description="t('settings.audit.otlp_enabled_description')" orientation="horizontal">
+                <USwitch v-model="settings.otlp_enabled" data-testid="otlp-enabled" />
+              </UFormField>
+              <div class="mt-4 grid gap-4">
+                <UFormField :label="t('settings.audit.otlp_endpoint_label')" :description="t('settings.audit.otlp_endpoint_description')">
+                  <UInput v-model="settings.otlp_endpoint" placeholder="http://127.0.0.1:4318/v1/traces" icon="i-lucide-waypoints" class="mt-2 w-full" data-testid="otlp-endpoint" />
+                </UFormField>
+                <UFormField :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
+                  <UInput v-model.number="settings.otlp_timeout_seconds" type="number" min="1" max="60" icon="i-lucide-timer" class="mt-2 w-full">
+                    <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
+                  </UInput>
+                </UFormField>
+              </div>
+            </div>
+            <SettingsDataResetButton class="mt-4" target="audit" :count="dataCounts.audit" @cleared="loadDataCounts()" />
+          </section>
 
-    <section class="mt-6 grid gap-px border border-muted bg-muted md:grid-cols-3 lg:grid-cols-5" data-testid="system-facts">
-      <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.about') }}</p><p class="mt-2 text-lg text-highlighted">rDownloader <span class="numeric text-sm text-muted">{{ serviceVersion || '…' }}</span></p><p class="mt-1 text-xs text-muted">Alexander Herling · GPL-3.0-or-later</p></div>
-      <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.web_ui') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ uiAddress }}</p><p class="mt-1 text-xs text-muted">{{ settings.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') }}</p></div>
-      <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.cnl2') }}</p><p class="numeric mt-2 text-lg text-highlighted">127.0.0.1:9666</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.loopback_only') }}</p></div>
-      <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.hotfolder') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ settings.hotfolder_poll_seconds }} s</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.hotfolder_note') }}</p></div>
-      <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.nzb') }}</p><p class="numeric mt-2 text-lg text-highlighted">64 MiB</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.nzb_note') }}</p></div>
-    </section>
-
-    <SettingsUpdateCard v-model="settings" />
-
-    <section data-settings-anchor="system.logs" class="mt-6 border border-muted bg-default p-5" data-testid="log-retention">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <SectionHeader
-          :eyebrow="t('settings.logs.eyebrow')"
-          :title="t('settings.logs.title')"
-          :description="t('settings.logs.description')"
-        />
-        <UButton
-          icon="i-lucide-scroll-text"
-          color="neutral"
-          variant="subtle"
-          :label="t('settings.logs.open')"
-          to="/logs"
-        />
-      </div>
-      <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
-      <div class="mt-4 grid gap-4">
-        <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
-          <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1000" icon="i-lucide-database" class="mt-2 w-full" />
-        </UFormField>
-        <UFormField :label="t('settings.logs.days_label')" :description="t('settings.logs.days_description')">
-          <UInput v-model.number="settings.log_retention_days" type="number" min="1" max="365" icon="i-lucide-calendar-days" class="mt-2 w-full" />
-        </UFormField>
-      </div>
-    </section>
-
-    <section data-settings-anchor="system.audit" class="mt-6 border border-muted bg-default p-5" data-testid="audit-retention">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <SectionHeader
-          :eyebrow="t('settings.audit.eyebrow')"
-          :title="t('settings.audit.title')"
-          :description="t('settings.audit.description')"
-        />
-        <UButton
-          icon="i-lucide-shield-check"
-          color="neutral"
-          variant="subtle"
-          :label="t('settings.audit.open')"
-          to="/audit"
-        />
-      </div>
-      <div class="mt-4 grid gap-4">
-        <UFormField :label="t('settings.audit.records_label')" :description="t('settings.audit.records_description')">
-          <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="10000" icon="i-lucide-database" class="mt-2 w-full" />
-        </UFormField>
-        <UFormField :label="t('settings.audit.days_label')" :description="t('settings.audit.days_description')">
-          <UInput v-model.number="settings.audit_retention_days" type="number" min="30" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
-        </UFormField>
-      </div>
-      <div class="mt-4 border-t border-muted pt-4">
-        <UFormField :label="t('settings.audit.otlp_enabled_label')" :description="t('settings.audit.otlp_enabled_description')" orientation="horizontal">
-          <USwitch v-model="settings.otlp_enabled" data-testid="otlp-enabled" />
-        </UFormField>
-        <div class="mt-4 grid gap-4">
-          <UFormField :label="t('settings.audit.otlp_endpoint_label')" :description="t('settings.audit.otlp_endpoint_description')">
-            <UInput v-model="settings.otlp_endpoint" placeholder="http://127.0.0.1:4318/v1/traces" icon="i-lucide-waypoints" class="mt-2 w-full" data-testid="otlp-endpoint" />
-          </UFormField>
-          <UFormField :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
-            <UInput v-model.number="settings.otlp_timeout_seconds" type="number" min="1" max="60" icon="i-lucide-timer" class="mt-2 w-full">
-              <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-            </UInput>
-          </UFormField>
+          <section data-settings-anchor="system.stats_retention" class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
+            <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
+            <div class="mt-4 grid gap-4">
+              <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
+                <UInput v-model.number="settings.stats_hourly_days" type="number" min="1" max="3650" icon="i-lucide-timer" class="mt-2 w-full">
+                  <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
+                </UInput>
+              </UFormField>
+              <UFormField :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
+                <UInput v-model.number="settings.stats_retention_days" type="number" min="7" max="3650" icon="i-lucide-archive" class="mt-2 w-full">
+                  <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
+                </UInput>
+              </UFormField>
+            </div>
+            <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />
+          </section>
         </div>
-      </div>
-      <SettingsDataResetButton class="mt-4" target="audit" :count="dataCounts.audit" @cleared="loadDataCounts()" />
-    </section>
-
-    <section data-settings-anchor="system.stats_retention" class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
-      <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
-      <div class="mt-4 grid gap-4">
-        <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
-          <UInput v-model.number="settings.stats_hourly_days" type="number" min="1" max="3650" icon="i-lucide-timer" class="mt-2 w-full">
-            <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
-          </UInput>
-        </UFormField>
-        <UFormField :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
-          <UInput v-model.number="settings.stats_retention_days" type="number" min="7" max="3650" icon="i-lucide-archive" class="mt-2 w-full">
-            <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
-          </UInput>
-        </UFormField>
-      </div>
-      <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />
-    </section>
+      </template>
+    </UTabs>
   </div>
 </template>

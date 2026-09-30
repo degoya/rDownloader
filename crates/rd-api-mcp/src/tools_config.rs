@@ -17,7 +17,8 @@ use super::{
     params_config::IdParams,
     params_delivery::{
         DefinitionParams, InstallBundledServicesParams, ListBundledServicesParams,
-        SetPluginEnabledParams, UninstallPluginParams, UpdateDefinitionParams,
+        RemoveBundledServicesParams, SetPluginEnabledParams, UninstallPluginParams,
+        UpdateDefinitionParams,
     },
 };
 use crate::{ApiError, dto::SettingsResponse};
@@ -355,6 +356,26 @@ impl RdMcpServer {
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
                 Json(crate::plugin_bundled::BundledInstallRequest {
+                    services: params.services,
+                }),
+            )
+            .await
+            .map(|response| response.0),
+        )
+    }
+
+    #[tool(
+        description = "Remove bundled services by key, as list_bundled_services reports them: every installed version of every plugin of each service. Their provider rows go at once; the plugins stop at the next service start. A service a download that has not finished is still bound to stays installed and is listed under failed (plugin.version_in_use); the others are removed. A later start does not install a removed service again."
+    )]
+    pub async fn remove_bundled_services(
+        &self,
+        Parameters(params): Parameters<RemoveBundledServicesParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::plugin_bundled::remove_bundled_services(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(crate::plugin_bundled::BundledRemoveRequest {
                     services: params.services,
                 }),
             )

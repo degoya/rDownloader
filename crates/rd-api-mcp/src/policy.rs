@@ -178,6 +178,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("record_stream_now", "/api/v1/streams/record", Method::POST),
     tool("refresh_tool_manifest", "/api/v1/system/tools/manifest/refresh", Method::POST),
     tool("regroup_collector", "/api/v1/collector/packages/regroup", Method::POST),
+    tool("remove_bundled_services", "/api/v1/plugins/bundled/remove", Method::POST),
     tool("rename_download", "/api/v1/downloads/{id}", Method::PATCH),
     tool("rename_package_folder", "/api/v1/packages/{id}/folder", Method::POST),
     tool("reorder_candidates", "/api/v1/collector/candidates/reorder", Method::POST),

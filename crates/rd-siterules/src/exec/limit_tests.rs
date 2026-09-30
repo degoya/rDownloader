@@ -207,6 +207,35 @@ async fn a_fan_out_wider_than_the_page_limit_is_refused() {
 }
 
 #[tokio::test]
+async fn a_long_id_list_runs_into_the_request_cap_instead_of_running_unbounded() {
+    // One request per entry (RD-180-18), each counted: with the default limits the container
+    // answer and 23 entries fit, the 24th entry is refused and the other six are never asked.
+    let ids: Vec<String> = (0..30).map(|id| id.to_string()).collect();
+    let rule = rule(
+        json!([
+            { "kind": "fetch-json", "url": "https://board.test/api/ids", "path": "/ids",
+              "into": "ids" },
+            { "kind": "fetch-json", "url": "https://board.test/api/link/${ids}", "path": "/url",
+              "into": "links" }
+        ]),
+        from_variable("links"),
+    );
+    let fetcher = Recorded::new()
+        .page(
+            "https://board.test/api/ids",
+            &json!({ "ids": ids }).to_string(),
+        )
+        .everything_else(Ok(FetchResponse::ok(r#"{"url":"https://a.test/x"}"#)));
+    let dns = Dns::public();
+    let clock = TestClock::new();
+    let executor = Executor::new(&fetcher, &dns, &clock);
+    let max_pages = executor.limits().max_pages;
+    let refused = executor.run(&rule, &url(START)).await.expect_err("refused");
+    assert_eq!(refused.code(), "site_rules.limit_pages");
+    assert_eq!(fetcher.requests().len(), max_pages as usize);
+}
+
+#[tokio::test]
 async fn more_links_than_the_limit_allows_is_refused_rather_than_trimmed() {
     let rule = collecting(vec![json!({ "kind": "fetch" })]);
     let fetcher = Recorded::new().page(START, "https://a.test/1 https://a.test/2 https://a.test/3");

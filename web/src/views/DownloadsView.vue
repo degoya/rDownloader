@@ -15,6 +15,7 @@ import QueueSummary from '@/components/QueueSummary.vue'
 import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
+import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useConfirm } from '@/composables/useConfirm'
 import { copyText } from '@/composables/useCopy'
 import { useOpenSections } from '@/composables/useOpenSections'
@@ -61,7 +62,7 @@ const filters = computed(() => [
   { label: t('downloads.filters.completed'), value: 'completed' }
 ])
 const clearItems = computed(() => [[
-  { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', onSelect: () => clearDownloads('completed') },
+  { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', kbds: ['k'], onSelect: () => clearDownloads('completed') },
   { label: t('downloads.header.clear_failed'), icon: 'i-lucide-file-x-2', onSelect: () => clearDownloads('failed') },
   { label: t('downloads.header.clear_all'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => clearDownloads('all') }
 ]])
@@ -215,6 +216,8 @@ async function bulkDeletePackages(): Promise<void> {
 }
 
 onMounted(() => {
+  // `k` (RD-180-17): the same action as the menu item below, confirmation included.
+  setClearCompletedAction(() => void clearDownloads('completed'))
   void loadSelections()
   void loadSummary()
   void postprocess.refresh()
@@ -229,6 +232,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (summaryTimer) clearInterval(summaryTimer)
   if (postprocessTimer) clearInterval(postprocessTimer)
+  setClearCompletedAction(null)
 })
 // `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
 // both fingerprints change with it, which keeps the summary reactive without a manual button.

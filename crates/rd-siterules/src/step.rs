@@ -30,14 +30,16 @@ pub const LINKS_VARIABLE: &str = "links";
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum Step {
-    /// Fetches a page as text. `url` defaults to the claimed address.
+    /// Fetches a page as text. `url` defaults to the claimed address. When a placeholder in
+    /// `url` holds a list, one page per entry, and `into` holds the list of bodies.
     Fetch {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         url: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         into: Option<String>,
     },
-    /// Fetches JSON and takes the value at `path`, a JSON pointer (RFC 6901).
+    /// Fetches JSON and takes the value at `path`, a JSON pointer (RFC 6901). When a
+    /// placeholder in `url` holds a list, once per entry, the values flattened in order.
     FetchJson {
         url: String,
         path: String,

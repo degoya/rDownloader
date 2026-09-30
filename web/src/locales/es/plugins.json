@@ -258,5 +258,12 @@
     "failed": "No se pudo instalar {name}: {reason}",
     "installed": "No se instaló nada. | 1 plugin instalado; uno de alojamiento o de inicio de sesión funciona al momento, los demás tipos desde el próximo inicio. | {count} plugins instalados; los de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
     "installed_live": "Nada instalado. | 1 plugin instalado; ya funciona. | {count} plugins instalados; ya funcionan."
+  },
+  "tabs": {
+    "installed": "Instalados",
+    "add": "Añadir",
+    "updates": "Actualizaciones",
+    "repositories": "Repositorios",
+    "trust": "Confianza"
   }
 }

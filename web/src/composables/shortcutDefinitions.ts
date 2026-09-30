@@ -105,6 +105,18 @@ function toggleTransfers(): void {
   })()
 }
 
+/**
+ * "Remove completed packages" belongs to `DownloadsView`, confirmation included; the view hands
+ * it in while it is mounted and takes it back on unmount, so `k` does nothing on any other page
+ * (RD-180-17). Bound here rather than by the view so it shares the overlay guard with every
+ * other plain key.
+ */
+let clearCompleted: (() => void) | null = null
+
+export function setClearCompletedAction(action: (() => void) | null): void {
+  clearCompleted = action
+}
+
 function importFiles(): void {
   requestFileImport()
   void router.push('/linkgrabber')
@@ -137,9 +149,11 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'b', labelKeys: ['b'], descriptionKey: 'common.shortcuts.toggle_sidebar', group: 'actions', handler: guarded(toggleSidebarCollapsed) },
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
+  { keys: 'k', labelKeys: ['k'], descriptionKey: 'common.shortcuts.clear_completed', group: 'actions', handler: guarded(() => clearCompleted?.()) },
   { keys: '?', labelKeys: ['?'], descriptionKey: 'common.shortcuts.show_help', group: 'actions', handler: guarded(() => openHelp()) },
   // The search (RD-170-15). `/` is a plain key, so like every key above it does nothing while a
   // text field has the focus; Ctrl/Cmd+K opens the search from anywhere, a text field included.
+  // `defineShortcuts` matches modifiers exactly, so Ctrl/Cmd+K never reaches the plain `k`.
   { keys: '/', labelKeys: ['/'], descriptionKey: 'common.shortcuts.open_search', group: 'actions', handler: guarded(openPalette) },
   { keys: 'meta_k', labelKeys: ['meta', 'k'], descriptionKey: 'common.shortcuts.open_search', group: 'actions', handler: openPalette, register: false }
 ]

@@ -100,10 +100,25 @@ describe('choosing a result', () => {
     expect(router.push).toHaveBeenCalledWith({ path: '/settings/routing', query: { tab: 'collector' } })
   })
 
+  // RD-180-15: the plugins page became tabs; the trusted keys sit on the last one. The panel is
+  // mounted but hidden until the address has switched the tab, and only then is it scrolled to.
+  it('opens a card on a sub-tab that is still hidden, and waits for the tab to show it', async () => {
+    document.body.innerHTML = '<div role="tabpanel" hidden><section data-settings-anchor="plugins.keys"></section></div>'
+    setTimeout(() => document.querySelector('[role="tabpanel"]')?.removeAttribute('hidden'), 120)
+    const scrolled = vi.mocked(Element.prototype.scrollIntoView)
+    const opened = openSettingsEntry(entry('plugins.keys'))
+    expect(router.push).toHaveBeenCalledWith({ path: '/settings/plugins', query: { tab: 'trust' } })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    expect(scrolled).not.toHaveBeenCalled()
+    expect(await opened).toBe(true)
+    expect(scrolled).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-settings-anchor]')?.hasAttribute('data-search-highlight')).toBe(true)
+  })
+
   it('scrolls to a field, marks it and moves the focus into it', async () => {
     document.body.innerHTML = '<div data-settings-anchor="security.allowed_hosts"><label>x</label><textarea></textarea></div>'
     expect(await openSettingsEntry(entry('security.allowed_hosts'))).toBe(true)
-    expect(router.push).toHaveBeenCalledWith({ path: '/settings/security' })
+    expect(router.push).toHaveBeenCalledWith({ path: '/settings/security', query: { tab: 'proxy' } })
     const anchor = document.querySelector('[data-settings-anchor]')
     expect(anchor?.hasAttribute('data-search-highlight')).toBe(true)
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })

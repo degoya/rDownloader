@@ -886,5 +886,22 @@
   "upload_limit": {
     "label": "Límite de subida",
     "description": "Se aplica a cada subida: siembra de torrents, almacenamiento de objetos, rclone y destinos de subida. Vacío significa ilimitado"
+  },
+  "subtabs": {
+    "network": {
+      "proxies": "Proxies y TLS",
+      "auth": "Autenticación",
+      "reconnect": "Reconectar"
+    },
+    "security": {
+      "signin": "Inicio de sesión",
+      "sessions": "Sesiones",
+      "proxy": "Proxy inverso"
+    },
+    "system": {
+      "status": "Estado",
+      "updates": "Actualizaciones",
+      "retention": "Retención"
+    }
   }
 }

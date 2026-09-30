@@ -820,7 +820,7 @@
     "plugin.bundled_installed": "Services installés ; ils fonctionnent dès maintenant",
     "plugin.bundled_partly_installed": "Certains plugins n’ont pas pu être installés",
     "plugin.bundled_service_unknown": "Le lot fourni ne contient aucun service nommé {service}",
-    "plugin.bundled_services_invalid": "Indique entre 1 et {max} services à installer",
+    "plugin.bundled_services_invalid": "Indique entre 1 et {max} services",
     "extract.password_has_quote": "Le mot de passe contient un guillemet (\"), que 7-Zip ne peut pas recevoir sous Windows ; il n'a donc pas pu être essayé.",
     "request.host_not_allowed": "Ce service ne répond pas au nom {host}. Ouvrez-le par son adresse ou ajoutez le nom aux noms d'hôte autorisés dans les paramètres.",
     "storage_root.protected_directory": "Un emplacement de stockage ne peut pas être, contenir ou se trouver dans un répertoire depuis lequel le service lance des programmes, des scripts ou des plugins, ou dans lequel il conserve ses données ({directory}).",
@@ -883,7 +883,9 @@
     "auth.password_too_long": "Le mot de passe doit comporter au plus {max} caractères",
     "api.scope_exceeds_grant": "Un jeton ne peut pas recevoir l'autorisation {scope}, car l'identifiant qui l'émet ne la possède pas",
     "mfa.session_required": "Les seconds facteurs et les passkeys ne peuvent être modifiés que depuis une session connectée, pas avec un jeton d'API",
-    "network.unreachable": "Le service est injoignable. Vérifiez qu'il fonctionne et que la connexion est établie."
+    "network.unreachable": "Le service est injoignable. Vérifiez qu'il fonctionne et que la connexion est établie.",
+    "plugin.bundled_removed": "Services supprimés ; leurs plugins s’arrêtent au prochain démarrage",
+    "plugin.bundled_partly_removed": "Certains services n’ont pas pu être supprimés"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

@@ -7,11 +7,11 @@ import type { BundledCategory, BundledService } from '@/api/bundledPlugins'
 /**
  * The bundle by service, filtered by category and searched by name (RD-160-05).
  *
- * Two uses, one list: the wizard's "Your services" step picks with a checkbox per service and
- * installs on "Continue" (`mode="select"`), the plugin manager installs one service per click
- * (`mode="install"`). A service that is installed is shown ticked and cannot be unticked here —
- * removing a plugin asks first and can be refused while a download uses it, which is the plugin
- * manager's job, not a checkbox's.
+ * Two uses, one list: the wizard's "Your services" step picks with a checkbox per service
+ * (`mode="select"`), the plugin manager installs one service per click (`mode="install"`). In the
+ * wizard a checkbox is the whole choice: the step ticks what is installed, and unticking one
+ * removes it on "Continue" after a confirmation (RD-180-14). The plugin manager's list stays
+ * add-only; removing there is the installed plugin's own delete, one version at a time.
  */
 const props = defineProps<{
   services: BundledService[]
@@ -110,8 +110,8 @@ function toggle(service: BundledService, on: boolean | 'indeterminate'): void {
           <UCheckbox
             v-if="mode === 'select'"
             class="min-w-0"
-            :model-value="isInstalled(service) || selected.includes(service.key)"
-            :disabled="isInstalled(service) || !!busy"
+            :model-value="selected.includes(service.key)"
+            :disabled="!!busy"
             :label="service.name"
             :description="service.description"
             @update:model-value="(value: boolean | 'indeterminate') => toggle(service, value)"

@@ -1,11 +1,15 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+// The real key handling, not a copy: this subpath needs nothing but Vue and VueUse.
+import { defineShortcuts } from '@nuxt/ui/composables/defineShortcuts'
+import { fireEvent, render } from '@testing-library/vue'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 // `SHORTCUT_DEFINITIONS` lives in `shortcutDefinitions.ts`, a module free of
 // `@nuxt/ui/composables` imports (that barrel pulls in a `#imports` alias that breaks under
 // Vitest — see `useNzbDropZone.test.ts` for the same constraint). `useAppShortcuts.ts` itself
 // wires `defineShortcuts`/`useOverlay` from that barrel, so it is exercised only through the app,
 // not imported here.
-import { SHORTCUT_DEFINITIONS, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
+import { SHORTCUT_DEFINITIONS, registeredShortcuts, setClearCompletedAction, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
 import { sidebarCollapsed } from './sidebarCollapse'
 import english from '@/locales/en/common.json'
 
@@ -50,7 +54,7 @@ describe('SHORTCUT_DEFINITIONS', () => {
 
   it('covers every documented key with a navigation or actions group', () => {
     const keys = SHORTCUT_DEFINITIONS.map(definition => definition.keys)
-    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', '?', '/', 'meta_k'])
+    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', '?', '/', 'meta_k'])
     for (const definition of SHORTCUT_DEFINITIONS) {
       expect(['navigation', 'actions']).toContain(definition.group)
       expect(definition.labelKeys.length).toBeGreaterThan(0)
@@ -119,5 +123,74 @@ describe('the sidebar shortcut', () => {
     setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
     entry.handler()
     expect(sidebarCollapsed.value).toBe(false)
+  })
+})
+
+describe('the clear-completed shortcut', () => {
+  // `k` removes the finished packages (RD-180-17). The action and its confirmation belong to
+  // `DownloadsView`, which hands it in while mounted (`DownloadsView.test.ts` holds that half);
+  // this half is the binding: which keypress reaches it and which does not.
+  const entry = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'k')!
+  let cleared = 0
+
+  function mountShortcuts() {
+    const host = defineComponent({
+      setup() {
+        defineShortcuts(registeredShortcuts())
+        return () => h('div', [h('input', { 'data-testid': 'field' }), h('button', { 'data-testid': 'elsewhere' })])
+      }
+    })
+    return render(host)
+  }
+
+  beforeEach(() => {
+    cleared = 0
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
+    setClearCompletedAction(() => { cleared += 1 })
+  })
+
+  afterEach(() => {
+    setClearCompletedAction(null)
+  })
+
+  it('is listed in the help as an action and bound as a plain key', () => {
+    expect(entry.group).toBe('actions')
+    expect(entry.labelKeys).toEqual(['k'])
+    expect(entry.descriptionKey).toBe('common.shortcuts.clear_completed')
+    expect(Object.keys(registeredShortcuts())).toContain('k')
+  })
+
+  it('runs the handed-in action on `k` outside a text field, never while one is being typed in', async () => {
+    const view = mountShortcuts()
+    const field = view.getByTestId('field')
+    field.focus()
+    await fireEvent.keyDown(field, { key: 'k' })
+    expect(cleared).toBe(0)
+
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    await fireEvent.keyDown(elsewhere, { key: 'k' })
+    expect(cleared).toBe(1)
+  })
+
+  it('leaves Ctrl/Cmd+K to the search', async () => {
+    const view = mountShortcuts()
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    await fireEvent.keyDown(elsewhere, { key: 'k', ctrlKey: true })
+    await fireEvent.keyDown(elsewhere, { key: 'k', metaKey: true })
+    expect(cleared).toBe(0)
+  })
+
+  it('does nothing while a dialog is open', () => {
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
+    entry.handler()
+    expect(cleared).toBe(0)
+  })
+
+  it('does nothing on a page that handed no action in', () => {
+    setClearCompletedAction(null)
+    expect(() => entry.handler()).not.toThrow()
+    expect(cleared).toBe(0)
   })
 })

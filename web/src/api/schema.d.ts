@@ -3405,6 +3405,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/bundled/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Removes every installed version of every plugin of the named services (RD-180-14).
+         * @description What the setup wizard's "Your services" step does with an unticked service. Like a delete in
+         *     the plugin manager, the provider rows go at once and the plugins stop at the next start. A
+         *     version an unfinished download is bound to refuses with `plugin.version_in_use` and keeps its
+         *     whole service — half a service would be a sign-in without its hoster — while the others
+         *     proceed; one that is not installed is skipped.
+         */
+        post: operations["remove_bundled_services"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins/i18n/{locale}": {
         parameters: {
             query?: never;
@@ -6520,7 +6544,7 @@ export interface components {
             /** @description Ordered by category, then key. Empty when the service found no bundle directory. */
             services: components["schemas"]["BundledServiceResponse"][];
         };
-        /** @description One plugin that could not be installed. */
+        /** @description One plugin that could not be installed, or removed. */
         BundledInstallFailure: {
             code: string;
             message: string;
@@ -6559,6 +6583,26 @@ export interface components {
             plugin_type: string;
             /** @description The version in the bundle. */
             version: string;
+        };
+        /** @description Body of `POST /api/v1/plugins/bundled/remove`. */
+        BundledRemoveRequest: {
+            /** @description Keys of the services to remove, as the catalogue lists them. */
+            services: string[];
+        };
+        BundledRemoveResponse: {
+            /**
+             * @description `plugin.bundled_removed` when every named service is gone, or
+             *     `plugin.bundled_partly_removed` when something stayed.
+             */
+            code: string;
+            /**
+             * @description What stayed: a version an unfinished download is bound to (`plugin.version_in_use`)
+             *     keeps its whole service, or a removal that failed.
+             */
+            failed: components["schemas"]["BundledInstallFailure"][];
+            message: string;
+            /** @description Keys of the services whose plugins were all removed. */
+            removed: string[];
         };
         /** @description One service of the bundle. */
         BundledServiceResponse: {
@@ -12134,7 +12178,7 @@ export interface components {
             /**
              * @description Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
              *     Unset, it is `beta` on a pre-release build and `stable` on every other.
-             * @default stable
+             * @default beta
              */
             update_channel: string;
             /**
@@ -21799,6 +21843,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BundledInstallResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The bundle has no service of that key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    remove_bundled_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundledRemoveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundledRemoveResponse"];
                 };
             };
             /** @description Bad Request */

@@ -46,7 +46,8 @@ const checks = computed<Check[]>(() => [
   {
     key: 'category',
     done: (status.value?.categories ?? 0) > 0,
-    to: '/settings/routing'
+    // The categories are the routing page's second tab (RD-180-15).
+    to: '/settings/routing?tab=categories'
   },
   {
     key: 'wizard',

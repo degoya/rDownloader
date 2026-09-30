@@ -42,7 +42,7 @@ defineExpose({ reload: refresh })
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5" data-testid="plugin-bundled-list">
+  <section data-settings-anchor="plugins.bundled" class="border border-muted bg-default p-5" data-testid="plugin-bundled-list">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader
         :eyebrow="t('plugins.bundled.eyebrow')"

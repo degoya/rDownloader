@@ -31,7 +31,7 @@
     <Icon Id="rdownloader.ico" SourceFile="$(var.Icon)" />
     <Property Id="ARPPRODUCTICON" Value="rdownloader.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://rdownloader.net" />
-    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- ARPNOMODIFY comes with WixUI_Minimal; defining it here too fails the build (WIX0091). -->
     <Property Id="ARPNOREPAIR" Value="1" />
     <!-- AUTOSTART=1 registers the service for the next login, for an unattended install. -->
     <Property Id="AUTOSTART" Secure="yes" />

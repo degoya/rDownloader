@@ -294,7 +294,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // RD-160-05. Not the trust decision "Plugin trust and installation" keeps out: the packages
     // are the release's own, signed with the key the binary carries, so installing one confirms
     // no key and admits nobody else's code. It is the same act as switching a shipped plugin
-    // on, which `set_plugin_enabled` already does.
+    // on, which `set_plugin_enabled` already does. Removing a service (RD-180-14) is local and
+    // undone by installing it again, like `uninstall_plugin_version`.
     covered(
         "Choosing the bundled services",
         "Setup wizard, Settings > Plugins",

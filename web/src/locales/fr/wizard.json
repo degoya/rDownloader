@@ -70,6 +70,15 @@
   },
   "selection": {
     "progress": "Installation de {done} sur {total}…",
-    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante."
+    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante.",
+    "installed_note_title": "Déjà installés",
+    "installed_note": "Les services qui n'ont besoin d'aucun compte sont déjà installés, pour que les liens fonctionnent aussitôt. Décochez-en un ici pour le supprimer en continuant, ou désactivez-le ou supprimez-le plus tard dans Paramètres → Plugins.",
+    "open_plugins": "Ouvrir Paramètres → Plugins",
+    "remove_hint": "Continuer ne supprime rien. | Continuer supprime 1 service. | Continuer supprime {count} services.",
+    "remove_title": "Supprimer des services ?",
+    "remove_confirm": "{names} est supprimé avec tous ses plugins et ne fonctionne plus dès le prochain démarrage. Vous pouvez le réinstaller à tout moment dans Paramètres → Plugins. | {names} sont supprimés avec tous leurs plugins et ne fonctionnent plus dès le prochain démarrage. Vous pouvez les réinstaller à tout moment dans Paramètres → Plugins.",
+    "remove_action": "Supprimer",
+    "remove_in_use": "{name} reste installé : un téléchargement inachevé l’utilise encore.",
+    "remove_failed": "{name} n’a pas pu être supprimé : {reason}"
   }
 }

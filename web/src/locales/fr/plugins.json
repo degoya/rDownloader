@@ -258,5 +258,12 @@
     "failed": "{name} n'a pas pu être installé : {reason}",
     "installed": "Rien n'a été installé. | 1 plugin installé ; un plugin d’hébergeur ou de connexion fonctionne aussitôt, les autres types dès le prochain démarrage. | {count} plugins installés ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
     "installed_live": "Rien n'a été installé. | 1 plugin installé ; il fonctionne dès maintenant. | {count} plugins installés ; ils fonctionnent dès maintenant."
+  },
+  "tabs": {
+    "installed": "Installés",
+    "add": "Ajouter",
+    "updates": "Mises à jour",
+    "repositories": "Dépôts",
+    "trust": "Confiance"
   }
 }

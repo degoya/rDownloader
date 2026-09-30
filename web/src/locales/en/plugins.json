@@ -258,5 +258,12 @@
     "failed": "{name} could not be installed: {reason}",
     "installed": "Nothing installed. | 1 plugin installed; a hoster or sign-in plugin runs at once, other types from the next start. | {count} plugins installed; hoster and sign-in plugins run at once, other types from the next start.",
     "installed_live": "Nothing installed. | 1 plugin installed; it runs now. | {count} plugins installed; they run now."
+  },
+  "tabs": {
+    "installed": "Installed",
+    "add": "Add",
+    "updates": "Updates",
+    "repositories": "Repositories",
+    "trust": "Trust"
   }
 }

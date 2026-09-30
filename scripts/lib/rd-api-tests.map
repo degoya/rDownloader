@@ -83,8 +83,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)\.rs$          notifications automations
 ^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)\.rs$                        auto_remove category_move_and_reset reorder
 ^crates/rd-api(-[a-z]+)?/src/passkey_handlers\.rs$                                        passkeys step_up
-^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)\.rs$   plugin_enabled plugin_bundled plugin_versions plugin_repositories plugin_auto_updates audit
-^crates/rd-api(-[a-z]+)?/src/plugin_bundled\.rs$                                        plugin_bundled audit
+^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)\.rs$   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_repositories plugin_auto_updates audit
+^crates/rd-api(-[a-z]+)?/src/plugin_bundled\.rs$                                        plugin_bundled plugin_bundled_removal audit
 ^crates/rd-api(-[a-z]+)?/src/plugin_repository_[a-z_]+\.rs$                               plugin_repositories plugin_auto_updates audit
 ^crates/rd-api(-[a-z]+)?/src/power_[a-z_]+\.rs$                                           power
 ^crates/rd-api(-[a-z]+)?/src/reconnect_[a-z_]+\.rs$                                       reconnect

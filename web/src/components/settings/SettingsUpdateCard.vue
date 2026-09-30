@@ -59,7 +59,7 @@ async function checkNow(): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="system.updates" class="mt-6 border border-muted bg-default p-5" data-testid="update-settings">
+  <section data-settings-anchor="system.updates" class="border border-muted bg-default p-5" data-testid="update-settings">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <SectionHeader
         :eyebrow="t('system.updates.eyebrow')"

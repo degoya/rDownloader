@@ -196,7 +196,20 @@ export const uiStubs = {
     template:
       '<button role="switch" v-bind="$attrs" :aria-label="ariaLabel ?? label" :aria-checked="modelValue" :disabled="disabled" @click="$emit(\'update:modelValue\', !modelValue)" />'
   },
-  UTabs: { template: '<div><slot /><slot name="roots" /><slot name="categories" /><slot name="rules" /><slot name="hotfolders" /></div>' },
+  /**
+   * A tab per item and every item's slot rendered, the inactive ones `hidden` — what the real one
+   * does with `:unmount-on-hide="false"`, which every settings page with sub-tabs uses. Hidden
+   * content stays in the DOM but out of role queries, as it is out of reach for a screen reader.
+   */
+  UTabs: {
+    props: ['items', 'modelValue'],
+    emits: ['update:modelValue'],
+    template:
+      '<div><div role="tablist"><span v-for="item in items ?? []" :key="item.value" role="tab" tabindex="0"'
+      + ' :aria-selected="item.value === modelValue" @click="$emit(\'update:modelValue\', item.value)">{{ item.label }}{{ item.badge ?? \'\' }}</span></div>'
+      + '<slot /><div v-for="item in items ?? []" :key="item.value" role="tabpanel" :data-tab="item.value"'
+      + ' :hidden="modelValue !== undefined && item.value !== modelValue"><slot :name="item.slot ?? item.value" :item="item" /></div></div>'
+  },
   UTextarea: modelInput,
   UTooltip: passthrough
 }

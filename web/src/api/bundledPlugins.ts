@@ -1,6 +1,6 @@
 /**
  * The bundled plugins by service (RD-160-05): what the release ships, what of it is installed,
- * and installing a chosen service. Through the same coded `call` as the repository routes, so a
+ * installing a chosen service, and removing an unticked one (RD-180-14). Through the same coded `call` as the repository routes, so a
  * refusal keeps its code and parameters.
  */
 import { call } from '@/api/pluginRepositories'
@@ -58,8 +58,20 @@ export interface BundledInstallResult {
   restart_required?: boolean
 }
 
+export interface BundledRemoveResult {
+  code: string
+  message: string
+  /** Keys of the services whose plugins were all removed. */
+  removed: string[]
+  /** What stayed; `plugin.version_in_use` keeps the whole service. */
+  failed: BundledInstallFailure[]
+}
+
 export const listBundled = (locale: string) =>
   call<BundledCatalogue>('GET', `/api/v1/plugins/bundled?locale=${encodeURIComponent(locale)}`)
 
 export const installBundled = (services: string[]) =>
   call<BundledInstallResult>('POST', '/api/v1/plugins/bundled/install', { services })
+
+export const removeBundled = (services: string[]) =>
+  call<BundledRemoveResult>('POST', '/api/v1/plugins/bundled/remove', { services })

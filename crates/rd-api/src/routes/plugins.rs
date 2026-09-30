@@ -81,7 +81,8 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/plugins/preview",
             post(plugin_repository_handlers::preview_plugin_package),
         )
-        // The bundle by service, and installing from it (RD-160-05); static like the others.
+        // The bundle by service, installing from it (RD-160-05) and removing what the wizard
+        // unticks (RD-180-14); static like the others.
         .route(
             "/api/v1/plugins/bundled",
             get(plugin_bundled::list_bundled_services),
@@ -89,6 +90,10 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/plugins/bundled/install",
             post(plugin_bundled::install_bundled_services),
+        )
+        .route(
+            "/api/v1/plugins/bundled/remove",
+            post(plugin_bundled::remove_bundled_services),
         )
         .route(
             "/api/v1/plugins/updates",
@@ -138,6 +143,7 @@ pub(crate) fn routes() -> Router<AppState> {
     plugin_handlers::plugin_messages,
     plugin_bundled::list_bundled_services,
     plugin_bundled::install_bundled_services,
+    plugin_bundled::remove_bundled_services,
     plugin_lifecycle::activate_plugin_version,
     plugin_lifecycle::stage_plugin_version,
     plugin_lifecycle::discard_staged_plugin_version,

@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**87 capabilities, 64 covered by a tool, 23 deliberately out (15 of them on the owner's line of 2026-09-23).** 384 REST operations, 197 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**87 capabilities, 64 covered by a tool, 23 deliberately out (15 of them on the owner's line of 2026-09-23).** 385 REST operations, 198 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -39,7 +39,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 3 | `list_configuration`, `set_plugin_enabled`, `uninstall_plugin_version` |
-| Choosing the bundled services | Setup wizard, Settings > Plugins | 2 | `install_bundled_services`, `list_bundled_services` |
+| Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
 | Remote jobs | Remote jobs | 4 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | The log store | Logs | 1 | `list_log_records` |

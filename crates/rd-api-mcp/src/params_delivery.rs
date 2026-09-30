@@ -172,3 +172,9 @@ pub(crate) struct InstallBundledServicesParams {
     /// Service keys as `list_bundled_services` reports them.
     pub services: Vec<String>,
 }
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct RemoveBundledServicesParams {
+    /// Service keys as `list_bundled_services` reports them.
+    pub services: Vec<String>,
+}

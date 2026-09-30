@@ -40,8 +40,9 @@ if [[ $# -eq 0 ]]; then
 fi
 
 # Every copy, as "file<TAB>version it reports". The manifest drops a pre-release suffix.
+# Python on Windows ends its lines with CRLF; the CR would make every copy disagree.
 copies() {
-    python3 - <<'PY'
+    python3 - <<'PY' | tr -d '\r'
 import json
 for path, read in (
     ('web/package.json', lambda d: d['version']),
@@ -131,9 +132,9 @@ cargo update --workspace --offline > /dev/null 2>&1
 
 after="$(current)"
 [[ "$after" == "$version" ]] || { echo "Cargo.toml still reports $after" >&2; exit 1; }
-web_version="$(python3 -c 'import json;print(json.load(open("web/package.json"))["version"])')"
+web_version="$(python3 -c 'import json;print(json.load(open("web/package.json"))["version"])' | tr -d '\r')"
 [[ "$web_version" == "$version" ]] || { echo "web/package.json reports $web_version" >&2; exit 1; }
-manifest_version="$(python3 -c 'import json;print(json.load(open("extension/manifest.base.json"))["version"])')"
+manifest_version="$(python3 -c 'import json;print(json.load(open("extension/manifest.base.json"))["version"])' | tr -d '\r')"
 [[ "$manifest_version" == "${version%%[-+]*}" ]] \
     || { echo "extension/manifest.base.json reports $manifest_version" >&2; exit 1; }
 

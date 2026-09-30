@@ -50,7 +50,7 @@ const warning = computed(() => {
 </script>
 
 <template>
-  <section data-settings-anchor="security.reverse_proxy" class="mt-6 border border-muted bg-default p-5">
+  <section data-settings-anchor="security.reverse_proxy" class="border border-muted bg-default p-5">
     <SectionHeader :eyebrow="t('system.proxy.eyebrow')" :title="t('system.proxy.title')" :description="t('system.proxy.description')" />
 
     <div class="mt-4 grid gap-4">

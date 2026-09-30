@@ -820,7 +820,7 @@
     "plugin.bundled_installed": "Servicios instalados; ya funcionan",
     "plugin.bundled_partly_installed": "Algunos plugins no se pudieron instalar",
     "plugin.bundled_service_unknown": "El paquete incluido no tiene ningún servicio llamado {service}",
-    "plugin.bundled_services_invalid": "Indica entre 1 y {max} servicios para instalar",
+    "plugin.bundled_services_invalid": "Indica entre 1 y {max} servicios",
     "extract.password_has_quote": "La contraseña contiene comillas (\"), que 7-Zip no puede recibir en Windows, por lo que no se ha podido probar.",
     "request.host_not_allowed": "Este servicio no responde al nombre {host}. Ábrelo por su dirección o añade el nombre a los nombres de host permitidos en los ajustes.",
     "storage_root.protected_directory": "Una ubicación de almacenamiento no puede ser, contener ni estar dentro de un directorio desde el que el servicio ejecuta programas, scripts o plugins o en el que guarda sus datos ({directory}).",
@@ -883,7 +883,9 @@
     "auth.password_too_long": "La contraseña debe tener como máximo {max} caracteres",
     "api.scope_exceeds_grant": "No se puede dar a un token el permiso {scope}, porque la credencial que lo emite no lo tiene",
     "mfa.session_required": "Los segundos factores y las passkeys solo se pueden cambiar desde una sesión iniciada, no con un token de API",
-    "network.unreachable": "No se pudo contactar con el servicio. Comprueba que esté en marcha y que la conexión funcione."
+    "network.unreachable": "No se pudo contactar con el servicio. Comprueba que esté en marcha y que la conexión funcione.",
+    "plugin.bundled_removed": "Servicios quitados; sus plugins dejan de funcionar en el próximo inicio",
+    "plugin.bundled_partly_removed": "Algunos servicios no se pudieron quitar"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

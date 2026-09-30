@@ -160,6 +160,11 @@ function chipNamed(label: string): HTMLElement {
   return found
 }
 
+/** Picks a sub-tab the way a user does, by its label (RD-180-15). */
+async function openTab(label: string): Promise<void> {
+  await fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${label}`) }))
+}
+
 function cardTitles(): string[] {
   return screen.getAllByRole('heading', { level: 4 }).map(heading => heading.textContent ?? '')
 }
@@ -325,6 +330,63 @@ describe('SettingsPluginsTab group filter', () => {
  * leftover version hangs under the plugin it belongs to, and getting rid of it is a confirmed,
  * refusable action rather than a silent delete.
  */
+/**
+ * RD-180-15: "the Plugins settings page is very long now; put its parts into separate tabs."
+ * Nine cards became five tabs. The tab is the settings view's to keep in the address, so the page
+ * takes it as a model and says when the user picks another one.
+ */
+describe('SettingsPluginsTab sub-tabs', () => {
+  beforeEach(resetMocks)
+
+  function tabs(): HTMLElement[] {
+    return screen.getAllByRole('tab')
+  }
+
+  it('offers the five tabs in order, the installed one with the number of plugins', async () => {
+    serveInventory(inventoryFor(INSTALLED_TYPES))
+    mount()
+
+    await waitFor(() => expect(cardTitles().length).toBe(12))
+    expect(tabs().map(tab => tab.textContent)).toEqual([
+      `${pluginsCatalogue.tabs.installed}12`,
+      pluginsCatalogue.tabs.add,
+      pluginsCatalogue.tabs.updates,
+      pluginsCatalogue.tabs.repositories,
+      pluginsCatalogue.tabs.trust
+    ])
+    expect(tabs()[0]?.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('opens on the tab it is given and hands a picked tab back to the view', async () => {
+    serveInventory(inventoryFor(INSTALLED_TYPES))
+    const { emitted } = mountComponent(SettingsPluginsTab, {
+      messages: { plugins: pluginsCatalogue },
+      stubs: CHILD_STUBS,
+      props: { subTab: 'trust' }
+    })
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 3, name: pluginsCatalogue.keys.title })).toBeTruthy())
+    // The installed cards are on another tab: mounted, but not in reach.
+    expect(screen.queryAllByRole('heading', { level: 4 })).toEqual([])
+    await fireEvent.click(screen.getByRole('tab', { name: pluginsCatalogue.tabs.add }))
+    expect(emitted()['update:subTab']).toEqual([['add']])
+  })
+
+  it('keeps each card on its tab', async () => {
+    serveInventory(inventoryFor(INSTALLED_TYPES))
+    const { container } = mount()
+
+    await waitFor(() => expect(cardTitles().length).toBe(12))
+    const panel = (anchor: string) =>
+      container.querySelector(`[data-settings-anchor="${anchor}"]`)?.closest('[role="tabpanel"]')?.getAttribute('data-tab')
+    expect(panel('plugins.installed')).toBe('installed')
+    expect(panel('plugins.install')).toBe('add')
+    expect(panel('plugins.bundled')).toBe('add')
+    expect(panel('plugins.withdrawn')).toBe('trust')
+    expect(panel('plugins.keys')).toBe('trust')
+  })
+})
+
 describe('SettingsPluginsTab superseded versions', () => {
   beforeEach(resetMocks)
 
@@ -490,6 +552,12 @@ describe('SettingsPluginsTab withdrawn packages', () => {
     mount()
 
     await waitFor(() => expect(cardTitles().length).toBe(12))
+    // The card itself says the version it shows is the one being refused.
+    await waitFor(() =>
+      expect(within(cardFor('resolver plugin 2')).getByText(pluginsCatalogue.card.withdrawn_badge)).toBeTruthy())
+
+    // The list of withdrawals sits on the trust tab (RD-180-15).
+    await openTab(pluginsCatalogue.tabs.trust)
     const list = section()
     // The sentence somebody has to read before they conclude the feature is broken.
     expect(within(list).getByText(pluginsCatalogue.withdrawn.description)).toBeTruthy()
@@ -499,8 +567,6 @@ describe('SettingsPluginsTab withdrawn packages', () => {
     expect(within(list).getByText(pluginsCatalogue.withdrawn.installed)).toBeTruthy()
     expect(within(list).queryByText(grouped(INSTALLED_ENTRY.digest))).toBeNull()
     expect(within(list).getByText(`Reason: ${INSTALLED_ENTRY.reason}`)).toBeTruthy()
-    // And the card itself says the version it shows is the one being refused.
-    expect(within(cardFor('resolver plugin 2')).getByText(pluginsCatalogue.card.withdrawn_badge)).toBeTruthy()
 
     // The one that is no longer installed has nothing else to be identified by.
     expect(within(list).getByText('gone plugin')).toBeTruthy()
@@ -546,6 +612,7 @@ describe('SettingsPluginsTab withdrawn packages', () => {
     await waitFor(() => expect(cardTitles().length).toBe(12))
     const before = revocationFetches()
     serveInventory(inventoryFor(INSTALLED_TYPES))
+    await openTab(pluginsCatalogue.tabs.trust)
     await fireEvent.click(within(section()).getByRole('button', { name: pluginsCatalogue.withdrawn.lift }))
 
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
@@ -554,6 +621,7 @@ describe('SettingsPluginsTab withdrawn packages', () => {
     }])
     await waitFor(() => expect(revocationFetches()).toBeGreaterThan(before))
     // With the withdrawal gone the card stops claiming one.
+    await openTab(pluginsCatalogue.tabs.installed)
     await waitFor(() =>
       expect(within(cardFor('resolver plugin 2')).queryByText(pluginsCatalogue.card.withdrawn_badge)).toBeNull())
   })

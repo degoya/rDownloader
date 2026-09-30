@@ -117,7 +117,8 @@
     "go_stats": "Ir a Estadísticas",
     "go_logs": "Ir a Registros",
     "go_audit": "Ir a Auditoría",
-    "open_search": "Abrir búsqueda"
+    "open_search": "Abrir búsqueda",
+    "clear_completed": "Quitar paquetes completados (en Descargas)"
   },
   "a11y": {
     "skip_to_content": "Ir al contenido",
@@ -157,5 +158,10 @@
   "copy": {
     "failed_title": "No se pudo copiar",
     "failed_description": "El navegador no permitió acceder al portapapeles. Selecciona el texto y cópialo a mano."
+  },
+  "unsaved": {
+    "title": "¿Descartar los cambios sin guardar?",
+    "description": "Algunos cambios aún no se han guardado. Si sales de la página ahora, se perderán.",
+    "discard": "Descartar"
   }
 }

@@ -947,3 +947,7 @@ async fn sync_bundled_plugins(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "bundled_policy_tests.rs"]
+mod bundled_policy_tests;

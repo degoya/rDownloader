@@ -70,6 +70,15 @@
   },
   "selection": {
     "progress": "Installing {done} of {total} …",
-    "hint": "Continue installs nothing new. | Continue installs 1 service. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step. | Continue installs {count} services. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step."
+    "hint": "Continue installs nothing new. | Continue installs 1 service. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step. | Continue installs {count} services. Hoster and sign-in plugins run at once, other types from the next start; you add accounts in the next step.",
+    "installed_note_title": "Already installed",
+    "installed_note": "Services that need no account are already installed, so links work straight away. Untick one here to remove it when you continue, or switch it off or remove it later under Settings → Plugins.",
+    "open_plugins": "Open Settings → Plugins",
+    "remove_hint": "Continue removes nothing. | Continue removes 1 service. | Continue removes {count} services.",
+    "remove_title": "Remove services?",
+    "remove_confirm": "{names} is removed with all of its plugins and stops running at the next start. You can install it again at any time under Settings → Plugins. | {names} are removed with all of their plugins and stop running at the next start. You can install them again at any time under Settings → Plugins.",
+    "remove_action": "Remove",
+    "remove_in_use": "{name} stays installed: an unfinished download still uses it.",
+    "remove_failed": "{name} could not be removed: {reason}"
   }
 }

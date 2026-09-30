@@ -1,4 +1,4 @@
-import type { RoutingTab, SettingsSectionValue } from './settingsSections'
+import type { SettingsSectionValue, SettingsSubTabValue } from './settingsSections'
 
 /**
  * What the search (Ctrl+K, RD-170-15) finds in the settings: every page, and on the pages the
@@ -18,8 +18,11 @@ export interface SettingsSearchEntry {
   /** Stable id and the value of the element's `data-settings-anchor`. */
   id: string
   section: SettingsSectionValue
-  /** The routing sub-tab the element sits on. */
-  tab?: RoutingTab
+  /**
+   * The sub-tab the element sits on, on a page that has them (`SETTINGS_SUB_TABS`); the test
+   * holds it to the slot the page actually renders the element in (RD-180-15).
+   */
+  tab?: SettingsSubTabValue
   /** A field takes the focus when it is found; a card is only scrolled to and highlighted. */
   kind: 'card' | 'field'
   titleKey: string
@@ -164,11 +167,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // Services
   card('services.switches', 'services', 'settings.services.title', { descriptionKey: 'settings.services.description', keywordsKey: `${K}.services` }),
   // Plugins
-  field('plugins.install', 'plugins', 'plugins.install.label', { descriptionKey: 'plugins.install.hint' }),
-  card('plugins.installed', 'plugins', 'plugins.installed.title'),
-  card('plugins.updates', 'plugins', 'plugins.updates.title'),
-  card('plugins.repositories', 'plugins', 'plugins.repositories.title', { descriptionKey: 'plugins.repositories.description' }),
-  card('plugins.keys', 'plugins', 'plugins.keys.title', { keywordsKey: `${K}.signature` }),
+  field('plugins.install', 'plugins', 'plugins.install.label', { tab: 'add', descriptionKey: 'plugins.install.hint' }),
+  card('plugins.installed', 'plugins', 'plugins.installed.title', { tab: 'installed' }),
+  card('plugins.bundled', 'plugins', 'plugins.bundled.title', { tab: 'add', descriptionKey: 'plugins.bundled.description' }),
+  card('plugins.updates', 'plugins', 'plugins.updates.title', { tab: 'updates' }),
+  card('plugins.repositories', 'plugins', 'plugins.repositories.title', { tab: 'repositories', descriptionKey: 'plugins.repositories.description' }),
+  card('plugins.withdrawn', 'plugins', 'plugins.withdrawn.title', { tab: 'trust', descriptionKey: 'plugins.withdrawn.description' }),
+  card('plugins.keys', 'plugins', 'plugins.keys.title', { tab: 'trust', keywordsKey: `${K}.signature` }),
   // Tools
   card('tools.status', 'tools', 'settings.vendor.title', { descriptionKey: 'settings.vendor.description', terms: ['yt-dlp', 'ffmpeg', 'ffprobe', 'unrar', '7-Zip', '7z', 'rclone', 'gallery-dl', 'streamlink', 'Apprise'] }),
   field('tools.vendor_directory', 'tools', 'settings.vendor.directory.label', { descriptionKey: 'settings.vendor.directory.description' }),
@@ -180,20 +185,20 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // MCP
   card('mcp.access', 'mcp', 'system.mcp.title', { terms: ['MCP', 'API', 'token'] }),
   // Network
-  card('network.proxies', 'network', 'settings.proxy.list_title', { descriptionKey: 'settings.proxy.description', terms: ['SOCKS5', 'HTTP'] }),
-  card('network.global_proxy', 'network', 'settings.global_proxy.title', { descriptionKey: 'settings.global_proxy.description' }),
-  field('network.custom_ca', 'network', 'settings.custom_ca.label', { descriptionKey: 'settings.custom_ca.description', terms: ['CA', 'PEM', 'TLS'] }),
-  card('network.auth_profiles', 'network', 'settings.auth_profiles.title', { descriptionKey: 'settings.auth_profiles.description' }),
-  card('network.reconnect', 'network', 'reconnect.title', { descriptionKey: 'reconnect.description', keywordsKey: `${K}.reconnect` }),
+  card('network.proxies', 'network', 'settings.proxy.list_title', { tab: 'proxies', descriptionKey: 'settings.proxy.description', terms: ['SOCKS5', 'HTTP'] }),
+  card('network.global_proxy', 'network', 'settings.global_proxy.title', { tab: 'proxies', descriptionKey: 'settings.global_proxy.description' }),
+  field('network.custom_ca', 'network', 'settings.custom_ca.label', { tab: 'proxies', descriptionKey: 'settings.custom_ca.description', terms: ['CA', 'PEM', 'TLS'] }),
+  card('network.auth_profiles', 'network', 'settings.auth_profiles.title', { tab: 'auth', descriptionKey: 'settings.auth_profiles.description' }),
+  card('network.reconnect', 'network', 'reconnect.title', { tab: 'reconnect', descriptionKey: 'reconnect.description', keywordsKey: `${K}.reconnect` }),
   // Security
-  card('security.reverse_proxy', 'security', 'system.proxy.title', { descriptionKey: 'system.proxy.description', terms: ['nginx', 'Caddy', 'Traefik'] }),
-  field('security.external_url', 'security', 'system.proxy.external_url', { descriptionKey: 'system.proxy.external_url_hint' }),
-  field('security.allowed_hosts', 'security', 'system.proxy.allowed_hosts', { descriptionKey: 'system.proxy.allowed_hosts_hint', keywordsKey: `${K}.allowed_hosts` }),
-  card('security.password', 'security', 'system.password.title', { descriptionKey: 'system.password.description' }),
-  card('security.passkeys', 'security', 'system.passkeys.title', { descriptionKey: 'system.passkeys.description', terms: ['WebAuthn', 'FIDO2'] }),
-  card('security.mfa', 'security', 'system.mfa.title', { descriptionKey: 'system.mfa.description', terms: ['2FA', 'TOTP'] }),
-  card('security.sessions', 'security', 'system.sessions.title', { descriptionKey: 'system.sessions.description' }),
-  card('security.session_limits', 'security', 'system.session_limits.title', { descriptionKey: 'system.session_limits.description' }),
+  card('security.reverse_proxy', 'security', 'system.proxy.title', { tab: 'proxy', descriptionKey: 'system.proxy.description', terms: ['nginx', 'Caddy', 'Traefik'] }),
+  field('security.external_url', 'security', 'system.proxy.external_url', { tab: 'proxy', descriptionKey: 'system.proxy.external_url_hint' }),
+  field('security.allowed_hosts', 'security', 'system.proxy.allowed_hosts', { tab: 'proxy', descriptionKey: 'system.proxy.allowed_hosts_hint', keywordsKey: `${K}.allowed_hosts` }),
+  card('security.password', 'security', 'system.password.title', { tab: 'signin', descriptionKey: 'system.password.description' }),
+  card('security.passkeys', 'security', 'system.passkeys.title', { tab: 'signin', descriptionKey: 'system.passkeys.description', terms: ['WebAuthn', 'FIDO2'] }),
+  card('security.mfa', 'security', 'system.mfa.title', { tab: 'signin', descriptionKey: 'system.mfa.description', terms: ['2FA', 'TOTP'] }),
+  card('security.sessions', 'security', 'system.sessions.title', { tab: 'sessions', descriptionKey: 'system.sessions.description' }),
+  card('security.session_limits', 'security', 'system.session_limits.title', { tab: 'sessions', descriptionKey: 'system.session_limits.description' }),
   // Backup
   card('backup.export', 'backup', 'system.backup.export.title', { descriptionKey: 'system.backup.export.description' }),
   field('backup.export_passphrase', 'backup', 'system.backup.export.passphrase', { keywordsKey: `${K}.passphrase` }),
@@ -203,17 +208,17 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('backup.schedule', 'backup', 'system.backup.full.schedule.cron', { descriptionKey: 'system.backup.full.schedule.cron_description', terms: ['cron'] }),
   card('backup.full_restore', 'backup', 'system.backup.full_restore.title', { descriptionKey: 'system.backup.full_restore.description' }),
   // System
-  card('system.readiness', 'system', 'system.readiness.title'),
-  card('system.updates', 'system', 'system.updates.title', { descriptionKey: 'system.updates.description', keywordsKey: `${K}.updates`, terms: ['GitHub'] }),
-  card('system.logs', 'system', 'settings.logs.title', { descriptionKey: 'settings.logs.description' }),
-  card('system.audit', 'system', 'settings.audit.title', { descriptionKey: 'settings.audit.description', terms: ['OTLP', 'OpenTelemetry'] }),
-  card('system.stats_retention', 'system', 'stats.retention.title', { descriptionKey: 'stats.retention.description' }),
+  card('system.readiness', 'system', 'system.readiness.title', { tab: 'status' }),
+  card('system.updates', 'system', 'system.updates.title', { tab: 'updates', descriptionKey: 'system.updates.description', keywordsKey: `${K}.updates`, terms: ['GitHub'] }),
+  card('system.logs', 'system', 'settings.logs.title', { tab: 'retention', descriptionKey: 'settings.logs.description' }),
+  card('system.audit', 'system', 'settings.audit.title', { tab: 'retention', descriptionKey: 'settings.audit.description', terms: ['OTLP', 'OpenTelemetry'] }),
+  card('system.stats_retention', 'system', 'stats.retention.title', { tab: 'retention', descriptionKey: 'stats.retention.description' }),
   // About
   card('about.build', 'about', 'settings.about.build.title'),
   card('about.licenses', 'about', 'settings.about.licenses.title')
 ]
 
-/** Where an entry lives: its page and, on the routing page, its sub-tab. */
+/** Where an entry lives: its page and, on a page with sub-tabs, its tab. */
 export function settingsSearchLocation(entry: Pick<SettingsSearchEntry, 'section' | 'tab'>): { path: string, query?: { tab: string } } {
   const path = `/settings/${entry.section}`
   return entry.tab ? { path, query: { tab: entry.tab } } : { path }

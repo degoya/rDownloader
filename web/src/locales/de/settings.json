@@ -886,5 +886,22 @@
   "upload_limit": {
     "label": "Upload-Limit",
     "description": "Gilt für jeden Upload: Torrent-Seeding, Objektspeicher, rclone und Upload-Ziele. Leer bedeutet unbegrenzt"
+  },
+  "subtabs": {
+    "network": {
+      "proxies": "Proxys & TLS",
+      "auth": "Authentifizierung",
+      "reconnect": "Neu verbinden"
+    },
+    "security": {
+      "signin": "Anmeldung",
+      "sessions": "Sitzungen",
+      "proxy": "Reverse Proxy"
+    },
+    "system": {
+      "status": "Status",
+      "updates": "Updates",
+      "retention": "Aufbewahrung"
+    }
   }
 }

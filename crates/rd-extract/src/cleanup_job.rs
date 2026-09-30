@@ -112,12 +112,22 @@ pub(crate) async fn run(
             Err(error) => errors.push(format!("{}: {error}", path.display())),
         }
     }
+    let folders = match dunce::canonicalize(directory) {
+        Ok(root) => remove_emptied_folders(&root, &targets).await,
+        Err(_) => 0,
+    };
     let (state, message) = if errors.is_empty() {
-        (PostprocessState::Completed, format!("removed={removed}"))
+        (
+            PostprocessState::Completed,
+            format!("removed={removed} folders={folders}"),
+        )
     } else {
         (
             PostprocessState::Failed,
-            truncate(format!("removed={removed} errors={}", errors.join("; "))),
+            truncate(format!(
+                "removed={removed} folders={folders} errors={}",
+                errors.join("; ")
+            )),
         )
     };
     checkpoint(
@@ -132,11 +142,35 @@ pub(crate) async fn run(
     .await
 }
 
+/// Removes the folders the cleanup left empty — a `Sample` folder whose only file was the
+/// sample — walking up from each removed file's folder, never the package folder itself.
+/// `remove_dir` refuses a folder that still holds anything, so a folder with other content, or
+/// one the cleanup did not empty, stays. Returns how many folders went.
+async fn remove_emptied_folders(root: &Path, removed: &[PathBuf]) -> usize {
+    let mut folders: Vec<&Path> = removed.iter().filter_map(|path| path.parent()).collect();
+    folders.sort();
+    folders.dedup();
+    // Deepest first, so a folder is tried after everything below it.
+    folders.sort_by_key(|folder| std::cmp::Reverse(folder.components().count()));
+    let mut count = 0;
+    for folder in folders {
+        let mut current = Some(folder);
+        while let Some(dir) = current.filter(|dir| *dir != root && dir.starts_with(root)) {
+            if tokio::fs::remove_dir(dir).await.is_err() {
+                break;
+            }
+            count += 1;
+            current = dir.parent();
+        }
+    }
+    count
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::{CleanupRules, collect_targets};
+    use super::{CleanupRules, collect_targets, remove_emptied_folders};
 
     fn rules() -> CleanupRules {
         CleanupRules {
@@ -185,5 +219,39 @@ mod tests {
                 Path::new("sub").join("check.SFV"),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn a_folder_the_cleanup_emptied_goes_with_its_sample() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().join("pkg");
+        std::fs::create_dir_all(root.join("Sample")).expect("sample folder");
+        std::fs::create_dir_all(root.join("Extras")).expect("extras folder");
+        std::fs::create_dir_all(root.join("Empty")).expect("empty folder");
+        std::fs::write(root.join("movie.mkv"), vec![0; 2048]).expect("mkv");
+        std::fs::write(root.join("Sample/movie-sample.mkv"), b"tiny").expect("sample");
+        std::fs::write(root.join("Extras/extra.nfo"), b"x").expect("nfo");
+        std::fs::write(root.join("Extras/interview.mkv"), vec![0; 2048]).expect("extra");
+        let root = dunce::canonicalize(&root).expect("root");
+        let targets = collect_targets(&root, &rules());
+        for path in &targets {
+            std::fs::remove_file(path).expect("remove target");
+        }
+
+        assert_eq!(remove_emptied_folders(&root, &targets).await, 1);
+        assert!(
+            !root.join("Sample").exists(),
+            "the emptied sample folder goes"
+        );
+        assert!(
+            root.join("Extras/interview.mkv").exists(),
+            "a folder with content stays"
+        );
+        assert!(
+            root.join("Empty").is_dir(),
+            "a folder the cleanup did not empty stays"
+        );
+        assert!(root.join("movie.mkv").exists());
+        assert!(root.is_dir(), "the package folder itself stays");
     }
 }

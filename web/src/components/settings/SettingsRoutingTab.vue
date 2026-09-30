@@ -12,6 +12,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import StorageActivityCard from '@/components/storage/StorageActivityCard.vue'
 import SettingsCollectorTab from '@/components/settings/SettingsCollectorTab.vue'
 import { useFetchState } from '@/composables/useFetchState'
+import { subTabItems } from '@/composables/useSettingsSubTab'
 
 const settings = defineModel<Settings>({ required: true })
 /** Owned by the parent: only the collector pane needs the settings save bar. */
@@ -24,12 +25,11 @@ const rules = ref<CategoryRule[]>([])
 const { loading, loadError, load } = useFetchState()
 
 /** Counts live in the tab badges so nothing is hidden behind a tab the user has not opened. */
-const tabItems = computed(() => [
-  { value: 'roots', slot: 'roots', label: t('routing.tabs.roots'), icon: 'i-lucide-hard-drive', badge: roots.value.length },
-  { value: 'categories', slot: 'categories', label: t('routing.tabs.categories'), icon: 'i-lucide-folder-tree', badge: categories.value.length },
-  { value: 'rules', slot: 'rules', label: t('routing.tabs.rules'), icon: 'i-lucide-git-branch', badge: rules.value.length },
-  { value: 'collector', slot: 'collector', label: t('routing.tabs.collector'), icon: 'i-lucide-shield-ban' }
-])
+const tabItems = computed(() => subTabItems('routing', t, {
+  roots: roots.value.length,
+  categories: categories.value.length,
+  rules: rules.value.length
+}))
 
 onMounted(() => void load(refresh))
 

@@ -886,5 +886,22 @@
   "upload_limit": {
     "label": "Upload limit",
     "description": "Applies to every upload: torrent seeding, object storage, rclone and upload destinations. Empty means unlimited"
+  },
+  "subtabs": {
+    "network": {
+      "proxies": "Proxies & TLS",
+      "auth": "Authentication",
+      "reconnect": "Reconnect"
+    },
+    "security": {
+      "signin": "Sign-in",
+      "sessions": "Sessions",
+      "proxy": "Reverse proxy"
+    },
+    "system": {
+      "status": "Status",
+      "updates": "Updates",
+      "retention": "Retention"
+    }
   }
 }

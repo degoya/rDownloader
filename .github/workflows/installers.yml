@@ -119,11 +119,28 @@ jobs:
           set -euo pipefail
           home="${HOME}/.local/share/rdownloader"
           db="${home}/data/rdownloader.sqlite3"
-          trap 'journalctl --user --unit rdownloader --no-pager --lines 80 || true' EXIT
+          diagnose() {
+            journalctl --user --unit rdownloader --no-pager --lines 80 || true
+            systemctl --user status rdownloader --no-pager || true
+            find "${home}" -maxdepth 3 -print 2> /dev/null || true
+            busctl --user list 2> /dev/null | grep -i -e secret -e keyring || true
+            # Where a start that never answers is waiting: the service's threads and their wait channels.
+            pid="$(systemctl --user show --property MainPID --value rdownloader 2> /dev/null || true)"
+            if [[ -n "${pid}" && "${pid}" != 0 ]]; then
+              for task in /proc/"${pid}"/task/*; do
+                echo "${task##*/} $(cat "${task}/comm" 2> /dev/null) $(cat "${task}/wchan" 2> /dev/null)"
+              done
+              sudo gdb --batch -p "${pid}" -ex 'thread apply all bt 12' 2> /dev/null | head -n 200 || true
+            fi
+          }
+          trap 'status=$?; [[ ${status} -eq 0 ]] || diagnose' EXIT
+          # Five minutes: the stage holds debug binaries, and a debug build's first start
+          # compiles every bundled plugin with an unoptimised Cranelift — over four CPU minutes,
+          # more than a four-core runner does in the one minute this waited before.
           serve() {
             systemctl --user daemon-reload
             systemctl --user start rdownloader
-            curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+            curl --fail --silent --show-error --retry 300 --retry-delay 1 --retry-connrefused \
               http://127.0.0.1:8710/api/v1/health > /dev/null
             test -s "${db}"
             systemctl --user stop rdownloader
@@ -151,13 +168,14 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --volume "${PWD}/installers:/installers:ro" fedora:44 bash -euo pipefail -c '
-            dnf install --assumeyes /installers/rdownloader-linux-x86_64.rpm
+            # The container image has no runuser; util-linux brings it.
+            dnf install --assumeyes util-linux /installers/rdownloader-linux-x86_64.rpm
             test "$(cat /usr/lib/rdownloader/install-kind)" = rpm
             useradd --create-home tester
             db=/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3
             serve() {
               runuser -u tester -- bash -c "cd /home/tester && rdownloader serve > /tmp/serve.log 2>&1 & echo \$! > /tmp/serve.pid"
-              curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+              curl --fail --silent --show-error --retry 300 --retry-delay 1 --retry-connrefused \
                 http://127.0.0.1:8710/api/v1/health > /dev/null || { cat /tmp/serve.log; exit 1; }
               kill "$(cat /tmp/serve.pid)"
               while kill -0 "$(cat /tmp/serve.pid)" 2> /dev/null; do sleep 1; done
@@ -250,7 +268,7 @@ jobs:
             & "$program\start-rdownloader.bat" server
             if ($LASTEXITCODE -ne 0) { throw "start-rdownloader.bat failed" }
             $healthy = $false
-            for ($i = 0; $i -lt 60; $i++) {
+            for ($i = 0; $i -lt 300; $i++) {
               try { Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null; $healthy = $true; break } catch { Start-Sleep -Seconds 1 }
             }
             if (-not $healthy) { Get-Content (Join-Path $home_ 'logs\rdownloader.err.log') -ErrorAction SilentlyContinue; throw "no health answer" }

@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { installBundled, listBundled, type BundledInstallFailure, type BundledService } from '@/api/bundledPlugins'
+import { installBundled, listBundled, removeBundled, type BundledInstallFailure, type BundledService } from '@/api/bundledPlugins'
 import { useFetchState } from '@/composables/useFetchState'
 import { translateServerMessage } from '@/i18n/server'
 
@@ -17,6 +17,14 @@ export interface BundledInstallOutcome {
    * once (RD-170-12).
    */
   restartRequired: boolean
+}
+
+/** What one removal did (RD-180-14). */
+export interface BundledRemoveOutcome {
+  removed: string[]
+  failures: BundledInstallFailure[]
+  /** A refused request (not one service staying), in the reader's language. */
+  error: string | null
 }
 
 /**
@@ -63,6 +71,21 @@ export function useBundledServices() {
     return outcome
   }
 
+  /** Removes the services in one request; the plugins stop at the next start (RD-180-14). */
+  async function remove(keys: string[]): Promise<BundledRemoveOutcome> {
+    const outcome: BundledRemoveOutcome = { removed: [], failures: [], error: null }
+    if (!keys.length) return outcome
+    const answer = await removeBundled(keys)
+    if (answer.ok) {
+      outcome.removed = answer.data.removed ?? []
+      outcome.failures = answer.data.failed ?? []
+    } else {
+      outcome.error = translateServerMessage(answer.message)
+    }
+    await refresh()
+    return outcome
+  }
+
   return {
     services,
     loading: fetchState.loading,
@@ -71,6 +94,7 @@ export function useBundledServices() {
     refresh,
     progress,
     installing,
-    install
+    install,
+    remove
   }
 }

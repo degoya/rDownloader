@@ -820,7 +820,7 @@
     "plugin.bundled_installed": "Dienste installiert; sie laufen jetzt",
     "plugin.bundled_partly_installed": "Einige Plugins konnten nicht installiert werden",
     "plugin.bundled_service_unknown": "Das Paket-Bündel enthält keinen Dienst namens {service}",
-    "plugin.bundled_services_invalid": "Nenne zwischen 1 und {max} Dienste zum Installieren",
+    "plugin.bundled_services_invalid": "Nenne zwischen 1 und {max} Dienste",
     "extract.password_has_quote": "Das Passwort enthält ein Anführungszeichen (\"), das 7-Zip unter Windows nicht annehmen kann; es konnte deshalb nicht ausprobiert werden.",
     "request.host_not_allowed": "Dieser Dienst antwortet nicht unter dem Namen {host}. Öffne ihn über seine Adresse oder trage den Namen in den Einstellungen unter „Erlaubte Hostnamen“ ein.",
     "storage_root.protected_directory": "Ein Speicherort darf kein Verzeichnis sein, enthalten oder in einem liegen, aus dem der Dienst Programme, Skripte oder Plugins startet oder in dem er seine Daten hält ({directory}).",
@@ -883,7 +883,9 @@
     "auth.password_too_long": "Das Kennwort darf höchstens {max} Zeichen lang sein",
     "api.scope_exceeds_grant": "Ein Token kann die Berechtigung {scope} nicht erhalten, weil die ausstellende Anmeldung sie selbst nicht besitzt",
     "mfa.session_required": "Zweite Faktoren und Passkeys lassen sich nur in einer angemeldeten Sitzung ändern, nicht mit einem API-Token",
-    "network.unreachable": "Der Dienst ist nicht erreichbar. Prüfe, ob er läuft und die Verbindung steht."
+    "network.unreachable": "Der Dienst ist nicht erreichbar. Prüfe, ob er läuft und die Verbindung steht.",
+    "plugin.bundled_removed": "Dienste entfernt; ihre Plugins laufen ab dem nächsten Start nicht mehr",
+    "plugin.bundled_partly_removed": "Einige Dienste konnten nicht entfernt werden"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

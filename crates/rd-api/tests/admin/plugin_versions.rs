@@ -35,6 +35,15 @@ fn version_exists(directory: &std::path::Path, version: &str) -> bool {
 /// Only against a parked harness: a live scheduler claims the queued row and resolves it for
 /// real, which races the pin and every state the test then sets by hand.
 async fn pinned_download(database: &rd_db::Database, version: &str) -> rd_core::DownloadId {
+    pinned_download_of(database, PLUGIN, version).await
+}
+
+/// [`pinned_download`] for any plugin; the bundled-service removal reuses it (RD-180-14).
+pub(crate) async fn pinned_download_of(
+    database: &rd_db::Database,
+    plugin: &str,
+    version: &str,
+) -> rd_core::DownloadId {
     let package_id = rd_core::PackageId::new();
     database
         .create_package(rd_db::NewPackage {
@@ -75,7 +84,7 @@ async fn pinned_download(database: &rd_db::Database, version: &str) -> rd_core::
         .claim_resolver_pin(
             download.id,
             rd_core::ResolverPin {
-                plugin_id: PLUGIN.parse().expect("plugin id"),
+                plugin_id: plugin.parse().expect("plugin id"),
                 version: version.to_owned(),
             },
         )

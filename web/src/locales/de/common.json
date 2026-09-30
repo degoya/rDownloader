@@ -117,7 +117,8 @@
     "go_stats": "Zu Statistik",
     "go_logs": "Zum Protokoll",
     "go_audit": "Zum Audit-Protokoll",
-    "open_search": "Suche öffnen"
+    "open_search": "Suche öffnen",
+    "clear_completed": "Fertige Pakete entfernen (in Downloads)"
   },
   "a11y": {
     "skip_to_content": "Zum Inhalt springen",
@@ -157,5 +158,10 @@
   "copy": {
     "failed_title": "Kopieren fehlgeschlagen",
     "failed_description": "Der Browser hat die Zwischenablage nicht freigegeben. Markiere den Text und kopiere ihn von Hand."
+  },
+  "unsaved": {
+    "title": "Ungespeicherte Änderungen verwerfen?",
+    "description": "Einige Änderungen sind noch nicht gespeichert. Wenn du die Seite jetzt verlässt, gehen sie verloren.",
+    "discard": "Verwerfen"
   }
 }

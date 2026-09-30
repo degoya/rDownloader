@@ -29,6 +29,10 @@ const pending = ref(false)
 const testing = ref(false)
 const testResult = ref<{ ok: boolean, message: string } | null>(null)
 let loadRequest: Promise<boolean> | null = null
+/** The editable fields as last loaded or saved, so the page can tell a leave what it would lose (RD-180-16). */
+const editable = (): string => JSON.stringify([form.solver, form.endpoint, form.manual_enabled, form.manual_timeout_seconds])
+const saved = ref(editable())
+const dirty = computed(() => editable() !== saved.value || apiKey.value !== '' || clearApiKey.value)
 
 const solverItems = computed(() => [
   { label: t('captcha.settings.solver.none'), value: 'none' satisfies SolverKind },
@@ -53,6 +57,7 @@ async function load(): Promise<boolean> {
 
 function apply(config: CaptchaConfig): void {
   Object.assign(form, config)
+  saved.value = editable()
   apiKey.value = ''
   clearApiKey.value = false
   testResult.value = null
@@ -100,7 +105,7 @@ async function save(): Promise<boolean> {
   return true
 }
 
-defineExpose({ save })
+defineExpose({ save, dirty })
 </script>
 
 <template>

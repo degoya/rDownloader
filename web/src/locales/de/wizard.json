@@ -70,6 +70,15 @@
   },
   "selection": {
     "progress": "Installiere {done} von {total} …",
-    "hint": "Weiter installiert nichts Neues. | Weiter installiert 1 Dienst. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an. | Weiter installiert {count} Dienste. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an."
+    "hint": "Weiter installiert nichts Neues. | Weiter installiert 1 Dienst. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an. | Weiter installiert {count} Dienste. Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start; Konten legst du gleich im nächsten Schritt an.",
+    "installed_note_title": "Schon installiert",
+    "installed_note": "Dienste, die kein Konto brauchen, sind schon installiert, damit Links sofort funktionieren. Nimm hier bei einem das Häkchen weg, damit „Weiter“ ihn entfernt, oder schalte ihn später unter Einstellungen → Plugins aus bzw. entferne ihn dort.",
+    "open_plugins": "Einstellungen → Plugins öffnen",
+    "remove_hint": "Weiter entfernt nichts. | Weiter entfernt 1 Dienst. | Weiter entfernt {count} Dienste.",
+    "remove_title": "Dienste entfernen?",
+    "remove_confirm": "{names} wird mit allen Plugins entfernt und läuft ab dem nächsten Start nicht mehr. Unter Einstellungen → Plugins kannst du ihn jederzeit wieder installieren. | {names} werden mit allen Plugins entfernt und laufen ab dem nächsten Start nicht mehr. Unter Einstellungen → Plugins kannst du sie jederzeit wieder installieren.",
+    "remove_action": "Entfernen",
+    "remove_in_use": "{name} bleibt installiert: Ein unerledigter Download verwendet ihn noch.",
+    "remove_failed": "{name} konnte nicht entfernt werden: {reason}"
   }
 }

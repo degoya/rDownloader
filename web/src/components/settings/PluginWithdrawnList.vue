@@ -37,7 +37,7 @@ function revocationName(entry: PluginRevocation): string {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <section data-settings-anchor="plugins.withdrawn" class="border border-muted bg-default p-5">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.withdrawn.eyebrow')" :title="t('plugins.withdrawn.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ revocations.length }}</UBadge>

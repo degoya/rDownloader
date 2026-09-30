@@ -311,10 +311,14 @@ provider metadata with the components.
 
 Bundled plugins are installed by choice, not all at once (RD-160-05). The setup wizard's *Your
 services* step, right before the accounts, offers the bundle by service with a category chip row
-and a search; an installed service is shown ticked and cannot be unticked there, because removing
-a plugin asks first and can be refused while a download uses it. The plugin manager lists every
-uninstalled service under *Available services* with a one-click install. An update never installs
-a service nobody chose.
+and a search. An installed service is shown ticked, and a note above the list says that the
+services needing no account came with the first start and can be unticked here or switched off
+and removed later under Settings → Plugins (RD-180-14). Unticking one removes it on *Continue*,
+after one confirmation that names the services and says they stop at the next start; a service a
+download still uses stays and is named. The plugin manager lists every uninstalled service under
+*Available services* with a one-click install and stays add-only; removing there is the
+installed plugin's own delete. An update never installs a service nobody chose, and never
+reinstalls one that was removed.
 
 ## Frontend and UX Design
 
@@ -395,6 +399,10 @@ prevent columns from shifting during live updates.
   `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics, `8` Logs,
   `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause, and `?` help. A new navigation entry takes the
   number of its place and renumbers what follows, so the keys keep reading top to bottom.
+  A key that belongs to one page (`K` removes the completed packages, only on Downloads,
+  RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
+  the page hands its action in while it is mounted; the key runs that action with its
+  confirmation and shows as a `UKbd` hint on the menu item that offers it.
 - **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
   — the command palette in a modal — on Ctrl/Cmd+K from anywhere, text fields included, on `/`
   outside them, and on the search button at the top of the sidebar (an icon with a tooltip on
@@ -407,6 +415,36 @@ prevent columns from shifting during live updates.
   settings sections (`web/src/settingsSearch.ts`) and a `data-settings-anchor` on the element,
   never a scrape of the rendered page: a page not mounted has nothing to scrape. A new settings
   page fails a test until it has its row; a new card is found once it has an anchor and a row.
+- **A settings page with more than five cards is split into sub-tabs** (RD-180-15; the owner:
+  "put its parts into separate tabs so it's clearer … so everything stays clear even as settings
+  grow"). Count what a reader scrolls past: every bordered card once, cards side by side each
+  once, a row of tiles once, and a form-and-list editor (`FormListLayout`) twice — two cards
+  beside each other, one above the other on a narrow screen. Five or fewer stay one scroll; the
+  sixth card is the moment to split, not the tenth. The tabs are topics a reader comes with —
+  *what is installed*, *what can be added*, *whom this machine trusts* — never "more" or
+  "advanced"; three to five of them, because a tab bar divides one line (the chip-row rule
+  below), and every tab at least one real card. Cards move with their order kept and are not
+  rewritten; the page header stays above the tabs and the navbar keeps the page's name. The
+  shape is the routing page's since RD-170-15: `UTabs` in `pill` variant, `:unmount-on-hide="false"`
+  so every tab's data loads once and the search's anchors exist, the tab's name in the address as
+  `?tab=` (none for the first tab, so the plain address stays plain; an unknown name shows the
+  first tab), a push per change so back and forward walk the tabs. A count that should not wait
+  unseen — installed plugins, waiting updates, the routing lists — goes into the tab's badge.
+  The save bar shows only under a tab that edits the settings document — and under every such
+  tab: System had none until RD-180-15, and its fields were saved only by another page's button. The tables are
+  `SETTINGS_SUB_TABS` in `settingsSections.ts` and `useSettingsSubTab`; the search entries name
+  their tab, and a test holds each entry to the tab slot its anchor is actually rendered in. As
+  of 1.8: Storage & rules, Plugins, Network, Security and System have tabs; Bandwidth and
+  Notifications are at five and split with their next card.
+- **Unsaved settings are not lost without a question** (RD-180-16; owner, 2026-09-30). A view
+  with a save bar knows when what is on screen differs from what was last loaded or saved, and
+  `useUnsavedGuard` asks before that is lost: leaving the route asks in the app's confirmation —
+  *Discard* (destructive) leaves, *Cancel* stays with the edits — and closing or reloading the
+  browser tab gets the browser's own question, the only one a page may raise there. It asks only
+  where edits are really lost: the settings pages and their sub-tabs share one document in one
+  mounted view, so moving between them asks nothing; a form a page holds for itself (the captcha
+  card) asks when its page is left. A clean view, and a view just saved, never asks. Forms that
+  save each entry themselves carry no save bar and no guard.
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
   into the same locale namespace at runtime.
 - **German says "du", French "vous", Spanish "tú"** — as the website does (owner, 2026-09-27):

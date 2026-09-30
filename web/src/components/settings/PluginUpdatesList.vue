@@ -9,7 +9,7 @@
  * installs itself, whatever the policy, so its new rights are seen before they are granted. The
  * mark's tooltip names them (RD-160-09).
  */
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -37,6 +37,9 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const message = ref<string | null>(null)
 const previewing = ref<PreviewSource | null>(null)
+
+/** The plugins page counts the waiting updates in its tab's badge (RD-180-15). */
+defineExpose({ updateCount: computed(() => offers.value.updates.length) })
 
 let releaseEvents: (() => void) | null = null
 let reloadTimer: number | null = null

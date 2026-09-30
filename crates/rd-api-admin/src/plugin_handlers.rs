@@ -138,34 +138,7 @@ pub async fn remove_plugin_version(
     audit: crate::audit::AuditContext,
     Path((id, version)): Path<(String, String)>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    // Asked before the directory goes: a pinned job and a transfer checkpoint both name one
-    // exact version, and neither can be rebuilt from the newer one. The blockers are read
-    // first, because naming one of them is what lets the reader go and look at it; the count
-    // then says how many more there are.
-    let blockers = state
-        .database
-        .plugin_version_blockers(&id, &version, 2)
-        .await?;
-    if !blockers.is_empty() {
-        let names = blockers.join(", ");
-        // The two reads are one predicate apart in time; a job that ended in between must not
-        // turn the sentence into "0 unfinished downloads".
-        let count = state
-            .database
-            .plugin_version_usage(&id, &version)
-            .await?
-            .max(1);
-        let message = if count == 1 {
-            format!("This plugin version cannot be removed: {names} is still using it")
-        } else {
-            format!(
-                "This plugin version cannot be removed: {count} unfinished downloads are still using it, including {names}"
-            )
-        };
-        return Err(ApiError::conflict("plugin.version_in_use", message)
-            .with_param("count", count)
-            .with_param("names", names));
-    }
+    refuse_version_in_use(&state, &id, &version).await?;
     let removed = state
         .plugins
         .remove_version(&id, &version)
@@ -198,6 +171,45 @@ pub async fn remove_plugin_version(
     )))
 }
 
+/// Refuses with `plugin.version_in_use` while unfinished work is bound to `version`.
+///
+/// Shared with removing a bundled service, which takes the same versions away.
+pub(crate) async fn refuse_version_in_use(
+    state: &AppState,
+    id: &str,
+    version: &str,
+) -> Result<(), ApiError> {
+    // Asked before the directory goes: a pinned job and a transfer checkpoint both name one
+    // exact version, and neither can be rebuilt from the newer one. The blockers are read
+    // first, because naming one of them is what lets the reader go and look at it; the count
+    // then says how many more there are.
+    let blockers = state
+        .database
+        .plugin_version_blockers(id, version, 2)
+        .await?;
+    if !blockers.is_empty() {
+        let names = blockers.join(", ");
+        // The two reads are one predicate apart in time; a job that ended in between must not
+        // turn the sentence into "0 unfinished downloads".
+        let count = state
+            .database
+            .plugin_version_usage(id, version)
+            .await?
+            .max(1);
+        let message = if count == 1 {
+            format!("This plugin version cannot be removed: {names} is still using it")
+        } else {
+            format!(
+                "This plugin version cannot be removed: {count} unfinished downloads are still using it, including {names}"
+            )
+        };
+        return Err(ApiError::conflict("plugin.version_in_use", message)
+            .with_param("count", count)
+            .with_param("names", names));
+    }
+    Ok(())
+}
+
 /// Tells open clients that the installed set changed.
 ///
 /// `PluginChanged` had no producer at all until this: installing, removing and switching a
@@ -207,7 +219,7 @@ pub async fn remove_plugin_version(
 /// do go through the writer — announced themselves. It carries the plugin id and what happened,
 /// never a manifest: `PluginChanged` is administration-scoped and a manifest names domains and
 /// secret slots.
-fn announce_plugin(state: &AppState, id: &str, action: &str) {
+pub(crate) fn announce_plugin(state: &AppState, id: &str, action: &str) {
     // Three events for one write, which is not redundancy. A subscriber receives an event only
     // when it holds that event's exact scope, and this write invalidates lists read at three
     // different ones: the plugin inventory at `Admin`, the provider registry and the

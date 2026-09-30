@@ -11,6 +11,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
+import { subTabItems } from '@/composables/useSettingsSubTab'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { withBase } from '@/basePath'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -24,6 +25,13 @@ import PluginWithdrawnList from './PluginWithdrawnList.vue'
 import SettingsPluginRepositories from './SettingsPluginRepositories.vue'
 import { displayName, type TrustedKey } from './pluginDisplay'
 
+/**
+ * Owned by the settings view, which keeps it in the address (RD-180-15). Nine cards on one page
+ * had become a long scroll to the one that was wanted, so the page is five tabs: what is
+ * installed, what can be added, the updates, where packages come from, and whom this machine
+ * trusts. The default is for a mount without the view, as in the tests.
+ */
+const activeTab = defineModel<string>('subTab', { default: 'installed' })
 const { t } = useI18n()
 const plugins = ref<InstalledPlugin[]>([])
 const incompatible = ref<IncompatiblePlugin[]>([])
@@ -108,6 +116,13 @@ function toggleSuperseded(id: string): void {
 }
 /** The bundle's available services, re-read when the installed set changes elsewhere. */
 const bundledList = ref<InstanceType<typeof PluginBundledList> | null>(null)
+/** Only for the count in the updates tab's badge; the list reads its offers itself. */
+const updatesList = ref<InstanceType<typeof PluginUpdatesList> | null>(null)
+/** The installed plugins and the waiting updates are counted in the badges, as on the routing page. */
+const tabItems = computed(() => subTabItems('plugins', t, {
+  installed: pluginGroups.value.length,
+  updates: updatesList.value?.updateCount || undefined
+}))
 const trustedKeys = ref<TrustedKey[]>([])
 const packageFile = ref<File | null>(null)
 /** The package the install preview shows; the upload installs only from there (RD-140-01). */
@@ -377,111 +392,138 @@ async function revokeKey(keyId: string): Promise<void> {
       />
     </header>
 
-    <section class="border border-muted bg-default p-5">
-      <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
-      <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
-      <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
-        <UFormField data-settings-anchor="plugins.install" class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
-          <input class="mt-2 block w-full border border-muted bg-elevated px-3 py-2 text-sm text-toned file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-primary" type="file" accept=".rdplug,application/octet-stream" @change="selectPackage">
-        </UFormField>
-        <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
-      </form>
-    </section>
+    <!-- Above the tabs: removing, switching off and withdrawing answer here, whichever tab they came from. -->
+    <UAlert v-if="message" color="success" variant="subtle" :description="message" />
+    <UAlert v-if="error" color="error" variant="subtle" :description="error" />
 
-    <PluginUpdatesList @installed="onInstalled" />
-
-    <PluginBundledList ref="bundledList" @installed="onInstalled" />
-
-    <section data-settings-anchor="plugins.installed" class="border border-muted bg-default p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
-        <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>
-      </div>
-      <div
-        v-if="pluginGroups.length"
-        class="mb-4 flex flex-wrap items-center gap-2"
-        role="group"
-        :aria-label="t('plugins.installed.filter_label')"
-      >
-        <UButton
-          v-for="group in typeGroups"
-          :key="group.value"
-          class="max-w-full"
-          size="xs"
-          :color="typeTab === group.value ? 'primary' : 'neutral'"
-          :variant="typeTab === group.value ? 'solid' : 'outline'"
-          :aria-pressed="typeTab === group.value"
-          @click="typeTab = group.value"
-        >
-          <span class="whitespace-normal text-left">{{ group.label }}</span>
-          <UBadge size="xs" color="neutral" variant="subtle" class="font-mono">{{ group.count }}</UBadge>
-        </UButton>
-      </div>
-      <div class="grid gap-3 md:grid-cols-2">
-        <PluginCard
-          v-for="{ plugin, superseded } in visibleGroups"
-          :key="plugin.id"
-          :plugin="plugin"
-          :superseded="superseded"
-          :disabled="isDisabled(plugin)"
-          :is-withdrawn="isWithdrawn"
-          :lifecycle="lifecycleOf(plugin.id)"
-          :release-notes="releaseNotes.get(String(plugin.id)) ?? []"
-          :superseded-open="openSuperseded === plugin.id"
-          :diagnostics-open="openDiagnostics === plugin.id"
-          :diagnostics-loading="diagnosticsLoading === plugin.id"
-          :executions="executions[plugin.id] ?? []"
-          @toggle-superseded="toggleSuperseded(plugin.id)"
-          @toggle-diagnostics="toggleDiagnostics(plugin)"
-          @set-enabled="enabled => setEnabled(plugin, enabled)"
-          @withdraw="build => askWithdraw(displayName(plugin), build.id, build.version)"
-          @remove="confirmRemove(plugin)"
-          @remove-superseded="old => confirmRemoveSuperseded(plugin, old)"
-          @version-done="versionActionDone"
-        />
-        <DataState :loading="inventoryState.loading.value" :error="inventoryState.loadError.value" :empty="!visibleGroups.length" class="md:col-span-2">
-          <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.installed.empty') }}</p>
-        </DataState>
-      </div>
-    </section>
-
-    <section v-if="incompatible.length" class="border border-error/40 bg-default p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <SectionHeader :eyebrow="t('plugins.incompatible.eyebrow')" :title="t('plugins.incompatible.title')" level="sub" />
-        <UBadge color="error" variant="outline">{{ incompatible.length }}</UBadge>
-      </div>
-      <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.incompatible.description') }}</p>
-      <div class="space-y-2">
-        <div v-for="plugin in incompatible" :key="`${plugin.id}:${plugin.version}`" class="flex items-start justify-between gap-4 border border-muted p-3">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <h4 class="font-medium text-highlighted">{{ plugin.name }}</h4>
-              <UBadge color="neutral" variant="subtle">v{{ plugin.version }}</UBadge>
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      :unmount-on-hide="false"
+      variant="pill"
+      class="w-full"
+      :ui="{ content: 'pt-4' }"
+    >
+      <template #installed>
+        <div class="space-y-6">
+          <section data-settings-anchor="plugins.installed" class="border border-muted bg-default p-5">
+            <div class="mb-4 flex items-center justify-between">
+              <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
+              <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>
             </div>
-            <p class="mt-1 text-sm leading-5 text-toned">{{ t(`plugins.incompatible.reason.${plugin.code}`) }}</p>
-            <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ plugin.id }}</p>
-          </div>
-          <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.incompatible.remove')" @click="removeVersion(plugin)" />
+            <div
+              v-if="pluginGroups.length"
+              class="mb-4 flex flex-wrap items-center gap-2"
+              role="group"
+              :aria-label="t('plugins.installed.filter_label')"
+            >
+              <UButton
+                v-for="group in typeGroups"
+                :key="group.value"
+                class="max-w-full"
+                size="xs"
+                :color="typeTab === group.value ? 'primary' : 'neutral'"
+                :variant="typeTab === group.value ? 'solid' : 'outline'"
+                :aria-pressed="typeTab === group.value"
+                @click="typeTab = group.value"
+              >
+                <span class="whitespace-normal text-left">{{ group.label }}</span>
+                <UBadge size="xs" color="neutral" variant="subtle" class="font-mono">{{ group.count }}</UBadge>
+              </UButton>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <PluginCard
+                v-for="{ plugin, superseded } in visibleGroups"
+                :key="plugin.id"
+                :plugin="plugin"
+                :superseded="superseded"
+                :disabled="isDisabled(plugin)"
+                :is-withdrawn="isWithdrawn"
+                :lifecycle="lifecycleOf(plugin.id)"
+                :release-notes="releaseNotes.get(String(plugin.id)) ?? []"
+                :superseded-open="openSuperseded === plugin.id"
+                :diagnostics-open="openDiagnostics === plugin.id"
+                :diagnostics-loading="diagnosticsLoading === plugin.id"
+                :executions="executions[plugin.id] ?? []"
+                @toggle-superseded="toggleSuperseded(plugin.id)"
+                @toggle-diagnostics="toggleDiagnostics(plugin)"
+                @set-enabled="enabled => setEnabled(plugin, enabled)"
+                @withdraw="build => askWithdraw(displayName(plugin), build.id, build.version)"
+                @remove="confirmRemove(plugin)"
+                @remove-superseded="old => confirmRemoveSuperseded(plugin, old)"
+                @version-done="versionActionDone"
+              />
+              <DataState :loading="inventoryState.loading.value" :error="inventoryState.loadError.value" :empty="!visibleGroups.length" class="md:col-span-2">
+                <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.installed.empty') }}</p>
+              </DataState>
+            </div>
+          </section>
+
+          <section v-if="incompatible.length" class="border border-error/40 bg-default p-5">
+            <div class="mb-4 flex items-center justify-between">
+              <SectionHeader :eyebrow="t('plugins.incompatible.eyebrow')" :title="t('plugins.incompatible.title')" level="sub" />
+              <UBadge color="error" variant="outline">{{ incompatible.length }}</UBadge>
+            </div>
+            <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.incompatible.description') }}</p>
+            <div class="space-y-2">
+              <div v-for="plugin in incompatible" :key="`${plugin.id}:${plugin.version}`" class="flex items-start justify-between gap-4 border border-muted p-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-medium text-highlighted">{{ plugin.name }}</h4>
+                    <UBadge color="neutral" variant="subtle">v{{ plugin.version }}</UBadge>
+                  </div>
+                  <p class="mt-1 text-sm leading-5 text-toned">{{ t(`plugins.incompatible.reason.${plugin.code}`) }}</p>
+                  <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ plugin.id }}</p>
+                </div>
+                <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.incompatible.remove')" @click="removeVersion(plugin)" />
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
-    </section>
+      </template>
 
-    <PluginWithdrawnList
-      :revocations="revocations"
-      :installed="plugins"
-      :loading="revocationState.loading.value"
-      :load-error="revocationState.loadError.value"
-      @lift="liftWithdrawal"
-    />
+      <template #add>
+        <div class="space-y-6">
+          <section class="border border-muted bg-default p-5">
+            <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
+              <UFormField data-settings-anchor="plugins.install" class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
+                <input class="mt-2 block w-full border border-muted bg-elevated px-3 py-2 text-sm text-toned file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-primary" type="file" accept=".rdplug,application/octet-stream" @change="selectPackage">
+              </UFormField>
+              <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
+            </form>
+          </section>
 
-    <SettingsPluginRepositories />
+          <PluginBundledList ref="bundledList" @installed="onInstalled" />
+        </div>
+      </template>
 
-    <PluginTrustedKeys
-      :keys="trustedKeys"
-      :loading="keyState.loading.value"
-      :load-error="keyState.loadError.value"
-      @revoke="revokeKey"
-    />
+      <template #updates>
+        <PluginUpdatesList ref="updatesList" @installed="onInstalled" />
+      </template>
+
+      <template #repositories>
+        <SettingsPluginRepositories />
+      </template>
+
+      <template #trust>
+        <div class="space-y-6">
+          <PluginWithdrawnList
+            :revocations="revocations"
+            :installed="plugins"
+            :loading="revocationState.loading.value"
+            :load-error="revocationState.loadError.value"
+            @lift="liftWithdrawal"
+          />
+
+          <PluginTrustedKeys
+            :keys="trustedKeys"
+            :loading="keyState.loading.value"
+            :load-error="keyState.loadError.value"
+            @revoke="revokeKey"
+          />
+        </div>
+      </template>
+    </UTabs>
 
     <PluginInstallPreviewModal :source="previewSource" @close="previewSource = null" @installed="onInstalled" />
 
