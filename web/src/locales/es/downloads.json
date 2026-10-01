@@ -6,9 +6,10 @@
     "clear_list": "Vaciar lista",
     "clear_completed": "Quitar paquetes completados",
     "clear_failed": "Eliminar paquetes fallidos + archivos",
-    "clear_all": "Quitar todo lo terminado",
+    "clear_all": "Quitar todos los paquetes detenidos",
     "selection_count": "{count} seleccionados",
-    "select_all_hint": "Seleccionar todos los archivos"
+    "select_all_hint": "Seleccionar todos los archivos",
+    "clear_everything": "Vaciar la lista entera"
   },
   "filters": {
     "aria": "Filtrar descargas",
@@ -382,5 +383,14 @@
   "storage_modal": {
     "title": "Colisiones y duplicados: {name}",
     "description": "Qué ocurre cuando un nombre de archivo ya existe y qué archivos del paquete ya están presentes."
+  },
+  "clear_everything": {
+    "title": "¿Vaciar la lista entera?",
+    "description": "Quita {count} paquete de la lista de descargas. | Quita los {count} paquetes de la lista de descargas.",
+    "active": "Ningún paquete sigue activo. | {count} de ellos sigue activo: las descargas en curso y en espera se cancelan y se deja de compartir. | {count} de ellos siguen activos: las descargas en curso y en espera se cancelan y se deja de compartir.",
+    "kept": "Los archivos terminados permanecen en su carpeta de destino. Un paquete que se está posprocesando permanece en la lista.",
+    "delete_partial": "Eliminar también los archivos descargados parcialmente",
+    "delete_partial_hint": "No se puede deshacer: datos de torrent sin terminar y fragmentos junto al archivo de destino. Los archivos incompletos de la carpeta temporal se eliminan siempre.",
+    "confirm": "Vaciar lista"
   }
 }

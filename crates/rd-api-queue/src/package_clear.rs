@@ -19,7 +19,7 @@ use crate::{
     ApiError, AppState,
     auto_remove_service::{PackageProgress, package_progress},
     dto::{PackageClearRequest, PackageClearResponse, PackageClearScope, PackageClearSkip},
-    package_handlers::remove_packages,
+    package_handlers::remove_packages_discarding,
 };
 
 /// Why this package must not be removed right now, or `None` when it may go.
@@ -32,10 +32,18 @@ pub(crate) fn blocking_code(
     downloads: &[DownloadFile],
     pending_extraction: &HashSet<PackageId>,
 ) -> Option<&'static str> {
-    if package.state == PackageState::Postprocessing || pending_extraction.contains(&package.id) {
-        return Some("package.postprocess_running");
-    }
-    package_progress(downloads, package.id).blocking_code()
+    postprocess_code(package, pending_extraction)
+        .or_else(|| package_progress(downloads, package.id).blocking_code())
+}
+
+/// The one refusal "clear the entire list" keeps: a running pipeline is no transfer the
+/// scheduler could cancel, and removing its rows would leave it rewriting files nobody owns.
+fn postprocess_code(
+    package: &DownloadPackage,
+    pending_extraction: &HashSet<PackageId>,
+) -> Option<&'static str> {
+    (package.state == PackageState::Postprocessing || pending_extraction.contains(&package.id))
+        .then_some("package.postprocess_running")
 }
 
 /// The refusal behind a blocking code. Written out per code so the strings stay findable.
@@ -72,15 +80,18 @@ pub(crate) struct ClearPlan {
 /// of the selection entirely would let the action pass over it in silence, which is how the
 /// old per-file clear managed to gut a running package without saying so.
 fn in_scope(scope: PackageClearScope, downloads: &[DownloadFile], package_id: PackageId) -> bool {
-    // "Everything" includes a package with no members left at all, which `any` would not.
-    if scope == PackageClearScope::All {
+    // Both include a package with no members left at all, which `any` would not.
+    if matches!(
+        scope,
+        PackageClearScope::All | PackageClearScope::Everything
+    ) {
         return true;
     }
     downloads
         .iter()
         .filter(|file| file.package_id == package_id)
         .any(|file| match scope {
-            PackageClearScope::All => true,
+            PackageClearScope::All | PackageClearScope::Everything => true,
             PackageClearScope::Completed => matches!(
                 file.state,
                 DownloadState::Completed | DownloadState::Seeding
@@ -113,12 +124,17 @@ pub(crate) fn clear_targets(
         if !in_scope(scope, downloads, package.id) {
             continue;
         }
-        // Settled once past this: nothing of the package is running, waiting or seeding.
-        let reason = blocking_code(package, downloads, pending_extraction).or_else(|| {
-            (scope == PackageClearScope::Completed
-                && package_progress(downloads, package.id) != PackageProgress::Finished)
-                .then_some("package.members_unfinished")
-        });
+        // Settled once past this: nothing of the package is running, waiting or seeding —
+        // except under `Everything`, which stops all of that itself before it removes.
+        let reason = if scope == PackageClearScope::Everything {
+            postprocess_code(package, pending_extraction)
+        } else {
+            blocking_code(package, downloads, pending_extraction).or_else(|| {
+                (scope == PackageClearScope::Completed
+                    && package_progress(downloads, package.id) != PackageProgress::Finished)
+                    .then_some("package.members_unfinished")
+            })
+        };
         match reason {
             Some(code) => plan.skipped.push(PackageClearSkip {
                 package_id: package.id,
@@ -131,18 +147,108 @@ pub(crate) fn clear_targets(
     plan
 }
 
-#[utoipa::path(post, path = "/api/v1/packages/clear", tag = "downloads", request_body = PackageClearRequest, responses((status = 200, body = PackageClearResponse)))]
+/// Whether a member has to be stopped before "clear the entire list" may remove it: running,
+/// or waiting to run. A seeding member is stopped through the torrent engine instead, and
+/// everything else is idle already.
+fn must_cancel(state: DownloadState) -> bool {
+    matches!(
+        state,
+        DownloadState::Queued
+            | DownloadState::RetryWait
+            | DownloadState::Resolving
+            | DownloadState::Downloading
+            | DownloadState::Verifying
+            | DownloadState::Repairing
+            | DownloadState::Extracting
+    )
+}
+
+/// Stops every member of the targets that still runs, waits or seeds, before any is removed.
+///
+/// All first, then the removals: removing one package frees a slot, and the dispatcher would
+/// hand it to a queued file of the next target, which then has to be cancelled mid-start. Each
+/// step is a transition the scheduler or the engine persists on its own, so a crash anywhere in
+/// here leaves cancelled and completed rows — an ordinary queue the next clear finishes. The
+/// removal re-checks and waits for each worker to let go (`remove_with_cancel`), so a refusal
+/// here is logged rather than returned.
+async fn stop_members(state: &AppState, downloads: &[DownloadFile], targets: &[PackageId]) {
+    for file in downloads
+        .iter()
+        .filter(|file| targets.contains(&file.package_id))
+    {
+        let stopped = if file.state == DownloadState::Seeding {
+            state.torrent.stop_seeding(file.id).await.map(|_| ())
+        } else if must_cancel(file.state) {
+            state.scheduler.cancel(file.id).await
+        } else {
+            continue;
+        };
+        if let Err(error) = stopped {
+            tracing::debug!(download_id = %file.id, %error, "member was not stopped before the clear");
+        }
+    }
+}
+
+#[utoipa::path(post, path = "/api/v1/packages/clear", tag = "downloads", request_body = PackageClearRequest, responses((status = 200, body = PackageClearResponse), (status = 400), (status = 409)))]
 pub async fn clear_packages(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
     Json(request): Json<PackageClearRequest>,
 ) -> Result<Json<PackageClearResponse>, ApiError> {
+    let everything = request.scope == PackageClearScope::Everything;
+    if everything && !request.confirmed {
+        return Err(ApiError::bad_request(
+            "package.clear_unconfirmed",
+            "Clearing the entire list stops running downloads; confirm it explicitly",
+        ));
+    }
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
     let pending = state.extraction.pending().await;
-    let plan = clear_targets(&packages, &downloads, &pending, request.scope);
-    // `force = false` on purpose: every target is settled by construction, and the guard in
-    // `remove_packages` is the second lock on the one action that can destroy work.
-    let removed = remove_packages(&state, plan.targets, false).await?;
+    let mut plan = clear_targets(&packages, &downloads, &pending, request.scope);
+    if everything {
+        stop_members(&state, &downloads, &plan.targets).await;
+        // A file that finished while the others were being stopped may have started its
+        // package's pipeline; that package stays now, like any other being post-processed.
+        let packages = state.database.list_packages().await?;
+        let pending = state.extraction.pending().await;
+        plan.targets.retain(|id| {
+            let Some(package) = packages.iter().find(|package| package.id == *id) else {
+                return true;
+            };
+            let Some(code) = postprocess_code(package, &pending) else {
+                return true;
+            };
+            plan.skipped.push(PackageClearSkip {
+                package_id: package.id,
+                name: package.name.clone(),
+                code: code.to_owned(),
+            });
+            false
+        });
+    }
+    let targets = plan.targets.clone();
+    // Without `Everything`, `force = false` on purpose: every target is settled by
+    // construction, and the guard in `remove_packages` is the second lock on the one action
+    // that can destroy work. `Everything` has said so explicitly, and confirmed it.
+    let removed =
+        remove_packages_discarding(&state, plan.targets, everything, request.delete_partial)
+            .await?;
+    if everything {
+        // One record per package, as `delete_packages` writes them.
+        for id in targets {
+            crate::audit::record(
+                &state,
+                crate::audit::AuditEvent::success(rd_core::AuditAction::PackageDeleted)
+                    .by(&audit)
+                    .target("package", id)
+                    .detail("forced", true)
+                    .detail("clear", "everything")
+                    .detail("delete_partial", request.delete_partial),
+            )
+            .await;
+        }
+    }
     Ok(Json(PackageClearResponse {
         removed,
         skipped: plan.skipped,
@@ -286,6 +392,87 @@ mod tests {
 
         assert_eq!(plan.targets, vec![done.id]);
         assert_eq!(reasons(&plan), vec!["package.members_active"]);
+    }
+
+    /// "Clear the entire list" (RD-180-21) takes what `All` spares — running, waiting, seeding
+    /// and empty packages — and stops it itself; only post-processing keeps its package.
+    #[test]
+    fn clearing_the_entire_list_takes_working_packages_and_spares_post_processing() {
+        let running = package(PackageState::Downloading, None);
+        let waiting = package(PackageState::Queued, None);
+        let seeding = package(PackageState::Completed, None);
+        let done = package(PackageState::Completed, None);
+        let empty = package(PackageState::Completed, None);
+        let unpacking = package(PackageState::Postprocessing, None);
+        let downloads = vec![
+            file(running.id, DownloadState::Downloading),
+            file(running.id, DownloadState::Completed),
+            file(waiting.id, DownloadState::Queued),
+            file(seeding.id, DownloadState::Seeding),
+            file(done.id, DownloadState::Completed),
+            file(unpacking.id, DownloadState::Completed),
+        ];
+        let packages = vec![
+            running.clone(),
+            waiting.clone(),
+            seeding.clone(),
+            done.clone(),
+            empty.clone(),
+            unpacking,
+        ];
+
+        let plan = plan(&packages, &downloads, PackageClearScope::Everything);
+
+        assert_eq!(
+            plan.targets,
+            vec![running.id, waiting.id, seeding.id, done.id, empty.id]
+        );
+        assert_eq!(reasons(&plan), vec!["package.postprocess_running"]);
+    }
+
+    #[test]
+    fn a_package_waiting_for_extraction_survives_clearing_the_entire_list() {
+        let package = package(PackageState::Completed, None);
+        let downloads = vec![file(package.id, DownloadState::Completed)];
+        let pending = HashSet::from([package.id]);
+
+        let plan = clear_targets(
+            &[package],
+            &downloads,
+            &pending,
+            PackageClearScope::Everything,
+        );
+
+        assert!(plan.targets.is_empty());
+        assert_eq!(reasons(&plan), vec!["package.postprocess_running"]);
+    }
+
+    /// What the clear stops first: every state a dispatcher or worker could still act on. Idle
+    /// states are left to the removal, and seeding goes through the torrent engine.
+    #[test]
+    fn only_running_and_waiting_members_are_cancelled_before_the_clear() {
+        for state in [
+            DownloadState::Queued,
+            DownloadState::RetryWait,
+            DownloadState::Resolving,
+            DownloadState::Downloading,
+            DownloadState::Verifying,
+            DownloadState::Repairing,
+            DownloadState::Extracting,
+        ] {
+            assert!(must_cancel(state), "{state} must be stopped first");
+        }
+        for state in [
+            DownloadState::Paused,
+            DownloadState::Blocked,
+            DownloadState::Failed,
+            DownloadState::Cancelled,
+            DownloadState::Completed,
+            DownloadState::Skipped,
+            DownloadState::Seeding,
+        ] {
+            assert!(!must_cancel(state), "{state} is not cancelled");
+        }
     }
 
     #[test]

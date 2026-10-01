@@ -38,7 +38,7 @@ vi.mock('@/api/client', () => ({
 }))
 // The dialogs run through Nuxt UI's overlay, which only exists inside the app shell. What was
 // asked is kept, and the answer is `false` unless a case says otherwise.
-const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false }))
+const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false as unknown }))
 vi.mock('@nuxt/ui/composables', () => ({
   useOverlay: () => ({
     create: () => ({
@@ -446,5 +446,95 @@ describe('the `k` shortcut', () => {
 
     expect(dialogs.opened).toEqual([])
     expect(clear).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The "Clear list" menu (RD-180-21): the entry that removes every stopped package says so, and
+ * the one entry that also stops work in progress is the only red one, in a group of its own.
+ */
+describe('the clear menu', () => {
+  interface MenuItem { label: string, color?: string, onSelect: () => void }
+  const menus: MenuItem[][][] = []
+  const UDropdownMenu = {
+    props: ['items'],
+    setup(props: Record<string, unknown>) {
+      menus.push(props.items as MenuItem[][])
+      return {}
+    },
+    template: '<div><slot /></div>'
+  }
+
+  function mountWithMenus() {
+    menus.length = 0
+    // The menu sits in the navbar's `right` slot, which the shared stub does not render.
+    const UDashboardNavbar = { template: '<div><slot /><slot name="right" /></div>' }
+    return render(DownloadsView, { global: { plugins: [i18n], stubs: { ...stubs, UDashboardNavbar, UDropdownMenu } } })
+  }
+
+  function clearMenu(): MenuItem[][] {
+    const menu = menus.find(groups => groups.flat().some(item => item.label === downloads.header.clear_completed))
+    if (!menu) throw new Error('no clear menu')
+    return menu
+  }
+
+  it('names what each entry removes and keeps one red entry apart from the rest', async () => {
+    seedQueue(1, 1, 'completed')
+    mountWithMenus()
+    await nextTick()
+
+    const menu = clearMenu()
+    expect(menu.flat().map(item => item.label)).toEqual([
+      downloads.header.clear_completed,
+      downloads.header.clear_failed,
+      'Remove all stopped packages',
+      'Clear the entire list'
+    ])
+    expect(menu.flat().filter(item => item.color === 'error').map(item => item.label)).toEqual(['Clear the entire list'])
+    expect(menu.at(-1)?.map(item => item.label)).toEqual(['Clear the entire list'])
+  })
+
+  it('asks with the package count and the active ones, then sends the answer along', async () => {
+    const store = seedQueue(3, 1, 'completed')
+    store.downloads[0]!.state = 'downloading'
+    store.downloads[1]!.state = 'seeding'
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    dialogs.answer = { confirmed: true, deletePartial: true }
+    mountWithMenus()
+    await nextTick()
+
+    clearMenu().flat().find(item => item.label === 'Clear the entire list')!.onSelect()
+    await settle()
+
+    expect(dialogs.opened).toEqual([{ packages: 3, active: 2 }])
+    expect(clear.mock.calls).toEqual([['everything', true]])
+  })
+
+  it('clears nothing when the confirmation is declined', async () => {
+    const store = seedQueue(2, 1, 'downloading')
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    dialogs.answer = { confirmed: false, deletePartial: false }
+    mountWithMenus()
+    await nextTick()
+
+    clearMenu().flat().find(item => item.label === 'Clear the entire list')!.onSelect()
+    await settle()
+
+    expect(dialogs.opened).toEqual([{ packages: 2, active: 2 }])
+    expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('removes the stopped packages through the plain question, without the key', async () => {
+    const store = seedQueue(1, 1, 'failed')
+    const clear = vi.spyOn(store, 'clear').mockResolvedValue(undefined)
+    dialogs.answer = true
+    mountWithMenus()
+    await nextTick()
+
+    clearMenu().flat().find(item => item.label === 'Remove all stopped packages')!.onSelect()
+    await settle()
+
+    expect(dialogs.opened).toEqual([expect.objectContaining({ description: downloads.confirm.clear_all, confirmKey: undefined })])
+    expect(clear.mock.calls).toEqual([['all']])
   })
 })

@@ -13,7 +13,9 @@
 //!   torrent no queue row claims, so an orphan left by an older build is never initialised.
 //!
 //! None of them deletes payload: removing a download keeps what it already wrote, as the
-//! remove path does for every other kind (only "reset with files" deletes data).
+//! remove path does for every other kind (only "reset with files" deletes data). The one
+//! exception is asked for by name: [`TorrentService::discard_located`], for an unfinished
+//! torrent removed together with its partial data.
 
 use std::{
     collections::HashSet,
@@ -89,6 +91,19 @@ impl TorrentService {
     /// torrent is struck from the persisted list instead of building one just to delete from
     /// it — building would restore, and so create the files of, every torrent in the list.
     pub async fn forget_located(&self, location: TorrentLocation) {
+        self.drop_located(location, false).await;
+    }
+
+    /// [`Self::forget_located`] for an unfinished torrent whose data was asked to go with it
+    /// ("clear the entire list" with partial files, RD-180-21): librqbit deletes the files it
+    /// wrote and the folders that are empty afterwards. Only a live session knows those files;
+    /// before one has been built the torrent is struck from the persisted list and what it
+    /// wrote stays, which is logged.
+    pub async fn discard_located(&self, location: TorrentLocation) {
+        self.drop_located(location, true).await;
+    }
+
+    async fn drop_located(&self, location: TorrentLocation, delete_payload: bool) {
         let entry = self
             .inner
             .registry
@@ -111,13 +126,16 @@ impl TorrentService {
             let session = slot.session.clone();
             drop(guard);
             if let Err(error) = session
-                .delete(librqbit::api::TorrentIdOrHash::Hash(id20), false)
+                .delete(librqbit::api::TorrentIdOrHash::Hash(id20), delete_payload)
                 .await
             {
                 // Not in the session is the expected answer for a row that never ran.
                 tracing::debug!(%info_hash, %error, "torrent was not in the session");
             }
             return;
+        }
+        if delete_payload {
+            tracing::warn!(%info_hash, "no torrent session yet; the unfinished torrent's data stays on disk");
         }
         let folder = session_folder(&self.inner.data_dir);
         if let Err(error) = prune_persisted(&folder, |hash| hash != info_hash).await {

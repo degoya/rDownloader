@@ -327,6 +327,17 @@ pub async fn remove_packages(
     ids: Vec<PackageId>,
     force: bool,
 ) -> Result<usize, ApiError> {
+    remove_packages_discarding(state, ids, force, false).await
+}
+
+/// [`remove_packages`], and with `discard_partial` every file that had not finished takes what
+/// it wrote outside staging with it (RD-180-21). Finished and seeding files keep their data.
+pub(crate) async fn remove_packages_discarding(
+    state: &AppState,
+    ids: Vec<PackageId>,
+    force: bool,
+    discard_partial: bool,
+) -> Result<usize, ApiError> {
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
     // Only read when it can change the answer: an unconditional removal does not care.
@@ -346,7 +357,14 @@ pub async fn remove_packages(
         }
         removed += 1;
         for file in downloads.iter().filter(|file| file.package_id == id) {
-            if let Err(error) = crate::download_handlers::remove_with_cancel(state, file.id).await {
+            let discard = discard_partial
+                && !matches!(
+                    file.state,
+                    DownloadState::Completed | DownloadState::Seeding
+                );
+            if let Err(error) =
+                crate::download_handlers::remove_with_cancel(state, file.id, discard).await
+            {
                 errors.push(format!("{}: {error}", file.file_name));
             }
         }

@@ -1301,12 +1301,24 @@ pub enum PackageClearScope {
     Failed,
     /// Every package that is not working any more, whatever the outcome.
     All,
+    /// Every package, running ones included: what still runs or waits is cancelled and seeding
+    /// is stopped before the packages go. Only a package being post-processed is left alone.
+    /// Requires `confirmed`.
+    Everything,
 }
 
-/// Bulk removal of finished packages.
+/// Bulk removal of packages from the download list.
 #[derive(Deserialize, ToSchema)]
 pub struct PackageClearRequest {
     pub scope: PackageClearScope,
+    /// Also deletes what the unfinished files of the removed packages had written outside
+    /// staging: tool fragments beside the target and an unfinished torrent's data. Incomplete
+    /// staging files go with every removal; finished files always stay.
+    #[serde(default)]
+    pub delete_partial: bool,
+    /// The confirmation `everything` must carry; the server refuses that scope without it.
+    #[serde(default)]
+    pub confirmed: bool,
 }
 
 /// A package the clear pass deliberately left alone, and the stable code saying why.

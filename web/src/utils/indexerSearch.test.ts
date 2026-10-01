@@ -52,9 +52,9 @@ describe('ageInDays', () => {
 
 describe('sortHits', () => {
   const hits = [
-    hit('b', { size_bytes: 200, published_at: '2026-09-01T00:00:00Z', grabs: 3 }),
+    hit('b', { size_bytes: 200, published_at: '2026-09-01T00:00:00Z' }),
     hit('a', { size_bytes: null, published_at: '2026-09-20T00:00:00Z' }),
-    hit('c', { size_bytes: 100, published_at: null, grabs: 9 })
+    hit('c', { size_bytes: 100, published_at: null })
   ]
 
   it('keeps the indexers’ order when nothing is chosen', () => {
@@ -65,7 +65,6 @@ describe('sortHits', () => {
     expect(sortHits(hits, 'title', false).map(entry => entry.title)).toEqual(['a', 'b', 'c'])
     expect(sortHits(hits, 'size', false).map(entry => entry.title)).toEqual(['c', 'b', 'a'])
     expect(sortHits(hits, 'size', true).map(entry => entry.title)).toEqual(['b', 'c', 'a'])
-    expect(sortHits(hits, 'grabs', true).map(entry => entry.title)).toEqual(['c', 'b', 'a'])
   })
 
   it('puts the newest first by age ascending', () => {

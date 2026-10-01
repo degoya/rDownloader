@@ -402,17 +402,27 @@ prevent columns from shifting during live updates.
   A key that belongs to one page (`K` removes the completed packages, only on Downloads,
   RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
   the page hands its action in while it is mounted; the key runs that action with its
-  confirmation and shows as a `UKbd` hint on the menu item that offers it. `F` focuses the
-  LinkGrabber's indexer search (RD-180-19) the same way: the panel hands its focus in only while
-  its field exists, and the field shows the key as a `UKbd` at its end.
+  confirmation and shows as a `UKbd` hint on the menu item that offers it. Pressed again, the
+  same key answers that confirmation (`ConfirmModal`'s `confirmKey`, shown as a `UKbd` on its
+  button), so the action never needs the mouse or a Tab to the button. `F` focuses the
+  LinkGrabber's indexer search (RD-180-19) the same way: the panel hands its focus in while it is
+  mounted, and the field shows the key as a `UKbd` at its end; while the field is disabled the
+  key lands on the hint's link to the indexer settings, the one thing there is to do.
 - **A search that costs the other side something is asked, never typed into** (RD-180-19). The
   indexer search sits at the top of the LinkGrabber, because what it finds is reviewed there,
-  and only while an indexer is enabled — a field that can only fail is a broken feature. One
+  and it is always there (owner, 2026-10-01) — the one exception to the absent-section rule
+  below, because the field is where somebody looks for the feature. Until an indexer is enabled
+  it is disabled, with a short hint and a link to Settings › Usenet › Indexers that says an
+  indexer subscription alone is not searched; the hint waits for the first answer, so it does
+  not flash up while the list loads. One
   press of *Search* is one request per indexer, the next page is the next press, and nothing
   searches as you type, polls or retries: an indexer counts requests against a daily limit and
   may cache an answer for minutes. What the server would refuse (a term of one or two
   characters) is refused under the field before anything is sent. Results are a sortable
-  `UTable` with a checkbox per hit; *Add selected* sends the choice through the upload's own
+  `UTable` of title, size, age, category and the password flag — the indexer's name and its
+  grab count stay out, the space goes to the title — with a checkbox per hit and an icon-only
+  download button per row (`aria-label` and `title` name the hit; pending, done and failed are
+  that row's own state). *Add selected* and the row button send through the upload's own
   import, so the hits arrive in the list below like a dropped `.nzb`, and an indexer that
   refused is named in its own warning while the others' hits still show.
 - **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
@@ -648,7 +658,9 @@ answer to a question they asked. A box for a feature nobody has set up asks the 
 and then answers it, which is how the indexer box came to sit under every LinkGrabber list saying
 that no indexer subscription was set up (RD-107-12). The condition is the subject's existence, not
 the emptiness of its result, and it follows the loading rule above: absent while the first fetch is
-outstanding, so the section does not appear and vanish again.
+outstanding, so the section does not appear and vanish again. The LinkGrabber's indexer search is the one
+exception (owner, 2026-10-01): its field is where the feature is looked for, so it stays, disabled
+with a hint that leads to the settings (RD-180-19).
 
 Skeleton or indicator follows from whether the shape of the content is predictable. A list of rows
 gets bars in the shape of rows; a single figure or a status line that has no predictable shape gets
@@ -923,6 +935,15 @@ recognised as drifting.
   option of the clear: its question says the notifications will not be sent. It is absent rather
   than dead while nothing is pending, because in the usual state there is never anything to
   discard and a permanently disabled second button is noise.
+- **A menu holds at most one red entry, and it stands apart.** Red marks the entry that throws
+  away something nobody gets back by waiting; entries that only tidy up what has already stopped
+  are neutral, however much they take. In *Clear list* on Downloads that is *Clear the entire
+  list*, the one entry that also stops running work, in a group of its own so a slip from its
+  neighbour lands on the separator; *Remove all stopped packages* beside it is not red. Its
+  question follows the rule above — how many packages go, how many are still active, what stays
+  (finished files) — and carries the second decision, partial files, as an unticked box; the
+  request says it was confirmed and the server refuses it otherwise. `clearItems` in
+  `DownloadsView.vue` and `ClearEverythingModal.vue` are the implementation (RD-180-21).
 - **An action that deletes nothing but cannot be undone asks once, without the destructive
   styling.** `useConfirm()` with the action's own icon and no `destructive: true` — the red
   button and the bin say "this is gone", and saying that about a grouping that leaves every link

@@ -23,6 +23,7 @@ declare module 'vue' {
     BundledServicePicker: typeof import('./src/components/settings/BundledServicePicker.vue')['default']
     CaptchaDialog: typeof import('./src/components/CaptchaDialog.vue')['default']
     CapturePairingCard: typeof import('./src/components/settings/CapturePairingCard.vue')['default']
+    ClearEverythingModal: typeof import('./src/components/ClearEverythingModal.vue')['default']
     CollectorCandidateRow: typeof import('./src/components/CollectorCandidateRow.vue')['default']
     CollectorCandidateSources: typeof import('./src/components/CollectorCandidateSources.vue')['default']
     CollectorHosterFilter: typeof import('./src/components/CollectorHosterFilter.vue')['default']

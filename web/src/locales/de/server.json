@@ -914,7 +914,8 @@
     "subscription.search_kind": "Nur ein Indexer-Abo schickt Suchparameter",
     "subscription.indexer_kind": "Nur ein Indexer-Abo kann einen angelegten Indexer übernehmen",
     "subscription.indexer_url_mismatch": "Die Adresse liegt nicht auf dem Server von {indexer}; lass sie leer oder nimm eine Suche von diesem Server",
-    "update.journal_invalid": "Der Update-Plan ist ungültig; nichts wurde geändert."
+    "update.journal_invalid": "Der Update-Plan ist ungültig; nichts wurde geändert.",
+    "package.clear_unconfirmed": "Das Leeren der ganzen Liste stoppt laufende Downloads und muss ausdrücklich bestätigt werden"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

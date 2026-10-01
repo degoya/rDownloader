@@ -13,7 +13,8 @@ export interface DownloadSelection {
   priority?: DownloadPriority | undefined
 }
 
-export type ClearScope = 'completed' | 'failed' | 'all'
+/** `everything` also removes working packages, stopping them first (RD-180-21). */
+export type ClearScope = 'completed' | 'failed' | 'all' | 'everything'
 
 /** A package the server refused to clear, with the stable code saying why. */
 export interface ClearSkip {

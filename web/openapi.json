@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.8.0-beta.4"
+    "version": "1.8.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -9380,6 +9380,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -26648,11 +26654,19 @@
       },
       "PackageClearRequest": {
         "type": "object",
-        "description": "Bulk removal of finished packages.",
+        "description": "Bulk removal of packages from the download list.",
         "required": [
           "scope"
         ],
         "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "The confirmation `everything` must carry; the server refuses that scope without it."
+          },
+          "delete_partial": {
+            "type": "boolean",
+            "description": "Also deletes what the unfinished files of the removed packages had written outside\nstaging: tool fragments beside the target and an unfinished torrent's data. Incomplete\nstaging files go with every removal; finished files always stay."
+          },
           "scope": {
             "$ref": "#/components/schemas/PackageClearScope"
           }
@@ -26684,7 +26698,8 @@
         "enum": [
           "completed",
           "failed",
-          "all"
+          "all",
+          "everything"
         ]
       },
       "PackageClearSkip": {

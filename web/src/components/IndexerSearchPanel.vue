@@ -2,22 +2,26 @@
 /**
  * The interactive indexer search inside the LinkGrabber (RD-180-19).
  *
- * Present only while at least one indexer is enabled: without one there is nothing to search,
- * and a field that can only fail is a broken feature. One request per search and per page —
+ * Always present, so the search is found where it is used (owner, 2026-10-01). Without an enabled
+ * indexer there is nothing to search: the field is disabled and a hint under it leads to
+ * Settings › Usenet › Indexers — an indexer subscription alone is not searched. One request per
+ * search and per page —
  * the button, never a keystroke, sends it, because every request counts against the indexer's
  * daily limit and some indexers cache an answer for ten minutes. A term the indexer would refuse
  * (one or two characters) is refused here before anything is sent.
  *
- * Chosen hits go to the server, which fetches each NZB with the indexer's key and imports it the
- * way an uploaded `.nzb` is imported, so they arrive in the list below for review like a file.
- * The key itself never reaches this component: a hit's address carries a placeholder for it.
+ * Chosen hits — the ticked ones, or one row's own button — go to the server, which fetches each
+ * NZB with the indexer's key and imports it the way an uploaded `.nzb` is imported, so they
+ * arrive in the list below for review like a file. The key itself never reaches this component:
+ * a hit's address carries a placeholder for it.
  *
- * `f` puts the keyboard in the search field (`indexerSearchFocus.ts`); the panel hands that in
- * while its field is on the page and takes it back when the field goes.
+ * `f` puts the keyboard in the search field (`indexerSearchFocus.ts`), or, while the field is
+ * disabled, on the hint's link — a disabled field cannot take the focus, and the link is the one
+ * thing to do there. The panel hands that in while it is mounted.
  */
 import { useToast } from '@nuxt/ui/composables'
 import type { TableColumn } from '@nuxt/ui'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
@@ -61,8 +65,16 @@ const selected = ref<Set<string>>(new Set())
 const sortKey = ref<HitSortKey | null>(null)
 const descending = ref(false)
 const field = ref<HTMLElement | null>(null)
+const hint = ref<HTMLElement | null>(null)
+const hintId = useId()
+
+/** Where one hit's own button stands; the busy state is the row's, never the table's. */
+type RowState = 'pending' | 'done' | 'error'
+const rowStates = ref<Map<string, RowState>>(new Map())
 
 const available = computed(() => indexers.enabled.length > 0)
+/** The hint waits for the first answer, so it does not flash up while the list is loading. */
+const unavailable = computed(() => indexers.loaded && !available.value)
 
 const indexerItems = computed(() => [
   { value: ALL, label: t('linkgrabber.search.all_indexers') },
@@ -83,24 +95,21 @@ const columns: TableColumn<IndexerSearchHit>[] = [
   { id: 'size' },
   { id: 'age' },
   { id: 'category' },
-  { id: 'indexer' },
-  { id: 'grabs' }
+  { id: 'grab' }
 ]
 const sortable = computed<{ key: HitSortKey, label: string }[]>(() => [
   { key: 'title', label: t('linkgrabber.search.columns.title') },
   { key: 'size', label: t('linkgrabber.search.columns.size') },
   { key: 'age', label: t('linkgrabber.search.columns.age') },
-  { key: 'category', label: t('linkgrabber.search.columns.category') },
-  { key: 'indexer', label: t('linkgrabber.search.columns.indexer') },
-  { key: 'grabs', label: t('linkgrabber.search.columns.grabs') }
+  { key: 'category', label: t('linkgrabber.search.columns.category') }
 ])
 
 function focusField(): void {
-  field.value?.querySelector('input')?.focus()
+  if (available.value) field.value?.querySelector('input')?.focus()
+  else hint.value?.querySelector('a')?.focus()
 }
 
-// The key does something only while there is a field to put the keyboard in.
-watch(available, on => setIndexerSearchFocusAction(on ? focusField : null), { immediate: true })
+setIndexerSearchFocusAction(focusField)
 onUnmounted(() => setIndexerSearchFocusAction(null))
 onMounted(() => void indexers.refresh())
 
@@ -108,8 +117,8 @@ function sortBy(key: HitSortKey): void {
   if (sortKey.value === key) descending.value = !descending.value
   else {
     sortKey.value = key
-    // Big, many and new are what one looks for first; a name reads from A.
-    descending.value = key === 'size' || key === 'grabs'
+    // Big and new are what one looks for first; a name reads from A.
+    descending.value = key === 'size'
   }
 }
 
@@ -173,17 +182,30 @@ function close(): void {
   searchError.value = null
   selected.value = new Set()
   offset.value = 0
+  rowStates.value = new Map()
 }
 
-async function grab(): Promise<void> {
-  const items = hits.value
-    .filter(hit => selected.value.has(hitKey(hit)))
-    .map(hit => ({ indexer_id: hit.indexer_id, download: hit.download, title: hit.title }))
-  if (!items.length || tooMany.value) return
+function markRows(chosen: readonly IndexerSearchHit[], state: (hit: IndexerSearchHit) => RowState): void {
+  const next = new Map(rowStates.value)
+  for (const hit of chosen) next.set(hitKey(hit), state(hit))
+  rowStates.value = next
+}
+
+/** The ticked hits, through the same route one row's button takes. */
+async function grabSelected(): Promise<void> {
+  if (tooMany.value) return
   grabbing.value = true
-  const response = await api.POST('/api/v1/indexers/grab', { body: { items } })
+  await grab(hits.value.filter(hit => selected.value.has(hitKey(hit))))
   grabbing.value = false
+}
+
+async function grab(chosen: readonly IndexerSearchHit[]): Promise<void> {
+  if (!chosen.length) return
+  const items = chosen.map(hit => ({ indexer_id: hit.indexer_id, download: hit.download, title: hit.title }))
+  markRows(chosen, () => 'pending')
+  const response = await api.POST('/api/v1/indexers/grab', { body: { items } })
   if (!response.data) {
+    markRows(chosen, () => 'error')
     toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
     return
   }
@@ -196,8 +218,32 @@ async function grab(): Promise<void> {
   }
   // What arrived leaves the selection; what failed stays ticked for another try.
   const failedTitles = new Set(failed.map(failure => failure.title))
-  selected.value = new Set(hits.value.filter(hit => selected.value.has(hitKey(hit)) && failedTitles.has(hit.title)).map(hitKey))
+  markRows(chosen, hit => failedTitles.has(hit.title) ? 'error' : 'done')
+  const arrived = new Set(chosen.filter(hit => !failedTitles.has(hit.title)).map(hitKey))
+  selected.value = new Set([...selected.value].filter(key => !arrived.has(key)))
   void nzb.refresh()
+}
+
+function rowState(hit: IndexerSearchHit): RowState | undefined {
+  return rowStates.value.get(hitKey(hit))
+}
+
+function rowIcon(hit: IndexerSearchHit): string {
+  const state = rowState(hit)
+  if (state === 'done') return 'i-lucide-check'
+  if (state === 'error') return 'i-lucide-circle-alert'
+  return 'i-lucide-download'
+}
+
+function rowColor(hit: IndexerSearchHit): 'success' | 'error' | 'primary' {
+  const state = rowState(hit)
+  return state === 'done' ? 'success' : state === 'error' ? 'error' : 'primary'
+}
+
+function rowLabel(hit: IndexerSearchHit): string {
+  const state = rowState(hit)
+  const key = state === 'done' ? 'grab_one_done' : state === 'error' ? 'grab_one_failed' : 'grab_one'
+  return t(`linkgrabber.search.${key}`, { title: hit.title })
 }
 
 function ageLabel(hit: IndexerSearchHit): string {
@@ -207,7 +253,7 @@ function ageLabel(hit: IndexerSearchHit): string {
 </script>
 
 <template>
-  <section v-if="available" class="border border-muted p-3" data-testid="indexer-search" :aria-label="t('linkgrabber.search.title')">
+  <section class="border border-muted p-3" data-testid="indexer-search" :aria-label="t('linkgrabber.search.title')">
     <form class="flex flex-wrap items-start gap-2" @submit.prevent="search(0)">
       <div ref="field" class="min-w-60 flex-1">
         <UInput
@@ -215,6 +261,8 @@ function ageLabel(hit: IndexerSearchHit): string {
           class="w-full"
           icon="i-lucide-search"
           :maxlength="MAX_QUERY_CHARS"
+          :disabled="!available"
+          :aria-describedby="unavailable ? hintId : undefined"
           :placeholder="t('linkgrabber.search.query_placeholder')"
           :aria-label="t('linkgrabber.search.query_label')"
           :aria-invalid="queryError ? true : undefined"
@@ -225,14 +273,19 @@ function ageLabel(hit: IndexerSearchHit): string {
           <template #trailing><UKbd value="f" /></template>
         </UInput>
         <p v-if="queryError" class="mt-1 text-xs text-error" data-testid="indexer-search-query-error">{{ queryError }}</p>
+        <p v-if="unavailable" :id="hintId" ref="hint" class="mt-1 text-xs text-muted" data-testid="indexer-search-unavailable">
+          {{ t('linkgrabber.search.unavailable') }}
+          <ULink to="/settings/usenet" class="text-primary underline">{{ t('linkgrabber.search.unavailable_link') }}</ULink>
+        </p>
       </div>
-      <USelect v-model="indexerChoice" :items="indexerItems" value-key="value" class="w-44" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
-      <UInputTags v-model="categories" class="w-48" :placeholder="t('linkgrabber.search.categories_placeholder')" :aria-label="t('linkgrabber.search.categories_label')" data-testid="indexer-search-categories" />
-      <div class="w-32">
+      <USelect v-model="indexerChoice" :items="indexerItems" value-key="value" class="w-44" :disabled="!available" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
+      <UInputTags v-model="categories" class="w-48" :disabled="!available" :placeholder="t('linkgrabber.search.categories_placeholder')" :aria-label="t('linkgrabber.search.categories_label')" data-testid="indexer-search-categories" />
+      <div class="w-48">
         <UInput
           v-model="maxAge"
           type="number"
           min="1"
+          :disabled="!available"
           :max="MAX_AGE_DAYS"
           class="w-full"
           :placeholder="t('linkgrabber.search.max_age_label')"
@@ -242,9 +295,9 @@ function ageLabel(hit: IndexerSearchHit): string {
         />
         <p v-if="ageError" class="mt-1 text-xs text-error">{{ ageError }}</p>
       </div>
-      <USelect v-model="limit" :items="limitItems" value-key="value" class="w-24" :aria-label="t('linkgrabber.search.limit_label')" :title="t('linkgrabber.search.limit_label')" />
-      <USwitch v-model="hidePassworded" class="self-center" size="sm" :label="t('linkgrabber.search.hide_passworded')" :ui="{ label: 'whitespace-nowrap' }" data-testid="indexer-search-hide-passworded" />
-      <UButton type="submit" icon="i-lucide-search" :label="t('linkgrabber.search.submit')" :loading="searching" data-testid="indexer-search-submit" />
+      <USelect v-model="limit" :items="limitItems" value-key="value" class="w-24" :disabled="!available" :aria-label="t('linkgrabber.search.limit_label')" :title="t('linkgrabber.search.limit_label')" />
+      <USwitch v-model="hidePassworded" class="self-center" size="sm" :disabled="!available" :label="t('linkgrabber.search.hide_passworded')" :ui="{ label: 'whitespace-nowrap' }" data-testid="indexer-search-hide-passworded" />
+      <UButton type="submit" icon="i-lucide-search" :label="t('linkgrabber.search.submit')" :disabled="!available" :loading="searching" data-testid="indexer-search-submit" />
     </form>
 
     <UAlert v-if="searchError" class="mt-3" color="error" variant="subtle" :description="searchError" />
@@ -278,7 +331,7 @@ function ageLabel(hit: IndexerSearchHit): string {
             :disabled="!selected.size || tooMany"
             :loading="grabbing"
             data-testid="indexer-search-grab"
-            @click="grab"
+            @click="grabSelected"
           />
           <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-chevron-left" :aria-label="t('linkgrabber.search.previous')" :title="t('linkgrabber.search.previous')" :disabled="offset === 0 || searching" data-testid="indexer-search-previous" @click="search(Math.max(0, offset - pageSize))" />
           <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-chevron-right" :aria-label="t('linkgrabber.search.next')" :title="t('linkgrabber.search.next')" :disabled="!hasMore || searching" data-testid="indexer-search-next" @click="search(offset + pageSize)" />
@@ -296,6 +349,7 @@ function ageLabel(hit: IndexerSearchHit): string {
         data-testid="indexer-search-results"
       >
         <template #select-header><span class="sr-only">{{ t('common.actions.select_all') }}</span></template>
+        <template #grab-header><span class="sr-only">{{ t('linkgrabber.search.grab_hint') }}</span></template>
         <template v-for="column in sortable" :key="column.key" #[`${column.key}-header`]>
           <UButton
             size="xs"
@@ -326,8 +380,20 @@ function ageLabel(hit: IndexerSearchHit): string {
         <template #size-cell="{ row }"><span class="numeric text-xs">{{ row.original.size_bytes == null ? '—' : formatBytes(String(row.original.size_bytes)) }}</span></template>
         <template #age-cell="{ row }"><span class="numeric text-xs" :title="row.original.published_at ?? undefined">{{ ageLabel(row.original) }}</span></template>
         <template #category-cell="{ row }"><span class="font-mono text-xs">{{ row.original.category ?? '—' }}</span></template>
-        <template #indexer-cell="{ row }"><span class="text-xs">{{ row.original.indexer_name }}</span></template>
-        <template #grabs-cell="{ row }"><span class="numeric text-xs">{{ row.original.grabs ?? '—' }}</span></template>
+        <template #grab-cell="{ row }">
+          <UButton
+            size="xs"
+            variant="ghost"
+            :color="rowColor(row.original)"
+            :icon="rowIcon(row.original)"
+            :aria-label="rowLabel(row.original)"
+            :title="rowLabel(row.original)"
+            :loading="rowState(row.original) === 'pending'"
+            :disabled="rowState(row.original) === 'pending' || rowState(row.original) === 'done'"
+            data-testid="indexer-search-grab-one"
+            @click="grab([row.original])"
+          />
+        </template>
       </UTable>
     </template>
   </section>

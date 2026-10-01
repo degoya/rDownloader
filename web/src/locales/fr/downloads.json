@@ -6,9 +6,10 @@
     "clear_list": "Vider la liste",
     "clear_completed": "Retirer les paquets terminés",
     "clear_failed": "Supprimer les paquets en échec + fichiers",
-    "clear_all": "Retirer tout ce qui est terminé",
+    "clear_all": "Retirer tous les paquets arrêtés",
     "selection_count": "{count} sélectionné(s)",
-    "select_all_hint": "Sélectionner tous les fichiers"
+    "select_all_hint": "Sélectionner tous les fichiers",
+    "clear_everything": "Vider toute la liste"
   },
   "filters": {
     "aria": "Filtrer les téléchargements",
@@ -382,5 +383,14 @@
   "storage_modal": {
     "title": "Collisions et doublons : {name}",
     "description": "Ce qui se passe quand un nom de fichier est pris, et quels fichiers du paquet existent déjà."
+  },
+  "clear_everything": {
+    "title": "Vider toute la liste ?",
+    "description": "Retire {count} paquet de la liste de téléchargement. | Retire les {count} paquets de la liste de téléchargement.",
+    "active": "Plus aucun paquet n'est actif. | {count} d'entre eux est encore actif : les téléchargements en cours et en attente sont annulés et le partage s'arrête. | {count} d'entre eux sont encore actifs : les téléchargements en cours et en attente sont annulés et le partage s'arrête.",
+    "kept": "Les fichiers terminés restent dans leur dossier de destination. Un paquet en cours de post-traitement reste dans la liste.",
+    "delete_partial": "Supprimer aussi les fichiers partiellement téléchargés",
+    "delete_partial_hint": "Irréversible : données de torrent inachevées et fragments à côté du fichier cible. Les fichiers incomplets du dossier temporaire sont toujours supprimés.",
+    "confirm": "Vider la liste"
   }
 }

@@ -144,7 +144,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Remove finished packages from the download list in one sweep: scope completed (every file succeeded), failed (holds a failed or blocked file and has nothing left to do) or all (nothing is working any more). A package with a running, waiting or seeding member is never touched; the answer lists what was removed and what was skipped, with a code for why."
+        description = "Remove finished packages from the download list in one sweep: scope completed (every file succeeded), failed (holds a failed or blocked file and has nothing left to do) or all (nothing is working any more). A package with a running, waiting or seeding member is never touched; the answer lists what was removed and what was skipped, with a code for why. Clearing the entire list with running work is not offered here: delete_packages with force removes chosen packages that are still working."
     )]
     pub async fn clear_finished_packages(
         &self,
@@ -157,9 +157,12 @@ impl RdMcpServer {
                 ClearScopeParam::All => "all",
             };
             let request = body(serde_json::json!({ "scope": scope }))?;
-            let Json(answer) =
-                crate::package_clear::clear_packages(State(self.state.clone()), Json(request))
-                    .await?;
+            let Json(answer) = crate::package_clear::clear_packages(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(request),
+            )
+            .await?;
             Ok(answer)
         }
         .await;

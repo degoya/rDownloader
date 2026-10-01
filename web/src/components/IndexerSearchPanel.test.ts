@@ -1,9 +1,10 @@
 /**
  * The indexer search inside the LinkGrabber (RD-180-19).
  *
- * What is held: the panel exists only while an indexer is enabled, `f` reaches its field only
- * then, a term the indexer would refuse is never sent, one search is one request with the
- * parameters as chosen, and chosen hits go to the grab route unchanged.
+ * What is held: the field is always there, disabled with a hint and a link to the indexer
+ * settings until an indexer is enabled, and `f` reaches the field or, without one, that link; a
+ * term the indexer would refuse is never sent, one search is one request with the parameters as
+ * chosen, and chosen hits — ticked, or one row's own button — go to the grab route unchanged.
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -47,6 +48,7 @@ const HITS = [
 
 const stubs = {
   UKbd: { props: ['value'], template: '<kbd>{{ value }}</kbd>' },
+  ULink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
   // `type="button"` as Reka's switch renders it; the shared stub's bare button would submit the form.
   USwitch: {
     props: ['modelValue', 'label'],
@@ -82,6 +84,11 @@ function mount() {
   return mountComponent(IndexerSearchPanel, { messages: { linkgrabber }, stubs })
 }
 
+/** Until the list has answered the field is disabled, and a click on *Search* does nothing. */
+async function ready(): Promise<void> {
+  await waitFor(() => expect((screen.getByTestId('indexer-search-query') as HTMLInputElement).disabled).toBe(false))
+}
+
 async function settle(): Promise<void> {
   for (let round = 0; round < 4; round += 1) await nextTick()
 }
@@ -98,23 +105,39 @@ afterEach(() => {
 })
 
 describe('IndexerSearchPanel without an enabled indexer', () => {
-  it('shows no search field, and `f` does nothing', async () => {
+  it('shows the field disabled with a hint that leads to the indexer settings, and `f` reaches the link', async () => {
     answerIndexers([])
     mount()
-    await settle()
+    const hint = await screen.findByTestId('indexer-search-unavailable')
 
     expect(get).toHaveBeenCalledWith('/api/v1/indexers')
-    expect(screen.queryByTestId('indexer-search-query')).toBeNull()
-    expect(() => focusKey.handler()).not.toThrow()
-    expect(document.activeElement).toBe(document.body)
+    const field = screen.getByTestId('indexer-search-query') as HTMLInputElement
+    expect(field.disabled).toBe(true)
+    expect(field.getAttribute('aria-describedby')).toBe(hint.id)
+    expect(hint.textContent).toContain(linkgrabber.search.unavailable)
+    expect((screen.getByTestId('indexer-search-submit') as HTMLButtonElement).disabled).toBe(true)
+    const link = within(hint).getByRole('link', { name: linkgrabber.search.unavailable_link })
+    expect(link.getAttribute('href')).toBe('/settings/usenet')
+
+    focusKey.handler()
+    expect(document.activeElement).toBe(link)
   })
 
   it('counts a switched-off indexer as none', async () => {
     answerIndexers([DISABLED])
     mount()
+
+    expect(await screen.findByTestId('indexer-search-unavailable')).toBeTruthy()
+    expect((screen.getByTestId('indexer-search-query') as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('shows no hint before the list has answered', async () => {
+    get.mockImplementation(() => new Promise(() => {}))
+    mount()
     await settle()
 
-    expect(screen.queryByTestId('indexer-search')).toBeNull()
+    expect((screen.getByTestId('indexer-search-query') as HTMLInputElement).disabled).toBe(true)
+    expect(screen.queryByTestId('indexer-search-unavailable')).toBeNull()
   })
 })
 
@@ -123,7 +146,9 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
 
   it('puts the keyboard in the field on `f`, shows the key at the field, and stops once it is gone', async () => {
     const view = mount()
-    const field = await screen.findByTestId('indexer-search-query')
+    await ready()
+    const field = screen.getByTestId('indexer-search-query')
+    expect(screen.queryByTestId('indexer-search-unavailable')).toBeNull()
     expect(within(screen.getByTestId('indexer-search')).getByText('f').tagName).toBe('KBD')
 
     focusKey.handler()
@@ -137,6 +162,7 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
 
   it('does not move the keyboard while a dialog is open', async () => {
     mount()
+    await ready()
     await screen.findByTestId('indexer-search-query')
     setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
 
@@ -146,12 +172,14 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
 
   it('offers all enabled indexers or one, never a switched-off one', async () => {
     mount()
+    await ready()
     const select = await screen.findByTestId('indexer-search-indexer') as HTMLSelectElement
     expect([...select.options].map(option => option.textContent)).toEqual([linkgrabber.search.all_indexers, 'Omg'])
   })
 
   it('refuses a term of one or two characters before anything is sent', async () => {
     mount()
+    await ready()
     await fireEvent.update(await screen.findByTestId('indexer-search-query'), 'ab')
     await fireEvent.click(screen.getByTestId('indexer-search-submit'))
     await settle()
@@ -171,6 +199,7 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
       }
     })
     mount()
+    await ready()
     await fireEvent.update(await screen.findByTestId('indexer-search-query'), '  some show !cam ')
     await fireEvent.update(screen.getByTestId('indexer-search-categories'), '5040,2000')
     await fireEvent.update(screen.getByTestId('indexer-search-max-age'), '30')
@@ -194,6 +223,11 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     expect(rows).toHaveLength(3)
     expect(screen.getByText('Small.Release')).toBeTruthy()
     expect(screen.getAllByTestId('indexer-search-outcome-error')).toHaveLength(1)
+    // Title, size, age, category and the row's own button; neither the indexer nor its grabs.
+    expect(screen.queryByTestId('indexer-search-sort-indexer')).toBeNull()
+    expect(screen.queryByTestId('indexer-search-sort-grabs')).toBeNull()
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6)
+    expect(screen.queryByText('Omg', { selector: 'td *' })).toBeNull()
     expect((screen.getByTestId('indexer-search-next') as HTMLButtonElement).disabled).toBe(false)
     expect((screen.getByTestId('indexer-search-previous') as HTMLButtonElement).disabled).toBe(true)
 
@@ -206,6 +240,7 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
   it('sorts by size, largest first, on the column header', async () => {
     post.mockResolvedValue({ data: { hits: HITS, indexers: [{ indexer_id: 'idx-1', indexer_name: 'Omg', returned: 2, more: false }] } })
     mount()
+    await ready()
     await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
     await screen.findByText('Small.Release')
 
@@ -220,6 +255,7 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
       ? { data: { hits: HITS, indexers: [{ indexer_id: 'idx-1', indexer_name: 'Omg', returned: 2, more: false }] } }
       : { data: { imports: [{ id: 'imp-1' }], failed: [] } }))
     mount()
+    await ready()
     await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
     await screen.findByText('Big.Release')
     expect((screen.getByTestId('indexer-search-grab') as HTMLButtonElement).disabled).toBe(true)
@@ -232,5 +268,48 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     }))
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/nzb/imports'))
     expect(toasts).toHaveBeenCalledWith(expect.objectContaining({ color: 'success' }))
+  })
+
+  it('sends one row’s hit alone through the grab route and marks only that row', async () => {
+    let answer: (value: unknown) => void = () => {}
+    post.mockImplementation((path: string) => path === '/api/v1/indexers/search'
+      ? Promise.resolve({ data: { hits: HITS, indexers: [{ indexer_id: 'idx-1', indexer_name: 'Omg', returned: 2, more: false }] } })
+      : new Promise(resolve => { answer = resolve }))
+    mount()
+    await ready()
+    await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
+    await screen.findByText('Big.Release')
+
+    const [first, second] = screen.getAllByTestId('indexer-search-grab-one') as HTMLButtonElement[]
+    expect(second!.getAttribute('aria-label')).toBe(linkgrabber.search.grab_one.replace('{title}', 'Big.Release'))
+    await fireEvent.click(second!)
+    expect(post).toHaveBeenCalledWith('/api/v1/indexers/grab', {
+      body: { items: [{ indexer_id: 'idx-1', download: HITS[1]!.download, title: 'Big.Release' }] }
+    })
+    // Pending is that row's alone.
+    await waitFor(() => expect(second!.disabled).toBe(true))
+    expect(first!.disabled).toBe(false)
+
+    answer({ data: { imports: [{ id: 'imp-1' }], failed: [] } })
+    await waitFor(() => expect(second!.getAttribute('aria-label')).toBe(linkgrabber.search.grab_one_done.replace('{title}', 'Big.Release')))
+    expect(second!.disabled).toBe(true)
+    expect(first!.getAttribute('aria-label')).toBe(linkgrabber.search.grab_one.replace('{title}', 'Small.Release'))
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/nzb/imports'))
+  })
+
+  it('marks a row whose hit the server could not fetch, and lets it try again', async () => {
+    post.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/indexers/search'
+      ? { data: { hits: HITS, indexers: [{ indexer_id: 'idx-1', indexer_name: 'Omg', returned: 2, more: false }] } }
+      : { data: { imports: [], failed: [{ title: 'Small.Release', error: { code: 'indexer.grab_failed', message: 'failed', params: {} } }] } }))
+    mount()
+    await ready()
+    await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
+    await screen.findByText('Small.Release')
+
+    const first = screen.getAllByTestId('indexer-search-grab-one')[0] as HTMLButtonElement
+    await fireEvent.click(first)
+    await waitFor(() => expect(first.getAttribute('aria-label')).toBe(linkgrabber.search.grab_one_failed.replace('{title}', 'Small.Release')))
+    expect(first.disabled).toBe(false)
+    expect(toasts).toHaveBeenCalledWith(expect.objectContaining({ color: 'warning' }))
   })
 })

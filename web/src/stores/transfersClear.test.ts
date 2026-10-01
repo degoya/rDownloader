@@ -50,6 +50,20 @@ describe('transfers store: clearing the download list', () => {
     expect(api.POST).not.toHaveBeenCalled()
   })
 
+  it('sends the entire-list clear confirmed, with the answer about partial files', async () => {
+    respond({ removed: 3, skipped: [] })
+    const store = useTransfersStore()
+
+    await store.clear('everything', true)
+    await store.clear('everything')
+
+    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)))
+    expect(bodies).toEqual([
+      { scope: 'everything', confirmed: true, delete_partial: true },
+      { scope: 'everything', confirmed: true, delete_partial: false }
+    ])
+  })
+
   it('names the packages it left alone and why', async () => {
     respond({
       removed: 1,

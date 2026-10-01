@@ -517,9 +517,12 @@
       "title": "Titre",
       "size": "Taille",
       "age": "Âge",
-      "category": "Catégorie",
-      "indexer": "Indexeur",
-      "grabs": "Téléchargements"
-    }
+      "category": "Catégorie"
+    },
+    "unavailable": "Aucun indexeur n’est encore activé. Ajoutez d’abord un indexeur : les abonnements à des indexeurs ne sont pas parcourus ici à eux seuls.",
+    "unavailable_link": "Paramètres › Usenet › Indexeurs",
+    "grab_one": "Ajouter au LinkGrabber : {title}",
+    "grab_one_done": "Dans le LinkGrabber : {title}",
+    "grab_one_failed": "Non ajouté, réessayez : {title}"
   }
 }

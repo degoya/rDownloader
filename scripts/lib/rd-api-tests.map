@@ -74,14 +74,14 @@
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)\.rs$   service_lifecycle
 ^crates/rd-api(-[a-z]+)?/src/data_reset_handlers\.rs$                                     data_reset storage_clear
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)\.rs$                diagnostics data_reset
-^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)\.rs$                        api_tokens audit auto_remove category_move_and_reset compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets
+^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)\.rs$                        api_tokens audit auto_remove category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets
 ^crates/rd-api(-[a-z]+)?/src/download_sources\.rs$                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service\.rs$                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)\.rs$                 media_cookie_profile media_manifest indexer_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)\.rs$   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)\.rs$                mfa passkeys auth step_up
 ^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)\.rs$          notifications automations
-^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)\.rs$                        auto_remove category_move_and_reset reorder
+^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)\.rs$                        auto_remove category_move_and_reset clear_list reorder
 ^crates/rd-api(-[a-z]+)?/src/passkey_handlers\.rs$                                        passkeys step_up
 ^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)\.rs$   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_repositories plugin_auto_updates audit
 ^crates/rd-api(-[a-z]+)?/src/plugin_bundled\.rs$                                        plugin_bundled plugin_bundled_removal audit

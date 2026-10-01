@@ -27,6 +27,8 @@ function prefersReducedMotion(): boolean {
 async function waitForAnchor(id: string, timeoutMs: number): Promise<HTMLElement | null> {
   const deadline = Date.now() + timeoutMs
   for (;;) {
+    // A page left (or a test environment torn down) while the poll waits: nothing to reveal.
+    if (typeof document === 'undefined') return null
     const element = document.querySelector<HTMLElement>(anchorSelector(id))
     if (element && !element.closest('[hidden], [data-state="inactive"]')) return element
     if (Date.now() >= deadline) return null

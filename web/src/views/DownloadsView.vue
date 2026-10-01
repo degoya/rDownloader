@@ -16,6 +16,7 @@ import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
+import { useClearEverythingConfirm } from '@/composables/useClearEverythingConfirm'
 import { useConfirm } from '@/composables/useConfirm'
 import { copyText } from '@/composables/useCopy'
 import { useOpenSections } from '@/composables/useOpenSections'
@@ -28,7 +29,7 @@ import { useResetConfirm } from '@/composables/useResetConfirm'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { usePublishedSelection } from '@/stores/selection'
-import { PAUSABLE_STATES, RESETTABLE_STATES, RESUMABLE_STATES, useTransfersStore, type PackageChange } from '@/stores/transfers'
+import { PAUSABLE_STATES, PENDING_STATES, RESETTABLE_STATES, RESUMABLE_STATES, useTransfersStore, type PackageChange } from '@/stores/transfers'
 import { hasExtractable } from '@/utils/format'
 
 const { t } = useI18n()
@@ -37,6 +38,7 @@ const postprocess = usePostprocessStore()
 const confirm = useConfirm()
 const rename = useRename()
 const confirmReset = useResetConfirm()
+const confirmClearEverything = useClearEverythingConfirm()
 const editPackage = usePackageEdit()
 const openPackageStorage = usePackageStorage()
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
@@ -61,10 +63,13 @@ const filters = computed(() => [
   { label: t('downloads.filters.queued'), value: 'queued' },
   { label: t('downloads.filters.completed'), value: 'completed' }
 ])
+// One red entry, apart from the rest: the only one that stops work in progress (RD-180-21).
 const clearItems = computed(() => [[
   { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', kbds: ['k'], onSelect: () => clearDownloads('completed') },
   { label: t('downloads.header.clear_failed'), icon: 'i-lucide-file-x-2', onSelect: () => clearDownloads('failed') },
-  { label: t('downloads.header.clear_all'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => clearDownloads('all') }
+  { label: t('downloads.header.clear_all'), icon: 'i-lucide-list-checks', onSelect: () => clearDownloads('all') }
+], [
+  { label: t('downloads.header.clear_everything'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => clearEverything() }
 ]])
 const ACTIVE = ['resolving', 'downloading', 'verifying', 'repairing', 'extracting']
 
@@ -500,8 +505,19 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
 }
 
 async function clearDownloads(scope: 'completed' | 'failed' | 'all'): Promise<void> {
-  const confirmed = await confirm({ title: t('downloads.confirm.clear_title'), description: t(`downloads.confirm.clear_${scope}`), confirmLabel: t('downloads.confirm.clear_label'), confirmIcon: 'i-lucide-trash-2', destructive: true })
+  // `k` opens the question for the completed packages, and `k` again answers it (RD-180-17).
+  const confirmKey = scope === 'completed' ? 'k' : undefined
+  const confirmed = await confirm({ title: t('downloads.confirm.clear_title'), description: t(`downloads.confirm.clear_${scope}`), confirmLabel: t('downloads.confirm.clear_label'), confirmIcon: 'i-lucide-trash-2', destructive: true, confirmKey })
   if (confirmed) await transfers.clear(scope)
+}
+
+/** The states the server's "still working" refusal reads, so the count matches what stops. */
+const WORKING_STATES: readonly string[] = [...PENDING_STATES, 'seeding']
+
+async function clearEverything(): Promise<void> {
+  const working = new Set(transfers.downloads.filter(download => WORKING_STATES.includes(download.state)).map(download => download.package_id))
+  const answer = await confirmClearEverything(transfers.packages.length, working.size)
+  if (answer.confirmed) await transfers.clear('everything', answer.deletePartial)
 }
 
 async function removeDownload(id: string): Promise<void> {

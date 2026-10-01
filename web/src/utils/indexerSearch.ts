@@ -61,7 +61,8 @@ export function hitKey(hit: Pick<IndexerSearchHit, 'indexer_id' | 'download'>): 
   return `${hit.indexer_id}\n${hit.download}`
 }
 
-export type HitSortKey = 'title' | 'size' | 'age' | 'category' | 'indexer' | 'grabs'
+/** The sortable columns; the indexer's name and its grab count are not shown (owner, 2026-10-01). */
+export type HitSortKey = 'title' | 'size' | 'age' | 'category'
 
 /** Whole days since `published`, never negative; `null` when the indexer gave no date. */
 export function ageInDays(published: string | null | undefined, now: number = Date.now()): number | null {
@@ -78,8 +79,6 @@ function sortValue(hit: IndexerSearchHit, key: HitSortKey): string | number | nu
     // Sorted by the date itself: "newest first" is ascending age.
     case 'age': return hit.published_at ? -Date.parse(hit.published_at) : null
     case 'category': return hit.category ?? null
-    case 'indexer': return hit.indexer_name.toLocaleLowerCase()
-    case 'grabs': return hit.grabs ?? null
   }
 }
 

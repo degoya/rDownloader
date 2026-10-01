@@ -431,7 +431,7 @@ pub async fn apply_download_action(
             DownloadBulkAction::Pause => state.scheduler.pause(id).await,
             DownloadBulkAction::Resume => state.scheduler.resume(id).await,
             DownloadBulkAction::Cancel => state.scheduler.cancel(id).await,
-            DownloadBulkAction::Remove => remove_with_cancel(state, id).await,
+            DownloadBulkAction::Remove => remove_with_cancel(state, id, false).await,
             DownloadBulkAction::Reset => reset_download_file(state, id, false).await,
             DownloadBulkAction::ResetDeleteFiles => reset_download_file(state, id, true).await,
         };
@@ -511,14 +511,36 @@ pub(crate) async fn reset_download_file(
 /// (RD-120-68). The torrent is located first because its info hash is stored on the row.
 /// The payload stays on disk, as for every other kind of download.
 pub(crate) async fn remove_download(state: &AppState, id: DownloadId) -> anyhow::Result<()> {
+    remove_download_discarding(state, id, false).await
+}
+
+/// [`remove_download`], and with `discard_partial` the data an unfinished file wrote outside
+/// staging goes first: tool fragments beside the target, an unfinished torrent's files
+/// (RD-180-21). Data first, row last — a crash in between leaves a row that knows less data,
+/// never data that no row knows. The caller decides what counts as unfinished.
+async fn remove_download_discarding(
+    state: &AppState,
+    id: DownloadId,
+    discard_partial: bool,
+) -> anyhow::Result<()> {
     let torrent = state.torrent.locate(id).await;
+    if discard_partial {
+        state.scheduler.discard_partial(id).await?;
+        state.torrent.discard_located(torrent.clone()).await;
+    }
     state.scheduler.remove(id).await?;
     state.torrent.forget_located(torrent).await;
     Ok(())
 }
 
 /// Cancels an active file first and waits briefly for its token to clear before removal.
-pub(crate) async fn remove_with_cancel(state: &AppState, id: DownloadId) -> anyhow::Result<()> {
+///
+/// `discard_partial` as in [`remove_download_discarding`].
+pub(crate) async fn remove_with_cancel(
+    state: &AppState,
+    id: DownloadId,
+    discard_partial: bool,
+) -> anyhow::Result<()> {
     if let Some(current) = state.database.get_download(id).await?
         && matches!(
             current.state,
@@ -532,12 +554,15 @@ pub(crate) async fn remove_with_cancel(state: &AppState, id: DownloadId) -> anyh
         state.scheduler.cancel(id).await?;
         for _ in 0..25 {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            if remove_download(state, id).await.is_ok() {
+            if remove_download_discarding(state, id, discard_partial)
+                .await
+                .is_ok()
+            {
                 return Ok(());
             }
         }
     }
-    remove_download(state, id).await
+    remove_download_discarding(state, id, discard_partial).await
 }
 
 #[utoipa::path(post, path = "/api/v1/downloads/extract", tag = "downloads", request_body = DownloadExtractRequest, responses((status = 202, body = MessageResponse), (status = 409)))]

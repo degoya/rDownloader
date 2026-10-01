@@ -914,7 +914,8 @@
     "subscription.search_kind": "Only an indexer subscription sends search parameters",
     "subscription.indexer_kind": "Only an indexer subscription can take over a defined indexer",
     "subscription.indexer_url_mismatch": "The address is not on the server of {indexer}; leave it empty or use a search from that server",
-    "update.journal_invalid": "The update plan is invalid; nothing was changed."
+    "update.journal_invalid": "The update plan is invalid; nothing was changed.",
+    "package.clear_unconfirmed": "Clearing the entire list stops running downloads and has to be confirmed explicitly"
   },
   "capabilities": {
     "media_download": "media downloads",

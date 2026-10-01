@@ -914,7 +914,8 @@
     "subscription.search_kind": "Seul un abonnement d'indexeur envoie des paramètres de recherche",
     "subscription.indexer_kind": "Seul un abonnement d'indexeur peut reprendre un indexeur défini",
     "subscription.indexer_url_mismatch": "L'adresse n'est pas sur le serveur de {indexer} ; laisse-la vide ou utilise une recherche de ce serveur",
-    "update.journal_invalid": "Le plan de mise à jour n’est pas valide ; rien n’a été modifié."
+    "update.journal_invalid": "Le plan de mise à jour n’est pas valide ; rien n’a été modifié.",
+    "package.clear_unconfirmed": "Vider toute la liste arrête les téléchargements en cours et doit être confirmé explicitement"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

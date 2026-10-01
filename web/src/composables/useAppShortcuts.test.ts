@@ -198,8 +198,8 @@ describe('the clear-completed shortcut', () => {
 
 describe('the indexer-search shortcut', () => {
   // `f` puts the keyboard in the LinkGrabber's indexer search (RD-180-19). The panel hands the
-  // focus in only while its field exists (`IndexerSearchPanel.test.ts` holds that half, the
-  // no-indexer case included); this half is which keypress reaches it.
+  // focus in while it is mounted (`IndexerSearchPanel.test.ts` holds that half, the no-indexer
+  // case included); this half is which keypress reaches it.
   const entry = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'f')!
   let focused = 0
 

@@ -9998,8 +9998,16 @@ export interface components {
             priority?: components["schemas"]["DownloadPriority"] | null;
             script?: string | null;
         };
-        /** @description Bulk removal of finished packages. */
+        /** @description Bulk removal of packages from the download list. */
         PackageClearRequest: {
+            /** @description The confirmation `everything` must carry; the server refuses that scope without it. */
+            confirmed?: boolean;
+            /**
+             * @description Also deletes what the unfinished files of the removed packages had written outside
+             *     staging: tool fragments beside the target and an unfinished torrent's data. Incomplete
+             *     staging files go with every removal; finished files always stay.
+             */
+            delete_partial?: boolean;
             scope: components["schemas"]["PackageClearScope"];
         };
         /** @description What a clear pass did: whole packages removed, and the ones it refused to touch. */
@@ -10011,7 +10019,7 @@ export interface components {
          * @description Which finished packages the "clear the list" action should remove.
          * @enum {string}
          */
-        PackageClearScope: "completed" | "failed" | "all";
+        PackageClearScope: "completed" | "failed" | "all" | "everything";
         /** @description A package the clear pass deliberately left alone, and the stable code saying why. */
         PackageClearSkip: {
             /**
@@ -22063,6 +22071,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PackageClearResponse"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

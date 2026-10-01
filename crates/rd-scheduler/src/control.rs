@@ -291,49 +291,85 @@ impl SchedulerHandle {
             active.reasons.remove(&id);
         }
         let packages = self.database.list_packages().await?;
-        let package = packages
-            .iter()
-            .find(|package| package.id == current.package_id)
-            .filter(|package| !package.destination.is_empty());
-        if let Some(package) = package {
-            let usenet_import = (current.kind == rd_core::DownloadKind::Usenet)
-                .then_some(package.nzb_import_id)
-                .flatten();
-            let removal = match (usenet_import, current.nzb_file_id) {
-                (Some(import_id), Some(file_id)) => {
-                    remove_usenet_part_file(&package.destination, import_id, file_id).await
-                }
-                _ => remove_part_file(&package.destination, id).await,
-            };
-            if let Err(error) = removal {
-                tracing::warn!(download_id = %id, %error, "incomplete staging file was not discarded");
-            }
-            let folder = packages
-                .iter()
-                .filter(|other| other.destination == package.destination)
-                .map(|other| other.id)
-                .collect::<std::collections::HashSet<_>>();
-            let neighbours = self
-                .database
-                .list_downloads()
-                .await?
-                .into_iter()
-                .filter(|other| other.id != id && folder.contains(&other.package_id))
-                .collect::<Vec<_>>();
-            if let Err(error) =
-                discard_scratch_files(&package.destination, &current, &neighbours).await
-            {
-                tracing::warn!(download_id = %id, %error, "leftover scratch files were not discarded");
-            }
-            if delete_completed_files {
-                let payload = Path::new(&package.destination).join(&current.file_name);
-                if let Err(error) = remove_file_if_present(&payload).await {
-                    tracing::warn!(download_id = %id, %error, "finished file was not discarded");
-                }
+        if let Some(package) = self.discard_unfinished(&current, &packages).await?
+            && delete_completed_files
+        {
+            let payload = Path::new(&package.destination).join(&current.file_name);
+            if let Err(error) = remove_file_if_present(&payload).await {
+                tracing::warn!(download_id = %id, %error, "finished file was not discarded");
             }
         }
         self.database.reset_download(id).await?;
         Ok(())
+    }
+
+    /// Deletes what an unfinished, stopped job has written so far, ahead of its removal.
+    ///
+    /// [`Self::remove`] already takes the staging file; this adds the scratch files an external
+    /// tool leaves beside the target, by the rule a reset uses, for the removal that was asked
+    /// to throw the work away (RD-180-21). The row stays: data first, row last, so a crash in
+    /// between leaves a row that knows less data, never data that no row knows. A finished
+    /// payload is not touched, and a job that is still running is refused like a removal is.
+    pub async fn discard_partial(&self, id: DownloadId) -> Result<()> {
+        let current = self
+            .database
+            .get_download(id)
+            .await?
+            .context(StoreError::not_found("download not found"))?;
+        if is_active(current.state) || self.active.lock().await.tokens.contains_key(&id) {
+            bail!(StoreError::wrong_state(
+                "active download must be paused or cancelled before its data is discarded"
+            ));
+        }
+        let packages = self.database.list_packages().await?;
+        self.discard_unfinished(&current, &packages).await?;
+        Ok(())
+    }
+
+    /// The staging file and the tool scratch files of one job, shared by a reset and
+    /// [`Self::discard_partial`]. Answers the package the job writes into, if it has a folder.
+    async fn discard_unfinished<'a>(
+        &self,
+        current: &DownloadFile,
+        packages: &'a [rd_core::DownloadPackage],
+    ) -> Result<Option<&'a rd_core::DownloadPackage>> {
+        let id = current.id;
+        let Some(package) = packages
+            .iter()
+            .find(|package| package.id == current.package_id)
+            .filter(|package| !package.destination.is_empty())
+        else {
+            return Ok(None);
+        };
+        let usenet_import = (current.kind == rd_core::DownloadKind::Usenet)
+            .then_some(package.nzb_import_id)
+            .flatten();
+        let removal = match (usenet_import, current.nzb_file_id) {
+            (Some(import_id), Some(file_id)) => {
+                remove_usenet_part_file(&package.destination, import_id, file_id).await
+            }
+            _ => remove_part_file(&package.destination, id).await,
+        };
+        if let Err(error) = removal {
+            tracing::warn!(download_id = %id, %error, "incomplete staging file was not discarded");
+        }
+        let folder = packages
+            .iter()
+            .filter(|other| other.destination == package.destination)
+            .map(|other| other.id)
+            .collect::<std::collections::HashSet<_>>();
+        let neighbours = self
+            .database
+            .list_downloads()
+            .await?
+            .into_iter()
+            .filter(|other| other.id != id && folder.contains(&other.package_id))
+            .collect::<Vec<_>>();
+        if let Err(error) = discard_scratch_files(&package.destination, current, &neighbours).await
+        {
+            tracing::warn!(download_id = %id, %error, "leftover scratch files were not discarded");
+        }
+        Ok(Some(package))
     }
 
     /// Carries a package's data over to the destination its new category resolved to.
@@ -1180,6 +1216,39 @@ mod tests {
         assert!(
             !payload.exists(),
             "and removes it when that is what was asked for"
+        );
+    }
+
+    /// "Clear the entire list" with its box ticked (RD-180-21): what the stopped job wrote goes,
+    /// the row stays until the removal that follows, and data that is not scratch stays too.
+    #[tokio::test]
+    async fn discarding_partial_data_keeps_the_row_and_everything_that_is_not_scratch() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, destination) = paused_package(temporary.path()).await;
+        let staging = destination.join(".rdownloader");
+        tokio::fs::create_dir_all(&staging).await.expect("staging");
+        let part = staging.join(format!("{}.part", file.id));
+        tokio::fs::write(&part, b"partial")
+            .await
+            .expect("part file");
+        let fragment = destination.join("file.f137.bin.part");
+        tokio::fs::write(&fragment, b"x").await.expect("fragment");
+        let kept = destination.join("already-downloaded.bin");
+        tokio::fs::write(&kept, b"payload").await.expect("payload");
+
+        scheduler.discard_partial(file.id).await.expect("discard");
+
+        assert!(!part.exists(), "the staging file goes");
+        assert!(!fragment.exists(), "and the tool's scratch file with it");
+        assert!(kept.exists(), "downloaded data is not scratch");
+        assert!(
+            scheduler
+                .database
+                .get_download(file.id)
+                .await
+                .expect("download")
+                .is_some(),
+            "the row is the removal's to take, after the data"
         );
     }
 

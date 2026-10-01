@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// The module itself: the `@nuxt/ui/composables` barrel pulls in `#imports`, which tests cannot load.
+import { defineShortcuts } from '@nuxt/ui/composables/defineShortcuts'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,10 +10,13 @@ const props = withDefaults(defineProps<{
   confirmLabel?: string | undefined
   confirmIcon?: string
   destructive?: boolean
+  /** A key that confirms while the dialog is open — the shortcut that opened it, pressed again. */
+  confirmKey?: string | undefined
 }>(), {
   confirmLabel: undefined,
   confirmIcon: 'i-lucide-check',
-  destructive: false
+  destructive: false,
+  confirmKey: undefined
 })
 
 const emit = defineEmits<{
@@ -19,6 +24,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const confirmText = computed(() => props.confirmLabel ?? t('common.actions.confirm'))
+if (props.confirmKey) defineShortcuts({ [props.confirmKey]: () => emit('close', true) })
 </script>
 
 <template>
@@ -40,7 +46,9 @@ const confirmText = computed(() => props.confirmLabel ?? t('common.actions.confi
         :icon="confirmIcon"
         :color="destructive ? 'error' : 'primary'"
         @click="emit('close', true)"
-      />
+      >
+        <template v-if="confirmKey" #trailing><UKbd :value="confirmKey" /></template>
+      </UButton>
     </template>
   </UModal>
 </template>

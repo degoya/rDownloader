@@ -6,9 +6,10 @@
     "clear_list": "Clear list",
     "clear_completed": "Remove completed packages",
     "clear_failed": "Remove failed packages + files",
-    "clear_all": "Remove everything finished",
+    "clear_all": "Remove all stopped packages",
     "selection_count": "{count} selected",
-    "select_all_hint": "Select all files"
+    "select_all_hint": "Select all files",
+    "clear_everything": "Clear the entire list"
   },
   "filters": {
     "aria": "Filter downloads",
@@ -382,5 +383,14 @@
   "storage_modal": {
     "title": "Collisions and duplicates: {name}",
     "description": "What happens when a file name is taken, and which of the package’s files already exist."
+  },
+  "clear_everything": {
+    "title": "Clear the entire list?",
+    "description": "Removes {count} package from the download list. | Removes all {count} packages from the download list.",
+    "active": "No package is active any more. | {count} of them is still active: running and waiting downloads are cancelled and seeding stops. | {count} of them are still active: running and waiting downloads are cancelled and seeding stops.",
+    "kept": "Finished files stay in their destination folder. A package that is being post-processed stays in the list.",
+    "delete_partial": "Also delete partially downloaded files",
+    "delete_partial_hint": "Cannot be undone: unfinished torrent data and fragments beside the target file. Incomplete files in the staging folder are always removed.",
+    "confirm": "Clear list"
   }
 }

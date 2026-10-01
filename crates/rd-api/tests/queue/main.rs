@@ -11,6 +11,7 @@ mod common;
 mod auto_remove;
 mod bandwidth;
 mod category_move_and_reset;
+mod clear_list;
 mod collisions;
 mod power;
 mod reconnect;

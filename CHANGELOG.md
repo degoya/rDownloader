@@ -5,6 +5,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-01
+
+1.8 makes rDownloader deliverable to people who will not unpack an archive by hand. Every
+installation checks a signed update manifest and shows what is new; portable archives and the
+Windows MSI update themselves, with a checked database copy before the switch and a rollback when
+the new version does not answer (an MSI from its second self-update on), and the deb and rpm
+packages, Homebrew, Scoop, winget and Docker show their own command. New: the MSI, deb and rpm installers, winget, a signed
+apt and dnf repository, update channels Stable and Beta, the indexer search in the LinkGrabber,
+long settings pages in tabs, a warning before unsaved settings are lost, and reproducible Linux
+binaries. The four pre-releases below list every change; this section adds what came after
+1.8.0-beta.4.
+
+### Added
+
+- **Clear the entire download list (RD-180-21).** *Clear list* on Downloads has a new, and the only
+  red, entry *Clear the entire list*: it removes every package, running ones included — running
+  and waiting downloads are cancelled and seeding stops first; a package being post-processed
+  stays. Finished files stay in their folder; the question says how many packages are still
+  active and can also delete partially downloaded files. *Remove everything finished* is now
+  *Remove all stopped packages* and no longer red. REST: scope `everything` with `confirmed` and
+  `delete_partial` on `POST /api/v1/packages/clear`.
+
+### Changed
+
+- **A second `K` answers the question `K` asked (RD-180-17).** On Downloads, `K` asks before
+  removing the completed packages; pressing `K` again now confirms, and the dialog's button shows
+  the key.
+- **The indexer search in the LinkGrabber is always there (RD-180-19).** Without an enabled
+  indexer the field is disabled and links to Settings › Usenet › Indexers (an indexer
+  subscription alone is not searched); `F` lands on that link. Each hit has its own download
+  button that shows its progress, beside *Add selected*; the *Indexer* and *Grabs* columns are
+  gone.
+
 ## [1.8.0-beta.4] - 2026-10-01
 
 The first version that updates from a version with the fixed stop: from 1.8.0-beta.3 the update

@@ -517,9 +517,12 @@
       "title": "Titel",
       "size": "Größe",
       "age": "Alter",
-      "category": "Kategorie",
-      "indexer": "Indexer",
-      "grabs": "Abrufe"
-    }
+      "category": "Kategorie"
+    },
+    "unavailable": "Noch kein Indexer eingeschaltet. Lege zuerst einen Indexer an – Indexer-Abos allein werden hier nicht durchsucht.",
+    "unavailable_link": "Einstellungen › Usenet › Indexer",
+    "grab_one": "In den LinkGrabber übernehmen: {title}",
+    "grab_one_done": "Im LinkGrabber: {title}",
+    "grab_one_failed": "Nicht übernommen, noch einmal versuchen: {title}"
   }
 }

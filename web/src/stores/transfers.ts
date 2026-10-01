@@ -29,7 +29,7 @@ import {
 
 // The store is split over `transfersShared`, `transfersFigures`, `transfersEvents` and
 // `transfersPackages` (RD-140-27); these stay importable from here, where callers look for them.
-export { PAUSABLE_STATES, RESETTABLE_STATES, RESUMABLE_STATES } from './transfersShared'
+export { PAUSABLE_STATES, PENDING_STATES, RESETTABLE_STATES, RESUMABLE_STATES } from './transfersShared'
 export type { ClearScope, PackageChange } from './transfersShared'
 
 export const useTransfersStore = defineStore('transfers', () => {
@@ -220,17 +220,21 @@ export const useTransfersStore = defineStore('transfers', () => {
    *
    * Addressed by hand rather than through the generated client so the endpoint works before
    * the API contract is regenerated; `remove()` above does the same.
+   *
+   * `everything` is only sent from its own confirmation, so it carries `confirmed` — the server
+   * refuses that scope without it — and the answer to "delete partial files as well".
    */
-  async function clear(scope: ClearScope): Promise<void> {
+  async function clear(scope: ClearScope, deletePartial = false): Promise<void> {
     if (clearing.value) return
     clearing.value = true
     notice.value = null
     error.value = null
+    const body = scope === 'everything' ? { scope, confirmed: true, delete_partial: deletePartial } : { scope }
     const response = await fetch(withBase('/api/v1/packages/clear'), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scope })
+      body: JSON.stringify(body)
     })
     const payload: unknown = await response.json().catch(() => null)
     clearing.value = false

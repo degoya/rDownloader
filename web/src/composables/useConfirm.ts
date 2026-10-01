@@ -8,6 +8,8 @@ export interface ConfirmOptions {
   confirmLabel?: string
   confirmIcon?: string
   destructive?: boolean
+  /** Confirms with this key while open (see `ConfirmModal`). */
+  confirmKey?: string | undefined
 }
 
 export function useConfirm(): (options: ConfirmOptions) => Promise<boolean> {

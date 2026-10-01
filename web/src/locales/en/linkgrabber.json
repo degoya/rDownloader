@@ -517,9 +517,12 @@
       "title": "Title",
       "size": "Size",
       "age": "Age",
-      "category": "Category",
-      "indexer": "Indexer",
-      "grabs": "Grabs"
-    }
+      "category": "Category"
+    },
+    "unavailable": "No indexer is switched on yet. Add an indexer first – indexer subscriptions alone are not searched here.",
+    "unavailable_link": "Settings › Usenet › Indexers",
+    "grab_one": "Add to the LinkGrabber: {title}",
+    "grab_one_done": "In the LinkGrabber: {title}",
+    "grab_one_failed": "Not added, try again: {title}"
   }
 }

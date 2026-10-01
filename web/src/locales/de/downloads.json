@@ -6,9 +6,10 @@
     "clear_list": "Liste leeren",
     "clear_completed": "Fertige Pakete entfernen",
     "clear_failed": "Fehlgeschlagene Pakete + Dateien löschen",
-    "clear_all": "Alles Fertige entfernen",
+    "clear_all": "Alle beendeten Pakete entfernen",
     "selection_count": "{count} ausgewählt",
-    "select_all_hint": "Alle Dateien auswählen"
+    "select_all_hint": "Alle Dateien auswählen",
+    "clear_everything": "Liste komplett leeren"
   },
   "filters": {
     "aria": "Downloads filtern",
@@ -382,5 +383,14 @@
   "storage_modal": {
     "title": "Konflikte und Duplikate: {name}",
     "description": "Was bei belegten Dateinamen geschieht und welche Dateien des Pakets schon vorhanden sind."
+  },
+  "clear_everything": {
+    "title": "Liste komplett leeren?",
+    "description": "Entfernt {count} Paket aus der Downloadliste. | Entfernt alle {count} Pakete aus der Downloadliste.",
+    "active": "Kein Paket ist mehr aktiv. | {count} davon ist noch aktiv: Laufende und wartende Downloads werden abgebrochen, Seeding wird beendet. | {count} davon sind noch aktiv: Laufende und wartende Downloads werden abgebrochen, Seeding wird beendet.",
+    "kept": "Fertige Dateien bleiben in ihrem Zielordner. Ein Paket, das gerade nachbearbeitet wird, bleibt in der Liste.",
+    "delete_partial": "Auch teilweise heruntergeladene Dateien löschen",
+    "delete_partial_hint": "Kann nicht rückgängig gemacht werden: unfertige Torrent-Daten und Fragmente neben der Zieldatei. Unvollständige Dateien im Zwischenspeicher werden immer entfernt.",
+    "confirm": "Liste leeren"
   }
 }
