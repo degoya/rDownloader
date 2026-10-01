@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.0-beta.4] - 2026-10-01
+
+The first version that updates from a version with the fixed stop: from 1.8.0-beta.3 the update
+runs through the dialog without a manual step.
+
+### Changed
+
+- **`rd-api` no longer links `tokio-util`.** The stop token it used moved into `AppState` with
+  the update fix of beta.3; nothing else changes.
+
 ## [1.8.0-beta.3] - 2026-10-01
 
 The self-update from beta.1 and beta.2 hangs at the stop; update those once by hand (see Fixed).

@@ -38,6 +38,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # rust-toolchain.toml names `stable`, which outranks the 1.98.0 the toolchain step installs;
+  # RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its own day
+  # (1.99's deprecation of fetch_update, 2026-10-01).
+  RUSTUP_TOOLCHAIN: 1.98.0
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
 

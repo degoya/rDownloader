@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.8.0-beta.3"
+    "version": "1.8.0-beta.4"
   },
   "paths": {
     "/api/v1/accounts": {

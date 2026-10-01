@@ -37,7 +37,6 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
-tokio-util.workspace = true
 tower = { version = "0.5", features = ["util"] }
 tower-http.workspace = true
 tracing.workspace = true
