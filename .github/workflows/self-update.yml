@@ -4,7 +4,8 @@ name: Self-update
 # this tree — the second with the patch version raised by scripts/set-version.sh — and
 # scripts/self-update-smoke.sh, which runs the first as a portable installation and hands it
 # three updates the way the service does: the next version (installed, answers, old files kept in
-# .previous/), a candidate whose program ends at once (rolled back, database copy put back), and a
+# .previous/, with the web interface's and a capture agent's event streams open across the
+# stop), a candidate whose program ends at once (rolled back, database copy put back), and a
 # candidate that answers but is declared unhealthy through RD_UPDATE_TEST_FAIL_HEALTH, which only
 # a debug build honours (stopped and rolled back).
 #
@@ -24,6 +25,10 @@ on:
       - crates/rdownloader/src/updater_cli.rs
       - crates/rdownloader/src/stop_cli.rs
       - crates/rd-api-core/src/local_control.rs
+      # The stop the updater waits for: the listener's drain, the event streams, the deadline.
+      - crates/rd-api/src/lib.rs
+      - crates/rd-api/src/event_stream.rs
+      - crates/rdownloader/src/main.rs
   workflow_dispatch:
 
 permissions: {}

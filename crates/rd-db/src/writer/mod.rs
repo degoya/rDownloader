@@ -20,6 +20,7 @@ mod config;
 mod download_rows;
 mod downloads;
 mod full_backup;
+mod indexers;
 mod logs;
 mod maintenance;
 mod network;
@@ -249,6 +250,9 @@ impl Writer {
                 | WriterCommand::ForgetObjectUploads { .. }) => {
                     self.handle_object_storage(command).await
                 }
+                command @ (WriterCommand::CreateIndexer { .. }
+                | WriterCommand::UpdateIndexer { .. }
+                | WriterCommand::DeleteIndexer { .. }) => self.handle_indexers(command).await,
                 command @ (WriterCommand::SetDownloadRecordingState { .. }
                 | WriterCommand::CreateStreamSchedule { .. }
                 | WriterCommand::UpdateStreamSchedule { .. }

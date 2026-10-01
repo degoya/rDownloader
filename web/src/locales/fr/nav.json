@@ -61,7 +61,8 @@
       "passphrase": "mot de passe, chiffrement, clé",
       "signature": "signature, clé, éditeur, confiance",
       "managed_tools": "télécharger les outils, installer automatiquement, mettre à jour",
-      "updates": "mise à jour, nouvelle version, bêta, canal de version"
+      "updates": "mise à jour, nouvelle version, bêta, canal de version",
+      "indexers": "indexeur, newznab, recherche nzb, clé api"
     }
   }
 }

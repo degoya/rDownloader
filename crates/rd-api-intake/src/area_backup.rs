@@ -77,6 +77,10 @@ pub struct BundleAreaSubscription {
     /// The shape of a card's image area (RD-120-42); `2:1` when absent, as it always was.
     #[serde(default)]
     pub card_ratio: rd_core::SubscriptionCardRatio,
+    /// The search an indexer subscription sends (RD-180-20); absent from an older bundle,
+    /// which restores the empty search every subscription sent then.
+    #[serde(default)]
+    pub indexer_search: rd_core::IndexerSearch,
     /// Whether the original had an API key. The key itself never travels — it lives in the
     /// vault, and a bundle is a file somebody sends. An import that needs one arrives switched
     /// off, so it cannot poll with no credential and report a failure nobody caused.
@@ -245,6 +249,7 @@ pub async fn export_subscriptions(
             view: subscription.view,
             autoplay: subscription.autoplay,
             card_ratio: subscription.card_ratio,
+            indexer_search: subscription.indexer_search,
             api_key_required: subscription.secret_ref.is_some(),
         })
         .collect();
@@ -312,6 +317,8 @@ pub async fn import_subscriptions(
             card_ratio: entry.card_ratio.as_str().to_owned(),
             schedule: None,
             script_arguments: Vec::new(),
+            indexer_search: entry.indexer_search,
+            indexer_id: None,
             api_key: None,
         };
         let Ok(input) = crate::subscription_handlers::subscription_input(&request, None) else {

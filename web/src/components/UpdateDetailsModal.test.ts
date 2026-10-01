@@ -1,29 +1,34 @@
 /**
  * The update details' self-update (RD-180-02): "Install and restart" behind a confirmation, the
  * install followed through a restart that leaves the service silent for a while, the new version
- * or the old one back with its reason, and a refusal for running downloads asked once more.
+ * or the old one back with its reason, and a refusal for running downloads asked once more. And
+ * the download ahead of the install, in the background with its progress (owner, 2026-10-01), and
+ * what the dialog shows when the update fails or the service never comes back (live test
+ * 2026-10-01: it said "waiting for it to answer" for good).
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UpdateInstall, UpdateOffer, UpdateStatus } from '@/api/updates'
+import type { UpdateDownload, UpdateInstall, UpdateOffer, UpdateStatus } from '@/api/updates'
 import server from '@/locales/en/server.json'
 import system from '@/locales/en/system.json'
 import { mountComponent } from '@/test/mount'
 
 const fetchUpdateStatus = vi.fn()
 const installUpdate = vi.fn()
+const downloadUpdate = vi.fn()
 const confirm = vi.fn()
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 vi.mock('@/api/updates', async (original) => ({
   ...(await original<typeof import('@/api/updates')>()),
   fetchUpdateStatus: () => fetchUpdateStatus(),
-  installUpdate: (allowActive?: boolean) => installUpdate(allowActive)
+  installUpdate: (allowActive?: boolean) => installUpdate(allowActive),
+  downloadUpdate: () => downloadUpdate()
 }))
 
 const { default: UpdateDetailsModal } = await import('./UpdateDetailsModal.vue')
-const { useUpdateStatus, FOLLOW_INTERVAL_MS } = await import('@/composables/useUpdateStatus')
+const { useUpdateStatus, FOLLOW_INTERVAL_MS, FOLLOW_LIMIT_MS, DOWNLOAD_INTERVAL_MS } = await import('@/composables/useUpdateStatus')
 
 const modal = {
   props: ['open', 'title'],
@@ -56,6 +61,10 @@ function install(state: UpdateInstall['state'], reason: string | null = null): U
   }
 }
 
+function downloaded(state: UpdateDownload['state'], received = 4096, reason: string | null = null): UpdateDownload {
+  return { version: '1.8.0', state, received_bytes: received, total_bytes: 4096, reason }
+}
+
 function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
   return {
     current_version: '1.8.0-beta.2',
@@ -71,6 +80,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     error_code: null,
     available: offer,
     install: null,
+    download: null,
     ...patch
   }
 }
@@ -83,6 +93,13 @@ function mount(shown: UpdateOffer = offer, kind: UpdateStatus['install_kind'] = 
   })
 }
 
+/** Lets a follow that still runs end, so the next test's own is not taken for it. */
+async function settleFollows(): Promise<void> {
+  fetchUpdateStatus.mockResolvedValue({ ok: true, data: status({ install: install('done') }) })
+  await vi.advanceTimersByTimeAsync(FOLLOW_INTERVAL_MS)
+  vi.useRealTimers()
+}
+
 async function clickInstall(): Promise<void> {
   await fireEvent.click(screen.getByTestId('update-install-start'))
   await vi.waitFor(() => expect(installUpdate).toHaveBeenCalled())
@@ -93,14 +110,17 @@ describe('UpdateDetailsModal: installing', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     fetchUpdateStatus.mockReset()
     installUpdate.mockReset()
+    downloadUpdate.mockReset()
     confirm.mockReset()
     const shared = useUpdateStatus()
     shared.status.value = status()
     shared.installFailure.value = null
+    shared.downloadFailure.value = null
     shared.followed.value = false
+    shared.lost.value = false
   })
-  afterEach(() => {
-    vi.useRealTimers()
+  afterEach(async () => {
+    await settleFollows()
   })
 
   it('offers the install with its automatic way back', () => {
@@ -176,5 +196,106 @@ describe('UpdateDetailsModal: installing', () => {
     expect(confirm).toHaveBeenCalledTimes(2)
     expect(confirm.mock.calls[1]?.[0]?.description).toContain('2 downloads are running')
     expect(installUpdate).toHaveBeenLastCalledWith(true)
+  })
+
+  it('says why the update failed and offers to try again', async () => {
+    confirm.mockResolvedValue(true)
+    installUpdate.mockResolvedValue({ ok: true, data: install('downloading') })
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ install: install('failed', 'update.service_did_not_stop') })
+    })
+    mount()
+    await clickInstall()
+    await vi.advanceTimersByTimeAsync(FOLLOW_INTERVAL_MS)
+    const outcome = screen.getByTestId('update-install-outcome').textContent ?? ''
+    expect(outcome).toContain('The update to 1.8.0 failed.')
+    expect(outcome).toContain(server.codes['update.service_did_not_stop'])
+    expect(screen.queryByTestId('update-install-reconnecting')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: system.updates.install.retry }))
+    await vi.waitFor(() => expect(installUpdate).toHaveBeenCalledTimes(2))
+  })
+
+  it('takes a service that answers as the new version as the update done', async () => {
+    confirm.mockResolvedValue(true)
+    installUpdate.mockResolvedValue({ ok: true, data: install('downloading') })
+    fetchUpdateStatus
+      .mockResolvedValueOnce({ ok: false, status: 0, message: null })
+      .mockResolvedValueOnce({ ok: true, data: status({ current_version: '1.8.0', available: null, install: null }) })
+    mount()
+    await clickInstall()
+    await vi.advanceTimersByTimeAsync(FOLLOW_INTERVAL_MS * 2)
+    expect(screen.getByTestId('update-install-outcome').textContent).toContain('Updated to 1.8.0.')
+  })
+
+  it('stops waiting with what to do when the service never comes back', async () => {
+    confirm.mockResolvedValue(true)
+    installUpdate.mockResolvedValue({ ok: true, data: install('restarting') })
+    fetchUpdateStatus.mockResolvedValue({ ok: false, status: 0, message: null })
+    mount()
+    await clickInstall()
+    await vi.advanceTimersByTimeAsync(FOLLOW_LIMIT_MS + FOLLOW_INTERVAL_MS)
+    expect(screen.getByTestId('update-install-lost').textContent).toContain(system.updates.install.lost)
+    expect(screen.queryByTestId('update-install-reconnecting')).toBeNull()
+  })
+})
+
+describe('UpdateDetailsModal: downloading ahead of the install', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    fetchUpdateStatus.mockReset()
+    installUpdate.mockReset()
+    downloadUpdate.mockReset()
+    confirm.mockReset()
+    const shared = useUpdateStatus()
+    shared.status.value = status()
+    shared.installFailure.value = null
+    shared.downloadFailure.value = null
+    shared.followed.value = false
+  })
+  afterEach(async () => {
+    await settleFollows()
+  })
+
+  it('keeps the browser download as a small link beside the background download', () => {
+    mount()
+    const link = screen.getByTestId('update-download-manual')
+    expect(link.getAttribute('to')).toBe(offer.download_url)
+    expect(link.textContent).toContain(system.updates.modal.download_manual)
+    expect(screen.getByTestId('update-download-start').getAttribute('to')).toBeNull()
+  })
+
+  it('downloads in the background with its progress until the file is ready to install', async () => {
+    downloadUpdate.mockResolvedValue({ ok: true, data: downloaded('downloading', 0) })
+    fetchUpdateStatus
+      .mockResolvedValueOnce({ ok: true, data: status({ download: downloaded('downloading', 1024) }) })
+      .mockResolvedValueOnce({ ok: true, data: status({ download: downloaded('ready') }) })
+    mount()
+    await fireEvent.click(screen.getByTestId('update-download-start'))
+    await vi.waitFor(() => expect(downloadUpdate).toHaveBeenCalled())
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_INTERVAL_MS)
+    const progress = screen.getByTestId('update-download-progress').textContent ?? ''
+    expect(progress).toContain('Downloading 1.8.0 in the background')
+    expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe('25%')
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_INTERVAL_MS)
+    expect(screen.getByTestId('update-download-ready').textContent).toContain('1.8.0 is downloaded and verified')
+    expect(screen.queryByTestId('update-download-start')).toBeNull()
+    expect(screen.getByTestId('update-install-start')).toBeTruthy()
+    expect(fetchUpdateStatus).toHaveBeenCalledTimes(2)
+  })
+
+  it('says why a download failed', async () => {
+    downloadUpdate.mockResolvedValue({ ok: true, data: downloaded('downloading', 0) })
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ download: downloaded('failed', 0, 'update.digest_mismatch') })
+    })
+    mount()
+    await fireEvent.click(screen.getByTestId('update-download-start'))
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_INTERVAL_MS)
+    const failed = screen.getByTestId('update-download-failed').textContent ?? ''
+    expect(failed).toContain('Downloading 1.8.0 failed.')
+    expect(failed).toContain(server.codes['update.digest_mismatch'])
+    expect(screen.getByTestId('update-download-start')).toBeTruthy()
   })
 })

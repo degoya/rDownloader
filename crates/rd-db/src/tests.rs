@@ -2970,6 +2970,7 @@ fn new_subscription(name: &str) -> crate::NewSubscription {
         card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
         schedule: None,
         script_arguments: Vec::new(),
+        indexer_search: rd_core::IndexerSearch::default(),
         secret_ref: None,
     }
 }

@@ -861,6 +861,17 @@ async fn no_tool_answers_with_a_stored_credential() {
         })
         .await
         .expect("proxy profile");
+    // RD-180-19: an indexer defined once holds its key the same way.
+    database
+        .create_indexer(rd_db::NewIndexer {
+            name: "canary indexer".to_owned(),
+            url: "https://indexer.invalid/api".parse().expect("url"),
+            secret_ref: Some(reference.clone()),
+            categories: Vec::new(),
+            enabled: false,
+        })
+        .await
+        .expect("indexer");
 
     let session = handshake(&router, API_BEARER).await;
     let reads = id_free_reads();
@@ -936,6 +947,7 @@ fn id_free_reads() -> Vec<(&'static str, serde_json::Value)> {
         ("list_subscriptions", serde_json::json!({})),
         ("list_stream_channels", serde_json::json!({})),
         ("list_usenet_servers", serde_json::json!({})),
+        ("list_indexers", serde_json::json!({})),
         ("list_remote_jobs", serde_json::json!({})),
         ("list_site_rules", serde_json::json!({})),
         ("get_transfer_stats", serde_json::json!({})),

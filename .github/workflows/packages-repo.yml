@@ -6,9 +6,11 @@ name: Package repositories
 # 1 holds rdownloader 1.0.0, 2 holds 1.1.0 and 1.2.0 (1.0.0 dropped by --keep 2). Each install job
 # serves a state at file:///repo, adds the key and the .sources or .repo file exactly as the
 # README says, installs, upgrades to the next state, downgrades to the kept older version, and
-# then shows that a repository whose signed index was altered offers nothing — the signature is
-# checked, nothing says trusted=yes. The fixture packages only carry a version file; what the real
-# packages do on upgrade and removal is RD-180-05's installer CI.
+# then shows that a repository whose signed index was altered fails the update with a non-zero exit,
+# installs nothing and offers nothing — the signature is checked, nothing says trusted=yes, and
+# dnf does not skip the repository with a warning — and that the same state unaltered installs
+# again, so the failure is the signature's. The fixture packages only carry a version file; what
+# the real packages do on upgrade and removal is RD-180-05's installer CI.
 on:
   push:
     branches: ["**", "!dependabot/**"]
@@ -100,11 +102,22 @@ jobs:
           ln -sfn "$PWD/tampered" /repo
           apt-get purge -y rdownloader
           rm -rf /var/lib/apt/lists/*
-          apt-get update || true
+          if apt-get update; then
+            echo "::error::apt-get update succeeds on a repository whose signed index was altered"
+            exit 1
+          fi
           if apt-cache show rdownloader; then
             echo "::error::apt offers rdownloader from a repository whose signed index was altered"
             exit 1
           fi
+          if apt-get install -y rdownloader; then
+            echo "::error::apt installs rdownloader from a repository whose signed index was altered"
+            exit 1
+          fi
+          ln -sfn "$PWD/states/2" /repo
+          apt-get update
+          apt-get install -y rdownloader
+          [[ "$(cat /usr/lib/rdownloader-fixture/version)" == 1.2.0 ]]
 
   dnf:
     needs: build
@@ -129,6 +142,9 @@ jobs:
           # gpgcheck=1 makes dnf refuse an unsigned rpm, so the install proves the package signature.
           grep -x 'gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
           grep -x 'repo_gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
+          # Fedora's dnf5 sets skip_if_unavailable=True in /usr/share/dnf5/libdnf.conf.d/20-fedora-defaults.conf;
+          # the repository's own skip_if_unavailable=0 turns a failed signature check into a hard error.
+          grep -x 'skip_if_unavailable=0' /etc/yum.repos.d/rdownloader.repo
           dnf install -y rdownloader
           [[ "$(installed)" == 1.0.0 ]]
           ln -sfn "$PWD/states/2" /repo
@@ -148,3 +164,17 @@ jobs:
             echo "::error::dnf accepts a repomd.xml that no longer matches its signature"
             exit 1
           fi
+          if dnf install -y --refresh rdownloader; then
+            echo "::error::dnf installs rdownloader from a repository whose repomd.xml was altered"
+            exit 1
+          fi
+          # With skipping switched back on dnf ends with 0 (run 36781008221), but the altered
+          # metadata are still never used: the repository is dropped and nothing is offered.
+          if dnf install -y --refresh --setopt=rdownloader.skip_if_unavailable=1 rdownloader; then
+            echo "::error::dnf installs rdownloader from an altered repomd.xml once skipping is allowed"
+            exit 1
+          fi
+          if rpm -q rdownloader; then exit 1; fi
+          ln -sfn "$PWD/states/2" /repo
+          dnf install -y --refresh rdownloader
+          [[ "$(cat /usr/lib/rdownloader-fixture/version)" == 1.2.0 ]]

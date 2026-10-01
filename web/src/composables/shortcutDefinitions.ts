@@ -1,3 +1,4 @@
+import { focusIndexerSearch } from '@/composables/indexerSearchFocus'
 import { requestFileImport } from '@/composables/nzbImportRequest'
 import { openPalette } from '@/composables/searchPalette'
 import { toggleSidebarCollapsed } from '@/composables/sidebarCollapse'
@@ -150,6 +151,10 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
   { keys: 'k', labelKeys: ['k'], descriptionKey: 'common.shortcuts.clear_completed', group: 'actions', handler: guarded(() => clearCompleted?.()) },
+  // `f` focuses the LinkGrabber's indexer search, handed in by its panel (`indexerSearchFocus.ts`).
+  // Ctrl/Cmd+F stays the browser's find and Shift+F does nothing: `defineShortcuts` matches
+  // modifiers exactly, Shift included for a letter.
+  { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },
   { keys: '?', labelKeys: ['?'], descriptionKey: 'common.shortcuts.show_help', group: 'actions', handler: guarded(() => openHelp()) },
   // The search (RD-170-15). `/` is a plain key, so like every key above it does nothing while a
   // text field has the focus; Ctrl/Cmd+K opens the search from anywhere, a text field included.

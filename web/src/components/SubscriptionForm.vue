@@ -16,11 +16,13 @@ import { useI18n } from 'vue-i18n'
 import type { Category, CategoryMapping, IndexerCaps, IndexerCategory, Subscription, SubscriptionRequest } from '@/api/types'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SubscriptionIndexerSearch from '@/components/SubscriptionIndexerSearch.vue'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
 import { translateServerMessage } from '@/i18n/server'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
+import { NO_INDEXER, maxAgeDays, queryProblem, type IndexerSearchFields } from '@/utils/indexerSearch'
 import { argumentsProblem, joinArguments, splitArguments } from '@/utils/scriptArguments'
 import { CARD_RATIOS, type CardRatio, cardRatio, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
 
@@ -64,6 +66,10 @@ interface Form {
   script: string
   /** The parameter line, split into the arguments the script receives (RD-150-08). */
   scriptArguments: string
+  /** A defined indexer to take over when saving (RD-180-20); `NO_INDEXER` for none. */
+  indexerId: string
+  /** `q`, `maxage`, `pw` and `pred` of an indexer subscription (RD-180-20). */
+  search: IndexerSearchFields
 }
 
 /** The address scheme a script subscription's name is stored under, as the server writes it. */
@@ -89,7 +95,9 @@ function emptyForm(): Form {
     cardRatio: DEFAULT_CARD_RATIO,
     schedule: '',
     script: '',
-    scriptArguments: ''
+    scriptArguments: '',
+    indexerId: NO_INDEXER,
+    search: { query: '', maxAge: '', hidePassworded: false, pretime: 'none' }
   }
 }
 
@@ -170,6 +178,15 @@ const categoryItems = computed(() => [
   ...props.categories.map(category => ({ value: category.id, label: category.name }))
 ])
 
+/** Whether the search fields hold something the server would refuse; the fields say what. */
+const searchInvalid = computed(() => form.kind === 'indexer' && (
+  queryProblem(form.search.query) !== null ||
+  (String(form.search.maxAge).trim() !== '' && maxAgeDays(form.search.maxAge) === null)
+))
+
+/** Taking a defined indexer over lets the address and the key fields stay empty. */
+const takesOver = computed(() => form.kind === 'indexer' && form.indexerId !== NO_INDEXER)
+
 /** Splits a comma-separated pattern list, dropping the empties. */
 function patterns(value: string): string[] {
   return value
@@ -213,6 +230,16 @@ function body(): SubscriptionRequest {
     schedule: form.kind === 'script' ? (form.schedule.trim() || null) : null,
     // The list, never the line: the server gets exactly what the preview shows.
     script_arguments: form.kind === 'script' ? (scriptArgumentList.value ?? []) : [],
+    // Only an indexer subscription sends a search; every other kind is refused one.
+    indexer_search: form.kind === 'indexer'
+      ? {
+          query: form.search.query.trim() || null,
+          max_age_days: maxAgeDays(form.search.maxAge),
+          hide_passworded: form.search.hidePassworded,
+          pretime: form.search.pretime === 'none' ? null : Number(form.search.pretime)
+        }
+      : {},
+    indexer_id: takesOver.value ? form.indexerId : null,
     // Omitted rather than cleared when left blank, so an edit that does not retype the key
     // keeps the stored one.
     api_key: form.apiKey.trim() || null
@@ -227,6 +254,7 @@ function reset(): void {
 async function submit(): Promise<void> {
   // The field says what is wrong; a line that would not arrive as shown is not sent.
   if (form.kind === 'script' && scriptArgumentsError.value) return
+  if (searchInvalid.value) return
   const saved = editing.value ? await store.update(editing.value, body()) : await store.create(body())
   if (saved) reset()
 }
@@ -255,6 +283,15 @@ function edit(subscription: Subscription): void {
   form.autoplay = subscription.autoplay ?? false
   form.cardRatio = cardRatio(subscription.card_ratio)
   form.schedule = subscription.schedule ?? ''
+  // A take-over is a copy made when saving, so an edit starts without one (RD-180-20).
+  form.indexerId = NO_INDEXER
+  const search = subscription.indexer_search
+  form.search = {
+    query: search?.query ?? '',
+    maxAge: search?.max_age_days ?? '',
+    hidePassworded: search?.hide_passworded ?? false,
+    pretime: search?.pretime === 0 || search?.pretime === 1 || search?.pretime === 2 ? String(search.pretime) as '0' | '1' | '2' : 'none'
+  }
   caps.value = null
   capsError.value = null
   void focusForm()
@@ -399,10 +436,15 @@ defineExpose({ edit, reset })
       <UFormField
         v-else
         :label="t('subscriptions.form.url')"
-        :description="form.kind === 'site_rule' ? t('subscriptions.form.site_rule_description') : undefined"
+        :description="form.kind === 'site_rule' ? t('subscriptions.form.site_rule_description') : takesOver ? t('subscriptions.form.url_from_indexer') : undefined"
       >
-        <UInput v-model="form.url" type="url" required class="w-full" data-testid="subscription-url" />
+        <UInput v-model="form.url" type="url" :required="!takesOver" class="w-full" data-testid="subscription-url" />
       </UFormField>
+      <SubscriptionIndexerSearch
+        v-if="form.kind === 'indexer'"
+        v-model:indexer-id="form.indexerId"
+        v-model:search="form.search"
+      />
       <UFormField
         v-if="form.kind === 'script'"
         :label="t('subscriptions.form.schedule')"
@@ -490,7 +532,7 @@ defineExpose({ edit, reset })
           class="w-full"
           type="password"
           autocomplete="off"
-          :placeholder="editing ? t('subscriptions.form.api_key_keep') : ''"
+          :placeholder="editing ? t('subscriptions.form.api_key_keep') : takesOver ? t('subscriptions.form.api_key_from_indexer') : ''"
           data-testid="subscription-api-key"
         />
       </UFormField>

@@ -51,5 +51,42 @@
     "title": "Delete Usenet server",
     "description": "The NNTP server “{name}” and its encrypted password will be deleted permanently.",
     "confirm": "Delete server"
+  },
+  "indexers": {
+    "eyebrow": "Indexers",
+    "title_add": "Add an indexer",
+    "title_edit": "Edit the indexer",
+    "description": "A Newznab indexer, defined once: the LinkGrabber searches it, and an indexer subscription can take it over. The API key goes into the vault and is never shown again.",
+    "name": "Name",
+    "url": "API address",
+    "url_hint": "The API base address, e.g. https://api.omgwtfnzbs.org/api – an NZBHydra or Prowlarr on your own network works too",
+    "api_key": "API key",
+    "api_key_keep": "Leave empty to keep the stored key",
+    "categories": "Default categories",
+    "categories_hint": "The categories a search asks for when it names none itself",
+    "categories_all": "All categories",
+    "load_categories": "Load categories from the indexer",
+    "enabled": "Enabled",
+    "disabled": "Off",
+    "has_key": "API key stored",
+    "create": "Add indexer",
+    "save": "Save changes",
+    "edit": "Edit indexer",
+    "list_eyebrow": "Search",
+    "list_title": "Defined indexers",
+    "list_description": "The LinkGrabber searches the enabled indexers; a disabled one stays available to subscriptions.",
+    "empty": "No indexer yet. With one, the LinkGrabber shows the indexer search.",
+    "delete": {
+      "action": "Delete indexer",
+      "title": "Delete the indexer?",
+      "description": "{name} and its stored API key are removed. Subscriptions that took it over keep their own copy.",
+      "confirm": "Delete"
+    },
+    "messages": {
+      "created": "Indexer added",
+      "updated": "Indexer saved",
+      "deleted": "{name} deleted",
+      "tested": "{server} answers: {count} categories"
+    }
   }
 }

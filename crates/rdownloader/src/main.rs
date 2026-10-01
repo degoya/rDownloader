@@ -1,6 +1,10 @@
 //! rDownloader service and diagnostic command line.
 
-use std::{net::SocketAddr, path::PathBuf};
+use std::{
+    net::SocketAddr,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
@@ -377,12 +381,14 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     ));
     // Written only now, with everything the stop route needs in place; removed as the last
     // step of this function, so `rdownloader stop --wait` sees it gone once the queue is safe.
-    let (local_control, _control_file) =
+    let (local_control, control_file) =
         rd_api::local_control::LocalControl::issue(&data_directory, listen)
             .context("write the local control file")?;
+    let control_file = Arc::new(Mutex::new(Some(control_file)));
+    end_after_stop_deadline(shutdown.clone(), Arc::downgrade(&control_file));
     let state = state
         .with_local_control(local_control)
-        .with_shutdown(shutdown.clone());
+        .with_shutdown(shutdown);
     startup::prepare_state(&state).await?;
     startup::finish_restore(&args.paths, &restore);
     let hotfolders = state.hotfolders.clone();
@@ -390,15 +396,62 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     let remote_jobs = state.remote_jobs.clone();
     let stream_monitor = state.stream_monitor.clone();
     updater_cli::confirm_when_answering(&args.paths.database, listen);
-    let result = rd_api::serve(state, listen, shutdown).await;
+    let result = rd_api::serve(state, listen).await;
     stream_monitor.shutdown();
     torrent_service.shutdown();
     hotfolders.shutdown().await;
     state_link_check.shutdown();
     remote_jobs.shutdown();
     extraction.shutdown().await;
-    scheduler.shutdown().await?;
+    let stopped = scheduler.shutdown().await;
+    remove_control_file(&control_file);
+    stopped?;
     result
+}
+
+/// How long a stop may take, from the request to the end of the process (RD-180-02).
+///
+/// The listener drains for at most `rd_api::CONNECTION_DRAIN`, the scheduler gives its transfers
+/// ten seconds to checkpoint, the rest stops in moments; this bounds all of it together and what
+/// nothing else bounds -- a blocking task the runtime waits for on its way out, a stop that hangs.
+/// Below the updater's wait for the stop (120 s), so a slow stop no longer fails an update. What
+/// a forced end leaves is what a crash leaves, and every persistence path survives a crash
+/// (`crates/rd-core/recovery-matrix.md`).
+const STOP_DEADLINE: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// The local control file, removed as the last step of a stop: its removal is what
+/// `rdownloader stop --wait` and the updater read as the end of the process.
+type ControlFile = Arc<Mutex<Option<rd_api::local_control::ControlFileGuard>>>;
+
+fn remove_control_file(control_file: &ControlFile) {
+    if let Ok(mut file) = control_file.lock() {
+        file.take();
+    }
+}
+
+/// Ends the process [`STOP_DEADLINE`] after `shutdown` was cancelled, if it is still running.
+///
+/// On a thread of its own, so a runtime whose workers are all stuck still ends. The control file
+/// goes first, as at the end of an ordinary stop, so whoever asked for the stop sees it done;
+/// held weakly, so a start that fails drops it as before.
+fn end_after_stop_deadline(
+    shutdown: CancellationToken,
+    control_file: std::sync::Weak<Mutex<Option<rd_api::local_control::ControlFileGuard>>>,
+) {
+    tokio::spawn(async move {
+        shutdown.cancelled().await;
+        std::thread::spawn(move || {
+            std::thread::sleep(STOP_DEADLINE);
+            tracing::error!(
+                seconds = STOP_DEADLINE.as_secs(),
+                "the stop did not finish in time; the process ends without the rest of it"
+            );
+            if let Some(control_file) = control_file.upgrade() {
+                remove_control_file(&control_file);
+            }
+            std::process::exit(1);
+        });
+    });
 }
 
 #[derive(Deserialize)]

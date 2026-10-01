@@ -1142,6 +1142,21 @@ pub(crate) enum WriterCommand {
         input: crate::PluginRepositoryInstall,
         reply: Reply<crate::PluginRepositoryInstall>,
     },
+    /// Newznab indexers defined once (RD-180-19).
+    CreateIndexer {
+        input: Box<crate::NewIndexer>,
+        reply: Reply<rd_core::Indexer>,
+    },
+    /// Replies with the indexer and the key reference the edit replaced.
+    UpdateIndexer {
+        id: rd_core::IndexerId,
+        input: Box<crate::NewIndexer>,
+        reply: Reply<(rd_core::Indexer, Option<String>)>,
+    },
+    DeleteIndexer {
+        id: rd_core::IndexerId,
+        reply: Reply<Option<String>>,
+    },
     /// Object storage profiles (RD-150-04).
     CreateObjectStorageProfile {
         input: Box<crate::NewObjectStorageProfile>,

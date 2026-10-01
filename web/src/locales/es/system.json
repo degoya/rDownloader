@@ -637,10 +637,11 @@
       "copied": "Comando copiado",
       "close": "Cerrar",
       "install": "Instalar y reiniciar",
-      "install_hint": "rDownloader descarga la nueva versión, hace una copia de su base de datos, se detiene, sustituye sus archivos de programa y vuelve a arrancar. Tus ajustes y descargas se quedan donde están.",
+      "install_hint": "rDownloader descarga la nueva versión si aún no está descargada, hace una copia de su base de datos, se detiene, sustituye sus archivos de programa y vuelve a arrancar. Tus ajustes y descargas se quedan donde están.",
       "rollback_automatic": "Si la nueva versión no arranca bien, la anterior vuelve por sí sola.",
       "rollback_unavailable": "Esta actualización con el instalador de Windows no se puede deshacer sola: no se guardó el instalador de la versión actual. A partir de la próxima actualización sí.",
-      "download_package": "Descargar el paquete"
+      "download_package": "Descargar el paquete",
+      "download_manual": "Descargar manualmente"
     },
     "hints": {
       "aur_helper": "Con paru: paru -S rdownloader-bin",
@@ -657,7 +658,7 @@
       "confirm_description": "rDownloader se detiene durante aproximadamente un minuto y vuelve a arrancar como {version}. Las descargas en curso se guardan y continúan después. Esta página se vuelve a conectar sola.",
       "anyway": "Instalar de todos modos",
       "reconnecting": "rDownloader se está reiniciando: esperando su respuesta …",
-      "lost": "rDownloader lleva minutos sin responder. Arráncalo a mano; si la actualización quedó incompleta, la versión anterior vuelve al arrancar.",
+      "lost": "rDownloader lleva minutos sin responder. Ciérralo si sigue en marcha y arráncalo a mano; si la actualización quedó incompleta, la versión anterior vuelve al arrancar.",
       "reload": "Recargar la página",
       "reload_hint": "Recarga la página para usar la interfaz de la nueva versión.",
       "state": {
@@ -670,7 +671,14 @@
         "done": "Actualizado a {version}.",
         "rolled_back": "{version} no arrancó bien, así que vuelve a funcionar {from}.",
         "failed": "La actualización a {version} ha fallado."
-      }
+      },
+      "retry": "Reintentar"
+    },
+    "download": {
+      "downloading": "Descargando {version} en segundo plano …",
+      "progress": "{received} de {total}",
+      "ready": "{version} está descargada y verificada; «Instalar y reiniciar» usa este archivo.",
+      "failed": "La descarga de {version} ha fallado."
     }
   }
 }

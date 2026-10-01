@@ -26,6 +26,7 @@ mod tools_credentials;
 mod tools_downloads;
 mod tools_editors;
 mod tools_grabber;
+mod tools_indexers;
 mod tools_insight;
 mod tools_intake;
 mod tools_notify;
@@ -70,9 +71,10 @@ use rd_api_core::{
     postprocess_handlers, scope_policy, settings_store, storage_capacity,
 };
 use rd_api_intake::{
-    candidate_handlers, collector_enqueue, collector_handlers, container_handlers, nzb_handlers,
-    regex_tester, remote_listing_handlers, site_rules_dto, site_rules_handlers, stream_handlers,
-    stream_schedule_handlers, subscription_handlers,
+    candidate_handlers, collector_enqueue, collector_handlers, container_handlers,
+    indexer_handlers, indexer_search, nzb_handlers, regex_tester, remote_listing_handlers,
+    site_rules_dto, site_rules_handlers, stream_handlers, stream_schedule_handlers,
+    subscription_handlers,
 };
 use rd_api_queue::{
     collision_handlers, download_handlers, download_sources, duplicates, media_handlers, metrics,
@@ -104,7 +106,9 @@ create_site_rule, update_site_rule, test_site_rule and delete_site_rule write th
 Everything the LinkGrabber screen does is here too: list_candidates names each link, and \
 the candidate tools rename, move, reorder, enqueue, pick media variants, plan torrents and \
 directory listings, and pin mirrors; list_nzb_imports and the nzb_import tools review and \
-queue an NZB. The queue is ordered with reorder_downloads and reorder_packages, renamed \
+queue an NZB. search_indexers searches the Newznab indexers defined in the web UI \
+(list_indexers) and grab_indexer_results puts chosen hits into the LinkGrabber as NZB imports. \
+The queue is ordered with reorder_downloads and reorder_packages, renamed \
 with rename_download, update_package and rename_package_folder, tidied with \
 clear_finished_packages and unpacked with extract_packages. get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
@@ -160,6 +164,7 @@ impl RdMcpServer {
             + Self::operations_router()
             + Self::editors_router()
             + Self::subscription_review_router()
+            + Self::indexers_router()
             + Self::stream_schedules_router()
             + Self::collisions_router()
             + Self::backup_router()
@@ -363,8 +368,14 @@ impl ServerHandler for RdMcpServer {
 /// Host validation is disabled: the route already requires an `api:*` bearer
 /// token (or session), which neutralizes DNS-rebinding concerns, and the
 /// service must stay reachable when the server is bound to a LAN address.
+///
+/// The sessions and their event streams end when the service stops: the graceful stop waits for
+/// every open response, and an MCP client's `GET` stream never ends by itself (RD-180-02). A
+/// child of the stop token, so nothing the transport cancels reaches the service's own stop.
 pub fn service(state: AppState) -> StreamableHttpService<RdMcpServer, LocalSessionManager> {
-    let config = StreamableHttpServerConfig::default().disable_allowed_hosts();
+    let config = StreamableHttpServerConfig::default()
+        .disable_allowed_hosts()
+        .with_cancellation_token(state.shutdown.child_token());
     StreamableHttpService::new(
         move || Ok(RdMcpServer::new(state.clone())),
         Arc::new(LocalSessionManager::default()),

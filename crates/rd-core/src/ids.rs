@@ -85,6 +85,7 @@ domain_id!(CollectorPackageId);
 domain_id!(DownloadId);
 domain_id!(EventId);
 domain_id!(HotFolderId);
+domain_id!(IndexerId);
 domain_id!(NotificationDeliveryId);
 domain_id!(NotificationRuleId);
 domain_id!(NotificationTargetId);

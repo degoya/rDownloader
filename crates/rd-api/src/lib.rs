@@ -26,7 +26,6 @@ use axum::{
     middleware,
     routing::{get, post},
 };
-use tokio_util::sync::CancellationToken;
 use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, trace::TraceLayer};
 
 pub use rd_api_admin::{
@@ -63,9 +62,9 @@ use rd_api_core::{
 };
 use rd_api_intake::{
     area_backup, candidate_handlers, captcha_handlers, capture_file, collector_handlers,
-    container_handlers, nzb_handlers, regex_tester, remote_listing_handlers, site_rules_dto,
-    site_rules_handlers, stream_handlers, stream_schedule_handlers, subscription_autoqueue,
-    subscription_handlers,
+    container_handlers, indexer_handlers, indexer_search, nzb_handlers, regex_tester,
+    remote_listing_handlers, site_rules_dto, site_rules_handlers, stream_handlers,
+    stream_schedule_handlers, subscription_autoqueue, subscription_handlers,
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
@@ -250,12 +249,25 @@ pub fn router(state: AppState) -> Router {
     )
 }
 
-/// Runs the service until the cancellation token fires.
-pub async fn serve(
-    state: AppState,
-    address: SocketAddr,
-    shutdown: CancellationToken,
-) -> Result<()> {
+/// How long the open connections have to finish once the service stops.
+///
+/// The graceful stop waits for every response that is still being sent. The event streams end
+/// with the stop themselves, and the MCP sessions with them; this bounds everything else --
+/// a large file being served, a client that stopped reading -- so the stop never waits on a
+/// peer. A cut-off response is what a client sees of a service that went away anyway.
+pub const CONNECTION_DRAIN: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Runs the service on `address` until `state.shutdown` is cancelled.
+pub async fn serve(state: AppState, address: SocketAddr) -> Result<()> {
+    let listener = tokio::net::TcpListener::bind(address).await?;
+    serve_on(state, listener).await
+}
+
+/// Runs the service on a bound `listener` until `state.shutdown` is cancelled -- by a signal,
+/// by `POST /api/v1/system/shutdown`, or by the updater through that route (RD-180-02).
+///
+/// Returns once every connection ended, or [`CONNECTION_DRAIN`] after the stop at the latest.
+pub async fn serve_on(state: AppState, listener: tokio::net::TcpListener) -> Result<()> {
     state.auth.load(&state).await?;
     rd_api_core::host_check::load(&state).await;
     if state.auth.disabled() {
@@ -264,22 +276,32 @@ pub async fn serve(
              trusted, every other one has to sign in"
         );
     }
-    let listener = tokio::net::TcpListener::bind(address).await?;
     let bound = listener.local_addr()?;
-    tracing::info!(%address, "rDownloader listening");
+    tracing::info!(address = %bound, "rDownloader listening");
+    let shutdown = state.shutdown.clone();
     // With connect info, so a handler can see who is actually calling. Without it the peer
     // address is unreachable anywhere in the application, which makes both rate limiting and
     // the session inventory impossible to do honestly — the first would have nothing to key
     // on and the second nothing to show. The bound address beside it tells a peer on this
     // machine's own interface address from another machine (`client::from_this_machine`).
-    axum::serve(
+    let server = axum::serve(
         listener,
         router(state)
             .layer(axum::Extension(rd_api_core::client::ListenAddress(bound)))
             .into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown.cancelled_owned())
-    .await?;
+    .with_graceful_shutdown(shutdown.clone().cancelled_owned());
+    let drained = async {
+        shutdown.cancelled().await;
+        tokio::time::sleep(CONNECTION_DRAIN).await;
+    };
+    tokio::select! {
+        result = std::future::IntoFuture::into_future(server) => result?,
+        () = drained => tracing::warn!(
+            seconds = CONNECTION_DRAIN.as_secs(),
+            "connections were still open after the stop; the service ends without them"
+        ),
+    }
     Ok(())
 }
 

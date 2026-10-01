@@ -44,6 +44,12 @@ overrides:
       - 7zip
 
 contents:
+  # Owned, so removing the rpm takes the folder with it: rpm removes only the directories a
+  # package names, where dpkg also drops one it created and left empty.
+  - dst: /usr/lib/rdownloader
+    type: dir
+    file_info:
+      mode: 0755
   - src: "@STAGE@/rdownloader"
     dst: /usr/lib/rdownloader/rdownloader
     file_info:

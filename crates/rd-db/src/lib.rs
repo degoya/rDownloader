@@ -24,6 +24,7 @@ mod facade_audit;
 mod facade_collector;
 mod facade_ext;
 mod facade_full_backup;
+mod facade_indexers;
 mod facade_logs;
 mod facade_object_storage;
 mod facade_plugin_repositories;
@@ -34,6 +35,7 @@ mod facade_sources;
 mod facade_stats;
 mod facade_storage;
 mod full_backup_store;
+mod indexer_store;
 mod log_store;
 mod managed_tools_store;
 mod mfa_store;
@@ -130,6 +132,7 @@ pub use full_backup_store::{
     BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
     NewBackupRun,
 };
+pub use indexer_store::NewIndexer;
 pub use log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord};
 pub use managed_tools_store::{ManagedToolRecord, NewManagedTool, ToolManifestState};
 pub use models::{NewDownload, NewPackage, PersistedChunk, TransferMetadata};

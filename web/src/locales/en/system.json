@@ -637,10 +637,11 @@
       "copied": "Command copied",
       "close": "Close",
       "install": "Install and restart",
-      "install_hint": "rDownloader downloads the new version, backs up its database, stops, replaces its program files and starts again. Your settings and downloads stay where they are.",
+      "install_hint": "rDownloader downloads the new version unless it is already downloaded, backs up its database, stops, replaces its program files and starts again. Your settings and downloads stay where they are.",
       "rollback_automatic": "If the new version does not start properly, the previous one comes back by itself.",
       "rollback_unavailable": "This update through the Windows installer cannot be taken back by itself: the installer of the running version was not kept. From the next update on it can.",
-      "download_package": "Download the package"
+      "download_package": "Download the package",
+      "download_manual": "Download manually"
     },
     "hints": {
       "aur_helper": "With paru: paru -S rdownloader-bin",
@@ -657,7 +658,7 @@
       "confirm_description": "rDownloader stops for about a minute and starts again as {version}. Running downloads are saved and continue afterwards. This page reconnects by itself.",
       "anyway": "Install anyway",
       "reconnecting": "rDownloader is restarting – waiting for it to answer …",
-      "lost": "rDownloader has not answered for minutes. Start it by hand; if the update was left incomplete, the previous version comes back at that start.",
+      "lost": "rDownloader has not answered for minutes. End it if it still runs and start it by hand; if the update was left incomplete, the previous version comes back at that start.",
       "reload": "Reload the page",
       "reload_hint": "Reload the page to use the new version’s interface.",
       "state": {
@@ -670,7 +671,14 @@
         "done": "Updated to {version}.",
         "rolled_back": "{version} did not start properly, so {from} runs again.",
         "failed": "The update to {version} failed."
-      }
+      },
+      "retry": "Try again"
+    },
+    "download": {
+      "downloading": "Downloading {version} in the background …",
+      "progress": "{received} of {total}",
+      "ready": "{version} is downloaded and verified; “Install and restart” uses this file.",
+      "failed": "Downloading {version} failed."
     }
   }
 }

@@ -664,6 +664,17 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
         OWNER_LINE,
     ),
+    // RD-180-19: defining an indexer takes its API key in, and its test is the key test the
+    // row above keeps out. Searching one and grabbing its hits are covered below.
+    omitted(
+        "Defining and testing indexers",
+        "Settings > Usenet",
+        &[
+            only("/api/v1/indexers", "POST"),
+            any("/api/v1/indexers/{id}"),
+        ],
+        OWNER_LINE,
+    ),
     omitted(
         "Approving and fetching a diagnostic bundle",
         "Logs",
@@ -755,11 +766,15 @@ pub(crate) static COVERAGE: &[Capability] = &[
     omitted(
         "Installing an update",
         "Settings > System",
-        &[any("/api/v1/system/update/install")],
+        &[
+            any("/api/v1/system/update/download"),
+            any("/api/v1/system/update/install"),
+        ],
         "Installing stops the service, replaces its program and starts it again: the MCP \
          session that asked ends with the process, and a version switch is the administrator's \
-         decision in the interface, not an agent's. get_update_status shows what an install is \
-         doing.",
+         decision in the interface, not an agent's. Downloading the update ahead of it is the \
+         first step of that install and nothing else. get_update_status shows what a download \
+         or an install is doing.",
     ),
     // ---- taken by RD-120-55: the thirteen RD-120-32 left unclassified ----
     // Checked one by one against the four marks of the owner's line. Where a part of one meets
@@ -828,6 +843,17 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/subscriptions/{id}/items"),
             any("/api/v1/subscriptions/{id}/poll"),
             any("/api/v1/subscriptions/{id}/runs"),
+        ],
+    ),
+    // RD-180-19: the key is used, never shown -- a hit's address carries a placeholder where
+    // it stands -- and a grab ends as an NZB import waiting for review, like `import_nzb`.
+    covered(
+        "Searching indexers and taking hits into the LinkGrabber",
+        "LinkGrabber > Indexer search",
+        &[
+            only("/api/v1/indexers", "GET"),
+            any("/api/v1/indexers/search"),
+            any("/api/v1/indexers/grab"),
         ],
     ),
     covered(
@@ -1209,12 +1235,19 @@ mod tests {
                 "Plugin trust and installation",
                 // RD-120-55: the parts of three of the thirteen that meet one of the marks.
                 "Probing an indexer's capabilities",
+                // RD-180-19: an indexer takes its API key in.
+                "Defining and testing indexers",
                 "Approving and fetching a diagnostic bundle",
                 "Reconnecting on demand",
             ],
             "the owner decided nine capabilities on 2026-09-23, and RD-120-55 applied the same \
-             line to three more and RD-150-04, RD-160-01 and RD-160-03 to one each, with one \
-             reason for all of them"
+             line to three more and RD-150-04, RD-160-01, RD-160-03 and RD-180-19 to one each, \
+             with one reason for all of them"
+        );
+        // RD-180-19: what uses the key without showing it is in.
+        assert_eq!(
+            by_name("Searching indexers and taking hits into the LinkGrabber").decision,
+            Decision::Covered
         );
     }
 

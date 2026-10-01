@@ -46,6 +46,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     error_code: null,
     available: null,
     install: null,
+    download: null,
     ...patch
   }
 }

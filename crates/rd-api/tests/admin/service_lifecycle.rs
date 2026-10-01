@@ -310,3 +310,82 @@ async fn a_target_version_that_is_no_file_name_is_refused() {
     }
     assert!(!rd_backup::pre_update::directory(&data_directory(&harness)).exists());
 }
+
+// ---- the stop with event streams open (RD-180-02, live test 2026-10-01) ----
+
+/// Well below `rd_api::CONNECTION_DRAIN`: a stop this fast was not cut short by the drain, the
+/// streams ended by themselves.
+const STOPS_WITHIN: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Opens `path` as an event stream over a real connection and reads until the stream is open:
+/// the answer's head and the `retry:` hint every stream starts with.
+async fn open_stream(address: SocketAddr, path: &str, bearer: &str) -> tokio::net::TcpStream {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut stream = tokio::net::TcpStream::connect(address)
+        .await
+        .expect("connect");
+    let request = format!(
+        "GET {path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {bearer}\r\n\
+         Accept: text/event-stream\r\n\r\n"
+    );
+    stream.write_all(request.as_bytes()).await.expect("request");
+    let mut seen = Vec::new();
+    let mut buffer = [0_u8; 1024];
+    while !String::from_utf8_lossy(&seen).contains("retry:") {
+        let read = tokio::time::timeout(STOPS_WITHIN, stream.read(&mut buffer))
+            .await
+            .expect("the stream opens in time")
+            .expect("read");
+        assert!(
+            read > 0,
+            "{path} closed: {}",
+            String::from_utf8_lossy(&seen)
+        );
+        seen.extend_from_slice(&buffer[..read]);
+    }
+    assert!(
+        seen.starts_with(b"HTTP/1.1 200"),
+        "{path}: {}",
+        String::from_utf8_lossy(&seen)
+    );
+    stream
+}
+
+/// The update dialog's own tab holds the web interface's event stream, a capture agent its own.
+/// Neither may keep the service from stopping: the graceful stop waits for every open response,
+/// and on 2026-10-01 the service accepted the updater's stop and never ended.
+#[tokio::test]
+async fn open_event_streams_do_not_keep_the_service_from_stopping() {
+    use tokio::io::AsyncReadExt;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let address = listener.local_addr().expect("address");
+    let shutdown = harness.state.shutdown.clone();
+    let server = tokio::spawn(rd_api::serve_on(harness.state.clone(), listener));
+
+    let mut streams = vec![
+        open_stream(address, "/api/v1/events", common::READ_BEARER).await,
+        open_stream(address, "/api/v1/capture/events", common::CAPTURE_BEARER).await,
+    ];
+    // What `POST /api/v1/system/shutdown` does
+    // (`a_stop_from_this_machine_cancels_the_service_and_is_audited` above).
+    shutdown.cancel();
+
+    let ended = tokio::time::timeout(STOPS_WITHIN, server)
+        .await
+        .expect("the service ended in time with event streams open")
+        .expect("the server task");
+    ended.expect("the service ended without an error");
+    for stream in &mut streams {
+        let mut rest = Vec::new();
+        tokio::time::timeout(STOPS_WITHIN, stream.read_to_end(&mut rest))
+            .await
+            .expect("the stream ended with the service")
+            .expect("read");
+    }
+}

@@ -6,7 +6,9 @@
 //! request is checked and answered at once; the steps run behind it and the status follows them:
 //!
 //! 1. **Download** the offered artifact into `<data>/update/download/`, held to the signed
-//!    manifest's size and SHA-256 (`rd_update::download_verified`).
+//!    manifest's size and SHA-256 (`UpdateService::fetch_artifact`) — or take the one a
+//!    background download ([`start_download`], `POST /api/v1/system/update/download`) left
+//!    there, read and hashed again.
 //! 2. **Backup** before the update (RD-180-03, `pre_update_service::prepare`): the checked
 //!    database copy always, the encrypted full backup when a passphrase is set up — required
 //!    when the manifest's `schema_change` says the release changes the schema, or does not say.
@@ -27,7 +29,7 @@ use rd_update::install::{self, Journal, Plan};
 use rd_update::{Artifact, InstallKind};
 
 use crate::audit::{AuditContext, AuditEvent};
-use crate::dto::{UpdateInstallRequest, UpdateInstallStatus};
+use crate::dto::{UpdateDownloadStatus, UpdateInstallRequest, UpdateInstallStatus};
 use crate::pre_update_service::PreUpdateRequest;
 use crate::{ApiError, AppState};
 
@@ -50,41 +52,18 @@ pub async fn start(
     let _starting = STARTING.lock().await;
     let updates = &state.updates;
     let kind = updates.install_kind();
-    let install_dir = updates.install_dir().filter(|_| kind.installs_itself());
-    let Some(install_dir) = install_dir else {
-        return Err(ApiError::conflict(
-            "update.install_unsupported",
-            format!(
-                "A {} installation does not install updates itself",
-                kind.as_str()
-            ),
-        )
-        .with_param("kind", kind.as_str()));
-    };
+    let install_dir = installing_dir(state)?;
     if updates.install_busy() {
         return Err(ApiError::conflict(
             "update.install_running",
             "An update is already being installed",
         ));
     }
-    let Some(offered) = updates.status().await.available else {
-        return Err(ApiError::conflict(
-            "update.none_available",
-            "No newer version is available to install",
-        ));
-    };
-    let stored = updates
-        .stored()
-        .await
-        .offer
-        .filter(|offer| offer.version == offered.version);
-    let schema_change = stored.as_ref().is_none_or(|offer| offer.schema_change);
-    let Some(artifact) = stored.and_then(|offer| offer.artifact) else {
-        return Err(ApiError::conflict(
-            "update.no_artifact",
-            "The release has no file for this platform and installation",
-        ));
-    };
+    let Offered {
+        version: target,
+        artifact,
+        schema_change,
+    } = offered(state).await?;
     let active = state.scheduler.transfer_rates().len();
     if active > 0 && !request.allow_active {
         return Err(ApiError::conflict(
@@ -99,7 +78,6 @@ pub async fn start(
     install::preflight(&install_dir, artifact.size)
         .map_err(|error| ApiError::conflict(error.code, error.detail))?;
 
-    let target = offered.version;
     updates.set_progress("downloading", &target, None);
     crate::audit::record(
         state,
@@ -136,6 +114,77 @@ pub async fn start(
         .ok_or_else(|| ApiError::from(anyhow::anyhow!("the update's progress was not recorded")))
 }
 
+/// Downloads the offered update in the background, for an install that then uses the file
+/// (owner, 2026-10-01). Answers at once with where the download stands; a download of the same
+/// version that already runs is joined, and a file that is already there and verified is ready
+/// in a moment.
+///
+/// # Errors
+///
+/// `409` with `update.install_unsupported`, `update.none_available` or `update.no_artifact`: an
+/// installation that does not install itself shows its command or the browser's download.
+pub async fn start_download(state: &AppState) -> Result<UpdateDownloadStatus, ApiError> {
+    installing_dir(state)?;
+    let Offered {
+        version, artifact, ..
+    } = offered(state).await?;
+    tracing::info!(target = %version, "downloading an update in the background");
+    Ok(state.updates.start_download(&version, &artifact))
+}
+
+/// The program folder an update replaces; refused for every kind that does not install itself.
+fn installing_dir(state: &AppState) -> Result<PathBuf, ApiError> {
+    let kind = state.updates.install_kind();
+    state
+        .updates
+        .install_dir()
+        .filter(|_| kind.installs_itself())
+        .ok_or_else(|| {
+            ApiError::conflict(
+                "update.install_unsupported",
+                format!(
+                    "A {} installation does not install updates itself",
+                    kind.as_str()
+                ),
+            )
+            .with_param("kind", kind.as_str())
+        })
+}
+
+/// The offered version as the stored, verified manifest describes it.
+struct Offered {
+    version: String,
+    artifact: Artifact,
+    schema_change: bool,
+}
+
+async fn offered(state: &AppState) -> Result<Offered, ApiError> {
+    let updates = &state.updates;
+    let Some(offered) = updates.status().await.available else {
+        return Err(ApiError::conflict(
+            "update.none_available",
+            "No newer version is available to install",
+        ));
+    };
+    let stored = updates
+        .stored()
+        .await
+        .offer
+        .filter(|offer| offer.version == offered.version);
+    let schema_change = stored.as_ref().is_none_or(|offer| offer.schema_change);
+    let Some(artifact) = stored.and_then(|offer| offer.artifact) else {
+        return Err(ApiError::conflict(
+            "update.no_artifact",
+            "The release has no file for this platform and installation",
+        ));
+    };
+    Ok(Offered {
+        version: offered.version,
+        artifact,
+        schema_change,
+    })
+}
+
 /// What is installed: the offered version, its artifact, and whether it changes the schema.
 struct Release<'a> {
     version: &'a str,
@@ -152,12 +201,8 @@ async fn run(
 ) -> Result<(), ApiError> {
     let (target, artifact) = (release.version, release.artifact);
     let updates = &state.updates;
-    let data = updates.data_dir();
-    let fetcher = updates
-        .fetcher()
-        .map_err(|error| ApiError::conflict(error.code(), error.to_string()))?;
-    let downloads = install::update_dir(&data).join(install::DOWNLOAD_DIR);
-    let file = rd_update::download_verified(fetcher.as_ref(), artifact, &downloads)
+    let file = updates
+        .fetch_artifact(target, artifact)
         .await
         .map_err(|error| ApiError::conflict(error.code(), error.to_string()))?;
 

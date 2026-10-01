@@ -41,7 +41,8 @@ function status(available: UpdateStatus['available']): UpdateStatus {
     next_check_at: null,
     error_code: null,
     available,
-    install: null
+    install: null,
+    download: null
   }
 }
 

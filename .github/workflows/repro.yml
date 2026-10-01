@@ -18,9 +18,12 @@ name: Reproducibility
 #
 # It runs when the Release workflow of a tag has succeeded, so the published archive exists, and
 # by hand for any tag; a tag without a published Linux x86_64 archive is then compared with
-# itself only. Tags before 1.8.0 predate the script and are refused.
+# itself only. Tags before 1.8.0 predate the script and are refused. A branch or commit (`ref`)
+# is built the same way without the release stamp and compared with itself only, which proves a
+# fix before the tag that would carry it.
 #
 #   gh workflow run repro.yml -f tag=v1.8.0
+#   gh workflow run repro.yml --ref fix/x -f ref=fix/x
 on:
   workflow_run:
     workflows: [Release]
@@ -29,12 +32,15 @@ on:
     inputs:
       tag:
         description: Release tag to build twice, e.g. v1.8.0
-        required: true
+        required: false
+      ref:
+        description: Instead of a tag, a branch or commit to build twice and compare with itself
+        required: false
 
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.event.workflow_run.head_branch }}
+  group: ${{ github.workflow }}-${{ inputs.ref || inputs.tag || github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 env:
@@ -44,6 +50,7 @@ env:
   TARGET: x86_64-unknown-linux-gnu
   # A tag push's run names its tag as the branch.
   TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+  REF: ${{ inputs.ref }}
   # The published archive the rebuilds are compared with (release.yml, `packages`).
   ASSET: rdownloader-linux-x86_64.tar.gz
 
@@ -71,9 +78,16 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Name what to build
+        shell: bash
+        run: |
+          if [[ -z "${TAG}${REF}" ]]; then
+            echo "::error::give a tag or a ref"
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/tags/${{ env.TAG }}
+          ref: ${{ env.REF || format('refs/tags/{0}', env.TAG) }}
           path: ${{ matrix.source }}
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
@@ -97,12 +111,15 @@ jobs:
           set -euo pipefail
           script="${SOURCE}/scripts/release-build-env.sh"
           if [[ ! -f "${script}" ]]; then
-            echo "::error::${TAG} predates scripts/release-build-env.sh (1.8.0): its release was not built in a reproducible environment"
+            echo "::error::${REF:-${TAG}} predates scripts/release-build-env.sh (1.8.0): its release was not built in a reproducible environment"
             exit 1
           fi
           # --release-tag as in release.yml: the commit line reads `Release-Build X.Y.Z (Basis
-          # <sha>)` there, and it is compiled into the About page.
-          args=(--target "${TARGET}" --release-tag "${TAG}" --source "${SOURCE}")
+          # <sha>)` there, and it is compiled into the About page. A ref has no release.
+          args=(--target "${TARGET}" --source "${SOURCE}")
+          if [[ -z "${REF}" ]]; then
+            args+=(--release-tag "${TAG}")
+          fi
           if [[ -n "${CARGO_HOME_B}" ]]; then
             args+=(--cargo-home "${RUNNER_TEMP}/${CARGO_HOME_B}")
           fi
@@ -131,6 +148,25 @@ jobs:
           (cd "${out}" && sha256sum rdownloader rdownloader-capture) > "${out}/SHA256SUMS"
           # The embedded web interface file by file: a difference there names the file at once.
           (cd "${SRC}/web/dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "${out}/web-dist.sha256"
+          # Strings that still carry one of this leg's build paths: the remapping does not reach
+          # a path compiled in through env!("CARGO_MANIFEST_DIR") or a build script, and one line
+          # here names such a cause before diffoscope has read a byte (RD-180-12).
+          # Each hit as the file and 300 characters around the path, since a string run can be long.
+          strings -f -n 8 "${out}/rdownloader" "${out}/rdownloader-capture" \
+            | awk -v src="${SRC}" -v cargo="${CARGO_HOME:-${HOME}/.cargo}" -v rustup="${RUSTUP_HOME:-${HOME}/.rustup}" '
+                BEGIN { n = split(src "\n" cargo "\n" rustup, needles, "\n") }
+                {
+                  cut = index($0, ": ")
+                  text = substr($0, cut + 2)
+                  for (i = 1; i <= n; i++) {
+                    at = index(text, needles[i])
+                    if (at) { print substr($0, 1, cut) " " substr(text, at > 80 ? at - 80 : 1, 300); next }
+                  }
+                }' > "${out}/build-paths.txt"
+          if [[ -s "${out}/build-paths.txt" ]]; then
+            echo "::warning::a build path escaped the remapping; build-paths.txt names the strings"
+            cat "${out}/build-paths.txt"
+          fi
           {
             echo "leg            ${LEG}"
             echo "source         ${SRC}"
@@ -176,6 +212,11 @@ jobs:
           set -euo pipefail
           mkdir -p repro/published
           cd repro/published
+          if [[ -n "${REF}" ]]; then
+            echo "::notice::${REF} is not a release; only the two rebuilds are compared"
+            echo "found=" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           if ! gh release download "${TAG}" --repo "${REPOSITORY}" --pattern "${ASSET}" --pattern SHA256SUMS; then
             if [[ "${GITHUB_EVENT_NAME}" == workflow_run ]]; then
               echo "::error::the release of ${TAG} has no ${ASSET} or no SHA256SUMS"
@@ -199,7 +240,7 @@ jobs:
           # Each difference as file:left:right, the two directories diffoscope compares.
           pairs=()
           {
-            echo "### Reproducibility of ${TAG}"
+            echo "### Reproducibility of ${REF:-${TAG}}"
             echo
             echo "| File | Build a | Build b | Published |"
             echo "| --- | --- | --- | --- |"
@@ -231,19 +272,36 @@ jobs:
             echo "pairs=${pairs[*]}" >> "${GITHUB_OUTPUT}"
           fi
       # Only on a mismatch; the report is what tells a timestamp from a path from a real change.
+      # Without -e: diffoscope exits 1 when it finds a difference, which is what it is here for,
+      # and under the runner's default `bash -e` that ended the step before anything was
+      # uploaded (run 36794349406). The cheap reports come first, so a diffoscope that runs out
+      # of time or fails still leaves the sections, the strings and the first differing byte.
       - name: Explain the difference with diffoscope
         if: steps.compare.outputs.pairs != ''
         shell: bash
         env:
           PAIRS: ${{ steps.compare.outputs.pairs }}
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
+          mkdir -p report
+          cp repro/web-dist.diff report/ 2>/dev/null
+          for leg in a b; do
+            cp "repro/repro-${leg}/environment.txt" "report/environment-${leg}.txt"
+            cp "repro/repro-${leg}/build-paths.txt" "report/build-paths-${leg}.txt" 2>/dev/null
+          done
+          for pair in ${PAIRS}; do
+            IFS=: read -r file left right <<< "${pair}"
+            name="${file}-${left}-${right}"
+            l="repro/${left}/${file}"
+            r="repro/${right}/${file}"
+            { ls -l "${l}" "${r}"; cmp "${l}" "${r}"; } > "report/${name}.cmp.txt" 2>&1
+            diff <(readelf -S -W "${l}") <(readelf -S -W "${r}") > "report/${name}.sections.diff"
+            # A path or a stamp shows up here as a changed string; a shifted jump table does not.
+            diff <(strings -n 8 "${l}") <(strings -n 8 "${r}") | cut -c1-400 > "report/${name}.strings.diff"
+            head -c 20000 "report/${name}.strings.diff"
+          done
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends diffoscope-minimal > /dev/null
-          mkdir -p report
-          cp repro/web-dist.diff report/ 2>/dev/null || true
-          cp repro/repro-a/environment.txt report/environment-a.txt
-          cp repro/repro-b/environment.txt report/environment-b.txt
           for pair in ${PAIRS}; do
             IFS=: read -r file left right <<< "${pair}"
             name="${file}-${left}-${right}"
@@ -252,10 +310,11 @@ jobs:
             timeout 40m diffoscope --max-report-size 20000000 \
               --html "report/${name}.html" --text "report/${name}.txt" \
               "repro/${left}/${file}" "repro/${right}/${file}"
-            head -c 20000 "report/${name}.txt" || true
+            echo "diffoscope ${name}: exit $?"
           done
+          exit 0
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: steps.compare.outputs.pairs != ''
+        if: always() && steps.compare.outputs.pairs != ''
         with:
           name: diffoscope
           path: report

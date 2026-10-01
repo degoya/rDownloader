@@ -64,11 +64,10 @@ pub fn build_query(
     build_page_query(base, api_key, limit, 0, categories)
 }
 
-/// Builds one page of an indexer query.
+/// Builds one page of an indexer query with no search parameters.
 ///
-/// `limit` and `offset` belong to the poller rather than to a copied saved-search URL: keeping a
-/// stale offset would ask for the same page forever, and keeping a tiny limit would make the
-/// five-request ceiling arbitrarily small. Every other parameter remains exactly as supplied.
+/// The subscription's spelling of [`crate::build_indexer_query`], kept so the address a
+/// subscription without search parameters polls is exactly the one it always polled.
 pub fn build_page_query(
     base: &Url,
     api_key: &str,
@@ -76,53 +75,16 @@ pub fn build_page_query(
     offset: u32,
     categories: &[String],
 ) -> anyhow::Result<Url> {
-    let mut url = base.clone();
-    // Existing parameters win: a subscription URL is usually copied out of the indexer's own
-    // "RSS feed" button and already carries `t`, `cat` and often `q`.
-    let existing: Vec<(String, String)> = url
-        .query_pairs()
-        .map(|(key, value)| (key.into_owned(), value.into_owned()))
-        .collect();
-    let has = |name: &str| {
-        existing
-            .iter()
-            .any(|(key, _)| key.eq_ignore_ascii_case(name))
-    };
-    {
-        let mut query = url.query_pairs_mut();
-        query.clear();
-        for (key, value) in &existing {
-            // The key is replaced rather than appended: a stale one copied out of a browser
-            // would otherwise be sent alongside the stored one.
-            if key.eq_ignore_ascii_case("apikey")
-                || key.eq_ignore_ascii_case("api_key")
-                || key.eq_ignore_ascii_case("limit")
-                || key.eq_ignore_ascii_case("offset")
-            {
-                continue;
-            }
-            query.append_pair(key, value);
-        }
-        if !has("t") {
-            query.append_pair("t", "search");
-        }
-        query.append_pair("limit", &limit.to_string());
-        query.append_pair("offset", &offset.to_string());
-        // Asks for the `<newznab:attr>` block that carries size and category.
-        if !has("extended") {
-            query.append_pair("extended", "1");
-        }
-        // Only when the address does not already say which categories it wants: a subscription
-        // URL is usually copied out of the indexer's own RSS button, and one that already
-        // carries `cat` is a saved search whose author meant it. Without this the categories a
-        // subscription had chosen only ever sorted the results afterwards, so an indexer was
-        // asked for everything and most of it was thrown away.
-        if !has("cat") && !categories.is_empty() {
-            query.append_pair("cat", &categories.join(","));
-        }
-        query.append_pair("apikey", api_key);
-    }
-    Ok(url)
+    crate::build_indexer_query(
+        base,
+        api_key,
+        &crate::IndexerQuery {
+            limit,
+            offset,
+            categories,
+            search: &rd_core::IndexerSearch::default(),
+        },
+    )
 }
 
 /// Builds the `t=caps` address for one indexer.
@@ -178,12 +140,17 @@ impl SourceAdapter for IndexerAdapter {
         let mut keys = HashSet::new();
         for page in 0..MAX_PAGES {
             let offset = page.saturating_mul(DEFAULT_LIMIT);
-            let url = build_page_query(
+            // The subscription's own search parameters (RD-180-20); empty for every
+            // subscription that has none, which then polls the address it always polled.
+            let url = crate::build_indexer_query(
                 &subscription.url,
                 &api_key,
-                DEFAULT_LIMIT,
-                offset,
-                &subscription.source_categories,
+                &crate::IndexerQuery {
+                    limit: DEFAULT_LIMIT,
+                    offset,
+                    categories: &subscription.source_categories,
+                    search: &subscription.indexer_search,
+                },
             )?;
 
             // Conditional headers are pointless for a search query — the answer changes with
@@ -273,30 +240,11 @@ impl SourceAdapter for IndexerAdapter {
 
 /// Extracts a Newznab/Torznab `<error …>` description, if the document is one.
 ///
-/// Deliberately a string scan rather than a parse: the error document is tiny, and running
-/// the full parser first would mean a malformed *error* was reported as a malformed feed.
+/// The one-line form of [`crate::indexer_refusal`], which is what a poll's stored error and a
+/// log line carry.
 #[must_use]
 pub fn indexer_error(body: &str) -> Option<String> {
-    let start = body.find("<error")?;
-    let rest = &body[start..];
-    let end = rest.find('>')?;
-    let tag = &rest[..end];
-    let description = extract_attribute(tag, "description");
-    let code = extract_attribute(tag, "code");
-    match (description, code) {
-        (Some(description), Some(code)) => Some(format!("{description} (code {code})")),
-        (Some(description), None) => Some(description),
-        (None, Some(code)) => Some(format!("code {code}")),
-        (None, None) => Some("unspecified error".to_owned()),
-    }
-}
-
-fn extract_attribute(tag: &str, name: &str) -> Option<String> {
-    let marker = format!("{name}=\"");
-    let start = tag.find(&marker)? + marker.len();
-    let rest = &tag[start..];
-    let end = rest.find('"')?;
-    Some(rest[..end].to_owned())
+    crate::indexer_refusal(body).map(|refusal| refusal.message())
 }
 
 #[cfg(test)]
@@ -394,6 +342,7 @@ mod tests {
             card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
             schedule: None,
             script_arguments: Vec::new(),
+            indexer_search: rd_core::IndexerSearch::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }
@@ -740,6 +689,47 @@ mod tests {
                 .any(|(key, value)| key == "limit" && value == DEFAULT_LIMIT.to_string()),
             "{url}"
         );
+    }
+
+    /// RD-180-20: the explicit search term travels as `q`; the title filter stays local, as
+    /// RD-106-10 decided -- the two are separate fields and never derived from each other.
+    #[tokio::test]
+    async fn the_explicit_search_term_is_sent_and_the_title_filter_still_is_not() {
+        let fetcher = Arc::new(RecordingFetcher(std::sync::Mutex::new(None)));
+        let mut subscription = indexer_subscription();
+        subscription.filters.title_contains = vec!["1080p".to_owned()];
+        subscription.indexer_search = rd_core::IndexerSearch {
+            query: Some("some show !cam".to_owned()),
+            max_age_days: Some(3),
+            hide_passworded: true,
+            pretime: None,
+        };
+        IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey))
+            .poll(&subscription)
+            .await
+            .expect("poll");
+
+        let url = fetcher
+            .0
+            .lock()
+            .expect("lock")
+            .clone()
+            .expect("the adapter should have asked for something");
+        let queries: Vec<String> = url
+            .query_pairs()
+            .filter(|(key, _)| key == "q")
+            .map(|(_, value)| value.into_owned())
+            .collect();
+        assert_eq!(queries, ["some show !cam"], "{url}");
+        assert!(
+            url.query_pairs().any(|(k, v)| k == "maxage" && v == "3"),
+            "{url}"
+        );
+        assert!(
+            url.query_pairs().any(|(k, v)| k == "pw" && v == "2"),
+            "{url}"
+        );
+        assert!(url.query_pairs().all(|(key, _)| key != "pred"), "{url}");
     }
 
     #[test]

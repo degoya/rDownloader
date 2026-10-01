@@ -8,8 +8,9 @@
 # goes on PATH instead of a symlink per executable (ArchiveBinariesDependOnPath): the service
 # installs its bundled plugins from plugins\ beside the executable it was started as, and the
 # launchers start the executables beside themselves and keep the data there, which a symlink in
-# WinGet\Links would both point somewhere else. User scope only: the service writes data\ and
-# downloads\ into that folder, which Program Files would refuse.
+# WinGet\Links would both point somewhere else. A portable package installs per user, which is
+# what the service needs (it writes data\ and downloads\ into that folder); winget refuses a
+# `Scope` on one, and `winget validate` fails on the warning.
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 
 PackageIdentifier: degoya.rDownloader
@@ -22,7 +23,6 @@ NestedInstallerFiles:
 - RelativeFilePath: rdownloader-capture.exe
   PortableCommandAlias: rdownloader-capture
 ArchiveBinariesDependOnPath: true
-Scope: user
 Commands:
 - rdownloader
 - rdownloader-capture

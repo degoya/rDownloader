@@ -181,6 +181,7 @@ mod tests {
             card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
             schedule: None,
             script_arguments: Vec::new(),
+            indexer_search: rd_core::IndexerSearch::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

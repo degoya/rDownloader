@@ -47,6 +47,28 @@ pub async fn run(args: StopArgs) -> Result<()> {
     Ok(())
 }
 
+/// The service accepted the stop and is still running when the wait ends: the one failure after
+/// which the updater may end it by force (RD-180-02). Exit code `1`, as every other failure that
+/// is not one of the remote commands' own.
+#[derive(Debug)]
+pub(crate) struct NotEnded {
+    /// The process the control file names.
+    pub pid: u32,
+    pub seconds: u64,
+}
+
+impl std::fmt::Display for NotEnded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "rDownloader (process {}) accepted the stop but has not ended within {} seconds",
+            self.pid, self.seconds
+        )
+    }
+}
+
+impl std::error::Error for NotEnded {}
+
 /// Stops the service of `data_directory`; `false` when none is running there. The updater stops
 /// the service the same way (RD-180-02).
 pub(crate) async fn stop(data_directory: &Path, wait: Duration) -> Result<bool> {
@@ -93,15 +115,10 @@ pub(crate) async fn stop(data_directory: &Path, wait: Duration) -> Result<bool> 
             return Ok(true);
         }
         if tokio::time::Instant::now() >= deadline {
-            return Err(CommandError::new(
-                Failure::Other,
-                format!(
-                    "rDownloader (process {}) accepted the stop but has not ended within {} \
-                     seconds",
-                    control.pid,
-                    wait.as_secs()
-                ),
-            )
+            return Err(NotEnded {
+                pid: control.pid,
+                seconds: wait.as_secs(),
+            }
             .into());
         }
         tokio::time::sleep(POLL).await;
@@ -211,8 +228,9 @@ mod tests {
         let error = stop(&data, Duration::from_millis(600))
             .await
             .expect_err("timed out");
-        let failure = error.downcast_ref::<CommandError>().expect("command error");
-        assert_eq!(failure.failure, Failure::Other);
+        let not_ended = error.downcast_ref::<NotEnded>().expect("not ended");
+        assert_eq!(not_ended.pid, 4242);
+        assert!(error.downcast_ref::<CommandError>().is_none());
     }
 
     #[tokio::test]

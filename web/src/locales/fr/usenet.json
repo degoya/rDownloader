@@ -51,5 +51,42 @@
     "title": "Supprimer le serveur Usenet",
     "description": "Le serveur NNTP « {name} » et son mot de passe chiffré seront supprimés définitivement.",
     "confirm": "Supprimer le serveur"
+  },
+  "indexers": {
+    "eyebrow": "Indexeurs",
+    "title_add": "Ajouter un indexeur",
+    "title_edit": "Modifier l’indexeur",
+    "description": "Un indexeur Newznab, défini une fois : le LinkGrabber le consulte et un abonnement d’indexeur peut le reprendre. La clé API va dans le coffre et n’est plus jamais affichée.",
+    "name": "Nom",
+    "url": "Adresse de l’API",
+    "url_hint": "L’adresse de base de l’API, p. ex. https://api.omgwtfnzbs.org/api – un NZBHydra ou un Prowlarr de ton réseau convient aussi",
+    "api_key": "Clé API",
+    "api_key_keep": "Laisse vide pour garder la clé enregistrée",
+    "categories": "Catégories par défaut",
+    "categories_hint": "Les catégories demandées par une recherche qui n’en nomme aucune",
+    "categories_all": "Toutes les catégories",
+    "load_categories": "Charger les catégories de l’indexeur",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "has_key": "Clé API enregistrée",
+    "create": "Ajouter l’indexeur",
+    "save": "Enregistrer les modifications",
+    "edit": "Modifier l’indexeur",
+    "list_eyebrow": "Recherche",
+    "list_title": "Indexeurs définis",
+    "list_description": "Le LinkGrabber consulte les indexeurs activés ; un indexeur désactivé reste disponible pour les abonnements.",
+    "empty": "Aucun indexeur pour l’instant. Avec un indexeur, le LinkGrabber affiche la recherche.",
+    "delete": {
+      "action": "Supprimer l’indexeur",
+      "title": "Supprimer l’indexeur ?",
+      "description": "{name} et sa clé API enregistrée sont supprimés. Les abonnements qui l’ont repris gardent leur propre copie.",
+      "confirm": "Supprimer"
+    },
+    "messages": {
+      "created": "Indexeur ajouté",
+      "updated": "Indexeur enregistré",
+      "deleted": "{name} supprimé",
+      "tested": "{server} répond : {count} catégories"
+    }
   }
 }

@@ -185,6 +185,93 @@ pub fn system_program(root: Option<std::ffi::OsString>, name: &str) -> PathBuf {
     root.join("System32").join(name)
 }
 
+/// Ends the process `pid` by force if it still runs as `image` (RD-180-02); `Ok(false)` when no
+/// process of that id and name runs any more.
+///
+/// For the service that accepted the stop and did not end: the updater knows its id from the
+/// plan, and the name keeps an id the system reused for another program from being ended. The
+/// tools are the system's own, by their full path, as `msiexec` is ([`system_program`]).
+///
+/// # Errors
+///
+/// When the process list cannot be read or the process cannot be ended.
+pub fn end_by_force(pid: u32, image: &str) -> Result<bool> {
+    if !runs_as(pid, image)? {
+        return Ok(false);
+    }
+    let status = if cfg!(windows) {
+        Command::new(system_program(
+            std::env::var_os("SystemRoot"),
+            "taskkill.exe",
+        ))
+        .args(["/PID", &pid.to_string(), "/F"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    } else {
+        Command::new("/bin/kill")
+            .args(["-KILL", &pid.to_string()])
+            .stdin(Stdio::null())
+            .status()
+    }
+    .context("start the program that ends a process")?;
+    anyhow::ensure!(status.success(), "ending process {pid} failed ({status})");
+    Ok(true)
+}
+
+/// Whether the process `pid` runs, and runs as `image`.
+///
+/// # Errors
+///
+/// When the process list cannot be read.
+pub fn runs_as(pid: u32, image: &str) -> Result<bool> {
+    if cfg!(windows) {
+        let listing = Command::new(system_program(
+            std::env::var_os("SystemRoot"),
+            "tasklist.exe",
+        ))
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .stdin(Stdio::null())
+        .output()
+        .context("read the process list")?;
+        Ok(tasklist_names(
+            &String::from_utf8_lossy(&listing.stdout),
+            image,
+        ))
+    } else {
+        // `ps` ends with 1 when no such process runs: no error, only no name.
+        let listing = Command::new("/bin/ps")
+            .args(["-p", &pid.to_string(), "-o", "comm="])
+            .stdin(Stdio::null())
+            .output()
+            .context("read the process list")?;
+        Ok(ps_names(&String::from_utf8_lossy(&listing.stdout), image))
+    }
+}
+
+/// Whether `tasklist /FO CSV /NH` lists `image`: one `"name","pid",…` line per process, and a
+/// localised sentence without quotes when none matched the filter.
+fn tasklist_names(listing: &str, image: &str) -> bool {
+    listing
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix('"'))
+        .filter_map(|rest| rest.split_once('"'))
+        .any(|(name, _)| name.eq_ignore_ascii_case(image))
+}
+
+/// Whether `ps -o comm=` names `image`: the bare name on Linux (cut at 15 characters), the full
+/// path on macOS.
+fn ps_names(listing: &str, image: &str) -> bool {
+    listing.lines().map(str::trim).any(|name| {
+        let name = Path::new(name).file_name().map_or_else(
+            || name.to_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        );
+        !name.is_empty() && (name == image || (name.len() >= 15 && image.starts_with(&name)))
+    })
+}
+
 /// Runs `msiexec` to its end and returns its exit code.
 ///
 /// # Errors
@@ -203,4 +290,37 @@ pub fn run_msiexec(args: &[String]) -> Result<i32> {
 #[must_use]
 pub fn msiexec_log(journal: &Journal, step: &str) -> PathBuf {
     update_dir(&journal.plan.data_dir).join(format!("msiexec-{step}.log"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ps_names, tasklist_names};
+
+    #[test]
+    fn the_windows_process_list_is_read_by_name() {
+        let listing = "\r\n\"rdownloader.exe\",\"42336\",\"Console\",\"1\",\"123.456 K\"\r\n";
+        assert!(tasklist_names(listing, "rdownloader.exe"));
+        assert!(tasklist_names(listing, "RDownloader.EXE"));
+        assert!(!tasklist_names(listing, "rdownloader-updater.exe"));
+        // What tasklist prints when nothing matched -- in whatever language Windows speaks, and
+        // never in quotes.
+        assert!(!tasklist_names(
+            "INFO: No tasks are running which match the specified criteria.",
+            "rdownloader.exe"
+        ));
+    }
+
+    #[test]
+    fn the_unix_process_list_is_read_by_name() {
+        assert!(ps_names("rdownloader\n", "rdownloader"));
+        assert!(ps_names(
+            "/Applications/rDownloader/rdownloader\n",
+            "rdownloader"
+        ));
+        assert!(!ps_names("", "rdownloader"));
+        assert!(!ps_names("sshd\n", "rdownloader"));
+        // Linux cuts the name at 15 characters.
+        assert!(ps_names("rdownloader-cap\n", "rdownloader-capture"));
+        assert!(!ps_names("rdownloader-cap\n", "rdownloader"));
+    }
 }

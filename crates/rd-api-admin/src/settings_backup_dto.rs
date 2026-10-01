@@ -139,6 +139,10 @@ pub struct BundleSubscription {
     /// written before they existed, which restores the empty list every script ran with then.
     #[serde(default)]
     pub script_arguments: Vec<String>,
+    /// The search parameters an indexer subscription sends (RD-180-20). Absent from a bundle
+    /// written before they existed, which restores the empty search every subscription sent then.
+    #[serde(default)]
+    pub indexer_search: rd_core::IndexerSearch,
     /// Slot of the indexer API key inside the encrypted section, if the subscription has one.
     #[serde(default)]
     pub secret_slot: Option<String>,

@@ -1,4 +1,4 @@
-//! Livestream channels, recording schedules and subscription routes.
+//! Livestream channels, recording schedules, subscription and indexer routes.
 
 use axum::{
     Router,
@@ -6,7 +6,10 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, stream_handlers, stream_schedule_handlers, subscription_handlers};
+use crate::{
+    AppState, indexer_handlers, indexer_search, stream_handlers, stream_schedule_handlers,
+    subscription_handlers,
+};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -37,6 +40,27 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/subscriptions/caps",
             post(subscription_handlers::probe_caps),
+        )
+        // Newznab indexers defined once, searched from the LinkGrabber (RD-180-19).
+        .route(
+            "/api/v1/indexers",
+            get(indexer_handlers::list_indexers).post(indexer_handlers::create_indexer),
+        )
+        .route(
+            "/api/v1/indexers/{id}",
+            put(indexer_handlers::update_indexer).delete(indexer_handlers::delete_indexer),
+        )
+        .route(
+            "/api/v1/indexers/{id}/caps",
+            post(indexer_handlers::indexer_caps),
+        )
+        .route(
+            "/api/v1/indexers/search",
+            post(indexer_search::search_indexers),
+        )
+        .route(
+            "/api/v1/indexers/grab",
+            post(indexer_search::grab_indexer_results),
         )
         .route(
             "/api/v1/subscriptions/review-summary",
@@ -120,6 +144,13 @@ pub(crate) fn routes() -> Router<AppState> {
     subscription_handlers::poll_subscription,
     subscription_handlers::subscription_caps,
     subscription_handlers::probe_caps,
+    indexer_handlers::list_indexers,
+    indexer_handlers::create_indexer,
+    indexer_handlers::update_indexer,
+    indexer_handlers::delete_indexer,
+    indexer_handlers::indexer_caps,
+    indexer_search::search_indexers,
+    indexer_search::grab_indexer_results,
     subscription_handlers::subscription_review_summary,
     crate::area_backup::export_subscriptions,
     crate::area_backup::import_subscriptions,

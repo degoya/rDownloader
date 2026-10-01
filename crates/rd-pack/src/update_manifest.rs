@@ -443,7 +443,7 @@ mod tests {
         use clap::Parser as _;
         use sha2::Digest as _;
         let directory =
-            std::env::temp_dir().join(format!("rd-pack-schema-change-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("rd-pack-schema-change-{}", uuid::Uuid::now_v7()));
         let assets = directory.join("assets");
         std::fs::create_dir_all(&assets).expect("assets");
         let archive = b"the archive";

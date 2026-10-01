@@ -106,7 +106,7 @@ expect "both executables, each under its own name" \
     "$(grep '^- RelativeFilePath: ' "$installer" | tr '\n' ' ' | sed 's/ $//')"
 expect "the package folder goes on PATH, not a symlink" "ArchiveBinariesDependOnPath: true" \
     "$(grep '^ArchiveBinariesDependOnPath: ' "$installer")"
-expect "user scope only" "Scope: user" "$(grep '^Scope: ' "$installer")"
+expect "no Scope on a portable package (winget validate warns)" "" "$(grep '^Scope: ' "$installer" || true)"
 expect "the release notes of the tag" \
     "ReleaseNotesUrl: https://github.com/degoya/rDownloader/releases/tag/v1.6.0" \
     "$(grep '^ReleaseNotesUrl: ' "$locale")"

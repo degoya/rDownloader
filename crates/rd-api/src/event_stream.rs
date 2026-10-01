@@ -16,6 +16,11 @@
 //! Both streams end when the credential they were opened with stops standing -- signed out,
 //! revoked, expired, narrowed (`rd_api_core::stream_standing`, security audit 2026-09-30). The
 //! client reconnects as it would after any drop, and the reconnect is authorised afresh.
+//!
+//! Both streams also end when the service stops (`AppState::shutdown`). The graceful stop waits
+//! for every open response to finish, and an event stream never finishes by itself: the update
+//! dialog's own tab held one open, the service accepted the stop and never ended, and the
+//! updater gave up after 120 seconds (RD-180-02, live test 2026-10-01).
 
 use std::{convert::Infallible, sync::Arc, time::Duration};
 
@@ -90,8 +95,13 @@ pub async fn events(
             .then(|| full_frame(&event))
             .flatten()
     };
-    Sse::new(open(&state.database, &headers, frame).take_until(lapsed))
-        .keep_alive(KeepAlive::default())
+    let stopping = state.shutdown.clone().cancelled_owned();
+    Sse::new(
+        open(&state.database, &headers, frame)
+            .take_until(lapsed)
+            .take_until(stopping),
+    )
+    .keep_alive(KeepAlive::default())
 }
 
 /// The event stream a paired capture agent may subscribe to. See the module documentation
@@ -101,8 +111,13 @@ pub async fn capture_events(
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let lapsed = rd_api_core::stream_standing::capture_lapsed(state.clone(), headers.clone());
-    Sse::new(open(&state.database, &headers, capture_frame).take_until(lapsed))
-        .keep_alive(KeepAlive::default())
+    let stopping = state.shutdown.clone().cancelled_owned();
+    Sse::new(
+        open(&state.database, &headers, capture_frame)
+            .take_until(lapsed)
+            .take_until(stopping),
+    )
+    .keep_alive(KeepAlive::default())
 }
 
 /// Opens one stream: the `retry:` hint, then the replay or the expiry marker, then the live

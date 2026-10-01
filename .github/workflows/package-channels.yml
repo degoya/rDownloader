@@ -95,6 +95,11 @@ jobs:
       RDOWNLOADER_NO_PAUSE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The migration check reads the database with Python; windows-2025 has only the Store stub.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        id: python
+        with:
+          python-version: "3.13"
       - name: Render the manifests of each release
         shell: bash
         env:
@@ -107,21 +112,66 @@ jobs:
             scripts/package-managers.sh "${release}" "${RUNNER_TEMP}/sums/${release}/SHA256SUMS" \
               "${RUNNER_TEMP}/rendered/${release}" --repository "${GITHUB_REPOSITORY}"
           done
-      # The runner image's winget can be older than the manifests' schema; the current client
-      # comes from the PowerShell module winget itself publishes.
+      # The runner image's winget can be older than the manifests' schema (1.10.0). A client
+      # older than the pinned one is replaced by that winget-cli release, its App Installer bundle
+      # and the x64 dependencies it ships, each checked against its SHA-256 like komac in
+      # release.yml. The PowerShellGet route (Install-PackageProvider NuGet, then
+      # Repair-WinGetPackageManager) found no NuGet provider on windows-2025 (run 36781008177).
+      # Windows PowerShell, not pwsh: the Appx cmdlets belong to it.
       - name: Bring winget up to date
-        shell: pwsh
+        shell: powershell
+        env:
+          WINGET_CLI_VERSION: 1.29.380
+          WINGET_BUNDLE_SHA256: 65dea9c01ce08ee7b763366b27c0e651f97db857c11ca9b9c301826c10092f2e
+          WINGET_DEPENDENCIES_SHA256: ba875afe9d190f61218985ac0292a99d1db710bf93e13c68944ca9d89f0d82d1
         run: |
           $ErrorActionPreference = 'Stop'
-          Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
-          Install-Module -Name Microsoft.WinGet.Client -Force -Scope CurrentUser -Repository PSGallery
-          Repair-WinGetPackageManager -Latest -Force
+          $ProgressPreference = 'SilentlyContinue'
+          # The App Installer's aliases; a runner session does not always have them on PATH.
+          $aliases = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'
+          $env:PATH = "$aliases;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $aliases
+          $present = [version]'0.0.0'
+          if (Get-Command winget -ErrorAction SilentlyContinue) {
+            if ("$(winget --version)" -match '^v?(\d+\.\d+\.\d+)') { $present = [version]$Matches[1] }
+          }
+          Write-Host "winget on the image: $present, pinned: $($env:WINGET_CLI_VERSION)"
+          if ($present -lt [version]$env:WINGET_CLI_VERSION) {
+            $dir = Join-Path $env:RUNNER_TEMP 'winget-cli'
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            $base = "https://github.com/microsoft/winget-cli/releases/download/v$($env:WINGET_CLI_VERSION)"
+            $files = @{
+              'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle' = $env:WINGET_BUNDLE_SHA256
+              'DesktopAppInstaller_Dependencies.zip' = $env:WINGET_DEPENDENCIES_SHA256
+            }
+            foreach ($name in $files.Keys) {
+              curl.exe --fail --silent --show-error --location --retry 3 --output "$dir\$name" "$base/$name"
+              if ($LASTEXITCODE -ne 0) { throw "cannot download $name ($LASTEXITCODE)" }
+              $hash = (Get-FileHash -Algorithm SHA256 -Path "$dir\$name").Hash
+              if ($hash -ne $files[$name]) { throw "$name has SHA-256 $hash, expected $($files[$name])" }
+            }
+            Expand-Archive -Path "$dir\DesktopAppInstaller_Dependencies.zip" -DestinationPath "$dir\dependencies"
+            # Name_Version_Architecture.appx; a dependency already there in that version or newer
+            # stays, since Add-AppxPackage refuses to put an older one beside it.
+            foreach ($appx in Get-ChildItem -Path "$dir\dependencies\x64\*.appx") {
+              $package, $version = $appx.BaseName.Split('_')[0, 1]
+              $installed = @(Get-AppxPackage -Name $package | Where-Object { $_.Architecture -eq 'X64' -and [version]$_.Version -ge [version]$version })
+              if ($installed.Count -eq 0) {
+                Write-Host "adding $($appx.Name)"
+                Add-AppxPackage -Path $appx.FullName
+              }
+            }
+            Add-AppxPackage -Path "$dir\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -ForceApplicationShutdown
+          }
           winget --version
           if ($LASTEXITCODE -ne 0) { throw "winget is not usable" }
           winget settings --enable LocalManifestFiles
           if ($LASTEXITCODE -ne 0) { throw "cannot allow local manifests" }
       - name: Validate, install, upgrade, keep the data
         shell: pwsh
+        # By path: Refresh-Path puts the registry PATH first, and there `python` is the Store stub.
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
         run: |
           $ErrorActionPreference = 'Stop'
           $common = @('--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
@@ -129,8 +179,12 @@ jobs:
           winget validate --manifest $new
           if ($LASTEXITCODE -ne 0) { throw "winget validate refused the manifests of $($env:RELEASE) ($LASTEXITCODE)" }
           function Refresh-Path {
-            # winget puts the package folder on the user's PATH; a new shell would see it.
-            $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'User') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'Machine')
+            # winget puts the package folder on the user's PATH; a new shell would see it. The
+            # step's own PATH stays behind it: winget itself may be reachable only through it.
+            # Each entry once: appended on every call, the PATH doubled until cmd.exe no longer
+            # found powershell in it (run 36840146378).
+            $entries = ([Environment]::GetEnvironmentVariable('PATH', 'User') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + $env:PATH) -split ';'
+            $env:PATH = ($entries | Where-Object { $_ } | Select-Object -Unique) -join ';'
           }
           function Package-Folder {
             $folders = @(Get-ChildItem -Directory "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter 'degoya.rDownloader_*')
@@ -159,7 +213,7 @@ jobs:
             if (-not (Test-Path "$folder\data\rdownloader.sqlite3")) { throw "the database is not in the package folder" }
           }
           function Migrations($db) {
-            $versions = python -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' $db
+            $versions = & $env:PYTHON -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' $db
             if ($LASTEXITCODE -ne 0 -or -not $versions) { throw "cannot read the migrations of $db" }
             return $versions
           }
@@ -196,7 +250,8 @@ jobs:
             if ((Get-Content "$folder\data\channels-marker") -ne "winget $($env:FROM)") { throw "the data marker did not survive the upgrade" }
             if ((Get-Content "$folder\downloads\channels-marker") -ne "winget $($env:FROM)") { throw "the downloads marker did not survive the upgrade" }
           }
-          winget uninstall --manifest $new @common
+          # uninstall knows no package agreements.
+          winget uninstall --manifest $new --accept-source-agreements --disable-interactivity
           if ($LASTEXITCODE -ne 0) { throw "winget uninstall failed ($LASTEXITCODE)" }
           # Without --purge winget removes only what it extracted and leaves the folder.
           if (-not (Test-Path "$folder\data\rdownloader.sqlite3")) { throw "winget uninstall took the database with it" }
@@ -256,12 +311,12 @@ jobs:
           rdownloader --version | grep -F "${RELEASE#v}"
           test "$(cat /usr/lib/rdownloader/install-kind)" = aur
           test -n "$(ls /usr/lib/rdownloader/plugins/*.rdplug)"
-          # The unit's command in a folder of its own, as the builder user. Every bundled plugin,
-          # not only the wizard's choice, so that plugins/ beside the real executable is proven
-          # found through the /usr/bin symlink.
-          home="$(mktemp -d)"
-          chown builder "${home}"
-          su builder -c "cd '${home}' && RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS=true exec /usr/lib/rdownloader/rdownloader serve" \
+          # The unit's command as the builder user. Every bundled plugin, not only the wizard's
+          # choice, so that plugins/ beside the real executable is proven found through the
+          # /usr/bin symlink. The install-kind marker moves the data into the user's own data
+          # folder, not the working directory.
+          home="$(getent passwd builder | cut -d: -f6)/.local/share/rdownloader"
+          su builder -c "cd ~ && RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS=true exec /usr/lib/rdownloader/rdownloader serve" \
             > /tmp/serve.log 2>&1 &
           server=$!
           ready=0

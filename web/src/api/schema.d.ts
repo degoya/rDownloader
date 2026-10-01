@@ -2659,6 +2659,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/indexers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_indexers"];
+        put?: never;
+        post: operations["create_indexer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/indexers/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetches the chosen hits and puts each into the LinkGrabber as an NZB import (RD-180-19).
+         * @description Each hit on its own: one that fails is reported with a stable code and the others still
+         *     arrive, because a person who picked ten releases wants the nine that worked.
+         */
+        post: operations["grab_indexer_results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/indexers/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Searches one indexer or every enabled one (RD-180-19).
+         * @description Answers `200` whenever the request itself was valid: an indexer that refused or could not be
+         *     reached is reported in its own outcome with a stable code, and the others' hits still come.
+         */
+        post: operations["search_indexers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/indexers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_indexer"];
+        post?: never;
+        delete: operations["delete_indexer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/indexers/{id}/caps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a stored indexer: `t=caps` with its address and key (RD-180-19).
+         * @description The cheapest request that proves both are right, and where the category list for the form
+         *     comes from. A new indexer, before it has a stored key, is tested through
+         *     `POST /api/v1/subscriptions/caps`, which takes the address and the key for one request.
+         */
+        post: operations["indexer_caps"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metrics": {
         parameters: {
             query?: never;
@@ -5318,6 +5414,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/update/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Downloads the offered update in the background (RD-180-02, owner 2026-10-01): into the data
+         *     folder, held to the signed manifest's size and SHA-256, followed through `download` in
+         *     `GET /api/v1/system/update`. "Install and restart" then installs that file without fetching
+         *     it again. Only for an installation that installs itself; every other kind keeps its command
+         *     or the browser's download.
+         */
+        post: operations["download_update"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/update/install": {
         parameters: {
             query?: never;
@@ -6362,6 +6481,11 @@ export interface components {
              */
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
+            /**
+             * @description The search an indexer subscription sends (RD-180-20); absent from an older bundle,
+             *     which restores the empty search every subscription sent then.
+             */
+            indexer_search?: components["schemas"]["IndexerSearch"];
             /** Format: int32 */
             interval_seconds: number;
             kind: components["schemas"]["SubscriptionKind"];
@@ -6496,6 +6620,11 @@ export interface components {
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
             id: components["schemas"]["SubscriptionId"];
+            /**
+             * @description The search parameters an indexer subscription sends (RD-180-20). Absent from a bundle
+             *     written before they existed, which restores the empty search every subscription sent then.
+             */
+            indexer_search?: components["schemas"]["IndexerSearch"];
             /** Format: int32 */
             interval_seconds: number;
             kind: components["schemas"]["SubscriptionKind"];
@@ -8389,6 +8518,26 @@ export interface components {
             name: string;
             version: string;
         };
+        /** @description A Newznab indexer the person defined once (RD-180-19). */
+        Indexer: {
+            /** @description Categories a search asks for when it names none, sent as `cat`. Empty asks for all. */
+            categories?: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** @description A switched-off indexer is left out of "search every indexer". */
+            enabled: boolean;
+            /** @description Whether a key is stored, which is all a client is told about it. */
+            has_secret?: boolean;
+            id: components["schemas"]["IndexerId"];
+            name: string;
+            /** Format: date-time */
+            updated_at: string;
+            /**
+             * Format: uri
+             * @description The API base address, e.g. `https://api.example.org/api`.
+             */
+            url: string;
+        };
         /** @description What an indexer says it can do. */
         IndexerCaps: {
             categories: components["schemas"]["IndexerCategory"][];
@@ -8412,6 +8561,164 @@ export interface components {
             name: string;
             /** @description Id of the parent category for a subcategory; `None` for a top-level one. */
             parent_id?: string | null;
+        };
+        /** @description One hit that did not become an import. */
+        IndexerGrabFailure: {
+            error: components["schemas"]["MessageResponse"];
+            title: string;
+        };
+        /** @description One hit, as the search returned it. */
+        IndexerGrabItem: {
+            /** @description The hit's `download`, unchanged. */
+            download: string;
+            indexer_id: components["schemas"]["IndexerId"];
+            /** @description The hit's title, which names the import. */
+            title: string;
+        };
+        /** @description Hits to fetch and put into the LinkGrabber as NZB imports. */
+        IndexerGrabRequest: {
+            category_id?: components["schemas"]["CategoryId"] | null;
+            /** @description At most 50. */
+            items: components["schemas"]["IndexerGrabItem"][];
+        };
+        /** @description What a grab became. */
+        IndexerGrabResponse: {
+            failed: components["schemas"]["IndexerGrabFailure"][];
+            imports: components["schemas"]["NzbImport"][];
+        };
+        /** Format: uuid */
+        IndexerId: string;
+        /** @description Create or replace one indexer. */
+        IndexerRequest: {
+            /**
+             * @description The API key; write-only, stored in the vault. Required when creating; omitted on an edit
+             *     it keeps the stored key.
+             */
+            api_key?: string | null;
+            /** @description The indexer's own category ids a search asks for when it names none. Empty asks for all. */
+            categories?: string[];
+            enabled?: boolean;
+            name: string;
+            /**
+             * Format: uri
+             * @description The API base address, e.g. `https://api.example.org/api`. http or https.
+             */
+            url: string;
+        };
+        /**
+         * @description The search parameters an indexer query sends besides the address, the key and the paging
+         *     (RD-180-20).
+         *
+         *     Each one is sent only when it is set and the address does not already carry it: a saved
+         *     search copied out of the indexer's own RSS button keeps winning, as it always did. `query` is
+         *     the explicit search term and nothing else -- a subscription's title filter is never turned
+         *     into one (RD-106-10).
+         */
+        IndexerSearch: {
+            /**
+             * @description Sent as `pw=2`: leave out releases the indexer marks as passworded.
+             * @default false
+             */
+            hide_passworded: boolean;
+            /**
+             * Format: int32
+             * @description Sent as `maxage`: only releases posted within this many days.
+             * @default null
+             */
+            max_age_days: number | null;
+            /**
+             * Format: int32
+             * @description Sent as `pred`: the indexer's pre-time filter, 0, 1 or 2 as the indexer defines them.
+             * @default null
+             */
+            pretime: number | null;
+            /**
+             * @description Sent as `q`, passed on as written, `!word` exclusions included; empty or at least three
+             *     characters.
+             * @default null
+             */
+            query: string | null;
+        };
+        /** @description One hit, as the result list shows it. */
+        IndexerSearchHit: {
+            /** @description The indexer's category id, e.g. `5040`. */
+            category?: string | null;
+            /**
+             * @description Where the NZB is fetched from, with the API key replaced by `rdownloader-indexer-key`:
+             *     what `POST /api/v1/indexers/grab` takes back. Never the key itself.
+             */
+            download: string;
+            /** Format: int64 */
+            grabs?: number | null;
+            /** @description The indexer's own id for the release. */
+            guid?: string | null;
+            indexer_id: components["schemas"]["IndexerId"];
+            indexer_name: string;
+            /** @description Whether the indexer marks the release as passworded. */
+            passworded: boolean;
+            /** Format: date-time */
+            published_at?: string | null;
+            /** Format: int64 */
+            size_bytes?: number | null;
+            title: string;
+        };
+        /** @description How one indexer answered. */
+        IndexerSearchOutcome: {
+            error?: components["schemas"]["MessageResponse"] | null;
+            indexer_id: components["schemas"]["IndexerId"];
+            indexer_name: string;
+            /** @description Whether it filled the page, so a next page may hold more. */
+            more: boolean;
+            /**
+             * Format: int32
+             * @description Hits it returned on this page.
+             */
+            returned: number;
+            /**
+             * Format: int64
+             * @description The total it reports, when it does.
+             */
+            total?: number | null;
+        };
+        /** @description One search over one indexer or all enabled ones. */
+        IndexerSearchRequest: {
+            /** @description The indexer's own category ids, sent as `cat`; empty uses each indexer's own default. */
+            categories?: string[];
+            /** @description Sent as `pw=2`: leave out releases the indexer marks as passworded. */
+            hide_passworded?: boolean;
+            /** @description The indexers to ask; empty asks every enabled one. */
+            indexer_ids?: components["schemas"]["IndexerId"][];
+            /**
+             * Format: int32
+             * @description Results per indexer on this page, 1-500; 100 when absent.
+             */
+            limit?: number | null;
+            /**
+             * Format: int32
+             * @description Sent as `maxage`: only releases posted within this many days.
+             */
+            max_age_days?: number | null;
+            /**
+             * Format: int32
+             * @description Where the page starts.
+             */
+            offset?: number | null;
+            /**
+             * Format: int32
+             * @description Sent as `pred` (0, 1 or 2 as the indexer defines them).
+             */
+            pretime?: number | null;
+            /**
+             * @description Sent as `q`: empty, or at least three characters. `!word` excludes a word, as the
+             *     indexer defines it.
+             */
+            query?: string | null;
+        };
+        /** @description A search's answer: every indexer's hits together, and how each indexer fared. */
+        IndexerSearchResponse: {
+            hits: components["schemas"]["IndexerSearchHit"][];
+            /** @description One entry per indexer asked, in the order they were asked. */
+            indexers: components["schemas"]["IndexerSearchOutcome"][];
         };
         /**
          * @description Origin of a batch submitted to the LinkGrabber.
@@ -12788,6 +13095,12 @@ export interface components {
             has_secret?: boolean;
             id: components["schemas"]["SubscriptionId"];
             /**
+             * @description The search term and parameters an indexer subscription sends (RD-180-20): `q`,
+             *     `maxage`, `pw` and `pred`, each only when set and not already in the address. Empty for
+             *     every other kind.
+             */
+            indexer_search?: components["schemas"]["IndexerSearch"];
+            /**
              * Format: int32
              * @description Seconds between polls, clamped to [`MIN_POLL_INTERVAL_SECONDS`]..=
              *     [`MAX_POLL_INTERVAL_SECONDS`].
@@ -13051,6 +13364,14 @@ export interface components {
              */
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
+            indexer_id?: components["schemas"]["IndexerId"] | null;
+            /**
+             * @description The search term and parameters an indexer subscription sends (RD-180-20): `query` as
+             *     `q` (empty or at least three characters, `!word` exclusions passed on), `max_age_days` as
+             *     `maxage`, `hide_passworded` as `pw=2`, `pretime` (0-2) as `pred`. Each only when set and
+             *     not already in the address. Only an indexer subscription takes them.
+             */
+            indexer_search?: components["schemas"]["IndexerSearch"];
             /** Format: int32 */
             interval_seconds?: number;
             kind: components["schemas"]["SubscriptionKind"];
@@ -13841,6 +14162,24 @@ export interface components {
             manual_timeout_seconds?: number | null;
             solver?: components["schemas"]["SolverKind"] | null;
         };
+        /**
+         * @description The offered version's artifact, downloaded and verified in the background, which "Install and
+         *     restart" then installs without downloading it again.
+         */
+        UpdateDownloadStatus: {
+            /** @description The stable code of why it failed, e.g. `update.digest_mismatch`. */
+            reason?: string | null;
+            /** Format: int64 */
+            received_bytes: number;
+            /**
+             * @description `downloading`, `ready` (on disk, size and SHA-256 those of the signed manifest) or
+             *     `failed`.
+             */
+            state: string;
+            /** Format: int64 */
+            total_bytes: number;
+            version: string;
+        };
         /** @description What `POST /api/v1/system/update/install` takes. */
         UpdateInstallRequest: {
             /**
@@ -13959,6 +14298,7 @@ export interface components {
             configured: boolean;
             /** @description The running version. */
             current_version: string;
+            download?: components["schemas"]["UpdateDownloadStatus"] | null;
             /**
              * @description The channel actually read: `stable` for an installation whose package manager publishes
              *     no pre-releases, whatever was chosen.
@@ -20320,6 +20660,301 @@ export interface operations {
             };
         };
     };
+    list_indexers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Indexer"][];
+                };
+            };
+        };
+    };
+    create_indexer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Indexer"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    grab_indexer_results: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexerGrabRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexerGrabResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_indexers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexerSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexerSearchResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_indexer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["IndexerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndexerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Indexer"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_indexer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["IndexerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    indexer_caps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["IndexerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexerCaps"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     scrape_metrics: {
         parameters: {
             query?: never;
@@ -25580,6 +26215,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    download_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDownloadStatus"];
+                };
+            };
+            /** @description Nothing to download, or not an installation that installs itself */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

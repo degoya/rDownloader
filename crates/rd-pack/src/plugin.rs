@@ -404,13 +404,20 @@ fn scaffold(args: &NewPluginArgs) -> Result<()> {
 }
 
 /// Locates `sdk/templates`, whether running from the repository or from an installation.
+///
+/// The crate's own directory is read at run time, where cargo and the test runners set it. As
+/// `env!` it was compiled into the release binary as the build machine's checkout path, which
+/// `--remap-path-prefix` does not reach, so two checkouts built two different executables
+/// (RD-180-12, docs/reproducible-builds.md).
 fn sdk_templates() -> Result<PathBuf> {
     let candidates = [
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../sdk/templates"),
-        std::env::current_dir()?.join("sdk/templates"),
+        std::env::var_os("CARGO_MANIFEST_DIR")
+            .map(|dir| PathBuf::from(dir).join("../../sdk/templates")),
+        Some(std::env::current_dir()?.join("sdk/templates")),
     ];
     candidates
         .into_iter()
+        .flatten()
         .find(|path| path.is_dir())
         .context("could not find the SDK templates; run from a checkout of the repository")
 }

@@ -118,7 +118,8 @@
     "go_logs": "Ir a Registros",
     "go_audit": "Ir a Auditoría",
     "open_search": "Abrir búsqueda",
-    "clear_completed": "Quitar paquetes completados (en Descargas)"
+    "clear_completed": "Quitar paquetes completados (en Descargas)",
+    "focus_indexer_search": "Ir a la búsqueda en indexadores (en el LinkGrabber)"
   },
   "a11y": {
     "skip_to_content": "Ir al contenido",

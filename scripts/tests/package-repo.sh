@@ -166,8 +166,9 @@ if [[ "$with_rpm" -eq 1 ]]; then
     run_status rpmkeys --dbpath "$SCRATCH/rpmdb" --checksig "$site/rpm/packages/rdownloader-1.0.0-1.x86_64.rpm"
     expect_output "the rpm itself is signed with the key" "signatures OK"
     expect "the .repo points at the rpm half" "baseurl=file:///repo/rpm" "$(grep '^baseurl=' "$site/rdownloader.repo")"
-    expect "and checks packages and metadata" "gpgcheck=1 repo_gpgcheck=1" \
-        "$(grep -E '^(repo_)?gpgcheck=' "$site/rdownloader.repo" | tr '\n' ' ' | sed 's/ $//')"
+    expect "and checks packages and metadata, failing hard instead of skipping the repository" \
+        "gpgcheck=1 repo_gpgcheck=1 skip_if_unavailable=0" \
+        "$(grep -E '^((repo_)?gpgcheck|skip_if_unavailable)=' "$site/rdownloader.repo" | tr '\n' ' ' | sed 's/ $//')"
 else
     expect_true "without the rpm half no .repo is written" "[[ ! -e '$site/rdownloader.repo' ]]"
 fi

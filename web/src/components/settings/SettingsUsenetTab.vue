@@ -18,6 +18,7 @@ import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsIndexersCard from '@/components/settings/SettingsIndexersCard.vue'
 
 /** Gap between generated priorities so manual values keep room in between. */
 const PRIORITY_STEP = 10
@@ -386,5 +387,7 @@ function proxyName(id: string | null | undefined): string {
         </section>
       </template>
     </FormListLayout>
+    <!-- The indexers the LinkGrabber searches (RD-180-19); the setup wizard asks for servers only. -->
+    <SettingsIndexersCard v-if="!hideHeader" />
   </div>
 </template>

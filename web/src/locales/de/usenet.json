@@ -51,5 +51,42 @@
     "title": "Usenet-Server löschen",
     "description": "Der NNTP-Server „{name}“ und sein verschlüsseltes Passwort werden dauerhaft gelöscht.",
     "confirm": "Server löschen"
+  },
+  "indexers": {
+    "eyebrow": "Indexer",
+    "title_add": "Indexer hinzufügen",
+    "title_edit": "Indexer bearbeiten",
+    "description": "Ein Newznab-Indexer, einmal angelegt: der LinkGrabber durchsucht ihn, und ein Indexer-Abo kann ihn übernehmen. Der API-Schlüssel landet im Tresor und wird nie wieder angezeigt.",
+    "name": "Name",
+    "url": "API-Adresse",
+    "url_hint": "Die Basisadresse der API, z. B. https://api.omgwtfnzbs.org/api – auch ein NZBHydra oder Prowlarr in deinem Netz",
+    "api_key": "API-Schlüssel",
+    "api_key_keep": "Leer lassen, um den gespeicherten Schlüssel zu behalten",
+    "categories": "Standard-Kategorien",
+    "categories_hint": "Die Kategorien, nach denen eine Suche fragt, wenn sie selbst keine nennt",
+    "categories_all": "Alle Kategorien",
+    "load_categories": "Kategorien vom Indexer laden",
+    "enabled": "Eingeschaltet",
+    "disabled": "Aus",
+    "has_key": "API-Schlüssel gespeichert",
+    "create": "Indexer anlegen",
+    "save": "Änderungen speichern",
+    "edit": "Indexer bearbeiten",
+    "list_eyebrow": "Suche",
+    "list_title": "Angelegte Indexer",
+    "list_description": "Eingeschaltete Indexer durchsucht der LinkGrabber; ein ausgeschalteter bleibt für Abos verfügbar.",
+    "empty": "Noch kein Indexer. Mit einem erscheint im LinkGrabber die Indexer-Suche.",
+    "delete": {
+      "action": "Indexer löschen",
+      "title": "Indexer löschen?",
+      "description": "{name} und sein gespeicherter API-Schlüssel werden entfernt. Abos, die ihn übernommen haben, behalten ihre eigene Kopie.",
+      "confirm": "Löschen"
+    },
+    "messages": {
+      "created": "Indexer angelegt",
+      "updated": "Indexer gespeichert",
+      "deleted": "{name} gelöscht",
+      "tested": "{server} antwortet: {count} Kategorien"
+    }
   }
 }

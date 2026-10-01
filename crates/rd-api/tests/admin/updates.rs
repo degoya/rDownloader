@@ -6,7 +6,8 @@
 //! signed with a test key, so nothing reaches GitHub.
 //!
 //! The self-update (RD-180-02) is checked up to the hand-over: the download held to the signed
-//! digest, the backup before it, the journal the updater reads, and the status it then shows.
+//! digest, the backup before it, the journal the updater reads, and the status it then shows;
+//! and the download ahead of the install, whose verified file the install then takes.
 //! The updater itself is `rd_update::install`'s tests and `.github/workflows/self-update.yml`.
 
 use crate::common;
@@ -229,6 +230,20 @@ async fn installable(
     kind: rd_update::InstallKind,
     artifact_body: &[u8],
 ) -> (common::Harness, Arc<std::sync::Mutex<Vec<Journal>>>) {
+    let (harness, launched, _) = installable_from(directory, kind, artifact_body).await;
+    (harness, launched)
+}
+
+/// [`installable`], with the fetcher that serves the artifact, which counts its requests.
+async fn installable_from(
+    directory: &std::path::Path,
+    kind: rd_update::InstallKind,
+    artifact_body: &[u8],
+) -> (
+    common::Harness,
+    Arc<std::sync::Mutex<Vec<Journal>>>,
+    MemoryFetcher,
+) {
     let (harness, fetcher) = served(directory).await;
     let target = Target::current(kind);
     let url = format!(
@@ -262,7 +277,7 @@ async fn installable(
     );
     let (status, body) = post_json(&harness.router, "/api/v1/system/update/check", json!({})).await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    (harness, launched)
+    (harness, launched, fetcher)
 }
 
 /// Reads the status until the install reaches `state`, or fails the test.
@@ -416,4 +431,142 @@ async fn nothing_offered_is_nothing_to_install() {
         post_json(&harness.router, "/api/v1/system/update/install", json!({})).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["code"], "update.none_available", "{body}");
+}
+
+// ---- RD-180-02, owner 2026-10-01: the download ahead of the install ----
+
+/// Reads the status until the background download reaches `state`, or fails the test.
+async fn download_reaches(harness: &common::Harness, state: &str) -> serde_json::Value {
+    for _ in 0..200 {
+        let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+        if body["download"]["state"] == state {
+            return body;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    panic!("the download never reached {state}: {body}");
+}
+
+/// How often the artifact itself was fetched, not the manifests.
+fn artifact_fetches(fetcher: &MemoryFetcher) -> usize {
+    fetcher
+        .requests()
+        .iter()
+        .filter(|url| url.contains("/rdownloader-"))
+        .count()
+}
+
+#[tokio::test]
+async fn the_update_downloads_in_the_background_and_the_install_takes_that_file() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, launched, fetcher) = installable_from(
+        directory.path(),
+        rd_update::InstallKind::Portable,
+        ARTIFACT_BYTES,
+    )
+    .await;
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert!(body["download"].is_null(), "{body}");
+
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    assert_eq!(body["version"], "99.0.0", "{body}");
+    assert_eq!(body["total_bytes"], ARTIFACT_BYTES.len(), "{body}");
+    let body = download_reaches(&harness, "ready").await;
+    assert_eq!(
+        body["download"]["received_bytes"],
+        ARTIFACT_BYTES.len(),
+        "{body}"
+    );
+    // Downloading is not installing: nothing was handed over, nothing is in progress.
+    assert!(body["install"].is_null(), "{body}");
+    assert!(launched.lock().expect("launched").is_empty());
+    assert_eq!(artifact_fetches(&fetcher), 1);
+
+    // A second click finds the verified file instead of fetching it again.
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    download_reaches(&harness, "ready").await;
+    assert_eq!(artifact_fetches(&fetcher), 1);
+
+    // And the install installs that file.
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/install", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    install_reaches(&harness, "restarting").await;
+    assert_eq!(artifact_fetches(&fetcher), 1);
+    let journal = launched.lock().expect("launched")[0].clone();
+    assert_eq!(
+        std::fs::read(&journal.plan.artifact).expect("artifact"),
+        ARTIFACT_BYTES
+    );
+}
+
+#[tokio::test]
+async fn a_kept_download_that_changed_on_disk_is_fetched_again() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, launched, fetcher) = installable_from(
+        directory.path(),
+        rd_update::InstallKind::Portable,
+        ARTIFACT_BYTES,
+    )
+    .await;
+    post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
+    download_reaches(&harness, "ready").await;
+    let kept = rd_update::install::update_dir(&harness.state.updates.data_dir())
+        .join(rd_update::install::DOWNLOAD_DIR);
+    for file in std::fs::read_dir(&kept).expect("kept") {
+        std::fs::write(file.expect("entry").path(), b"tampered with, same length").expect("write");
+    }
+
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/install", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    install_reaches(&harness, "restarting").await;
+    assert_eq!(artifact_fetches(&fetcher), 2);
+    let journal = launched.lock().expect("launched")[0].clone();
+    assert_eq!(
+        std::fs::read(&journal.plan.artifact).expect("artifact"),
+        ARTIFACT_BYTES
+    );
+}
+
+#[tokio::test]
+async fn a_download_that_is_not_the_signed_one_fails_with_its_code() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, launched) = installable(
+        directory.path(),
+        rd_update::InstallKind::Portable,
+        b"something else entirely!!!",
+    )
+    .await;
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    let body = download_reaches(&harness, "failed").await;
+    assert_eq!(
+        body["download"]["reason"], "update.digest_mismatch",
+        "{body}"
+    );
+    assert!(body["install"].is_null(), "{body}");
+    assert!(launched.lock().expect("launched").is_empty());
+}
+
+#[tokio::test]
+async fn a_package_manager_installation_does_not_download_in_the_background() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, _launched, fetcher) = installable_from(
+        directory.path(),
+        rd_update::InstallKind::Deb,
+        ARTIFACT_BYTES,
+    )
+    .await;
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["code"], "update.install_unsupported", "{body}");
+    assert_eq!(artifact_fetches(&fetcher), 0);
 }

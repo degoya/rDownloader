@@ -147,6 +147,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('usenet.server', 'usenet', 'usenet.form.title_add', { keywordsKey: `${K}.usenet` }),
   field('usenet.connections', 'usenet', 'usenet.form.connections', { descriptionKey: 'usenet.form.connections_hint' }),
   card('usenet.chain', 'usenet', 'usenet.chain.title', { keywordsKey: `${K}.fallback` }),
+  card('usenet.indexer', 'usenet', 'usenet.indexers.title_add', { descriptionKey: 'usenet.indexers.description', keywordsKey: `${K}.indexers`, terms: ['Newznab', 'NZBHydra', 'Prowlarr'] }),
+  card('usenet.indexers', 'usenet', 'usenet.indexers.list_title', { keywordsKey: `${K}.indexers` }),
   // BitTorrent
   card('torrent.settings', 'torrent', 'settings.torrent.title', { descriptionKey: 'settings.torrent.description' }),
   field('torrent.upload_limit', 'torrent', 'settings.torrent.upload_limit.label', { descriptionKey: 'settings.torrent.upload_limit.description' }),

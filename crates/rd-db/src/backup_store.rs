@@ -97,6 +97,8 @@ pub struct ReplacementSubscription {
     pub schedule: Option<String>,
     /// The arguments a script subscription hands its script (RD-150-08).
     pub script_arguments: Vec<String>,
+    /// The search parameters an indexer subscription sends (RD-180-20).
+    pub indexer_search: rd_core::IndexerSearch,
     pub secret_ref: Option<String>,
 }
 
@@ -301,9 +303,9 @@ pub(crate) async fn replace_all(
             "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, \
              priority, interval_seconds, filters_json, backlog_json, category_map_json, \
              source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-             script_arguments_json, primed, consecutive_failures, secret_ref, created_at, \
-             updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+             script_arguments_json, indexer_search_json, primed, consecutive_failures, \
+             secret_ref, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -334,6 +336,7 @@ pub(crate) async fn replace_all(
         .bind(value.card_ratio.as_str())
         .bind(value.schedule)
         .bind(serde_json::to_string(&value.script_arguments)?)
+        .bind(serde_json::to_string(&value.indexer_search)?)
         .bind(value.secret_ref)
         .bind(now)
         .bind(now)

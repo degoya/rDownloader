@@ -147,6 +147,7 @@ pub async fn build_settings_bundle(
             card_ratio: subscription.card_ratio,
             schedule: subscription.schedule,
             script_arguments: subscription.script_arguments,
+            indexer_search: subscription.indexer_search,
             secret_slot: slots.add(&state, secret_ref).await?,
         });
     }
@@ -474,6 +475,7 @@ fn into_replacement(
                 card_ratio: value.card_ratio,
                 schedule: value.schedule,
                 script_arguments: value.script_arguments,
+                indexer_search: value.indexer_search,
                 secret_ref: slot_reference(minted, value.secret_slot),
             })
             .collect(),

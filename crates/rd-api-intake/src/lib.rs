@@ -12,6 +12,8 @@ pub mod collector_enqueue;
 pub mod collector_handlers;
 pub mod collector_source_sets;
 pub mod container_handlers;
+pub mod indexer_handlers;
+pub mod indexer_search;
 pub mod nzb_handlers;
 pub mod nzb_zip;
 pub mod regex_tester;

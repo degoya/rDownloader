@@ -18,6 +18,7 @@ pub mod failpoint;
 mod gallery;
 mod hotfolder;
 mod ids;
+mod indexer;
 mod media;
 mod mfa;
 mod network;
@@ -97,11 +98,15 @@ pub use ids::{
     AccountId, AuthProfileId, AutomationId, AutomationRunId, AutomationVersionId,
     BandwidthProfileId, BandwidthWindowId, BatchId, CandidateId, CaptchaId, CaptureAgentId,
     CaptureTokenId, CategoryId, CategoryRuleId, ChunkId, CollectorPackageId, DownloadId, EventId,
-    HotFolderId, MfaCredentialId, NotificationDeliveryId, NotificationRuleId, NotificationTargetId,
-    NzbFileId, NzbImportId, NzbSegmentId, ObjectStorageProfileId, PackageId, PluginId,
-    ProxyProfileId, RemoteCredentialId, RemoteJobId, SessionId, StorageRootId, StreamChannelId,
-    StreamScheduleId, StreamScheduledRunId, SubscriptionId, SubscriptionItemId, SubscriptionRunId,
-    UsenetServerId,
+    HotFolderId, IndexerId, MfaCredentialId, NotificationDeliveryId, NotificationRuleId,
+    NotificationTargetId, NzbFileId, NzbImportId, NzbSegmentId, ObjectStorageProfileId, PackageId,
+    PluginId, ProxyProfileId, RemoteCredentialId, RemoteJobId, SessionId, StorageRootId,
+    StreamChannelId, StreamScheduleId, StreamScheduledRunId, SubscriptionId, SubscriptionItemId,
+    SubscriptionRunId, UsenetServerId,
+};
+pub use indexer::{
+    Indexer, IndexerSearch, MAX_INDEXER_AGE_DAYS, MAX_INDEXER_PRETIME, MAX_INDEXER_QUERY_CHARS,
+    MIN_INDEXER_QUERY_CHARS,
 };
 pub use media::{
     AudioCodecFamily, AudioTrack, AudioTrackPolicy, CONTAINERS, ContainerCapabilities,

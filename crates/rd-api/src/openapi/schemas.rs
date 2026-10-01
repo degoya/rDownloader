@@ -4,11 +4,12 @@ use utoipa::OpenApi;
 
 use crate::{
     bandwidth_handlers, captcha_handlers, collision_handlers, container_handlers, diagnostics_dto,
-    download_sources, dto, duplicates, error, media_dto, mfa_handlers, notify_handlers,
-    passkey_handlers, plugin_lifecycle, reconnect_service, regex_tester, remote_job_handlers,
-    replay_dto, routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
-    site_rules_dto, stats_handlers, storage_capacity, storage_handlers, stream_schedule_handlers,
-    subscription_handlers, torrent_control, torrent_trackers,
+    download_sources, dto, duplicates, error, indexer_handlers, indexer_search, media_dto,
+    mfa_handlers, notify_handlers, passkey_handlers, plugin_lifecycle, reconnect_service,
+    regex_tester, remote_job_handlers, replay_dto, routing_backup, settings_backup,
+    settings_backup_crypto, settings_backup_dto, site_rules_dto, stats_handlers, storage_capacity,
+    storage_handlers, stream_schedule_handlers, subscription_handlers, torrent_control,
+    torrent_trackers,
 };
 
 /// Domain and DTO schemas referenced by the operations of every area.
@@ -205,6 +206,17 @@ use crate::{
     rd_core::CategoryMapping,
     rd_subscription::IndexerCaps,
     rd_subscription::IndexerCategory,
+    rd_core::Indexer,
+    rd_core::IndexerSearch,
+    indexer_handlers::IndexerRequest,
+    indexer_search::IndexerSearchRequest,
+    indexer_search::IndexerSearchResponse,
+    indexer_search::IndexerSearchHit,
+    indexer_search::IndexerSearchOutcome,
+    indexer_search::IndexerGrabRequest,
+    indexer_search::IndexerGrabItem,
+    indexer_search::IndexerGrabResponse,
+    indexer_search::IndexerGrabFailure,
     subscription_handlers::SubscriptionRequest,
     subscription_handlers::SubscriptionItemStateRequest,
     subscription_handlers::SubscriptionItemFilter,

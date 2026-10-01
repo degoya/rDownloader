@@ -111,6 +111,39 @@ async fn a_script_subscription_from_before_its_arguments_gets_an_empty_list() {
     assert_eq!(subscriptions[0].schedule.as_deref(), Some("0 6 * * *"));
 }
 
+/// An indexer subscription stored before RD-180-20 sends no search term on upgrade.
+///
+/// Migration `0112` gives every row the empty search, so a subscription polls exactly what it
+/// polled before; and the new `indexers` table starts empty.
+#[tokio::test]
+async fn an_indexer_subscription_from_before_the_search_fields_sends_none() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 111)
+        .await
+        .expect("schema at 0111");
+    {
+        let url = format!("sqlite://{}", path.display());
+        let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+        sqlx::query(
+            "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, priority,
+                                        interval_seconds, created_at, updated_at)
+             VALUES ('019d0000-0000-7000-8000-0000000000e4', 'Old indexer',
+                     'https://indexer.example.test/api?t=tvsearch&q=kept', 'indexer', 1,
+                     'review', 0, 3600, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .execute(&mut connection)
+        .await
+        .expect("insert a subscription on the 0111 schema");
+        connection.close().await.expect("close");
+    }
+
+    let database = rd_db::Database::open(&path).await.expect("upgrade");
+    let subscriptions = database.list_subscriptions().await.expect("subscriptions");
+    assert_eq!(subscriptions.len(), 1);
+    assert!(subscriptions[0].indexer_search.is_empty());
+    assert!(database.list_indexers().await.expect("indexers").is_empty());
+}
+
 /// RD-130-07: migration `0095` merges `comics` and `magazines` into `ebooks`, leaves `graphics`
 /// alone, and lets go of the compiled-in pack's switches.
 ///

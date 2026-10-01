@@ -84,6 +84,17 @@ pub struct SubscriptionRequest {
     /// every other kind takes none. Stored and returned in plain text: never a secret.
     #[serde(default)]
     pub script_arguments: Vec<String>,
+    /// The search term and parameters an indexer subscription sends (RD-180-20): `query` as
+    /// `q` (empty or at least three characters, `!word` exclusions passed on), `max_age_days` as
+    /// `maxage`, `hide_passworded` as `pw=2`, `pretime` (0-2) as `pred`. Each only when set and
+    /// not already in the address. Only an indexer subscription takes them.
+    #[serde(default)]
+    pub indexer_search: rd_core::IndexerSearch,
+    /// A defined indexer to take over (RD-180-20): its address when `url` is empty (else `url`
+    /// must be on the same server), its categories when `source_categories` is empty, and a copy
+    /// of its API key when `api_key` is absent. Copied when saved, not linked.
+    #[serde(default)]
+    pub indexer_id: Option<rd_core::IndexerId>,
     /// Indexer API key (RD-080-11); write-only, and stored in the vault. Omitting it on an
     /// edit keeps the existing key rather than clearing it.
     #[serde(default)]
@@ -404,6 +415,7 @@ pub(crate) fn subscription_input(
     };
     let schedule = schedule_input(request)?;
     let script_arguments = script_arguments_input(request)?;
+    let indexer_search = indexer_search_input(request)?;
     // Refused rather than clamped: a person who typed 30 seconds should be told the limit,
     // not silently given something twenty times slower than they asked for. The floor is the
     // kind's (RD-110-21), because a board page is not an indexer -- `effective_interval`
@@ -450,8 +462,23 @@ pub(crate) fn subscription_input(
         card_ratio,
         schedule,
         script_arguments,
+        indexer_search,
         secret_ref,
     })
+}
+
+/// The search an indexer subscription sends (RD-180-20), checked like an interactive search's.
+fn indexer_search_input(request: &SubscriptionRequest) -> Result<rd_core::IndexerSearch, ApiError> {
+    if request.indexer_search.is_empty() {
+        return Ok(rd_core::IndexerSearch::default());
+    }
+    if request.kind != SubscriptionKind::Indexer {
+        return Err(ApiError::unprocessable(
+            "subscription.search_kind",
+            "Only an indexer subscription sends search parameters",
+        ));
+    }
+    crate::indexer_handlers::search_input(&request.indexer_search)
 }
 
 /// Bounds the category map and drops entries with an empty source category.
@@ -566,12 +593,13 @@ pub async fn create_subscription(
     State(state): State<AppState>,
     granted: Option<axum::Extension<crate::auth::Granted>>,
     audit: crate::audit::AuditContext,
-    Json(request): Json<SubscriptionRequest>,
+    Json(mut request): Json<SubscriptionRequest>,
 ) -> Result<(StatusCode, Json<Subscription>), ApiError> {
     require_admin_for_script(
         granted.as_ref().map(|axum::Extension(granted)| granted),
         &[request.kind],
     )?;
+    crate::indexer_handlers::take_over(&state, &mut request).await?;
     // Validated before the key is minted, so a rejected request leaves nothing behind.
     ensure_script_exists(&state, &subscription_input(&request, None)?).await?;
     let secret_ref =
@@ -609,7 +637,7 @@ pub async fn update_subscription(
     granted: Option<axum::Extension<crate::auth::Granted>>,
     audit: crate::audit::AuditContext,
     Path(id): Path<SubscriptionId>,
-    Json(request): Json<SubscriptionRequest>,
+    Json(mut request): Json<SubscriptionRequest>,
 ) -> Result<Json<Subscription>, ApiError> {
     // The stored kind counts too: turning a script into a feed changes a script subscription.
     let stored = state
@@ -624,6 +652,7 @@ pub async fn update_subscription(
             .flatten()
             .collect::<Vec<_>>(),
     )?;
+    crate::indexer_handlers::take_over(&state, &mut request).await?;
     ensure_script_exists(&state, &subscription_input(&request, None)?).await?;
     let minted =
         crate::config_fields::store_optional(&state.secrets, request.api_key.clone()).await?;
@@ -1102,7 +1131,7 @@ pub async fn probe_caps(
 ///
 /// Every message about a failure carries the redacted address only — the real one has the key
 /// in its query, and this is the one place both routes could leak it from.
-async fn fetch_caps(
+pub(crate) async fn fetch_caps(
     state: &AppState,
     base: &url::Url,
     api_key: &str,

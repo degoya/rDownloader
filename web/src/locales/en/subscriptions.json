@@ -83,7 +83,20 @@
     "script_arguments_unclosed": "A quotation mark is not closed",
     "script_missing": "{name} (no longer in the scripts folder)",
     "create": "Create subscription",
-    "form_new": "New subscription"
+    "form_new": "New subscription",
+    "indexer": "Take over a defined indexer",
+    "indexer_description": "Takes the address, the default categories and a copy of the API key when saving – a copy, not a link",
+    "indexer_none": "None – enter address and key yourself",
+    "url_from_indexer": "Leave empty for the indexer’s address, or paste a saved search from its server",
+    "api_key_from_indexer": "Leave empty for the indexer’s key",
+    "search_query": "Search term (q)",
+    "search_query_description": "Sent to the indexer as q, !word excludes. Empty or at least 3 characters. The title filters below stay local.",
+    "search_max_age": "Max. age in days (maxage)",
+    "search_max_age_description": "Only releases posted within these days; empty asks without a limit",
+    "search_pretime": "Pre-time filter (pred)",
+    "search_pretime_description": "Sent to the indexer as pred; the indexer defines what 0, 1 and 2 mean",
+    "pretime_none": "Not sent",
+    "search_hide_passworded": "Hide passworded releases (pw=2)"
   },
   "list": {
     "title": "Subscriptions",

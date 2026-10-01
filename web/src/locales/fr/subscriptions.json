@@ -83,7 +83,20 @@
     "script_arguments_unclosed": "Un guillemet n'est pas fermé",
     "script_missing": "{name} (n'est plus dans le dossier des scripts)",
     "create": "Créer l’abonnement",
-    "form_new": "Nouvel abonnement"
+    "form_new": "Nouvel abonnement",
+    "indexer": "Reprendre un indexeur défini",
+    "indexer_description": "À l’enregistrement, reprend l’adresse, les catégories par défaut et une copie de la clé API – une copie, pas un lien",
+    "indexer_none": "Aucun – saisis toi-même l’adresse et la clé",
+    "url_from_indexer": "Laisse vide pour l’adresse de l’indexeur, ou colle une recherche enregistrée de son serveur",
+    "api_key_from_indexer": "Laisse vide pour la clé de l’indexeur",
+    "search_query": "Terme de recherche (q)",
+    "search_query_description": "Envoyé à l’indexeur comme q, !mot exclut. Vide ou au moins 3 caractères. Les filtres de titre ci-dessous restent locaux.",
+    "search_max_age": "Âge max. en jours (maxage)",
+    "search_max_age_description": "Seulement les sorties postées dans ces jours ; vide demande sans limite",
+    "search_pretime": "Filtre de pré-temps (pred)",
+    "search_pretime_description": "Envoyé à l’indexeur comme pred ; l’indexeur définit ce que signifient 0, 1 et 2",
+    "pretime_none": "Ne pas envoyer",
+    "search_hide_passworded": "Masquer les sorties avec mot de passe (pw=2)"
   },
   "list": {
     "title": "Abonnements",

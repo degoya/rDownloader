@@ -12,6 +12,7 @@ import CollectorHosterFilter from '@/components/CollectorHosterFilter.vue'
 import CollectorPackageGroup from '@/components/CollectorPackageGroup.vue'
 import DataState from '@/components/DataState.vue'
 import IndexerReviewList from '@/components/IndexerReviewList.vue'
+import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
@@ -268,6 +269,8 @@ function openNzbHistory(): void {
 
     <template #body>
       <div data-tour="grabber-body" class="flex w-full flex-col gap-4">
+        <!-- Only while an indexer is enabled; `f` focuses its field (RD-180-19). -->
+        <IndexerSearchPanel />
         <UAlert v-if="collector.error" color="error" variant="subtle" :description="collector.error" />
         <UAlert v-if="nzb.error" color="error" variant="subtle" :description="nzb.error" />
         <UAlert v-if="notice" color="info" variant="subtle" icon="i-lucide-info" :description="notice" />

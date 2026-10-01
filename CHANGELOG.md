@@ -5,6 +5,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.0-beta.3] - 2026-10-01
+
+The self-update from beta.1 and beta.2 hangs at the stop; update those once by hand (see Fixed).
+
+### Added
+
+- **Indexer search in the LinkGrabber (RD-180-19).** Define a Newznab indexer once under
+  Settings › Usenet — name, API address, key, default categories — and test it with `t=caps`;
+  the key goes into the vault and is never shown again. While one is enabled, the LinkGrabber
+  shows a search over one or all indexers: term (`!word` excludes), categories, maximum age,
+  *Hide passworded*, up to 500 hits a page. Hits sort by title, size, age, category, indexer and
+  grabs; the chosen ones arrive as NZB imports for review, like an uploaded file. `f` focuses the
+  search field. One request per search and page, and an indexer's refusal is named in your
+  language (wrong key, rejected search, limit reached). Three MCP tools search and take hits.
+- **Indexer subscriptions with a search term (RD-180-20).** An indexer subscription can send its
+  own `q`, `maxage`, `pw=2` and `pred`, and can take a defined indexer over — its address,
+  categories and a copy of its key. Parameters already in a copied saved-search address keep
+  winning, and the title filter stays a local filter.
+
+### Changed
+
+- **"Download" in the update dialog downloads in the background (RD-180-02).** For a portable or
+  Windows installer installation it fetches the new version into the data folder, checks it
+  against the signed release and shows its progress; *Install and restart* then uses that file
+  instead of downloading again. *Download manually* stays as a small link for the file itself.
+  Installations a package manager or Docker updates keep showing their command.
+
+### Security
+
+- **A dnf repository that fails its signature check stops dnf (RD-180-10).** Fedora's dnf skips
+  an unreachable or unverifiable repository with a warning (`skip_if_unavailable=True` in its
+  defaults), so an altered `repomd.xml` was refused but `dnf makecache` and `dnf upgrade` still
+  ended with success and offered no updates, behind one warning line. `rdownloader.repo` now sets
+  `skip_if_unavailable=0`: a bad repository signature is an error. The repository CI checks that
+  an altered index fails the update and the install on apt and dnf, and that the unaltered one
+  installs.
+
+### Fixed
+
+- **"Install and restart" no longer hangs at the stop (RD-180-02).** An open event stream — the
+  update dialog's own browser tab, the capture agent — kept the service from ending once the
+  updater asked it to; after two minutes the update gave up with "The service did not stop" and
+  the dialog waited for good. Event streams and MCP sessions now end with the stop, open
+  connections get ten seconds, and the service ends at the latest a minute after the stop. The
+  updater ends a service that accepted the stop and still runs after two minutes by force. The
+  dialog shows why an update failed with *Try again*, and stops waiting with what to do when the
+  service does not come back. **From 1.8.0-beta.1 or beta.2 update once by hand** — their own code
+  performs the update: end `rdownloader` (in the Task Manager if a failed attempt left it
+  running), extract the new archive over the program folder (the one in `data/update/download/`
+  is already verified), start it. Closing every rDownloader tab and the capture agent right after
+  confirming *Install and restart* also lets those versions through.
+- **The Windows launchers call PowerShell by its path.** `start-rdownloader.bat` and
+  `stop-rdownloader.bat` found `powershell` through `PATH`, where an overlong or altered entry
+  could hide it or put another program in its place; they now name
+  `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. The winget package installs
+  per user without a `Scope`, which `winget validate` refused.
+- **Removing the rpm takes its program folder with it.** The package did not own
+  `/usr/lib/rdownloader`, and rpm, unlike dpkg, leaves a folder no package names; an empty one
+  stayed behind after `rpm --erase`. Your data in `~/.local/share/rdownloader` stays, as before.
+- **The Linux release binary no longer depends on where it was built (RD-180-12).** `plugin new`
+  looked for the SDK templates next to a path compiled in from the build machine's checkout,
+  which path remapping does not reach, so two checkouts built two different `rdownloader`
+  executables; it reads that location at run time now. `repro.yml` writes each build's leftover
+  build paths and a cmp/sections/strings report, uploads its report even when diffoscope fails,
+  and can rebuild a branch (`-f ref=…`) before a tag carries it.
+
 ## [1.8.0-beta.2] - 2026-10-01
 
 The first published pre-release of 1.8: the tag v1.8.0-beta.1 stayed without a GitHub release,

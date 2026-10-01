@@ -83,7 +83,20 @@
     "script_arguments_unclosed": "Ein Anführungszeichen ist nicht geschlossen",
     "script_missing": "{name} (nicht mehr im Skriptordner)",
     "create": "Abonnement anlegen",
-    "form_new": "Neues Abonnement"
+    "form_new": "Neues Abonnement",
+    "indexer": "Angelegten Indexer übernehmen",
+    "indexer_description": "Übernimmt beim Speichern Adresse, Standard-Kategorien und eine Kopie des API-Schlüssels – eine Kopie, keine Verknüpfung",
+    "indexer_none": "Keinen – Adresse und Schlüssel selbst eintragen",
+    "url_from_indexer": "Leer lassen für die Adresse des Indexers, oder eine gespeicherte Suche von seinem Server einfügen",
+    "api_key_from_indexer": "Leer lassen für den Schlüssel des Indexers",
+    "search_query": "Suchbegriff (q)",
+    "search_query_description": "Geht als q an den Indexer, !wort schließt aus. Leer oder mindestens 3 Zeichen. Die Titelfilter unten bleiben lokal.",
+    "search_max_age": "Max. Alter in Tagen (maxage)",
+    "search_max_age_description": "Nur Releases, die in diesen Tagen gepostet wurden; leer fragt ohne Grenze",
+    "search_pretime": "Pre-Zeit-Filter (pred)",
+    "search_pretime_description": "Geht als pred an den Indexer; was 0, 1 und 2 bedeuten, legt der Indexer fest",
+    "pretime_none": "Nicht senden",
+    "search_hide_passworded": "Releases mit Passwort ausblenden (pw=2)"
   },
   "list": {
     "title": "Abonnements",

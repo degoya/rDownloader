@@ -485,5 +485,41 @@
     "badge": "{count} sources",
     "priority": "Priorité {value}",
     "hint": "Essayées dans cet ordre. Une adresse qui pointe vers ta propre machine — ou, pour un document que tu n'as pas fourni toi-même, vers ton réseau local — n'est pas interrogée."
+  },
+  "search": {
+    "title": "Recherche dans les indexeurs",
+    "query_label": "Terme de recherche",
+    "query_placeholder": "Chercher dans les indexeurs – !mot exclut un mot",
+    "indexer_label": "Indexeur",
+    "all_indexers": "Tous les indexeurs",
+    "categories_label": "Catégories",
+    "categories_placeholder": "Catégories, p. ex. 5040",
+    "max_age_label": "Âge max. (jours)",
+    "limit_label": "Résultats par page",
+    "hide_passworded": "Masquer ceux avec mot de passe",
+    "submit": "Rechercher",
+    "results": "Aucun résultat | Un résultat | {count} résultats",
+    "page": "Page {page}",
+    "previous": "Page précédente",
+    "next": "Page suivante",
+    "close": "Fermer les résultats",
+    "grab": "Ajouter la sélection ({count})",
+    "grab_hint": "Récupère les NZB et les place dans le LinkGrabber pour vérification, comme un fichier envoyé",
+    "grabbed": "Aucun NZB ajouté | Un NZB ajouté au LinkGrabber | {count} NZB ajoutés au LinkGrabber",
+    "grab_failed": "Non ajouté : {title}",
+    "indexer_failed": "{name} n’a rien renvoyé",
+    "empty": "Les indexeurs n’ont rien trouvé pour cette recherche.",
+    "passworded": "Mot de passe",
+    "sort_by": "Trier par {column}",
+    "select_hit": "Sélectionner {title}",
+    "age_days": "aujourd’hui | 1 jour | {count} jours",
+    "columns": {
+      "title": "Titre",
+      "size": "Taille",
+      "age": "Âge",
+      "category": "Catégorie",
+      "indexer": "Indexeur",
+      "grabs": "Téléchargements"
+    }
   }
 }

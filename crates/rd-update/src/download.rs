@@ -7,12 +7,16 @@
 //! the end. Only a file whose size and SHA-256 both match is renamed to its final name; anything
 //! else is deleted, so a half or a forged download is never found lying where an installer
 //! would look.
+//!
+//! A verified file stays where it is until the update that installs it is cleaned up, so the
+//! interface can download in the background and the install use what is already there
+//! ([`verified_file`], owner 2026-10-01): the file is read and hashed again before it is used.
 
 use std::path::{Path, PathBuf};
 
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{Fetcher, manifest::Artifact, manifest::UpdateError};
 
@@ -22,11 +26,17 @@ pub async fn download_verified(
     artifact: &Artifact,
     directory: &Path,
 ) -> Result<PathBuf, UpdateError> {
-    let url = url::Url::parse(&artifact.url)
-        .map_err(|error| UpdateError::Invalid(format!("artifact URL: {error}")))?;
-    if url.scheme() != "https" {
-        return Err(UpdateError::Invalid(format!("{url} is not https")));
-    }
+    download_verified_with(fetcher, artifact, directory, &|_| {}).await
+}
+
+/// [`download_verified`], telling `received` how many bytes are written after every chunk.
+pub async fn download_verified_with(
+    fetcher: &dyn Fetcher,
+    artifact: &Artifact,
+    directory: &Path,
+    received: &(dyn Fn(u64) + Send + Sync),
+) -> Result<PathBuf, UpdateError> {
+    let url = https_url(artifact)?;
     let target = directory.join(file_name(&url));
     let partial = target.with_file_name(format!(
         "{}.partial",
@@ -38,7 +48,7 @@ pub async fn download_verified(
     tokio::fs::create_dir_all(directory)
         .await
         .map_err(|error| UpdateError::Other(error.into()))?;
-    let outcome = stream_to(fetcher, &url, artifact, &partial).await;
+    let outcome = stream_to(fetcher, &url, artifact, &partial, received).await;
     match outcome {
         Ok(()) => {
             tokio::fs::rename(&partial, &target)
@@ -53,11 +63,41 @@ pub async fn download_verified(
     }
 }
 
+/// The file an earlier [`download_verified`] of `artifact` left in `directory`, if it is still
+/// exactly the one the manifest describes: its size and SHA-256 are read again.
+pub async fn verified_file(artifact: &Artifact, directory: &Path) -> Option<PathBuf> {
+    let target = directory.join(file_name(&https_url(artifact).ok()?));
+    let mut file = tokio::fs::File::open(&target).await.ok()?;
+    if file.metadata().await.ok()?.len() != artifact.size {
+        return None;
+    }
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).await.ok()?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    (hex::encode(hasher.finalize()) == artifact.sha256).then_some(target)
+}
+
+fn https_url(artifact: &Artifact) -> Result<url::Url, UpdateError> {
+    let url = url::Url::parse(&artifact.url)
+        .map_err(|error| UpdateError::Invalid(format!("artifact URL: {error}")))?;
+    if url.scheme() != "https" {
+        return Err(UpdateError::Invalid(format!("{url} is not https")));
+    }
+    Ok(url)
+}
+
 async fn stream_to(
     fetcher: &dyn Fetcher,
     url: &url::Url,
     artifact: &Artifact,
     partial: &Path,
+    received: &(dyn Fn(u64) + Send + Sync),
 ) -> Result<(), UpdateError> {
     let mut download = fetcher
         .open(url)
@@ -89,6 +129,7 @@ async fn stream_to(
         file.write_all(&chunk)
             .await
             .map_err(|error| UpdateError::Other(error.into()))?;
+        received(written);
     }
     file.sync_all()
         .await
@@ -161,6 +202,31 @@ mod tests {
             directory.path().join("rdownloader-linux-x86_64.tar.gz")
         );
         assert_eq!(std::fs::read(&path).expect("read"), body());
+    }
+
+    #[tokio::test]
+    async fn a_kept_download_is_found_again_only_while_it_is_the_signed_file() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let fetcher = MemoryFetcher::new();
+        fetcher.serve(URL, body());
+        let artifact = artifact_for(&body());
+        assert_eq!(verified_file(&artifact, directory.path()).await, None);
+        let seen = std::sync::Mutex::new(Vec::new());
+        let path = download_verified_with(&fetcher, &artifact, directory.path(), &|bytes| {
+            seen.lock().expect("seen").push(bytes);
+        })
+        .await
+        .expect("download");
+        assert_eq!(seen.lock().expect("seen").last(), Some(&artifact.size));
+        assert_eq!(
+            verified_file(&artifact, directory.path()).await,
+            Some(path.clone())
+        );
+        // Changed on disk since: not the signed file any more.
+        let mut changed = body();
+        changed[3] ^= 0xff;
+        std::fs::write(&path, changed).expect("change");
+        assert_eq!(verified_file(&artifact, directory.path()).await, None);
     }
 
     #[tokio::test]

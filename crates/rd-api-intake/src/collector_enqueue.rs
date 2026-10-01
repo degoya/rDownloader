@@ -853,7 +853,7 @@ fn declared_nzb_name(
 /// The `X-DNZB-*` headers SABnzbd established: `X-DNZB-Failure` states the reason outright,
 /// and an `X-DNZB-RCode` other than 200 carries it in `X-DNZB-RText` ("Request limit
 /// reached"). Both are worth more than the parse error the body would produce.
-fn indexer_refusal(fetched: &rd_http::FetchedDocument) -> Option<String> {
+pub(crate) fn indexer_refusal(fetched: &rd_http::FetchedDocument) -> Option<String> {
     if let Some(failure) = fetched
         .header("x-dnzb-failure")
         .map(str::trim)

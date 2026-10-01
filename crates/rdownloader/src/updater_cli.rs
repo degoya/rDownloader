@@ -7,7 +7,8 @@
 //! for its whole life, then:
 //!
 //! 1. stops the service over the local control token (`rdownloader stop`'s way) and waits until
-//!    it has saved its queue and ended;
+//!    it has saved its queue and ended; one that accepted the stop and is still running after
+//!    [`STOP_WAIT`] is ended by force, by the process id and name the plan records;
 //! 2. checks the artifact once more and the program folder (writable, twice the artifact free) —
 //!    a refusal here changes nothing, and the old version is started again;
 //! 3. switches: the portable archive through `rd_update::install::portable`, the Windows
@@ -88,11 +89,13 @@ async fn apply(journal: &mut Journal) -> Result<()> {
     }
     journal.advance(Phase::Stopping)?;
     if let Err(error) = crate::stop_cli::stop(&journal.plan.data_dir, STOP_WAIT).await {
-        return journal.end(
-            Phase::Failed,
-            "update.service_did_not_stop",
-            format!("{error:#}"),
-        );
+        let ended = match error.downcast_ref::<crate::stop_cli::NotEnded>() {
+            Some(_) => end_by_force(journal).await,
+            None => Err(format!("{error:#}")),
+        };
+        if let Err(detail) = ended {
+            return journal.end(Phase::Failed, "update.service_did_not_stop", detail);
+        }
     }
     let fit = steps::verify_artifact(&journal.plan)
         .and_then(|()| install::preflight(&journal.plan.install_dir, journal.plan.size));
@@ -139,6 +142,33 @@ async fn apply(journal: &mut Journal) -> Result<()> {
         }
         Err((code, detail)) => take_back(journal, Some(child), code, detail).await,
     }
+}
+
+/// Ends the service that accepted the stop and did not end within [`STOP_WAIT`], and waits until
+/// it is gone; why not, when it could not.
+///
+/// Safe at this point: the backup before the update is written and checked, the service is no
+/// longer listening, and a forced end leaves what a crash leaves, which every persistence path
+/// survives (`crates/rd-core/recovery-matrix.md`). A version from before 1.8.0-beta.3 never ended
+/// with an event stream open (live test 2026-10-01); this one ends by itself within a minute.
+async fn end_by_force(journal: &Journal) -> Result<(), String> {
+    let (pid, image) = (journal.plan.service_pid, journal.plan.executable.as_str());
+    tracing::warn!(
+        pid,
+        "rDownloader accepted the stop and did not end; it is ended by force"
+    );
+    process::end_by_force(pid, image).map_err(|error| {
+        format!("process {pid} accepted the stop, did not end and could not be ended: {error:#}")
+    })?;
+    for _ in 0..50 {
+        if !process::runs_as(pid, image).unwrap_or(true) {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!(
+        "process {pid} accepted the stop, did not end and was still running after it was ended"
+    ))
 }
 
 /// `msiexec /i` over the installed version. A failed run is undone by Windows Installer itself.

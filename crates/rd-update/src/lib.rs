@@ -30,7 +30,7 @@ pub mod offer;
 pub mod settings;
 
 pub use check::{CheckReport, Floors, Sources, check};
-pub use download::download_verified;
+pub use download::{download_verified, download_verified_with, verified_file};
 pub use fetch::{Fetcher, HttpFetcher, MemoryFetcher};
 pub use install_kind::{INSTALL_KIND_ENV, INSTALL_KIND_FILE, InstallKind, UpdateAction};
 pub use manifest::{Artifact, Channel, UpdateError, UpdateManifest};

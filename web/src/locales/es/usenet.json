@@ -51,5 +51,42 @@
     "title": "Eliminar servidor Usenet",
     "description": "El servidor NNTP «{name}» y su contraseña cifrada se eliminarán de forma permanente.",
     "confirm": "Eliminar servidor"
+  },
+  "indexers": {
+    "eyebrow": "Indexadores",
+    "title_add": "Añadir un indexador",
+    "title_edit": "Editar el indexador",
+    "description": "Un indexador Newznab, definido una vez: el LinkGrabber lo consulta y una suscripción de indexador puede adoptarlo. La clave API se guarda en la bóveda y no vuelve a mostrarse.",
+    "name": "Nombre",
+    "url": "Dirección de la API",
+    "url_hint": "La dirección base de la API, p. ej. https://api.omgwtfnzbs.org/api; también sirve un NZBHydra o Prowlarr de tu red",
+    "api_key": "Clave API",
+    "api_key_keep": "Déjalo vacío para conservar la clave guardada",
+    "categories": "Categorías predeterminadas",
+    "categories_hint": "Las categorías que pide una búsqueda cuando no indica ninguna",
+    "categories_all": "Todas las categorías",
+    "load_categories": "Cargar las categorías del indexador",
+    "enabled": "Activado",
+    "disabled": "Desactivado",
+    "has_key": "Clave API guardada",
+    "create": "Añadir indexador",
+    "save": "Guardar cambios",
+    "edit": "Editar indexador",
+    "list_eyebrow": "Búsqueda",
+    "list_title": "Indexadores definidos",
+    "list_description": "El LinkGrabber consulta los indexadores activados; uno desactivado sigue disponible para las suscripciones.",
+    "empty": "Todavía no hay ningún indexador. Con uno, el LinkGrabber muestra la búsqueda en indexadores.",
+    "delete": {
+      "action": "Eliminar indexador",
+      "title": "¿Eliminar el indexador?",
+      "description": "Se eliminan {name} y su clave API guardada. Las suscripciones que lo adoptaron conservan su propia copia.",
+      "confirm": "Eliminar"
+    },
+    "messages": {
+      "created": "Indexador añadido",
+      "updated": "Indexador guardado",
+      "deleted": "{name} eliminado",
+      "tested": "{server} responde: {count} categorías"
+    }
   }
 }

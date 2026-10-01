@@ -55,6 +55,8 @@ pub struct NewSubscription {
     pub schedule: Option<String>,
     /// The arguments a script subscription hands its script (RD-150-08), already validated.
     pub script_arguments: Vec<String>,
+    /// The search parameters an indexer subscription sends (RD-180-20), already validated.
+    pub indexer_search: rd_core::IndexerSearch,
     pub secret_ref: Option<String>,
 }
 
@@ -94,7 +96,7 @@ pub struct PollResult {
 const COLUMNS: &str = "id, name, url, kind, enabled, mode, category_id, priority, \
      interval_seconds, filters_json, backlog_json, category_map_json, \
      source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-     script_arguments_json, primed, last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
+     script_arguments_json, indexer_search_json, primed, last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
      secret_ref, created_at, updated_at";
 
 const ITEM_COLUMNS: &str = "id, subscription_id, item_key, title, url, published_at, \
@@ -357,6 +359,7 @@ pub(crate) async fn create(
         card_ratio: input.card_ratio,
         schedule: input.schedule,
         script_arguments: input.script_arguments,
+        indexer_search: input.indexer_search,
         created_at: now,
         updated_at: now,
     };
@@ -366,9 +369,9 @@ pub(crate) async fn create(
         "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, priority, \
          interval_seconds, filters_json, backlog_json, category_map_json, \
          source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-         script_arguments_json, primed, consecutive_failures, secret_ref, created_at, \
-         updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+         script_arguments_json, indexer_search_json, primed, consecutive_failures, secret_ref, \
+         created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
     )
     .bind(value.id.to_string())
     .bind(&value.name)
@@ -389,6 +392,7 @@ pub(crate) async fn create(
     .bind(value.card_ratio.as_str())
     .bind(value.schedule.as_deref())
     .bind(serde_json::to_string(&value.script_arguments)?)
+    .bind(serde_json::to_string(&value.indexer_search)?)
     .bind(value.secret_ref.as_deref())
     .bind(value.created_at)
     .bind(value.updated_at)
@@ -432,7 +436,7 @@ pub(crate) async fn update(
          category_id = ?, priority = ?, interval_seconds = ?, filters_json = ?, \
          backlog_json = ?, category_map_json = ?, source_categories_json = ?, \
          every_release = ?, view = ?, autoplay = ?, card_ratio = ?, secret_ref = ?, \
-         script_arguments_json = ?, \
+         script_arguments_json = ?, indexer_search_json = ?, \
          next_run_at = CASE WHEN schedule IS ? THEN next_run_at ELSE NULL END, schedule = ?, \
          updated_at = ? \
          WHERE id = ?",
@@ -455,6 +459,7 @@ pub(crate) async fn update(
     .bind(input.card_ratio.as_str())
     .bind(secret_ref.as_deref())
     .bind(serde_json::to_string(&input.script_arguments)?)
+    .bind(serde_json::to_string(&input.indexer_search)?)
     .bind(input.schedule.as_deref())
     .bind(input.schedule.as_deref())
     .bind(Utc::now())
@@ -824,6 +829,7 @@ struct SubscriptionRow {
     card_ratio: String,
     schedule: Option<String>,
     script_arguments_json: String,
+    indexer_search_json: String,
     primed: i64,
     last_run_at: Option<DateTime<Utc>>,
     next_run_at: Option<DateTime<Utc>>,
@@ -919,6 +925,10 @@ impl TryFrom<SubscriptionRow> for Subscription {
             // arguments it was given runs another variant of it, which nobody asked for.
             script_arguments: serde_json::from_str(&row.script_arguments_json)
                 .context("subscription script arguments are unreadable")?,
+            // Refused as well: a search without its term or its age limit asks the indexer for
+            // something else than the person configured (RD-180-20).
+            indexer_search: serde_json::from_str(&row.indexer_search_json)
+                .context("subscription search parameters are unreadable")?,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

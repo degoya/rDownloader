@@ -637,10 +637,11 @@
       "copied": "Commande copiée",
       "close": "Fermer",
       "install": "Installer et redémarrer",
-      "install_hint": "rDownloader télécharge la nouvelle version, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Tes réglages et téléchargements restent où ils sont.",
+      "install_hint": "rDownloader télécharge la nouvelle version si elle ne l’est pas déjà, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Tes réglages et téléchargements restent où ils sont.",
       "rollback_automatic": "Si la nouvelle version ne démarre pas correctement, la précédente revient d’elle-même.",
       "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
-      "download_package": "Télécharger le paquet"
+      "download_package": "Télécharger le paquet",
+      "download_manual": "Télécharger manuellement"
     },
     "hints": {
       "aur_helper": "Avec paru : paru -S rdownloader-bin",
@@ -657,7 +658,7 @@
       "confirm_description": "rDownloader s’arrête environ une minute et redémarre en {version}. Les téléchargements en cours sont enregistrés et reprennent ensuite. Cette page se reconnecte d’elle-même.",
       "anyway": "Installer quand même",
       "reconnecting": "rDownloader redémarre – en attente de sa réponse …",
-      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Démarre-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
+      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Arrête-le s’il tourne encore et démarre-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
       "reload": "Recharger la page",
       "reload_hint": "Recharge la page pour utiliser l’interface de la nouvelle version.",
       "state": {
@@ -670,7 +671,14 @@
         "done": "Mis à jour vers {version}.",
         "rolled_back": "{version} n’a pas démarré correctement, {from} fonctionne donc à nouveau.",
         "failed": "La mise à jour vers {version} a échoué."
-      }
+      },
+      "retry": "Réessayer"
+    },
+    "download": {
+      "downloading": "Téléchargement de {version} en arrière-plan …",
+      "progress": "{received} sur {total}",
+      "ready": "{version} est téléchargée et vérifiée ; « Installer et redémarrer » utilise ce fichier.",
+      "failed": "Le téléchargement de {version} a échoué."
     }
   }
 }

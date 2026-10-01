@@ -61,7 +61,8 @@
       "passphrase": "Passwort, Kennwort, Verschlüsselung, Schlüssel",
       "signature": "Signatur, Schlüssel, Herausgeber, Vertrauen",
       "managed_tools": "Werkzeuge herunterladen, automatisch installieren, aktualisieren",
-      "updates": "Update, Aktualisierung, neue Version, Beta, Versionskanal"
+      "updates": "Update, Aktualisierung, neue Version, Beta, Versionskanal",
+      "indexers": "Indexer, Newznab, NZB-Suche, API-Schlüssel"
     }
   }
 }

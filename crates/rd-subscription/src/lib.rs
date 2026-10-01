@@ -19,11 +19,13 @@ mod filter;
 mod identity;
 mod indexer;
 mod media_adapter;
+mod query;
 mod release;
 mod rule_adapter;
 mod rule_listing;
 mod schedule;
 mod script_adapter;
+mod search;
 
 pub use adapter::{DiscoveredItem, PollOutcome, SourceAdapter, adapter_for};
 pub use attributes::{
@@ -42,6 +44,7 @@ pub use indexer::{
     redact_query,
 };
 pub use media_adapter::{MediaAdapter, parse_upload_date};
+pub use query::{IndexerQuery, build_indexer_query};
 pub use release::{ReleaseName, parse as parse_release_name};
 pub use rule_adapter::{ClaimedAddresses, MAX_LISTING_LINKS, RuleAdapter};
 pub use schedule::{
@@ -49,6 +52,9 @@ pub use schedule::{
     next_scheduled_failure, next_success, parse_schedule,
 };
 pub use script_adapter::{ScriptAdapter, ScriptRunner, links_of as script_links};
+pub use search::{
+    IndexerRefusal, MAX_SEARCH_LIMIT, SearchHit, SearchPage, indexer_refusal, parse_search,
+};
 
 /// Builds the [`CandidateItem`] the filters judge from a [`DiscoveredItem`].
 #[must_use]

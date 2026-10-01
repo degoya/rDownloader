@@ -35,6 +35,10 @@ pub(crate) fn routes() -> Router<AppState> {
             post(update_handlers::check_for_updates),
         )
         .route(
+            "/api/v1/system/update/download",
+            post(update_handlers::download_update),
+        )
+        .route(
             "/api/v1/system/update/install",
             post(update_handlers::install_update),
         )
@@ -125,6 +129,7 @@ pub(crate) fn routes() -> Router<AppState> {
     tools_handlers::rollback_managed_tool,
     update_handlers::get_update_status,
     update_handlers::check_for_updates,
+    update_handlers::download_update,
     update_handlers::install_update,
     handlers::capture_ping,
     crate::capture_file::capture_file,

@@ -334,6 +334,11 @@ pub struct Subscription {
     /// Stored and shown in plain text, so never a secret.
     #[serde(default)]
     pub script_arguments: Vec<String>,
+    /// The search term and parameters an indexer subscription sends (RD-180-20): `q`,
+    /// `maxage`, `pw` and `pred`, each only when set and not already in the address. Empty for
+    /// every other kind.
+    #[serde(default)]
+    pub indexer_search: crate::IndexerSearch,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -444,6 +449,7 @@ mod tests {
             card_ratio: super::SubscriptionCardRatio::TwoOne,
             schedule: None,
             script_arguments: Vec::new(),
+            indexer_search: crate::IndexerSearch::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

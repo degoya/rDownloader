@@ -18,7 +18,8 @@
 //! **The self-update** (RD-180-02) keeps its state here too: until the updater takes over, what
 //! the service is doing (downloading, the backup before the update) in memory; from the hand-over
 //! on, the journal in `<data>/update/`, which the updater, the restarted version and a start after
-//! a crash all read. `rd_api_admin::update_install_service` runs the steps.
+//! a crash all read. `rd_api_admin::update_install_service` runs the steps. The offered artifact
+//! can be downloaded ahead of the install, in the background (`download_state`).
 
 use std::{
     path::PathBuf,
@@ -40,6 +41,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dto::{UpdateOffer, UpdateStatusResponse};
 
+mod download_state;
 mod install_state;
 
 /// The settings key the floors and the last result are stored under.
@@ -63,6 +65,17 @@ struct Progress {
     reason: Option<String>,
     started_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+}
+
+/// The background download of an offered version's artifact (`download_state`).
+#[derive(Clone, Debug)]
+struct Download {
+    version: String,
+    /// `downloading`, `ready` or `failed`.
+    state: &'static str,
+    received: u64,
+    total: u64,
+    reason: Option<String>,
 }
 
 /// How this installation was installed, where its program lives and how its updater starts.
@@ -108,6 +121,10 @@ struct Inner {
     checking: tokio::sync::Mutex<()>,
     started: AtomicBool,
     progress: Mutex<Option<Progress>>,
+    download: Mutex<Option<Download>>,
+    /// Held while an artifact is fetched, so the background download and an install never write
+    /// the same file at once.
+    fetching: tokio::sync::Mutex<()>,
 }
 
 impl UpdateService {
@@ -132,6 +149,8 @@ impl UpdateService {
             checking: tokio::sync::Mutex::new(()),
             started: AtomicBool::new(false),
             progress: Mutex::new(None),
+            download: Mutex::new(None),
+            fetching: tokio::sync::Mutex::new(()),
         }))
     }
 
@@ -291,6 +310,9 @@ impl UpdateService {
             .filter(|offer| rd_update::is_newer(&offer.version, &self.0.current))
             .filter(|offer| channel == Channel::Beta || offer.channel == Channel::Stable)
             .map(|offer| self.describe(offer));
+        let download = available
+            .as_ref()
+            .and_then(|offer| self.download_status(&offer.version));
         UpdateStatusResponse {
             current_version: self.0.current.clone(),
             configured,
@@ -305,6 +327,7 @@ impl UpdateService {
             error_code: stored.last_error,
             available,
             install: self.install_status(),
+            download,
         }
     }
 

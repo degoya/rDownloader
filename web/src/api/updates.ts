@@ -45,6 +45,19 @@ export interface UpdateInstall {
   updated_at: string
 }
 
+/**
+ * The offered version downloaded and verified in the background; "Install and restart" then uses
+ * that file (owner, 2026-10-01).
+ */
+export interface UpdateDownload {
+  version: string
+  state: 'downloading' | 'ready' | 'failed'
+  received_bytes: number
+  total_bytes: number
+  /** Stable code of why it failed. */
+  reason: string | null
+}
+
 /** The states an install ends in. */
 export const INSTALL_ENDED: readonly UpdateInstallState[] = ['done', 'rolled_back', 'failed']
 
@@ -66,11 +79,16 @@ export interface UpdateStatus {
   error_code: string | null
   available: UpdateOffer | null
   install: UpdateInstall | null
+  /** The background download of the offered version, if one was asked for. */
+  download: UpdateDownload | null
 }
 
 export const fetchUpdateStatus = () => call<UpdateStatus>('GET', '/api/v1/system/update')
 
 export const checkForUpdates = () => call<UpdateStatus>('POST', '/api/v1/system/update/check', {})
+
+/** Downloads the offered update in the background; a verified file already there is reused. */
+export const downloadUpdate = () => call<UpdateDownload>('POST', '/api/v1/system/update/download', {})
 
 /** Installs the offered update and restarts; `allowActive` agrees to running downloads pausing. */
 export const installUpdate = (allowActive = false) =>

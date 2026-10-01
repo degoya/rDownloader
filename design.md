@@ -402,7 +402,19 @@ prevent columns from shifting during live updates.
   A key that belongs to one page (`K` removes the completed packages, only on Downloads,
   RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
   the page hands its action in while it is mounted; the key runs that action with its
-  confirmation and shows as a `UKbd` hint on the menu item that offers it.
+  confirmation and shows as a `UKbd` hint on the menu item that offers it. `F` focuses the
+  LinkGrabber's indexer search (RD-180-19) the same way: the panel hands its focus in only while
+  its field exists, and the field shows the key as a `UKbd` at its end.
+- **A search that costs the other side something is asked, never typed into** (RD-180-19). The
+  indexer search sits at the top of the LinkGrabber, because what it finds is reviewed there,
+  and only while an indexer is enabled — a field that can only fail is a broken feature. One
+  press of *Search* is one request per indexer, the next page is the next press, and nothing
+  searches as you type, polls or retries: an indexer counts requests against a daily limit and
+  may cache an answer for minutes. What the server would refuse (a term of one or two
+  characters) is refused under the field before anything is sent. Results are a sortable
+  `UTable` with a checkbox per hit; *Add selected* sends the choice through the upload's own
+  import, so the hits arrive in the list below like a dropped `.nzb`, and an indexer that
+  refused is named in its own warning while the others' hits still show.
 - **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
   — the command palette in a modal — on Ctrl/Cmd+K from anywhere, text fields included, on `/`
   outside them, and on the search button at the top of the sidebar (an icon with a tooltip on
@@ -520,7 +532,12 @@ prevent columns from shifting during live updates.
   footer, above language and theme, and nowhere else: nothing while there is none, one soft
   button *Version X available* while there is (an icon with a tooltip on the rail), opening a
   dialog with the notes and the download or the package manager's command to copy — never a
-  banner over the content, never a toast (RD-180-01). The open sidebar is a share of
+  banner over the content, never a toast (RD-180-01). Where the installation installs itself,
+  the dialog's *Download* fetches the version in the background with its progress in the dialog,
+  *Install and restart* uses that file, and the browser's download is a small *Download manually*
+  link; a failed install shows its reason with *Try again*, and a service that never comes back
+  ends the wait with what to do — the dialog never waits without an end (RD-180-02, owner
+  2026-10-01). The open sidebar is a share of
   the window (15 %, dragged between 14 and 21 %) with a floor of 15rem, 240 px: at 15 % of
   1280 px it was 192 px and cut the application's name, "Téléchargements" and "Entfernte
   Aufträge". Its header carries the logo and the name and nothing under them; the tagline that

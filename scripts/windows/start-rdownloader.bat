@@ -55,7 +55,7 @@ exit /b 0
 rem First run: once the server answers, open the browser so the setup wizard shows up.
 set "RD_UI_ADDR=%RDOWNLOADER_LISTEN%"
 if not defined RD_UI_ADDR set "RD_UI_ADDR=127.0.0.1:8710"
-powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ^
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference = 'Stop'; $base = 'http://' + ($env:RD_UI_ADDR -replace '^0\.0\.0\.0', '127.0.0.1'); for ($i = 0; $i -lt 30; $i++) { try { $status = Invoke-RestMethod -Uri ($base + '/api/v1/auth/status') -TimeoutSec 2; if ($status.setup_required) { Start-Process $base }; exit 0 } catch { Start-Sleep -Milliseconds 500 } }"
 exit /b 0
 
@@ -75,7 +75,7 @@ rem Test-SamePath answers three ways on purpose: $true same executable, $false a
 rem and $null "could not tell" -- reading another process's path fails whenever this user may not
 rem open it. Counting that third case as "not running" is what started a second agent on top of
 rem the first, which then died on the Click'n'Load port and looked like a broken install.
-powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ^
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference = 'Stop';" ^
   "function Test-SamePath($candidate, $target) { try { return [IO.Path]::GetFullPath($candidate.Path) -ieq $target } catch { return $null } };" ^
   "$exe = [IO.Path]::GetFullPath($env:RD_START_EXE); $name = [IO.Path]::GetFileNameWithoutExtension($exe);" ^

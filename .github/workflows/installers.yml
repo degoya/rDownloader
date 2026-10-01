@@ -167,7 +167,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --volume "${PWD}/installers:/installers:ro" fedora:44 bash -euo pipefail -c '
+          docker run --rm --volume "${PWD}/installers:/installers:ro" fedora:44 bash -xeuo pipefail -c '
             # The container image has no runuser; util-linux brings it.
             dnf install --assumeyes util-linux /installers/rdownloader-linux-x86_64.rpm
             test "$(cat /usr/lib/rdownloader/install-kind)" = rpm
@@ -187,7 +187,7 @@ jobs:
             rpm --upgrade --replacepkgs /installers/rdownloader-linux-x86_64.rpm
             serve
             rpm --erase rdownloader
-            test ! -e /usr/lib/rdownloader
+            test ! -e /usr/lib/rdownloader || { echo "removing the rpm left /usr/lib/rdownloader:"; find /usr/lib/rdownloader; exit 1; }
             test -s "${db}" || { echo "removing the rpm took the database with it"; exit 1; }
             test "$(cat /home/tester/.local/share/rdownloader/data/installers-marker)" = installers-rpm
           '

@@ -12,6 +12,7 @@ mod compat_arr;
 mod compat_qbittorrent;
 mod compat_sabnzbd;
 mod feeds;
+mod indexer_search;
 mod indexers;
 mod stream_schedules;
 mod subscriptions;

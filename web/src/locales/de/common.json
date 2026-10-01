@@ -118,7 +118,8 @@
     "go_logs": "Zum Protokoll",
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
-    "clear_completed": "Fertige Pakete entfernen (in Downloads)"
+    "clear_completed": "Fertige Pakete entfernen (in Downloads)",
+    "focus_indexer_search": "Indexer-Suche fokussieren (im LinkGrabber)"
   },
   "a11y": {
     "skip_to_content": "Zum Inhalt springen",

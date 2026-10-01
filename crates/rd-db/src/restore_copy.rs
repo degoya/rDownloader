@@ -77,6 +77,7 @@ pub const UNBUNDLED_SECRET_COLUMNS: &[CopyColumn] = &[
     column("remote_credentials", "passphrase_ref", "rowid"),
     column("object_storage_profiles", "secret_ref", "rowid"),
     column("object_storage_profiles", "session_token_ref", "rowid"),
+    column("indexers", "secret_ref", "rowid"),
     column("mfa_credentials", "material_ref", "rowid"),
     column("auth_flows", "access_ref", "rowid"),
     column("auth_flows", "refresh_ref", "rowid"),

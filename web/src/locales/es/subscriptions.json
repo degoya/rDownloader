@@ -83,7 +83,20 @@
     "script_arguments_unclosed": "Unas comillas no están cerradas",
     "script_missing": "{name} (ya no está en la carpeta de scripts)",
     "create": "Crear suscripción",
-    "form_new": "Nueva suscripción"
+    "form_new": "Nueva suscripción",
+    "indexer": "Adoptar un indexador definido",
+    "indexer_description": "Al guardar adopta la dirección, las categorías predeterminadas y una copia de la clave API: una copia, no un vínculo",
+    "indexer_none": "Ninguno: introduce tú la dirección y la clave",
+    "url_from_indexer": "Déjalo vacío para usar la dirección del indexador o pega una búsqueda guardada de su servidor",
+    "api_key_from_indexer": "Déjalo vacío para usar la clave del indexador",
+    "search_query": "Término de búsqueda (q)",
+    "search_query_description": "Se envía al indexador como q; !palabra excluye. Vacío o al menos 3 caracteres. Los filtros de título de abajo siguen siendo locales.",
+    "search_max_age": "Antigüedad máx. en días (maxage)",
+    "search_max_age_description": "Solo publicaciones de estos días; vacío pregunta sin límite",
+    "search_pretime": "Filtro de pre-time (pred)",
+    "search_pretime_description": "Se envía al indexador como pred; el indexador define qué significan 0, 1 y 2",
+    "pretime_none": "No enviar",
+    "search_hide_passworded": "Ocultar publicaciones con contraseña (pw=2)"
   },
   "list": {
     "title": "Suscripciones",

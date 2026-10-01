@@ -637,10 +637,11 @@
       "copied": "Befehl kopiert",
       "close": "Schließen",
       "install": "Installieren und neu starten",
-      "install_hint": "rDownloader lädt die neue Version, sichert seine Datenbank, beendet sich, ersetzt seine Programmdateien und startet neu. Deine Einstellungen und Downloads bleiben, wo sie sind.",
+      "install_hint": "rDownloader lädt die neue Version, falls sie noch nicht heruntergeladen ist, sichert seine Datenbank, beendet sich, ersetzt seine Programmdateien und startet neu. Deine Einstellungen und Downloads bleiben, wo sie sind.",
       "rollback_automatic": "Startet die neue Version nicht richtig, kommt die bisherige von selbst zurück.",
       "rollback_unavailable": "Dieses Update über den Windows-Installer lässt sich nicht von selbst zurücknehmen: Das Installationspaket der laufenden Version wurde nicht aufbewahrt. Ab dem nächsten Update geht das.",
-      "download_package": "Paket herunterladen"
+      "download_package": "Paket herunterladen",
+      "download_manual": "Manuell herunterladen"
     },
     "hints": {
       "aur_helper": "Mit paru: paru -S rdownloader-bin",
@@ -657,7 +658,7 @@
       "confirm_description": "rDownloader hält für etwa eine Minute an und startet als {version} neu. Laufende Downloads werden gesichert und danach fortgesetzt. Diese Seite verbindet sich von selbst wieder.",
       "anyway": "Trotzdem installieren",
       "reconnecting": "rDownloader startet neu – warte auf die Antwort …",
-      "lost": "rDownloader antwortet seit Minuten nicht. Starte es von Hand; war das Update unvollständig, kommt die bisherige Version beim Start zurück.",
+      "lost": "rDownloader antwortet seit Minuten nicht. Beende es, falls es noch läuft, und starte es von Hand; war das Update unvollständig, kommt die bisherige Version beim Start zurück.",
       "reload": "Seite neu laden",
       "reload_hint": "Lade die Seite neu, um die Oberfläche der neuen Version zu verwenden.",
       "state": {
@@ -670,7 +671,14 @@
         "done": "Auf {version} aktualisiert.",
         "rolled_back": "{version} ist nicht richtig gestartet, deshalb läuft wieder {from}.",
         "failed": "Das Update auf {version} ist fehlgeschlagen."
-      }
+      },
+      "retry": "Erneut versuchen"
+    },
+    "download": {
+      "downloading": "{version} wird im Hintergrund heruntergeladen …",
+      "progress": "{received} von {total}",
+      "ready": "{version} ist heruntergeladen und geprüft; „Installieren und neu starten“ verwendet diese Datei.",
+      "failed": "Das Herunterladen von {version} ist fehlgeschlagen."
     }
   }
 }

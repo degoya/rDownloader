@@ -485,5 +485,41 @@
     "badge": "{count} Quellen",
     "priority": "Priorität {value}",
     "hint": "In dieser Reihenfolge versucht. Eine Adresse, die auf deinen eigenen Rechner zeigt – oder, bei einem Dokument, das du nicht selbst übergeben hast, in dein lokales Netz –, wird nicht abgefragt."
+  },
+  "search": {
+    "title": "Indexer-Suche",
+    "query_label": "Suchbegriff",
+    "query_placeholder": "In den Indexern suchen – !wort schließt ein Wort aus",
+    "indexer_label": "Indexer",
+    "all_indexers": "Alle Indexer",
+    "categories_label": "Kategorien",
+    "categories_placeholder": "Kategorien, z. B. 5040",
+    "max_age_label": "Max. Alter (Tage)",
+    "limit_label": "Treffer pro Seite",
+    "hide_passworded": "Mit Passwort ausblenden",
+    "submit": "Suchen",
+    "results": "Keine Treffer | Ein Treffer | {count} Treffer",
+    "page": "Seite {page}",
+    "previous": "Vorige Seite",
+    "next": "Nächste Seite",
+    "close": "Ergebnisse schließen",
+    "grab": "Auswahl übernehmen ({count})",
+    "grab_hint": "Lädt die NZBs und legt sie wie eine hochgeladene Datei zur Prüfung in den LinkGrabber",
+    "grabbed": "Keine NZB übernommen | Eine NZB in den LinkGrabber übernommen | {count} NZBs in den LinkGrabber übernommen",
+    "grab_failed": "Nicht übernommen: {title}",
+    "indexer_failed": "{name} hat nichts geliefert",
+    "empty": "Die Indexer haben zu dieser Suche nichts gefunden.",
+    "passworded": "Passwort",
+    "sort_by": "Nach {column} sortieren",
+    "select_hit": "{title} auswählen",
+    "age_days": "heute | 1 Tag | {count} Tage",
+    "columns": {
+      "title": "Titel",
+      "size": "Größe",
+      "age": "Alter",
+      "category": "Kategorie",
+      "indexer": "Indexer",
+      "grabs": "Abrufe"
+    }
   }
 }

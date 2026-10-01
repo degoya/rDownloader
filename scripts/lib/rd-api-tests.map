@@ -77,7 +77,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)\.rs$                        api_tokens audit auto_remove category_move_and_reset compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets
 ^crates/rd-api(-[a-z]+)?/src/download_sources\.rs$                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service\.rs$                                       hotfolder_poll
-^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)\.rs$                 media_cookie_profile media_manifest
+^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)\.rs$                 media_cookie_profile media_manifest indexer_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)\.rs$   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)\.rs$                mfa passkeys auth step_up
 ^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)\.rs$          notifications automations
@@ -103,7 +103,8 @@
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity\.rs$                                        storage_capacity
 ^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)\.rs$   collisions storage_clear
 ^crates/rd-api(-[a-z]+)?/src/stream_[a-z_]+\.rs$                                          stream_schedules area_backup
-^crates/rd-api(-[a-z]+)?/src/(subscription_[a-z_]+\.rs|subscription_service/)             subscriptions feeds indexers area_backup
+^crates/rd-api(-[a-z]+)?/src/(subscription_[a-z_]+\.rs|subscription_service/)             subscriptions feeds indexers indexer_search area_backup
+^crates/rd-api(-[a-z]+)?/src/indexer_(handlers|search)\.rs$                                indexer_search
 ^crates/rd-api(-[a-z]+)?/src/tools_handlers\.rs$                                          managed_tools data_reset
 ^crates/rd-api(-[a-z]+)?/src/(update_handlers|update_service|update_install_service|update_service/[a-z_]+)\.rs$   updates
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)\.rs$                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
@@ -136,6 +137,7 @@
 ^crates/rd-core/src/storage\.rs$                                                          storage_roots storage_capacity category_move_and_reset collisions mcp
 ^crates/rd-core/src/(dedupe|source_identity)\.rs$                                          collisions storage_capacity category_move_and_reset mcp
 ^crates/rd-core/src/(subscription\.rs|subscription/)                                      subscriptions feeds indexers area_backup mcp
+^crates/rd-core/src/indexer\.rs$                                                           indexer_search subscriptions indexers mcp
 ^crates/rd-core/src/toolpath\.rs$                                                         managed_tools
 ^crates/rd-update/                                                                        updates
 ^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp

@@ -86,6 +86,7 @@ const stubs = {
   },
   UTooltip: passthrough,
   IndexerReviewList: true,
+  IndexerSearchPanel: true,
   NzbHistoryModal: true,
   BulkActionBar: { template: '<div><slot /></div>' }
 }

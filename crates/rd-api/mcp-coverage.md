@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**87 capabilities, 64 covered by a tool, 23 deliberately out (15 of them on the owner's line of 2026-09-23).** 385 REST operations, 198 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**89 capabilities, 65 covered by a tool, 24 deliberately out (16 of them on the owner's line of 2026-09-23).** 393 REST operations, 201 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -78,6 +78,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |
 | Clearing the notification history and discarding pending notifications | Settings > Notifications | 2 | `clear_notification_deliveries`, `discard_pending_notification_deliveries` |
 | Subscription items, runs and forced polls | Subscriptions | 9 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
+| Searching indexers and taking hits into the LinkGrabber | LinkGrabber > Indexer search | 3 | `grab_indexer_results`, `list_indexers`, `search_indexers` |
 | Stream schedules, runs and recording now | Streams | 6 | `create_stream_schedule`, `delete_stream_schedule`, `list_stream_runs`, `list_stream_schedules`, `record_stream_now`, `update_stream_schedule` |
 | The diagnostic bundle: preview | Logs | 1 | `preview_diagnostic_bundle` |
 | Metrics | - | 1 | `get_metrics` |
@@ -102,6 +103,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Import and export of a whole area | Settings > Backup | 14 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Plugin trust and installation | Settings > Plugins | 21 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Probing an indexer's capabilities | Subscriptions | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Defining and testing indexers | Settings > Usenet | 4 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Approving and fetching a diagnostic bundle | Logs | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Choosing a stored browser profile for queued work | Downloads, LinkGrabber | 2 | Each route names one of the stored browser profiles, and listing those is part of signing in at a provider, which the owner decided on 2026-09-23 to keep out. A tool here would take an id no tool can supply -- the gap RD-120-32 exists to close, not one to open. |
@@ -111,6 +113,6 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Bandwidth budgets and quiet hours | Settings > Bandwidth | 8 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. |
 | The health probe | - | 1 | Public by design: a load balancer asks it without a token, so no permission prices it, and mcp::tool_scope refuses a tool priced by a public route rather than making it free. What it answers -- the service is up, its name and version -- is what the MCP initialize handshake already carries in its server_info. |
 | Stopping the service and the backup before an update | - | 2 | Refused from anywhere but the machine the service runs on, and meant for the launchers and the updater there. A tool that stops the service ends the MCP session that called it, and the backup before an update is the first step of a version switch that no agent performs. |
-| Installing an update | Settings > System | 1 | Installing stops the service, replaces its program and starts it again: the MCP session that asked ends with the process, and a version switch is the administrator's decision in the interface, not an agent's. get_update_status shows what an install is doing. |
+| Installing an update | Settings > System | 2 | Installing stops the service, replaces its program and starts it again: the MCP session that asked ends with the process, and a version switch is the administrator's decision in the interface, not an agent's. Downloading the update ahead of it is the first step of that install and nothing else. get_update_status shows what a download or an install is doing. |
 
 <!-- END generated -->

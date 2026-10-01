@@ -356,6 +356,86 @@ describe('SubscriptionsView', () => {
 })
 
 /**
+ * RD-180-20: an indexer subscription's own search (`q`, `maxage`, `pw`, `pred`) and taking over
+ * an indexer defined once. The title filter stays a local filter and never becomes `q`.
+ */
+describe('SubscriptionsView, an indexer subscription’s search', () => {
+  const DEFINED = { id: 'idx-1', name: 'Omg', url: 'https://api.example.test/api', has_secret: true, categories: ['5040'], enabled: true, created_at: '', updated_at: '' }
+
+  beforeEach(() => {
+    get.mockReset()
+    post.mockReset()
+    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/api/v1/indexers' ? [DEFINED] : [] }))
+    post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
+  })
+
+  async function indexerForm(): Promise<HTMLFormElement> {
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+    const form = container.querySelector('form') as HTMLFormElement
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'indexer')
+    await screen.findByTestId('subscription-indexer-search')
+    return form
+  }
+
+  it('sends the search term as its own field and leaves the title filter out of it', async () => {
+    const form = await indexerForm()
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Show')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://indexer.test/api')
+    await fireEvent.update(screen.getByLabelText(subscriptions.form.title_contains), '1080p')
+    await fireEvent.update(screen.getByTestId('subscription-search-query'), ' some show !cam ')
+    await fireEvent.update(screen.getByTestId('subscription-search-max-age'), '14')
+    await fireEvent.update(screen.getByTestId('subscription-search-pretime'), '1')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body.indexer_search).toEqual({ query: 'some show !cam', max_age_days: 14, hide_passworded: false, pretime: 1 })
+    expect(body.filters).toMatchObject({ title_contains: ['1080p'] })
+    expect(body.indexer_id).toBeNull()
+  })
+
+  it('refuses a search term of one or two characters before the server does', async () => {
+    const form = await indexerForm()
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Show')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://indexer.test/api')
+    await fireEvent.update(screen.getByTestId('subscription-search-query'), 'ab')
+    expect(screen.getByTestId('subscription-search-query-error')).toBeTruthy()
+    await fireEvent.submit(form)
+
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('takes a defined indexer over, so the address and the key may stay empty', async () => {
+    const form = await indexerForm()
+    const choice = await screen.findByTestId('subscription-indexer') as HTMLSelectElement
+    await waitFor(() => expect([...choice.options].map(option => option.value)).toContain('idx-1'))
+    await fireEvent.update(choice, 'idx-1')
+    expect((screen.getByTestId('subscription-url') as HTMLInputElement).required).toBe(false)
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Show')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body).toMatchObject({ kind: 'indexer', indexer_id: 'idx-1', url: '', api_key: null })
+  })
+
+  it('sends no search for any other kind', async () => {
+    const form = await indexerForm()
+    await fireEvent.update(screen.getByTestId('subscription-search-query'), 'some show')
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'feed')
+    expect(screen.queryByTestId('subscription-indexer-search')).toBeNull()
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'News')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://news.test/feed.xml')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body).toMatchObject({ kind: 'feed', indexer_search: {}, indexer_id: null })
+  })
+})
+
+/**
  * RD-106-10: a filter that rejects a hit keeps it, so the list has to say which is which.
  *
  * The rejected hits are archived on purpose — an unwritten one would be rediscovered on

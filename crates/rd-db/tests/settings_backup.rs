@@ -136,6 +136,12 @@ fn replacement(label: &str) -> ConfigReplacement {
             card_ratio: rd_core::SubscriptionCardRatio::OneOne,
             schedule: None,
             script_arguments: vec!["--since".to_owned(), "two words".to_owned()],
+            indexer_search: rd_core::IndexerSearch {
+                query: Some("example show".to_owned()),
+                max_age_days: Some(30),
+                hide_passworded: true,
+                pretime: None,
+            },
             secret_ref: None,
         }],
         auth_profiles: vec![ReplacementAuthProfile {
@@ -196,6 +202,11 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
         database.list_subscriptions().await.expect("subscriptions")[0].script_arguments,
         ["--since", "two words"]
     );
+    // And the search an indexer subscription sends (RD-180-20).
+    let search = &database.list_subscriptions().await.expect("subscriptions")[0].indexer_search;
+    assert_eq!(search.query.as_deref(), Some("example show"));
+    assert_eq!(search.max_age_days, Some(30));
+    assert!(search.hide_passworded);
     let restored = database.list_categories().await.expect("categories");
     assert_eq!(restored[0].id, ids.1);
     // A category seeding override must survive the round trip, not silently reset to

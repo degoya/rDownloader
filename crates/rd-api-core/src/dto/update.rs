@@ -35,6 +35,23 @@ pub struct UpdateStatusResponse {
     /// Where an update this installation installs itself stands, or how the last one ended
     /// (RD-180-02); empty when there is none to tell about.
     pub install: Option<UpdateInstallStatus>,
+    /// The background download of the offered version (RD-180-02): running, ready to install,
+    /// or failed; empty when none was asked for since the start, or it is of another version.
+    pub download: Option<UpdateDownloadStatus>,
+}
+
+/// The offered version's artifact, downloaded and verified in the background, which "Install and
+/// restart" then installs without downloading it again.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct UpdateDownloadStatus {
+    pub version: String,
+    /// `downloading`, `ready` (on disk, size and SHA-256 those of the signed manifest) or
+    /// `failed`.
+    pub state: String,
+    pub received_bytes: u64,
+    pub total_bytes: u64,
+    /// The stable code of why it failed, e.g. `update.digest_mismatch`.
+    pub reason: Option<String>,
 }
 
 /// The self-update of RD-180-02, as the interface follows it through the restart.

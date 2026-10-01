@@ -439,6 +439,16 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/hotfolders", Method::POST, CONFIG),
     entry("/api/v1/hotfolders/{id}", Method::DELETE, CONFIG),
     entry("/api/v1/hotfolders/{id}", Method::PUT, CONFIG),
+    // An indexer is an address and an API key: the credential scope, its `GET` included
+    // (RD-180-19). Searching one and taking hits into the LinkGrabber is intake, like an NZB
+    // upload -- neither discloses the key.
+    entry("/api/v1/indexers", Method::GET, SECRETS),
+    entry("/api/v1/indexers", Method::POST, SECRETS),
+    entry("/api/v1/indexers/grab", Method::POST, INTAKE),
+    entry("/api/v1/indexers/search", Method::POST, INTAKE),
+    entry("/api/v1/indexers/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/indexers/{id}", Method::PUT, SECRETS),
+    entry("/api/v1/indexers/{id}/caps", Method::POST, SECRETS),
     // The one route the scrape scope reaches, and the one route `api:read` does not: a
     // Prometheus target is a credential that lives in a configuration file for years, so it
     // gets an island of its own (RD-110-01).
@@ -748,7 +758,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // the service reach out on the caller's word, and is the administrator's.
     entry("/api/v1/system/update", Method::GET, READ),
     entry("/api/v1/system/update/check", Method::POST, ADMIN),
-    // Installing the offered update stops and replaces the service (RD-180-02).
+    // Installing the offered update stops and replaces the service (RD-180-02); downloading it
+    // ahead of the install is the first step of that.
+    entry("/api/v1/system/update/download", Method::POST, ADMIN),
     entry("/api/v1/system/update/install", Method::POST, ADMIN),
     entry("/api/v1/system/update/prepare", Method::POST, ADMIN),
     entry("/api/v1/torrents/capabilities", Method::GET, READ),
@@ -976,6 +988,7 @@ mod tests {
             "/api/v1/remote-credentials",
             "/api/v1/object-storage/profiles",
             "/api/v1/usenet/servers",
+            "/api/v1/indexers",
             "/api/v1/api-tokens",
             "/api/v1/captcha-config",
             "/api/v1/plugins/keys",

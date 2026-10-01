@@ -9,6 +9,7 @@ import { defineComponent, h } from 'vue'
 // Vitest — see `useNzbDropZone.test.ts` for the same constraint). `useAppShortcuts.ts` itself
 // wires `defineShortcuts`/`useOverlay` from that barrel, so it is exercised only through the app,
 // not imported here.
+import { setIndexerSearchFocusAction } from './indexerSearchFocus'
 import { SHORTCUT_DEFINITIONS, registeredShortcuts, setClearCompletedAction, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
 import { sidebarCollapsed } from './sidebarCollapse'
 import english from '@/locales/en/common.json'
@@ -54,7 +55,7 @@ describe('SHORTCUT_DEFINITIONS', () => {
 
   it('covers every documented key with a navigation or actions group', () => {
     const keys = SHORTCUT_DEFINITIONS.map(definition => definition.keys)
-    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', '?', '/', 'meta_k'])
+    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', 'f', '?', '/', 'meta_k'])
     for (const definition of SHORTCUT_DEFINITIONS) {
       expect(['navigation', 'actions']).toContain(definition.group)
       expect(definition.labelKeys.length).toBeGreaterThan(0)
@@ -192,5 +193,76 @@ describe('the clear-completed shortcut', () => {
     setClearCompletedAction(null)
     expect(() => entry.handler()).not.toThrow()
     expect(cleared).toBe(0)
+  })
+})
+
+describe('the indexer-search shortcut', () => {
+  // `f` puts the keyboard in the LinkGrabber's indexer search (RD-180-19). The panel hands the
+  // focus in only while its field exists (`IndexerSearchPanel.test.ts` holds that half, the
+  // no-indexer case included); this half is which keypress reaches it.
+  const entry = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'f')!
+  let focused = 0
+
+  function mountShortcuts() {
+    const host = defineComponent({
+      setup() {
+        defineShortcuts(registeredShortcuts())
+        return () => h('div', [h('input', { 'data-testid': 'field' }), h('button', { 'data-testid': 'elsewhere' })])
+      }
+    })
+    return render(host)
+  }
+
+  beforeEach(() => {
+    focused = 0
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
+    setIndexerSearchFocusAction(() => { focused += 1 })
+  })
+
+  afterEach(() => {
+    setIndexerSearchFocusAction(null)
+  })
+
+  it('is listed in the help as an action and bound as a plain key', () => {
+    expect(entry.group).toBe('actions')
+    expect(entry.labelKeys).toEqual(['f'])
+    expect(entry.descriptionKey).toBe('common.shortcuts.focus_indexer_search')
+    expect(english.shortcuts.focus_indexer_search).toBeTruthy()
+    expect(Object.keys(registeredShortcuts())).toContain('f')
+  })
+
+  it('runs the handed-in focus on `f` outside a text field, never while one is being typed in', async () => {
+    const view = mountShortcuts()
+    const field = view.getByTestId('field')
+    field.focus()
+    await fireEvent.keyDown(field, { key: 'f' })
+    expect(focused).toBe(0)
+
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    await fireEvent.keyDown(elsewhere, { key: 'f' })
+    expect(focused).toBe(1)
+  })
+
+  it('leaves Ctrl/Cmd+F to the browser and does nothing on Shift+F', async () => {
+    const view = mountShortcuts()
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    await fireEvent.keyDown(elsewhere, { key: 'f', ctrlKey: true })
+    await fireEvent.keyDown(elsewhere, { key: 'f', metaKey: true })
+    await fireEvent.keyDown(elsewhere, { key: 'F', shiftKey: true })
+    expect(focused).toBe(0)
+  })
+
+  it('does nothing while a dialog is open', () => {
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
+    entry.handler()
+    expect(focused).toBe(0)
+  })
+
+  it('does nothing where no search field handed its focus in', () => {
+    setIndexerSearchFocusAction(null)
+    expect(() => entry.handler()).not.toThrow()
+    expect(focused).toBe(0)
   })
 })
