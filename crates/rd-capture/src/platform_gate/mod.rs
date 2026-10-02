@@ -78,6 +78,7 @@ const LINUX_LINKED: &[(&str, &str)] = &[
     ("rd-collector", "workspace crate, headless"),
     ("rd-autostart", "workspace crate, headless"),
     ("rd-core", "workspace crate, headless"),
+    ("rd-files", "workspace crate, headless"),
     ("regex", "text"),
     ("reqwest", "HTTP client"),
     ("serde", "serialization"),

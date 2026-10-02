@@ -166,6 +166,28 @@ pub(crate) fn write(path: &Path, text: &str) {
     fs::write(path, text).expect("write");
 }
 
+/// `previous/locked/rdownloader-capture` in a folder that refuses removals; `None` (and the
+/// test is moot) where permissions do not hold, as for root.
+#[cfg(unix)]
+pub(crate) fn locked_folder(previous: &Path) -> Option<PathBuf> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let locked = previous.join("locked");
+    write(&locked.join("rdownloader-capture"), "agent");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).expect("lock");
+    if fs::write(locked.join("probe"), "").is_ok() {
+        eprintln!("permissions do not hold for this user; nothing to prove");
+        unlock(&locked);
+        return None;
+    }
+    Some(locked)
+}
+
+#[cfg(unix)]
+pub(crate) fn unlock(folder: &Path) {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(folder, fs::Permissions::from_mode(0o755)).expect("unlock");
+}
+
 fn tar_archive(path: &Path, files: &[(String, &str)]) {
     let file = fs::File::create(path).expect("archive");
     let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::fast());

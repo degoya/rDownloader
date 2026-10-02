@@ -21,7 +21,7 @@
     "global": "Profil",
     "protocol": "Protokoll",
     "host": "Host",
-    "account": "Account",
+    "account": "Konto",
     "category": "Kategorie"
   },
   "status": {
@@ -49,7 +49,7 @@
     "name_placeholder": "Nacht",
     "create": "Profil anlegen",
     "parallel_label": "Parallele Dateien",
-    "parallel_description": "Begrenzt die Queue, solange aktiv; leer behält die allgemeine Einstellung.",
+    "parallel_description": "Begrenzt die Warteschlange, solange aktiv; leer behält die allgemeine Einstellung.",
     "inherit": "Einstellung behalten",
     "download_label": "Download-Limit",
     "upload_label": "Upload-Limit",
@@ -72,12 +72,12 @@
     "description": "Die engere Grenze gewinnt immer gegen die breitere. Welche gerade greift, steht oben im Status.",
     "protocol": "Protokoll",
     "host": "Host",
-    "account": "Account",
+    "account": "Konto",
     "category": "Kategorie",
     "add": "Hinzufügen",
     "placeholder_protocol": "usenet",
     "placeholder_host": "example.com",
-    "placeholder_account": "Account-ID",
+    "placeholder_account": "Konto-ID",
     "placeholder_category": "Kategorie-ID",
     "limit": "Grenze für diesen Bereich in MiB/s"
   },

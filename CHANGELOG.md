@@ -5,6 +5,75 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-02
+
+Fixes from the first day of 1.8.0 on Windows and the owner's wishes after it: no console windows
+and no blocked update after a self-update, the capture agent follows an update by itself, calmer
+plugin cards, terms that keep their usual name in every language, and keys for the LinkGrabber.
+
+### Added
+
+- **LinkGrabber keys, and `X` closes every dialog (RD-180-23).** In the LinkGrabber `A` adds
+  links, `E` enqueues everything, `W` adds everything paused and `R` deletes every link; a question
+  one of them asks is answered by the same key again, as `K` does on Downloads, and the buttons
+  show their key. `X` closes the dialog on top wherever `Esc` would, and does nothing in a text
+  field or without a dialog. All five are in the `?` help.
+
+### Changed
+
+- **Plugin cards and the install preview in a calmer layout (RD-180-22).** Each installed plugin
+  is a card with its badges in one header row, *Granted* and *Versions* as labelled rows, and
+  *Delete*, *Withdraw* and *Disable* in a footer at the same place in every card. *Review before
+  installing* folds the publisher's key and the package checksum away (open by itself while a key
+  still has to be confirmed) and has the restart hint beside its buttons. German names the
+  stream-transform kind „Stream-Transformation“ instead of „Stromtransformation“. A long host
+  list shows its first eight hosts and *+N more*; the *key derivation* permission is translated
+  instead of showing its raw key.
+
+### Fixed
+
+- **No more console error on Logs and Audit (RD-180-23).** The "all" entries of their filters had
+  an empty value, which the select refuses ("A `<SelectItem />` must have a value prop that is
+  not an empty string").
+- **The indexer search's result table stays as wide as its panel (RD-180-23).** A long release
+  name pushed the row's own download button out of reach; the title is now cut with an ellipsis
+  and shown whole in its tooltip, the other columns are narrow and fixed, and on a phone the table
+  scrolls with the button column pinned to the right.
+- **Plain keys no longer reach the page behind an update or restore dialog (RD-180-23).** The
+  shortcut guard knew only the dialogs opened through the shared overlay; the ones opened as
+  part of a page (update details, full restore, the plugin install preview, …) let `1`–`0`, `P`
+  and the rest through.
+- **Technical terms keep their usual name in German, French and Spanish, and French and Spanish
+  address the reader one way.** Terms the language's IT usage keeps in English were translated,
+  some in the wrong sense: German no longer calls a request header a *Kopfzeile* or an endpoint
+  an *Endpunkt*, and says *Hash*, *Backup*, *Mirror*, *seedet* and *Warteschlange* throughout
+  instead of *Prüfsumme*, *Sicherung*, *Spiegel*, *verteilt* and *Queue*, and *Tresor* and
+  *Konto/Konten* instead of *Vault/Secret-Store* and *Account*; Spanish says *plugin*,
+  *hoster*, *tracker*, *endpoint*, *hash* and *seeding* instead of *complemento*,
+  *alojador/alojamiento*, *rastreador*, *punto final*, *suma* and *compartir/sembrar*, and *suma de
+  verificación* throughout; French says
+  *plugin* instead of *extension*, *seed* instead of *partage*, *Seeders* instead of *Sources*, and
+  *Streams* for the view of that name. French now says *vous* and Spanish *tú* everywhere — about
+  fifty French texts said *tu* and forty-five Spanish ones *usted* — and a test over the web,
+  extension and plugin catalogues of each guards it like the German *du*. 36 plugins whose
+  catalogues changed carry a new version.
+- **Windows: no console windows after a self-update (RD-180-02).** The updater started the new
+  version without a console, so every console program it ran — unrar and 7-Zip from `vendor\`,
+  ffmpeg, `icacls`, PowerShell — opened a window of its own, one after another. The updater now
+  starts the service with a hidden console of its own, as `start-rdownloader.bat` does, and every
+  program rDownloader starts asks for no window; a source test keeps it that way. On 1.8.0, stop
+  once with `stop-rdownloader.bat` and start with `start-rdownloader.bat`.
+- **A capture agent running from `.previous` no longer blocks every later update.** The portable
+  switch moves the program files of the old version into `.previous`, including the capture
+  agent, which keeps running from there; Windows cannot delete a running program, so the next
+  update stopped at once with `update.unpack_failed` ("remove …\.previous: access denied"). The
+  leftovers of an earlier update now go into `.trash` beside the program and are removed from
+  there once nothing runs from them (every start tries again). And the capture agent now restarts
+  itself as the new version within half a minute after its program file was replaced — by a
+  self-update, the MSI, a package manager or a rollback (RD-190-07, brought forward). Updating
+  *from* 1.8.0 still needs the old agent ended first if it runs from `.previous` (Task Manager,
+  `rdownloader-capture.exe`).
+
 ## [1.8.0] - 2026-10-01
 
 1.8 makes rDownloader deliverable to people who will not unpack an archive by hand. Every

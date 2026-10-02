@@ -5,13 +5,13 @@
     "secret_hint": "Gib deinen Kontobenutzernamen und dein Passwort als Secret ein."
   },
   "codes": {
-    "linksnappy.account_expired": "Der LinkSnappy-Account ist abgelaufen",
-    "linksnappy.account_missing": "Der LinkSnappy-Account fehlt",
+    "linksnappy.account_expired": "Das LinkSnappy-Konto ist abgelaufen",
+    "linksnappy.account_missing": "Das LinkSnappy-Konto fehlt",
     "linksnappy.api_error": "LinkSnappy-API-Fehler: {message}",
     "linksnappy.bad_credentials": "LinkSnappy-Benutzername oder Passwort ist falsch",
     "linksnappy.file_offline": "Die LinkSnappy-Datei ist nicht verfügbar",
-    "linksnappy.host_unavailable": "Für diesen Filehost ist bei LinkSnappy aktuell kein Server verfügbar",
-    "linksnappy.host_unsupported": "LinkSnappy unterstützt diesen Filehost nicht",
+    "linksnappy.host_unavailable": "Für diesen Hoster ist bei LinkSnappy aktuell kein Server verfügbar",
+    "linksnappy.host_unsupported": "LinkSnappy unterstützt diesen Hoster nicht",
     "linksnappy.http_error": "LinkSnappy-HTTP-Status {status}",
     "linksnappy.invalid_link_format": "LinkSnappy erkennt das Format dieses Links nicht",
     "linksnappy.invalid_response": "Ungültige LinkSnappy-Antwort",
@@ -24,6 +24,6 @@
     "linksnappy.rate_limited": "LinkSnappy-API-Ratenlimit wurde ausgelöst",
     "linksnappy.server_error": "LinkSnappy-Serverfehler",
     "linksnappy.too_many_requests": "LinkSnappy hat die Anfrage abgelehnt; zu viele Download-Anfragen in letzter Zeit",
-    "linksnappy.two_factor_required": "LinkSnappy verlangt eine Bestätigung dieses Logins über die an den Account gesendete E-Mail"
+    "linksnappy.two_factor_required": "LinkSnappy verlangt eine Bestätigung dieses Logins über die an das Konto gesendete E-Mail"
   }
 }

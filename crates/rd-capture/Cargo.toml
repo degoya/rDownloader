@@ -25,6 +25,7 @@ notify-rust.workspace = true
 rd-collector = { path = "../rd-collector" }
 rd-autostart = { path = "../rd-autostart" }
 rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
 regex.workspace = true
 reqwest.workspace = true
 serde.workspace = true

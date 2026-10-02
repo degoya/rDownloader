@@ -66,12 +66,15 @@ const stubs = {
     emits: ['update:modelValue'],
     template: '<input v-bind="$attrs" :value="(modelValue ?? []).join(\',\')" @input="$emit(\'update:modelValue\', $event.target.value.split(\',\').filter(Boolean))" />'
   },
-  /** Every column's header and cell slot, the way the real table hands them `row.original`. */
+  /**
+   * Every column's header and cell slot, the way the real table hands them `row.original`, with
+   * the table's `ui.base` and each column's `meta.class` where the real one puts them.
+   */
   UTable: {
-    props: ['data', 'columns'],
+    props: ['data', 'columns', 'ui'],
     template:
-      '<table v-bind="$attrs"><thead><tr><th v-for="column in columns" :key="column.id"><slot :name="`${column.id}-header`" /></th></tr></thead>'
-      + '<tbody><tr v-for="(item, index) in data" :key="index" data-row><td v-for="column in columns" :key="column.id">'
+      '<table v-bind="$attrs" :class="ui?.base"><thead><tr><th v-for="column in columns" :key="column.id" :class="column.meta?.class?.th"><slot :name="`${column.id}-header`" /></th></tr></thead>'
+      + '<tbody><tr v-for="(item, index) in data" :key="index" data-row><td v-for="column in columns" :key="column.id" :class="column.meta?.class?.td">'
       + '<slot :name="`${column.id}-cell`" :row="{ original: item }" /></td></tr></tbody></table>'
   }
 }
@@ -235,6 +238,35 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     await fireEvent.click(screen.getByTestId('indexer-search-next'))
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
     expect((post.mock.calls[1]?.[1] as { body: { offset: number } }).body.offset).toBe(100)
+  })
+
+  it('keeps the row\'s own button in the panel however long a name is', async () => {
+    // 1.8.1: a long release name made the table wider than the panel and pushed the button out.
+    const long = `${'Very.Long.Release.Name.'.repeat(12)}1080p.WEB.H264-GROUP`
+    post.mockResolvedValue({ data: { hits: [{ ...HITS[1], title: long, category: 'XXX: MOVIES' }], indexers: [{ indexer_id: 'idx-1', indexer_name: 'Omg', returned: 1, more: false }] } })
+    mount()
+    await ready()
+    await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
+    const table = await screen.findByTestId('indexer-search-results')
+
+    expect(table.className).toContain('table-fixed')
+    expect(table.className).toContain('w-full')
+    const title = screen.getByTestId('indexer-search-hit-title')
+    expect(title.className).toContain('truncate')
+    expect(title.getAttribute('title')).toBe(long)
+    expect(title.textContent).toBe(long)
+    // The password badge beside it never shrinks, so the ellipsis cannot take it.
+    expect(title.nextElementSibling?.className).toContain('shrink-0')
+    expect(screen.getByText('XXX: MOVIES').className).toContain('truncate')
+
+    // The title is the one column without a width of its own: it takes what the others leave.
+    const headers = [...table.querySelectorAll('th')]
+    expect(headers.map(header => /\bw-\d+/.test(header.className))).toEqual([true, false, true, true, true, true])
+    // Below `sm` the table scrolls, and the button column stays at the right edge.
+    expect(table.className).toContain('max-sm:min-w-')
+    const grabCell = screen.getByTestId('indexer-search-grab-one').closest('td')!
+    expect(grabCell.className).toContain('max-sm:sticky')
+    expect(grabCell.className).toContain('max-sm:right-0')
   })
 
   it('sorts by size, largest first, on the column header', async () => {

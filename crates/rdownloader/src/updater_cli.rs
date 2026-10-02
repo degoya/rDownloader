@@ -28,6 +28,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::Args;
+use rd_files::NoConsoleWindow as _;
 use rd_update::InstallKind;
 use rd_update::install::recover::{Recovery, confirm_started, recover_at_start};
 use rd_update::install::{
@@ -302,6 +303,7 @@ fn reinstall(journal: &Journal, previous: &Path) -> Result<()> {
     {
         if was {
             let status = std::process::Command::new(journal.plan.install_dir.join(program))
+                .no_console_window()
                 .args(["autostart", "install"])
                 .status();
             if !status.is_ok_and(|status| status.success()) {
@@ -419,6 +421,7 @@ pub fn recover(database: &Path) -> Result<bool> {
         Recovery::Restart(program) => {
             tracing::warn!(program = %program.display(), "the previous version is back; it starts in this one's place");
             std::process::Command::new(&program)
+                .no_console_window()
                 .args(std::env::args_os().skip(1))
                 .spawn()
                 .with_context(|| format!("start {}", program.display()))?;

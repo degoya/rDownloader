@@ -45,7 +45,7 @@
     "package_deleted": "Paket gelöscht",
     "category_deleted": "Kategorie gelöscht",
     "storage_root_deleted": "Speicherort gelöscht",
-    "backup_restored": "Sicherung wiederhergestellt",
+    "backup_restored": "Backup wiederhergestellt",
     "password_changed": "Passwort geändert",
     "logs_cleared": "Protokoll geleert",
     "audit_cleared": "Audit geleert",
@@ -59,13 +59,13 @@
     "file_overwritten": "Datei überschrieben",
     "collision_decided": "Namenskonflikt entschieden",
     "duplicate_linked": "Duplikat verknüpft",
-    "backup_configured": "Vollsicherung eingerichtet oder geändert",
-    "backup_key_changed": "Passphrase der Vollsicherung gesetzt",
-    "backup_created": "Vollsicherung geschrieben",
-    "backup_verified": "Archiv der Vollsicherung geprüft",
+    "backup_configured": "Voll-Backup eingerichtet oder geändert",
+    "backup_key_changed": "Passphrase des Voll-Backups gesetzt",
+    "backup_created": "Voll-Backup geschrieben",
+    "backup_verified": "Archiv des Voll-Backups geprüft",
     "notifications_discarded": "Ausstehende Benachrichtigungen verworfen",
     "service_stop_requested": "Dienst-Stopp angefordert",
-    "update_prepared": "Sicherung vor Update geschrieben",
+    "update_prepared": "Backup vor Update geschrieben",
     "update_install_started": "Update-Installation gestartet",
     "storage_history_cleared": "Speicherverlauf geleert",
     "content_index_cleared": "Inhaltsindex geleert",
@@ -87,6 +87,6 @@
   "append_only": {
     "eyebrow": "Zusicherung",
     "title": "Nur anhängen",
-    "description": "Es gibt keine Route, die einen Eintrag ändert oder löscht, und die Datenbank verweigert ein Update auf diese Tabelle rundheraus. Das Löschen eines Downloads, eines Pakets, einer Kategorie oder eines Speicherorts lässt den zugehörigen Eintrag stehen, und das Wiederherstellen einer Sicherung rührt das Protokoll nicht an. Das ist eine Aufzeichnung des Geschehenen, kein Schutz gegen jemanden mit Zugriff auf die Datei selbst."
+    "description": "Es gibt keine Route, die einen Eintrag ändert oder löscht, und die Datenbank verweigert ein Update auf diese Tabelle rundheraus. Das Löschen eines Downloads, eines Pakets, einer Kategorie oder eines Speicherorts lässt den zugehörigen Eintrag stehen, und das Wiederherstellen eines Backups rührt das Protokoll nicht an. Das ist eine Aufzeichnung des Geschehenen, kein Schutz gegen jemanden mit Zugriff auf die Datei selbst."
   }
 }

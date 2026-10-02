@@ -30,7 +30,7 @@
     "resolving": "Auflösen",
     "downloading": "Lädt",
     "paused": "Pausiert",
-    "skipped": "Spiegel",
+    "skipped": "Mirror",
     "retry_wait": "Wiederholung",
     "verifying": "Prüfen",
     "repairing": "Reparieren",
@@ -119,7 +119,12 @@
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
     "clear_completed": "Fertige Pakete entfernen (in Downloads)",
-    "focus_indexer_search": "Indexer-Suche fokussieren (im LinkGrabber)"
+    "focus_indexer_search": "Indexer-Suche fokussieren (im LinkGrabber)",
+    "add_links": "Links hinzufügen (im LinkGrabber)",
+    "enqueue_all": "Alle laden (im LinkGrabber)",
+    "enqueue_paused": "Alle pausiert übernehmen (im LinkGrabber)",
+    "clear_linkgrabber": "Alle Links löschen (im LinkGrabber)",
+    "close_dialog": "Dialog schließen"
   },
   "a11y": {
     "skip_to_content": "Zum Inhalt springen",

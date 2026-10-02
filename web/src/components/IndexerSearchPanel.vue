@@ -89,13 +89,20 @@ const allSelected = computed(() => hits.value.length > 0 && hits.value.every(hit
 const someSelected = computed(() => selected.value.size > 0 && !allSelected.value)
 const tooMany = computed(() => selected.value.size > MAX_GRAB)
 
+/**
+ * A fixed layout (1.8.1): every column but the title has a narrow width of its own and the title
+ * takes the rest, cut with an ellipsis, so a long release name can no longer push the row's own
+ * button out of the panel. Below `sm` the table keeps a minimum width and scrolls sideways, and
+ * the button column stays pinned to the right edge so it is always in reach.
+ */
+const GRAB_CELL = 'w-14 max-sm:sticky max-sm:right-0 max-sm:bg-default'
 const columns: TableColumn<IndexerSearchHit>[] = [
-  { id: 'select' },
+  { id: 'select', meta: { class: { th: 'w-12', td: 'w-12' } } },
   { id: 'title' },
-  { id: 'size' },
-  { id: 'age' },
-  { id: 'category' },
-  { id: 'grab' }
+  { id: 'size', meta: { class: { th: 'w-28', td: 'w-28' } } },
+  { id: 'age', meta: { class: { th: 'w-32', td: 'w-32' } } },
+  { id: 'category', meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { id: 'grab', meta: { class: { th: GRAB_CELL, td: GRAB_CELL } } }
 ]
 const sortable = computed<{ key: HitSortKey, label: string }[]>(() => [
   { key: 'title', label: t('linkgrabber.search.columns.title') },
@@ -342,6 +349,7 @@ function ageLabel(hit: IndexerSearchHit): string {
       <UTable
         v-else-if="hits.length"
         class="mt-2 max-h-[60vh]"
+        :ui="{ base: 'w-full table-fixed max-sm:min-w-[40rem]' }"
         sticky
         :data="hits"
         :columns="columns"
@@ -372,14 +380,16 @@ function ageLabel(hit: IndexerSearchHit): string {
           />
         </template>
         <template #title-cell="{ row }">
+          <!-- The whole name stays in the DOM, only drawn cut: a screen reader reads all of it, and
+               the tooltip shows it. The badge never shrinks, so the ellipsis cannot take it. -->
           <span class="flex min-w-0 items-center gap-2">
-            <span class="truncate font-mono text-xs" :title="row.original.title">{{ row.original.title }}</span>
-            <UBadge v-if="row.original.passworded" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
+            <span class="min-w-0 truncate font-mono text-xs" :title="row.original.title" data-testid="indexer-search-hit-title">{{ row.original.title }}</span>
+            <UBadge v-if="row.original.passworded" class="shrink-0" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
           </span>
         </template>
         <template #size-cell="{ row }"><span class="numeric text-xs">{{ row.original.size_bytes == null ? '—' : formatBytes(String(row.original.size_bytes)) }}</span></template>
         <template #age-cell="{ row }"><span class="numeric text-xs" :title="row.original.published_at ?? undefined">{{ ageLabel(row.original) }}</span></template>
-        <template #category-cell="{ row }"><span class="font-mono text-xs">{{ row.original.category ?? '—' }}</span></template>
+        <template #category-cell="{ row }"><span class="block truncate font-mono text-xs" :title="row.original.category ?? undefined">{{ row.original.category ?? '—' }}</span></template>
         <template #grab-cell="{ row }">
           <UButton
             size="xs"

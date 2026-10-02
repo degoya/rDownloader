@@ -2,7 +2,7 @@
   "name": "Connexion Box",
   "description": "Connecte un compte Box via le point de terminaison d'autorisation de Box.",
   "codes": {
-    "box_oauth.bad_reply": "Box a envoyé une réponse que ce module n'a pas pu lire.",
+    "box_oauth.bad_reply": "Box a envoyé une réponse que ce plugin n'a pas pu lire.",
     "box_oauth.client_not_configured": "Ce compte n'a pas encore d'application Box enregistrée. Saisissez d'abord l'identifiant client et le secret client de votre propre application Box.",
     "box_oauth.client_refused": "Box n'a pas accepté cette application. Vérifiez l'identifiant client, le secret client et que l'URI de redirection est enregistrée à l'identique.",
     "box_oauth.code_expired": "La connexion a expiré avant d'être terminée. Recommencez-la.",

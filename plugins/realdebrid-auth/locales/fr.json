@@ -9,6 +9,6 @@
     "realdebrid_auth.client_rejected": "Real-Debrid n'accepte plus le client attribué à cette connexion. Reconnecte le compte.",
     "realdebrid_auth.bad_reply": "Real-Debrid a envoyé une réponse que ce plugin n'a pas pu lire.",
     "realdebrid_auth.redirect_unsupported": "Real-Debrid se connecte avec un code d'appareil et n'a pas de redirection.",
-    "realdebrid_auth.rate_limited": "Real-Debrid reçoit trop de requêtes en ce moment. Réessaie de te connecter dans une minute."
+    "realdebrid_auth.rate_limited": "Real-Debrid reçoit trop de requêtes en ce moment. Réessayez de vous connecter dans une minute."
   }
 }

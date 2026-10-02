@@ -10,6 +10,7 @@ use std::{path::Path, process::Stdio, time::Duration};
 
 use anyhow::{Context, Result};
 use rd_core::{PostprocessKind, PostprocessStage, PostprocessState};
+use rd_files::NoConsoleWindow as _;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::{
@@ -74,6 +75,7 @@ pub(crate) fn bwlimit(bytes_per_second: Option<u64>) -> Option<String> {
 /// The rclone invocation for one upload.
 fn command(tool: &Path, context: &UploadContext<'_>, target: &str) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(tool);
+    command.no_console_window();
     // The allowlist plus rclone's own configuration, config password and proxy variables
     // (security review 2026-09-28, finding 7): nothing else of the service's environment.
     rd_postprocess::restrict_environment(&mut command, rd_postprocess::RCLONE_VARIABLES);
@@ -171,8 +173,6 @@ async fn execute(
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    #[cfg(windows)]
-    command.creation_flags(0x0800_0000);
     let mut child = command.spawn().context("spawn rclone")?;
     let stderr = child.stderr.take().context("rclone stderr")?;
     let mut lines = BufReader::new(stderr).lines();

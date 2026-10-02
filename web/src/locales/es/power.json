@@ -45,7 +45,7 @@
     "shutdown": "La máquina se apaga",
     "none": "Acción de finalización pendiente",
     "script": "Se ejecuta el script de finalización",
-    "countdown": "En {seconds} s — cancele para mantener la máquina encendida.",
+    "countdown": "En {seconds} s — cancela para mantener la máquina encendida.",
     "cancel": "Cancelar"
   },
   "paused": {

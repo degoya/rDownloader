@@ -93,6 +93,28 @@ fn an_unproven_switch_is_proven_by_the_first_start_that_answers() {
 }
 
 #[test]
+fn every_start_after_an_update_sweeps_the_trash() {
+    let mut fixture = Fixture::tar();
+    portable::stage(&mut fixture.journal).expect("stage");
+    portable::switch(&mut fixture.journal).expect("switch");
+    fixture.journal.advance(Phase::Verified).expect("verified");
+    recover_at_start(&fixture.data, &fixture.executable(), NEW).expect("start");
+    assert!(fixture.stored().cleaned);
+    // What a program still running from it kept at that start, released since.
+    let trash = crate::install::trash::trash_dir(&fixture.install);
+    crate::install::fixture::write(
+        &trash
+            .join("20261002T120000.000000000Z-0")
+            .join(".previous")
+            .join("rdownloader-capture"),
+        "the agent of an older version",
+    );
+    recover_at_start(&fixture.data, &fixture.executable(), NEW).expect("a later start");
+    assert!(!trash.exists());
+    assert_eq!(fixture.read("VERSION.txt").as_deref(), Some(NEW));
+}
+
+#[test]
 fn an_unproven_switch_whose_first_start_never_answered_is_taken_back_with_the_database() {
     let mut fixture = Fixture::tar();
     portable::stage(&mut fixture.journal).expect("stage");

@@ -20,6 +20,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use crate::NoConsoleWindow as _;
+
 /// Well-known accounts that stand for other people, as SDDL names them (alias or SID) and as a
 /// report names them.
 const BROAD_ACCOUNTS: [(&str, &str, &str); 11] = [
@@ -93,11 +95,13 @@ pub fn protect_private_dir(path: &Path) -> io::Result<()> {
     let user = format!("*{}", current_user_sid()?);
     let full = |account: &str| format!("{account}:(OI)(CI)F");
     run(Command::new(system_program(r"icacls.exe"))
+        .no_console_window()
         .arg(path)
         .args(["/inheritance:r", "/grant:r"])
         .args([full(&user), full("*S-1-5-18"), full("*S-1-5-32-544")]))?;
     // Explicit entries survive `/inheritance:r`; those of the broad groups go as well.
     run(Command::new(system_program(r"icacls.exe"))
+        .no_console_window()
         .arg(path)
         .arg("/remove:g")
         .args(
@@ -222,6 +226,7 @@ pub fn sid_from_whoami(output: &str) -> Option<String> {
 
 fn current_user_sid() -> io::Result<String> {
     let output = Command::new(system_program("whoami.exe"))
+        .no_console_window()
         .args(["/user", "/fo", "csv", "/nh"])
         .stdin(Stdio::null())
         .output()?;
@@ -237,6 +242,7 @@ fn current_user_sid() -> io::Result<String> {
 #[cfg(not(unix))]
 fn access_list_sddl(path: &Path) -> io::Result<String> {
     let output = Command::new(system_program(r"WindowsPowerShell\v1.0\powershell.exe"))
+        .no_console_window()
         .args([
             "-NoProfile",
             "-NonInteractive",

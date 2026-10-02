@@ -13,12 +13,15 @@
 //! | `switched`, this is the new version | first such start: may prove it ([`confirm_started`]); a second one (the first never answered) takes it back like a failed health check |
 //! | `verified` | removes `.previous/` and the other leftovers, once |
 //! | `rolled_back`, `failed` | removes the leftovers, once — except after `update.rollback_failed`, whose files the manual recovery needs |
+//!
+//! After an ended update every start also sweeps `<install>/.trash/` ([`trash::sweep`]): what a
+//! program still running from it held at the last start goes once that program has ended.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use super::{Journal, Phase, portable, remove_any, steps, updater_running};
+use super::{Journal, Phase, portable, remove_any, steps, trash, updater_running};
 use crate::InstallKind;
 
 /// What the start does next.
@@ -105,6 +108,7 @@ pub fn recover_at_start(data: &Path, executable: &Path, running_version: &str) -
         }
         Phase::Switched => Ok(Recovery::Continue),
         Phase::Verified | Phase::RolledBack | Phase::Failed => {
+            trash::sweep(&journal.plan.install_dir);
             let keep = journal.reason.as_deref() == Some("update.rollback_failed");
             let proven = journal.phase != Phase::Verified || is_new;
             if !journal.cleaned && !keep && proven {

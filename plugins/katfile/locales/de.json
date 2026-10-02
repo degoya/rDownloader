@@ -5,7 +5,7 @@
     "secret_hint": "Gib deinen API-Key als Secret ein oder importiere stattdessen die Cookies einer angemeldeten Premium-Session."
   },
   "codes": {
-    "katfile.account_missing": "KatFile-Account fehlt",
+    "katfile.account_missing": "KatFile-Konto fehlt",
     "katfile.api_error": "KatFile-API: {message}",
     "katfile.api_key_required": "Die KatFile-Linkprüfung benötigt den API-Key",
     "katfile.captcha_rejected": "KatFile hat die Captcha-Antwort abgelehnt",
@@ -25,7 +25,7 @@
     "katfile.no_free_form": "Das KatFile-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
     "katfile.no_free_link": "Der KatFile-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
     "katfile.no_premium_file": "Die KatFile-Cookie-Session lieferte keine Premiumdatei: {diagnosis}",
-    "katfile.premium_only": "KatFile meldet, dass diese Datei einen Premium-Account erfordert: {reason}",
+    "katfile.premium_only": "KatFile meldet, dass diese Datei ein Premium-Konto erfordert: {reason}",
     "katfile.session_unconfirmed": "Cookie-Sitzung nicht bestätigt – die Seite war weder angemeldet noch eine Gastseite",
     "katfile.unsupported_link": "Kein unterstützter KatFile-Link"
   }

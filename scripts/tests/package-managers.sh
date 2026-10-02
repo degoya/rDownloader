@@ -114,7 +114,7 @@ expect "the licence of the tag" "LicenseUrl: https://github.com/degoya/rDownload
     "$(grep '^LicenseUrl: ' "$locale")"
 expect "no placeholder is left in the manifests" "0" "$(cat "$winget"/*.yaml | grep -c '@[A-Z0-9_]*@' || true)"
 if python3 -c 'import yaml' 2> /dev/null; then
-    expect "the manifests are YAML of one schema version" "1.10.0 1.10.0 1.10.0" \
+    expect "the manifests are YAML of one schema version" "1.12.0 1.12.0 1.12.0" \
         "$(python3 -c 'import sys, yaml; print(" ".join(yaml.safe_load(open(f))["ManifestVersion"] for f in sys.argv[1:]))' \
             "$winget"/*.yaml)"
 else

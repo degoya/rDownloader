@@ -282,8 +282,9 @@ impl Agent {
     /// Ends the process the way `main` does: the agent's account of the error, if any, on
     /// stderr, and the exit code that goes with it.
     ///
-    /// Goes through `crate::report` rather than ending on 1, so that "not paired yet" and
-    /// "another Click'n'Load listener has the port" reach a launcher from the tray path too.
+    /// Goes through `crate::conclude` rather than ending on 1, so that "not paired yet" and
+    /// "another Click'n'Load listener has the port" reach a launcher from the tray path too, and
+    /// an agent whose program was replaced continues as the new one (RD-190-07).
     fn finish(&mut self, error: Option<anyhow::Error>) -> ! {
         // The icon lingers in the notification area unless it is dropped before
         // the process goes away.
@@ -291,7 +292,7 @@ impl Agent {
         let Some(error) = error else {
             std::process::exit(0);
         };
-        std::process::exit(i32::from(crate::report(&error)));
+        std::process::exit(i32::from(crate::conclude(&error)));
     }
 }
 

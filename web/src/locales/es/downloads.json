@@ -64,7 +64,7 @@
     "clear_title": "Vaciar lista de descargas",
     "clear_completed": "¿Quitar realmente todos los paquetes cuyos archivos hayan terminado? Un paquete que siga trabajando queda intacto y los archivos terminados permanecen en la carpeta de destino.",
     "clear_failed": "¿Quitar realmente todos los paquetes terminados que contengan un archivo fallido, incluidos sus archivos incompletos? Un paquete que siga trabajando queda intacto.",
-    "clear_all": "¿Quitar realmente todos los paquetes que ya no trabajan, sea cual sea el resultado? Un paquete con archivos en curso, en espera o compartiendo queda intacto y los archivos terminados permanecen en la carpeta de destino.",
+    "clear_all": "¿Quitar realmente todos los paquetes que ya no trabajan, sea cual sea el resultado? Un paquete con archivos en curso, en espera o en seeding queda intacto y los archivos terminados permanecen en la carpeta de destino.",
     "clear_label": "Quitar paquetes",
     "remove_download_title": "Quitar descarga",
     "remove_download_completed": "¿Quitar la entrada de la lista de descargas? El archivo terminado se conserva.",
@@ -147,13 +147,13 @@
     "select_aria": "Seleccionar archivo",
     "show_details": "Mostrar detalles",
     "stop_recording": "Detener grabación",
-    "stop_seeding": "Detener siembra",
+    "stop_seeding": "Detener el seeding",
     "drag_title": "Arrastra para cambiar el orden dentro del paquete",
     "trial_staged": "Probar con {name} v{version}",
     "sources": {
       "title": "Fuentes ({count})",
       "pieces": "Comprobado en {count} piezas de {size} ({algorithm})",
-      "no_pieces": "Sin sumas por pieza; la suma del archivo completo se comprueba antes de terminar, si existe.",
+      "no_pieces": "Sin hashes por pieza; el hash del archivo completo se comprueba antes de terminar, si existe.",
       "priority": "Prioridad {value}",
       "delivered": "{size} entregados",
       "failures": "{count} fallos",
@@ -165,7 +165,7 @@
         "unsupported": "Aún no se usa"
       },
       "isolated_reason": {
-        "piece": "Entregó datos que no coinciden con su suma.",
+        "piece": "Entregó datos que no coinciden con su hash.",
         "size": "Ofrece otro tamaño de archivo.",
         "other": "Ya no se usa para este archivo.",
         "internal": "Apunta a tu propio equipo o a una red que esta lista de fuentes no puede alcanzar."
@@ -324,7 +324,7 @@
     "hints": {
       "rename": "El archivo nuevo se guarda junto al existente como «nombre (1)»; no se pierde nada.",
       "skip": "El archivo nuevo no se escribe; el existente no cambia y la descarga termina con un aviso.",
-      "overwrite": "El archivo nuevo sustituye al existente. Queda registrado en el registro de auditoría y nunca se hace sobre un archivo en transferencia o compartiéndose.",
+      "overwrite": "El archivo nuevo sustituye al existente. Queda registrado en el registro de auditoría y nunca se hace sobre un archivo en transferencia o en seeding.",
       "compare": "Se comparan los contenidos: con los mismos bytes se adopta el archivo existente, si difieren se renombra.",
       "ask": "La descarga espera hasta que alguien decida. Solo espera esta descarga, y la pregunta sobrevive a un reinicio."
     },
@@ -361,7 +361,7 @@
       "url": "la dirección normalizada",
       "magnet": "el info-hash",
       "nzb": "el hash del NZB y el nombre del archivo",
-      "provider": "el alojamiento y la dirección"
+      "provider": "el hoster y la dirección"
     },
     "none": "No se encontró ninguno.",
     "location": {
@@ -387,7 +387,7 @@
   "clear_everything": {
     "title": "¿Vaciar la lista entera?",
     "description": "Quita {count} paquete de la lista de descargas. | Quita los {count} paquetes de la lista de descargas.",
-    "active": "Ningún paquete sigue activo. | {count} de ellos sigue activo: las descargas en curso y en espera se cancelan y se deja de compartir. | {count} de ellos siguen activos: las descargas en curso y en espera se cancelan y se deja de compartir.",
+    "active": "Ningún paquete sigue activo. | {count} de ellos sigue activo: las descargas en curso y en espera se cancelan y se detiene el seeding. | {count} de ellos siguen activos: las descargas en curso y en espera se cancelan y se detiene el seeding.",
     "kept": "Los archivos terminados permanecen en su carpeta de destino. Un paquete que se está posprocesando permanece en la lista.",
     "delete_partial": "Eliminar también los archivos descargados parcialmente",
     "delete_partial_hint": "No se puede deshacer: datos de torrent sin terminar y fragmentos junto al archivo de destino. Los archivos incompletos de la carpeta temporal se eliminan siempre.",

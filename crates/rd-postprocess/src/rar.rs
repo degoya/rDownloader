@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
+use rd_files::NoConsoleWindow as _;
 use tokio::io::AsyncReadExt;
 
 use crate::{
@@ -55,7 +56,8 @@ pub(crate) async fn extract_rar_into(
         .kill_on_drop(true)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .no_console_window();
     apply_tool_environment(&mut command);
     let arguments = rar_arguments(
         tool.kind,
@@ -295,7 +297,8 @@ pub async fn test_rar(
         .kill_on_drop(true)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .no_console_window();
     apply_tool_environment(&mut command);
     let arguments = rar_arguments(tool.kind, RarAction::Test, first_volume, password);
     arguments

@@ -10,6 +10,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use rd_core::{PostprocessKind, PostprocessState};
+#[cfg(windows)]
+use rd_files::NoConsoleWindow as _;
 use tokio::io::AsyncReadExt;
 
 use crate::{
@@ -100,7 +102,7 @@ fn program_for(script: &Path) -> tokio::process::Command {
             }
             _ => tokio::process::Command::new(script),
         };
-        command.creation_flags(0x0800_0000);
+        command.no_console_window();
         command
     }
     #[cfg(not(windows))]

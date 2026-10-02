@@ -1,8 +1,8 @@
 {
   "account": {
     "eyebrow": "Provideridentität",
-    "title": "Accounts",
-    "edit_title": "Account bearbeiten",
+    "title": "Konten",
+    "edit_title": "Konto bearbeiten",
     "label_placeholder": "Anzeigename",
     "username_placeholder": "Benutzer (optional)",
     "proxy_placeholder": "Verbindungsweg",
@@ -16,9 +16,9 @@
     "cookies_placeholder": "Cookie: name=wert; … oder Netscape-Cookie-Datei",
     "clear_secret": "Gespeichertes Secret löschen",
     "clear_cookies": "Gespeicherte Cookies löschen",
-    "enabled": "Account aktiv",
+    "enabled": "Konto aktiv",
     "save_changes": "Änderungen speichern",
-    "create": "Account anlegen",
+    "create": "Konto anlegen",
     "hint_title": "Zugangsdaten richtig importieren",
     "secret_generic": "API-Key oder Passwort",
     "secret_generic_api_key": "API-Key",
@@ -26,9 +26,9 @@
     "hint_generic": "Gib die vom Provider benötigten Zugangsdaten ein.",
     "cookies_warning": "Cookies gewähren Zugriff auf deine Sitzung. Importiere nur die Cookies des jeweiligen Providers und gib den Inhalt niemals weiter.",
     "test": "Test",
-    "edit": "Account bearbeiten",
-    "delete": "Account löschen",
-    "empty": "Noch kein Provideraccount angelegt.",
+    "edit": "Konto bearbeiten",
+    "delete": "Konto löschen",
+    "empty": "Noch kein Providerkonto angelegt.",
     "last_test": "Letzte Kontoprüfung",
     "connect": "Verbinden",
     "connect_instructions": "Öffne diese Adresse und bestätige die Anmeldung dort. Nichts wird für dich geöffnet — prüfe die Adresse, bevor du hingehst.",
@@ -40,7 +40,7 @@
     "disable": "Konto deaktivieren",
     "secret_generic_oauth_client": "OAuth-Client-Secret",
     "hint_oauth_client": "Aus deiner eigenen OAuth-Anwendung beim Anbieter. rDownloader bringt keine eigene Client-ID mit; die Anmeldung selbst läuft danach beim Anbieter.",
-    "new_title": "Neuer Account",
+    "new_title": "Neues Konto",
     "provider_label": "Anbieter",
     "label_label": "Anzeigename",
     "username_label": "Benutzername",
@@ -66,22 +66,22 @@
   },
   "hosters": {
     "toggle": "Unterstützte Hoster",
-    "description": "Links dieser Hoster werden automatisch über diesen Account geladen, sofern kein eigener Provideraccount greift. Die Liste liefert das Plugin des Providers.",
+    "description": "Links dieser Hoster werden automatisch über dieses Konto geladen, sofern kein eigenes Providerkonto greift. Die Liste liefert das Plugin des Providers.",
     "filter_placeholder": "Hoster filtern",
     "loading": "Lade Hosterliste …",
     "empty": "Keine Hosterliste verfügbar (Plugin nicht installiert oder Provider nicht erreichbar)."
   },
   "messages": {
-    "created": "Provideraccount wurde angelegt.",
-    "updated": "Provideraccount wurde aktualisiert.",
+    "created": "Providerkonto wurde angelegt.",
+    "updated": "Providerkonto wurde aktualisiert.",
     "premium_active": "Premium aktiv",
     "premium_inactive": "Premiumstatus nicht bestätigt",
     "traffic_left": "{amount} verfügbar"
   },
   "delete": {
-    "title": "Provideraccount löschen",
-    "description": "Der Account „{label}“ und seine verschlüsselten Zugangsdaten werden gelöscht. Nicht abgeschlossene Downloads schützen den Account vor dem Löschen.",
-    "confirm": "Account löschen"
+    "title": "Providerkonto löschen",
+    "description": "Das Konto „{label}“ und seine verschlüsselten Zugangsdaten werden gelöscht. Nicht abgeschlossene Downloads schützen das Konto vor dem Löschen.",
+    "confirm": "Konto löschen"
   },
   "proxy": {
     "direct": "Direkte Verbindung",

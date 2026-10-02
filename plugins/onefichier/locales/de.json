@@ -6,8 +6,8 @@
   },
   "codes": {
     "1fichier.account.access": "Tarif „Access“",
-    "1fichier.account_missing": "1fichier-Account fehlt",
-    "1fichier.account_required": "1fichier erfordert für diese Datei einen Account",
+    "1fichier.account_missing": "1fichier-Konto fehlt",
+    "1fichier.account_required": "1fichier erfordert für diese Datei ein Konto",
     "1fichier.api_error": "1fichier-API: {message}",
     "1fichier.api_key_missing": "Der 1fichier-API-Key fehlt",
     "1fichier.bad_api_key": "Der 1fichier-API-Key ist ungültig oder abgelaufen",
@@ -21,8 +21,8 @@
     "1fichier.no_free_form": "Das 1fichier-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
     "1fichier.no_free_link": "Der 1fichier-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
     "1fichier.no_free_slots": "Bei 1fichier ist derzeit kein Slot für Free-Downloads verfügbar",
-    "1fichier.password_required": "Die 1fichier-Datei ist passwortgeschützt; der Download ohne Account unterstützt das nicht",
-    "1fichier.premium_required": "Für den 1fichier-Download über die API ist ein Premium-Account erforderlich",
+    "1fichier.password_required": "Die 1fichier-Datei ist passwortgeschützt; der Download ohne Konto unterstützt das nicht",
+    "1fichier.premium_required": "Für den 1fichier-Download über die API ist ein Premium-Konto erforderlich",
     "1fichier.server_error": "1fichier-Serverfehler",
     "1fichier.unsupported_link": "Kein unterstützter 1fichier-Link"
   }

@@ -1,7 +1,9 @@
 //! `update.after_previous_set_aside`, `update.after_new_placed` and `update.before_health_check`
 //! (RD-180-02, recovery matrix): the portable switch stops after an old entry went aside, after a
 //! new one took its place, and after the switch was recorded but before anyone proved the new
-//! version. The next start never runs a mix of both versions.
+//! version. The next start never runs a mix of both versions. `update.after_leftover_set_aside`:
+//! the stage stops after a leftover of the update before went into the trash; nothing live
+//! changed, and the next update goes on from there.
 #![cfg(feature = "failpoints")]
 
 use std::fs;
@@ -29,6 +31,13 @@ struct Installation {
 }
 
 fn installation() -> Installation {
+    let mut installation = prepared();
+    portable::stage(&mut installation.journal).expect("stage");
+    installation
+}
+
+/// The installation with its journal written, not yet staged.
+fn prepared() -> Installation {
     let root = tempfile::tempdir().expect("tempdir");
     let install = root.path().join("install");
     let data = install.join("data");
@@ -78,7 +87,6 @@ fn installation() -> Installation {
         previous_installer_sha256: None,
     });
     journal.write().expect("journal");
-    portable::stage(&mut journal).expect("stage");
     Installation {
         _root: root,
         install,
@@ -178,4 +186,40 @@ fn a_switch_recorded_but_never_proven_is_taken_back_when_its_start_never_answere
     assert_eq!(installation.phase(), Phase::RolledBack);
     // The new version ran and may have migrated: the copy from before the update is back.
     assert_eq!(database(&installation.data), "database before the update");
+}
+
+#[test]
+fn a_stage_stopped_after_a_leftover_went_into_the_trash_changes_nothing_live() {
+    let mut installation = prepared();
+    // The update before left its `.previous/`, with the program a capture agent may still run.
+    let previous = installation.install.join(".previous");
+    fs::create_dir_all(&previous).expect("previous");
+    fs::write(previous.join("rdownloader-capture"), "older agent").expect("leftover");
+    let guard = FailpointGuard::once("update.after_leftover_set_aside");
+    assert!(portable::stage(&mut installation.journal).is_err());
+    assert!(
+        guard.fired(),
+        "update.after_leftover_set_aside was never reached"
+    );
+    drop(guard);
+    installation.assert_version(true);
+    assert!(!previous.exists(), "the leftover is in the trash");
+    let trash = installation.install.join(".trash");
+    assert!(trash.is_dir());
+
+    // The next start records the update as failed and leaves the program as it was.
+    let outcome =
+        recover_at_start(&installation.data, &installation.executable(), OLD).expect("start");
+    assert_eq!(outcome, Recovery::Continue);
+    assert_eq!(installation.phase(), Phase::Failed);
+    installation.assert_version(true);
+    assert_eq!(database(&installation.data), "live database");
+
+    // The update offered again goes through, and the trash is gone with it.
+    let mut again = Journal::begin(installation.journal.plan.clone());
+    again.write().expect("journal");
+    portable::stage(&mut again).expect("stage again");
+    portable::switch(&mut again).expect("switch");
+    installation.assert_version(false);
+    assert!(!trash.exists());
 }

@@ -42,7 +42,11 @@ export const uiStubs = {
     props: ['label', 'disabled', 'loading', 'ariaLabel'],
     template: '<button type="button" v-bind="$attrs" :disabled="disabled" :aria-label="ariaLabel">{{ label }}<slot /></button>'
   },
-  UCard: passthrough,
+  /** The element the card renders as, with its three regions in their real order (RD-180-22). */
+  UCard: {
+    props: ['as'],
+    template: '<component :is="as ?? \'div\'" v-bind="$attrs"><slot name="header" /><slot /><slot name="footer" /></component>'
+  },
   UCheckbox: {
     props: ['modelValue', 'label'],
     emits: ['update:modelValue'],
@@ -107,7 +111,31 @@ export const uiStubs = {
       + '<div v-if="isOpen(item, index)" data-accordion-body><slot name="body" :item="item" :index="index" :open="true" /></div>'
       + '</div></div>'
   },
-  UCollapsible: passthrough,
+  /**
+   * The trigger in place and the content rendered only while open, as the real one unmounts a
+   * closed panel; controlled through `open` or left to itself from `defaultOpen` (RD-180-22).
+   */
+  UCollapsible: {
+    props: { open: { type: Boolean, default: undefined }, defaultOpen: Boolean },
+    emits: ['update:open'],
+    data(this: { defaultOpen: boolean }) {
+      return { inner: this.defaultOpen }
+    },
+    computed: {
+      shown(this: { open?: boolean, inner: boolean }): boolean {
+        return this.open ?? this.inner
+      }
+    },
+    methods: {
+      toggle(this: { shown: boolean, inner: boolean, $emit: (event: string, value: boolean) => void }): void {
+        this.inner = !this.shown
+        this.$emit('update:open', this.inner)
+      }
+    },
+    template:
+      '<div v-bind="$attrs" :data-state="shown ? \'open\' : \'closed\'"><div @click="toggle"><slot :open="shown" /></div>'
+      + '<div v-if="shown" data-collapsible-content><slot name="content" /></div></div>'
+  },
   UDashboardNavbar: passthrough,
   UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
   UDashboardSidebarCollapse: true,

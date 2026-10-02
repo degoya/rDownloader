@@ -1,4 +1,5 @@
 import { focusIndexerSearch } from '@/composables/indexerSearchFocus'
+import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { requestFileImport } from '@/composables/nzbImportRequest'
 import { openPalette } from '@/composables/searchPalette'
 import { toggleSidebarCollapsed } from '@/composables/sidebarCollapse'
@@ -48,10 +49,11 @@ export interface OverlayLike {
 
 /**
  * `defineShortcuts` only suppresses shortcuts for a focused input/textarea/contenteditable — it
- * has no notion of an open `UModal`. Every dialog in this app (`ConfirmModal`, `RenameModal`,
- * `NzbImportModal`, `ShortcutsHelpModal`, ...) is opened via Nuxt UI's shared `useOverlay()`
- * composable, so checking whether any tracked overlay is open is a comprehensive, robust guard —
- * exported standalone so the decision logic is unit-testable without a live overlay.
+ * has no notion of an open `UModal`. Most dialogs in this app (`ConfirmModal`, `RenameModal`,
+ * `NzbImportModal`, `ShortcutsHelpModal`, ...) are opened via Nuxt UI's shared `useOverlay()`
+ * composable, and this check covers them from the moment they are asked for; `hasOpenDialog`
+ * below covers the ones bound with `v-model:open`. Exported standalone so the decision logic is
+ * unit-testable without a live overlay.
  */
 export function shouldSuppressShortcuts(overlays: readonly OverlayLike[]): boolean {
   return overlays.some(overlay => overlay.isOpen)
@@ -75,12 +77,38 @@ export function setShortcutFeedback(feedback: { toast: ToastFn, openHelp: HelpOp
 const t = (key: string, named: Record<string, unknown> = {}, plural?: number): string =>
   plural === undefined ? i18n.global.t(key, named) : i18n.global.t(key, named, plural)
 
-/** No shortcut should fire while a dialog is open (see `shouldSuppressShortcuts`). */
+/**
+ * Whether the page shows an open dialog: Reka's dialog content carries `role="dialog"` and
+ * `data-state="open"` while it is open. This finds the dialogs `useOverlay()` never sees —
+ * `UpdateDetailsModal`, `FullRestoreDialog`, `PluginInstallPreviewModal` and every other one
+ * opened through `v-model:open` — which let every plain key through until 1.8.1. An open
+ * `UPopover` carries the same role and counts as well; `Esc` closes it too.
+ */
+export function hasOpenDialog(root: ParentNode = document): boolean {
+  return root.querySelector('[role="dialog"][data-state="open"]') !== null
+}
+
+function dialogOpen(): boolean {
+  return isOverlayOpen() || hasOpenDialog()
+}
+
+/** No shortcut should fire while a dialog is open (see `shouldSuppressShortcuts`, `hasOpenDialog`). */
 function guarded(action: () => void): () => void {
   return () => {
-    if (isOverlayOpen()) return
+    if (dialogOpen()) return
     action()
   }
+}
+
+/**
+ * `x` closes the dialog on top, as `Esc` does — by sending one. Reka's dismissable layer answers
+ * `Esc` for the topmost layer only and leaves a dialog that may not be dismissed (the captcha,
+ * `:dismissible="false"`) alone, so `x` keeps every rule `Esc` already keeps. Not `guarded`: an
+ * open dialog is the one place it acts; without one it does nothing.
+ */
+function closeDialog(): void {
+  if (!dialogOpen()) return
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
 }
 
 function goTo(path: string): () => void {
@@ -155,6 +183,13 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   // Ctrl/Cmd+F stays the browser's find and Shift+F does nothing: `defineShortcuts` matches
   // modifiers exactly, Shift included for a letter.
   { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },
+  // The LinkGrabber's own keys, handed in by the view (`linkGrabberActions.ts`). The ones that
+  // ask first are answered by the same key again (`ConfirmModal`'s `confirmKey`), as `k` is.
+  { keys: 'a', labelKeys: ['a'], descriptionKey: 'common.shortcuts.add_links', group: 'actions', handler: guarded(() => runLinkGrabberAction('addLinks')) },
+  { keys: 'e', labelKeys: ['e'], descriptionKey: 'common.shortcuts.enqueue_all', group: 'actions', handler: guarded(() => runLinkGrabberAction('enqueueAll')) },
+  { keys: 'w', labelKeys: ['w'], descriptionKey: 'common.shortcuts.enqueue_paused', group: 'actions', handler: guarded(() => runLinkGrabberAction('enqueuePaused')) },
+  { keys: 'r', labelKeys: ['r'], descriptionKey: 'common.shortcuts.clear_linkgrabber', group: 'actions', handler: guarded(() => runLinkGrabberAction('clearAll')) },
+  { keys: 'x', labelKeys: ['x'], descriptionKey: 'common.shortcuts.close_dialog', group: 'actions', handler: closeDialog },
   { keys: '?', labelKeys: ['?'], descriptionKey: 'common.shortcuts.show_help', group: 'actions', handler: guarded(() => openHelp()) },
   // The search (RD-170-15). `/` is a plain key, so like every key above it does nothing while a
   // text field has the focus; Ctrl/Cmd+K opens the search from anywhere, a text field included.

@@ -484,7 +484,7 @@
     "title": "Sources ({count})",
     "badge": "{count} sources",
     "priority": "Priorité {value}",
-    "hint": "Essayées dans cet ordre. Une adresse qui pointe vers ta propre machine — ou, pour un document que tu n'as pas fourni toi-même, vers ton réseau local — n'est pas interrogée."
+    "hint": "Essayées dans cet ordre. Une adresse qui pointe vers votre propre machine — ou, pour un document que vous n'avez pas fourni vous-même, vers votre réseau local — n'est pas interrogée."
   },
   "search": {
     "title": "Recherche dans les indexeurs",

@@ -1,6 +1,6 @@
 {
   "name": "pCloud-Anmeldung",
-  "description": "Meldet ein pCloud-Konto über den Autorisierungsendpunkt von pCloud an.",
+  "description": "Meldet ein pCloud-Konto über den Autorisierungs-Endpoint von pCloud an.",
   "codes": {
     "pcloud_oauth.bad_reply": "pCloud hat eine Antwort geschickt, die dieses Plugin nicht lesen konnte.",
     "pcloud_oauth.client_not_configured": "Zu diesem Konto ist keine pCloud-Anwendung hinterlegt. Trage zuerst App-Key und App-Secret ein.",

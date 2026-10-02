@@ -5,6 +5,7 @@
 //! will silently fail to honour. This mirrors how the torrent interface binding is handled.
 
 use async_trait::async_trait;
+use rd_files::NoConsoleWindow as _;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -121,6 +122,7 @@ pub(crate) async fn run(program: &str, args: &[&str]) -> anyhow::Result<String> 
         // Dropping the timed-out future has to take the wedged child with it; without this
         // every tick would leave another orphan behind.
         .kill_on_drop(true)
+        .no_console_window()
         .output();
     let Ok(output) = tokio::time::timeout(COMMAND_TIMEOUT, output).await else {
         let seconds = COMMAND_TIMEOUT.as_secs();

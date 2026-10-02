@@ -3,16 +3,16 @@
   "description": "Résout les liens d'autres hébergeurs via un compte Real-Debrid.",
   "account": {
     "secret_label": "Jeton d'API Real-Debrid",
-    "secret_hint": "Choisis comment ce compte se connecte. « Se connecter avec un code » est la voie simple : enregistre le compte, appuie sur « Connecter » et confirme le code affiché sur real-debrid.com/device — ni nom d'utilisateur ni jeton à copier, et rDownloader renouvelle la connexion lui-même. « Jeton d'API » utilise à la place le jeton privé de real-debrid.com/apitoken.",
+    "secret_hint": "Choisissez comment ce compte se connecte. « Se connecter avec un code » est la voie simple : enregistrez le compte, appuyez sur « Connecter » et confirmez le code affiché sur real-debrid.com/device — ni nom d'utilisateur ni jeton à copier, et rDownloader renouvelle la connexion lui-même. « Jeton d'API » utilise à la place le jeton privé de real-debrid.com/apitoken.",
     "mode_label_api_key": "Jeton d'API",
     "secret_label_api_key": "Jeton d'API Real-Debrid",
-    "secret_hint_api_key": "Ouvre real-debrid.com/apitoken (connecté), copie le jeton d'API privé et saisis-le ici. Aucun nom d'utilisateur n'est nécessaire. Si tu renouvelles le jeton là-bas, saisis le nouveau ici.",
-    "secret_hint_oauth": "Rien à saisir ici. Enregistre le compte et appuie sur « Connecter » : rDownloader affiche une adresse et un code, tu confirmes le code sur real-debrid.com/device, et le compte reste connecté ensuite."
+    "secret_hint_api_key": "Ouvrez real-debrid.com/apitoken (connecté), copiez le jeton d'API privé et saisissez-le ici. Aucun nom d'utilisateur n'est nécessaire. Si vous renouvelez le jeton là-bas, saisissez le nouveau ici.",
+    "secret_hint_oauth": "Rien à saisir ici. Enregistrez le compte et appuyez sur « Connecter » : rDownloader affiche une adresse et un code, vous confirmez le code sur real-debrid.com/device, et le compte reste connecté ensuite."
   },
   "codes": {
     "realdebrid.account_missing": "Compte Real-Debrid manquant",
     "realdebrid.api_error": "Erreur {api_code} de l'API Real-Debrid",
-    "realdebrid.auth_invalid": "La connexion ou le jeton d'API Real-Debrid n'est plus valide. Reconnecte le compte ou saisis le jeton actuel de real-debrid.com/apitoken.",
+    "realdebrid.auth_invalid": "La connexion ou le jeton d'API Real-Debrid n'est plus valide. Reconnectez le compte ou saisissez le jeton actuel de real-debrid.com/apitoken.",
     "realdebrid.file_offline": "Real-Debrid signale ce fichier comme indisponible",
     "realdebrid.host_unsupported": "Real-Debrid ne prend pas en charge cet hébergeur pour ce compte",
     "realdebrid.http_error": "Statut HTTP {status} de Real-Debrid",

@@ -46,7 +46,7 @@
     "secret_smtp_description": "Contraseña de la cuenta SMTP.",
     "secret_apprise": "URL de destino de Apprise",
     "secret_apprise_description": "Por ejemplo tgram://token/chat_id: se entrega a apprise en su entorno, nunca como argumento.",
-    "secret_keep": "Déjelo vacío para conservar el secreto guardado.",
+    "secret_keep": "Déjalo vacío para conservar el secreto guardado.",
     "test": "Enviar una prueba",
     "test_ok": "Notificación de prueba entregada a «{name}».",
     "test_failed": "«{name}» no aceptó la prueba: {detail}",
@@ -92,7 +92,7 @@
     "all_events": "todos los eventos",
     "all_categories": "Todas las categorías",
     "empty": "Aún no hay reglas.",
-    "needs_target": "Cree primero un destino.",
+    "needs_target": "Crea primero un destino.",
     "delete_title": "Eliminar regla",
     "delete_description": "¿Eliminar la regla «{name}»?",
     "form_new": "Nueva regla"

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.8.0"
+    "version": "1.8.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -32195,7 +32195,7 @@
           "update_channel": {
             "type": "string",
             "description": "Which releases the update check offers: `stable`, or `beta` for the pre-releases too.\nUnset, it is `beta` on a pre-release build and `stable` on every other.",
-            "default": "beta"
+            "default": "stable"
           },
           "update_check_enabled": {
             "type": "boolean",

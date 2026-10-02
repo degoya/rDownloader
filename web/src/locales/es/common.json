@@ -39,7 +39,7 @@
     "failed": "Fallido",
     "cancelled": "Cancelado",
     "completed": "Completado",
-    "seeding": "Sembrando",
+    "seeding": "Seeding",
     "skipped_postponed": "Aplazado"
   },
   "priority": {
@@ -119,7 +119,12 @@
     "go_audit": "Ir a Auditoría",
     "open_search": "Abrir búsqueda",
     "clear_completed": "Quitar paquetes completados (en Descargas)",
-    "focus_indexer_search": "Ir a la búsqueda en indexadores (en el LinkGrabber)"
+    "focus_indexer_search": "Ir a la búsqueda en indexadores (en el LinkGrabber)",
+    "add_links": "Añadir enlaces (en el LinkGrabber)",
+    "enqueue_all": "Cargar todo (en el LinkGrabber)",
+    "enqueue_paused": "Añadir todo en pausa (en el LinkGrabber)",
+    "clear_linkgrabber": "Eliminar todos los enlaces (en el LinkGrabber)",
+    "close_dialog": "Cerrar el diálogo"
   },
   "a11y": {
     "skip_to_content": "Ir al contenido",

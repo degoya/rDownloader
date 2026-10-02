@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 directories.workspace = true
+rd-files = { path = "../rd-files" }
 
 [dev-dependencies]
 tempfile.workspace = true

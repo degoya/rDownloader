@@ -54,9 +54,9 @@
   "page": {
     "eyebrow": "En el proveedor",
     "title": "Trabajos remotos",
-    "description": "Los magnets entregados a una cuenta de proveedor se ejecutan allí, no aquí. Sígalos, responda las preguntas por las que se detienen y termínelos: en el proveedor o solo en esta lista."
+    "description": "Los magnets entregados a una cuenta de proveedor se ejecutan allí, no aquí. Síguelos, responde las preguntas por las que se detienen y termínalos: en el proveedor o solo en esta lista."
   },
-  "no_remote_job_accounts": "Ninguna de tus cuentas pertenece a un servicio con un complemento de trabajos remotos instalado. Instala uno o añade una cuenta de un servicio que lo tenga.",
+  "no_remote_job_accounts": "Ninguna de tus cuentas pertenece a un servicio con un plugin de trabajos remotos instalado. Instala uno o añade una cuenta de un servicio que lo tenga.",
   "accounts_unavailable": "No se ha podido leer la lista de servicios que pueden aceptar un trabajo.",
   "accounts_loading": "Comprobando qué cuentas pueden aceptar un trabajo…",
   "files": {

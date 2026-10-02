@@ -1,6 +1,6 @@
 {
   "name": "Google-Anmeldung",
-  "description": "Meldet ein Google-Drive-Konto über Googles eigenen Autorisierungsendpunkt an.",
+  "description": "Meldet ein Google-Drive-Konto über Googles eigenen Autorisierungs-Endpoint an.",
   "codes": {
     "google_drive_oauth.bad_reply": "Google hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
     "google_drive_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde. Starte sie erneut.",

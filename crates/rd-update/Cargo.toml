@@ -26,6 +26,7 @@ fs4.workspace = true
 futures-util.workspace = true
 hex.workspace = true
 rd-core = { path = "../rd-core" }
+rd-files = { path = "../rd-files" }
 rd-sign = { path = "../rd-sign" }
 reqwest.workspace = true
 semver.workspace = true

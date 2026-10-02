@@ -525,7 +525,7 @@
     },
     "hosts": {
       "label": "Hôtes de galeries",
-      "description": "Les liens de ces hôtes sont routés vers gallery-dl (les hôtes media gagnent s’ils figurent dans les deux listes).",
+      "description": "Les liens de ces hôtes sont routés vers gallery-dl (les hôtes média gagnent s’ils figurent dans les deux listes).",
       "placeholder": "pixiv.net, deviantart.com, …",
       "add_defaults": "Ajouter les hôtes par défaut",
       "hint": "gallery-dl prend en charge bien plus de sites ; ajoutez tout hôte compatible."
@@ -885,7 +885,7 @@
   },
   "upload_limit": {
     "label": "Limite d'envoi",
-    "description": "S'applique à chaque envoi : partage torrent, stockage objet, rclone et destinations d'envoi. Vide signifie illimité"
+    "description": "S'applique à chaque envoi : seed de torrents, stockage objet, rclone et destinations d'envoi. Vide signifie illimité"
   },
   "subtabs": {
     "network": {

@@ -6,7 +6,7 @@ name = "DDownload"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.10.14"
+version = "0.10.15"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["ddownload.com", "www.ddownload.com"]

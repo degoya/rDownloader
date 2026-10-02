@@ -14,6 +14,9 @@
 //! 3. **Roll back** ([`roll_back`]). A new entry that left the staging goes to
 //!    `<install>/.failed-<version>/`, each entry in `.previous/` back to its place.
 //!
+//! The leftovers of an earlier update — its staging, `.previous/`, `.failed-…` — and those of
+//! this one go through [`trash`]: moved aside, then removed where the system lets them go.
+//!
 //! Names the switch never moves, even when an archive carried them: the data a portable
 //! installation keeps beside its program ([`KEPT`]) and anything hidden.
 
@@ -23,7 +26,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 
-use super::{InstallError, Journal, Phase, exists, remove_any, rename, sync_directory};
+use super::{InstallError, Journal, Phase, exists, remove_any, rename, sync_directory, trash};
 
 /// What lives beside a portable program and is never replaced by an update.
 pub const KEPT: &[&str] = &["data", "downloads", "logs", "run", "vendor", "install-kind"];
@@ -39,10 +42,14 @@ pub const KEPT: &[&str] = &["data", "downloads", "logs", "run", "vendor", "insta
 /// live has changed then.
 pub fn stage(journal: &mut Journal) -> Result<()> {
     let staged = journal.staged_dir();
+    let install = journal.plan.install_dir.clone();
     // Leftovers of an earlier update: the start that proved or rolled it back has passed, or
-    // no new update could have been handed over.
+    // no new update could have been handed over. Moved into the trash, never removed in place:
+    // a capture agent started before that update may still run from `.previous/` (live finding
+    // 2026-10-02), and its folder can be moved but not removed.
+    trash::sweep(&install);
     for leftover in [staged.clone(), journal.previous_dir(), journal.failed_dir()] {
-        remove_any(&leftover)?;
+        trash::discard(&leftover, &install)?;
     }
     // Unpacked from the handle that was hashed, never from the path again (security review
     // 2026-09-30, finding 6).
@@ -50,7 +57,6 @@ pub fn stage(journal: &mut Journal) -> Result<()> {
     fs::create_dir_all(&staged).with_context(|| format!("create {}", staged.display()))?;
     unpack(&journal.plan.artifact, archive, &staged)?;
     let entries = entries_of(&staged, &journal.plan.executable)?;
-    let install = journal.plan.install_dir.clone();
     journal.replaced = entries
         .iter()
         .filter(|name| exists(&install.join(name)))
@@ -163,7 +169,7 @@ pub fn switch(journal: &mut Journal) -> Result<()> {
     // Every entry has left the staging; what stays there is what the switch never moves (the
     // archive's `data/`, hidden names). A roll-back reads an absent staging as "every entry came
     // out", which is now true; one that cannot go yet goes with the clean-up of a later start.
-    if let Err(error) = remove_any(&staged) {
+    if let Err(error) = trash::discard(&staged, &install) {
         tracing::warn!(%error, "the staging of the update stays until a later start");
     }
     sync_directory(&previous);
@@ -175,8 +181,8 @@ pub fn switch(journal: &mut Journal) -> Result<()> {
 
 /// Takes a switch back from any point: every new entry that left the staging goes to
 /// `.failed-<version>/`, every entry in `.previous/` back to its place; then the staging and
-/// `.previous/` are removed, and `.failed-…` where the system lets it go (a later start removes
-/// what is left). The journal is not written; the caller ends it with the reason.
+/// `.previous/` are removed, and `.failed-…` goes to the trash (a later start removes what the
+/// system still holds). The journal is not written; the caller ends it with the reason.
 ///
 /// # Errors
 ///
@@ -208,7 +214,7 @@ pub fn roll_back(journal: &Journal) -> Result<()> {
     sync_directory(install);
     remove_any(&staged)?;
     remove_any(&previous)?;
-    if let Err(error) = remove_any(&failed) {
+    if let Err(error) = trash::discard(&failed, install) {
         tracing::warn!(%error, "the files of the rolled-back version stay until a later start");
     }
     Ok(())

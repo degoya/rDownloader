@@ -10,6 +10,7 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use rd_api::AppState;
 use rd_db::Database;
+use rd_files::NoConsoleWindow as _;
 use rd_scheduler::{SchedulerConfig, SchedulerHandle};
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
@@ -660,6 +661,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
 
 fn command_available(command: &str) -> bool {
     std::process::Command::new(command)
+        .no_console_window()
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

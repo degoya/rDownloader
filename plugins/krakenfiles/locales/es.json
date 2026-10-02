@@ -13,7 +13,7 @@
     "krakenfiles.invalid_url": "URL del proveedor no válida: {error}",
     "krakenfiles.no_account": "Este resolutor descarga sin cuenta y no tiene ninguna que comprobar",
     "krakenfiles.page_layout_changed": "La página del archivo de KrakenFiles ya no tiene el aspecto esperado: {diagnosis}",
-    "krakenfiles.rate_limited": "KrakenFiles rechazó el enlace de descarga (HTTP {status}); demasiadas conexiones, inténtelo de nuevo en una hora",
+    "krakenfiles.rate_limited": "KrakenFiles rechazó el enlace de descarga (HTTP {status}); demasiadas conexiones, inténtalo de nuevo en una hora",
     "krakenfiles.unsupported_link": "No es un enlace de KrakenFiles compatible"
   }
 }

@@ -117,10 +117,10 @@
     "message": "Les téléchargements lancés dans le navigateur sont mis en pause puis transmis à rDownloader. Nécessite un jeton de capture."
   },
   "menuSession": {
-    "message": "Envoyer la session de ce site a rDownloader"
+    "message": "Envoyer la session de ce site à rDownloader"
   },
   "sessionShared": {
-    "message": "Session pour $HOST$ envoyee. Approuvez-la dans rDownloader pour l utiliser.",
+    "message": "Session pour $HOST$ envoyée. Approuvez-la dans rDownloader pour l'utiliser.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -128,10 +128,10 @@
     }
   },
   "sessionEmpty": {
-    "message": "Aucun cookie trouve pour ce site."
+    "message": "Aucun cookie trouvé pour ce site."
   },
   "sessionFailed": {
-    "message": "L envoi de la session a echoue : $REASON$",
+    "message": "L'envoi de la session a échoué : $REASON$",
     "placeholders": {
       "reason": {
         "content": "$1"
@@ -139,7 +139,7 @@
     }
   },
   "sessionUnconfigured": {
-    "message": "Associez d abord l extension a rDownloader."
+    "message": "Associez d'abord l'extension à rDownloader."
   },
   "captchaSection": {
     "message": "Captchas en attente"
@@ -404,7 +404,7 @@
     "message": "Révoquer"
   },
   "handoverRefusedUnreadable": {
-    "message": "rDownloader n'a pas pu lire les cookies de $HOST$, rien n'a été enregistré. Transmets à nouveau la session ; si l'échec se répète, signale-le.",
+    "message": "rDownloader n'a pas pu lire les cookies de $HOST$, rien n'a été enregistré. Transmettez à nouveau la session ; si l'échec se répète, signalez-le.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -428,7 +428,7 @@
     }
   },
   "handoverRefusedNotWaiting": {
-    "message": "La demande de session pour $HOST$ n'attend plus. Relance la transmission dans rDownloader.",
+    "message": "La demande de session pour $HOST$ n'attend plus. Relancez la transmission dans rDownloader.",
     "placeholders": {
       "host": {
         "content": "$1"

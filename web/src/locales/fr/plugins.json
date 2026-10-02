@@ -32,7 +32,9 @@
     "withdrawn_badge": "Retiré",
     "withdrawn_hint": "Cette version est refusée à partir du prochain démarrage ; la clé de signature reste intacte.",
     "withdraw_version": "Retirer la version {version}",
-    "staged_badge": "En test"
+    "staged_badge": "En test",
+    "more_hosts": "+{count} de plus",
+    "fewer_hosts": "Afficher moins"
   },
   "keys": {
     "eyebrow": "Clés de signature",
@@ -69,7 +71,8 @@
     "cookies": "Cookies du compte",
     "captcha": "Résolution de CAPTCHA",
     "secret": "Identifiant : {reference}",
-    "net_stream": "Connexions directes (ports {ports})"
+    "net_stream": "Connexions directes (ports {ports})",
+    "key_derivation": "Dérivation de clés"
   },
   "incompatible": {
     "eyebrow": "Paquets refusés",

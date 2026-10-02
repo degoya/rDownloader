@@ -11,10 +11,11 @@ import type { PluginLifecycle } from '@/api/types'
  * (RD-140-02).
  *
  * Every action here is stored and takes effect at the next start, like installing a plugin, so
- * the panel always shows two things apart: the version that runs now and the one the next start
- * will run. The service answers each action with a message that says so; the panel hands it and
- * any refusal to the tab, which shows them where every other plugin action lands, and asks it to
- * re-read the inventory rather than guessing what the pointers are now.
+ * the card shows two things apart beside the panel: the version that runs now and the one the
+ * next start will run (the card's "Versions" row, RD-180-22). The service answers each action
+ * with a message that says so; the panel hands it and any refusal to the tab, which shows them
+ * where every other plugin action lands, and asks it to re-read the inventory rather than
+ * guessing what the pointers are now.
  */
 const props = defineProps<{
   lifecycle: PluginLifecycle
@@ -80,20 +81,7 @@ function setAutomatic(value: boolean): Promise<void> {
 </script>
 
 <template>
-  <div class="mt-3 space-y-2 border-t border-muted pt-2 text-xs">
-    <div class="flex flex-wrap items-center gap-2">
-      <p class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.versions.title') }}</p>
-      <UBadge v-if="lifecycle.running_version" size="xs" color="primary" variant="subtle">
-        {{ t('plugins.versions.running', { version: lifecycle.running_version }) }}
-      </UBadge>
-      <template v-if="lifecycle.restart_required">
-        <UBadge v-if="lifecycle.active_version" size="xs" color="neutral" variant="outline">
-          {{ t('plugins.versions.next', { version: lifecycle.active_version }) }}
-        </UBadge>
-        <UBadge size="xs" color="warning" variant="subtle">{{ t('plugins.versions.restart_required') }}</UBadge>
-      </template>
-    </div>
-
+  <div class="space-y-2 text-xs">
     <div v-if="lifecycle.staged_version" class="flex flex-wrap items-center justify-between gap-2 border border-muted px-2 py-1">
       <div class="min-w-0">
         <p class="font-mono text-toned">{{ t('plugins.versions.staged', { version: lifecycle.staged_version }) }}</p>
@@ -105,7 +93,7 @@ function setAutomatic(value: boolean): Promise<void> {
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
+    <div v-if="lifecycle.previous_version || others.length" class="flex flex-wrap items-center gap-2">
       <UButton
         v-if="lifecycle.previous_version"
         size="xs"
@@ -116,11 +104,15 @@ function setAutomatic(value: boolean): Promise<void> {
         :disabled="busy"
         @click="rollBack"
       />
-      <template v-if="others.length">
-        <USelect v-model="picked" :items="others" value-key="value" size="xs" class="w-40" :placeholder="t('plugins.versions.pick')" :aria-label="t('plugins.versions.pick')" />
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-check" :label="t('plugins.versions.activate')" :disabled="busy || !picked" @click="picked && activate(picked)" />
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-flask-conical" :label="t('plugins.versions.stage')" :disabled="busy || !picked" @click="picked && stage(picked)" />
-      </template>
+      <!--
+        The picker takes what the two buttons leave; on a phone it has the row to itself and the
+        buttons go under it.
+      -->
+      <div v-if="others.length" class="flex min-w-0 flex-1 basis-64 flex-wrap items-center gap-1">
+        <USelect v-model="picked" :items="others" value-key="value" size="sm" class="min-w-0 grow basis-full sm:basis-0" :placeholder="t('plugins.versions.pick')" :aria-label="t('plugins.versions.pick')" />
+        <UButton size="sm" color="neutral" variant="ghost" class="shrink-0" icon="i-lucide-check" :label="t('plugins.versions.activate')" :disabled="busy || !picked" @click="picked && activate(picked)" />
+        <UButton size="sm" color="neutral" variant="ghost" class="shrink-0" icon="i-lucide-flask-conical" :label="t('plugins.versions.stage')" :disabled="busy || !picked" @click="picked && stage(picked)" />
+      </div>
     </div>
 
     <details v-if="releaseNotes?.length" class="group" data-release-notes>

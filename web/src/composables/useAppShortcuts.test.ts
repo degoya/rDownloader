@@ -10,7 +10,8 @@ import { defineComponent, h } from 'vue'
 // wires `defineShortcuts`/`useOverlay` from that barrel, so it is exercised only through the app,
 // not imported here.
 import { setIndexerSearchFocusAction } from './indexerSearchFocus'
-import { SHORTCUT_DEFINITIONS, registeredShortcuts, setClearCompletedAction, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
+import { setLinkGrabberActions } from './linkGrabberActions'
+import { SHORTCUT_DEFINITIONS, hasOpenDialog, registeredShortcuts, setClearCompletedAction, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
 import { sidebarCollapsed } from './sidebarCollapse'
 import english from '@/locales/en/common.json'
 
@@ -55,7 +56,7 @@ describe('SHORTCUT_DEFINITIONS', () => {
 
   it('covers every documented key with a navigation or actions group', () => {
     const keys = SHORTCUT_DEFINITIONS.map(definition => definition.keys)
-    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', 'f', '?', '/', 'meta_k'])
+    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', 'f', 'a', 'e', 'w', 'r', 'x', '?', '/', 'meta_k'])
     for (const definition of SHORTCUT_DEFINITIONS) {
       expect(['navigation', 'actions']).toContain(definition.group)
       expect(definition.labelKeys.length).toBeGreaterThan(0)
@@ -72,6 +73,33 @@ describe('shouldSuppressShortcuts', () => {
 
   it('is true when any overlay is open', () => {
     expect(shouldSuppressShortcuts([{ isOpen: false }, { isOpen: true }])).toBe(true)
+  })
+})
+
+describe('hasOpenDialog', () => {
+  // The dialogs bound with `v-model:open` (`UpdateDetailsModal`, `FullRestoreDialog`, …) are
+  // not in `useOverlay()`'s list; Reka's open dialog content is what they share with the rest.
+  afterEach(() => {
+    document.body.replaceChildren()
+  })
+
+  it('finds an open dialog in the page and ignores a closing one', () => {
+    expect(hasOpenDialog()).toBe(false)
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('data-state', 'closed')
+    document.body.append(dialog)
+    expect(hasOpenDialog()).toBe(false)
+    dialog.setAttribute('data-state', 'open')
+    expect(hasOpenDialog()).toBe(true)
+  })
+
+  it('holds a plain key back while such a dialog is open, with no overlay tracked', () => {
+    let opened = 0
+    setShortcutFeedback({ toast: () => {}, openHelp: () => { opened += 1 }, isOverlayOpen: () => false })
+    document.body.innerHTML = '<div role="dialog" data-state="open"></div>'
+    SHORTCUT_DEFINITIONS.find(definition => definition.keys === '?')!.handler()
+    expect(opened).toBe(0)
   })
 })
 
@@ -264,5 +292,153 @@ describe('the indexer-search shortcut', () => {
     setIndexerSearchFocusAction(null)
     expect(() => entry.handler()).not.toThrow()
     expect(focused).toBe(0)
+  })
+})
+
+describe('the LinkGrabber keys', () => {
+  // `a`, `e`, `w`, `r` (1.8.1): the view hands its actions in while mounted
+  // (`LinkGrabberView.test.ts` holds that half, the confirmations included); this half is which
+  // keypress reaches them.
+  const KEYS = { a: 'addLinks', e: 'enqueueAll', w: 'enqueuePaused', r: 'clearAll' } as const
+  let ran: string[] = []
+
+  function mountShortcuts() {
+    const host = defineComponent({
+      setup() {
+        defineShortcuts(registeredShortcuts())
+        return () => h('div', [h('input', { 'data-testid': 'field' }), h('button', { 'data-testid': 'elsewhere' })])
+      }
+    })
+    return render(host)
+  }
+
+  beforeEach(() => {
+    ran = []
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
+    setLinkGrabberActions({
+      addLinks: () => { ran.push('addLinks') },
+      enqueueAll: () => { ran.push('enqueueAll') },
+      enqueuePaused: () => { ran.push('enqueuePaused') },
+      clearAll: () => { ran.push('clearAll') }
+    })
+  })
+
+  afterEach(() => {
+    setLinkGrabberActions(null)
+    document.body.replaceChildren()
+  })
+
+  it('are listed in the help as actions and bound as plain keys', () => {
+    for (const key of Object.keys(KEYS)) {
+      const entry = SHORTCUT_DEFINITIONS.find(definition => definition.keys === key)!
+      expect(entry.group).toBe('actions')
+      expect(entry.labelKeys).toEqual([key])
+      expect(Object.keys(registeredShortcuts())).toContain(key)
+    }
+  })
+
+  it('run the handed-in action outside a text field, never while one is being typed in', async () => {
+    const view = mountShortcuts()
+    const field = view.getByTestId('field')
+    field.focus()
+    for (const key of Object.keys(KEYS)) await fireEvent.keyDown(field, { key })
+    expect(ran).toEqual([])
+
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    for (const key of Object.keys(KEYS)) await fireEvent.keyDown(elsewhere, { key })
+    expect(ran).toEqual(Object.values(KEYS))
+  })
+
+  it('do nothing while a dialog is open, tracked or only in the page', () => {
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
+    for (const key of Object.keys(KEYS)) SHORTCUT_DEFINITIONS.find(definition => definition.keys === key)!.handler()
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
+    document.body.innerHTML = '<div role="dialog" data-state="open"></div>'
+    for (const key of Object.keys(KEYS)) SHORTCUT_DEFINITIONS.find(definition => definition.keys === key)!.handler()
+    expect(ran).toEqual([])
+  })
+
+  it('do nothing on a page that handed no actions in', () => {
+    setLinkGrabberActions(null)
+    for (const key of Object.keys(KEYS)) {
+      expect(() => SHORTCUT_DEFINITIONS.find(definition => definition.keys === key)!.handler()).not.toThrow()
+    }
+    expect(ran).toEqual([])
+  })
+})
+
+describe('the close-dialog key', () => {
+  // `x` closes the dialog on top by sending the `Esc` Reka already answers (1.8.1), so it keeps
+  // what `Esc` keeps: the topmost layer only, never a dialog that may not be dismissed.
+  const entry = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'x')!
+  let escapes = 0
+  const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') escapes += 1 }
+
+  function mountShortcuts() {
+    const host = defineComponent({
+      setup() {
+        defineShortcuts(registeredShortcuts())
+        return () => h('div', [h('input', { 'data-testid': 'field' }), h('button', { 'data-testid': 'elsewhere' })])
+      }
+    })
+    return render(host)
+  }
+
+  function openDialog(): void {
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('data-state', 'open')
+    document.body.append(dialog)
+  }
+
+  beforeEach(() => {
+    escapes = 0
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
+    window.addEventListener('keydown', onKey)
+  })
+
+  afterEach(() => {
+    window.removeEventListener('keydown', onKey)
+    document.body.replaceChildren()
+  })
+
+  it('is listed in the help and bound as a plain key, not held back by the dialog guard', () => {
+    expect(entry.group).toBe('actions')
+    expect(entry.labelKeys).toEqual(['x'])
+    expect(entry.descriptionKey).toBe('common.shortcuts.close_dialog')
+    expect(Object.keys(registeredShortcuts())).toContain('x')
+  })
+
+  it('sends `Esc` while a dialog is open, the tracked kind or one only in the page', async () => {
+    const view = mountShortcuts()
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+
+    openDialog()
+    await fireEvent.keyDown(elsewhere, { key: 'x' })
+    expect(escapes).toBe(1)
+
+    document.querySelector('[role="dialog"]')?.remove()
+    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
+    entry.handler()
+    expect(escapes).toBe(2)
+  })
+
+  it('does nothing without a dialog', async () => {
+    const view = mountShortcuts()
+    const elsewhere = view.getByTestId('elsewhere')
+    elsewhere.focus()
+    await fireEvent.keyDown(elsewhere, { key: 'x' })
+    expect(escapes).toBe(0)
+  })
+
+  it('leaves a text field to its typing, inside a dialog too', async () => {
+    const view = mountShortcuts()
+    openDialog()
+    const field = view.getByTestId('field')
+    field.focus()
+    await fireEvent.keyDown(field, { key: 'x' })
+    expect(escapes).toBe(0)
   })
 })

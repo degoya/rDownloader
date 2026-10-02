@@ -75,7 +75,7 @@
     "script": "Script",
     "script_description": "Un archivo en la carpeta de scripts del servicio. Se toma cada línea que imprime y que es un enlace; un enlace ya visto no se vuelve a tomar. Solo el administrador puede configurar una suscripción de script.",
     "schedule": "Programación (cron)",
-    "schedule_description": "Cinco campos en la hora local del servicio, p. ej. 0 6 * * * para las 06:00 cada día. Déjelo vacío para usar el intervalo; con una programación, el intervalo solo indica cuándo se reintenta una ejecución fallida.",
+    "schedule_description": "Cinco campos en la hora local del servicio, p. ej. 0 6 * * * para las 06:00 cada día. Déjalo vacío para usar el intervalo; con una programación, el intervalo solo indica cuándo se reintenta una ejecución fallida.",
     "script_arguments": "Parámetros",
     "script_arguments_description": "Una línea, separada por espacios; \"…\" o '…' mantienen unido un parámetro con espacios. Sin shell: $variables, > redirecciones, ; y & llegan sin cambios. Nada secreto: los parámetros se guardan en texto plano en la base de datos, las copias de seguridad y el registro de auditoría.",
     "script_arguments_preview": "Así llegan los parámetros al script",
@@ -118,7 +118,7 @@
       "audio": "Audio",
       "size": "Tamaño",
       "grabs": "Descargas",
-      "seeders": "Semillas",
+      "seeders": "Seeders",
       "genre": "Género",
       "language": "Idioma"
     },

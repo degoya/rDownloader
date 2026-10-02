@@ -16,6 +16,7 @@ mod notify;
 #[cfg(test)]
 mod notify_resume;
 mod os_integration;
+mod relaunch;
 // The platform gate: what a Linux build of the agent may link, and which modules may be
 // compiled there at all. Its own file because it is a check, not a part of the agent.
 #[cfg(test)]
@@ -60,8 +61,18 @@ fn main() -> std::process::ExitCode {
         .init();
     match dispatch() {
         Ok(()) => std::process::ExitCode::SUCCESS,
-        Err(error) => std::process::ExitCode::from(report(&error)),
+        Err(error) => std::process::ExitCode::from(conclude(&error)),
     }
+}
+
+/// How the process ends after the agent stopped with `error`: as the program that replaced this
+/// one when that is why it stopped ([`relaunch`]), otherwise with [`report`]'s account and code.
+/// Shared with the tray path, like `report`.
+pub(crate) fn conclude(error: &anyhow::Error) -> u8 {
+    if let Some(replaced) = error.downcast_ref::<relaunch::Replaced>() {
+        return relaunch::relaunch(replaced);
+    }
+    report(error)
 }
 
 /// Prints the agent's account of a failure and returns the code to end the process on.
@@ -290,6 +301,12 @@ async fn run(
             });
         }
     }
+    // After a self-update the agent continues as the new program (RD-190-07); nothing to watch
+    // when the system does not say which file this process runs from.
+    let program = std::env::current_exe().ok();
+    let replacement = program
+        .clone()
+        .map(|program| tokio::spawn(relaunch::watch(program, cancellation.clone())));
     let mut servers = tokio::task::JoinSet::new();
     for (address, listener) in bindings.listeners {
         servers.spawn(cnl::serve(
@@ -314,7 +331,16 @@ async fn run(
         }
     }
     wind_down(&mut background, &mut servers).await;
-    Ok(())
+    // The listeners are closed by now, so the new program gets the Click'n'Load port.
+    cancellation.cancel();
+    let replaced = match replacement {
+        Some(watch) => watch.await.unwrap_or(false),
+        None => false,
+    };
+    match program {
+        Some(program) if replaced => Err(anyhow::Error::new(relaunch::Replaced { program })),
+        _ => Ok(()),
+    }
 }
 
 /// Polls the service's figures and reports what the tray should show.

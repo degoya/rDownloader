@@ -2,6 +2,7 @@
 //! metered state would need WinRT, so they are reported as unavailable rather than guessed.
 
 use async_trait::async_trait;
+use rd_files::NoConsoleWindow as _;
 
 use crate::adapter::{Inhibition, PowerAdapter, PowerCapabilities, PowerState, run};
 
@@ -65,6 +66,7 @@ impl PowerAdapter for WindowsAdapter {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .kill_on_drop(true)
+            .no_console_window()
             .spawn()?;
         Ok(Inhibition::holding(child))
     }

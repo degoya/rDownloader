@@ -53,7 +53,7 @@
     "inherit": "Conserver le réglage",
     "download_label": "Limite de téléchargement",
     "upload_label": "Limite d'envoi",
-    "upload_description": "S'applique à chaque envoi : partage torrent, stockage objet, rclone et destinations d'envoi.",
+    "upload_description": "S'applique à chaque envoi : seed de torrents, stockage objet, rclone et destinations d'envoi.",
     "daily_label": "Quota journalier",
     "monthly_label": "Quota mensuel",
     "no_budget": "Aucun quota",

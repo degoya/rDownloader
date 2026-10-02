@@ -74,6 +74,22 @@ describe('audit store', () => {
     expect(store.error).toBeNull()
   })
 
+  it('starts on "any" for the three choices and sends none of them', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
+    const store = useAuditStore()
+    // `'all'`, not `''`: the select refuses an item with an empty value (1.8.1).
+    expect([store.filters.action, store.filters.outcome, store.filters.actorKind]).toEqual(['all', 'all', 'all'])
+
+    await store.refresh()
+
+    expect(api.GET).toHaveBeenCalledWith('/api/v1/audit/records', { params: { query: { limit: 200 } } })
+
+    store.filters.outcome = 'failure'
+    store.filters.actorKind = 'token'
+    store.clearFilters()
+    expect([store.filters.outcome, store.filters.actorKind]).toEqual(['all', 'all'])
+  })
+
   it('exports exactly the filter the list is showing', async () => {
     vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
     const store = useAuditStore()

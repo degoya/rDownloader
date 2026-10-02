@@ -95,7 +95,7 @@
     "full": {
       "eyebrow": "Sauvegarde complète",
       "title": "Sauvegarde complète chiffrée planifiée",
-      "description": "Enregistre, chiffrés, la base de données, la file, le LinkGrabber, les sessions torrent, la confiance des plugins et les identifiants vers tes destinations – pendant que les téléchargements continuent. Les fichiers téléchargés n’en font pas partie.",
+      "description": "Enregistre, chiffrés, la base de données, la file, le LinkGrabber, les sessions torrent, la confiance des plugins et les identifiants vers vos destinations – pendant que les téléchargements continuent. Les fichiers téléchargés n’en font pas partie.",
       "key": {
         "title": "Phrase secrète",
         "missing": "Aucune phrase secrète configurée. Sans elle, aucune sauvegarde complète n’est écrite.",
@@ -109,7 +109,7 @@
         "short": "La phrase secrète doit comporter au moins {min} caractères.",
         "mismatch": "Les phrases secrètes ne correspondent pas.",
         "current": "Phrase secrète actuelle",
-        "current_required": "Saisis la phrase secrète actuelle pour la remplacer."
+        "current_required": "Saisissez la phrase secrète actuelle pour la remplacer."
       },
       "schedule": {
         "title": "Planification",
@@ -121,7 +121,7 @@
         "verify": "Planification de la vérification (cron)",
         "verify_description": "Vérifie l’archive la plus récente à chaque destination : récupérée, comparée et ouverte. Vide, c’est désactivé.",
         "verify_next": "Prochaine vérification : {date}",
-        "no_destination": "Aucune destination active pour l’instant – ajoute-en une ci-dessous avant d’activer la planification.",
+        "no_destination": "Aucune destination active pour l’instant – ajoutez-en une ci-dessous avant d’activer la planification.",
         "save": "Enregistrer la planification",
         "saved": "Planification enregistrée",
         "next": "Prochaine exécution : {date}",
@@ -130,7 +130,7 @@
       "destinations": {
         "title": "Destinations",
         "description": "Chaque destination reçoit sa propre copie. Une destination injoignable est réessayée et n’affecte que sa propre entrée dans l’historique.",
-        "empty": "Aucune destination pour l’instant. Ajoute un dossier, un bucket de stockage objet ou un remote rclone.",
+        "empty": "Aucune destination pour l’instant. Ajoutez un dossier, un bucket de stockage objet ou un remote rclone.",
         "add": "Ajouter une destination",
         "edit": "Modifier",
         "delete": "Retirer",
@@ -151,8 +151,8 @@
         "path": "Dossier",
         "path_description": "Chemin absolu sur la machine qui exécute rDownloader ; un partage NAS monté convient aussi.",
         "profile": "Profil de stockage objet",
-        "profile_placeholder": "Choisis un profil",
-        "profile_none": "Aucun profil pour l’instant – crée-en d’abord un dans les réglages du stockage objet.",
+        "profile_placeholder": "Choisissez un profil",
+        "profile_none": "Aucun profil pour l’instant – créez-en d’abord un dans les réglages du stockage objet.",
         "prefix": "Bucket et dossier",
         "prefix_description": "<bucket>/<dossier> ; sans bucket, celui du profil est utilisé.",
         "remote": "Remote rclone",
@@ -210,7 +210,7 @@
       "description": "Ouvre une archive avec sa phrase secrète, montre ce qu'elle contient, la vérifie dans une copie jetable et bascule dessus au prochain démarrage. L'installation actuelle reste démarrable jusqu'à ce que la restaurée ait démarré une fois.",
       "open": "Restaurer depuis une sauvegarde …",
       "status": {
-        "staged": "La restauration de {archive} ({date}) est en attente. Redémarre rDownloader pour basculer ; l'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
+        "staged": "La restauration de {archive} ({date}) est en attente. Redémarrez rDownloader pour basculer ; l'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
         "switching": "Un démarrage est en train de basculer vers {archive}.",
         "failed": "La restauration de {archive} n'a pas démarré le {date} ; l'installation précédente a été conservée. Raison : {reason}",
         "discard": "Abandonner la restauration",
@@ -219,7 +219,7 @@
       },
       "dialog": {
         "title": "Restaurer une sauvegarde complète",
-        "description": "Choisis l'archive, saisis sa phrase secrète, vérifie son contenu, associe les racines de stockage, teste – et seulement ensuite confirme."
+        "description": "Choisissez l'archive, saisissez sa phrase secrète, vérifiez son contenu, associez les racines de stockage, testez – et seulement ensuite confirmez."
       },
       "source": {
         "title": "Archive",
@@ -227,7 +227,7 @@
         "upload": "Téléverser un fichier",
         "path": "Chemin sur cette machine",
         "no_runs": "Aucune sauvegarde réussie dans l'historique.",
-        "run_placeholder": "Choisis une sauvegarde",
+        "run_placeholder": "Choisissez une sauvegarde",
         "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
         "file_pick": "Choisir un fichier",
         "uploading": "Téléversement : {percent} %",
@@ -241,7 +241,7 @@
         "action": "Afficher le contenu",
         "title": "Contenu",
         "created": "Créée le {date} par rDownloader {version}, {size}",
-        "newer": "Une version plus récente a créé cette sauvegarde. Mets d'abord à jour vers au moins cette version (ici tourne {version}).",
+        "newer": "Une version plus récente a créé cette sauvegarde. Mettez d'abord à jour vers au moins cette version (ici tourne {version}).",
         "part": "{count} × {size}",
         "counts": "{categories} catégories, {accounts} comptes, {proxies} proxys, {servers} serveurs Usenet, {subscriptions} abonnements, {hotfolders} dossiers surveillés",
         "state": "{partial} transferts inachevés, {trust} entrées de confiance des plugins.",
@@ -262,7 +262,7 @@
       },
       "mapping": {
         "title": "Racines de stockage",
-        "hint": "Où se trouve chaque racine de stockage sur cette machine. Laisse un champ vide pour garder le chemin. Les chemins d'un autre système (lettres de lecteur, partages) ont besoin d'un dossier ici ; tous les chemins en dessous le suivent et ne peuvent jamais en sortir.",
+        "hint": "Où se trouve chaque racine de stockage sur cette machine. Laissez un champ vide pour garder le chemin. Les chemins d'un autre système (lettres de lecteur, partages) ont besoin d'un dossier ici ; tous les chemins en dessous le suivent et ne peuvent jamais en sortir.",
         "foreign": "autre système",
         "target": "Nouveau dossier pour {name}",
         "placeholder": "Garder le chemin"
@@ -281,7 +281,7 @@
       "confirm": {
         "label": "J'ai compris : au prochain démarrage, cette sauvegarde remplace toute l'installation. L'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
         "action": "Restaurer au prochain démarrage",
-        "staged": "Restauration préparée. Redémarre rDownloader pour basculer."
+        "staged": "Restauration préparée. Redémarrez rDownloader pour basculer."
       }
     }
   },
@@ -592,14 +592,14 @@
   "updates": {
     "eyebrow": "Nouvelles versions",
     "title": "Mises à jour",
-    "description": "rDownloader consulte une liste signée des versions sur GitHub et te prévient quand une nouvelle version paraît. Rien n’est installé sans toi.",
+    "description": "rDownloader consulte une liste signée des versions sur GitHub et vous prévient quand une nouvelle version paraît. Rien n’est installé sans vous.",
     "enabled_label": "Vérifier automatiquement",
     "enabled_description": "Récupère seulement un fichier public et signé, sans rien envoyer sur cette installation.",
     "channel_label": "Canal",
     "channel_description": "Stable ne reçoit que les versions finales, Bêta aussi les préversions (vX.Y.Z-beta.N).",
     "channel_stable": "Stable",
     "channel_beta": "Bêta",
-    "channel_forced_stable": "Ton gestionnaire de paquets ne publie pas de bêtas, cette installation lit donc le canal stable.",
+    "channel_forced_stable": "Votre gestionnaire de paquets ne publie pas de bêtas, cette installation lit donc le canal stable.",
     "interval_label": "Vérifier toutes les",
     "interval_description": "Heures entre deux vérifications automatiques (1–168).",
     "check_now": "Vérifier maintenant",
@@ -620,7 +620,7 @@
     "last_checked": "Dernière vérification : {when}",
     "never_checked": "Pas encore vérifié",
     "next_check": "Prochaine vérification : {when}",
-    "up_to_date": "Tu as la version la plus récente.",
+    "up_to_date": "Vous avez la version la plus récente.",
     "available": "La version {version} est disponible",
     "show_details": "Détails",
     "not_configured": "Cette version ne contient pas de clé de mise à jour ; la vérification est désactivée.",
@@ -631,13 +631,13 @@
       "no_notes": "Cette version n’a pas de notes.",
       "full_notes": "Notes de version complètes",
       "download": "Télécharger",
-      "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; tes réglages et téléchargements restent où ils sont.",
-      "command_hint": "{kind} gère cette installation. Mets-la à jour avec :",
+      "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; vos réglages et téléchargements restent où ils sont.",
+      "command_hint": "{kind} gère cette installation. Mettez-la à jour avec :",
       "copy": "Copier",
       "copied": "Commande copiée",
       "close": "Fermer",
       "install": "Installer et redémarrer",
-      "install_hint": "rDownloader télécharge la nouvelle version si elle ne l’est pas déjà, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Tes réglages et téléchargements restent où ils sont.",
+      "install_hint": "rDownloader télécharge la nouvelle version si elle ne l’est pas déjà, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Vos réglages et téléchargements restent où ils sont.",
       "rollback_automatic": "Si la nouvelle version ne démarre pas correctement, la précédente revient d’elle-même.",
       "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
       "download_package": "Télécharger le paquet",
@@ -658,9 +658,9 @@
       "confirm_description": "rDownloader s’arrête environ une minute et redémarre en {version}. Les téléchargements en cours sont enregistrés et reprennent ensuite. Cette page se reconnecte d’elle-même.",
       "anyway": "Installer quand même",
       "reconnecting": "rDownloader redémarre – en attente de sa réponse …",
-      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Arrête-le s’il tourne encore et démarre-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
+      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Arrêtez-le s’il tourne encore et démarrez-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
       "reload": "Recharger la page",
-      "reload_hint": "Recharge la page pour utiliser l’interface de la nouvelle version.",
+      "reload_hint": "Rechargez la page pour utiliser l’interface de la nouvelle version.",
       "state": {
         "downloading": "Téléchargement de {version} …",
         "preparing": "Écriture de la sauvegarde avant la mise à jour …",

@@ -53,7 +53,7 @@
     "inherit": "Mantener el ajuste",
     "download_label": "Límite de descarga",
     "upload_label": "Límite de subida",
-    "upload_description": "Se aplica a cada subida: siembra de torrents, almacenamiento de objetos, rclone y destinos de subida.",
+    "upload_description": "Se aplica a cada subida: seeding de torrents, almacenamiento de objetos, rclone y destinos de subida.",
     "daily_label": "Presupuesto diario",
     "monthly_label": "Presupuesto mensual",
     "no_budget": "Sin presupuesto",
@@ -99,7 +99,7 @@
     "add_window": "Añadir ventana",
     "wraps": "Esta ventana cruza la medianoche hacia el día siguiente.",
     "empty": "Aún no hay ventanas: el perfil por defecto se aplica todo el día.",
-    "needs_profile": "Cree primero un perfil.",
+    "needs_profile": "Crea primero un perfil.",
     "windows_title": "Ventanas horarias",
     "days_label": "Días",
     "duplicate_hint": "Añade una copia de la ventana justo debajo; se guarda con la programación"

@@ -1,6 +1,6 @@
 {
   "name": "Put.io-Anmeldung",
-  "description": "Meldet ein Put.io-Konto über Put.ios eigenen Autorisierungsendpunkt an.",
+  "description": "Meldet ein Put.io-Konto über Put.ios eigenen Autorisierungs-Endpoint an.",
   "codes": {
     "putio_oauth.bad_reply": "Put.io hat eine Antwort gesendet, die dieses Plugin nicht lesen kann.",
     "putio_oauth.code_expired": "Die Anmeldung ist abgelaufen, bevor sie abgeschlossen wurde. Starte sie erneut.",

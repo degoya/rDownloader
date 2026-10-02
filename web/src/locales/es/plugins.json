@@ -21,31 +21,33 @@
     "homepage": "Sitio web",
     "support": "Soporte",
     "concurrency": "en paralelo",
-    "concurrency_hint": "Como máximo {count} descargas simultáneas a través de este complemento",
+    "concurrency_hint": "Como máximo {count} descargas simultáneas a través de este plugin",
     "api_version": "ABI {version}",
     "capabilities": "Concedido",
     "superseded": "Sin usar",
-    "superseded_hint": "Se carga otra versión de este complemento en su lugar. Permanece en el disco mientras quede trabajo sin terminar ligado a ella; en caso contrario se puede eliminar.",
+    "superseded_hint": "Se carga otra versión de este plugin en su lugar. Permanece en el disco mientras quede trabajo sin terminar ligado a ella; en caso contrario se puede eliminar.",
     "active_version_hint": "Esta es la versión que se carga.",
     "superseded_versions": "Versiones sustituidas ({count})",
     "remove_superseded": "Eliminar la versión {version}",
     "withdrawn_badge": "Retirado",
     "withdrawn_hint": "Esta compilación se rechaza a partir del siguiente inicio; la clave de firma no se toca.",
     "withdraw_version": "Retirar la versión {version}",
-    "staged_badge": "En prueba"
+    "staged_badge": "En prueba",
+    "more_hosts": "+{count} más",
+    "fewer_hosts": "Mostrar menos"
   },
   "keys": {
     "eyebrow": "Claves de firma",
     "title": "Editores confirmados",
-    "description": "Los complementos de terceros se firman con la clave propia de su autor. Una clave confirmada aquí sigue siendo de confianza hasta que la revoques; revocarla desactiva sus complementos desde el siguiente reinicio.",
+    "description": "Los plugins de terceros se firman con la clave propia de su autor. Una clave confirmada aquí sigue siendo de confianza hasta que la revoques; revocarla desactiva sus plugins desde el siguiente reinicio.",
     "first_seen": "Vista por primera vez con {plugin}",
     "revoke": "Revocar",
-    "empty": "No hay claves de firma de terceros confirmadas. Solo se aceptan complementos firmados con la clave de publicación."
+    "empty": "No hay claves de firma de terceros confirmadas. Solo se aceptan plugins firmados con la clave de publicación."
   },
   "trust": {
     "key_id": "Id de clave",
     "fingerprint": "Huella digital",
-    "warning": "Confirma solo si esta huella coincide con la publicada por el autor del complemento. Una clave incorrecta permitiría que otra persona publique actualizaciones para él.",
+    "warning": "Confirma solo si esta huella coincide con la publicada por el autor del plugin. Una clave incorrecta permitiría que otra persona publique actualizaciones para él.",
     "cancel": "Cancelar",
     "confirm": "Confiar e instalar"
   },
@@ -62,14 +64,15 @@
     "storage": "Almacenamiento",
     "transfer": "Backend de transferencia",
     "oauth": "Inicio de sesión OAuth",
-    "stream-transform": "Transformación de flujo"
+    "stream-transform": "Transformación de stream"
   },
   "capability": {
     "net_http": "Peticiones web",
     "cookies": "Cookies de la cuenta",
     "captcha": "Resolución de CAPTCHA",
     "secret": "Credencial: {reference}",
-    "net_stream": "Conexiones directas (puertos {ports})"
+    "net_stream": "Conexiones directas (puertos {ports})",
+    "key_derivation": "Derivación de claves"
   },
   "incompatible": {
     "eyebrow": "Paquetes rechazados",
@@ -112,7 +115,7 @@
     "title": "¿Retirar esta compilación?",
     "intro": "«{name}» {version} se rechaza por el contenido exacto del paquete, no por su número de versión.",
     "restart": "Sigue funcionando hasta que el servicio se reinicie; a partir del siguiente inicio se omite.",
-    "key_untouched": "La clave de firma sigue siendo de confianza. Los demás complementos firmados con ella, y las demás versiones de este, se siguen cargando.",
+    "key_untouched": "La clave de firma sigue siendo de confianza. Los demás plugins firmados con ella, y las demás versiones de este, se siguen cargando.",
     "reason_label": "Motivo (opcional)",
     "reason_hint": "Se guarda tal cual y se muestra junto a la entrada.",
     "confirm": "Retirar la compilación"
@@ -120,7 +123,7 @@
   "withdrawn": {
     "eyebrow": "Paquetes retirados",
     "title": "Paquetes que esta máquina rechaza",
-    "description": "Una retirada surte efecto en el siguiente inicio: un paquete ya cargado sigue funcionando hasta entonces y se omite a partir de ahí. Solo afecta a esta compilación concreta: la clave de firma sigue siendo de confianza y los demás complementos firmados con ella se siguen cargando.",
+    "description": "Una retirada surte efecto en el siguiente inicio: un paquete ya cargado sigue funcionando hasta entonces y se omite a partir de ahí. Solo afecta a esta compilación concreta: la clave de firma sigue siendo de confianza y los demás plugins firmados con ella se siguen cargando.",
     "empty": "Ningún paquete está retirado. Se carga toda versión instalada que se pueda verificar.",
     "installed": "Instalado aquí",
     "not_installed": "Este paquete no está instalado aquí; solo su suma de verificación lo identifica.",
@@ -177,7 +180,7 @@
   "updates": {
     "eyebrow": "Repositorios",
     "title": "Actualizaciones",
-    "description": "Versiones más nuevas de los repositorios activados, firmadas con la clave de la versión instalada. Nada se instala sin su revisión, salvo que un plugin esté configurado para actualizarse automáticamente.",
+    "description": "Versiones más nuevas de los repositorios activados, firmadas con la clave de la versión instalada. Nada se instala sin tu revisión, salvo que un plugin esté configurado para actualizarse automáticamente.",
     "empty": "Todos los plugins instalados están al día.",
     "version_change": "v{from} → v{to}",
     "from": "de {repository}",
@@ -199,7 +202,7 @@
   "repositories": {
     "eyebrow": "Fuentes",
     "title": "Repositorios de plugins",
-    "description": "Un repositorio solo entrega paquetes: cada uno debe seguir firmado con una clave de plugin de su confianza. Desactivar un repositorio detiene sus actualizaciones y ofertas y conserva lo que se instaló desde él.",
+    "description": "Un repositorio solo entrega paquetes: cada uno debe seguir firmado con una clave de plugin de tu confianza. Desactivar un repositorio detiene sus actualizaciones y ofertas y conserva lo que se instaló desde él.",
     "official": "Oficial",
     "enabled_label": "Usar {name}",
     "key": "Clave del repositorio {key_id}",
@@ -215,12 +218,12 @@
     "add_title": "Añadir un repositorio",
     "url_label": "Dirección del índice (https://)",
     "key_label": "Clave pública del repositorio (Base64)",
-    "key_hint": "Tal como la publica quien mantiene el repositorio. Compare la huella que se muestra a continuación antes de aprobarla.",
+    "key_hint": "Tal como la publica quien mantiene el repositorio. Compara la huella que se muestra a continuación antes de aprobarla.",
     "name_label": "Nombre (opcional)",
     "add": "Añadir repositorio",
     "approve_title": "Aprobar la clave del repositorio",
     "approve_intro": "El índice en {url} está firmado con esta clave y ofrece {count} paquetes.",
-    "approve_warning": "Apruebe solo si esta huella coincide con la que publicó quien mantiene el repositorio. El repositorio podrá ofrecer paquetes y retirar lo que entregó; cada paquete sigue necesitando una clave de plugin de su confianza.",
+    "approve_warning": "Aprueba solo si esta huella coincide con la que publicó quien mantiene el repositorio. El repositorio podrá ofrecer paquetes y retirar lo que entregó; cada paquete sigue necesitando una clave de plugin de tu confianza.",
     "approve": "Aprobar y añadir",
     "added": "Repositorio añadido.",
     "remove": "Quitar repositorio",
@@ -231,7 +234,7 @@
   "bundled": {
     "eyebrow": "Paquete incluido",
     "title": "Servicios disponibles",
-    "description": "Lo que trae esta versión pero no está instalado: no elegido, eliminado o nuevo. Un clic instala un servicio con todos sus plugins; los de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
+    "description": "Lo que trae esta versión pero no está instalado: no elegido, eliminado o nuevo. Un clic instala un servicio con todos sus plugins; los de hoster y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
     "search": "Buscar servicios",
     "filter_label": "Filtrar por categoría",
     "all": "Todos",
@@ -256,7 +259,7 @@
     "all_installed": "Todo el paquete incluido está instalado.",
     "none": "Esta compilación no incluye paquetes. Los plugins llegan entonces de un repositorio.",
     "failed": "No se pudo instalar {name}: {reason}",
-    "installed": "No se instaló nada. | 1 plugin instalado; uno de alojamiento o de inicio de sesión funciona al momento, los demás tipos desde el próximo inicio. | {count} plugins instalados; los de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
+    "installed": "No se instaló nada. | 1 plugin instalado; uno de hoster o de inicio de sesión funciona al momento, los demás tipos desde el próximo inicio. | {count} plugins instalados; los de hoster y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
     "installed_live": "Nada instalado. | 1 plugin instalado; ya funciona. | {count} plugins instalados; ya funcionan."
   },
   "tabs": {

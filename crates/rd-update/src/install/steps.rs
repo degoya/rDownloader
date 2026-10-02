@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     INSTALLER_DIR, InstallError, Journal, Phase, Plan, exists, remove_any, rename, sync_directory,
-    update_dir,
+    trash, update_dir,
 };
 use crate::InstallKind;
 
@@ -226,23 +226,31 @@ pub fn previous_installer(plan: &Plan) -> Result<Option<(PathBuf, fs::File)>, In
 }
 
 /// Removes what a finished update leaves: the staging, `.previous/`, the files of a rolled-back
-/// version, the downloads, the replaced database and the updater's copy. Each on its own; what
-/// cannot go yet (a file still in use on Windows) is left for a later start.
+/// version, the downloads, the replaced database and the updater's copy. Each on its own; those
+/// beside the program go through the trash ([`trash::discard`]), so what is still in use (on
+/// Windows a capture agent that runs from `.previous/`) is removed by a later start.
 pub fn clean_up(journal: &Journal) {
-    let update = update_dir(&journal.plan.data_dir);
-    let mut leftovers = vec![
-        journal.staged_dir(),
-        journal.failed_dir(),
-        update.join(super::DOWNLOAD_DIR),
-        update.join("replaced-database"),
-        update.join(super::process::UPDATER_DIR),
-    ];
+    let install = &journal.plan.install_dir;
+    let mut beside_program = vec![journal.staged_dir(), journal.failed_dir()];
     // After a proven update `.previous/` holds the old version, which this start of the new one
     // no longer needs. After anything else it is either gone or what a manual recovery needs.
     if journal.phase == Phase::Verified {
-        leftovers.push(journal.previous_dir());
+        beside_program.push(journal.previous_dir());
     }
-    for leftover in leftovers {
+    for leftover in beside_program {
+        if let Err(error) = trash::discard(&leftover, install) {
+            tracing::warn!(
+                error = format!("{error:#}"),
+                "an update leftover stays until a later start"
+            );
+        }
+    }
+    let update = update_dir(&journal.plan.data_dir);
+    for leftover in [
+        update.join(super::DOWNLOAD_DIR),
+        update.join("replaced-database"),
+        update.join(super::process::UPDATER_DIR),
+    ] {
         if let Err(error) = remove_any(&leftover) {
             tracing::warn!(%error, "an update leftover stays until a later start");
         }

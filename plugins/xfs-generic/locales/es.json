@@ -9,6 +9,6 @@
     "xfs_generic.no_account": "Este resolutor descarga sin cuenta y no tiene ninguna que comprobar",
     "xfs_generic.no_free_form": "No se encontró en la página el formulario de descarga gratuita de XFileSharing: {diagnosis}",
     "xfs_generic.no_free_link": "La descarga gratuita de XFileSharing no produjo ningún enlace de archivo: {diagnosis}",
-    "xfs_generic.unsupported_link": "No es un enlace de un sitio XFileSharing que este complemento atienda"
+    "xfs_generic.unsupported_link": "No es un enlace de un sitio XFileSharing que este plugin atienda"
   }
 }

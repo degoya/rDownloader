@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
+#[cfg(windows)]
+use rd_files::NoConsoleWindow as _;
 
 #[derive(Clone, Copy)]
 pub enum Kind {
@@ -221,7 +223,7 @@ fn windows_scheme_entries(executable: &str) -> Vec<RegistryEntry> {
 #[cfg(windows)]
 fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
     let mut command = std::process::Command::new("reg.exe");
-    command.args(["add", key]);
+    command.no_console_window().args(["add", key]);
     if let Some(name) = name {
         command.args(["/v", name]);
     } else {
@@ -234,6 +236,7 @@ fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
 #[cfg(windows)]
 fn reg_delete_tree_if_present(key: &str) -> Result<()> {
     let present = std::process::Command::new("reg.exe")
+        .no_console_window()
         .args(["query", key])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -244,7 +247,9 @@ fn reg_delete_tree_if_present(key: &str) -> Result<()> {
         return Ok(());
     }
     run(
-        std::process::Command::new("reg.exe").args(["delete", key, "/f"]),
+        std::process::Command::new("reg.exe")
+            .no_console_window()
+            .args(["delete", key, "/f"]),
         "remove Windows registry key",
     )
 }

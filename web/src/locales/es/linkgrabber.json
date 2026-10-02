@@ -29,9 +29,9 @@
     "descending": "Descendente"
   },
   "filter": {
-    "hoster_label": "Filtrar por alojador",
+    "hoster_label": "Filtrar por hoster",
     "state_label": "Filtrar por estado",
-    "all_hosters": "Todos los alojadores",
+    "all_hosters": "Todos los hosters",
     "all_states": "Todos los estados",
     "clear": "Restablecer filtros",
     "count": "{visible} de {total} enlaces",
@@ -91,7 +91,7 @@
     "drag_hint": "Arrastra para cambiar el orden dentro del paquete",
     "duplicate_hint": "Esta dirección ya está en el LinkGrabber o en la lista de descargas. Puede añadirse de nuevo deliberadamente.",
     "unresolvable_hint": "Esta dirección responde con una página, no con un archivo. No se puede añadir a la lista de descargas.",
-    "no_resolver_hint": "No hay ningún resolutor instalado para {host}, por lo que esta dirección no puede añadirse a la lista de descargas. Puede ser un alojamiento no admitido aquí o un reenvío a otra dirección."
+    "no_resolver_hint": "No hay ningún resolutor instalado para {host}, por lo que esta dirección no puede añadirse a la lista de descargas. Puede ser un hoster no admitido aquí o un reenvío a otra dirección."
   },
   "intake": {
     "title": "Añadir enlaces",
@@ -457,7 +457,7 @@
     "collapse": "Ocultar los demás espejos",
     "use": "Usar este espejo",
     "use_hint": "Descargar este espejo en su lugar. La elección se conserva y la preferencia ya no mueve este grupo.",
-    "pinned": "Elegido por usted",
+    "pinned": "Elegido por ti",
     "pinned_hint": "Eligió este espejo a mano, por lo que la preferencia ya no mueve este grupo.",
     "release": "Deshacer mi elección de espejo",
     "dissolve": "Deshacer el grupo"
@@ -468,17 +468,17 @@
     "hint_by": "{provider} informó el {at} de que tiene este archivo en su caché. Una caché cambia sin aviso: es el momento de la medición, no una promesa."
   },
   "hosters": {
-    "label": "Mostrar y ocultar alojadores",
+    "label": "Mostrar y ocultar hosters",
     "hide": "Ocultar los enlaces de {host}",
     "show": "Volver a mostrar los enlaces de {host}",
-    "hosters": "{count} alojador | {count} alojadores",
+    "hosters": "{count} hoster | {count} hosters",
     "summary": "Ocultos: {links} de {hosters}",
     "show_all": "Mostrar todo",
-    "hint": "Los alojadores ocultos permanecen en el LinkGrabber y no se ponen en cola ni se comprueban. Como espejo de un enlace visible van con él como alternativa."
+    "hint": "Los hosters ocultos permanecen en el LinkGrabber y no se ponen en cola ni se comprueban. Como espejo de un enlace visible van con él como alternativa."
   },
   "duplicates": {
     "queued": "{count} × ya en la cola",
-    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el alojamiento."
+    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el hoster."
   },
   "sources": {
     "title": "Fuentes ({count})",
@@ -519,10 +519,10 @@
       "age": "Antigüedad",
       "category": "Categoría"
     },
-    "unavailable": "Todavía no hay ningún indexador activado. Añada primero un indexador: las suscripciones a indexadores por sí solas no se buscan aquí.",
+    "unavailable": "Todavía no hay ningún indexador activado. Añade primero un indexador: las suscripciones a indexadores por sí solas no se buscan aquí.",
     "unavailable_link": "Ajustes › Usenet › Indexadores",
     "grab_one": "Añadir al LinkGrabber: {title}",
     "grab_one_done": "En el LinkGrabber: {title}",
-    "grab_one_failed": "No añadido, inténtelo de nuevo: {title}"
+    "grab_one_failed": "No añadido, inténtalo de nuevo: {title}"
   }
 }

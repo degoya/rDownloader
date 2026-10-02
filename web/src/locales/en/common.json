@@ -119,7 +119,12 @@
     "go_audit": "Go to the audit log",
     "open_search": "Open search",
     "clear_completed": "Remove completed packages (on Downloads)",
-    "focus_indexer_search": "Focus the indexer search (in the LinkGrabber)"
+    "focus_indexer_search": "Focus the indexer search (in the LinkGrabber)",
+    "add_links": "Add links (in the LinkGrabber)",
+    "enqueue_all": "Enqueue all (in the LinkGrabber)",
+    "enqueue_paused": "Add all paused (in the LinkGrabber)",
+    "clear_linkgrabber": "Delete all links (in the LinkGrabber)",
+    "close_dialog": "Close the dialog"
   },
   "a11y": {
     "skip_to_content": "Skip to content",

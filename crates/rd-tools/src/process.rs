@@ -27,6 +27,7 @@ use std::{path::PathBuf, process::Output, process::Stdio, time::Duration};
 
 use anyhow::{Context, Result};
 use rd_core::{Failure, FailureKind, ToolLease};
+use rd_files::NoConsoleWindow as _;
 use tokio::{
     process::{Child, ChildStdout, Command},
     time::error::Elapsed,
@@ -40,11 +41,6 @@ pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(750);
 
 /// How much of a running tool's stderr is kept: its last 64 KiB.
 pub const STDERR_TAIL: usize = 64 * 1024;
-
-/// `CREATE_NO_WINDOW`. Without it every external tool flashes a console window on Windows,
-/// including for a service started at login with no desktop session to show it in.
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// An external tool that was located, leased and found compatible.
 ///
@@ -147,9 +143,8 @@ impl ToolProcess {
                 Stdout::Discarded => Stdio::null(),
             })
             .stderr(Stdio::piped())
-            .kill_on_drop(true);
-        #[cfg(windows)]
-        command.creation_flags(CREATE_NO_WINDOW);
+            .kill_on_drop(true)
+            .no_console_window();
         let mut child = command.spawn().with_context(|| format!("spawn {name}"))?;
         let stdout = child.stdout.take();
         let handle = child
@@ -206,7 +201,7 @@ impl ToolProcess {
 /// rather than a download. `rd-media` asks `yt-dlp -J` for a page's metadata, `rd-stream` asks
 /// `streamlink --json` whether a channel is live, and [`crate::version`] asks every managed tool
 /// what version it is. Each rebuilt the same four lines around `.output()`, each with its own
-/// literal `0x0800_0000` — the one constant whose absence is invisible on the machine that wrote
+/// console-window flag — the one setting whose absence is invisible on the machine that wrote
 /// it and pops a console window on every Windows install.
 ///
 /// **The nested result is deliberate.** It is exactly what `tokio::time::timeout` returns, and
@@ -232,9 +227,10 @@ pub async fn run_to_output(
     timeout: Duration,
 ) -> Result<std::io::Result<Output>, Elapsed> {
     rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
-    command.stdin(Stdio::null()).kill_on_drop(true);
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
+    command
+        .stdin(Stdio::null())
+        .kill_on_drop(true)
+        .no_console_window();
     tokio::time::timeout(timeout, command.output()).await
 }
 

@@ -180,7 +180,7 @@
           "interrupted": "Interrumpida"
         },
         "verifications": "Verificaciones",
-        "digest_only": "solo suma de comprobación (frase anterior)"
+        "digest_only": "solo suma de verificación (frase anterior)"
       },
       "run": {
         "button": "Copiar ahora",
@@ -394,7 +394,7 @@
   "sessions": {
     "eyebrow": "Seguridad",
     "title": "Dispositivos con sesión iniciada",
-    "description": "Cada sesión abierta en esta instalación. Si algo de aquí no es suyo, ciérrelo y cambie la contraseña.",
+    "description": "Cada sesión abierta en esta instalación. Si algo de aquí no es tuyo, ciérralo y cambia la contraseña.",
     "loading": "Cargando…",
     "current": "Este dispositivo",
     "unknown_device": "Dispositivo desconocido",
@@ -405,7 +405,7 @@
     "revoke": {
       "title": "¿Finalizar esta sesión?",
       "description": "{device} se cerrará inmediatamente.",
-      "description_current": "Se cerrará su sesión en este dispositivo y tendrá que volver a iniciarla.",
+      "description_current": "Se cerrará tu sesión en este dispositivo y tendrás que volver a iniciarla.",
       "confirm": "Finalizar",
       "done": "Sesión finalizada"
     },
@@ -422,7 +422,7 @@
     "title": "Proxy inverso",
     "description": "Si hay un proxy delante, rDownloader tiene que saberlo. De lo contrario, cada petición cuenta como procedente del proxy y la cookie de sesión puede no coincidir con el esquema que usa el navegador.",
     "external_url": "Dirección externa",
-    "external_url_hint": "Esquema, host y subruta en un solo ajuste, para que no puedan discrepar. Déjelo vacío si no hay proxy.",
+    "external_url_hint": "Esquema, host y subruta en un solo ajuste, para que no puedan discrepar. Déjalo vacío si no hay proxy.",
     "trusted": "Proxies de confianza",
     "trusted_hint": "Una dirección o rango CIDR por línea. Solo desde estos se cree una dirección de cliente reenviada; todo lo demás cuenta como el propio llamante.",
     "cookie_label": "Cookie de sesión",
@@ -443,16 +443,16 @@
     "description": "Opcional. Tras la contraseña también se pide un código de una aplicación de autenticación. Los códigos de recuperación son la única otra vía de regreso: aquí no hay nadie ante quien identificarse.",
     "enrol": {
       "start": "Configurar",
-      "once": "Visible solo ahora. Nada de esto puede recuperarse una vez que salga de la página.",
-      "scan": "Escanee este código con su aplicación de autenticación:",
+      "once": "Visible solo ahora. Nada de esto puede recuperarse una vez que salgas de la página.",
+      "scan": "Escanea este código con tu aplicación de autenticación:",
       "copy_secret": "Copiar clave",
       "copy_uri": "Copiar enlace",
-      "recovery": "Códigos de recuperación: guárdelos en un lugar seguro:",
+      "recovery": "Códigos de recuperación: guárdalos en un lugar seguro:",
       "copy_codes": "Copiar códigos",
       "confirm_label": "Código de la aplicación",
       "confirm": "Confirmar",
       "qr_alt": "Código QR para configurar la aplicación de autenticación",
-      "manual": "O introduzca la clave manualmente:"
+      "manual": "O introduce la clave manualmente:"
     },
     "unconfirmed": "Sin confirmar",
     "last_used": "Último uso: {moment}",
@@ -508,7 +508,7 @@
   "password": {
     "eyebrow": "Contraseña",
     "title": "Contraseña de administrador",
-    "description": "Sustituye la contraseña con la que inicia sesión. Necesita la actual para ello. No existe recuperación sin la contraseña actual.",
+    "description": "Sustituye la contraseña con la que inicias sesión. Necesitas la actual para ello. No existe recuperación sin la contraseña actual.",
     "current_label": "Contraseña actual",
     "new_label": "Contraseña nueva",
     "confirm_label": "Repita la contraseña nueva",
@@ -517,7 +517,7 @@
     "mismatch": "Las dos contraseñas nuevas no coinciden.",
     "changed_toast": "Contraseña cambiada",
     "sessions_hint": "El cambio finaliza todas las sesiones. Esta ventana permanece conectada; los demás dispositivos deben volver a iniciar sesión.",
-    "tokens_hint": "Los tokens de API siguen siendo válidos, porque no dependen de la contraseña. Pero quien conociera la anterior pudo emitirse alguno: revise la lista de tokens."
+    "tokens_hint": "Los tokens de API siguen siendo válidos, porque no dependen de la contraseña. Pero quien conociera la anterior pudo emitirse alguno: revisa la lista de tokens."
   },
   "data_reset": {
     "button": "Vaciar",

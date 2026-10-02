@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useOverlay, useToast } from '@nuxt/ui/composables'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -16,6 +16,7 @@ import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
+import { setLinkGrabberActions } from '@/composables/linkGrabberActions'
 import { refreshQueuedSources } from '@/composables/useQueuedSources'
 import { consumeFileImportRequest, fileImportRequested } from '@/composables/nzbImportRequest'
 import { useFileImport } from '@/composables/useFileImport'
@@ -131,7 +132,20 @@ function checkVisible(): void {
 
 // Collector refresh + SSE live app-wide in App.vue so the nav badge stays current, so entering
 // this route must not refetch: three more GETs per visit only crowded the connection pool.
+/**
+ * `a`, `e`, `w` and `r` (1.8.1): the buttons in the navbar, handed to the shortcut catalogue
+ * while this view is mounted. A key does nothing where its button is disabled.
+ */
+const canEnqueue = (): boolean => entries.value.length > 0 && !checking.value && !collector.pending
+onUnmounted(() => setLinkGrabberActions(null))
+
 onMounted(() => {
+  setLinkGrabberActions({
+    addLinks: () => void addLinks(),
+    enqueueAll: () => { if (canEnqueue()) void enqueueAll(false) },
+    enqueuePaused: () => { if (canEnqueue()) void enqueueAll(true) },
+    clearAll: () => { if (entries.value.length) void clearAll() }
+  })
   void collector.loadMirrorPreference()
   void handleSharedLinks()
   // A pending import request (cross-route drop handoff, `n` shortcut) must wait for categories
@@ -221,7 +235,9 @@ function openNzbHistory(): void {
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
           <div data-tour="grabber-add" class="flex items-center gap-2">
-          <UButton icon="i-lucide-plus" :label="t('linkgrabber.actions.add_links')" color="neutral" variant="outline" @click="addLinks" />
+          <UButton icon="i-lucide-plus" :label="t('linkgrabber.actions.add_links')" color="neutral" variant="outline" @click="addLinks">
+            <template #trailing><UKbd value="a" /></template>
+          </UButton>
           <UButton icon="i-lucide-file-up" :label="t('linkgrabber.actions.import_files')" color="neutral" variant="outline" :loading="importingFiles || nzb.pending" @click="() => importFiles()" />
           <UButton icon="i-lucide-history" color="neutral" variant="outline" :aria-label="t('linkgrabber.nzb.history.title')" :title="t('linkgrabber.nzb.history.title')" @click="openNzbHistory" />
           <UButton icon="i-lucide-radar" :label="t('linkgrabber.actions.check_links')" color="neutral" variant="outline" :loading="checking" :disabled="!collector.candidates.length || (filterActive && !visibleLinks)" @click="checkVisible" />
@@ -229,9 +245,15 @@ function openNzbHistory(): void {
                the LinkGrabber is for; adding and importing are how they arrive, and they read as
                the neutral pair they belong to. As `soft` beside a solid "Add links" this sat
                below the action that only fills the list it is meant to empty. -->
-          <UButton icon="i-lucide-list-end" :label="t('linkgrabber.actions.enqueue_all')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(false)" />
-          <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" color="neutral" variant="outline" :title="t('linkgrabber.actions.enqueue_paused_hint')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(true)" />
-          <UButton icon="i-lucide-list-x" :label="t('linkgrabber.actions.clear_all')" color="error" variant="soft" :disabled="!entries.length" @click="clearAll" />
+          <UButton icon="i-lucide-list-end" :label="t('linkgrabber.actions.enqueue_all')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(false)">
+            <template #trailing><UKbd value="e" /></template>
+          </UButton>
+          <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" color="neutral" variant="outline" :title="t('linkgrabber.actions.enqueue_paused_hint')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(true)">
+            <template #trailing><UKbd value="w" /></template>
+          </UButton>
+          <UButton icon="i-lucide-list-x" :label="t('linkgrabber.actions.clear_all')" color="error" variant="soft" :disabled="!entries.length" @click="clearAll">
+            <template #trailing><UKbd value="r" /></template>
+          </UButton>
           </div>
         </template>
       </UDashboardNavbar>

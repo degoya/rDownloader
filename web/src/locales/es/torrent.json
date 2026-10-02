@@ -26,19 +26,19 @@
   },
   "tabs": {
     "files": "Archivos",
-    "trackers": "Rastreadores",
+    "trackers": "Trackers",
     "peers": "Pares",
-    "seeding": "Compartir"
+    "seeding": "Seeding"
   },
   "trackers": {
-    "counters_hint": "Semillas / pares / completados",
+    "counters_hint": "Seeders / pares / completados",
     "scrape": "Consultar",
     "reannounce": "Volver a anunciar",
-    "empty": "Este torrent no tiene rastreadores.",
+    "empty": "Este torrent no tiene trackers.",
     "stale": "Estas cifras tienen más de 15 minutos.",
     "stale_badge": "Obsoleto",
     "failed": "Fallido",
-    "remove": "Eliminar el rastreador {url}",
+    "remove": "Eliminar el tracker {url}",
     "add": "Añadir",
     "add_placeholder": "https://tracker.example/announce"
   },
@@ -67,16 +67,16 @@
     "unsupported": "Este torrent ofrece web seeds. El motor no puede usarlos, así que solo se muestran a título informativo."
   },
   "seeding": {
-    "enabled": "Compartir",
+    "enabled": "Seeding",
     "ratio": "Proporción objetivo",
-    "time": "Tiempo de siembra",
+    "time": "Tiempo de seeding",
     "unlimited": "Sin límite",
     "minutes": "{count} minutos",
     "inherit": "Heredar",
-    "override_enabled": "Sobrescribir el compartir",
+    "override_enabled": "Sobrescribir el seeding",
     "override_ratio": "Sobrescribir la proporción",
     "override_time": "Sobrescribir el tiempo",
-    "override_unlimited": "Compartir sin límite de tiempo",
+    "override_unlimited": "Seeding sin límite de tiempo",
     "save": "Guardar",
     "clear": "Volver a heredar",
     "source": {

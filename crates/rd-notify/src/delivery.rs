@@ -7,6 +7,7 @@
 
 use anyhow::{Context, Result};
 use hmac::{Hmac, KeyInit as _, Mac};
+use rd_files::NoConsoleWindow as _;
 use secrecy::ExposeSecret;
 use sha2::Sha256;
 
@@ -246,7 +247,8 @@ async fn send_apprise(
         .env(APPRISE_URLS_VARIABLE, secret.expose_secret())
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
+        .stderr(std::process::Stdio::piped())
+        .no_console_window();
     let child = command.spawn().context("start apprise")?;
     let output = child.wait_with_output().await.context("run apprise")?;
     if output.status.success() {

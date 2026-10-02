@@ -4,7 +4,7 @@
   "codes": {
     "torbox.account_missing": "Le compte TorBox est absent",
     "torbox.api_error": "Erreur de l’API TorBox {api_code}",
-    "torbox.auth_invalid": "La clé d’API TorBox est invalide ou expirée. Saisis-la à nouveau.",
+    "torbox.auth_invalid": "La clé d’API TorBox est invalide ou expirée. Saisissez-la à nouveau.",
     "torbox.file_gone": "TorBox ne propose plus ce fichier",
     "torbox.http_error": "Statut HTTP TorBox {status}",
     "torbox.invalid_response": "Réponse TorBox invalide",

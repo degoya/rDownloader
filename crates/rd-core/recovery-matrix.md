@@ -117,6 +117,7 @@ row for a point that does not exist.
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `torrent.before_seed_completed` | rd-torrent | a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once |
+| `update.after_leftover_set_aside` | rd-update | a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update |
 | `update.after_new_placed` | rd-update | a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes |
 | `update.after_previous_set_aside` | rd-update | a portable update stopped after an old entry went into .previous and before its new one took its place is taken back by the next start: the entry comes back from .previous, nothing of the new version stays and the database is left as it was, since the new version never ran |
 | `update.before_health_check` | rd-update | a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions |
@@ -184,6 +185,16 @@ back and puts the database copy from before the update in place, since the new v
 four cases (`crates/rd-update/tests/install_crash.rs`) run with `rd-update/failpoints`. The
 Windows installer has no points of its own: Windows Installer is transactional, and the start
 reads from the version that runs which way its transaction went.
+
+`update.after_leftover_set_aside` is the step before the switch (RD-180-02, live finding
+2026-10-02, `rd_update::install::trash`): the leftovers of the update before — `.previous/`, the
+staging, `.failed-<version>/` — are moved into `<install>/.trash/` and removed from there, because
+Windows lets a running program be moved but not deleted and a capture agent may still run from
+`.previous/`. A stop after a move and before the sweep leaves the program files untouched; the case
+asserts that the next start records the update as failed with the old version and the live
+database in place, and that the next update sweeps the trash and switches. Every start after an
+ended update sweeps the trash again, so what a running program held goes once it has ended. The
+case sits beside the four above and runs with `rd-update/failpoints` too.
 
 `restore.after_live_set_aside` is the restore's cutover (RD-160-03). A restore never replaces
 the running service's database: it stages the restored state in `restore-staged/` with a marker,

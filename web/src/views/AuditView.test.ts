@@ -132,6 +132,18 @@ describe('AuditView', () => {
     })
   })
 
+  it('offers "any" as a value of its own, never an empty one the select refuses', async () => {
+    await mountView()
+    await screen.findByTestId('audit-list')
+    for (const id of ['audit-action', 'audit-outcome', 'audit-actor-kind']) {
+      const select = screen.getByTestId(id) as HTMLSelectElement
+      const values = [...select.options].map(option => option.value)
+      expect(values.length).toBeGreaterThan(1)
+      expect(values).not.toContain('')
+      expect(select.value).toBe('all')
+    }
+  })
+
   it('renders without an axe violation', async () => {
     const { container } = await mountView()
     await screen.findByTestId('audit-list')

@@ -183,6 +183,7 @@ mod platform {
 
     use anyhow::{Context, Result, bail};
     use directories::ProjectDirs;
+    use rd_files::NoConsoleWindow as _;
 
     use super::{Registration, Target, windows_wrapper_path};
 
@@ -251,7 +252,7 @@ mod platform {
 
     fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
         let mut command = Command::new("reg.exe");
-        command.args(["add", key]);
+        command.no_console_window().args(["add", key]);
         if let Some(name) = name {
             command.args(["/v", name]);
         } else {
@@ -263,6 +264,7 @@ mod platform {
 
     pub(super) fn is_registered(target: Target) -> bool {
         Command::new("reg.exe")
+            .no_console_window()
             .args(["query", RUN_KEY, "/v", target.display_name()])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -272,6 +274,7 @@ mod platform {
 
     fn reg_delete_value_if_present(key: &str, name: &str) -> Result<()> {
         let status = Command::new("reg.exe")
+            .no_console_window()
             .args(["query", key, "/v", name])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -281,7 +284,9 @@ mod platform {
             return Ok(());
         }
         run(
-            Command::new("reg.exe").args(["delete", key, "/v", name, "/f"]),
+            Command::new("reg.exe")
+                .no_console_window()
+                .args(["delete", key, "/v", name, "/f"]),
             "remove Windows registry value",
         )
     }

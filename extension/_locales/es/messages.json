@@ -117,10 +117,10 @@
     "message": "Las descargas iniciadas en el navegador se pausan y se transfieren a rDownloader. Requiere un token de captura."
   },
   "menuSession": {
-    "message": "Enviar la sesion de este sitio a rDownloader"
+    "message": "Enviar la sesión de este sitio a rDownloader"
   },
   "sessionShared": {
-    "message": "Sesion de $HOST$ enviada. Apruebela en rDownloader para usarla.",
+    "message": "Sesión de $HOST$ enviada. Apruébala en rDownloader para usarla.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -131,7 +131,7 @@
     "message": "No se han encontrado cookies para este sitio."
   },
   "sessionFailed": {
-    "message": "No se pudo enviar la sesion: $REASON$",
+    "message": "No se pudo enviar la sesión: $REASON$",
     "placeholders": {
       "reason": {
         "content": "$1"
@@ -139,7 +139,7 @@
     }
   },
   "sessionUnconfigured": {
-    "message": "Primero vincule la extension con rDownloader."
+    "message": "Primero vincula la extensión con rDownloader."
   },
   "captchaSection": {
     "message": "Captchas en espera"
@@ -159,7 +159,7 @@
     "message": "Rechazar"
   },
   "captchaWaiting": {
-    "message": "Un captcha de $HOST$ está esperando. Abra la extensión de rDownloader para responderlo en este navegador.",
+    "message": "Un captcha de $HOST$ está esperando. Abre la extensión de rDownloader para responderlo en este navegador.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -167,7 +167,7 @@
     }
   },
   "captchaOpened": {
-    "message": "Se está abriendo la página del hoster. Resuelva el captcha allí; rDownloader informará después de lo que respondió el servidor."
+    "message": "Se está abriendo la página del hoster. Resuelve el captcha allí; rDownloader informará después de lo que respondió el servidor."
   },
   "captchaPermissionDenied": {
     "message": "No se concedió el permiso para $HOST$, así que la página no se puede abrir.",

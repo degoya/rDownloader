@@ -1,6 +1,6 @@
 {
   "name": "Box-Anmeldung",
-  "description": "Meldet ein Box-Konto über den Autorisierungsendpunkt von Box an.",
+  "description": "Meldet ein Box-Konto über den Autorisierungs-Endpoint von Box an.",
   "codes": {
     "box_oauth.bad_reply": "Box hat eine Antwort gesendet, die dieses Plugin nicht lesen konnte.",
     "box_oauth.client_not_configured": "Für dieses Konto ist noch keine Box-Anwendung hinterlegt. Trage zuerst Client-ID und Client-Secret deiner eigenen Box-App ein.",

@@ -107,7 +107,9 @@ export function useGrabberEnqueue(view: {
         title: t('linkgrabber.confirm.duplicates_title'),
         description: paused ? t('linkgrabber.confirm.duplicates_paused') : t('linkgrabber.confirm.duplicates_enqueue'),
         confirmLabel: paused ? t('linkgrabber.actions.enqueue_paused') : t('linkgrabber.actions.enqueue_all'),
-        confirmIcon: paused ? 'i-lucide-pause' : 'i-lucide-list-end'
+        confirmIcon: paused ? 'i-lucide-pause' : 'i-lucide-list-end',
+        // The key that starts it (`e`, `w`) answers it as well; a click is not disturbed by it.
+        confirmKey: paused ? 'w' : 'e'
       })
       if (!confirmed) return
     }

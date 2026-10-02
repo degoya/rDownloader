@@ -32,7 +32,9 @@
     "withdrawn_badge": "Withdrawn",
     "withdrawn_hint": "This build is refused from the next start on; the signing key is untouched.",
     "withdraw_version": "Withdraw version {version}",
-    "staged_badge": "Under test"
+    "staged_badge": "Under test",
+    "more_hosts": "+{count} more",
+    "fewer_hosts": "Show fewer"
   },
   "keys": {
     "eyebrow": "Signing keys",
@@ -69,7 +71,8 @@
     "cookies": "Account cookies",
     "captcha": "CAPTCHA solving",
     "secret": "Credential: {reference}",
-    "net_stream": "Direct connections (ports {ports})"
+    "net_stream": "Direct connections (ports {ports})",
+    "key_derivation": "Key derivation"
   },
   "incompatible": {
     "eyebrow": "Refused packages",

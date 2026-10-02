@@ -7,7 +7,7 @@
     "realdebrid_auth.sign_in_refused": "Real-Debrid ya no acepta esta conexión. Vuelve a conectar la cuenta.",
     "realdebrid_auth.two_factor": "Real-Debrid pidió una verificación en dos pasos. Confírmala allí y vuelve a iniciar la sesión.",
     "realdebrid_auth.client_rejected": "Real-Debrid ya no acepta el cliente que recibió esta conexión. Vuelve a conectar la cuenta.",
-    "realdebrid_auth.bad_reply": "Real-Debrid envió una respuesta que este complemento no pudo leer.",
+    "realdebrid_auth.bad_reply": "Real-Debrid envió una respuesta que este plugin no pudo leer.",
     "realdebrid_auth.redirect_unsupported": "Real-Debrid inicia sesión con un código de dispositivo y no tiene redirección.",
     "realdebrid_auth.rate_limited": "Real-Debrid está recibiendo demasiadas solicitudes ahora mismo. Vuelve a intentar la conexión dentro de un minuto."
   }

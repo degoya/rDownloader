@@ -4,7 +4,7 @@
   "codes": {
     "putio.account_missing": "Cette adresse nécessite un compte Put.io",
     "putio.api_error": "Erreur de l'API Put.io ({reason})",
-    "putio.auth_invalid": "La connexion Put.io n'est plus valide. Reconnecte-toi.",
+    "putio.auth_invalid": "La connexion Put.io n'est plus valide. Reconnectez-vous.",
     "putio.disk_free": "{bytes} octets libres",
     "putio.file_not_found": "Put.io ne conserve plus ce fichier",
     "putio.http_error": "Statut HTTP {status} de Put.io",

@@ -1,8 +1,10 @@
 /**
  * The install preview (RD-140-01): publisher, key standing, permissions and release notes before
  * anything is installed, and a key nobody confirmed yet confirmed by the fingerprint shown here.
+ * Its layout (RD-180-22): the publisher's key and the package digest fold away, the restart hint
+ * stands in the footer beside the two actions.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PluginPreview, PreviewSource } from '@/api/pluginRepositories'
@@ -30,6 +32,7 @@ vi.mock('@/i18n/server', () => ({
 const { default: PluginInstallPreviewModal } = await import('./PluginInstallPreviewModal.vue')
 
 const FINGERPRINT = 'ab'.repeat(32)
+const GROUPED = 'abababab abababab abababab abababab abababab abababab abababab abababab'
 const SOURCE: PreviewSource = {
   kind: 'repository',
   repositoryId: 'official',
@@ -75,6 +78,14 @@ function mount(source: PreviewSource | null = SOURCE) {
   })
 }
 
+function publisherToggle(): HTMLElement {
+  return within(document.querySelector('[data-preview-publisher]') as HTMLElement).getByRole('button')
+}
+
+function digestToggle(): HTMLElement {
+  return within(document.querySelector('[data-preview-digest]') as HTMLElement).getByRole('button')
+}
+
 describe('PluginInstallPreviewModal', () => {
   beforeEach(() => {
     preview.mockReset()
@@ -88,7 +99,11 @@ describe('PluginInstallPreviewModal', () => {
     mount()
     await screen.findByText('DDownload')
     expect(preview).toHaveBeenCalledWith(SOURCE)
-    expect(screen.getByText('abababab abababab abababab abababab abababab abababab abababab abababab')).toBeTruthy()
+    // A trusted key keeps its fingerprint folded behind the trust line until somebody asks.
+    expect(screen.queryByText(GROUPED)).toBeNull()
+    await fireEvent.click(publisherToggle())
+    expect(screen.getByText(GROUPED)).toBeTruthy()
+    expect(screen.getByText('rdownloader-release-v1')).toBeTruthy()
     expect(screen.getByText(pluginsCatalogue.capability.net_http)).toBeTruthy()
     expect(screen.getByText(pluginsCatalogue.capability.captcha)).toBeTruthy()
     expect(screen.getByText('ddownload.com')).toBeTruthy()
@@ -149,8 +164,53 @@ describe('PluginInstallPreviewModal', () => {
     preview.mockResolvedValue({ ok: true, data: shown({ key_status: 'untrusted' }) })
     mount()
     expect(await screen.findByText(pluginsCatalogue.trust.warning)).toBeTruthy()
+    // What installing confirms is in view from the start, not behind a click.
+    expect(publisherToggle().getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText(GROUPED)).toBeTruthy()
     await fireEvent.click(screen.getByRole('button', { name: pluginsCatalogue.trust.confirm }))
     await waitFor(() => expect(install).toHaveBeenCalledWith(SOURCE, FINGERPRINT))
+  })
+
+  it('shows the digest by its two ends and unfolds the whole of it', async () => {
+    preview.mockResolvedValue({ ok: true, data: shown() })
+    mount()
+    await screen.findByText('DDownload')
+    const full = 'cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd'
+    expect(screen.getByText('cdcdcdcd … cdcdcdcd')).toBeTruthy()
+    expect(screen.queryByText(full)).toBeNull()
+    expect(digestToggle().getAttribute('aria-expanded')).toBe('false')
+
+    await fireEvent.click(digestToggle())
+    // Four groups a line, two lines, as it is compared by eye.
+    expect(screen.getByText(full).textContent?.split('\n')).toEqual([
+      'cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd',
+      'cdcdcdcd cdcdcdcd cdcdcdcd cdcdcdcd'
+    ])
+    expect(screen.queryByText('cdcdcdcd … cdcdcdcd')).toBeNull()
+  })
+
+  it('names the source beside the name for a new plugin and beside the installed versions for an update', async () => {
+    preview.mockResolvedValue({ ok: true, data: shown() })
+    const update = mount()
+    await screen.findByText('DDownload')
+    expect(document.querySelector('[data-preview-source]')?.textContent).toBe('From rDownloader·Installed here: 1.2.3')
+    update.unmount()
+
+    preview.mockResolvedValue({ ok: true, data: shown({ installed_versions: [], added_permissions: null }) })
+    mount()
+    await screen.findByText('DDownload')
+    expect(document.querySelector('[data-preview-source]')?.textContent).toBe('From rDownloader')
+  })
+
+  it('ends with the restart hint beside Cancel and Install, and Cancel closes', async () => {
+    preview.mockResolvedValue({ ok: true, data: shown() })
+    const { emitted } = mount()
+    await screen.findByText('DDownload')
+    expect(screen.getByText(pluginsCatalogue.preview.restart)).toBeTruthy()
+    const buttons = screen.getAllByRole('button').map(button => button.textContent)
+    expect(buttons.slice(-2)).toEqual([pluginsCatalogue.trust.cancel, pluginsCatalogue.preview.install])
+    await fireEvent.click(screen.getByRole('button', { name: pluginsCatalogue.trust.cancel }))
+    expect(emitted().close).toHaveLength(1)
   })
 
   it('offers no install for a withdrawn package', async () => {

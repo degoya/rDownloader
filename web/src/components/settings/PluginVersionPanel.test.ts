@@ -1,7 +1,7 @@
 /**
  * The version controls of one plugin (RD-140-02), as an action matrix: which control is offered
- * in which state, and which request each one sends. Every action takes effect at the next start,
- * so the panel's other job is to keep "runs now" and "runs from the next start" apart.
+ * in which state, and which request each one sends. Every action takes effect at the next start;
+ * keeping "runs now" and "runs from the next start" apart is the card's row around the panel.
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -55,21 +55,13 @@ beforeEach(() => {
 })
 
 describe('PluginVersionPanel', () => {
-  it('names the running version and offers neither a test nor a rollback it cannot do', () => {
+  // The running version and the one of the next start are the card's to show (RD-180-22),
+  // in `PluginCard.test.ts`.
+  it('offers neither a test nor a rollback it cannot do', () => {
     mount(lifecycle(), ['2.0.0'])
 
-    expect(screen.getByText('Running: v2.0.0')).toBeTruthy()
-    expect(screen.queryByText('Restart to apply')).toBeNull()
     expect(screen.queryByRole('button', { name: /Roll back/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Test' })).toBeNull()
-  })
-
-  it('keeps the running version and the one of the next start apart until a restart', () => {
-    mount(lifecycle({ active_version: '1.0.0', previous_version: '2.0.0', restart_required: true }))
-
-    expect(screen.getByText('Running: v2.0.0')).toBeTruthy()
-    expect(screen.getByText('From the next start: v1.0.0')).toBeTruthy()
-    expect(screen.getByText('Restart to apply')).toBeTruthy()
   })
 
   it('puts a picked version under test, or activates it', async () => {

@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
 use anyhow::{Context, Result};
+use rd_files::NoConsoleWindow as _;
 
 use super::{APPLY_COMMAND, Journal, remove_any, update_dir};
 
@@ -19,10 +20,17 @@ pub const UPDATER_LOG: &str = "updater.log";
 /// restart that is needed (3010) or was started (1641).
 pub const MSI_SUCCESS: [i32; 3] = [0, 3010, 1641];
 
-/// Starts `program` in `cwd`, detached from this process — its own process group on Unix, no
-/// console and a group of its own on Windows, outside the caller's job where Windows allows it —
-/// so it outlives the process that started it and a Ctrl-C meant for that one does not reach it.
-/// Standard output and error are appended to the two files.
+/// Starts `program` in `cwd`, detached from this process — its own process group on Unix; on
+/// Windows a group and a hidden console of its own, outside the caller's job where Windows allows
+/// it — so it outlives the process that started it and a Ctrl-C meant for that one does not reach
+/// it. Standard output and error are appended to the two files.
+///
+/// A hidden console, not none (1.8.0 live finding): a process started without a console
+/// (`DETACHED_PROCESS`) hands none to the console programs it starts, so each of them — every
+/// unrar, 7z or ffmpeg of the service after a self-update — opened a window of its own. With a
+/// hidden console of its own, the service runs as `start-rdownloader.bat` starts it, and its
+/// children share that console unseen. It is stopped as before: `rdownloader stop` over the
+/// local control file, `taskkill` by its process id when that fails; neither uses the console.
 ///
 /// # Errors
 ///
@@ -55,18 +63,18 @@ pub fn spawn_detached<S: AsRef<OsStr>>(
     }
     #[cfg(windows)]
     {
+        use rd_files::CREATE_NO_WINDOW;
         use std::os::windows::process::CommandExt as _;
-        const DETACHED_PROCESS: u32 = 0x0000_0008;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
         const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
         command.creation_flags(
-            DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+            CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
         );
         match command.spawn() {
             Ok(child) => return Ok(child),
             // A job that allows no breakaway: started inside it, as any other child would be.
             Err(error) if error.raw_os_error() == Some(5) => {
-                command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+                command.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
             }
             Err(error) => {
                 return Err(error).with_context(|| format!("start {}", program.display()));
@@ -204,6 +212,7 @@ pub fn end_by_force(pid: u32, image: &str) -> Result<bool> {
             std::env::var_os("SystemRoot"),
             "taskkill.exe",
         ))
+        .no_console_window()
         .args(["/PID", &pid.to_string(), "/F"])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -231,6 +240,7 @@ pub fn runs_as(pid: u32, image: &str) -> Result<bool> {
             std::env::var_os("SystemRoot"),
             "tasklist.exe",
         ))
+        .no_console_window()
         .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
         .stdin(Stdio::null())
         .output()
@@ -279,6 +289,7 @@ fn ps_names(listing: &str, image: &str) -> bool {
 /// When `msiexec` cannot be started or ends without a code.
 pub fn run_msiexec(args: &[String]) -> Result<i32> {
     let status = Command::new(msiexec_path())
+        .no_console_window()
         .args(args)
         .stdin(Stdio::null())
         .status()

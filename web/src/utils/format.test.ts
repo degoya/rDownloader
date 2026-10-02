@@ -50,7 +50,7 @@ describe('transfer formatting', () => {
     const mirror = { state: 'skipped', mirror_group: 'group-1' } as Download
     expect(stateLabel('skipped', mirror)).toBe('Mirror')
     setLocale('de')
-    expect(stateLabel('skipped', mirror)).toBe('Spiegel')
+    expect(stateLabel('skipped', mirror)).toBe('Mirror')
     setLocale('en')
   })
 

@@ -8,7 +8,7 @@
   "steps": {
     "nav": {
       "title": "La vue d'ensemble",
-      "description": "Téléchargements contient la file, le LinkGrabber collecte et vérifie les liens avant leur démarrage, Flux enregistre les sources en direct, Abonnements ramènent les nouveautés des flux et des indexeurs, et Automatisation y réagit. Les paramètres s'ouvrent en sous-pages distinctes."
+      "description": "Téléchargements contient la file, le LinkGrabber collecte et vérifie les liens avant leur démarrage, Streams enregistre les sources en direct, Abonnements ramènent les nouveautés des flux et des indexeurs, et Automatisation y réagit. Les paramètres s'ouvrent en sous-pages distinctes."
     },
     "downloads_add": {
       "title": "Ajouter un téléchargement",

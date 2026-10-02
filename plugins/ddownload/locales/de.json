@@ -9,7 +9,7 @@
     "secret_label_login": "DDownload-Passwort"
   },
   "codes": {
-    "ddownload.account_missing": "DDownload-Account fehlt",
+    "ddownload.account_missing": "DDownload-Konto fehlt",
     "ddownload.api_error": "DDownload-API: {message}",
     "ddownload.api_key_required": "Die DDownload-Linkprüfung benötigt den API-Key",
     "ddownload.captcha_rejected": "DDownload hat die Captcha-Antwort abgelehnt",

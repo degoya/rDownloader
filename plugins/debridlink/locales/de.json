@@ -5,7 +5,7 @@
     "secret_hint": "Gib deinen API-Key von debrid-link.com/webapp/apikey als Secret ein."
   },
   "codes": {
-    "debridlink.account_missing": "Debrid-Link-Account fehlt",
+    "debridlink.account_missing": "Debrid-Link-Konto fehlt",
     "debridlink.api_error": "Debrid-Link-API-Fehler: {api_code}",
     "debridlink.api_key_missing": "Debrid-Link-API-Key fehlt",
     "debridlink.auth_invalid": "Debrid-Link-API-Key ist ungültig oder abgelaufen",

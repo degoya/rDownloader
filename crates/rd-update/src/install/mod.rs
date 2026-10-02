@@ -24,7 +24,9 @@
 //! top-level entry of the new archive that exists now into `<install>/.previous/`, then the new
 //! one into its place. Only the archive's own entries move: `data/`, `downloads/`, `logs/` and
 //! whatever else lives beside the program stays. `.previous/` is kept until the next start of
-//! the proven version, then removed.
+//! the proven version, then removed. Leftovers are never removed in place but moved into
+//! `<install>/.trash/` first ([`trash`]): what a running program still holds stays there for a
+//! later sweep instead of failing the next update.
 
 use std::fs;
 use std::io::Write as _;
@@ -43,6 +45,7 @@ pub mod portable;
 pub mod process;
 pub mod recover;
 pub mod steps;
+pub mod trash;
 
 /// Below the data directory: what an update keeps between the service and the updater.
 pub const UPDATE_DIR: &str = "update";

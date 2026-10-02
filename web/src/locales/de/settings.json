@@ -7,9 +7,9 @@
       "description": "Status von Dienst, Usenet und Erfassung sowie die wichtigsten Laufzeit-Eckdaten."
     },
     "backup": {
-      "eyebrow": "Sicherung & Migration",
+      "eyebrow": "Backup & Migration",
       "title": "Backup & Restore",
-      "description": "Die vollständige Serverkonfiguration sichern oder eine vorhandene Sicherung kontrolliert wiederherstellen."
+      "description": "Die vollständige Serverkonfiguration sichern oder ein vorhandenes Backup kontrolliert wiederherstellen."
     },
     "general": {
       "eyebrow": "Grundeinstellungen",
@@ -39,7 +39,7 @@
     "bandwidth": {
       "eyebrow": "Planbare Auslastung",
       "title": "Bandbreite & Budgets",
-      "description": "Zeitgesteuerte Profile, Grenzen je Protokoll, Host, Account oder Kategorie sowie Tages- und Monatsbudgets."
+      "description": "Zeitgesteuerte Profile, Grenzen je Protokoll, Host, Konto oder Kategorie sowie Tages- und Monatsbudgets."
     },
     "notifications": {
       "eyebrow": "Wie es dich erreicht",
@@ -58,8 +58,8 @@
     },
     "accounts": {
       "eyebrow": "Zugang zu Anbietern",
-      "title": "Provideraccounts",
-      "description": "Zugänge zu Hostern, Debrid-Diensten und anderen Anbietern. Jeder Account nutzt eine eigene, isolierte Clientidentität — Cookie-Jar, Proxy, TLS —, und kein Secret und kein Cookie wird je über die API ausgegeben."
+      "title": "Providerkonten",
+      "description": "Zugänge zu Hostern, Debrid-Diensten und anderen Anbietern. Jedes Konto nutzt eine eigene, isolierte Clientidentität — Cookie-Jar, Proxy, TLS —, und kein Secret und kein Cookie wird je über die API ausgegeben."
     },
     "security": {
       "eyebrow": "Wer hineinkommt",
@@ -79,7 +79,7 @@
     "unattended": {
       "eyebrow": "Wenn niemand hinsieht",
       "title": "Unbeaufsichtigter Betrieb",
-      "description": "Quiet Hours, was nach dem Leerlaufen der Queue geschieht, und das Anhalten im Akku- oder getakteten Betrieb."
+      "description": "Quiet Hours, was nach dem Leerlaufen der Warteschlange geschieht, und das Anhalten im Akku- oder getakteten Betrieb."
     },
     "captcha": {
       "eyebrow": "Freie Downloads",
@@ -147,7 +147,7 @@
     "keep_failed_description": "Ein Paket mit einer Datei, die nicht fertig wurde, bleibt stehen."
   },
   "mirrors": {
-    "label": "Spiegel erkennen",
+    "label": "Mirrors erkennen",
     "description": "Wenn ein Paket mehrere Links auf dieselbe Datei enthält, wird einer geladen und der Rest als Rückfallebene behalten. Gibt der laufende auf, übernimmt ein anderer."
   },
   "sha256": {
@@ -162,7 +162,7 @@
   "proxy": {
     "eyebrow": "Ausgangsroute",
     "title": "Verbindungswege (Proxyprofile)",
-    "description": "Profile lassen sich global, je Account oder je Download zuweisen. Passwörter werden verschlüsselt gespeichert.",
+    "description": "Profile lassen sich global, je Konto oder je Download zuweisen. Passwörter werden verschlüsselt gespeichert.",
     "name_placeholder": "Profilname",
     "username_placeholder": "Benutzer (optional)",
     "password_placeholder": "Passwort (verschlüsselt)",
@@ -174,7 +174,7 @@
     "name_description": "Wird überall angezeigt, wo sich das Profil zuweisen lässt.",
     "kind_label": "Protokoll",
     "kind_description": "SOCKS5 löst DNS-Namen auf dem Proxy auf (socks5h).",
-    "endpoint_label": "Endpunkt",
+    "endpoint_label": "Endpoint",
     "endpoint_description": "Schema, Host und Port, z. B. socks5h://127.0.0.1:1080.",
     "username_label": "Benutzer",
     "username_description": "Nur bei Proxys mit Anmeldung nötig.",
@@ -185,7 +185,7 @@
   "global_proxy": {
     "eyebrow": "Netzwerk-Fallback",
     "title": "Globaler Verbindungsweg",
-    "description": "Wird nur verwendet, wenn weder der Download noch sein Account ein Proxyprofil festlegt.",
+    "description": "Wird nur verwendet, wenn weder der Download noch sein Konto ein Proxyprofil festlegt.",
     "label": "Verbindungsweg"
   },
   "custom_ca": {
@@ -325,7 +325,7 @@
   },
   "reset": {
     "title": "Werkseinstellungen wiederherstellen?",
-    "description": "Alle Laufzeiteinstellungen werden auf die eingebauten Standardwerte zurückgesetzt. Storage-Roots, Kategorien, Regeln, Accounts, Server, Tokens und Downloads bleiben erhalten.",
+    "description": "Alle Laufzeiteinstellungen werden auf die eingebauten Standardwerte zurückgesetzt. Storage-Roots, Kategorien, Regeln, Konten, Server, Tokens und Downloads bleiben erhalten.",
     "confirm": "Zurücksetzen",
     "button": "Werkseinstellungen"
   },
@@ -396,7 +396,7 @@
     "administration": "Verwaltung"
   },
   "tabs": {
-    "accounts": "Accounts",
+    "accounts": "Konten",
     "backup": "Backup & Restore",
     "bandwidth": "Bandbreite",
     "captcha": "Captcha & Löser",
@@ -821,7 +821,7 @@
     "open": "Auditprotokoll öffnen",
     "otlp_enabled_label": "Traces über OTLP exportieren",
     "otlp_enabled_description": "Standardmäßig aus. Ein ausgefallener oder langsamer Kollektor verzögert nie einen Download oder eine Anfrage.",
-    "otlp_endpoint_label": "Kollektor-Endpunkt",
+    "otlp_endpoint_label": "Kollektor-Endpoint",
     "otlp_endpoint_description": "Die OTLP/HTTP-Trace-URL, zum Beispiel http://127.0.0.1:4318/v1/traces.",
     "otlp_timeout_label": "Export-Zeitlimit",
     "otlp_timeout_description": "Wie lange ein Versuch dauern darf, bevor er abgebrochen wird (1-60 Sekunden)."

@@ -113,6 +113,40 @@ fn a_half_done_switch_is_taken_back_from_where_it_stopped() {
     fixture.assert_old();
 }
 
+/// The live finding of 2026-10-02: `.previous/` of the update before still held a capture agent
+/// that ran from it, could not be removed, and every later update failed at once with
+/// `update.unpack_failed`. It is moved into the trash now, and the update goes on.
+#[cfg(unix)]
+#[test]
+fn a_previous_that_cannot_be_removed_does_not_stop_the_next_update() {
+    let mut fixture = Fixture::tar();
+    let previous = fixture.journal.previous_dir();
+    let Some(_locked) = crate::install::fixture::locked_folder(&previous) else {
+        return;
+    };
+    stage(&mut fixture.journal).expect("stage");
+    switch(&mut fixture.journal).expect("switch");
+    fixture.assert_new();
+    let trash = trash::trash_dir(&fixture.install);
+    let held: Vec<std::path::PathBuf> = std::fs::read_dir(&trash)
+        .expect("trash")
+        .map(|batch| {
+            batch
+                .expect("batch")
+                .path()
+                .join(".previous")
+                .join("locked")
+        })
+        .collect();
+    assert_eq!(held.len(), 1, "{held:?}");
+    assert!(held[0].join("rdownloader-capture").is_file());
+
+    // The agent has ended: the next sweep removes it.
+    crate::install::fixture::unlock(&held[0]);
+    trash::sweep(&fixture.install);
+    assert!(!trash.exists());
+}
+
 #[test]
 fn an_archive_without_the_program_is_refused_before_anything_moves() {
     let mut fixture = Fixture::tar();

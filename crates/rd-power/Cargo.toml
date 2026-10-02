@@ -10,6 +10,7 @@ anyhow.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
+rd-files = { path = "../rd-files" }
 rd-limits = { path = "../rd-limits" }
 serde.workspace = true
 tokio.workspace = true

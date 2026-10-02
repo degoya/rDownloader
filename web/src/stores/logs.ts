@@ -8,8 +8,11 @@ import type { BundleCreated, BundlePreview, LogLevel, LogRecord, LogRecordsPage 
 const LOG_PAGE_SIZE = 200
 
 export interface LogFilters {
-  /** This level and the more severe ones; empty means every level. */
-  level: LogLevel | ''
+  /**
+   * This level and the more severe ones; `'all'` means every level. A sentinel rather than an
+   * empty string: the select offering it refuses an item whose value is `''`.
+   */
+  level: LogLevel | 'all'
   component: string
   code: string
   correlationId: string
@@ -28,7 +31,7 @@ interface LogQuery {
 }
 
 function emptyFilters(): LogFilters {
-  return { level: '', component: '', code: '', correlationId: '', search: '' }
+  return { level: 'all', component: '', code: '', correlationId: '', search: '' }
 }
 
 /**
@@ -60,7 +63,7 @@ export const useLogsStore = defineStore('logs', () => {
 
   function query(beforeId?: number): LogQuery {
     const params: LogQuery = { limit: LOG_PAGE_SIZE }
-    if (filters.level) params.level = filters.level
+    if (filters.level !== 'all') params.level = filters.level
     if (filters.component.trim()) params.component = filters.component.trim()
     if (filters.code.trim()) params.code = filters.code.trim()
     if (filters.correlationId.trim()) params.correlation_id = filters.correlationId.trim()

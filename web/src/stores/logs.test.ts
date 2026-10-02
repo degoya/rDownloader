@@ -57,6 +57,21 @@ describe('logs store: the list', () => {
     expect(store.error).toBeNull()
   })
 
+  it('sends no level while "every level" is chosen', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
+    const store = useLogsStore()
+    // `'all'`, not `''`: the select refuses an item with an empty value (1.8.1).
+    expect(store.filters.level).toBe('all')
+
+    await store.refresh()
+
+    expect(api.GET).toHaveBeenCalledWith('/api/v1/diagnostics/logs', { params: { query: { limit: 200 } } })
+
+    store.filters.level = 'error'
+    store.clearFilters()
+    expect(store.filters.level).toBe('all')
+  })
+
   it('reports a failed fetch instead of showing an empty list', async () => {
     vi.mocked(api.GET).mockResolvedValue({ error: { code: 'internal.error' } } as never)
     const store = useLogsStore()

@@ -15,6 +15,9 @@
 //! Output: a program can print without end, and a buffer that keeps all of it grows the service
 //! with it. [`read_tail`] keeps a bounded end of a stream and reads the rest away, so the child
 //! never blocks on a full pipe either.
+//!
+//! Window: on Windows a console program started by a process without a console opens a console
+//! window of its own. [`NoConsoleWindow`] is the one way every spawn in the workspace avoids it.
 
 use std::{
     collections::VecDeque,
@@ -103,6 +106,43 @@ pub fn restrict_environment(command: &mut tokio::process::Command, extra: &[&str
             Some(value) => command.env(name, value),
             None => command.env_remove(name),
         };
+    }
+}
+
+/// `CREATE_NO_WINDOW`: a console program started with it gets a console of its own that is
+/// never shown, and the console programs it starts in turn share that hidden console.
+///
+/// Public for the one caller that combines it with other creation flags (the updater, which
+/// starts the service); every other spawn calls [`NoConsoleWindow::no_console_window`], because
+/// `creation_flags` replaces the flags set before rather than adding to them.
+pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Starts a program without a console window on Windows; nothing changes elsewhere.
+///
+/// 1.8.0 live finding: after a self-update the updater had started the service as a detached
+/// process, which has no console at all, so every unrar, 7z, ffmpeg or `icacls` it ran opened a
+/// visible console window of its own, one after another. A spawn site that does not ask for
+/// this depends on how the service itself was started, which it cannot know; so every spawn in
+/// the workspace asks, and `crates/rdownloader/tests/no_console_window.rs` fails on one that
+/// does not.
+pub trait NoConsoleWindow {
+    /// Sets [`CREATE_NO_WINDOW`] as the creation flags on Windows; a no-op elsewhere.
+    fn no_console_window(&mut self) -> &mut Self;
+}
+
+impl NoConsoleWindow for tokio::process::Command {
+    fn no_console_window(&mut self) -> &mut Self {
+        #[cfg(windows)]
+        self.creation_flags(CREATE_NO_WINDOW);
+        self
+    }
+}
+
+impl NoConsoleWindow for std::process::Command {
+    fn no_console_window(&mut self) -> &mut Self {
+        #[cfg(windows)]
+        std::os::windows::process::CommandExt::creation_flags(self, CREATE_NO_WINDOW);
+        self
     }
 }
 

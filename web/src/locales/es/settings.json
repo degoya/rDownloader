@@ -19,7 +19,7 @@
     "network": {
       "eyebrow": "Conexiones salientes",
       "title": "Red y certificados",
-      "description": "Perfiles proxy y el respaldo global, su propia autoridad de certificación, perfiles de autenticación para sitios protegidos y el script de reconexión."
+      "description": "Perfiles proxy y el respaldo global, tu propia autoridad de certificación, perfiles de autenticación para sitios protegidos y el script de reconexión."
     },
     "media": {
       "eyebrow": "Herramientas externas",
@@ -49,7 +49,7 @@
     "services": {
       "eyebrow": "Transferencias",
       "title": "Servicios",
-      "description": "Desactive lo que esta instalación no deba hacer. Un servicio desactivado rechaza los enlaces nuevos y detiene los que ya tenía."
+      "description": "Desactiva lo que esta instalación no deba hacer. Un servicio desactivado rechaza los enlaces nuevos y detiene los que ya tenía."
     },
     "desktop": {
       "eyebrow": "Agente de captura",
@@ -69,7 +69,7 @@
     "mcp": {
       "eyebrow": "Acceso externo",
       "title": "API & MCP",
-      "description": "Tokens de API para REST, la CLI, los clientes compatibles con SABnzbd y qBittorrent y el servidor MCP, cada uno limitado a las áreas que elija."
+      "description": "Tokens de API para REST, la CLI, los clientes compatibles con SABnzbd y qBittorrent y el servidor MCP, cada uno limitado a las áreas que elijas."
     },
     "hotfolders": {
       "eyebrow": "Carpetas vigiladas",
@@ -89,7 +89,7 @@
     "torrent": {
       "eyebrow": "Peer-to-peer",
       "title": "BitTorrent",
-      "description": "Puerto de escucha, límites de compartición y siembra, interfaz de red y kill switch, lista de bloqueo y proxy del motor integrado."
+      "description": "Puerto de escucha, límites de compartición y de seeding, interfaz de red y kill switch, lista de bloqueo y proxy del motor integrado."
     },
     "transfers": {
       "eyebrow": "Servidores remotos",
@@ -174,7 +174,7 @@
     "name_description": "Se muestra allí donde se puede asignar el perfil.",
     "kind_label": "Protocolo",
     "kind_description": "SOCKS5 resuelve los nombres DNS en el proxy (socks5h).",
-    "endpoint_label": "Punto final",
+    "endpoint_label": "Endpoint",
     "endpoint_description": "Esquema, host y puerto, p. ej. socks5h://127.0.0.1:1080.",
     "username_label": "Usuario",
     "username_description": "Solo necesario para proxies con autenticación.",
@@ -223,7 +223,7 @@
     },
     "safe_postproc": {
       "label": "Posprocesar solo paquetes verificados",
-      "description": "Tras una comprobación PAR2, SFV o RAR fallida no se extrae, limpia ni entrega nada a los pasos de complementos. Activado de forma predeterminada, como en SABnzbd. Desactivado: un conjunto de recuperación dañado junto a archivos intactos ya no bloquea el paquete."
+      "description": "Tras una comprobación PAR2, SFV o RAR fallida no se extrae, limpia ni entrega nada a los pasos de plugins. Activado de forma predeterminada, como en SABnzbd. Desactivado: un conjunto de recuperación dañado junto a archivos intactos ya no bloquea el paquete."
     },
     "delete_par2": {
       "label": "Eliminar archivos PAR2 tras extraer",
@@ -235,7 +235,7 @@
     },
     "plugin_steps": {
       "label": "Pasos de plugin",
-      "description": "Pasos adicionales aportados por los plugins instalados. Se ejecutan después de la limpieza y antes de un script de usuario, en el orden en que los activa; una categoría puede sustituir esta lista."
+      "description": "Pasos adicionales aportados por los plugins instalados. Se ejecutan después de la limpieza y antes de un script de usuario, en el orden en que los activas; una categoría puede sustituir esta lista."
     },
     "sample_max": {
       "label": "Tamaño máximo de sample",
@@ -284,7 +284,7 @@
     },
     "enrichment": {
       "label": "Consultar a los plugins enriquecedores",
-      "description": "Desactivado de forma predeterminada. Un enriquecedor consulta un servicio fuera de esta máquina —SponsorBlock, por ejemplo—, así que no se pregunta nada sin su permiso. Solo se envían los enlaces que un plugin reclama, y la respuesta se muestra junto a los datos del núcleo, nunca en su lugar."
+      "description": "Desactivado de forma predeterminada. Un enriquecedor consulta un servicio fuera de esta máquina —SponsorBlock, por ejemplo—, así que no se pregunta nada sin tu permiso. Solo se envían los enlaces que un plugin reclama, y la respuesta se muestra junto a los datos del núcleo, nunca en su lugar."
     },
     "unpack_to_subfolder": {
       "label": "Extraer en subcarpetas",
@@ -316,7 +316,7 @@
     },
     "title_status": {
       "label": "Estado en la pestaña del navegador",
-      "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo el nombre de la aplicación. Desactívelo si un título que cambia constantemente le molesta."
+      "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo el nombre de la aplicación. Desactívalo si un título que cambia constantemente te molesta."
     }
   },
   "messages": {
@@ -559,19 +559,19 @@
     "sharing": {
       "label": "Compartir datos con otros pares",
       "description": "Desactivado de forma predeterminada: no se sube nada, ni siquiera mientras un torrent se está descargando.",
-      "leech_only_warning": "Descargar sin subir nunca perjudica al enjambre, y algunos rastreadores privados expulsan a los clientes que lo hacen."
+      "leech_only_warning": "Descargar sin subir nunca perjudica al enjambre, y algunos trackers privados expulsan a los clientes que lo hacen."
     },
     "seeding": {
-      "label": "Sembrar torrents terminados",
+      "label": "Hacer seeding de los torrents terminados",
       "description": "Seguir subiendo tras la descarga; la fila se completa al alcanzar un límite."
     },
     "seed_ratio": {
       "label": "Límite de ratio",
-      "description": "Dejar de sembrar al alcanzar esta relación subido/descargado; 0 lo desactiva."
+      "description": "Detener el seeding al alcanzar esta relación subido/descargado; 0 lo desactiva."
     },
     "seed_time": {
       "label": "Límite de tiempo",
-      "description": "Dejar de sembrar tras estos minutos; vacío = sin límite."
+      "description": "Detener el seeding tras estos minutos; vacío = sin límite."
     },
     "listen_port": {
       "label": "Puerto de escucha",
@@ -581,7 +581,7 @@
       "label": "Límite de subida",
       "description": "Límite global de subida de torrents; vacío = ilimitado."
     },
-    "restart_hint": "El puerto y el límite de subida aplican tras el próximo reinicio; los límites de siembra, de inmediato.",
+    "restart_hint": "El puerto y el límite de subida aplican tras el próximo reinicio; los límites de seeding, de inmediato.",
     "peer_addresses": {
       "label": "Mostrar direcciones completas de los pares",
       "description": "Desactivado de forma predeterminada: la dirección de un par es un dato personal de un tercero, y el prefijo de red basta para valorar un enjambre. En cualquier caso, las direcciones nunca se escriben en un registro ni en un evento."
@@ -612,7 +612,7 @@
     },
     "proxy": {
       "label": "Proxy SOCKS5 para conexiones de pares",
-      "description": "Se aplica solo a las conexiones salientes hacia pares. Los anuncios a rastreadores y las solicitudes de metadatos no pasan por él: este motor no puede enrutarlos por separado.",
+      "description": "Se aplica solo a las conexiones salientes hacia pares. Los anuncios a trackers y las solicitudes de metadatos no pasan por él: este motor no puede enrutarlos por separado.",
       "none": "Sin proxy"
     },
     "upnp": {
@@ -621,11 +621,11 @@
     },
     "announce_port": {
       "label": "Puerto anunciado",
-      "description": "Puerto anunciado a los rastreadores cuando el router asigna el puerto de escucha a otro puerto externo. Vacío anuncia el puerto de escucha."
+      "description": "Puerto anunciado a los trackers cuando el router asigna el puerto de escucha a otro puerto externo. Vacío anuncia el puerto de escucha."
     }
   },
   "auth_profiles": {
-    "approval_description": "Estas sesiones las envió la extensión del navegador. Solo se usan cuando usted las aprueba.",
+    "approval_description": "Estas sesiones las envió la extensión del navegador. Solo se usan cuando tú las apruebas.",
     "approval_title": "Pendiente de aprobación",
     "approve": "Aprobar",
     "badge_captured": "Desde el navegador",
@@ -639,7 +639,7 @@
     "delete": "Eliminar",
     "delete_description": "Las credenciales guardadas se eliminan con él. Las tareas fijadas a él vuelven a la coincidencia automática.",
     "delete_title": "¿Eliminar el perfil?",
-    "description": "Reutilice una sesión del navegador o envíe credenciales HTTP a un único dominio aprobado. Las cookies, los tokens y las claves privadas se guardan cifrados y no se vuelven a mostrar.",
+    "description": "Reutiliza una sesión del navegador o envía credenciales HTTP a un único dominio aprobado. Las cookies, los tokens y las claves privadas se guardan cifrados y no se vuelven a mostrar.",
     "edit": "Editar",
     "empty": "Todavía no hay perfiles de autenticación.",
     "enabled_label": "Activo",
@@ -659,7 +659,7 @@
     "secret_bearer": "Token",
     "secret_cookies": "Cookies",
     "secret_cookies_description": "Contenido de un cookies.txt de Netscape o una cabecera Cookie.",
-    "secret_keep": "Déjelo vacío para conservar el valor guardado.",
+    "secret_keep": "Déjalo vacío para conservar el valor guardado.",
     "subdomains_label": "Incluir subdominios",
     "test": "Probar",
     "title": "Perfiles de autenticación",
@@ -740,7 +740,7 @@
   "services": {
     "eyebrow": "Disponibilidad",
     "title": "Servicios de transferencia",
-    "description": "Cada servicio está activo hasta que lo desactive aquí. Lo que está desactivado rechaza los enlaces correspondientes ya en la recepción y bloquea, con un motivo, lo que ya estaba en la cola.",
+    "description": "Cada servicio está activo hasta que lo desactives aquí. Lo que está desactivado rechaza los enlaces correspondientes ya en la recepción y bloquea, con un motivo, lo que ya estaba en la cola.",
     "hint": "Al volver a activar un servicio, sus entradas bloqueadas regresan a la cola.",
     "torrent": {
       "label": "BitTorrent",
@@ -770,9 +770,9 @@
   "managed_tools": {
     "eyebrow": "Herramientas gestionadas",
     "title": "Versiones de las herramientas",
-    "description": "rDownloader puede descargar, verificar y activar por sí mismo yt-dlp, gallery-dl, Streamlink, ffmpeg y ffprobe. Cada versión procede de un manifiesto firmado y se confirma con su suma de comprobación antes de activarse.",
+    "description": "rDownloader puede descargar, verificar y activar por sí mismo yt-dlp, gallery-dl, Streamlink, ffmpeg y ffprobe. Cada versión procede de un manifiesto firmado y se confirma con su suma de verificación antes de activarse.",
     "enabled_label": "Gestionar las herramientas automáticamente",
-    "enabled_description": "Desactivado salvo que se indique lo contrario: descargar ejecutables no es algo que deba empezar sin permiso. Una ruta configurada explícitamente sigue teniendo prioridad.",
+    "enabled_description": "Desactivado salvo que indiques lo contrario: descargar ejecutables no es algo que deba empezar sin permiso. Una ruta configurada explícitamente sigue teniendo prioridad.",
     "manifest_url_label": "Dirección del manifiesto",
     "manifest_url_description": "Dirección https del manifiesto de herramientas firmado. Vacío = solo el manifiesto incluido en esta versión, que funciona con seguridad sin red.",
     "manifest_url_placeholder": "Vacío = manifiesto incorporado",
@@ -813,7 +813,7 @@
   "audit": {
     "eyebrow": "Auditoría y trazas",
     "title": "Registro de auditoría y exportación de trazas",
-    "description": "Cuánto tiempo se conserva el registro de auditoría de solo añadir y si los tramos finalizados se envían a un colector de OpenTelemetry. La exportación está desactivada hasta que la active.",
+    "description": "Cuánto tiempo se conserva el registro de auditoría de solo añadir y si los tramos finalizados se envían a un colector de OpenTelemetry. La exportación está desactivada hasta que la actives.",
     "records_label": "Registros de auditoría conservados",
     "records_description": "Los registros enteros más antiguos se eliminan primero (10000-2000000).",
     "days_label": "Días conservados",
@@ -821,7 +821,7 @@
     "open": "Abrir el registro de auditoría",
     "otlp_enabled_label": "Exportar trazas por OTLP",
     "otlp_enabled_description": "Desactivado por defecto. Un colector caído o lento nunca retrasa una descarga o una petición.",
-    "otlp_endpoint_label": "Punto final del colector",
+    "otlp_endpoint_label": "Endpoint del colector",
     "otlp_endpoint_description": "La URL de trazas OTLP/HTTP, por ejemplo http://127.0.0.1:4318/v1/traces.",
     "otlp_timeout_label": "Tiempo límite de exportación",
     "otlp_timeout_description": "Cuánto puede durar un intento antes de abandonarlo (1-60 segundos)."
@@ -829,7 +829,7 @@
   "overview": {
     "eyebrow": "Resumen",
     "title": "Ajustes",
-    "description": "Todas las páginas, agrupadas por tema. Abra una aquí o elíjala en la barra lateral."
+    "description": "Todas las páginas, agrupadas por tema. Abre una aquí o elígela en la barra lateral."
   },
   "about": {
     "build": {
@@ -885,7 +885,7 @@
   },
   "upload_limit": {
     "label": "Límite de subida",
-    "description": "Se aplica a cada subida: siembra de torrents, almacenamiento de objetos, rclone y destinos de subida. Vacío significa ilimitado"
+    "description": "Se aplica a cada subida: seeding de torrents, almacenamiento de objetos, rclone y destinos de subida. Vacío significa ilimitado"
   },
   "subtabs": {
     "network": {

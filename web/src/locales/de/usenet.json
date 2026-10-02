@@ -6,10 +6,10 @@
   "header": {
     "eyebrow": "Segmenttransport",
     "title": "NNTP-Server und Fallback",
-    "description": "Der oberste Server der Kette wird zuerst verwendet. Fehlende oder defekte Segmente wechseln zum nächsten aktiven Server; Passwörter liegen ausschließlich verschlüsselt im lokalen Vault."
+    "description": "Der oberste Server der Kette wird zuerst verwendet. Fehlende oder defekte Segmente wechseln zum nächsten aktiven Server; Passwörter liegen ausschließlich verschlüsselt im lokalen Tresor."
   },
   "form": {
-    "eyebrow": "Neuer Endpunkt",
+    "eyebrow": "Neuer Endpoint",
     "title_add": "Server hinzufügen",
     "title_edit": "Server bearbeiten",
     "name": "Primärer Provider",

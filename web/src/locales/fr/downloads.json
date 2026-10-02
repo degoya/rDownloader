@@ -64,7 +64,7 @@
     "clear_title": "Vider la liste de téléchargement",
     "clear_completed": "Vraiment retirer tous les paquets dont les fichiers sont terminés ? Un paquet encore en cours reste intact et les fichiers terminés restent dans le dossier de destination.",
     "clear_failed": "Vraiment retirer tous les paquets terminés contenant un fichier en échec, y compris leurs fichiers incomplets ? Un paquet encore en cours reste intact.",
-    "clear_all": "Vraiment retirer tous les paquets qui ne travaillent plus, quel qu'en soit le résultat ? Un paquet avec des fichiers en cours, en attente ou en partage reste intact et les fichiers terminés restent dans le dossier de destination.",
+    "clear_all": "Vraiment retirer tous les paquets qui ne travaillent plus, quel qu'en soit le résultat ? Un paquet avec des fichiers en cours, en attente ou en seed reste intact et les fichiers terminés restent dans le dossier de destination.",
     "clear_label": "Retirer les paquets",
     "remove_download_title": "Retirer le téléchargement",
     "remove_download_completed": "Retirer l’entrée de la liste de téléchargement ? Le fichier terminé est conservé.",
@@ -168,7 +168,7 @@
         "piece": "A livré des données qui ne correspondent pas à leur empreinte.",
         "size": "Propose une autre taille de fichier.",
         "other": "N'est plus utilisée pour ce fichier.",
-        "internal": "Pointe vers ta propre machine ou vers un réseau que cette liste de sources ne peut pas atteindre."
+        "internal": "Pointe vers votre propre machine ou vers un réseau que cette liste de sources ne peut pas atteindre."
       },
       "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
     }
@@ -324,7 +324,7 @@
     "hints": {
       "rename": "Le nouveau fichier est placé à côté de l’existant sous « nom (1) » ; rien n’est perdu.",
       "skip": "Le nouveau fichier n’est pas écrit ; l’existant reste tel quel et le téléchargement se termine avec une note.",
-      "overwrite": "Le nouveau fichier remplace l’existant. Consigné dans le journal d’audit, et jamais sur un fichier en cours de transfert ou de partage.",
+      "overwrite": "Le nouveau fichier remplace l’existant. Consigné dans le journal d’audit, et jamais sur un fichier en cours de transfert ou de seed.",
       "compare": "Les contenus sont comparés : des octets identiques adoptent le fichier existant, des différents sont renommés.",
       "ask": "Le téléchargement attend une décision. Seul ce téléchargement attend, et la question survit à un redémarrage."
     },
@@ -336,7 +336,7 @@
     "prompts": {
       "title": "« {name} » existe déjà",
       "before_transfer": "Paquet {package} : un fichier de ce nom se trouve déjà à la destination ({size}). Rien n’a encore été téléchargé.",
-      "after_transfer": "Paquet {package} : le nom a été pris pendant le transfert ({size}). Le fichier vérifié attend dans le dossier de préparation.",
+      "after_transfer": "Paquet {package} : le nom a été pris pendant le transfert ({size}). Le fichier vérifié attend dans le dossier temporaire.",
       "only_this": "Seul ce téléchargement attend ; le reste de la file continue.",
       "failed": "La décision n’a pas pu être enregistrée."
     },
@@ -387,7 +387,7 @@
   "clear_everything": {
     "title": "Vider toute la liste ?",
     "description": "Retire {count} paquet de la liste de téléchargement. | Retire les {count} paquets de la liste de téléchargement.",
-    "active": "Plus aucun paquet n'est actif. | {count} d'entre eux est encore actif : les téléchargements en cours et en attente sont annulés et le partage s'arrête. | {count} d'entre eux sont encore actifs : les téléchargements en cours et en attente sont annulés et le partage s'arrête.",
+    "active": "Plus aucun paquet n'est actif. | {count} d'entre eux est encore actif : les téléchargements en cours et en attente sont annulés et le seed s'arrête. | {count} d'entre eux sont encore actifs : les téléchargements en cours et en attente sont annulés et le seed s'arrête.",
     "kept": "Les fichiers terminés restent dans leur dossier de destination. Un paquet en cours de post-traitement reste dans la liste.",
     "delete_partial": "Supprimer aussi les fichiers partiellement téléchargés",
     "delete_partial_hint": "Irréversible : données de torrent inachevées et fragments à côté du fichier cible. Les fichiers incomplets du dossier temporaire sont toujours supprimés.",

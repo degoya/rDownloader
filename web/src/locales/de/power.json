@@ -2,7 +2,7 @@
   "card": {
     "eyebrow": "Unbeaufsichtigter Betrieb",
     "title": "Quiet Hours & Abschluss",
-    "description": "Ressourcenintensive Arbeit verschieben, nach dem Leerlaufen der Queue etwas ausführen und im Akku- oder getakteten Betrieb anhalten."
+    "description": "Ressourcenintensive Arbeit verschieben, nach dem Leerlaufen der Warteschlange etwas ausführen und im Akku- oder getakteten Betrieb anhalten."
   },
   "quiet": {
     "label": "Quiet Hours",
@@ -20,7 +20,7 @@
     "shutdown": "Herunterfahren"
   },
   "completion": {
-    "label": "Wenn die Queue leer ist",
+    "label": "Wenn die Warteschlange leer ist",
     "description": "Läuft einmal je abgeschlossenem Arbeitszyklus, nachdem auch das Post-Processing fertig ist.",
     "script_label": "Skript",
     "script_description": "Eine Datei im Post-Processing-Skriptverzeichnis; dieselbe Sandbox und dasselbe Timeout gelten.",
@@ -49,7 +49,7 @@
     "cancel": "Abbrechen"
   },
   "paused": {
-    "battery": "Die Queue ist angehalten: der Rechner läuft im Akkubetrieb.",
-    "metered": "Die Queue ist angehalten: die Verbindung meldet sich als getaktet."
+    "battery": "Die Warteschlange ist angehalten: der Rechner läuft im Akkubetrieb.",
+    "metered": "Die Warteschlange ist angehalten: die Verbindung meldet sich als getaktet."
   }
 }

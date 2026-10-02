@@ -178,6 +178,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once",
     },
     CrashPoint {
+        name: "update.after_leftover_set_aside",
+        owner: "rd-update",
+        invariant: "a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update",
+    },
+    CrashPoint {
         name: "update.after_new_placed",
         owner: "rd-update",
         invariant: "a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes",

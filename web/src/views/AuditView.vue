@@ -77,7 +77,7 @@ onMounted(() => {
         <UFormField :label="t('audit.filters.action')">
           <USelect
             v-model="store.filters.action"
-            :items="[{ value: '', label: t('audit.filters.any_action') }, ...store.actions.map(action => ({ value: action, label: actionLabel(action) }))]"
+            :items="[{ value: 'all', label: t('audit.filters.any_action') }, ...store.actions.map(action => ({ value: action, label: actionLabel(action) }))]"
             value-key="value"
             class="w-full"
             data-testid="audit-action"
@@ -87,7 +87,7 @@ onMounted(() => {
           <USelect
             v-model="store.filters.outcome"
             :items="[
-              { value: '', label: t('audit.filters.any_outcome') },
+              { value: 'all', label: t('audit.filters.any_outcome') },
               { value: 'success', label: t('audit.outcomes.success') },
               { value: 'failure', label: t('audit.outcomes.failure') }
             ]"
@@ -99,7 +99,7 @@ onMounted(() => {
         <UFormField :label="t('audit.filters.actor_kind')">
           <USelect
             v-model="store.filters.actorKind"
-            :items="[{ value: '', label: t('audit.filters.any_actor') }, ...ACTOR_KINDS.map(kind => ({ value: kind, label: t(`audit.actors.${kind}`) }))]"
+            :items="[{ value: 'all', label: t('audit.filters.any_actor') }, ...ACTOR_KINDS.map(kind => ({ value: kind, label: t(`audit.actors.${kind}`) }))]"
             value-key="value"
             class="w-full"
             data-testid="audit-actor-kind"

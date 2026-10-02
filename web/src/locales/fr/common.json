@@ -119,7 +119,12 @@
     "go_audit": "Aller à l'audit",
     "open_search": "Ouvrir la recherche",
     "clear_completed": "Retirer les paquets terminés (dans les téléchargements)",
-    "focus_indexer_search": "Aller à la recherche dans les indexeurs (dans le LinkGrabber)"
+    "focus_indexer_search": "Aller à la recherche dans les indexeurs (dans le LinkGrabber)",
+    "add_links": "Ajouter des liens (dans le LinkGrabber)",
+    "enqueue_all": "Tout charger (dans le LinkGrabber)",
+    "enqueue_paused": "Tout ajouter en pause (dans le LinkGrabber)",
+    "clear_linkgrabber": "Supprimer tous les liens (dans le LinkGrabber)",
+    "close_dialog": "Fermer la boîte de dialogue"
   },
   "a11y": {
     "skip_to_content": "Aller au contenu",

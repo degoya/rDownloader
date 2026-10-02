@@ -8,10 +8,14 @@ import type { AuditAction, AuditActorKind, AuditOutcome, AuditRecord, AuditRecor
 /** Records one read asks for; the server caps a page at 500. */
 const AUDIT_PAGE_SIZE = 200
 
+/**
+ * `'all'` is "any" for the three choices: a sentinel rather than an empty string, because the
+ * select offering them refuses an item whose value is `''`.
+ */
 export interface AuditFilters {
-  action: AuditAction | ''
-  outcome: AuditOutcome | ''
-  actorKind: AuditActorKind | ''
+  action: AuditAction | 'all'
+  outcome: AuditOutcome | 'all'
+  actorKind: AuditActorKind | 'all'
   actorId: string
   targetKind: string
   targetId: string
@@ -32,7 +36,7 @@ interface AuditQuery {
 }
 
 function emptyFilters(): AuditFilters {
-  return { action: '', outcome: '', actorKind: '', actorId: '', targetKind: '', targetId: '', traceId: '' }
+  return { action: 'all', outcome: 'all', actorKind: 'all', actorId: '', targetKind: '', targetId: '', traceId: '' }
 }
 
 /**
@@ -57,9 +61,9 @@ export const useAuditStore = defineStore('audit', () => {
 
   function query(beforeId?: number): AuditQuery {
     const params: AuditQuery = { limit: AUDIT_PAGE_SIZE }
-    if (filters.action) params.action = filters.action
-    if (filters.outcome) params.outcome = filters.outcome
-    if (filters.actorKind) params.actor_kind = filters.actorKind
+    if (filters.action !== 'all') params.action = filters.action
+    if (filters.outcome !== 'all') params.outcome = filters.outcome
+    if (filters.actorKind !== 'all') params.actor_kind = filters.actorKind
     if (filters.actorId.trim()) params.actor_id = filters.actorId.trim()
     if (filters.targetKind.trim()) params.target_kind = filters.targetKind.trim()
     if (filters.targetId.trim()) params.target_id = filters.targetId.trim()

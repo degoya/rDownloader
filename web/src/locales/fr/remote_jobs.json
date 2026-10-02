@@ -56,7 +56,7 @@
     "title": "Travaux distants",
     "description": "Les magnets confiés à un compte de fournisseur tournent là-bas, pas ici. Suivez-les, répondez aux questions pour lesquelles ils s'arrêtent et terminez-les — chez le fournisseur ou seulement dans cette liste."
   },
-  "no_remote_job_accounts": "Aucun de tes comptes n’appartient à un service disposant d’un plugin de tâches distantes installé. Installe-en un ou ajoute un compte auprès d’un service compatible.",
+  "no_remote_job_accounts": "Aucun de vos comptes n’appartient à un service disposant d’un plugin de tâches distantes installé. Installez-en un ou ajoutez un compte auprès d’un service compatible.",
   "accounts_unavailable": "La liste des services pouvant accepter une tâche n’a pas pu être lue.",
   "accounts_loading": "Je vérifie quels comptes peuvent accepter un travail…",
   "files": {

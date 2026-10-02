@@ -99,11 +99,14 @@ export function useGrabberActions(view: {
     if (confirmed) await collector.dissolveMirror(id)
   }
 
-  /** "Delete all" clears everything the list shows: collector links (torrents included) plus NZB imports. */
+  /**
+   * "Delete all" clears everything the list shows: collector links (torrents included) plus NZB
+   * imports. `r` starts it and answers its question too.
+   */
   async function clearAll(): Promise<void> {
     const nzbIds = view.nzbGroups.value.map(entry => entry.id)
     const count = collector.candidates.length + nzbIds.length
-    const confirmed = await confirm({ title: t('linkgrabber.confirm.clear_all_title'), description: t('linkgrabber.confirm.clear_all_description', { count }, count), confirmLabel: t('linkgrabber.actions.clear_all'), confirmIcon: 'i-lucide-list-x', destructive: true })
+    const confirmed = await confirm({ title: t('linkgrabber.confirm.clear_all_title'), description: t('linkgrabber.confirm.clear_all_description', { count }, count), confirmLabel: t('linkgrabber.actions.clear_all'), confirmIcon: 'i-lucide-list-x', destructive: true, confirmKey: 'r' })
     if (!confirmed) return
     if (collector.candidates.length) await collector.clearCandidates()
     for (const id of nzbIds) await nzb.remove(id)

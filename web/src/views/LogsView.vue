@@ -24,7 +24,7 @@ const expanded = ref<Set<number>>(new Set())
 const LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error']
 
 const levelItems = [
-  { value: '', label: t('logs.levels.all') },
+  { value: 'all', label: t('logs.levels.all') },
   ...LEVELS.map(level => ({ value: level, label: t(`logs.levels.${level}`) }))
 ]
 

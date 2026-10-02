@@ -14,6 +14,8 @@ use std::{
     process::Stdio,
 };
 
+use rd_files::NoConsoleWindow as _;
+
 use crate::rclone_job::bwlimit;
 
 /// How many trailing lines of rclone's output a failure keeps.
@@ -205,12 +207,11 @@ impl RcloneRemote {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .kill_on_drop(true);
+            .kill_on_drop(true)
+            .no_console_window();
         // The allowlist plus what rclone reads for itself (security review 2026-09-28,
         // finding 7), the same as the upload in `rclone_job`.
         rd_postprocess::restrict_environment(&mut command, rd_postprocess::RCLONE_VARIABLES);
-        #[cfg(windows)]
-        command.creation_flags(0x0800_0000);
         let output = command
             .output()
             .await

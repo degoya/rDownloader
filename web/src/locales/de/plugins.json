@@ -32,7 +32,9 @@
     "withdrawn_badge": "Zurückgezogen",
     "withdrawn_hint": "Dieser Build wird ab dem nächsten Start abgelehnt; der Signaturschlüssel bleibt unberührt.",
     "withdraw_version": "Version {version} zurückziehen",
-    "staged_badge": "Im Test"
+    "staged_badge": "Im Test",
+    "more_hosts": "+{count} weitere",
+    "fewer_hosts": "Weniger anzeigen"
   },
   "keys": {
     "eyebrow": "Signaturschlüssel",
@@ -62,14 +64,15 @@
     "storage": "Speicherziel",
     "transfer": "Transfer-Backend",
     "oauth": "OAuth-Anmeldung",
-    "stream-transform": "Stromtransformation"
+    "stream-transform": "Stream-Transformation"
   },
   "capability": {
     "net_http": "Webanfragen",
-    "cookies": "Account-Cookies",
+    "cookies": "Konto-Cookies",
     "captcha": "CAPTCHA-Lösung",
     "secret": "Zugangsdaten: {reference}",
-    "net_stream": "Direktverbindungen (Ports {ports})"
+    "net_stream": "Direktverbindungen (Ports {ports})",
+    "key_derivation": "Schlüsselableitung"
   },
   "incompatible": {
     "eyebrow": "Abgelehnte Pakete",

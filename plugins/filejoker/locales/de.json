@@ -15,7 +15,7 @@
     "filejoker.invalid_url": "Ungültige Provider-URL: {error}",
     "filejoker.no_free_form": "Das FileJoker-Formular für den Free-Download wurde nicht gefunden: {diagnosis}",
     "filejoker.no_free_link": "Der FileJoker-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
-    "filejoker.no_premium_file": "FileJoker meldet, dass diese Datei einen Premium-Account erfordert: {diagnosis}",
+    "filejoker.no_premium_file": "FileJoker meldet, dass diese Datei ein Premium-Konto erfordert: {diagnosis}",
     "filejoker.page_error": "FileJoker hat eine nicht erkannte Seite zurückgegeben: {diagnosis}",
     "filejoker.session_invalid": "Die FileJoker-Cookie-Session erfordert eine erneute Anmeldung: {diagnosis}",
     "filejoker.session_unconfirmed": "FileJoker hat die Cookie-Sitzung weder bestätigt noch abgelehnt - die Seite war weder angemeldet noch eine Gastseite; bitte später erneut versuchen: {diagnosis}",

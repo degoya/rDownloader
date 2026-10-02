@@ -60,7 +60,7 @@
     "source_categories_all": "Alle Kategorien",
     "every_release": "Jede Fassung behalten",
     "every_release_description": "Ohne diese Wahl gilt eine Folge als gehabt, sobald sie einmal eingereiht wurde — gleich in welchem Release, welcher Qualität und welcher Sprache. Mit ihr kommt jede weitere Fassung erneut in den LinkGrabber.",
-    "site_rule_description": "Die Adresse ist eine Übersichtsseite — eine Serien-, Kategorie- oder Tag-Seite. Verfolgt werden die Release-Seiten darauf, die eine Regel liest; Spiegel kommen als Gruppe in den LinkGrabber.",
+    "site_rule_description": "Die Adresse ist eine Übersichtsseite — eine Serien-, Kategorie- oder Tag-Seite. Verfolgt werden die Release-Seiten darauf, die eine Regel liest; Mirrors kommen als Gruppe in den LinkGrabber.",
     "view": "Ansicht im LinkGrabber",
     "view_description": "Wie die Treffer dieses Abos zur Entscheidung erscheinen.",
     "views": {

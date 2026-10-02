@@ -1,6 +1,6 @@
 {
   "name": "rdownloader-web",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "author": "Alexander Herling",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -29,7 +29,7 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.136",
+    "@iconify-json/lucide": "^1.2.137",
     "@nuxt/icon": "^2.5.1",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^24.19.0",

@@ -6,7 +6,7 @@
   },
   "codes": {
     "premiumize.account.fair_use": "Fair Use: {percent} % verbraucht",
-    "premiumize.account_missing": "Premiumize-Account fehlt",
+    "premiumize.account_missing": "Premiumize-Konto fehlt",
     "premiumize.api_error": "Premiumize-API-Fehler: {message}",
     "premiumize.api_key_required": "Premiumize-API-Key fehlt",
     "premiumize.http_error": "Premiumize-HTTP-Status {status}",

@@ -64,7 +64,7 @@
     "clear_title": "Downloadliste leeren",
     "clear_completed": "Wirklich jedes Paket entfernen, dessen Dateien alle fertig sind? Ein Paket, in dem noch etwas läuft, bleibt unberührt; fertige Dateien bleiben im Zielordner erhalten.",
     "clear_failed": "Wirklich jedes abgeschlossene Paket mit einer fehlgeschlagenen Datei samt seiner unvollständigen Dateien entfernen? Ein Paket, in dem noch etwas läuft, bleibt unberührt.",
-    "clear_all": "Wirklich jedes Paket entfernen, das nicht mehr arbeitet – gleich mit welchem Ergebnis? Ein Paket mit laufenden, wartenden oder verteilenden Dateien bleibt unberührt; fertige Dateien bleiben im Zielordner erhalten.",
+    "clear_all": "Wirklich jedes Paket entfernen, das nicht mehr arbeitet – gleich mit welchem Ergebnis? Ein Paket mit laufenden, wartenden oder seedenden Dateien bleibt unberührt; fertige Dateien bleiben im Zielordner erhalten.",
     "clear_label": "Pakete entfernen",
     "remove_download_title": "Download entfernen",
     "remove_download_completed": "Eintrag aus der Downloadliste entfernen? Die fertig heruntergeladene Datei bleibt erhalten.",
@@ -153,7 +153,7 @@
     "sources": {
       "title": "Quellen ({count})",
       "pieces": "Geprüft in {count} Stücken zu {size} ({algorithm})",
-      "no_pieces": "Keine Stück-Prüfsummen; die Gesamtprüfsumme wird vor dem Abschluss geprüft, wenn es eine gibt.",
+      "no_pieces": "Keine Stück-Hashes; der Hash der ganzen Datei wird vor dem Abschluss geprüft, wenn es einen gibt.",
       "priority": "Priorität {value}",
       "delivered": "{size} geliefert",
       "failures": "{count} Fehler",
@@ -165,7 +165,7 @@
         "unsupported": "Noch nicht genutzt"
       },
       "isolated_reason": {
-        "piece": "Hat Daten geliefert, die nicht zu ihrer Prüfsumme passen.",
+        "piece": "Hat Daten geliefert, die nicht zu ihrem Hash passen.",
         "size": "Bietet eine andere Dateigröße an.",
         "other": "Wird für diese Datei nicht mehr verwendet.",
         "internal": "Zeigt auf deinen eigenen Rechner oder in ein Netz, das diese Quellenliste nicht erreichen darf."
@@ -174,7 +174,7 @@
     }
   },
   "summary": {
-    "eyebrow": "Queue-Status",
+    "eyebrow": "Warteschlangen-Status",
     "title": "Statistik",
     "queued": "Wartend",
     "queued_hint": "wartend + Wiederholung",
@@ -199,9 +199,9 @@
     "url_placeholder": "https://host/datei.zip",
     "default_category": "Automatisch",
     "auto_resolver": "Automatische Resolverwahl",
-    "proxy_default": "Account/global/direkt",
+    "proxy_default": "Konto/global/direkt",
     "category_aria": "Kategorie",
-    "account_aria": "Account",
+    "account_aria": "Konto",
     "proxy_aria": "Job-Proxy",
     "priority_aria": "Priorität",
     "submit": "Einreihen"
@@ -294,7 +294,7 @@
     "open_page": "Medienseite öffnen"
   },
   "free_download": "Free/Direkt",
-  "free_download_hint": "Kein Provideraccount – die Datei wird als Free-/Direktdownload geladen",
+  "free_download_hint": "Kein Providerkonto – die Datei wird als Free-/Direktdownload geladen",
   "capacity": {
     "title": "„{name}“ hat keinen Platz mehr",
     "description": "{free} frei, {required} nötig. Downloads für dieses Ziel sind angehalten; alle anderen Ziele laufen weiter.",
@@ -390,7 +390,7 @@
     "active": "Kein Paket ist mehr aktiv. | {count} davon ist noch aktiv: Laufende und wartende Downloads werden abgebrochen, Seeding wird beendet. | {count} davon sind noch aktiv: Laufende und wartende Downloads werden abgebrochen, Seeding wird beendet.",
     "kept": "Fertige Dateien bleiben in ihrem Zielordner. Ein Paket, das gerade nachbearbeitet wird, bleibt in der Liste.",
     "delete_partial": "Auch teilweise heruntergeladene Dateien löschen",
-    "delete_partial_hint": "Kann nicht rückgängig gemacht werden: unfertige Torrent-Daten und Fragmente neben der Zieldatei. Unvollständige Dateien im Zwischenspeicher werden immer entfernt.",
+    "delete_partial_hint": "Kann nicht rückgängig gemacht werden: unfertige Torrent-Daten und Fragmente neben der Zieldatei. Unvollständige Dateien im Staging-Ordner werden immer entfernt.",
     "confirm": "Liste leeren"
   }
 }

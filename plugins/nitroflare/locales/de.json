@@ -20,7 +20,7 @@
     "nitroflare.no_free_link": "Der Nitroflare-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
     "nitroflare.no_free_markers": "Die Nitroflare-Seite für den Free-Download wurde nicht erkannt: {diagnosis}",
     "nitroflare.premium_key_missing": "Der Nitroflare-Premium-Key fehlt",
-    "nitroflare.premium_required": "Für den Nitroflare-Download über die API ist ein Premium-Account erforderlich",
+    "nitroflare.premium_required": "Für den Nitroflare-Download über die API ist ein Premium-Konto erforderlich",
     "nitroflare.rate_limited": "Nitroflare-API-Ratenlimit wurde ausgelöst",
     "nitroflare.server_error": "Nitroflare-Serverfehler",
     "nitroflare.timer_not_started": "Nitroflare hat den Countdown vor dem Download nicht gestartet (Antwort: {answer})",

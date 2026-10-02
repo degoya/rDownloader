@@ -9,7 +9,7 @@
     "description": "El primer servidor de la cadena se usa primero. Los segmentos ausentes o dañados pasan al siguiente servidor activo; las contraseñas se guardan solo cifradas en el almacén local."
   },
   "form": {
-    "eyebrow": "Nuevo punto de conexión",
+    "eyebrow": "Nuevo endpoint",
     "title_add": "Añadir servidor",
     "title_edit": "Editar servidor",
     "name": "Proveedor principal",

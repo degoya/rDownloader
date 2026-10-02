@@ -12493,7 +12493,7 @@ export interface components {
             /**
              * @description Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
              *     Unset, it is `beta` on a pre-release build and `stable` on every other.
-             * @default beta
+             * @default stable
              */
             update_channel: string;
             /**

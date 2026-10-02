@@ -1,6 +1,6 @@
 {
   "name": "Offcloud",
-  "description": "Resuelve enlaces de otros alojamientos a través de una cuenta de Offcloud.",
+  "description": "Resuelve enlaces de otros hosters a través de una cuenta de Offcloud.",
   "account": {
     "secret_label": "Clave de API",
     "secret_hint": "La clave de API de los ajustes de tu cuenta en offcloud.com."

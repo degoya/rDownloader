@@ -76,7 +76,7 @@
       "exclusion": {
         "file_contents": "Dateiinhalte und Dateinamen von Downloads",
         "urls": "vollständige URLs: Abfragewerte mit Zugangsdaten oder Signatur werden ersetzt",
-        "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresorverweise"
+        "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresor-Verweise"
       }
     }
   }

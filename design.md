@@ -407,7 +407,19 @@ prevent columns from shifting during live updates.
   button), so the action never needs the mouse or a Tab to the button. `F` focuses the
   LinkGrabber's indexer search (RD-180-19) the same way: the panel hands its focus in while it is
   mounted, and the field shows the key as a `UKbd` at its end; while the field is disabled the
-  key lands on the hint's link to the indexer settings, the one thing there is to do.
+  key lands on the hint's link to the indexer settings, the one thing there is to do. The
+  LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
+  all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
+  while that button is disabled.
+- **The key that opens a question confirms it; `X` closes every dialog** (owner, 2026-10-02).
+  Every confirmation a key can start carries that key as its `confirmKey` — always, not only when
+  the key started it, because a click user is not disturbed by a hint. `X` is the one plain key
+  that acts *in* a dialog: it sends the `Esc` Reka answers, so it closes the topmost layer that
+  `Esc` would close and leaves a dialog that may not be dismissed (the captcha) alone; in a text
+  field it is typed, as every plain key is. A dialog therefore never takes a confirm key `x`. The
+  guard that holds plain keys back counts a dialog open when `useOverlay()` tracks one or the page
+  shows `[role="dialog"][data-state="open"]` — the second covers the dialogs bound with
+  `v-model:open`.
 - **A search that costs the other side something is asked, never typed into** (RD-180-19). The
   indexer search sits at the top of the LinkGrabber, because what it finds is reviewed there,
   and it is always there (owner, 2026-10-01) — the one exception to the absent-section rule
@@ -473,7 +485,26 @@ prevent columns from shifting during live updates.
   an open-source tool, not a business form. German is lower-case *du*, *dein*, imperatives in the
   du form (*Klicke*, *Prüfe*), never *Sie*/*Ihnen*/*Ihr*; "sie" in the third person stays. Tests
   over the web, extension and plugin catalogues fail on a formal address, with a short list of
-  third-person sentence starts ("Sie laufen …").
+  third-person sentence starts ("Sie laufen …"). French and Spanish hold to theirs throughout
+  (owner, 2026-10-02): French *Saisissez*, *votre*, never *Saisis*, *ton*; Spanish *Introduce*,
+  *tu*, never *Introduzca*, *usted*. Their sibling tests (`frenchSpanishAddress.test.ts` and its
+  extension and plugin twins) catch the forms that only ever address the reader — French "tu"
+  pronouns and hyphenated "tu" imperatives, Spanish *usted*, reflexive *-ese* imperatives and a
+  list of formal imperatives at a clause start — and list a misread sentence by key and phrase.
+- **A technical term stays English where the language's IT usage keeps it** (owner, 2026-10-02):
+  *Stream*, *Plugin*, *Token*, *Proxy*, *Cookie*, *Hash*, *Seed/Seeding*, *Tracker*, *Hoster*,
+  *Webhook*, *Endpoint*, *Header* — a German "Stromtransformation" for a stream transform reads
+  as electrical current. The owner's choices: German *Backup* (never *Sicherung*; *Voll-Backup*,
+  *Backup-Ziel*), *Mirror* (never *Spiegel*), *Tresor* (never *Vault* or *Secret-Store*, as in
+  password managers) and *Konto/Konten* (never *Account*; *Providerkonto*, *Premium-Konto*);
+  Spanish *seeding* and *Seeders*, *suma de verificación* (never *suma de comprobación*) and
+  *stream de eventos* where an event stream is named (French keeps *flux d'événements*). Ordinary words
+  are translated, and a native word that is genuinely the standard one stays (de
+  *Warteschlange*, fr *jeton*, *point de terminaison*, *indexeur*, es *indexador*). Whichever a
+  language chose, it uses that one everywhere: one term per concept per language, never *Queue*
+  in one view and *Warteschlange* in the next; a search keyword may still name the other word as
+  a synonym. Protocol, product and format names (Newznab, SABnzbd, yt-dlp, PAR2, WebDAV, S3,
+  NZB, JSON …) are never translated.
 - Settings navigation follows stable task groups rather than an alphabetical order that changes
   with the selected language. Group labels are headings, never expandable detours: every settings
   page remains one click away after Settings is open, including in the collapsed sidebar popover.
@@ -949,6 +980,16 @@ recognised as drifting.
   button and the bin say "this is gone", and saying that about a grouping that leaves every link
   in the list is a lie that teaches people to click past the real one. The question names what
   stays (the links) and what goes (the grouping), and says the decision holds afterwards.
+- **A settings list of cards pins each card's actions to its footer.** Where the entries of a
+  settings list are cards side by side — the installed plugins are the reference,
+  `PluginCard.vue` (RD-180-22) — each is a `UCard`: who the entry is in `#header` (icon, name,
+  badges in one row, one muted meta line), what it holds as labelled rows in the body (a small
+  uppercase label in a fixed left column, the values beside it), and the actions on the whole
+  entry in `#footer`, the destructive one left in `color="error"`, the others right with the
+  most used last. The root is a flex column and the body takes the free height, so cards in a
+  grid row are equally tall and every footer sits at the same place: buttons that move with the
+  content above them are hunted for, not found. A per-row action inside the body (a superseded
+  version) stays an icon-only row action under the rules above.
 - **A switch is the control for a boolean that takes effect immediately** — enabling an account,
   a subscription, a plugin step. A coloured dot is a status, not a control; if the value can be
   changed, it is a switch.

@@ -37,7 +37,7 @@
   "settings": {
     "eyebrow": "Captchas lösen",
     "title": "Captchas",
-    "description": "Freie Downloads ohne Account verlangen häufig ein Captcha. rDownloader kann es an einen Löserdienst weitergeben oder dich direkt fragen.",
+    "description": "Freie Downloads ohne Konto verlangen häufig ein Captcha. rDownloader kann es an einen Löserdienst weitergeben oder dich direkt fragen.",
     "state": {
       "active": "Löser aktiv",
       "off": "Kein Löser"
@@ -49,8 +49,8 @@
       "two_captcha": "2captcha-kompatible API"
     },
     "endpoint": {
-      "label": "API-Endpunkt",
-      "description": "Absolute https-URL des Dienstes; leer behält den gespeicherten Endpunkt."
+      "label": "API-Endpoint",
+      "description": "Absolute https-URL des Dienstes; leer behält den gespeicherten Endpoint."
     },
     "api_key": {
       "label": "API-Schlüssel",

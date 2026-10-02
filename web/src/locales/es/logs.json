@@ -33,7 +33,7 @@
   "bundle": {
     "title": "Paquete de diagnóstico",
     "eyebrow": "Soporte",
-    "intro": "Un archivo para una solicitud de soporte: versiones, metadatos de configuración, comprobaciones del sistema y los errores más recientes. No se sube nada; el archivo se escribe en este equipo, y solo después de que haya visto y aprobado su contenido.",
+    "intro": "Un archivo para una solicitud de soporte: versiones, metadatos de configuración, comprobaciones del sistema y los errores más recientes. No se sube nada; el archivo se escribe en este equipo, y solo después de que hayas visto y aprobado su contenido.",
     "preview": "Ver contenido",
     "create": "Crear paquete",
     "directory": "Guardado en {directory}",
@@ -44,7 +44,7 @@
     "created": "Paquete escrito: {file}",
     "download": "Descargar",
     "bytes": "{bytes} bytes",
-    "select_hint": "Desmarque lo que el destinatario no deba recibir."
+    "select_hint": "Desmarca lo que el destinatario no deba recibir."
   },
   "diagnostics": {
     "bundle": {

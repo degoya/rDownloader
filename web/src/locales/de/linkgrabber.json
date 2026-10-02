@@ -39,7 +39,7 @@
     "language_label": "Sprache bevorzugen",
     "all_qualities": "Jede Qualität",
     "all_languages": "Jede Sprache",
-    "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Spiegelgruppe die Wahl lässt, wählt sie den passenden Spiegel, sonst blendet sie aus, was nicht passen kann."
+    "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Mirror-Gruppe die Wahl lässt, wählt sie den passenden Mirror, sonst blendet sie aus, was nicht passen kann."
   },
   "empty": "Zwischenablage, Click’n’Load und manuelle Eingaben landen zuerst hier zur Prüfung. Links werden automatisch geprüft und zu Paketen gruppiert.",
   "selection_package": "{name} (Auswahl)",
@@ -47,7 +47,7 @@
   "select_all_hint": "Alle Einträge auswählen",
   "bulk": {
     "enqueued": "{links} Links und {nzbs} NZB-Importe übernommen",
-    "free_download": "{count} Link wird ohne Account geladen (Free/Direkt) | {count} Links werden ohne Account geladen (Free/Direkt)",
+    "free_download": "{count} Link wird ohne Konto geladen (Free/Direkt) | {count} Links werden ohne Konto geladen (Free/Direkt)",
     "enqueue_failed": "{count} Paket konnte nicht übernommen werden | {count} Pakete konnten nicht übernommen werden"
   },
   "package": {
@@ -78,7 +78,7 @@
       "enqueued": "übernommen",
       "unresolvable": "nicht auflösbar"
     },
-    "no_account": "Kein Account – es wird ein Free-/Direktdownload versucht",
+    "no_account": "Kein Konto – es wird ein Free-/Direktdownload versucht",
     "request": {
       "title": "Browser-Anfrage",
       "effective_url": "Effektive URL",
@@ -445,21 +445,21 @@
     "aria": "Gesammelte Links, {count} Zeilen"
   },
   "mirror": {
-    "mirrors": "{count} Spiegel | {count} Spiegel",
-    "proposed": "{count} möglicher Spiegel | {count} mögliche Spiegel",
+    "mirrors": "{count} Mirror | {count} Mirrors",
+    "proposed": "{count} möglicher Mirror | {count} mögliche Mirrors",
     "hint_declared": "Die Seite, von der diese Links stammen, gibt an, dass sie dieselbe Datei sind.",
     "hint_name_and_size": "Diese Links stimmten nach der Online-Prüfung in Dateiname und Größe überein.",
     "hint_name": "Diese Links teilen sich nur einen Dateinamen. Nichts hat bestätigt, dass sie dieselbe Datei sind — die Gruppierung kann falsch sein.",
-    "online_of": "{online} von {total} Spiegeln sind noch verfügbar",
-    "all_offline": "Kein Spiegel verfügbar",
-    "all_offline_hint": "Keiner der {count} Spiegel hat sich als verfügbar gemeldet. Die Gruppe lässt sich trotzdem einreihen; die Hoster können sich irren.",
-    "expand": "Die übrigen Spiegel anzeigen",
-    "collapse": "Die übrigen Spiegel ausblenden",
-    "use": "Diesen Spiegel verwenden",
-    "use_hint": "Stattdessen diesen Spiegel laden. Die Wahl bleibt erhalten und die Vorgabe verschiebt diese Gruppe nicht mehr.",
+    "online_of": "{online} von {total} Mirrors sind noch verfügbar",
+    "all_offline": "Kein Mirror verfügbar",
+    "all_offline_hint": "Keiner der {count} Mirrors hat sich als verfügbar gemeldet. Die Gruppe lässt sich trotzdem einreihen; die Hoster können sich irren.",
+    "expand": "Die übrigen Mirrors anzeigen",
+    "collapse": "Die übrigen Mirrors ausblenden",
+    "use": "Diesen Mirror verwenden",
+    "use_hint": "Stattdessen diesen Mirror laden. Die Wahl bleibt erhalten und die Vorgabe verschiebt diese Gruppe nicht mehr.",
     "pinned": "Von dir gewählt",
-    "pinned_hint": "Du hast diesen Spiegel selbst gewählt, deshalb verschiebt die Vorgabe diese Gruppe nicht mehr.",
-    "release": "Meine Spiegelwahl aufheben",
+    "pinned_hint": "Du hast diesen Mirror selbst gewählt, deshalb verschiebt die Vorgabe diese Gruppe nicht mehr.",
+    "release": "Meine Mirror-Wahl aufheben",
     "dissolve": "Gruppe auftrennen"
   },
   "cache": {
@@ -474,7 +474,7 @@
     "hosters": "{count} Hoster | {count} Hostern",
     "summary": "{links} von {hosters} ausgeblendet",
     "show_all": "Alle zeigen",
-    "hint": "Ausgeblendete Hoster bleiben im LinkGrabber und werden weder übernommen noch geprüft. Als Spiegel eines gezeigten Links gehen sie als Ausweichquelle mit."
+    "hint": "Ausgeblendete Hoster bleiben im LinkGrabber und werden weder übernommen noch geprüft. Als Mirror eines gezeigten Links gehen sie als Ausweichquelle mit."
   },
   "duplicates": {
     "queued": "{count} × schon in der Warteschlange",

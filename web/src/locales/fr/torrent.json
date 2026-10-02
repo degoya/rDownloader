@@ -28,7 +28,7 @@
     "files": "Fichiers",
     "trackers": "Trackers",
     "peers": "Pairs",
-    "seeding": "Partage"
+    "seeding": "Seed"
   },
   "trackers": {
     "counters_hint": "Seeders / leechers / terminés",
@@ -67,16 +67,16 @@
     "unsupported": "Ce torrent propose des web seeds. Le moteur ne peut pas les utiliser ; ils ne sont affichés qu'à titre indicatif."
   },
   "seeding": {
-    "enabled": "Partage",
+    "enabled": "Seed",
     "ratio": "Ratio cible",
-    "time": "Durée de partage",
+    "time": "Durée de seed",
     "unlimited": "Illimitée",
     "minutes": "{count} minutes",
     "inherit": "Hériter",
-    "override_enabled": "Remplacer le partage",
+    "override_enabled": "Remplacer le seed",
     "override_ratio": "Remplacer le ratio",
     "override_time": "Remplacer la durée",
-    "override_unlimited": "Partager sans limite de temps",
+    "override_unlimited": "Seeder sans limite de temps",
     "save": "Enregistrer",
     "clear": "Hériter à nouveau",
     "source": {

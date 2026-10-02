@@ -19,6 +19,9 @@ import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import common from '@/locales/en/common.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import torrent from '@/locales/en/torrent.json'
+import CollectorIntakeModal from '@/components/CollectorIntakeModal.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { axeViolations } from '@/test/axe'
@@ -37,8 +40,12 @@ vi.mock('@/api/client', () => ({
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
 }))
+/** Every dialog the view opens, with what it was opened with; each answers "no" unless told. */
+const { overlayOpen } = vi.hoisted(() => ({
+  overlayOpen: vi.fn((_component: unknown, _props?: Record<string, unknown>): { result: Promise<unknown> } => ({ result: Promise.resolve(false) }))
+}))
 vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }) }),
+  useOverlay: () => ({ create: (component: unknown) => ({ open: (props?: Record<string, unknown>) => overlayOpen(component, props) }) }),
   useToast: () => ({ add: vi.fn() })
 }))
 vi.mock('vue-router', () => ({
@@ -884,5 +891,97 @@ describe('LinkGrabberView metadata switch', () => {
     await nextTick()
     expect(toggle(second.container).checked).toBe(false)
     expect(chips(second.container)).toHaveLength(0)
+  })
+})
+
+/**
+ * `a`, `e`, `w` and `r` (1.8.1): the view hands its navbar actions to the shortcut catalogue
+ * while it is mounted. Which keypress reaches them is `useAppShortcuts.test.ts`'s half; this
+ * half is what each one does, and that a question it asks is answered by the same key.
+ */
+describe('LinkGrabberView keys', () => {
+  function enqueueCall() {
+    const calls = vi.mocked(api.POST).mock.calls as unknown as [string, { body?: Record<string, unknown> }?][]
+    return calls.find(([path]) => path === '/api/v1/collector/packages/enqueue')?.[1]?.body
+  }
+
+  function confirmations() {
+    return overlayOpen.mock.calls.filter(([component]) => component === ConfirmModal).map(([, props]) => props)
+  }
+
+  beforeEach(() => {
+    overlayOpen.mockClear()
+    vi.mocked(api.POST).mockClear()
+    vi.mocked(api.DELETE).mockClear()
+    vi.mocked(api.GET).mockImplementation((async () => ({ data: [] })) as unknown as typeof api.GET)
+  })
+
+  it('opens the intake on `a`', async () => {
+    mountView()
+    await settle()
+    runLinkGrabberAction('addLinks')
+    expect(overlayOpen.mock.calls.map(([component]) => component)).toEqual([CollectorIntakeModal])
+  })
+
+  it('enqueues everything on `e` and everything paused on `w`, without a question while nothing is a duplicate', async () => {
+    seedCollector(1, 2)
+    mountView()
+    await settle()
+
+    runLinkGrabberAction('enqueueAll')
+    await settle()
+    expect(enqueueCall()).toMatchObject({ ids: ['cpkg-0'], paused: false })
+
+    // The refused enqueue re-read the (empty) list; the links are back for the second key.
+    seedCollector(1, 2)
+    await nextTick()
+    vi.mocked(api.POST).mockClear()
+    runLinkGrabberAction('enqueuePaused')
+    await settle()
+    expect(enqueueCall()).toMatchObject({ ids: ['cpkg-0'], paused: true })
+    expect(confirmations()).toEqual([])
+  })
+
+  it('asks before taking duplicates along, answered by the key that asked', async () => {
+    const store = seedCollector(1, 2)
+    store.candidates = store.candidates.map((candidate, index) => index === 0 ? { ...candidate, state: 'duplicate' } : candidate)
+    mountView()
+    await settle()
+
+    runLinkGrabberAction('enqueueAll')
+    await settle()
+    runLinkGrabberAction('enqueuePaused')
+    await settle()
+
+    expect(confirmations().map(props => props?.confirmKey)).toEqual(['e', 'w'])
+    expect(enqueueCall()).toBeUndefined()
+  })
+
+  it('asks before removing every link on `r`, answered by `r`, and clears the list on a yes', async () => {
+    seedCollector(1, 2)
+    overlayOpen.mockImplementationOnce(() => ({ result: Promise.resolve(true) }))
+    mountView()
+    await settle()
+
+    runLinkGrabberAction('clearAll')
+    await settle()
+
+    expect(confirmations()).toEqual([expect.objectContaining({ confirmKey: 'r', destructive: true })])
+    expect(api.DELETE).toHaveBeenCalledWith('/api/v1/collector/candidates')
+  })
+
+  it('does nothing where its button is disabled, and nothing once the view is gone', async () => {
+    const view = mountView()
+    await settle()
+    runLinkGrabberAction('enqueueAll')
+    runLinkGrabberAction('enqueuePaused')
+    runLinkGrabberAction('clearAll')
+    await settle()
+    expect(overlayOpen).not.toHaveBeenCalled()
+    expect(enqueueCall()).toBeUndefined()
+
+    view.unmount()
+    runLinkGrabberAction('addLinks')
+    expect(overlayOpen).not.toHaveBeenCalled()
   })
 })

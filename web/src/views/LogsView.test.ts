@@ -133,6 +133,15 @@ describe('LogsView', () => {
     })
   })
 
+  it('offers "every level" as a value of its own, never an empty one the select refuses', async () => {
+    await mountView()
+    await screen.findByTestId('log-list')
+    const select = screen.getByTestId('log-level') as HTMLSelectElement
+    const values = [...select.options].map(option => option.value)
+    expect(values).toEqual(['all', 'trace', 'debug', 'info', 'warn', 'error'])
+    expect(select.value).toBe('all')
+  })
+
   it('offers the bundle only after its preview was shown, and sends what was ticked', async () => {
     post.mockResolvedValue({ data: { file_name: 'rdownloader-diagnostics-20260920T120000Z.zip', path: '/data/diagnostics/rdownloader-diagnostics-20260920T120000Z.zip', bytes: 1234, manifest: {} } })
     await mountView()
