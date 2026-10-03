@@ -9,6 +9,7 @@ import { subscribeEvents } from '@/composables/useEventStream'
 import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsMalwareScan from '@/components/SettingsMalwareScan.vue'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -196,7 +197,7 @@ const sampleMiB = byteModel(
       <USwitch v-model="settings.ignore_samples" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
-      <UInput v-model.number="sampleMiB" type="number" min="0" step="1" :disabled="!settings.ignore_samples" class="w-full">
+      <UInput v-model.number="sampleMiB" type="number" min="0" step="any" :disabled="!settings.ignore_samples" class="w-full">
         <template #trailing><span class="font-mono text-xs text-muted">MiB</span></template>
       </UInput>
     </UFormField>
@@ -225,6 +226,7 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.rar_tool')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
+    <SettingsMalwareScan v-model="settings" />
     <UFormField data-settings-anchor="postprocess.upload" :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch v-model="settings.upload_enabled" />
     </UFormField>

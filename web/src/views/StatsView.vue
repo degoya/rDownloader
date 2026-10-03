@@ -57,10 +57,12 @@ const endpoint = computed(() => `${window.location.origin}/api/v1/metrics`)
 <template>
   <UDashboardPanel id="stats">
     <template #header>
-      <UDashboardNavbar :title="t('stats.title')">
+      <!-- The four ranges need ~310 px beside the title; on a phone the bar takes a second row
+           for them instead of pushing the panel sideways, as the LinkGrabber's toolbar wraps. -->
+      <UDashboardNavbar :title="t('stats.title')" :ui="{ root: 'max-sm:h-auto max-sm:min-h-(--ui-header-height) max-sm:flex-wrap max-sm:gap-y-2 max-sm:py-2', right: 'max-sm:w-full' }">
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
-          <div class="flex gap-1" role="group" :aria-label="t('stats.ranges.label')">
+          <div class="flex flex-wrap gap-1" role="group" :aria-label="t('stats.ranges.label')">
             <UButton
               v-for="range in RANGES"
               :key="range"

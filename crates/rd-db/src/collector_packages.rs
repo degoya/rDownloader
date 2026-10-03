@@ -35,7 +35,7 @@ pub enum MoveTarget {
 }
 
 const PACKAGE_COLUMNS: &str = "SELECT id, batch_id, name, auto_named, category_id, priority, position, \
-     password IS NOT NULL AS has_password, password, created_at, postprocess_level, script \
+     password_ref IS NOT NULL AS has_password, created_at, postprocess_level, script \
      FROM collector_packages";
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<CollectorPackage>> {
@@ -79,16 +79,6 @@ pub(crate) async fn get_from_connection(
     .transpose()
 }
 
-pub(crate) async fn password(pool: &SqlitePool, id: CollectorPackageId) -> Result<Option<String>> {
-    Ok(sqlx::query_scalar::<_, Option<String>>(
-        "SELECT password FROM collector_packages WHERE id = ?",
-    )
-    .bind(id.to_string())
-    .fetch_optional(pool)
-    .await?
-    .flatten())
-}
-
 /// Inserts a package at the end of the queue; returns the new id.
 pub(crate) async fn insert(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
@@ -97,14 +87,13 @@ pub(crate) async fn insert(
     auto_named: bool,
     category_id: Option<CategoryId>,
     priority: DownloadPriority,
-    password: Option<&str>,
 ) -> Result<CollectorPackageId> {
     let id = CollectorPackageId::new();
     let now = Utc::now();
     let position = next_grabber_position(tx).await?;
     sqlx::query(
-        "INSERT INTO collector_packages (id, batch_id, name, auto_named, category_id, priority, position, password, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO collector_packages (id, batch_id, name, auto_named, category_id, priority, position, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(id.to_string())
     .bind(batch_id.to_string())
@@ -113,7 +102,6 @@ pub(crate) async fn insert(
     .bind(category_id.map(|value| value.to_string()))
     .bind(priority.as_i32())
     .bind(position)
-    .bind(password)
     .bind(now)
     .bind(now)
     .execute(&mut **tx)
@@ -215,19 +203,8 @@ pub(crate) async fn update(
             )
             .await?;
         }
-        if let Some(password) = &change.password {
-            let statement = format!(
-                "UPDATE collector_packages SET password = ?, updated_at = ? WHERE id IN ({list})"
-            );
-            execute_for_ids(
-                &mut tx,
-                sqlx::query(sqlx::AssertSqlSafe(&*statement))
-                    .bind(password)
-                    .bind(now),
-                &bound,
-            )
-            .await?;
-        }
+        // `change.password` is not a column write: `Database::update_collector_packages`
+        // stores it in the vault once this transaction is in (RD-190-04).
         if let Some(level) = change.postprocess_level {
             let statement = format!(
                 "UPDATE collector_packages SET postprocess_level = ?, updated_at = ? \
@@ -519,7 +496,6 @@ pub(crate) async fn move_candidates(
                 false,
                 category.as_deref().map(parse_id).transpose()?,
                 DownloadPriority::from_i32(i32::try_from(priority).unwrap_or_default()),
-                None,
             )
             .await?
         }
@@ -726,7 +702,6 @@ pub(crate) async fn regroup(
                         true,
                         category.as_deref().map(parse_id).transpose()?,
                         DownloadPriority::from_i32(i32::try_from(priority).unwrap_or_default()),
-                        None,
                     )
                     .await?
                     .to_string()
@@ -1086,7 +1061,6 @@ struct PackageRow {
     priority: i64,
     position: i64,
     has_password: i64,
-    password: Option<String>,
     created_at: chrono::DateTime<Utc>,
     postprocess_level: Option<String>,
     script: Option<String>,
@@ -1105,7 +1079,8 @@ impl TryFrom<PackageRow> for CollectorPackage {
             priority: DownloadPriority::from_i32(i32::try_from(row.priority).unwrap_or_default()),
             position: row.position,
             has_password: row.has_password != 0,
-            password: row.password,
+            // In the vault (RD-190-04); revealed for the answers that show it.
+            password: None,
             created_at: row.created_at,
             postprocess_level: crate::models::parse_level(row.postprocess_level.as_deref()),
             script: row.script,

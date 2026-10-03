@@ -14,6 +14,9 @@ use tokio::sync::Mutex;
 /// nobody can clear.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum HoldSource {
+    /// The whole queue is paused until a set time (RD-190-20). First, so the reason shown is
+    /// the one somebody chose over the ones the machine's context imposes.
+    QueuePause,
     /// Battery or metered connection.
     Power,
     /// A reconnect is in progress.

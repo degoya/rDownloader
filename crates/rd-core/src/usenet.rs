@@ -105,6 +105,10 @@ pub enum PostprocessKind {
     /// Joining a livestream recording's segments into one container with ffmpeg
     /// (RD-080-09). Persistent, so a crash mid-remux resumes rather than losing the step.
     Remux,
+    /// Malware scan of the finished package by the configured `clamd` (RD-190-14). After
+    /// unpacking and cleanup, before plugin steps, the user script and the upload; a finding
+    /// fails the package. `source` is the scanner, `clamav`.
+    MalwareScan,
     /// A step contributed by an installed post-processing plugin. `source` is the plugin id,
     /// which is what makes one row distinguishable from another when several are enabled.
     PluginStep,

@@ -23,7 +23,10 @@
     "apply": "Apply",
     "reveal": "Show in list",
     "cancel_edit": "Cancel editing",
-    "duplicate": "Duplicate"
+    "duplicate": "Duplicate",
+    "copy_link": "Copy link",
+    "copy_links": "Copy links",
+    "open_source_page": "Open source page"
   },
   "states": {
     "queued": "Queued",
@@ -60,7 +63,8 @@
     "no": "No"
   },
   "errors": {
-    "request_failed": "The request could not be processed."
+    "request_failed": "The request could not be processed.",
+    "batch_stopped": "{error} – stopped after part {done} of {total}; the parts before it were applied."
   },
   "data": {
     "loading": "Loading",
@@ -105,7 +109,7 @@
     "go_remote_jobs": "Go to Remote jobs",
     "go_automation": "Go to Automation",
     "go_settings": "Go to Settings",
-    "import_nzb": "Import NZB/torrent",
+    "import_nzb": "Import files",
     "toggle_transfers": "Start or pause all downloads",
     "show_help": "Show keyboard shortcuts",
     "toast": {
@@ -119,7 +123,7 @@
     "go_audit": "Go to the audit log",
     "open_search": "Open search",
     "clear_completed": "Remove completed packages (on Downloads)",
-    "focus_indexer_search": "Focus the indexer search (in the LinkGrabber)",
+    "focus_indexer_search": "Focus the search: indexer search in the LinkGrabber, name search in Downloads",
     "add_links": "Add links (in the LinkGrabber)",
     "enqueue_all": "Enqueue all (in the LinkGrabber)",
     "enqueue_paused": "Add all paused (in the LinkGrabber)",
@@ -163,7 +167,8 @@
   },
   "copy": {
     "failed_title": "Copying failed",
-    "failed_description": "The browser did not allow access to the clipboard. Select the text and copy it by hand."
+    "failed_description": "The browser did not allow access to the clipboard. Select the text and copy it by hand.",
+    "links_copied": "No link copied | {count} link copied | {count} links copied"
   },
   "unsaved": {
     "title": "Discard unsaved changes?",

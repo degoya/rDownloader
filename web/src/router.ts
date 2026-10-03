@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { BASE_PATH } from './basePath'
+import { isChunkLoadError, reportViewLoadFailure } from './composables/serviceConnection'
 import { settingsRedirect } from './settingsSections'
 
 export const router = createRouter({
@@ -35,4 +36,11 @@ router.beforeEach((to) => {
   if (to.name === 'settings-overview') return settingsRedirect(undefined, to.query.tab) ?? true
   if (to.name === 'settings') return settingsRedirect(to.params.section, undefined) ?? true
   return true
+})
+
+// Every view is a chunk of its own, fetched on first visit. With the service down that fetch
+// fails, the navigation is dropped and the click seemed to do nothing; the layout now says so
+// and loads the view once the service is back (`useConnectionNotices`).
+router.onError((error, to) => {
+  if (isChunkLoadError(error)) reportViewLoadFailure(to.fullPath)
 })

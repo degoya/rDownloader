@@ -2,11 +2,30 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { BASE_PATH } from '@/basePath'
 import AppSignature from '@/components/AppSignature.vue'
+import { translateServerMessage } from '@/i18n/server'
 import { useSessionStore } from '@/stores/session'
+import { readProviderReturn, withoutProviderReturn } from '@/utils/identityProvider'
 
 const { t } = useI18n()
 const session = useSessionStore()
+
+// A sign-in through the identity provider that was refused comes back here with a stable code
+// (RD-190-15). Read once and taken out of the address, so a reload does not repeat it.
+const providerReturn = readProviderReturn(window.location.search)
+const providerError = providerReturn.error
+  ? translateServerMessage({ code: providerReturn.error, message: null, params: {} })
+  : null
+if (providerReturn.error || providerReturn.linked) {
+  window.history.replaceState(window.history.state, '', withoutProviderReturn(window.location.href))
+}
+/** Where a sign-in through the provider comes back to: the page this screen covers. */
+function here(): string {
+  const path = window.location.pathname.slice(BASE_PATH.length) || '/'
+  return `${path}${window.location.search}`
+}
+const passwordOffered = computed(() => session.setupRequired || session.passwordLogin)
 // The listen port is configurable, so it has to come from the actual connection.
 const endpoint = window.location.host
 const password = ref('')
@@ -26,6 +45,10 @@ async function submit(): Promise<void> {
 
 async function signInWithPasskey(): Promise<void> {
   await session.submitPasskey()
+}
+
+function signInWithProvider(): void {
+  session.signInWithProvider(here())
 }
 </script>
 
@@ -56,6 +79,33 @@ async function signInWithPasskey(): Promise<void> {
           :description="t('auth.expired_description')"
         />
 
+        <UAlert
+          v-if="providerError"
+          class="mb-6"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :title="providerError"
+          :description="providerReturn.name ? t('auth.provider_account', { name: providerReturn.name }) : undefined"
+        />
+
+        <div v-if="session.providerName && !session.setupRequired" class="mb-6">
+          <UButton
+            block
+            size="lg"
+            icon="i-lucide-shield-check"
+            :label="t('auth.provider', { name: session.providerName })"
+            :loading="session.pending"
+            @click="signInWithProvider"
+          />
+          <p
+            v-if="session.passkeyOffered || passwordOffered"
+            class="mt-3 flex items-center gap-3 text-xs uppercase tracking-wide text-muted"
+          >
+            <span class="h-px flex-1 bg-muted" />{{ t('auth.or') }}<span class="h-px flex-1 bg-muted" />
+          </p>
+        </div>
+
         <div v-if="session.passkeyOffered && !session.setupRequired" class="mb-6">
           <UButton
             block
@@ -67,13 +117,14 @@ async function signInWithPasskey(): Promise<void> {
             :loading="session.pending"
             @click="signInWithPasskey"
           />
-          <p class="mt-3 flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
+          <p v-if="passwordOffered" class="mt-3 flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
             <span class="h-px flex-1 bg-muted" />{{ t('auth.or') }}<span class="h-px flex-1 bg-muted" />
           </p>
         </div>
 
         <UAlert v-if="session.error" class="mb-4" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="session.error" />
-        <form class="space-y-4" @submit.prevent="submit">
+        <p v-if="!passwordOffered" class="text-sm leading-6 text-muted">{{ t('auth.password_off') }}</p>
+        <form v-else class="space-y-4" @submit.prevent="submit">
           <UFormField :label="t('auth.password')" required>
             <UInput
               v-model="password"

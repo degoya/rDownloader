@@ -113,7 +113,7 @@ fn bundle_slots(bundle: &SettingsBundle) -> Vec<BTreeMap<String, String>> {
             .filter_map(|(id, slot)| slot.map(|slot| (id, slot)))
             .collect()
     }
-    let slots = vec![
+    let mut slots = vec![
         pairs(
             bundle
                 .accounts
@@ -156,7 +156,26 @@ fn bundle_slots(bundle: &SettingsBundle) -> Vec<BTreeMap<String, String>> {
                 .iter()
                 .map(|value| (value.id.to_string(), value.certificate_slot.clone())),
         ),
+        pairs(
+            bundle
+                .indexers
+                .iter()
+                .map(|value| (value.id.to_string(), value.secret_slot.clone())),
+        ),
     ];
+    // RD-190-04: the archive passwords, in the order of their four columns at the end.
+    for table in BUNDLED_SECRET_COLUMNS[slots.len()..]
+        .iter()
+        .map(|column| column.table)
+    {
+        slots.push(pairs(
+            bundle
+                .archive_passwords
+                .iter()
+                .filter(|value| value.table == table)
+                .map(|value| (value.id.clone(), Some(value.slot.clone()))),
+        ));
+    }
     debug_assert_eq!(slots.len(), BUNDLED_SECRET_COLUMNS.len());
     slots
 }

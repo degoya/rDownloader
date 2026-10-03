@@ -29,6 +29,7 @@ pub struct NewCategory {
     pub cleanup_extensions: Option<Vec<String>>,
     pub recursive_unpack: Option<bool>,
     pub unpack_to_subfolder: Option<bool>,
+    pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     pub safe_postproc: Option<bool>,
     pub delete_par2: Option<bool>,
@@ -47,6 +48,7 @@ pub struct CategoryPostprocess {
     pub cleanup_extensions: Option<Vec<String>>,
     pub recursive_unpack: Option<bool>,
     pub unpack_to_subfolder: Option<bool>,
+    pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     pub safe_postproc: Option<bool>,
     pub delete_par2: Option<bool>,
@@ -154,6 +156,7 @@ pub(crate) async fn create_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
         safe_postproc: input.safe_postproc,
         delete_par2: input.delete_par2,
@@ -172,7 +175,7 @@ pub(crate) async fn create_category(
             .execute(&mut *tx)
             .await?;
     }
-    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(value.id.to_string())
         .bind(&value.name)
         .bind(&value.color)
@@ -184,6 +187,7 @@ pub(crate) async fn create_category(
         .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
         .bind(value.recursive_unpack)
         .bind(value.unpack_to_subfolder)
+        .bind(value.malware_scan)
         .bind(value.sfv_verify)
         .bind(value.safe_postproc)
         .bind(value.delete_par2)
@@ -347,7 +351,7 @@ pub(crate) async fn list_storage_roots(pool: &SqlitePool) -> Result<Vec<StorageR
     .collect()
 }
 
-const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json";
+const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json";
 const RULE_COLUMNS: &str = "id, name, priority, source, domain, protocol, extension, mime_type, name_regex, category_id, enabled";
 const HOTFOLDER_COLUMNS: &str = "id, name, executor_json, path, recursive, category_id, import_mode, processed_path, failed_path, enabled";
 
@@ -451,6 +455,7 @@ struct CategoryRow {
     cleanup_extensions: Option<String>,
     recursive_unpack: Option<bool>,
     unpack_to_subfolder: Option<bool>,
+    malware_scan: Option<bool>,
     sfv_verify: Option<bool>,
     safe_postproc: Option<bool>,
     delete_par2: Option<bool>,
@@ -478,6 +483,7 @@ impl TryFrom<CategoryRow> for Category {
                 .and_then(|value| serde_json::from_str(value).ok()),
             recursive_unpack: row.recursive_unpack,
             unpack_to_subfolder: row.unpack_to_subfolder,
+            malware_scan: row.malware_scan,
             sfv_verify: row.sfv_verify,
             safe_postproc: row.safe_postproc,
             delete_par2: row.delete_par2,
@@ -699,6 +705,7 @@ pub(crate) async fn update_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
         safe_postproc: input.safe_postproc,
         delete_par2: input.delete_par2,
@@ -718,7 +725,7 @@ pub(crate) async fn update_category(
     let updated = sqlx::query(
         "UPDATE categories SET name = ?, color = ?, storage_root_id = ?, relative_path = ?, \
          is_default = ?, postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
+         recursive_unpack = ?, unpack_to_subfolder = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&value.name)
     .bind(&value.color)
@@ -730,6 +737,7 @@ pub(crate) async fn update_category(
     .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
     .bind(value.recursive_unpack)
     .bind(value.unpack_to_subfolder)
+    .bind(value.malware_scan)
     .bind(value.sfv_verify)
     .bind(value.safe_postproc)
     .bind(value.delete_par2)
@@ -1003,7 +1011,7 @@ pub(crate) async fn update_category_postprocess(
     let mut tx = connection.begin().await?;
     let updated = sqlx::query(
         "UPDATE categories SET postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
+         recursive_unpack = ?, unpack_to_subfolder = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
          upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
     )
     .bind(postprocess.level.map(crate::writer::level_string))
@@ -1011,6 +1019,7 @@ pub(crate) async fn update_category_postprocess(
     .bind(cleanup_json(postprocess.cleanup_extensions.as_ref())?)
     .bind(postprocess.recursive_unpack)
     .bind(postprocess.unpack_to_subfolder)
+    .bind(postprocess.malware_scan)
     .bind(postprocess.sfv_verify)
     .bind(postprocess.safe_postproc)
     .bind(postprocess.delete_par2)

@@ -7,7 +7,9 @@
 //! and session token, an FTP password, a webhook signing secret, an ntfy token inside an apprise
 //! URL, an NNTP password, an authentication profile's token, the captcha solver's API key (a
 //! secret the settings table refers to), the full-backup passphrase, a settings-export
-//! passphrase and a minted API token. The checks that send a credential somewhere are then made
+//! passphrase, a minted API token, and the identity provider's client secret with the access,
+//! refresh and ID tokens its token endpoint answers a link and a sign-in with
+//! ([`identity_provider`]). The checks that send a credential somewhere are then made
 //! to fail against fixtures that refuse them ([`FAILURES`]), so the error paths answer and log
 //! with the credential in reach.
 //!
@@ -20,6 +22,7 @@
 
 use crate::common::{self, Harness};
 
+mod identity_provider;
 mod support;
 
 use std::{path::Path, sync::Arc, time::Duration};
@@ -54,6 +57,9 @@ const CANARIES: &[&str] = &[
     "backup-wrong-passphrase",
     "backup-refused-passphrase",
     "export-passphrase",
+    "oidc-client-secret",
+    "oidc-access-token",
+    "oidc-refresh-token",
 ];
 
 /// The planting requests, in order: the name the answer's `id` is kept under (`-` for none),
@@ -212,6 +218,7 @@ const PLACES: &[Read] = &[
     Read::Get("/api/v1/providers"),
     Read::Get("/api/v1/settings"),
     Read::Get("/api/v1/auth/status"),
+    Read::Get("/api/v1/auth/oidc"),
     Read::Get("/api/v1/setup/status"),
     Read::Get("/api/v1/openapi.json"),
     Read::Get("/api/v1/backups"),
@@ -264,7 +271,8 @@ async fn no_planted_secret_comes_back_out_anywhere() {
     let mut scan = Scan::default();
     let (heard, listener) = listen(router).await;
 
-    plant(router, &mut planted, &mut scan).await;
+    let session = plant(router, &mut planted, &mut scan).await;
+    identity_provider::sign_in_through_provider(&harness, &session, &mut planted, &mut scan).await;
     drain(&mut stream, &harness.database, &mut lines).await;
     for (method, uri, body) in FAILURES {
         let uri = planted.expand(uri);
@@ -342,15 +350,15 @@ async fn no_planted_secret_comes_back_out_anywhere() {
     );
 }
 
-/// Signs in, plants every row of [`PLANTINGS`] and mints an API token.
-async fn plant(router: &Router, planted: &mut Planted, scan: &mut Scan) {
+/// Signs in, plants every row of [`PLANTINGS`] and mints an API token; returns the session.
+async fn plant(router: &Router, planted: &mut Planted, scan: &mut Scan) -> String {
     let refusing = refusing_http().await;
     planted.known.push(("refusing".to_owned(), refusing));
     let ftp_port = refusing_ftp().await;
     planted
         .known
         .push(("ftp-port".to_owned(), ftp_port.to_string()));
-    let _session = common::sign_in(router, &planted.canary("admin-password")).await;
+    let session = common::sign_in(router, &planted.canary("admin-password")).await;
     install_providers();
 
     for (keep, method, uri, template) in PLANTINGS {
@@ -369,6 +377,7 @@ async fn plant(router: &Router, planted: &mut Planted, scan: &mut Scan) {
     assert_eq!(status, StatusCode::CREATED, "{minted}");
     let bearer = minted["bearer"].as_str().expect("bearer").to_owned();
     planted.canaries.push(("api-token", bearer));
+    session
 }
 
 /// Runs a full backup and records the archive as it lies on disk, then every part once opened.

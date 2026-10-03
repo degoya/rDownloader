@@ -283,6 +283,28 @@ pub fn redact_text(text: &str) -> String {
     out
 }
 
+/// An error's message with every cause it carries, redacted like [`redact_text`].
+///
+/// `reqwest` and `hyper` name the real reason only in the error's sources: the top line of a
+/// failed request is "error sending request", while "dns error: failed to lookup address
+/// information" sits two causes down. A failure that kept only the top line told the user
+/// nothing they could act on (a beta tester's container without DNS, 2026-10-02). A cause
+/// whose text the message already contains is not repeated.
+#[must_use]
+pub fn error_with_causes(error: &(dyn std::error::Error + 'static)) -> String {
+    let mut text = error.to_string();
+    let mut current = error.source();
+    while let Some(cause) = current {
+        let line = cause.to_string();
+        if !line.is_empty() && !text.contains(&line) {
+            text.push_str(": ");
+            text.push_str(&line);
+        }
+        current = cause.source();
+    }
+    redact_text(&text)
+}
+
 /// Redacts one line, header-style patterns first.
 fn redact_line(line: &str) -> String {
     if let Some(position) = line.find(':') {
@@ -436,10 +458,63 @@ impl core::fmt::Display for Redacted<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        REDACTION_PLACEHOLDER, Redacted, is_signed_url, redact_header_value, redact_text,
-        redact_url, signed_url_expiry,
+        REDACTION_PLACEHOLDER, Redacted, error_with_causes, is_signed_url, redact_header_value,
+        redact_text, redact_url, signed_url_expiry,
     };
     use url::Url;
+
+    #[derive(Debug)]
+    struct Layer {
+        text: &'static str,
+        cause: Option<Box<Layer>>,
+    }
+
+    impl std::fmt::Display for Layer {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str(self.text)
+        }
+    }
+
+    impl std::error::Error for Layer {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            self.cause
+                .as_deref()
+                .map(|cause| cause as &(dyn std::error::Error + 'static))
+        }
+    }
+
+    #[test]
+    fn an_error_names_the_cause_its_sources_carry() {
+        let error = Layer {
+            text: "error sending request",
+            cause: Some(Box::new(Layer {
+                text: "client error (Connect)",
+                cause: Some(Box::new(Layer {
+                    text: "dns error: failed to lookup address information",
+                    cause: None,
+                })),
+            })),
+        };
+        assert_eq!(
+            error_with_causes(&error),
+            "error sending request: client error (Connect): dns error: failed to lookup address \
+             information"
+        );
+    }
+
+    #[test]
+    fn a_cause_already_in_the_message_is_not_repeated_and_secrets_stay_redacted() {
+        let error = Layer {
+            text: "request to https://cdn.example/f?X-Amz-Signature=abc failed: timed out",
+            cause: Some(Box::new(Layer {
+                text: "timed out",
+                cause: None,
+            })),
+        };
+        let text = error_with_causes(&error);
+        assert!(!text.contains("abc"), "{text}");
+        assert_eq!(text.matches("timed out").count(), 1, "{text}");
+    }
 
     fn url(input: &str) -> Url {
         input.parse().expect("url")

@@ -8,6 +8,8 @@
 //! [`indexer_refusal`] is asked before a body is parsed as results, and its code is what the
 //! interface translates: `100` is a credential problem, `201` a query the indexer will not run.
 
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use url::Url;
 
@@ -15,6 +17,24 @@ use crate::feed::parse_feed;
 
 /// Most results one search page may ask an indexer for.
 pub const MAX_SEARCH_LIMIT: u32 = 500;
+
+/// The facts a detailed result row shows (RD-190-16), each under the name it is sent as and
+/// the attribute names it is read from, the first one present winning.
+///
+/// A fixed few rather than the whole attribute block: every search answer carries them for every
+/// hit, to the interface and to an MCP agent alike, and a plot of a thousand characters per hit
+/// is not what a result list is read for.
+const METADATA: &[(&str, &[&str])] = &[
+    ("year", &["year", "imdbyear"]),
+    ("genre", &["genre"]),
+    ("imdbscore", &["imdbscore"]),
+    ("language", &["language"]),
+    ("resolution", &["resolution"]),
+    ("description", &["imdbtagline", "imdbplot"]),
+];
+
+/// Longest description a hit carries, in characters; the row shows one line of it.
+pub const MAX_DESCRIPTION_CHARS: usize = 300;
 
 /// One hit of a search.
 ///
@@ -35,6 +55,11 @@ pub struct SearchHit {
     /// Whether the indexer marks the release as passworded. The password itself, when an
     /// indexer announces one, is never part of a hit.
     pub passworded: bool,
+    /// Year, genre, IMDb score, language, resolution and a short description, as far as the
+    /// indexer sent them (RD-190-16); the choice is `METADATA` in this module.
+    pub metadata: BTreeMap<String, String>,
+    /// The cover, only ever an absolute `http`/`https` address: it ends up in an `<img src>`.
+    pub cover_url: Option<Url>,
 }
 
 /// One page of a search.
@@ -74,6 +99,8 @@ pub fn parse_search(body: &str, base: &Url) -> anyhow::Result<SearchPage> {
                     .get("grabs")
                     .and_then(|value| value.parse().ok()),
                 passworded: kept.attributes.contains_key("password"),
+                metadata: metadata_of(&kept.attributes),
+                cover_url: cover_of(&kept.attributes),
             })
         })
         .collect();
@@ -82,6 +109,31 @@ pub fn parse_search(body: &str, base: &Url) -> anyhow::Result<SearchPage> {
         announced,
         total: response_total(body),
     })
+}
+
+/// The facts of [`METADATA`] the attributes carry.
+fn metadata_of(attributes: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    METADATA
+        .iter()
+        .filter_map(|(name, sources)| {
+            let value = sources
+                .iter()
+                .find_map(|source| attributes.get(*source).filter(|value| !value.is_empty()))?;
+            let value = if *name == "description" {
+                value.chars().take(MAX_DESCRIPTION_CHARS).collect()
+            } else {
+                value.clone()
+            };
+            Some(((*name).to_owned(), value))
+        })
+        .collect()
+}
+
+/// The cover address, checked here again although the attribute gate already did: whatever
+/// reaches a hit is drawn by the browser, so the rule stands where the field is filled.
+fn cover_of(attributes: &BTreeMap<String, String>) -> Option<Url> {
+    let url = Url::parse(attributes.get("coverurl")?).ok()?;
+    (matches!(url.scheme(), "http" | "https") && url.host_str().is_some()).then_some(url)
 }
 
 /// A Newznab/Torznab `<error …>` document, as the indexer wrote it.
@@ -150,6 +202,8 @@ fn extract_attribute(tag: &str, name: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{indexer_refusal, parse_search};
     use url::Url;
 
@@ -170,6 +224,14 @@ mod tests {
           <newznab:attr name="category" value="5040"/>
           <newznab:attr name="grabs" value="12"/>
           <newznab:attr name="password" value="1"/>
+          <newznab:attr name="coverurl" value="https://indexer.test/covers/abc.jpg"/>
+          <newznab:attr name="imdbyear" value="2024"/>
+          <newznab:attr name="genre" value="Drama"/>
+          <newznab:attr name="imdbscore" value="7.5"/>
+          <newznab:attr name="resolution" value="1920x1080"/>
+          <newznab:attr name="imdbplot" value="A plot."/>
+          <newznab:attr name="imdbtagline" value="A tagline."/>
+          <newznab:attr name="tvdbid" value="12345"/>
         </item>
         <item>
           <title>Another.Release</title>
@@ -177,6 +239,7 @@ mod tests {
           <enclosure url="https://indexer.test/getnzb/def.nzb" type="application/x-nzb"/>
           <newznab:attr name="size" value="2048"/>
           <newznab:attr name="password" value="hunter2"/>
+          <newznab:attr name="coverurl" value="/covers/relative.jpg"/>
         </item>
         <item><title>No address</title><guid>ghi</guid></item>
       </channel>
@@ -205,6 +268,67 @@ mod tests {
         // An announced password marks the hit and goes no further.
         assert!(second.passworded);
         assert!(!format!("{second:?}").contains("hunter2"));
+    }
+
+    /// RD-190-16: the detailed row's facts and cover come out of the attribute block, a fixed
+    /// few of them, and a cover that is not an absolute http(s) address never does.
+    #[test]
+    fn a_hit_carries_its_metadata_and_only_an_absolute_cover() {
+        let page = parse_search(ANSWER, &base()).expect("page");
+        let first = &page.hits[0];
+        assert_eq!(
+            first.cover_url.as_ref().map(url::Url::as_str),
+            Some("https://indexer.test/covers/abc.jpg")
+        );
+        let facts: Vec<(&str, &str)> = first
+            .metadata
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(
+            facts,
+            [
+                ("description", "A tagline."),
+                ("genre", "Drama"),
+                ("imdbscore", "7.5"),
+                ("resolution", "1920x1080"),
+                ("year", "2024"),
+            ]
+        );
+        let second = &page.hits[1];
+        assert_eq!(second.cover_url, None, "a relative cover is dropped");
+        assert!(second.metadata.is_empty());
+    }
+
+    #[test]
+    fn a_long_description_is_cut_on_a_character() {
+        let plot = "\u{e4}".repeat(super::MAX_DESCRIPTION_CHARS + 50);
+        let attributes: BTreeMap<String, String> =
+            [("imdbplot".to_owned(), plot)].into_iter().collect();
+        let metadata = super::metadata_of(&attributes);
+        assert_eq!(
+            metadata["description"].chars().count(),
+            super::MAX_DESCRIPTION_CHARS
+        );
+    }
+
+    #[test]
+    fn a_cover_needs_an_http_scheme_and_a_host() {
+        for bad in [
+            "data:image/png;base64,AAAA",
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+        ] {
+            let attributes: BTreeMap<String, String> = [("coverurl".to_owned(), bad.to_owned())]
+                .into_iter()
+                .collect();
+            assert_eq!(super::cover_of(&attributes), None, "{bad}");
+        }
+        let attributes: BTreeMap<String, String> =
+            [("coverurl".to_owned(), "http://covers.test/a.jpg".to_owned())]
+                .into_iter()
+                .collect();
+        assert!(super::cover_of(&attributes).is_some());
     }
 
     #[test]

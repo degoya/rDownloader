@@ -151,10 +151,11 @@ async fn the_public_routes_need_no_credential() {
         checked += 1;
     }
     // health, openapi.json, auth status/setup/login/logout, the two passkey sign-in
-    // halves and the OAuth callback. Pinned as a number so *adding* a public route is a
-    // deliberate act: the loop above can only check the routes it is given, and a new one
-    // arriving unnoticed is exactly the regression worth catching.
-    assert_eq!(checked, 9, "the set of public routes changed");
+    // halves, the OAuth callback and the two halves of the provider sign-in (RD-190-15:
+    // `oidc/start` and `oidc/callback`, metered by the sign-in limiter). Pinned as a number so
+    // *adding* a public route is a deliberate act: the loop above can only check the routes it
+    // is given, and a new one arriving unnoticed is exactly the regression worth catching.
+    assert_eq!(checked, 11, "the set of public routes changed");
 }
 
 /// Clearing the notification history costs `api:admin`, like the other clears (RD-130-08), and
@@ -303,6 +304,12 @@ async fn a_config_token_cannot_change_what_the_service_executes() {
             "dlc_service_endpoint",
             "https://dlc.example.test/decrypt",
             "dlc_service_endpoint",
+        ),
+        // A recipient too: every finished package's bytes go to clamd (RD-190-14).
+        (
+            "clamd_address",
+            "scanner.example.test:3310",
+            "clamd_address",
         ),
     ] {
         assert_ne!(

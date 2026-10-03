@@ -72,9 +72,34 @@ pub struct PostprocessSettings {
     /// `copy` keeps the local files, `move` removes them after a successful upload.
     pub upload_mode: String,
     pub rclone_executable: Option<String>,
+    /// Scan every finished package with ClamAV before it counts as finished (RD-190-14).
+    ///
+    /// Off by default: it needs a `clamd` somebody runs. A finding fails the package and stops
+    /// everything after the scan; a `clamd` that cannot be reached is a warning on the step and
+    /// the package carries on (fail-open, the owner's decision of 2026-10-02).
+    pub malware_scan_enabled: bool,
+    /// Where `clamd` listens: `host:port` over TCP, or `unix:/path` (an absolute path alone
+    /// works too) for its local socket; `None` = `127.0.0.1:3310`, clamd's own TCP default.
+    pub clamd_address: Option<String>,
+    /// Largest file streamed to `clamd`. A larger one is not scanned, and the step says how
+    /// many were left out; clamd's own `StreamMaxLength` has to be at least this (its default
+    /// is the 25 MiB used here).
+    pub malware_scan_max_bytes: ByteCount,
+    /// Seconds one exchange with `clamd` may take: the connection, a chunk, the verdict.
+    pub malware_scan_timeout_seconds: u32,
 }
 
 impl PostprocessSettings {
+    /// The `clamd` address in force: the setting, else clamd's own TCP default.
+    #[must_use]
+    pub fn effective_clamd_address(&self) -> &str {
+        self.clamd_address
+            .as_deref()
+            .map(str::trim)
+            .filter(|address| !address.is_empty())
+            .unwrap_or(DEFAULT_CLAMD_ADDRESS)
+    }
+
     /// Effective global level: the explicit `default_level`, else unpacking.
     #[must_use]
     pub fn effective_default_level(&self) -> PostprocessLevel {
@@ -120,9 +145,21 @@ impl Default for PostprocessSettings {
             upload_remote: None,
             upload_mode: "copy".to_owned(),
             rclone_executable: None,
+            malware_scan_enabled: false,
+            clamd_address: None,
+            malware_scan_max_bytes: ByteCount::new(DEFAULT_MALWARE_SCAN_MAX_BYTES)
+                .expect("scan limit fits"),
+            malware_scan_timeout_seconds: DEFAULT_MALWARE_SCAN_TIMEOUT_SECONDS,
         }
     }
 }
+
+/// clamd's own TCP default, used when no address is configured (RD-190-14).
+pub const DEFAULT_CLAMD_ADDRESS: &str = "127.0.0.1:3310";
+/// clamd's default `StreamMaxLength`, 25 MiB, so the two agree out of the box.
+pub const DEFAULT_MALWARE_SCAN_MAX_BYTES: u64 = 25 * 1024 * 1024;
+/// How long one exchange with clamd may take by default.
+pub const DEFAULT_MALWARE_SCAN_TIMEOUT_SECONDS: u32 = 120;
 
 /// Which transfer services are switched on.
 ///
@@ -264,6 +301,25 @@ mod tests {
         let folders: PostprocessSettings =
             serde_json::from_str(r#"{"unpack_to_subfolder":true}"#).expect("explicit opt-in");
         assert!(folders.unpack_to_subfolder);
+    }
+
+    #[test]
+    fn the_malware_scan_is_off_until_somebody_switches_it_on() {
+        // RD-190-14: it needs a clamd somebody runs, so a blob that never mentions it scans
+        // nothing, and the address falls back to clamd's own default.
+        let legacy: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(!legacy.malware_scan_enabled);
+        assert_eq!(legacy.effective_clamd_address(), "127.0.0.1:3310");
+        assert_eq!(legacy.malware_scan_max_bytes.get(), 25 * 1024 * 1024);
+        let on: PostprocessSettings = serde_json::from_str(
+            r#"{"malware_scan_enabled":true,"clamd_address":"unix:/run/clamav/clamd.ctl"}"#,
+        )
+        .expect("explicit opt-in");
+        assert!(on.malware_scan_enabled);
+        assert_eq!(on.effective_clamd_address(), "unix:/run/clamav/clamd.ctl");
+        let blank: PostprocessSettings =
+            serde_json::from_str(r#"{"clamd_address":"  "}"#).expect("blank address");
+        assert_eq!(blank.effective_clamd_address(), "127.0.0.1:3310");
     }
 
     #[test]

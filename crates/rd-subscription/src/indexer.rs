@@ -208,6 +208,7 @@ impl SourceAdapter for IndexerAdapter {
                     // signal than any name; release recognition is RD-110-21's alone.
                     release_key: None,
                     password: kept.password,
+                    refused: None,
                 };
                 usable += 1;
                 if keys.insert(crate::key_of(&discovered)) {
@@ -234,6 +235,7 @@ impl SourceAdapter for IndexerAdapter {
             etag: None,
             last_modified: None,
             not_modified: false,
+            paused_until: None,
         })
     }
 }
@@ -343,6 +345,7 @@ mod tests {
             schedule: None,
             script_arguments: Vec::new(),
             indexer_search: rd_core::IndexerSearch::default(),
+            git_release: rd_core::GitReleaseOptions::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

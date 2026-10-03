@@ -10,7 +10,9 @@
 //! or the listen address itself, and no forwarding header), so a copy that leaves the machine
 //! opens nothing. Whoever can read
 //! the data directory can already read the database beside it; the token adds stopping the
-//! service and writing a backup before an update to that, no more.
+//! service, writing a backup before an update, switching the password sign-in back on and setting
+//! a new administrator password — the last two of which writing the database directly could do
+//! as well — to that, no more.
 //!
 //! The file is removed when the process ends normally — as the very last step, after the queue
 //! was checkpointed — so its absence is what `rdownloader stop --wait` waits for. A file left by
@@ -27,8 +29,13 @@ use sha2::{Digest, Sha256};
 /// The file below the data directory.
 pub const FILE: &str = "local-control.json";
 
-/// The routes the token opens: stopping the service and the backup before an update.
+/// The routes the token opens: stopping the service, the backup before an update, switching
+/// the password sign-in back on (`rdownloader auth password-login on`, RD-190-15) and a new
+/// administrator password without the current one (`rdownloader auth reset-password`,
+/// RD-190-24) — the ways back in that only this machine has.
 pub const ROUTES: &[(&str, Method)] = &[
+    ("/api/v1/auth/password-login/on", Method::POST),
+    ("/api/v1/auth/password/reset", Method::POST),
     ("/api/v1/system/shutdown", Method::POST),
     ("/api/v1/system/update/prepare", Method::POST),
 ];
@@ -256,9 +263,14 @@ mod tests {
     }
 
     #[test]
-    fn only_the_two_lifecycle_routes_are_covered() {
+    fn only_the_lifecycle_routes_and_the_way_back_in_are_covered() {
         assert!(covers("/api/v1/system/shutdown", &Method::POST));
         assert!(covers("/api/v1/system/update/prepare", &Method::POST));
+        assert!(covers("/api/v1/auth/password-login/on", &Method::POST));
+        assert!(covers("/api/v1/auth/password/reset", &Method::POST));
+        assert!(!covers("/api/v1/auth/password", &Method::POST));
+        assert!(!covers("/api/v1/auth/password-login/off", &Method::POST));
+        assert!(!covers("/api/v1/auth/oidc", &Method::PUT));
         assert!(!covers("/api/v1/system/shutdown", &Method::GET));
         assert!(!covers("/api/v1/settings", &Method::PUT));
         assert!(!covers("/api/v1/system/data-reset", &Method::POST));

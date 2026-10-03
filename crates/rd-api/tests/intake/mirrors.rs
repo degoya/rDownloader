@@ -7,8 +7,12 @@
 use crate::common;
 
 use axum::http::StatusCode;
-use common::{get_json, post_json, put_json, test_harness};
+use common::{get_json, post_json, put_json};
 use serde_json::json;
+
+// Every case here runs on a parked scheduler: they read the states the enqueue and the mirror
+// rules write (`queued`, `skipped`), and a live scheduler moves a queued row on to `resolving`
+// before the assertion on a slow Windows runner (CI runs 37079121688 and 37112200667).
 
 /// Adds one LinkGrabber batch whose links are already online, so nothing waits on a check.
 async fn submit(harness: &common::Harness, urls: &[&str], names: &[&str]) {
@@ -71,7 +75,7 @@ fn states(downloads: &serde_json::Value) -> Vec<String> {
 #[tokio::test]
 async fn two_links_to_the_same_file_download_once() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[
@@ -106,7 +110,7 @@ async fn two_links_to_the_same_file_download_once() {
 #[tokio::test]
 async fn different_files_are_both_downloaded() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[
@@ -137,7 +141,7 @@ async fn different_files_are_both_downloaded() {
 #[tokio::test]
 async fn the_detection_can_be_switched_off() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     let (_, settings) = get_json(&harness.router, "/api/v1/settings").await;
     let mut off = settings.clone();
     off["admin_login_disabled"] = json!(true);
@@ -166,7 +170,7 @@ async fn the_detection_can_be_switched_off() {
 #[tokio::test]
 async fn links_the_source_never_named_are_not_treated_as_the_same_file() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     // Two unrelated files whose addresses carry no usable name. The queue synthesises one for
     // the file system — historically `download.bin` for both — but that is not evidence they
     // are the same file, and grouping them would drop one silently while the package still
@@ -218,7 +222,7 @@ async fn links_the_source_never_named_are_not_treated_as_the_same_file() {
 #[tokio::test]
 async fn a_waiting_mirror_takes_over_when_the_active_link_is_cancelled() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[
@@ -256,10 +260,13 @@ async fn a_waiting_mirror_takes_over_when_the_active_link_is_cancelled() {
     );
 }
 
+/// The live scheduler would claim the queued mirror and start it, and the resume of the waiting
+/// one is then refused as `download.mirror_active` — on slow Windows runners every time (CI run
+/// 37079121688). What this checks is the hand-over, not the race.
 #[tokio::test]
 async fn starting_a_waiting_mirror_by_hand_stands_the_others_down() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[
@@ -312,7 +319,7 @@ async fn starting_a_waiting_mirror_by_hand_stands_the_others_down() {
 #[tokio::test]
 async fn links_a_filter_hides_stay_in_their_package() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[
@@ -373,7 +380,7 @@ async fn links_a_filter_hides_stay_in_their_package() {
 #[tokio::test]
 async fn a_hidden_hoster_stays_behind_but_its_mirror_goes_along_as_the_fallback() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
+    let harness = common::parked_harness(directory.path()).await;
     submit(
         &harness,
         &[

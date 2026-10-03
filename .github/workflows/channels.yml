@@ -13,6 +13,12 @@ name: Package channels
 # carries now. The database must still be there with every migration it had, and the markers in
 # data/ and downloads/ too. Uninstalling at the end must leave the data behind.
 #
+# The tap runs on four images, one per platform the formula names (RD-190-12): macos-15 (Apple
+# Silicon), macos-15-intel (a real Intel Mac — the cross-built x86_64 binary started natively, not
+# under Rosetta; GitHub's last x86_64 macOS image, offered until August 2027), ubuntu-24.04 and
+# ubuntu-24.04-arm. The arm64 Ubuntu image carries no Homebrew; it installs it with Homebrew's
+# own installer, pinned to a commit.
+#
 # Not here, because a runner cannot do it: the capture agent's tray through
 # `brew services start rdownloader-capture` (no login session) and `brew audit --strict`
 # against the tap (the owner's live checklist).
@@ -88,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, ubuntu-24.04]
+        os: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -98,13 +104,18 @@ jobs:
       FROM: ${{ needs.gate.outputs.from }}
       TAP: ${{ github.repository_owner }}/rdownloader
     steps:
-      # The Ubuntu image carries Homebrew without putting it on PATH.
+      # The Ubuntu image carries Homebrew without putting it on PATH; the arm64 one lacks it.
       - name: Put Homebrew on PATH
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
           prefix=/home/linuxbrew/.linuxbrew
+          if [[ ! -x "${prefix}/bin/brew" && "${RUNNER_ARCH}" == ARM64 ]]; then
+            curl --fail --silent --show-error --location --output "${RUNNER_TEMP}/install-homebrew.sh" \
+              https://raw.githubusercontent.com/Homebrew/install/35da6871c4be7d7fdab2fd505fb7fa667926a2a5/install.sh
+            NONINTERACTIVE=1 bash "${RUNNER_TEMP}/install-homebrew.sh"
+          fi
           test -x "${prefix}/bin/brew"
           { echo "${prefix}/bin"; echo "${prefix}/sbin"; } >> "${GITHUB_PATH}"
       # `brew services` drives `systemctl --user` on Linux, and a runner has no user manager

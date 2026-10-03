@@ -121,7 +121,17 @@ pub(crate) fn clear_targets(
         skipped: Vec::new(),
     };
     for package in packages {
-        if !in_scope(scope, downloads, package.id) {
+        // A package whose post-processing failed counts as failed, whatever its files did:
+        // "remove the finished ones" leaves it in the list for a look at what went wrong
+        // (owner, 2026-10-02), and "remove the failed ones" takes it.
+        let postprocess_failed = package.state == PackageState::Failed;
+        let wanted = match scope {
+            PackageClearScope::Failed => {
+                postprocess_failed || in_scope(scope, downloads, package.id)
+            }
+            _ => in_scope(scope, downloads, package.id),
+        };
+        if !wanted {
             continue;
         }
         // Settled once past this: nothing of the package is running, waiting or seeding —
@@ -129,11 +139,16 @@ pub(crate) fn clear_targets(
         let reason = if scope == PackageClearScope::Everything {
             postprocess_code(package, pending_extraction)
         } else {
-            blocking_code(package, downloads, pending_extraction).or_else(|| {
-                (scope == PackageClearScope::Completed
-                    && package_progress(downloads, package.id) != PackageProgress::Finished)
-                    .then_some("package.members_unfinished")
-            })
+            blocking_code(package, downloads, pending_extraction)
+                .or_else(|| {
+                    (scope == PackageClearScope::Completed
+                        && package_progress(downloads, package.id) != PackageProgress::Finished)
+                        .then_some("package.members_unfinished")
+                })
+                .or_else(|| {
+                    (scope == PackageClearScope::Completed && postprocess_failed)
+                        .then_some("package.postprocess_failed")
+                })
         };
         match reason {
             Some(code) => plan.skipped.push(PackageClearSkip {
@@ -293,6 +308,25 @@ mod tests {
         assert_eq!(reasons(&plan), vec!["package.members_active"]);
         assert_eq!(plan.skipped[0].package_id, package.id);
         assert_eq!(plan.skipped[0].name, package.name);
+    }
+
+    /// Owner, 2026-10-02: `K` removes what succeeded. A package whose files all came down but
+    /// whose unpack failed is a failure and stays until it is removed on purpose.
+    #[test]
+    fn a_package_whose_post_processing_failed_stays_on_clear_finished() {
+        let package = package(PackageState::Failed, None);
+        let downloads = vec![file(package.id, DownloadState::Completed)];
+        let packages = vec![package.clone()];
+
+        let finished = plan(&packages, &downloads, PackageClearScope::Completed);
+        assert!(
+            finished.targets.is_empty(),
+            "a failed unpack is not finished"
+        );
+        assert_eq!(reasons(&finished), vec!["package.postprocess_failed"]);
+
+        let failed = plan(&packages, &downloads, PackageClearScope::Failed);
+        assert_eq!(failed.targets, vec![package.id]);
     }
 
     #[test]

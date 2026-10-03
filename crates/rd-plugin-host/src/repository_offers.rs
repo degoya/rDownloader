@@ -55,6 +55,15 @@ pub struct Update {
     pub added_permissions: Permissions,
 }
 
+impl Update {
+    /// Whether the refresh installs this on its own: policy *automatic*, and no permission the
+    /// installed version lacks. Everything else waits for a click.
+    #[must_use]
+    pub fn installs_itself(&self) -> bool {
+        self.policy == UpdatePolicy::Automatic && !self.adds_permissions
+    }
+}
+
 /// Whether this build can run `entry`, judged from the index alone.
 #[must_use]
 pub fn compatibility(entry: &IndexPackage) -> PackageCompatibility {
@@ -209,7 +218,7 @@ impl PluginRepositoryService {
             .updates()
             .await?
             .into_iter()
-            .filter(|update| update.policy == UpdatePolicy::Automatic && !update.adds_permissions)
+            .filter(Update::installs_itself)
             .collect())
     }
 

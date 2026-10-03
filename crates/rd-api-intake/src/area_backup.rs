@@ -81,6 +81,10 @@ pub struct BundleAreaSubscription {
     /// which restores the empty search every subscription sent then.
     #[serde(default)]
     pub indexer_search: rd_core::IndexerSearch,
+    /// Which release files a git-release subscription downloads (RD-190-13); absent from an
+    /// older bundle, which has no such subscription.
+    #[serde(default)]
+    pub git_release: rd_core::GitReleaseOptions,
     /// Whether the original had an API key. The key itself never travels — it lives in the
     /// vault, and a bundle is a file somebody sends. An import that needs one arrives switched
     /// off, so it cannot poll with no credential and report a failure nobody caused.
@@ -250,6 +254,7 @@ pub async fn export_subscriptions(
             autoplay: subscription.autoplay,
             card_ratio: subscription.card_ratio,
             indexer_search: subscription.indexer_search,
+            git_release: subscription.git_release,
             api_key_required: subscription.secret_ref.is_some(),
         })
         .collect();
@@ -318,6 +323,7 @@ pub async fn import_subscriptions(
             schedule: None,
             script_arguments: Vec::new(),
             indexer_search: entry.indexer_search,
+            git_release: entry.git_release,
             indexer_id: None,
             api_key: None,
         };

@@ -14,7 +14,7 @@
     "general": {
       "eyebrow": "Grundeinstellungen",
       "title": "Downloads & Zugang",
-      "description": "Parallelität, Chunks, Tempo und Wiederholungen des Schedulers — dazu der Port der Oberfläche und der Kennwortschutz."
+      "description": "Parallelität, Chunks, Tempo und Wiederholungen des Schedulers — dazu der Port der Oberfläche und der Passwortschutz."
     },
     "network": {
       "eyebrow": "Ausgehende Verbindungen",
@@ -156,8 +156,8 @@
   },
   "admin_login": {
     "label": "Admin-Login deaktivieren",
-    "description": "Wer die Oberfläche von diesem Rechner aus öffnet, darf alles steuern, ohne sich anzumelden. Jeder andere Rechner – im LAN, über eine Portweiterleitung, einen Container oder einen Reverse Proxy – muss sich weiter mit dem Kennwort anmelden. Wirkt sofort nach dem Speichern.",
-    "warning": "Der Kennwortschutz ist ausgeschaltet."
+    "description": "Wer die Oberfläche von diesem Rechner aus öffnet, darf alles steuern, ohne sich anzumelden. Jeder andere Rechner – im LAN, über eine Portweiterleitung, einen Container oder einen Reverse Proxy – muss sich weiter mit dem Passwort anmelden. Wirkt sofort nach dem Speichern.",
+    "warning": "Der Passwortschutz ist ausgeschaltet."
   },
   "proxy": {
     "eyebrow": "Ausgangsroute",
@@ -180,7 +180,19 @@
     "username_description": "Nur bei Proxys mit Anmeldung nötig.",
     "password_label": "Passwort",
     "password_description": "Wird verschlüsselt gespeichert und nie von der API zurückgegeben.",
-    "list_title": "Proxyprofile"
+    "list_title": "Proxyprofile",
+    "edit_title": "Proxyprofil bearbeiten",
+    "save": "Proxyprofil speichern",
+    "updated": "Proxyprofil wurde gespeichert.",
+    "deleted": "Proxyprofil wurde gelöscht.",
+    "password_keep": "Leer lassen, um das gespeicherte Passwort zu behalten",
+    "password_copy": "Die Kopie von {name} hat kein Passwort: bitte neu eintragen, der Dienst nimmt den Benutzernamen nur zusammen mit ihm.",
+    "delete": {
+      "title": "Proxyprofil löschen",
+      "description": "Das Proxyprofil „{name}“ und sein verschlüsseltes Passwort werden dauerhaft gelöscht. Solange ein Konto, ein Usenet-Server, ein laufender Download, die globale Verbindung oder der Torrent-Peer-Proxy es nutzt, lehnt der Dienst das ab.",
+      "in_use_here": "Es ist hier als globale Verbindung oder als Torrent-Peer-Proxy gewählt — wähle zuerst ein anderes und speichere.",
+      "confirm": "Profil löschen"
+    }
   },
   "global_proxy": {
     "eyebrow": "Netzwerk-Fallback",
@@ -289,6 +301,18 @@
     "unpack_to_subfolder": {
       "label": "In Unterordner entpacken",
       "description": "Jedes Archiv wird in einen eigenen Ordner im Paketordner entpackt, benannt nach dem Archiv (Film.part1.rar → Film/). Die Archive selbst werden nicht verschoben."
+    },
+    "malware_scan": {
+      "label": "Pakete auf Schadsoftware prüfen (ClamAV)",
+      "description": "Jedes fertige Paket geht nach dem Entpacken an deinen clamd, bevor Plugin-Schritte, Skript oder Upload es sehen. Ein Fund stoppt das Paket; ist clamd nicht erreichbar, läuft es mit einer Warnung weiter. Nichts verlässt den Rechner außer zu dieser Adresse.",
+      "address_label": "clamd-Adresse",
+      "address_description": "host:port für TCP oder unix:/pfad für den lokalen Socket; leer = 127.0.0.1:3310.",
+      "max_label": "Größte geprüfte Datei",
+      "max_description": "Größere Dateien werden nicht geprüft und im Schritt gezählt. StreamMaxLength in clamd.conf muss mindestens so groß sein.",
+      "timeout_label": "Zeitlimit je Austausch",
+      "timeout_description": "Wie lange die Verbindung, ein Datenblock oder das Urteil von clamd dauern darf (5–3600 s).",
+      "test": "clamd testen",
+      "test_ok": "clamd unter {address} antwortet: {version}"
     }
   },
   "appearance": {
@@ -325,7 +349,7 @@
   },
   "reset": {
     "title": "Werkseinstellungen wiederherstellen?",
-    "description": "Alle Laufzeiteinstellungen werden auf die eingebauten Standardwerte zurückgesetzt. Storage-Roots, Kategorien, Regeln, Konten, Server, Tokens und Downloads bleiben erhalten.",
+    "description": "Alle Laufzeiteinstellungen werden auf die eingebauten Standardwerte zurückgesetzt. Speicherorte, Kategorien, Regeln, Konten, Server, Tokens und Downloads bleiben erhalten.",
     "confirm": "Zurücksetzen",
     "button": "Werkseinstellungen"
   },
@@ -622,6 +646,24 @@
     "announce_port": {
       "label": "Angekündigter Port",
       "description": "Port, der Trackern gemeldet wird, wenn der Router den Listen-Port auf einen anderen externen Port mappt. Leer meldet den Listen-Port."
+    },
+    "network_status": {
+      "title": "Netzwerkstatus",
+      "description": "Was die Torrent-Engine gerade tut: das gebundene Interface, der Kill-Switch und der letzte Neuaufbau der Sitzung.",
+      "interface": "Gebundenes Interface",
+      "interface_present": "vorhanden",
+      "interface_missing": "fehlt",
+      "kill_switch": "Kill-Switch",
+      "kill_switch_off": "Aus",
+      "kill_switch_armed": "Bereit: hält Torrents binnen {seconds} s an, wenn das Interface verschwindet",
+      "kill_switch_engaged": "Ausgelöst: alle Torrents angehalten",
+      "engaged_title": "Der Kill-Switch hat die Torrents angehalten",
+      "engaged_description": "Das Interface {name} ist weg. Sobald es zurückkommt, laufen die Torrents von selbst weiter.",
+      "peer_proxy": "Peer-Proxy",
+      "peer_proxy_on": "eingerichtet",
+      "peer_proxy_off": "keiner",
+      "rebuild_failed": "Der letzte Neuaufbau der Sitzung ist fehlgeschlagen; die bisherige Sitzung läuft weiter.",
+      "proxy_failed": "Der Peer-Proxy lässt sich nicht auflösen; ohne ihn startet die Sitzung nicht."
     }
   },
   "auth_profiles": {
@@ -673,7 +715,7 @@
     "description": "Gilt für jeden Transportweg. Ein Ziel unterhalb seines Schwellwerts nimmt keine neuen Downloads an, bis wieder Platz frei ist.",
     "minimum_free": {
       "label": "Mindestens frei",
-      "description": "Wird auf jedem Storage Root ohne eigenen Schwellwert frei gehalten."
+      "description": "Wird auf jedem Speicherort ohne eigenen Schwellwert frei gehalten."
     },
     "headroom": {
       "label": "Puffer für unbekannte Größen",

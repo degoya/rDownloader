@@ -180,7 +180,19 @@
     "username_description": "Solo necesario para proxies con autenticación.",
     "password_label": "Contraseña",
     "password_description": "Se guarda cifrada y la API nunca la devuelve.",
-    "list_title": "Perfiles proxy"
+    "list_title": "Perfiles proxy",
+    "edit_title": "Editar perfil proxy",
+    "save": "Guardar perfil proxy",
+    "updated": "Perfil proxy guardado.",
+    "deleted": "Perfil proxy eliminado.",
+    "password_keep": "Déjalo vacío para mantener la contraseña guardada",
+    "password_copy": "La copia de {name} no tiene contraseña: introdúcela de nuevo, el servicio solo acepta el usuario junto con ella.",
+    "delete": {
+      "title": "Eliminar perfil proxy",
+      "description": "El perfil proxy «{name}» y su contraseña cifrada se eliminarán de forma permanente. Mientras lo use una cuenta, un servidor Usenet, una descarga sin terminar, la ruta de conexión global o el proxy de pares de torrent, el servicio lo rechaza.",
+      "in_use_here": "Aquí está elegido como ruta de conexión global o como proxy de pares de torrent: elige otro primero y guarda.",
+      "confirm": "Eliminar perfil"
+    }
   },
   "global_proxy": {
     "eyebrow": "Respaldo de red",
@@ -289,6 +301,18 @@
     "unpack_to_subfolder": {
       "label": "Extraer en subcarpetas",
       "description": "Extrae cada archivo comprimido en una carpeta propia dentro de la carpeta del paquete, con el nombre del archivo (Film.part1.rar → Film/). Los archivos comprimidos no se mueven."
+    },
+    "malware_scan": {
+      "label": "Analizar paquetes en busca de malware (ClamAV)",
+      "description": "Cada paquete terminado se envía a su clamd después de descomprimirlo, antes de que lo vean los pasos de plugins, el script o la subida. Un hallazgo detiene el paquete; si clamd no está disponible, continúa con una advertencia. Nada sale del equipo salvo hacia esta dirección.",
+      "address_label": "Dirección de clamd",
+      "address_description": "host:puerto para TCP o unix:/ruta para el socket local; vacío = 127.0.0.1:3310.",
+      "max_label": "Archivo más grande analizado",
+      "max_description": "Los archivos más grandes no se analizan y se cuentan en el paso. StreamMaxLength en clamd.conf debe ser al menos así de grande.",
+      "timeout_label": "Tiempo límite por intercambio",
+      "timeout_description": "Cuánto pueden tardar la conexión, un bloque o el veredicto de clamd (5–3600 s).",
+      "test": "Probar clamd",
+      "test_ok": "clamd en {address} responde: {version}"
     }
   },
   "appearance": {
@@ -622,6 +646,24 @@
     "announce_port": {
       "label": "Puerto anunciado",
       "description": "Puerto anunciado a los trackers cuando el router asigna el puerto de escucha a otro puerto externo. Vacío anuncia el puerto de escucha."
+    },
+    "network_status": {
+      "title": "Estado de la red",
+      "description": "Lo que hace ahora el motor de torrents: la interfaz vinculada, el interruptor de corte y la última reconstrucción de la sesión.",
+      "interface": "Interfaz vinculada",
+      "interface_present": "presente",
+      "interface_missing": "ausente",
+      "kill_switch": "Interruptor de corte",
+      "kill_switch_off": "Desactivado",
+      "kill_switch_armed": "Preparado: pausa los torrents en {seconds} s si la interfaz desaparece",
+      "kill_switch_engaged": "Activado: todos los torrents están en pausa",
+      "engaged_title": "El interruptor de corte ha pausado los torrents",
+      "engaged_description": "La interfaz {name} ha desaparecido. Cuando vuelva, los torrents se reanudan solos.",
+      "peer_proxy": "Proxy de pares",
+      "peer_proxy_on": "configurado",
+      "peer_proxy_off": "ninguno",
+      "rebuild_failed": "La última reconstrucción de la sesión falló; la sesión anterior sigue en marcha.",
+      "proxy_failed": "No se puede resolver el proxy de pares; sin él la sesión no se inicia."
     }
   },
   "auth_profiles": {

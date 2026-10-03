@@ -11,7 +11,14 @@
     "storage_blocked": "Almacenamiento lleno",
     "budget_exhausted": "Presupuesto de tráfico agotado",
     "captcha_waiting": "Captcha esperando",
-    "power_pending": "Acción de energía pendiente"
+    "power_pending": "Acción de energía pendiente",
+    "backup_failed": "Copia de seguridad programada fallida",
+    "update_available": "Actualización de rDownloader disponible",
+    "plugin_update_available": "Actualización de plugin disponible",
+    "account_expiring": "Cuenta a punto de caducar",
+    "account_invalid": "La cuenta ya no inicia sesión",
+    "backup_verify_failed": "Verificación de la copia de seguridad fallida",
+    "plugin_update_failed": "Actualización automática de plugin fallida"
   },
   "severity": {
     "info": "Info y superior",

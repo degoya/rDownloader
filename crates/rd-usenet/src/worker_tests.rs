@@ -113,6 +113,7 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,

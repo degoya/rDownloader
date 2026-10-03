@@ -46,6 +46,9 @@ pub enum FilterReason {
     ResolutionTooLow,
     /// Older than the backlog cutoff chosen when the subscription was switched on.
     Backlog,
+    /// A release file the git-release options do not select: another platform, another
+    /// architecture, or no match for the name patterns (RD-190-13).
+    AssetNotWanted,
 }
 
 impl FilterReason {
@@ -61,6 +64,7 @@ impl FilterReason {
             Self::LanguageNotWanted => "subscription.filter.language_not_wanted",
             Self::ResolutionTooLow => "subscription.filter.resolution_too_low",
             Self::Backlog => "subscription.filter.backlog",
+            Self::AssetNotWanted => "subscription.filter.asset_not_wanted",
         }
     }
 }

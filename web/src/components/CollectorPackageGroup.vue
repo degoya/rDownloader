@@ -37,6 +37,8 @@ const emit = defineEmits<{
   /** Same enqueue, but every download of the package starts paused (RD-107-09). */
   enqueuePaused: [id: string]
   remove: [id: string]
+  /** Every link of the package onto the clipboard; the view gathers them (RD-190-21). */
+  copyLinks: [id: string]
   dragstart: [id: string]
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the package up, 1 moves it down. */
@@ -78,12 +80,18 @@ const priorityModel = computed({
     flattened stream now, not children, and they carry the frame onward themselves.
   -->
   <section
-    class="border bg-elevated transition"
+    class="@container border bg-elevated transition"
     :class="[someSelected ? 'border-primary' : 'border-muted', props.dragging ? 'opacity-50' : '', props.open ? 'border-b-0' : '']"
     @dragover.prevent
     @drop.prevent="emit('drop', props.package.id)"
   >
-    <header class="flex items-center gap-2 px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
+    <!--
+      The row measures its own width (`@container`), not the window's: beside an open sidebar the
+      window says "wide" while the row is not, and the name was squeezed to nothing. Below 64 rem
+      the controls take a line of their own under the name; the name never goes below 200 px —
+      the link count gives way first — and the size shows only where a line still has room for it.
+    -->
+    <header class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
       <button
         type="button"
         class="cursor-grab select-none text-muted"
@@ -99,17 +107,18 @@ const priorityModel = computed({
       </button>
       <UCheckbox :model-value="allSelected ? true : someSelected ? 'indeterminate' : false" :disabled="!selectable.length" :aria-label="t('linkgrabber.package.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', selectable, value === true)" />
       <UButton :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('linkgrabber.package.hide_links') : t('linkgrabber.package.show_links')" @click="emit('toggle', props.package.id)" />
-      <div class="flex min-w-0 flex-1 items-center gap-3">
-        <button type="button" class="min-w-0 flex-1 truncate text-left text-sm font-semibold text-highlighted hover:underline" :title="props.package.name" @click="emit('rename', props.package.id)">{{ props.package.name }}</button>
-        <span class="numeric hidden shrink-0 text-xs text-muted sm:block">
+      <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
+        <button type="button" class="min-w-50 flex-1 truncate text-left text-sm font-semibold text-highlighted hover:underline" :title="props.package.name" @click="emit('rename', props.package.id)">{{ props.package.name }}</button>
+        <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">
           {{ t('common.units.link', { count: props.candidates.length }, props.candidates.length) }}
           <span v-if="online" class="text-success"> · {{ t('linkgrabber.package.online', { count: online }) }}</span>
           <span v-if="checking" class="text-primary"> · {{ t('linkgrabber.package.checking', { count: checking }) }}</span>
           <span v-if="offline" class="text-error"> · {{ t('linkgrabber.package.offline', { count: offline }) }}</span>
           <span v-if="unverified" class="text-warning"> · {{ t('linkgrabber.package.unverified', { count: unverified }) }}</span>
         </span>
-        <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted lg:block">{{ total > 0n ? formatBytes(total) : '–' }}</span>
+        <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted @min-[40rem]:block @min-[64rem]:hidden @min-[76rem]:block">{{ total > 0n ? formatBytes(total) : '–' }}</span>
       </div>
+      <div class="ms-auto flex w-full flex-wrap items-center justify-end gap-2 @min-[64rem]:w-auto">
       <span v-if="props.package.has_password" class="flex shrink-0 items-center gap-1 text-warning" :title="t('linkgrabber.package.password_hint')">
         <UIcon name="i-lucide-key-round" class="size-4" />
         <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
@@ -118,7 +127,9 @@ const priorityModel = computed({
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
       <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
       <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
+      <UButton icon="i-lucide-link" size="xs" color="neutral" variant="ghost" :aria-label="t('common.actions.copy_links')" :title="t('common.actions.copy_links')" @click="emit('copyLinks', props.package.id)" />
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
+      </div>
     </header>
   </section>
 </template>

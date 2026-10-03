@@ -32,10 +32,16 @@ pub async fn auth_status(
             authenticated: true,
             login_disabled: true,
             passkeys_available: false,
+            oidc_available: false,
+            oidc_display_name: None,
+            password_login: true,
         }));
     }
     let configured = state.auth.is_configured(&state).await?;
     let authenticated = configured && state.auth.authenticated(&state, &headers).await;
+    // The same reasoning as for the passkey below: the button has to be known to be drawn, and
+    // the start route would tell anybody who asked that a provider is configured.
+    let provider = crate::oidc_handlers::offered_provider(&state).await?;
     Ok(Json(AuthStatus {
         setup_required: !configured,
         authenticated,
@@ -45,6 +51,9 @@ pub async fn auth_status(
         // failing — teaches people to ignore the button. What it reveals is that this
         // installation has a passkey, which the challenge endpoint would reveal anyway.
         passkeys_available: crate::passkey_handlers::any_passkey_enrolled(&state).await?,
+        oidc_available: provider.is_some(),
+        oidc_display_name: provider,
+        password_login: !rd_api_core::oidc_client::password_login_off(&state).await?,
     }))
 }
 
@@ -119,6 +128,17 @@ pub async fn login(
         // The global slow-down. Paid by everyone while an attack is running, and capped low
         // enough that it stays a nuisance rather than an outage.
         tokio::time::sleep(delay).await;
+    }
+    // Switched off after a proven sign-in through the identity provider (D3, RD-190-15). Refused
+    // before the password is looked at, so the refusal says nothing about it; the password stays
+    // the step-up credential everywhere else. Only `rdownloader auth password-login on`, on this
+    // machine, turns the form back on.
+    if rd_api_core::oidc_client::password_login_off(&state).await? {
+        note_failed_login_audit(&state, client.0, "password_login_off").await;
+        return Err(ApiError::forbidden(
+            "auth.password_login_off",
+            "Signing in with the password is switched off; sign in through the identity provider",
+        ));
     }
     let user_agent = headers
         .get(header::USER_AGENT)

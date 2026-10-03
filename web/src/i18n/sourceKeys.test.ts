@@ -19,10 +19,12 @@
  * - **Composed keys.** `t(\`plugins.type.${type}\`)`, `t('common.' + name)` and anything built
  *   from a variable are invisible to a regular expression. Plugin types are covered because
  *   their *values* are extracted separately; other composed keys are not covered at all.
- * - **Codes from outside the `rd-api` crates.** A `Failure` raised in `rd-core`, `rd-scheduler`
- *   or a runner reaches the interface through the same `code` field, and nothing here extracts
- *   those. Plugin codes (`<slug>.<condition>`) are deliberately out of scope: they live in the
- *   package's own catalogue, which `pluginMessages.test.ts` covers.
+ * - **Codes from outside the `rd-api` crates, except `Failure::coded`.** A `Failure` raised in
+ *   `rd-core`, `rd-scheduler` or a runner reaches the interface through the same `code` field.
+ *   Its literal code is read from every crate, directly or through a helper whose first
+ *   parameter is `code: &str` (RD-190-18); a code chosen by an enum's own `code()` method, as
+ *   `rd-tools` does, is not. Plugin codes (`<slug>.<condition>`) are deliberately out of scope:
+ *   they live in the package's own catalogue, which `pluginMessages.test.ts` covers.
  * - **Codes that reach the client another way.** Only the `ApiError::*` constructors and
  *   `MessageResponse::new` are read. A code passed to a validation helper as an argument, or
  *   assembled at runtime, is not seen — `proxy.password_invalid` is exactly such a case and is
@@ -171,6 +173,46 @@ function backendCodes(): string[] {
   return [...codes].sort()
 }
 
+/** Every crate's sources without its tests: a `#[cfg(test)]` module or a `tests` file raises codes nobody sees. */
+function runtimeSources(): string[] {
+  return readdirSync(crates, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => join(crates, entry.name, 'src'))
+    .filter(existsSync)
+    .flatMap(rustFiles)
+    .filter(file => !/(?:^|[/\\])tests(?:[/\\]|\.rs$)|_tests\.rs$/.test(file))
+    .map((file) => {
+      const source = readFileSync(file, 'utf8')
+      const tests = source.indexOf('#[cfg(test)]\nmod tests')
+      return tests < 0 ? source : source.slice(0, tests)
+    })
+}
+
+/**
+ * The codes a runtime `Failure` is built with anywhere in the workspace (RD-190-18).
+ *
+ * A download, a plugin or a transfer that fails carries its code to the queue the same way a
+ * REST error does, and three dozen of them reached the reader as English prose in every language.
+ * Read are `Failure::coded(<kind>, "<code>", …)` and the calls of a helper that takes the code
+ * as its first parameter and builds the failure itself, such as `transient("plugin.net_timeout", …)`.
+ */
+function runtimeFailureCodes(): string[] {
+  const codes = new Set<string>()
+  const coded = new RegExp(`Failure::coded\\(\\s*[^";]{0,200}?"${CODE}"`, 'g')
+  const helper = /fn (\w+)\s*(?:<[^>]*>)?\(\s*code: &(?:'static )?str[^)]*\)[^{]*\{/g
+  for (const source of runtimeSources()) {
+    for (const match of source.matchAll(coded)) if (match[1]) codes.add(match[1])
+    for (const match of source.matchAll(helper)) {
+      const body = source.slice((match.index ?? 0) + match[0].length).slice(0, 600)
+      if (!match[1] || !body.includes('Failure::coded(')) continue
+      for (const call of source.matchAll(new RegExp(`\\b${match[1]}\\(\\s*"${CODE}"`, 'g'))) {
+        if (call[1]) codes.add(call[1])
+      }
+    }
+  }
+  return [...codes].sort()
+}
+
 /** The `plugin_type` values the manifest parser accepts, read from `PluginType::as_str`. */
 function pluginTypes(): string[] {
   const source = readFileSync(manifestSource, 'utf8')
@@ -193,6 +235,15 @@ describe.skipIf(!backendAvailable)('keys the backend produces', () => {
     const known = new Set(UNTRANSLATED_CODES)
     const missing = codes.filter(code => !known.has(code) && !i18n.global.te(`server.codes.${code}`))
     expect(missing).toEqual([])
+  })
+
+  it('translates every code a runtime failure is built with, in any crate (RD-190-18)', () => {
+    i18n.global.locale.value = 'en'
+    const codes = runtimeFailureCodes()
+    // A renamed constructor would empty the extraction and prove nothing; both halves count.
+    expect(codes.length).toBeGreaterThan(100)
+    expect(codes).toContain('plugin.net_timeout')
+    expect(codes.filter(code => !i18n.global.te(`server.codes.${code}`))).toEqual([])
   })
 
   // A LinkGrabber candidate carries its message in the database, not in a REST body, so none

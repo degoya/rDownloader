@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**89 capabilities, 65 covered by a tool, 24 deliberately out (16 of them on the owner's line of 2026-09-23).** 393 REST operations, 201 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**92 capabilities, 67 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 409 REST operations, 209 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -58,7 +58,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Unpacking on demand | Downloads | 4 | `extract_downloads`, `extract_packages` |
 | The mirrors of a download and their health | Downloads > transfer details | 1 | `get_download_sources` |
 | Torrent detail and seeding | Downloads > torrent panel | 18 | `get_torrent_details`, `get_torrent_engine`, `list_network_interfaces`, `set_category_seeding`, `set_torrent_file_plan`, `set_torrent_seeding`, `stop_seeding`, `update_torrent_trackers` |
-| Post-processing inventory and queue | Settings > Post-processing | 7 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `update_category_postprocess` |
+| Post-processing inventory and queue | Settings > Post-processing | 8 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `test_malware_scanner`, `update_category_postprocess` |
 | Managed external tools | Settings > Tools | 6 | `list_managed_tools`, `manage_tool`, `refresh_tool_manifest` |
 | Storage capacity | Settings > Storage | 2 | `get_storage_capacity`, `resume_storage_target` |
 | File collision policies | Settings > General, Settings > Routing, package editor | 4 | `get_package_collision_policy`, `list_collision_policies`, `set_category_collision_policy`, `set_package_collision_policy` |
@@ -85,13 +85,15 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Reconnect status | Settings > Network | 1 | `get_reconnect_status` |
 | The hosters one account covers | Settings > Accounts | 1 | `list_account_hosters` |
 | Trying a routing regular expression | Settings > Routing | 1 | `test_category_regex` |
+| Pausing the whole queue for a while | Downloads, transfer rail | 3 | `get_queue_pause`, `pause_queue`, `resume_queue` |
+| Switching a bandwidth profile by hand, and the bandwidth status | Settings > Bandwidth | 4 | `get_bandwidth_status`, `list_bandwidth_profiles`, `return_to_bandwidth_schedule`, `switch_bandwidth_profile` |
 
 ### Deliberately out
 
 | Capability | Surface | REST ops | Why not |
 | --- | --- | --: | --- |
 | Deleting a remote job at the provider | Remote jobs | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
-| Signing in, sessions, second factor and API tokens | Login, Settings > Security | 25 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Signing in, sessions, second factor and API tokens | Login, Settings > Security | 34 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in at a provider | Settings > Accounts | 13 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Trying a stored credential or destination | several forms | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Remote logins and trusted host keys | Settings > Remote | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
@@ -110,9 +112,10 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The desktop capture agent | the agent, not the web UI | 15 | Not a user-facing capability but the agent's own contract, priced with its own capture: scope. No api: token reaches it, so a tool over it could not be called. |
 | Controlling one download by its own route | Downloads | 5 | control_downloads already does all five for one id or many, over the bulk route. A second spelling of the same act is one more thing for a model to choose between and nothing it could not do before. |
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time. |
-| Bandwidth budgets and quiet hours | Settings > Bandwidth | 8 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. |
+| Editing bandwidth profiles and the weekly schedule | Settings > Bandwidth | 6 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. Reading the status, listing the profiles and switching one on for a while are tools (RD-190-20). |
 | The health probe | - | 1 | Public by design: a load balancer asks it without a token, so no permission prices it, and mcp::tool_scope refuses a tool priced by a public route rather than making it free. What it answers -- the service is up, its name and version -- is what the MCP initialize handshake already carries in its server_info. |
 | Stopping the service and the backup before an update | - | 2 | Refused from anywhere but the machine the service runs on, and meant for the launchers and the updater there. A tool that stops the service ends the MCP session that called it, and the backup before an update is the first step of a version switch that no agent performs. |
+| Setting a new administrator password without the current one | - | 1 | rdownloader auth reset-password on the machine the service runs on, and nothing else (RD-190-24): only the local control token opens the route, from this machine. Whoever holds the data directory may recover the installation; an agent that merely reaches the service must not be able to replace the password and end every session. |
 | Installing an update | Settings > System | 2 | Installing stops the service, replaces its program and starts it again: the MCP session that asked ends with the process, and a version switch is the administrator's decision in the interface, not an agent's. Downloading the update ahead of it is the first step of that install and nothing else. get_update_status shows what a download or an install is doing. |
 
 <!-- END generated -->

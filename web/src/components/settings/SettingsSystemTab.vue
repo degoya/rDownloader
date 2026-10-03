@@ -205,7 +205,7 @@ const systems = computed(() => [
             <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
-                <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1000" icon="i-lucide-database" class="mt-2 w-full" />
+                <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
               </UFormField>
               <UFormField :label="t('settings.logs.days_label')" :description="t('settings.logs.days_description')">
                 <UInput v-model.number="settings.log_retention_days" type="number" min="1" max="365" icon="i-lucide-calendar-days" class="mt-2 w-full" />
@@ -230,7 +230,7 @@ const systems = computed(() => [
             </div>
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.audit.records_label')" :description="t('settings.audit.records_description')">
-                <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="10000" icon="i-lucide-database" class="mt-2 w-full" />
+                <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
               </UFormField>
               <UFormField :label="t('settings.audit.days_label')" :description="t('settings.audit.days_description')">
                 <UInput v-model.number="settings.audit_retention_days" type="number" min="30" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />

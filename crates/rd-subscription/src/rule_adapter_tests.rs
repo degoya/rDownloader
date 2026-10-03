@@ -123,6 +123,7 @@ fn subscription(every_release: bool, filters: SubscriptionFilters) -> Subscripti
         schedule: None,
         script_arguments: Vec::new(),
         indexer_search: rd_core::IndexerSearch::default(),
+        git_release: rd_core::GitReleaseOptions::default(),
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     }

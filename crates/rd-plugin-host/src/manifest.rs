@@ -24,7 +24,7 @@ use crate::{DEFAULT_FUEL, PluginLimits};
 pub const MANIFEST_VERSION: u32 = 3;
 
 /// WIT package versions of `rdownloader:plugin` this core can link a plugin against.
-pub const SUPPORTED_API_VERSIONS: &[&str] = &["0.9.0"];
+pub const SUPPORTED_API_VERSIONS: &[&str] = &["0.10.0"];
 
 /// A manifest this core refuses, in the two shapes a user can act on.
 ///

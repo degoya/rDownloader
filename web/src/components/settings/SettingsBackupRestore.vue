@@ -132,6 +132,7 @@ async function restoreBackup(): Promise<void> {
     + response.data.proxy_profiles
     + response.data.accounts
     + response.data.usenet_servers
+    + response.data.indexers
   toast.add({
     title: t('system.backup.import.success'),
     description: t('system.backup.import.success_description', { count }),

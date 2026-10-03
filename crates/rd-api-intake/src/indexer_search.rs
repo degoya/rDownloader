@@ -14,6 +14,8 @@
 //! **A hit becomes an NZB import through the upload's own path**, `store_nzb_import`: the same
 //! parser, password convention and review list a dropped `.nzb` takes.
 
+use std::collections::BTreeMap;
+
 use axum::{Json, extract::State};
 use chrono::{DateTime, Utc};
 use rd_core::{CategoryId, Indexer, IndexerId, IndexerSearch};
@@ -88,6 +90,15 @@ pub struct IndexerSearchHit {
     pub grabs: Option<u64>,
     /// Whether the indexer marks the release as passworded.
     pub passworded: bool,
+    /// What a detailed result row shows besides the title (RD-190-16), as far as the indexer
+    /// sent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at
+    /// most 300 characters). Empty when it sent none of them.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub metadata: BTreeMap<String, String>,
+    /// The cover, only ever an absolute http or https address that does not carry the API key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(format = "uri")]
+    pub cover_url: Option<String>,
 }
 
 /// How one indexer answered.
@@ -348,6 +359,8 @@ async fn search_one(
             category: hit.category.clone(),
             grabs: hit.grabs,
             passworded: hit.passworded,
+            metadata: hit.metadata.clone(),
+            cover_url: cover_without_key(hit.cover_url.as_ref(), &key),
         })
         .collect();
     Ok((hits, page))
@@ -395,6 +408,15 @@ pub(crate) fn without_key(text: &str, key: &str) -> String {
         scrubbed = scrubbed.replace(&encoded, KEY_PLACEHOLDER);
     }
     scrubbed
+}
+
+/// The cover address, unless it carries the key: a picture is fetched by the browser, so an
+/// address with the key in it would hand the key to the page. Dropped rather than scrubbed --
+/// with the placeholder in it the address would not load anyway, and the row shows the
+/// placeholder picture for a cover it does not have.
+fn cover_without_key(cover: Option<&url::Url>, key: &str) -> Option<String> {
+    let cover = cover?.as_str();
+    (without_key(cover, key) == cover).then(|| cover.to_owned())
 }
 
 /// Fetches the chosen hits and puts each into the LinkGrabber as an NZB import (RD-180-19).
@@ -564,7 +586,21 @@ async fn grab_one(
 
 #[cfg(test)]
 mod tests {
-    use super::{KEY_PLACEHOLDER, without_key};
+    use super::{KEY_PLACEHOLDER, cover_without_key, without_key};
+
+    #[test]
+    fn a_cover_that_carries_the_key_is_dropped() {
+        let plain: url::Url = "https://indexer.test/covers/1.jpg".parse().expect("url");
+        assert_eq!(
+            cover_without_key(Some(&plain), "S3CRET").as_deref(),
+            Some("https://indexer.test/covers/1.jpg")
+        );
+        let keyed: url::Url = "https://indexer.test/covers/1.jpg?apikey=S3CRET"
+            .parse()
+            .expect("url");
+        assert_eq!(cover_without_key(Some(&keyed), "S3CRET"), None);
+        assert_eq!(cover_without_key(None, "S3CRET"), None);
+    }
 
     #[test]
     fn the_key_is_replaced_wherever_it_stands() {

@@ -679,6 +679,66 @@
       "progress": "{received} sur {total}",
       "ready": "{version} est téléchargée et vérifiée ; « Installer et redémarrer » utilise ce fichier.",
       "failed": "Le téléchargement de {version} a échoué."
+    },
+    "agents": {
+      "running": "Agent de capture : {versions}",
+      "unknown": "antérieur à 1.9",
+      "outdated_title": "Redémarrez l'agent de capture",
+      "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux."
     }
+  },
+  "oidc": {
+    "eyebrow": "Fournisseur d’identité",
+    "title": "Connexion via un fournisseur d’identité",
+    "description": "Connectez-vous avec le compte que vous utilisez déjà sur Authentik, Authelia, Keycloak ou Pocket ID (OpenID Connect). Il reste un seul administrateur : le compte que vous liez ici.",
+    "redirect_uri": "URI de redirection – à enregistrer chez le fournisseur",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copy_command": "Copier la commande",
+    "external_url_missing": "Sans URL externe, il n’y a pas d’URI de redirection. Renseignez-la sous Sécurité → Proxy inverse.",
+    "linked": "Lié : {label}",
+    "unnamed": "un compte sans nom",
+    "linked_at": "Lié {moment}",
+    "not_linked": "Aucun compte lié pour l’instant",
+    "link_hint": "Lier ouvre le fournisseur ; le compte avec lequel vous vous y connectez devient l’administrateur.",
+    "link": "Lier un compte",
+    "linked_toast": "Compte lié",
+    "saved_toast": "Fournisseur d’identité enregistré",
+    "unlink": {
+      "action": "Délier",
+      "title": "Délier ce compte ?",
+      "description": "Ensuite, plus personne ne se connecte via le fournisseur tant que vous n’avez pas lié un compte à nouveau.",
+      "confirm": "Délier"
+    },
+    "remove": {
+      "action": "Retirer",
+      "title": "Retirer le fournisseur d’identité ?",
+      "description": "La configuration, le secret client et le compte lié sont supprimés.",
+      "confirm": "Retirer"
+    },
+    "password_is_off": "La connexion par mot de passe est désactivée",
+    "password_is_off_hint": "Seule la machine du service peut la réactiver : {command}. Les passkeys continuent de fonctionner et le mot de passe confirme toujours les modifications.",
+    "password_off": {
+      "action": "Désactiver la connexion par mot de passe",
+      "ready": "Cette session vient du fournisseur : vous pouvez désactiver la connexion par mot de passe.",
+      "needs_provider_session": "Connectez-vous une fois via le fournisseur ; seule cette session peut désactiver la connexion par mot de passe.",
+      "title": "Désactiver la connexion par mot de passe ?",
+      "description": "Ensuite, vous vous connectez via le fournisseur ou avec une passkey. Le retour n’est possible que sur la machine du service : {command}",
+      "confirm": "Désactiver"
+    },
+    "issuer": "Émetteur (issuer)",
+    "issuer_hint": "Exactement comme le fournisseur l’indique, avec ou sans barre oblique finale.",
+    "client_id": "ID client",
+    "client_secret": "Secret client",
+    "client_secret_kept": "Laissez vide pour conserver celui enregistré.",
+    "display_name": "Nom sur le bouton de connexion",
+    "display_name_hint": "Par exemple Authentik ou Pocket ID.",
+    "group_claim": "Claim de groupe",
+    "group_value": "Groupe",
+    "group_hint": "Facultatif : le compte lié doit aussi appartenir à ce groupe.",
+    "provider_logout": "Se déconnecter aussi chez le fournisseur",
+    "provider_logout_hint": "Désactivé : la déconnexion ne ferme que la session ici, vos autres services restent connectés.",
+    "step_up_hint": "Chaque modification ici demande à nouveau le mot de passe.",
+    "save": "Enregistrer"
   }
 }

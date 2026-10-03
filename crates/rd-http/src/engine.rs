@@ -761,7 +761,7 @@ pub(crate) fn network_failure(error: reqwest::Error) -> HttpDownloadError {
     // which for a presigned CDN link carries the signature in its query string. The message
     // is persisted in `downloads.last_error_json` and broadcast on SSE, so strip the URL and
     // redact whatever the remaining text still quotes.
-    let message = rd_core::redact_text(&error.without_url().to_string());
+    let message = rd_core::error_with_causes(&error.without_url());
     Failure::coded(category, "download.network_failed", message.clone())
         .with_param("detail", message)
         .into()

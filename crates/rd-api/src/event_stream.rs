@@ -106,16 +106,26 @@ pub async fn events(
 
 /// The event stream a paired capture agent may subscribe to. See the module documentation
 /// for why it carries two event kinds and nothing else.
+///
+/// While it is open the agent counts as running, with the version it named in its
+/// `User-Agent` (`rd_api_core::capture_agents`, RD-190-07): the stream holds the connection,
+/// and the entry ends with it.
 pub async fn capture_events(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let lapsed = rd_api_core::stream_standing::capture_lapsed(state.clone(), headers.clone());
     let stopping = state.shutdown.clone().cancelled_owned();
+    let connection = rd_api_core::capture_agents::connect(&state, &headers).await;
     Sse::new(
         open(&state.database, &headers, capture_frame)
             .take_until(lapsed)
-            .take_until(stopping),
+            .take_until(stopping)
+            .map(move |frame| {
+                // Owned by the stream, so it is dropped with the response.
+                let _held = &connection;
+                frame
+            }),
     )
     .keep_alive(KeepAlive::default())
 }

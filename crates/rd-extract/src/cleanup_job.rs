@@ -10,7 +10,17 @@ use crate::{
     steps::{checkpoint, truncate},
 };
 
+/// Folder levels the cleanup walks, counted from where unpacked content starts.
 const MAX_DEPTH: usize = 4;
+
+/// How many folder levels below the package folder the cleanup walks.
+///
+/// [`MAX_DEPTH`], and one more when every archive was unpacked into a folder of its own
+/// (RD-170-16): that folder is a level the content did not have, and without it the content of
+/// an archive was cleaned one level less deep with the option on than off (RD-190-06).
+pub(crate) fn depth(own_folders: bool) -> usize {
+    MAX_DEPTH + usize::from(own_folders)
+}
 
 /// What the cleanup removes.
 #[derive(Clone, Debug)]
@@ -47,9 +57,13 @@ impl CleanupRules {
     }
 }
 
-/// Removes unwanted files below `directory` (bounded depth, no symlinks, no escaping).
-/// Returns the removed paths.
-pub(crate) fn collect_targets(directory: &Path, rules: &CleanupRules) -> Vec<PathBuf> {
+/// The unwanted files below `directory`, at most `max_depth` folder levels down (the package
+/// folder is level 0; no symlinks, no escaping).
+pub(crate) fn collect_targets(
+    directory: &Path,
+    rules: &CleanupRules,
+    max_depth: usize,
+) -> Vec<PathBuf> {
     let Ok(root) = dunce::canonicalize(directory) else {
         return Vec::new();
     };
@@ -68,7 +82,7 @@ pub(crate) fn collect_targets(directory: &Path, rules: &CleanupRules) -> Vec<Pat
                 continue;
             }
             if metadata.is_dir() {
-                if depth + 1 < MAX_DEPTH {
+                if depth + 1 < max_depth {
                     pending.push((path, depth + 1));
                 }
                 continue;
@@ -85,12 +99,15 @@ pub(crate) fn collect_targets(directory: &Path, rules: &CleanupRules) -> Vec<Pat
     targets
 }
 
+/// Removes the targets and records the step; returns the removed files relative to `directory`,
+/// `/` between folders.
 pub(crate) async fn run(
     inner: &Inner,
     owner: &str,
     directory: &Path,
     rules: &CleanupRules,
-) -> Result<()> {
+    max_depth: usize,
+) -> Result<Vec<String>> {
     crate::steps::stage(inner, owner, rd_core::PostprocessStage::Cleaning, None).await?;
     checkpoint(
         inner,
@@ -102,19 +119,21 @@ pub(crate) async fn run(
         None,
     )
     .await?;
-    let targets = collect_targets(directory, rules);
-    let mut removed = 0_usize;
+    let targets = collect_targets(directory, rules, max_depth);
+    let root = dunce::canonicalize(directory).ok();
+    let mut gone = Vec::new();
     let mut errors = Vec::new();
     for path in &targets {
         match tokio::fs::remove_file(path).await {
-            Ok(()) => removed += 1,
+            Ok(()) => gone.push(path),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => errors.push(format!("{}: {error}", path.display())),
         }
     }
-    let folders = match dunce::canonicalize(directory) {
-        Ok(root) => remove_emptied_folders(&root, &targets).await,
-        Err(_) => 0,
+    let removed = gone.len();
+    let folders = match &root {
+        Some(root) => remove_emptied_folders(root, &targets).await,
+        None => 0,
     };
     let (state, message) = if errors.is_empty() {
         (
@@ -139,7 +158,15 @@ pub(crate) async fn run(
         None,
         Some(message),
     )
-    .await
+    .await?;
+    // Named the way a plugin step is offered the package, for the step after this one
+    // (RD-190-06). `collect_targets` walks from the canonical root, so every path is below it.
+    Ok(root.map_or_else(Vec::new, |root| {
+        gone.into_iter()
+            .filter_map(|path| path.strip_prefix(&root).ok())
+            .map(crate::plugin_step::relative_name)
+            .collect()
+    }))
 }
 
 /// Removes the folders the cleanup left empty — a `Sample` folder whose only file was the
@@ -170,7 +197,7 @@ async fn remove_emptied_folders(root: &Path, removed: &[PathBuf]) -> usize {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::{CleanupRules, collect_targets, remove_emptied_folders};
+    use super::{CleanupRules, MAX_DEPTH, collect_targets, depth, remove_emptied_folders};
 
     fn rules() -> CleanupRules {
         CleanupRules {
@@ -202,7 +229,7 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(temp.path().join("outside.nfo"), root.join("link.nfo"))
             .expect("symlink");
-        let targets = collect_targets(&root, &rules());
+        let targets = collect_targets(&root, &rules(), MAX_DEPTH);
         let names: Vec<PathBuf> = targets
             .iter()
             .map(|path| {
@@ -233,7 +260,7 @@ mod tests {
         std::fs::write(root.join("Extras/extra.nfo"), b"x").expect("nfo");
         std::fs::write(root.join("Extras/interview.mkv"), vec![0; 2048]).expect("extra");
         let root = dunce::canonicalize(&root).expect("root");
-        let targets = collect_targets(&root, &rules());
+        let targets = collect_targets(&root, &rules(), MAX_DEPTH);
         for path in &targets {
             std::fs::remove_file(path).expect("remove target");
         }
@@ -253,5 +280,36 @@ mod tests {
         );
         assert!(root.join("movie.mkv").exists());
         assert!(root.is_dir(), "the package folder itself stays");
+    }
+
+    /// RD-190-06: the same archive content, unpacked into the package folder or into a folder
+    /// of its own, is cleaned to the same depth below the content.
+    #[test]
+    fn a_folder_per_archive_is_cleaned_as_deep_as_the_package_folder() {
+        let deepest = ["a", "b", "c"];
+        let too_deep = ["a", "b", "c", "d"];
+        for (own_folders, prefix) in [(false, None), (true, Some("Film"))] {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let root = temp.path().join("pkg");
+            let content = prefix.map_or_else(|| root.clone(), |folder| root.join(folder));
+            let reached = deepest
+                .iter()
+                .fold(content.clone(), |path, part| path.join(part));
+            let beyond = too_deep
+                .iter()
+                .fold(content.clone(), |path, part| path.join(part));
+            std::fs::create_dir_all(&beyond).expect("folders");
+            std::fs::write(reached.join("release.nfo"), b"x").expect("nfo");
+            std::fs::write(beyond.join("deeper.nfo"), b"x").expect("nfo");
+            let root = dunce::canonicalize(&root).expect("root");
+
+            let targets = collect_targets(&root, &rules(), depth(own_folders));
+
+            let found: Vec<&str> = targets
+                .iter()
+                .filter_map(|path| path.file_name()?.to_str())
+                .collect();
+            assert_eq!(found, ["release.nfo"], "own folders: {own_folders}");
+        }
     }
 }

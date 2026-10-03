@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { PostprocessPluginStep, PostprocessQueueEntry, PostprocessStage } from '@/api/types'
 
 export const usePostprocessStore = defineStore('postprocess', () => {
@@ -10,6 +11,8 @@ export const usePostprocessStore = defineStore('postprocess', () => {
   const scriptsDirectory = ref<string | null>(null)
   const pluginSteps = ref<PostprocessPluginStep[]>([])
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   let scriptsLoaded = false
   let pluginStepsLoaded = false
   let refreshing: Promise<void> | null = null

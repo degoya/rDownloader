@@ -75,6 +75,16 @@ impl Actor {
         }
     }
 
+    /// A command on this machine that wrote a stopped service's database itself:
+    /// `rdownloader auth password-login on` (RD-190-15) and `auth reset-password` (RD-190-24).
+    pub fn cli() -> Self {
+        Self {
+            kind: AuditActorKind::System,
+            id: None,
+            label: Some("cli".to_owned()),
+        }
+    }
+
     pub(crate) fn token(id: impl Into<String>, label: impl Into<String>) -> Self {
         Self {
             kind: AuditActorKind::Token,

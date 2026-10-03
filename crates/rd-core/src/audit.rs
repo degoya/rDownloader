@@ -131,11 +131,26 @@ pub enum AuditAction {
     MfaEnrolled,
     /// A second factor or a passkey was removed, or the authenticator app switched off.
     MfaRemoved,
+    /// The malware scan found something in a finished package (RD-190-14), which stopped it;
+    /// the `signature`, `file` and `findings` details say what, where and how much.
+    MalwareDetected,
+    /// An identity at the identity provider was bound to the administrator (RD-190-15): a new
+    /// way in, recorded like an enrolment. The target is the issuer, never the subject.
+    IdentityLinked,
+    /// The bound identity was released, or went with the provider's configuration.
+    IdentityUnlinked,
+    /// The password sign-in was switched off from a session the provider opened, or back on
+    /// from this machine (`rdownloader auth password-login on`); the `enabled` detail says which.
+    PasswordLoginChanged,
+    /// The administrator password was set anew on the machine the service runs on, without the
+    /// current one (`rdownloader auth reset-password`, RD-190-24); the `path` detail says whether
+    /// the running service or the database of a stopped one took it. Never the password.
+    PasswordResetLocal,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 45] = [
+    pub const ALL: [Self; 50] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -181,6 +196,11 @@ impl AuditAction {
         Self::SetupCompleted,
         Self::MfaEnrolled,
         Self::MfaRemoved,
+        Self::MalwareDetected,
+        Self::IdentityLinked,
+        Self::IdentityUnlinked,
+        Self::PasswordLoginChanged,
+        Self::PasswordResetLocal,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -232,6 +252,11 @@ impl AuditAction {
             Self::SetupCompleted => "setup_completed",
             Self::MfaEnrolled => "mfa_enrolled",
             Self::MfaRemoved => "mfa_removed",
+            Self::MalwareDetected => "malware_detected",
+            Self::IdentityLinked => "identity_linked",
+            Self::IdentityUnlinked => "identity_unlinked",
+            Self::PasswordLoginChanged => "password_login_changed",
+            Self::PasswordResetLocal => "password_reset_local",
         }
     }
 

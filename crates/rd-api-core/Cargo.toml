@@ -20,6 +20,7 @@ chrono-tz.workspace = true
 dunce.workspace = true
 fs4.workspace = true
 hex.workspace = true
+openidconnect.workspace = true
 percent-encoding.workspace = true
 rand.workspace = true
 rd-authn = { path = "../rd-authn" }

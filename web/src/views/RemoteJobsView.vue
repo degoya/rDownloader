@@ -15,6 +15,7 @@ import { api, responseError } from '@/api/client'
 import type { Account } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsRemoteJobsCard from '@/components/settings/SettingsRemoteJobsCard.vue'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 
 const { t } = useI18n()
 const accounts = ref<Account[]>([])
@@ -22,6 +23,7 @@ const accounts = ref<Account[]>([])
 const accountsLoading = ref(true)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
+clearWhenReconnected(error)
 
 onMounted(async () => {
   const response = await api.GET('/api/v1/accounts')

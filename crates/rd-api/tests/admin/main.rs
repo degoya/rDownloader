@@ -8,6 +8,7 @@
 #[path = "../common/mod.rs"]
 mod common;
 
+mod archive_password_backup;
 mod area_backup;
 mod automation_triggers;
 mod automations;

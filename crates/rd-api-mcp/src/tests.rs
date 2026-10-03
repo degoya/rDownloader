@@ -205,3 +205,19 @@ fn no_tool_accepts_a_credential() {
         );
     }
 }
+
+/// `list_downloads` offers the web UI's Seeding filter, and it takes no other state (RD-190-21).
+#[test]
+fn the_seeding_filter_keeps_only_seeding_downloads() {
+    use rd_core::DownloadState as S;
+
+    let filter: crate::params::StateFilter =
+        serde_json::from_value(serde_json::json!("seeding")).expect("seeding is a filter");
+    assert!(filter.matches(S::Seeding));
+    for state in [S::Completed, S::Downloading, S::Paused, S::Failed] {
+        assert!(
+            !filter.matches(state),
+            "{state:?} passed the seeding filter"
+        );
+    }
+}

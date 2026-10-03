@@ -73,6 +73,7 @@ function category(id: string, name: string): Category {
     cleanup_extensions: null,
     recursive_unpack: null,
     unpack_to_subfolder: null,
+    malware_scan: null,
     sfv_verify: null,
     safe_postproc: null,
     delete_par2: null,

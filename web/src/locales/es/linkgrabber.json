@@ -2,7 +2,7 @@
   "title": "LinkGrabber",
   "actions": {
     "add_links": "Añadir enlaces",
-    "import_files": "Importar NZB/torrent",
+    "import_files": "Importar",
     "check_links": "Comprobar enlaces",
     "enqueue_all": "Cargar todo",
     "enqueue_paused": "Añadir en pausa",
@@ -16,7 +16,8 @@
     "delete_package": "Eliminar paquete",
     "delete_nzb": "Eliminar importación NZB",
     "details": "Detalles",
-    "link_actions": "Acciones del enlace"
+    "link_actions": "Acciones del enlace",
+    "more": "Más acciones"
   },
   "sort": {
     "label": "Orden",
@@ -48,7 +49,8 @@
   "bulk": {
     "enqueued": "{links} enlaces y {nzbs} importaciones NZB añadidos",
     "free_download": "{count} enlace se descargará sin cuenta (gratis/directo) | {count} enlaces se descargarán sin cuenta (gratis/directo)",
-    "enqueue_failed": "{count} paquete no se pudo poner en cola | {count} paquetes no se pudieron poner en cola"
+    "enqueue_failed": "{count} paquete no se pudo poner en cola | {count} paquetes no se pudieron poner en cola",
+    "removing": "{done} de {total} eliminados …"
   },
   "package": {
     "select": "Seleccionar paquete",
@@ -170,7 +172,7 @@
     "batch": "Importación de archivos finalizada",
     "batch_description": "{created} importados, {duplicates} duplicados, {errors} errores.",
     "container_imported": "Contenedor importado",
-    "container_imported_description": "«{name}» añadió {count} enlace(s) al LinkGrabber.",
+    "container_imported_description": "«{name}» añadió {count} enlace al LinkGrabber. | «{name}» añadió {count} enlaces al LinkGrabber.",
     "container_failed": "Error al importar el contenedor"
   },
   "confirm": {

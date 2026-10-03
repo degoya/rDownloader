@@ -750,7 +750,8 @@ async fn a_machine_tokens_use_is_recorded() {
 /// Two of them — installing and removing a plugin — need a signed `.rdplug` package, which
 /// the harness cannot build, so the matrix above cannot perform them. This reads the sources
 /// instead: an action that exists in `rd_core::AuditAction` and is never constructed in
-/// `rd-api` (or, for the overwrite a policy performs, in `rd-scheduler`) is a word in a filter that nothing can ever match, and that is worth failing over
+/// `rd-api` (or, for the overwrite a policy performs, in `rd-scheduler`, and for a malware
+/// finding, in `rd-extract`) is a word in a filter that nothing can ever match, and that is worth failing over
 /// whether or not a request can reach it here.
 #[test]
 fn every_action_in_the_vocabulary_is_written_somewhere() {
@@ -795,6 +796,15 @@ fn every_action_in_the_vocabulary_is_written_somewhere() {
         "the queue no longer records the overwrites it performs"
     );
     sources.push_str(&scheduler);
+    // The other: a malware finding stops a package inside the post-processing pipeline, again
+    // with nobody's request behind it (RD-190-14).
+    let mut pipeline = String::new();
+    collect(&manifest.join("../rd-extract/src"), &mut pipeline);
+    assert!(
+        pipeline.contains("AuditAction::MalwareDetected"),
+        "the pipeline no longer records the malware it finds"
+    );
+    sources.push_str(&pipeline);
     for action in rd_core::AuditAction::ALL {
         let variant = format!("{action:?}");
         assert!(

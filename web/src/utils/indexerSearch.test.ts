@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { IndexerSearchHit } from '@/api/types'
 
-import { ageInDays, hitKey, maxAgeDays, queryProblem, sortHits } from './indexerSearch'
+import { ageInDays, hitCoverUrl, hitDescription, hitFacts, hitKey, maxAgeDays, queryProblem, sortHits } from './indexerSearch'
 
 function hit(title: string, extra: Partial<IndexerSearchHit> = {}): IndexerSearchHit {
   return {
@@ -73,5 +73,23 @@ describe('sortHits', () => {
 
   it('tells the same release from two indexers apart', () => {
     expect(hitKey(hit('a'))).not.toBe(hitKey(hit('a', { indexer_id: 'two' })))
+  })
+})
+
+describe('the detailed row (RD-190-16)', () => {
+  const t = (key: string) => key.split('.').at(-1) as string
+
+  it('reads the facts in reading order, only those the indexer sent', () => {
+    const facts = hitFacts({ metadata: { resolution: '1080p', year: '2024', imdbscore: '7.5', description: 'Plot.' } }, t)
+    expect(facts.map(fact => [fact.label, fact.value])).toEqual([['year', '2024'], ['imdbscore', '7.5'], ['resolution', '1080p']])
+    expect(hitFacts({}, t)).toEqual([])
+    expect(hitDescription({ metadata: { description: 'Plot.' } })).toBe('Plot.')
+    expect(hitDescription({ metadata: {} })).toBeNull()
+  })
+
+  it('hands out the cover only while pictures are allowed', () => {
+    expect(hitCoverUrl({ cover_url: 'https://covers.test/a.jpg' }, true)).toBe('https://covers.test/a.jpg')
+    expect(hitCoverUrl({ cover_url: 'https://covers.test/a.jpg' }, false)).toBeNull()
+    expect(hitCoverUrl({}, true)).toBeNull()
   })
 })

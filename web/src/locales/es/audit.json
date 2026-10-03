@@ -71,7 +71,12 @@
     "content_index_cleared": "Índice de contenido vaciado",
     "setup_completed": "Configuración inicial completada",
     "mfa_enrolled": "Segundo factor añadido",
-    "mfa_removed": "Segundo factor eliminado"
+    "mfa_removed": "Segundo factor eliminado",
+    "malware_detected": "Malware detectado",
+    "identity_linked": "Cuenta del proveedor de identidad vinculada",
+    "identity_unlinked": "Cuenta del proveedor de identidad desvinculada",
+    "password_login_changed": "Inicio de sesión con contraseña cambiado",
+    "password_reset_local": "Contraseña restablecida en el equipo"
   },
   "list": {
     "title": "Registros",

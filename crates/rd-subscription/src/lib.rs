@@ -1,5 +1,6 @@
-//! Subscriptions: polling channels, playlists, galleries, feeds, indexers and scripts on their
-//! own schedule, and turning what is new into LinkGrabber intake (RD-080-07).
+//! Subscriptions: polling channels, playlists, galleries, feeds, indexers, scripts and the
+//! releases of GitHub and GitLab repositories (RD-190-13) on their own schedule, and turning
+//! what is new into LinkGrabber intake (RD-080-07).
 //!
 //! The crate is the *logic* half — identity, filtering, scheduling and the source adapters.
 //! The domain types live in `rd-core` because the database and the API both speak them, and
@@ -16,6 +17,8 @@ mod caps;
 mod feed;
 mod feed_adapter;
 mod filter;
+mod git_release;
+mod git_release_adapter;
 mod identity;
 mod indexer;
 mod media_adapter;
@@ -27,7 +30,7 @@ mod schedule;
 mod script_adapter;
 mod search;
 
-pub use adapter::{DiscoveredItem, PollOutcome, SourceAdapter, adapter_for};
+pub use adapter::{DiscoveredItem, PollOutcome, RateLimited, SourceAdapter, adapter_for};
 pub use attributes::{
     MAX_FIELDS as MAX_ATTRIBUTE_FIELDS, MAX_TOTAL as MAX_ATTRIBUTE_TOTAL,
     MAX_VALUE as MAX_ATTRIBUTE_VALUE, RetainedAttributes, retain as retain_attributes,
@@ -38,6 +41,14 @@ pub use feed::{
 };
 pub use feed_adapter::{FeedAdapter, FeedFetcher, FetchedFeed};
 pub use filter::{CandidateItem, Decision, evaluate};
+pub use git_release::{
+    ChecksumFile, Repository as GitRepository, architecture_of, checksum_file, glob_matches,
+    looks_like_prerelease, parse_checksums, platform_of, selects as git_release_selects,
+};
+pub use git_release_adapter::{
+    ApiFetcher, ApiResponse, GitReleaseAdapter, MAX_CHECKSUM_BYTES, MAX_RELEASE_LIST_BYTES,
+    RELEASES_PER_POLL, rate_limit_pause,
+};
 pub use identity::{ItemIdentity, item_key, normalize_url};
 pub use indexer::{
     DEFAULT_LIMIT, IndexerAdapter, SecretResolver, build_caps_query, build_query, indexer_error,

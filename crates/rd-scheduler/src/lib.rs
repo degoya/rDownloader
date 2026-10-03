@@ -20,6 +20,7 @@ pub mod mirrors;
 mod naming;
 mod profile_boundary;
 mod provider;
+mod queue_pause;
 mod rates;
 mod replay;
 mod retry;
@@ -56,6 +57,7 @@ pub use content_index::ContentIndexCheck;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
 use provider::ProviderSlot;
+pub use queue_pause::QueuePause;
 pub use rates::estimate_seconds;
 pub use runner::{ExternalRunner, HTTP_REUSE, RunLimits, RunOutcome};
 
@@ -211,6 +213,9 @@ pub struct SchedulerHandle {
     active: Arc<Mutex<ActiveState>>,
     /// Why the network context holds the queue (battery, metered); `None` = running.
     network_hold: Arc<holds::Holds>,
+    /// The timed pause of the whole queue (RD-190-20); its record is persisted, this is the copy
+    /// the supervise loop checks the end against.
+    queue_pause: Arc<Mutex<Option<QueuePause>>>,
     /// Hosters holding back their free downloads after an IP limit.
     host_blocks: hostblock::HostBlocks,
     /// Connections one host may see, and the hosts that proved they ignore ranges.
@@ -229,10 +234,22 @@ pub struct SchedulerHandle {
     /// the same package; two passes of the move protocol at once each found the other's files
     /// already gone (seen as `NotFound` in the scheduler's relocation tests under load).
     relocations: Arc<tokio::sync::Mutex<()>>,
+    /// Becomes `true` once the start's background storage work (`recover_storage_work`) has
+    /// run, so a caller can tell a move it starts itself from one the start resumed.
+    storage_recovered: Arc<tokio::sync::watch::Sender<bool>>,
     shutdown: CancellationToken,
 }
 
 impl SchedulerHandle {
+    /// Waits until the start's background storage work has run: the moves the previous run
+    /// left are carried on and the content index is checked. A move set up before that may be
+    /// finished by it, which a test that interrupts a move of its own has to rule out.
+    pub async fn storage_recovery_finished(&self) {
+        let mut done = self.storage_recovered.subscribe();
+        // A sender that is gone has nothing left to wait for.
+        let _ = done.wait_for(|finished| *finished).await;
+    }
+
     /// The host capabilities the resolver chain runs on.
     ///
     /// The extension plugin types reach the network through the same host a resolver does,
@@ -332,6 +349,7 @@ impl SchedulerHandle {
             secrets,
             active: Arc::new(Mutex::new(ActiveState::default())),
             network_hold: Arc::new(holds::Holds::default()),
+            queue_pause: Arc::new(Mutex::new(None)),
             host_blocks: hostblock::HostBlocks::default(),
             host_limits,
             provider_slots: Arc::new(Mutex::new(HashMap::new())),
@@ -339,6 +357,7 @@ impl SchedulerHandle {
             runners: Arc::new(runner::RunnerRegistry::new(runners)),
             rates: Arc::new(rates::RateSampler::default()),
             relocations: Arc::new(tokio::sync::Mutex::new(())),
+            storage_recovered: Arc::new(tokio::sync::watch::Sender::new(false)),
             shutdown: CancellationToken::new(),
         };
         // Closes `scheduler.before_mirror_promoted`: a group whose active member failed while
@@ -353,12 +372,19 @@ impl SchedulerHandle {
         if let Err(error) = handle.reload_bandwidth().await {
             tracing::warn!(%error, "bandwidth profiles could not be loaded");
         }
+        // Before the first dispatch, so a file the pause holds does not start in the gap.
+        if let Err(error) = handle.restore_queue_pause().await {
+            tracing::warn!(%error, "the timed queue pause could not be restored");
+        }
         // Storage work the previous run left: category moves to finish, the history to
         // settle, the content index to check against the disk (RD-150-02). In the background,
         // because a cross-device move is a copy and the queue must not wait for it.
         {
             let recovering = handle.clone();
-            tokio::spawn(async move { recovering.recover_storage_work().await });
+            tokio::spawn(async move {
+                recovering.recover_storage_work().await;
+                recovering.storage_recovered.send_replace(true);
+            });
         }
         tokio::spawn(handle.clone().supervise());
         Ok(handle)
@@ -876,6 +902,11 @@ impl SchedulerHandle {
                         && let Err(error) = self.supervise_rates().await
                     {
                         tracing::error!(%error, "transfer rate sampling failed");
+                    }
+                    // Every tick, and before the dispatch below: the end of a pause is the
+                    // moment its files may start, not up to a second later.
+                    if let Err(error) = self.supervise_queue_pause().await {
+                        tracing::error!(%error, "the timed queue pause could not be ended");
                     }
                     if let Err(error) = self.schedule_runnable().await {
                         tracing::error!(%error, "queue supervision failed");

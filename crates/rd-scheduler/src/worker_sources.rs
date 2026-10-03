@@ -366,7 +366,7 @@ async fn mirror_endpoint(
     let Some(target) = rd_core::RemoteTarget::parse(&source.url) else {
         return Err(Failure::coded(
             FailureKind::Permanent,
-            "download.failed",
+            "download.mirror_address_invalid",
             "the mirror's address is not a valid remote link",
         ));
     };

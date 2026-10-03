@@ -12,6 +12,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::commands::{Reply, WriterCommand};
 
+mod archive_passwords;
 mod audit;
 mod auth;
 mod bandwidth;
@@ -281,6 +282,7 @@ impl Writer {
                 | WriterCommand::UpsertNotificationRule { .. }
                 | WriterCommand::DeleteNotificationRule { .. }
                 | WriterCommand::QueueNotificationDelivery { .. }
+                | WriterCommand::QueueNotificationNotice { .. }
                 | WriterCommand::RecordNotificationAttempt { .. }
                 | WriterCommand::ClearNotificationDeliveries { .. }
                 | WriterCommand::DiscardPendingNotificationDeliveries { .. }
@@ -305,7 +307,14 @@ impl Writer {
                 | WriterCommand::PurgeOldEvents { .. }
                 | WriterCommand::PruneTransferStats { .. }
                 | WriterCommand::ClearTransferStats { .. }
+                | WriterCommand::Vacuum { .. }
                 | WriterCommand::VacuumInto { .. }) => self.handle_maintenance(command).await,
+                command @ (WriterCommand::ReserveArchivePasswords { .. }
+                | WriterCommand::ReleaseArchivePasswords { .. }
+                | WriterCommand::AdoptArchivePasswords { .. }
+                | WriterCommand::ForgetArchivePasswords { .. }) => {
+                    self.handle_archive_passwords(command).await
+                }
                 command @ (WriterCommand::SaveBackupConfig { .. }
                 | WriterCommand::SetBackupKey { .. }
                 | WriterCommand::ArmBackup { .. }

@@ -62,6 +62,8 @@ cat > "$TREE/docs/feature-list.md" <<'EOF'
 
 - Versioned WIT interface `rdownloader:plugin@0.9.0` with manifest version 3.
 - 2 tools: everything the interface does except what is deliberately kept out.
+
+| Current project version | 1.3.1 |
 EOF
 printf 'Carrying it would make all 2\nsigned components stale. The contract moved to `rdownloader:plugin@0.7.0` once.\n\n- WIT version: the plugin package is `rdownloader:plugin@0.9.0`.\n' \
     > "$TREE/docs/plugins.md"
@@ -80,10 +82,10 @@ expect "a current tree passes, wiki included" '[[ $status -eq 0 ]] && has "$SCRA
 
 sed -i 's/^version = "1.3.1"/version = "1.4.0"/' "$TREE/Cargo.toml"
 run --check
-expect "a moved version is named with its place" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "docs/feature-list.md:3: version is 1.3.1, the source says 1.4.0"'
+expect "a moved version is named with its place" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "docs/feature-list.md:3: version is 1.3.1, the source says 1.4.0" && has "$SCRATCH/out" "docs/feature-list.md:10: version is 1.3.1, the source says 1.4.0"'
 expect "check writes nothing" 'diff -rq "$SCRATCH/pristine/docs" "$TREE/docs" > /dev/null'
 run --date 2026-10-02
-expect "the write sets version and date together" '[[ $status -eq 0 ]] && has "$TREE/docs/feature-list.md" "> As of October 2, 2026 · Source version 1.4.0. This document"'
+expect "the write sets version and date together" '[[ $status -eq 0 ]] && has "$TREE/docs/feature-list.md" "> As of October 2, 2026 · Source version 1.4.0. This document" && has "$TREE/docs/feature-list.md" "| Current project version | 1.4.0 |"'
 run --date 2026-10-09
 expect "a second write changes nothing, the date included" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "0 file(s) changed" && has "$TREE/docs/feature-list.md" "As of October 2, 2026"'
 expect "a dependency version is not the workspace version" '! has "$SCRATCH/out" "9.9.9"'

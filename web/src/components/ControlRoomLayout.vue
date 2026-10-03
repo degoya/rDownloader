@@ -13,6 +13,8 @@ import TransferRail from '@/components/TransferRail.vue'
 import UpdateNotice from '@/components/UpdateNotice.vue'
 import { useAppShortcuts } from '@/composables/useAppShortcuts'
 import { useAppTour } from '@/composables/useAppTour'
+import { serviceConnection } from '@/composables/serviceConnection'
+import { useConnectionNotices } from '@/composables/useConnectionNotices'
 import { useFileImportDropZone } from '@/composables/useNzbDropZone'
 import { sidebarCollapsed } from '@/composables/sidebarCollapse'
 import { SETTINGS_SECTION_GROUPS } from '@/settingsSections'
@@ -41,6 +43,10 @@ onMounted(async () => {
 const { dropActive } = useFileImportDropZone()
 // Global single-key shortcuts (any route, while authenticated); unbinds automatically on unmount.
 useAppShortcuts()
+// The toast when the service is lost, and the reload of a view that could not be fetched.
+useConnectionNotices()
+const connected = computed(() => serviceConnection.value === 'connected')
+const connectionLabel = computed(() => t(connected.value ? 'nav.connected' : 'nav.connection.lost'))
 // The listen port is configurable, so the address has to come from the connection the user
 // actually reached the UI on rather than from a hardcoded default.
 const endpoint = window.location.host
@@ -223,19 +229,22 @@ const items = computed<NavigationMenuItem[][]>(() => [[
         <div data-testid="sidebar-footer" class="w-full min-w-0 border-t border-muted pt-2">
           <UpdateNotice :collapsed="collapsed" />
           <PreferencesFooter :collapsed="collapsed" />
-          <UTooltip :text="t('nav.connected')" :disabled="!collapsed">
+          <UTooltip :text="connectionLabel" :disabled="!collapsed">
             <div
               data-testid="sidebar-connection"
+              :data-state="serviceConnection"
               :class="collapsed ? 'flex flex-col items-center gap-2 py-1.5' : 'flex items-center gap-2 px-2 py-1.5'"
             >
               <!-- The pulse is decoration; what it means is in the label beside it, which is
-                   what a screen reader reads. -->
+                   what a screen reader reads. Lost, the dot stops pulsing and turns red, and
+                   the endpoint gives way to the words, which a colour alone would not carry. -->
               <span class="relative flex size-2 shrink-0" aria-hidden="true">
-                <span class="absolute inline-flex size-full animate-ping bg-success opacity-50" />
-                <span class="relative inline-flex size-2 bg-success" />
+                <span v-if="connected" class="absolute inline-flex size-full animate-ping bg-success opacity-50" />
+                <span class="relative inline-flex size-2" :class="connected ? 'bg-success' : 'bg-error'" />
               </span>
-              <span class="visually-hidden">{{ t('nav.connected') }}</span>
-              <span v-if="!collapsed" class="font-mono text-xs text-toned">{{ endpoint }}</span>
+              <span class="visually-hidden" role="status">{{ connectionLabel }}</span>
+              <span v-if="!collapsed && connected" class="font-mono text-xs text-toned">{{ endpoint }}</span>
+              <span v-else-if="!collapsed" class="min-w-0 truncate text-xs text-error" :title="endpoint" aria-hidden="true">{{ connectionLabel }}</span>
               <!-- Beside the endpoint rather than in the navigation: signing out is not a
                    place to go, and the footer is where what applies to this session lives.
                    Hidden when sign-in is switched off, since there is no session to end. -->

@@ -10,10 +10,12 @@ mod common;
 
 mod auto_remove;
 mod bandwidth;
+mod bandwidth_manual;
 mod category_move_and_reset;
 mod clear_list;
 mod collisions;
 mod power;
+mod queue_pause;
 mod reconnect;
 mod reorder;
 mod service_switches;

@@ -64,6 +64,15 @@ export const INSTALL_ENDED: readonly UpdateInstallState[] = ['done', 'rolled_bac
 export type InstallKind =
   | 'portable' | 'msi' | 'deb' | 'rpm' | 'homebrew' | 'scoop' | 'winget' | 'aur' | 'docker' | 'unknown'
 
+/**
+ * A capture agent connected right now (RD-190-07): the version it reported, `null` for an agent
+ * from before 1.9, which reports none, and whether it is older than the service.
+ */
+export interface CaptureAgentVersion {
+  version: string | null
+  outdated: boolean
+}
+
 export interface UpdateStatus {
   current_version: string
   configured: boolean
@@ -81,6 +90,8 @@ export interface UpdateStatus {
   install: UpdateInstall | null
   /** The background download of the offered version, if one was asked for. */
   download: UpdateDownload | null
+  /** The capture agents connected right now; empty when none runs. */
+  capture_agents: CaptureAgentVersion[]
 }
 
 export const fetchUpdateStatus = () => call<UpdateStatus>('GET', '/api/v1/system/update')

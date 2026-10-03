@@ -144,12 +144,29 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/auth-profiles/{id}/test", Method::POST, SECRETS),
     entry("/api/v1/auth/login", Method::POST, PUBLIC),
     entry("/api/v1/auth/logout", Method::POST, PUBLIC),
+    // The identity provider (RD-190-15): its configuration and the bound identity create a way
+    // in, so they cost what a passkey enrolment costs; the handlers demand a session and the
+    // password on top (O-CONF). The start and the callback are the sign-in itself.
+    entry("/api/v1/auth/oidc", Method::DELETE, SECRETS),
+    entry("/api/v1/auth/oidc", Method::GET, SECRETS),
+    entry("/api/v1/auth/oidc", Method::PUT, SECRETS),
+    entry("/api/v1/auth/oidc/callback", Method::GET, PUBLIC),
+    entry("/api/v1/auth/oidc/identity", Method::DELETE, SECRETS),
+    entry("/api/v1/auth/oidc/link", Method::POST, SECRETS),
+    entry("/api/v1/auth/oidc/start", Method::GET, PUBLIC),
     entry("/api/v1/auth/passkey/challenge", Method::POST, PUBLIC),
     entry("/api/v1/auth/passkey/login", Method::POST, PUBLIC),
     // Not public, unlike the rest of `/auth`: a change of the administrator password is a
     // credential write, so it costs what handing out a credential costs (RD-120-22). The
     // current password is demanded on top of that, inside the handler.
     entry("/api/v1/auth/password", Method::POST, SECRETS),
+    entry("/api/v1/auth/password-login/off", Method::POST, SECRETS),
+    // Back on only from this machine (D3): the local control token opens it, priced like the
+    // other routes it opens, and the handler refuses every other credential.
+    entry("/api/v1/auth/password-login/on", Method::POST, ADMIN),
+    // A new password without the current one (RD-190-24): only the local control token opens
+    // it, priced like the way back in above, and the handler refuses every other credential.
+    entry("/api/v1/auth/password/reset", Method::POST, ADMIN),
     entry("/api/v1/auth/setup", Method::POST, PUBLIC),
     entry("/api/v1/auth/status", Method::GET, PUBLIC),
     entry("/api/v1/automations", Method::GET, CONFIG),
@@ -200,6 +217,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/backups/runs", Method::POST, ADMIN),
     entry("/api/v1/backups/verifications", Method::GET, ADMIN),
     entry("/api/v1/bandwidth/capabilities", Method::GET, READ),
+    entry("/api/v1/bandwidth/manual", Method::DELETE, CONFIG),
+    entry("/api/v1/bandwidth/manual", Method::PUT, CONFIG),
     entry("/api/v1/bandwidth/profiles", Method::GET, CONFIG),
     entry("/api/v1/bandwidth/profiles", Method::POST, CONFIG),
     entry("/api/v1/bandwidth/profiles/{id}", Method::DELETE, CONFIG),
@@ -591,6 +610,11 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/plugins/{id}/lifecycle/stage", Method::POST, ADMIN),
     entry("/api/v1/plugins/{id}/lifecycle/trial", Method::POST, ADMIN),
     entry("/api/v1/plugins/{id}/{version}", Method::DELETE, ADMIN),
+    entry(
+        "/api/v1/postprocess/malware-scanner/test",
+        Method::POST,
+        CONFIG,
+    ),
     entry("/api/v1/postprocess/plugin-steps", Method::GET, QUEUE),
     entry("/api/v1/postprocess/queue", Method::GET, READ),
     entry("/api/v1/postprocess/scripts", Method::GET, QUEUE),
@@ -606,6 +630,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/proxy-profiles", Method::POST, SECRETS),
     entry("/api/v1/proxy-profiles/{id}", Method::DELETE, SECRETS),
     entry("/api/v1/proxy-profiles/{id}", Method::PUT, SECRETS),
+    entry("/api/v1/queue/pause", Method::DELETE, QUEUE),
+    entry("/api/v1/queue/pause", Method::GET, READ),
+    entry("/api/v1/queue/pause", Method::PUT, QUEUE),
     entry("/api/v1/reconnect", Method::GET, ADMIN),
     entry("/api/v1/reconnect", Method::POST, ADMIN),
     entry("/api/v1/remote-credentials", Method::GET, SECRETS),
@@ -884,6 +911,12 @@ mod tests {
             // leave someone whose session already lapsed unable to clear the stale cookie
             // their browser keeps sending.
             "/api/v1/auth/logout",
+            // Both halves of a sign-in through the identity provider (RD-190-15): browser
+            // navigations, the second one from the provider's site, which a `SameSite=Strict`
+            // session cookie does not travel from. The callback's credential is the `state`
+            // together with the `rd_oidc` binding of the browser that started it.
+            "/api/v1/auth/oidc/callback",
+            "/api/v1/auth/oidc/start",
             // Both halves of a passkey sign-in, for the same reason the password login is
             // public: they are how a caller stops being anonymous. The challenge half is the
             // one that allocates server state for an anonymous caller, which is why the

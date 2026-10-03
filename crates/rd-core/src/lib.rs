@@ -16,6 +16,7 @@ mod error;
 mod event;
 pub mod failpoint;
 mod gallery;
+mod git_release;
 mod hotfolder;
 mod ids;
 mod indexer;
@@ -58,11 +59,11 @@ pub use backup::{BackupOrigin, BackupRunState, BackupVerifyState};
 pub use bandwidth::{BandwidthSettings, DEFAULT_BANDWIDTH_TIMEZONE};
 pub use capture::{
     API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
-    API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_CONTRACT_VERSION, CAPTURE_SCOPE,
-    CAPTURED_HEADER_ALLOWLIST, CaptureToken, CapturedHeader, CapturedRequest, MAX_CAPTURE_LINKS,
-    MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS, MAX_CAPTURED_VALUE, Scope, granted_scopes,
-    is_allowed_captured_header, is_credential_header, scope_satisfies, scopes_grant,
-    scopes_satisfy,
+    API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_AGENT_PRODUCT, CAPTURE_CONTRACT_VERSION,
+    CAPTURE_SCOPE, CAPTURED_HEADER_ALLOWLIST, CaptureToken, CapturedHeader, CapturedRequest,
+    MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS, MAX_CAPTURED_VALUE, Scope,
+    granted_scopes, is_allowed_captured_header, is_credential_header, scope_satisfies,
+    scopes_grant, scopes_satisfy,
 };
 pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CollectorBatch, CollectorPackage,
@@ -91,6 +92,10 @@ pub use download::{
 pub use error::{Failure, FailureKind, MessageParams};
 pub use event::{EventEnvelope, EventKind};
 pub use gallery::{GALLERY_PROVIDER, GallerySettings};
+pub use git_release::{
+    GitArchitecture, GitForge, GitPlatform, GitReleaseOptions, MAX_ASSET_PATTERN_CHARS,
+    MAX_ASSET_PATTERNS,
+};
 pub use hotfolder::{
     DEFAULT_HOTFOLDER_POLL_SECONDS, HOTFOLDER_POLL_SECONDS_RANGE, HotFolderSettings,
 };
@@ -105,8 +110,8 @@ pub use ids::{
     SubscriptionRunId, UsenetServerId,
 };
 pub use indexer::{
-    Indexer, IndexerSearch, MAX_INDEXER_AGE_DAYS, MAX_INDEXER_PRETIME, MAX_INDEXER_QUERY_CHARS,
-    MIN_INDEXER_QUERY_CHARS,
+    Indexer, IndexerListStyle, IndexerSearch, MAX_INDEXER_AGE_DAYS, MAX_INDEXER_PRETIME,
+    MAX_INDEXER_QUERY_CHARS, MIN_INDEXER_QUERY_CHARS,
 };
 pub use media::{
     AudioCodecFamily, AudioTrack, AudioTrackPolicy, CONTAINERS, ContainerCapabilities,
@@ -142,7 +147,7 @@ pub use recording::{
     SidecarPolicy, SidecarStatus, SplitPolicy, segment_name,
 };
 pub use redact::{
-    REDACTION_PLACEHOLDER, Redacted, SIGNED_QUERY_MARKERS, SIGNED_QUERY_SECRETS,
+    REDACTION_PLACEHOLDER, Redacted, SIGNED_QUERY_MARKERS, SIGNED_QUERY_SECRETS, error_with_causes,
     is_secret_parameter, is_signed_url, redact_failure, redact_header_value, redact_params,
     redact_text, redact_url, signed_url_expiry,
 };
@@ -168,7 +173,10 @@ pub use session::{
     DEFAULT_SESSION_IDLE_HOURS, DEFAULT_SESSION_MAX_HOURS, MAX_USER_AGENT,
     SESSION_IDLE_HOURS_RANGE, SESSION_MAX_HOURS_RANGE, Session, SessionLimits, truncate_user_agent,
 };
-pub use settings::{PostprocessSettings, ServiceSwitches};
+pub use settings::{
+    DEFAULT_CLAMD_ADDRESS, DEFAULT_MALWARE_SCAN_MAX_BYTES, DEFAULT_MALWARE_SCAN_TIMEOUT_SECONDS,
+    PostprocessSettings, ServiceSwitches,
+};
 pub use source_identity::{
     SourceIdentity, SourceIdentityKind, magnet_info_hash, normalized_url as normalized_source_url,
 };
@@ -189,14 +197,14 @@ pub use stream_schedule::{
 };
 pub use subscription::{
     BacklogPolicy, CategoryMapping, DEFAULT_POLL_INTERVAL_SECONDS, FilterReason,
-    MAX_CATEGORY_MAPPINGS, MAX_FILTER_PATTERNS, MAX_ITEM_KEY, MAX_ITEMS_PER_POLL,
-    MAX_POLL_INTERVAL_SECONDS, MAX_SCRIPT_ARGUMENT_CHARS, MAX_SCRIPT_ARGUMENTS,
-    MIN_POLL_INTERVAL_SECONDS, SCRIPT_URL_SCHEME, SITE_RULE_MIN_POLL_INTERVAL_SECONDS,
-    Subscription, SubscriptionBulkStateResponse, SubscriptionCardRatio, SubscriptionFilters,
-    SubscriptionHistoryClearResponse, SubscriptionItem, SubscriptionItemCounts,
-    SubscriptionItemPage, SubscriptionItemState, SubscriptionKind, SubscriptionMode,
-    SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun, SubscriptionSettings,
-    SubscriptionView,
+    GIT_RELEASE_MIN_POLL_INTERVAL_SECONDS, MAX_CATEGORY_MAPPINGS, MAX_FILTER_PATTERNS,
+    MAX_ITEM_KEY, MAX_ITEMS_PER_POLL, MAX_POLL_INTERVAL_SECONDS, MAX_SCRIPT_ARGUMENT_CHARS,
+    MAX_SCRIPT_ARGUMENTS, MIN_POLL_INTERVAL_SECONDS, SCRIPT_URL_SCHEME,
+    SITE_RULE_MIN_POLL_INTERVAL_SECONDS, Subscription, SubscriptionBulkStateResponse,
+    SubscriptionCardRatio, SubscriptionFilters, SubscriptionHistoryClearResponse, SubscriptionItem,
+    SubscriptionItemCounts, SubscriptionItemPage, SubscriptionItemState, SubscriptionKind,
+    SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun,
+    SubscriptionSettings, SubscriptionView,
 };
 pub use toolpath::{
     ManagedTool, ManagedToolResolver, ManagedToolSettings, ResolvedTool, ToolLease, ToolSource,

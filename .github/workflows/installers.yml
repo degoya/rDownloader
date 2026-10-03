@@ -9,6 +9,7 @@ name: Installers
 #
 #   deb on Ubuntu 24.04: apt install, the packaged systemd user unit under a lingering user manager
 #   rpm in a Fedora container: dnf install, the service run as a user
+#   both for x86_64 on ubuntu-24.04 and for aarch64 on ubuntu-24.04-arm, each natively (RD-190-12)
 #   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade
 #   macOS: `rdownloader-capture scheme install|remove` against Launch Services, the helper app
 #     built as release.yml builds it
@@ -50,8 +51,23 @@ env:
 
 jobs:
   linux:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+            nfpm: x86_64
+            nfpm_sha256: 0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+            nfpm: arm64
+            nfpm_sha256: 1c0f5f2999b9a974bfb04fdb0cc3306096de530ac5dbb25d739cc5f5219c919c
+    name: linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
     permissions:
       contents: read
     steps:
@@ -89,21 +105,25 @@ jobs:
           cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md stage/
           cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
             scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/
-          rd_write_version_file stage "$(scripts/set-version.sh)" "linux x86_64" debug
+          rd_write_version_file stage "$(scripts/set-version.sh)" "linux ${ARCH}" debug
           gh release download --repo "${GITHUB_REPOSITORY}" --pattern '*.rdplug' --dir stage/plugins
-          tar --directory stage --create --gzip --file rdownloader-linux-x86_64.tar.gz .
-          rd_check_archive_layout rdownloader-linux-x86_64.tar.gz linux
+          tar --directory stage --create --gzip --file "rdownloader-linux-${ARCH}.tar.gz" .
+          rd_check_archive_layout "rdownloader-linux-${ARCH}.tar.gz" linux
+      # The runner's own nfpm build, checked against the SHA-256 in nfpm's checksums.txt.
       - name: Install nfpm
         shell: bash
+        env:
+          NFPM: ${{ matrix.nfpm }}
+          NFPM_SHA256: ${{ matrix.nfpm_sha256 }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location --output "${RUNNER_TEMP}/nfpm.tar.gz" \
-            https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz
-          echo "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783  ${RUNNER_TEMP}/nfpm.tar.gz" | sha256sum --check
+            "https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_${NFPM}.tar.gz"
+          echo "${NFPM_SHA256}  ${RUNNER_TEMP}/nfpm.tar.gz" | sha256sum --check
           tar --extract --gzip --file "${RUNNER_TEMP}/nfpm.tar.gz" --directory "${RUNNER_TEMP}" nfpm
           echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
       - name: Build the deb and the rpm
-        run: scripts/package-deb-rpm.sh rdownloader-linux-x86_64.tar.gz installers
+        run: scripts/package-deb-rpm.sh "rdownloader-linux-${ARCH}.tar.gz" installers
       # The packaged unit runs under the user manager, which a runner starts only with lingering.
       - name: Start a systemd user manager
         shell: bash
@@ -150,7 +170,7 @@ jobs:
             systemctl --user stop rdownloader
           }
           sudo apt-get update -qq
-          sudo apt-get install -y ./installers/rdownloader-linux-x86_64.deb
+          sudo apt-get install -y "./installers/rdownloader-linux-${ARCH}.deb"
           test "$(cat /usr/lib/rdownloader/install-kind)" = deb
           rdownloader --version
           serve
@@ -159,7 +179,7 @@ jobs:
           echo "installers deb" > "${home}/data/installers-marker"
           mkdir -p "${home}/downloads"
           echo "installers deb" > "${home}/downloads/installers-marker"
-          sudo dpkg --install ./installers/rdownloader-linux-x86_64.deb
+          sudo dpkg --install "./installers/rdownloader-linux-${ARCH}.deb"
           serve
           test "$(cat "${home}/data/installers-marker")" = "installers deb"
           sudo dpkg --purge rdownloader
@@ -171,9 +191,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --volume "${PWD}/installers:/installers:ro" fedora:44 bash -xeuo pipefail -c '
+          # fedora:44 is a multi-arch image; each runner pulls its own architecture.
+          docker run --rm --env ARCH --volume "${PWD}/installers:/installers:ro" fedora:44 bash -xeuo pipefail -c '
             # The container image has no runuser; util-linux brings it.
-            dnf install --assumeyes util-linux /installers/rdownloader-linux-x86_64.rpm
+            dnf install --assumeyes util-linux "/installers/rdownloader-linux-${ARCH}.rpm"
             test "$(cat /usr/lib/rdownloader/install-kind)" = rpm
             useradd --create-home tester
             db=/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3
@@ -188,7 +209,7 @@ jobs:
             serve
             test ! -e /home/tester/data
             runuser -u tester -- bash -c "echo installers-rpm > /home/tester/.local/share/rdownloader/data/installers-marker"
-            rpm --upgrade --replacepkgs /installers/rdownloader-linux-x86_64.rpm
+            rpm --upgrade --replacepkgs "/installers/rdownloader-linux-${ARCH}.rpm"
             serve
             rpm --erase rdownloader
             test ! -e /usr/lib/rdownloader || { echo "removing the rpm left /usr/lib/rdownloader:"; find /usr/lib/rdownloader; exit 1; }

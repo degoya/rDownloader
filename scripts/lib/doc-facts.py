@@ -51,6 +51,8 @@ def words(pattern):
 REPO_ANCHORS = [
     ("docs/feature-list.md",
      r"^> As of (?P<date>[A-Z][a-z]+ \d{1,2}, \d{4}) · Source version (?P<version>\d+\.\d+\.\d+(?:-beta\.\d+)?)\."),
+    ("docs/feature-list.md",
+     words(r"\| Current project version \| (?P<version>\d+\.\d+\.\d+(?:-beta\.\d+)?) \|")),
     ("docs/feature-list.md", words(r"\| Bundled plugins \| (?P<plugins>\d+) signed")),
     ("docs/feature-list.md", words(r"Versioned WIT interface `rdownloader:plugin@(?P<wit>[^`]+)`")),
     ("docs/plugins.md", words(r"all (?P<plugins>\d+) signed components")),

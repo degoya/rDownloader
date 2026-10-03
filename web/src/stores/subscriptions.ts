@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { subscribeEvents } from '@/composables/useEventStream'
 import type {
   IndexerCaps,
@@ -40,6 +41,8 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     useSubscriptionItems()
   const runs = ref<Record<string, SubscriptionRun[]>>({})
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const busy = ref(false)
   /** True while the subscription list is being fetched — `busy` covers the write actions. */
   const fetching = ref(false)

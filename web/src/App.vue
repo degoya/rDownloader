@@ -11,6 +11,7 @@ import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { resumeEventStream, suspendEventStream } from '@/composables/useEventStream'
 import { useCaptchasStore } from '@/stores/captchas'
 import { useCollectorStore } from '@/stores/collector'
+import { useQueuePauseStore } from '@/stores/queuePause'
 import { useSessionStore } from '@/stores/session'
 import { useStreamsStore } from '@/stores/streams'
 import { useTransfersStore } from '@/stores/transfers'
@@ -24,6 +25,8 @@ const collector = useCollectorStore()
 const streams = useStreamsStore()
 // A parked download can ask for a captcha at any time, on any route.
 const captchas = useCaptchasStore()
+// A timed pause shows on the rail on every route, and ends by itself (RD-190-20).
+const queuePause = useQueuePauseStore()
 const { t, locale } = useI18n()
 // The one place the browser tab is written; every view leaves it alone (RD-106-07).
 useDocumentTitle()
@@ -38,6 +41,7 @@ onBeforeUnmount(() => {
   transfers.disconnectEvents()
   collector.disconnectEvents()
   captchas.disconnectEvents()
+  queuePause.disconnect()
 })
 
 watch(() => session.ready, (ready) => {
@@ -47,6 +51,7 @@ watch(() => session.ready, (ready) => {
     transfers.disconnectEvents()
     collector.disconnectEvents()
     captchas.disconnectEvents()
+    queuePause.disconnect()
     suspendEventStream()
     return
   }
@@ -61,6 +66,7 @@ watch(() => session.ready, (ready) => {
   void loadDisplaySettings()
   void captchas.refresh()
   captchas.connectEvents()
+  queuePause.connect()
 }, { immediate: true })
 </script>
 

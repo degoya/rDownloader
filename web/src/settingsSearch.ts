@@ -132,6 +132,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('postprocess.delete_par2', 'postprocess', 'settings.postprocess.delete_par2.label', { descriptionKey: 'settings.postprocess.delete_par2.description', terms: ['PAR2'] }),
   field('postprocess.cleanup_extensions', 'postprocess', 'settings.postprocess.cleanup_extensions.label', { descriptionKey: 'settings.postprocess.cleanup_extensions.description' }),
   field('postprocess.scripts_directory', 'postprocess', 'settings.postprocess.scripts_directory.label', { descriptionKey: 'settings.postprocess.scripts_directory.description' }),
+  field('postprocess.malware_scan', 'postprocess', 'settings.postprocess.malware_scan.label', { descriptionKey: 'settings.postprocess.malware_scan.description', terms: ['ClamAV', 'clamd', 'EICAR'] }),
   field('postprocess.upload', 'postprocess', 'settings.postprocess.upload.label', { descriptionKey: 'settings.postprocess.upload.description', terms: ['rclone'] }),
   field('postprocess.rclone_executable', 'postprocess', 'settings.postprocess.rclone_executable.label', { descriptionKey: 'settings.postprocess.rclone_executable.description', terms: ['rclone'] }),
   // Accounts
@@ -150,6 +151,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('usenet.indexer', 'usenet', 'usenet.indexers.title_add', { descriptionKey: 'usenet.indexers.description', keywordsKey: `${K}.indexers`, terms: ['Newznab', 'NZBHydra', 'Prowlarr'] }),
   card('usenet.indexers', 'usenet', 'usenet.indexers.list_title', { keywordsKey: `${K}.indexers` }),
   // BitTorrent
+  card('torrent.network_status', 'torrent', 'settings.torrent.network_status.title', { descriptionKey: 'settings.torrent.network_status.description', terms: ['VPN'] }),
   card('torrent.settings', 'torrent', 'settings.torrent.title', { descriptionKey: 'settings.torrent.description' }),
   field('torrent.upload_limit', 'torrent', 'settings.torrent.upload_limit.label', { descriptionKey: 'settings.torrent.upload_limit.description' }),
   field('torrent.seed_ratio', 'torrent', 'settings.torrent.seed_ratio.label', { descriptionKey: 'settings.torrent.seed_ratio.description', keywordsKey: `${K}.seeding` }),
@@ -199,6 +201,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('security.password', 'security', 'system.password.title', { tab: 'signin', descriptionKey: 'system.password.description' }),
   card('security.passkeys', 'security', 'system.passkeys.title', { tab: 'signin', descriptionKey: 'system.passkeys.description', terms: ['WebAuthn', 'FIDO2'] }),
   card('security.mfa', 'security', 'system.mfa.title', { tab: 'signin', descriptionKey: 'system.mfa.description', terms: ['2FA', 'TOTP'] }),
+  card('security.oidc', 'security', 'system.oidc.title', { tab: 'signin', descriptionKey: 'system.oidc.description', terms: ['OIDC', 'OpenID Connect', 'SSO', 'Authentik', 'Authelia', 'Keycloak', 'Pocket ID'] }),
   card('security.sessions', 'security', 'system.sessions.title', { tab: 'sessions', descriptionKey: 'system.sessions.description' }),
   card('security.session_limits', 'security', 'system.session_limits.title', { tab: 'sessions', descriptionKey: 'system.session_limits.description' }),
   // Backup

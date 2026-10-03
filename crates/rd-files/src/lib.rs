@@ -29,8 +29,9 @@ pub use link::{
 pub use long_path::long_path;
 pub use moves::{move_directory, move_file};
 pub use names::{
-    collision_free_path, extraction_subfolder, package_directory, package_name_from_file_name,
-    renamed_package_directory, sanitize_file_name, sanitize_file_name_within,
+    collision_free_path, extraction_subfolder, extraction_subfolders, package_directory,
+    package_name_from_file_name, renamed_package_directory, sanitize_file_name,
+    sanitize_file_name_within,
 };
 pub use part_file::{PartFile, existing_bytes, part_path};
 pub use persistence::{PathPersistence, PersistenceProbe};

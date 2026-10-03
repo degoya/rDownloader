@@ -2,7 +2,8 @@
 #
 # scripts/prune-target.sh --if-free (RD-160-06) against a scratch target: with the target's lock
 # held by a build it prunes nothing, says so and exits 0; with the lock free it prunes the old
-# variant and keeps the newest. The lock is a scratch file (RD_LOCK_FILE), never the real one.
+# variant and keeps the newest; per stem it keeps the newest variant of each kind of artifact. The
+# lock is a scratch file (RD_LOCK_FILE), never the real one.
 #
 #   scripts/tests/prune-target.sh
 set -euo pipefail
@@ -65,5 +66,28 @@ expect_status "the lock free: --if-free prunes" 0
 expect_true "the old variant is gone" '[[ ! -e "$old" ]]'
 expect_true "the newest is kept" '[[ -f "$new" ]]'
 expect_output "and it said what went" "removed 1 files"
+
+# Per stem and kind (RD-160-06, Maßnahme 8): the newest `.d` of a `check` run no longer evicts the
+# test binary of the same stem, nor a library's `.rmeta` its build's `.rlib`.
+rm -rf "$deps" && mkdir -p "$deps"
+binary_old="$deps/rd_core-1111111111111111"
+binary="$deps/rd_core-2222222222222222"
+checked="$deps/rd_core-3333333333333333.d"
+rlib="$deps/librd_core-2222222222222222.rlib"
+rmeta="$deps/librd_core-3333333333333333.rmeta"
+for file in "$binary_old" "$binary_old.d" "$binary" "$binary.d" "$checked" "$rlib" \
+    "$deps/librd_core-2222222222222222.rmeta" "$rmeta"; do
+    echo x > "$file"
+done
+touch -d '3 hours ago' "$binary_old" "$binary_old.d"
+touch -d '1 hour ago' "$binary" "$binary.d" "$rlib" "$deps/librd_core-2222222222222222.rmeta"
+
+run_status "$TREE/scripts/prune-target.sh"
+expect_status "a target with a check newer than the build: pruned" 0
+expect_true "the newest test binary stays beside a newer check's .d" '[[ -f "$binary" && -f "$binary.d" ]]'
+expect_true "the check's .d stays" '[[ -f "$checked" ]]'
+expect_true "the build's .rlib stays beside a newer check's .rmeta" '[[ -f "$rlib" && -f "$rmeta" ]]'
+expect_true "the older test binary goes" '[[ ! -e "$binary_old" && ! -e "$binary_old.d" ]]'
+expect_output "and only it" "removed 2 files"
 
 finish_tests prune-target

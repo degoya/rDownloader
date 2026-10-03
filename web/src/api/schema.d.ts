@@ -383,6 +383,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oidc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The identity provider's configuration and the bound identity. */
+        get: operations["get_oidc_settings"];
+        /**
+         * Configures the identity provider. Requires a signed-in session and the password.
+         * @description The provider's discovery document is fetched and checked before anything is stored, so a
+         *     provider that could not be used — another issuer, no PKCE, no allowed algorithm — is refused
+         *     here and not at the first sign-in.
+         */
+        put: operations["put_oidc_settings"];
+        post?: never;
+        /** Removes the identity provider, its secret and the bound identity. */
+        delete: operations["delete_oidc_settings"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where the provider sends the browser back. Finishes the sign-in or the link. */
+        get: operations["oidc_callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Releases the bound identity. Requires a signed-in session and the password. */
+        delete: operations["unlink_oidc_identity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts linking an identity at the provider to the administrator (D2). Requires a signed-in
+         *     session and the password; the browser is then sent to the provider and comes back to
+         *     *Settings → Security*.
+         */
+        post: operations["link_oidc_identity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Starts signing in through the provider: files a flow and sends the browser there. */
+        get: operations["oidc_start"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/passkey/challenge": {
         parameters: {
             query?: never;
@@ -427,6 +523,67 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["change_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-login/off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switches the password sign-in off (D3). Requires the session the latest provider sign-in
+         *     opened, and the password; only `rdownloader auth password-login on` turns it back on.
+         */
+        post: operations["switch_password_login_off"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-login/on": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switches the password sign-in back on (D3): `rdownloader auth password-login on`, with the
+         *     local control token, from this machine. Neither a session nor any API token may.
+         */
+        post: operations["switch_password_login_on"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets a new administrator password without the current one: `rdownloader auth
+         *     reset-password`, with the local control token, from this machine. Neither a session nor any
+         *     API token may.
+         */
+        post: operations["reset_password_locally"];
         delete?: never;
         options?: never;
         head?: never;
@@ -855,6 +1012,24 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bandwidth/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Switches to a profile by hand until the chosen end, then answers the status. */
+        put: operations["switch_bandwidth_profile"];
+        post?: never;
+        /** Ends a switch made by hand, so the schedule decides again; answers the status. */
+        delete: operations["return_to_bandwidth_schedule"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3952,6 +4127,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/postprocess/malware-scanner/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asks `clamd` for `PING` and `VERSION` (RD-190-14).
+         * @description Nothing is scanned and nothing but the two commands is sent. The address is the one given,
+         *     else the saved one; it is read by the same parser the settings use, so what passes here is
+         *     what the scan step will use.
+         */
+        post: operations["test_malware_scanner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/postprocess/plugin-steps": {
         parameters: {
             query?: never;
@@ -4095,6 +4292,28 @@ export interface paths {
         put: operations["update_proxy_profile"];
         post?: never;
         delete: operations["delete_proxy_profile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/queue/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The timed pause in force, if any. */
+        get: operations["get_queue_pause"];
+        /**
+         * Pauses every waiting and running file until the end, and holds back new ones until then.
+         *     A pause already in force moves to the new end and keeps the files it holds.
+         */
+        put: operations["pause_queue"];
+        post?: never;
+        /** Ends the timed pause now: the files it stopped are queued again, and the hold goes. */
+        delete: operations["resume_queue"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5814,7 +6033,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -6003,8 +6222,20 @@ export interface components {
             authenticated: boolean;
             /** @description The administrator login is switched off in the settings; every request is trusted. */
             login_disabled?: boolean;
+            /**
+             * @description Whether signing in through the identity provider is possible: configured, an identity
+             *     bound, and an external URL to come back to (RD-190-15).
+             */
+            oidc_available?: boolean;
+            /** @description What the sign-in button calls the provider, when it is offered. */
+            oidc_display_name?: string | null;
             /** @description Whether a passkey is enrolled, so the sign-in screen knows to offer it. */
             passkeys_available?: boolean;
+            /**
+             * @description Whether the password form is offered. Off only after a proven provider sign-in, and back
+             *     on only from the machine the service runs on (D3).
+             */
+            password_login: boolean;
             setup_required: boolean;
         };
         /**
@@ -6354,9 +6585,15 @@ export interface components {
             /** @description Set while the budget holds back new transfers; running ones finish. */
             budget_exhausted: boolean;
             daily?: components["schemas"]["BudgetUsageResponse"] | null;
+            manual?: components["schemas"]["ManualProfile"] | null;
             monthly?: components["schemas"]["BudgetUsageResponse"] | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description The next change: the end of a switch made by hand while one holds, the schedule's
+             *     next window boundary otherwise.
+             */
             next_switch_at?: string | null;
+            source: components["schemas"]["ProfileSource"];
             timezone: string;
             upload_binding_limit?: components["schemas"]["BindingLimitResponse"] | null;
         };
@@ -6403,6 +6640,17 @@ export interface components {
             proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             secret_slot?: string | null;
             username?: string | null;
+        };
+        /**
+         * @description One archive password a full backup carries (RD-190-04): the row it belongs to, and the slot
+         *     of its value in the sealed `secrets`. Only the full backup's bundle has any; a settings
+         *     export never carries packages.
+         */
+        BundleArchivePassword: {
+            id: string;
+            slot: string;
+            /** @description `packages`, `collector_packages`, `nzb_imports` or `subscription_items`. */
+            table: string;
         };
         /**
          * @description An automation action with every reference resolved to a name.
@@ -6482,6 +6730,11 @@ export interface components {
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
             /**
+             * @description Which release files a git-release subscription downloads (RD-190-13); absent from an
+             *     older bundle, which has no such subscription.
+             */
+            git_release?: components["schemas"]["GitReleaseOptions"];
+            /**
              * @description The search an indexer subscription sends (RD-180-20); absent from an older bundle,
              *     which restores the empty search every subscription sent then.
              */
@@ -6521,6 +6774,24 @@ export interface components {
             manifest: components["schemas"]["Manifest"];
             path: string;
         };
+        /**
+         * @description A Newznab indexer in a settings bundle (RD-190-22). The API key travels like every other
+         *     credential: as a slot name here, its value only inside the encrypted section.
+         */
+        BundleIndexer: {
+            categories?: string[];
+            enabled: boolean;
+            id: components["schemas"]["IndexerId"];
+            /**
+             * @description How its search hits are listed (RD-190-16); a bundle from before the choice lists them
+             *     compact.
+             */
+            list_style?: components["schemas"]["IndexerListStyle"];
+            name: string;
+            secret_slot?: string | null;
+            /** Format: uri */
+            url: string;
+        };
         /** @description The preview a person approves before a bundle is written. */
         BundlePreviewResponse: {
             /** @description The inventory digest the approval quotes back. */
@@ -6552,6 +6823,7 @@ export interface components {
             color: string;
             delete_par2?: boolean | null;
             is_default: boolean;
+            malware_scan?: boolean | null;
             name: string;
             postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             recursive_unpack?: boolean | null;
@@ -6619,6 +6891,11 @@ export interface components {
              */
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
+            /**
+             * @description Which release files a git-release subscription downloads (RD-190-13). Absent from a
+             *     bundle written before they existed, which carries no such subscription.
+             */
+            git_release?: components["schemas"]["GitReleaseOptions"];
             id: components["schemas"]["SubscriptionId"];
             /**
              * @description The search parameters an indexer subscription sends (RD-180-20). Absent from a bundle
@@ -6643,7 +6920,10 @@ export interface components {
              *     written before they existed, which restores the empty list every script ran with then.
              */
             script_arguments?: string[];
-            /** @description Slot of the indexer API key inside the encrypted section, if the subscription has one. */
+            /**
+             * @description Slot of the indexer API key — or a git-release subscription's token (RD-190-13) — inside
+             *     the encrypted section, if the subscription has one.
+             */
             secret_slot?: string | null;
             source_categories?: string[];
             url: string;
@@ -6922,6 +7202,16 @@ export interface components {
         };
         /** Format: uuid */
         CaptureAgentId: string;
+        /** @description One connected capture agent's version, measured against the service's. */
+        CaptureAgentVersion: {
+            /**
+             * @description Whether the agent is older than the service -- it reported an older version, or none --
+             *     and so still runs the program file from before the update.
+             */
+            outdated: boolean;
+            /** @description The version the agent reported; empty for an agent from before 1.9, which reports none. */
+            version?: string | null;
+        };
         /**
          * @description A waiting handover as the extension sees it: what it needs to ask the person, and nothing
          *     else. The scope is the service's, never the page's — the extension reads exactly this.
@@ -7157,6 +7447,11 @@ export interface components {
             delete_par2?: boolean | null;
             id: components["schemas"]["CategoryId"];
             is_default: boolean;
+            /**
+             * @description Whether packages in this category are scanned by ClamAV before they count as finished;
+             *     `None` = global default (RD-190-14).
+             */
+            malware_scan?: boolean | null;
             name: string;
             /**
              * @description Post-processing plugin steps for packages in this category, by plugin id and in the
@@ -7211,6 +7506,11 @@ export interface components {
              *     unpack (`null` = global default).
              */
             delete_par2?: boolean | null;
+            /**
+             * @description Whether packages of this category are scanned by ClamAV before they count as finished
+             *     (`null` = global default, RD-190-14).
+             */
+            malware_scan?: boolean | null;
             /**
              * @description Post-processing plugin steps for this category, by plugin id and in the order they
              *     run (`null` = the global list). An empty list means "none here", which is how a
@@ -7624,6 +7924,11 @@ export interface components {
              */
             delete_par2?: boolean | null;
             is_default: boolean;
+            /**
+             * @description Whether packages of this category are scanned by ClamAV before they count as finished
+             *     (`null` = global default, RD-190-14).
+             */
+            malware_scan?: boolean | null;
             name: string;
             postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             /** @description Whether packages of this category unpack nested archives recursively (`null` = global default). */
@@ -8395,7 +8700,61 @@ export interface components {
          *     can assert on it.
          * @enum {string}
          */
-        FilterReason: "title_not_included" | "title_excluded" | "too_short" | "too_long" | "too_old" | "language_not_wanted" | "resolution_too_low" | "backlog";
+        FilterReason: "title_not_included" | "title_excluded" | "too_short" | "too_long" | "too_old" | "language_not_wanted" | "resolution_too_low" | "backlog" | "asset_not_wanted";
+        /**
+         * @description A processor architecture a release file can be built for.
+         * @enum {string}
+         */
+        GitArchitecture: "x86_64" | "aarch64" | "x86" | "arm";
+        /**
+         * @description Which API a repository speaks.
+         * @enum {string}
+         */
+        GitForge: "github" | "gitlab";
+        /**
+         * @description An operating system a release file can be built for.
+         * @enum {string}
+         */
+        GitPlatform: "linux" | "windows" | "macos";
+        /**
+         * @description Which assets of a release a git-release subscription downloads.
+         *
+         *     Every list empty and both switches off downloads every asset of every full release —
+         *     which is what a subscription with no opinion should do.
+         */
+        GitReleaseOptions: {
+            /**
+             * @description When any are set, an asset that names an architecture must name one of these. A file
+             *     that names none — a universal macOS image, an installer — passes.
+             * @default []
+             */
+            architectures: components["schemas"]["GitArchitecture"][];
+            /**
+             * @description Asset name patterns, `*` and `?` as wildcards, case-insensitive. When any are set, an
+             *     asset must match one of them.
+             * @default []
+             */
+            asset_patterns: string[];
+            /** @default null */
+            forge: components["schemas"]["GitForge"] | null;
+            /**
+             * @description When any are set, an asset must name one of these platforms — in its name or by a
+             *     telling extension (`.exe`, `.dmg`, `.deb`, …). A file that names none is not taken, and
+             *     neither is a checksum file.
+             * @default []
+             */
+            platforms: components["schemas"]["GitPlatform"][];
+            /**
+             * @description Whether pre-releases count as releases.
+             * @default false
+             */
+            prereleases: boolean;
+            /**
+             * @description Whether the source archives every release carries (`.zip`, `.tar.gz`) are downloaded.
+             * @default false
+             */
+            source_archives: boolean;
+        };
         /**
          * @description Which table a LinkGrabber entry belongs to.
          *
@@ -8489,6 +8848,7 @@ export interface components {
             categories: number;
             category_rules: number;
             hotfolders: number;
+            indexers: number;
             proxy_profiles: number;
             settings: number;
             storage_roots: number;
@@ -8529,6 +8889,8 @@ export interface components {
             /** @description Whether a key is stored, which is all a client is told about it. */
             has_secret?: boolean;
             id: components["schemas"]["IndexerId"];
+            /** @description How the LinkGrabber's search draws this indexer's hits (RD-190-16). */
+            list_style?: components["schemas"]["IndexerListStyle"];
             name: string;
             /** Format: date-time */
             updated_at: string;
@@ -8588,6 +8950,16 @@ export interface components {
         };
         /** Format: uuid */
         IndexerId: string;
+        /**
+         * @description How the LinkGrabber's search draws one indexer's hits (RD-190-16).
+         *
+         *     Chosen per indexer, where it is defined, rather than in the result list: some indexers send
+         *     covers and film or series data with every hit, others nothing beyond the name, and only the
+         *     first kind is worth the taller row. Compact is the default because it is what every indexer
+         *     showed before the choice existed.
+         * @enum {string}
+         */
+        IndexerListStyle: "compact" | "detailed";
         /** @description Create or replace one indexer. */
         IndexerRequest: {
             /**
@@ -8598,6 +8970,11 @@ export interface components {
             /** @description The indexer's own category ids a search asks for when it names none. Empty asks for all. */
             categories?: string[];
             enabled?: boolean;
+            /**
+             * @description How the LinkGrabber's search draws this indexer's hits (RD-190-16); `compact` when
+             *     absent. Like every field here an edit replaces it, so a form sends the stored one back.
+             */
+            list_style?: components["schemas"]["IndexerListStyle"];
             name: string;
             /**
              * Format: uri
@@ -8644,6 +9021,11 @@ export interface components {
             /** @description The indexer's category id, e.g. `5040`. */
             category?: string | null;
             /**
+             * Format: uri
+             * @description The cover, only ever an absolute http or https address that does not carry the API key.
+             */
+            cover_url?: string | null;
+            /**
              * @description Where the NZB is fetched from, with the API key replaced by `rdownloader-indexer-key`:
              *     what `POST /api/v1/indexers/grab` takes back. Never the key itself.
              */
@@ -8654,6 +9036,14 @@ export interface components {
             guid?: string | null;
             indexer_id: components["schemas"]["IndexerId"];
             indexer_name: string;
+            /**
+             * @description What a detailed result row shows besides the title (RD-190-16), as far as the indexer
+             *     sent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at
+             *     most 300 characters). Empty when it sent none of them.
+             */
+            metadata?: {
+                [key: string]: string;
+            };
             /** @description Whether the indexer marks the release as passworded. */
             passworded: boolean;
             /** Format: date-time */
@@ -9029,6 +9419,38 @@ export interface components {
             code?: string | null;
             password: string;
         };
+        /** @description What a sign-out answers. */
+        LogoutResponse: {
+            code: string;
+            message: string;
+            /**
+             * @description Kept from the answer this replaced (`MessageResponse`), so a client of 1.8 reads the same
+             *     shape; a sign-out has no parameters, so it is always empty and never serialised.
+             */
+            params?: components["schemas"]["BTreeMap"];
+            /**
+             * @description Where to send the browser to sign out at the identity provider as well: present only when
+             *     *sign out at the provider too* is on (D5, RD-190-15). The local session is already ended
+             *     when this is handed out, so not following it leaves nothing signed in here.
+             */
+            provider_logout_url?: string | null;
+        };
+        /** @description Which `clamd` to try (RD-190-14). */
+        MalwareScannerTestRequest: {
+            /**
+             * @description `host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved
+             *     address, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before
+             *     it is saved.
+             */
+            address?: string | null;
+        };
+        /** @description What `clamd` said when it was tried. */
+        MalwareScannerTestResponse: {
+            /** @description The address that answered, normalised (`host:port` or `unix:/path`). */
+            address: string;
+            /** @description clamd's `VERSION` line: the engine, the signature database's version and its date. */
+            version: string;
+        };
         /** @description One managed external tool: what is installed, what is active, what is on offer. */
         ManagedToolInfo: {
             /** @description The executable that version points at. */
@@ -9097,6 +9519,37 @@ export interface components {
             kind: string;
             path: string;
             sha256: string;
+        };
+        /**
+         * @description How a manual switch was told to end. `until` carries the instant; this says where it came
+         *     from, so the interface can say "until the schedule changes" rather than a bare time.
+         * @enum {string}
+         */
+        ManualEnd: "next_switch" | "at" | "never";
+        /** @description The profile somebody switched to by hand, and until when. */
+        ManualProfile: {
+            ends: components["schemas"]["ManualEnd"];
+            profile_id?: components["schemas"]["BandwidthProfileId"] | null;
+            /** Format: date-time */
+            switched_at: string;
+            /**
+             * Format: date-time
+             * @description When the schedule takes over again; empty while the switch has no end.
+             */
+            until?: string | null;
+        };
+        ManualProfileRequest: {
+            /**
+             * @description `next_switch` (the schedule's next change), `at` (the time in `until`) or `never` (only
+             *     switching back ends it).
+             */
+            ends: components["schemas"]["ManualEnd"];
+            profile_id?: components["schemas"]["BandwidthProfileId"] | null;
+            /**
+             * Format: date-time
+             * @description The end for `ends: at`; ignored otherwise.
+             */
+            until?: string | null;
         };
         /** @description Something the user asked for that the result does not honour. */
         MediaCompatibilityWarning: {
@@ -9762,7 +10215,7 @@ export interface components {
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.
          * @enum {string}
          */
-        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending";
+        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid";
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
             category_id?: components["schemas"]["CategoryId"] | null;
@@ -9982,6 +10435,60 @@ export interface components {
             params?: components["schemas"]["BTreeMap"];
             reachable: boolean;
         };
+        /** @description Configures the provider, or changes it. */
+        OidcConfigRequest: {
+            client_id: string;
+            /** @description Required the first time; left out, the stored secret is kept. */
+            client_secret?: string | null;
+            display_name: string;
+            group_claim?: string | null;
+            group_value?: string | null;
+            issuer: string;
+            /** @description The administrator password, again. */
+            password: string;
+            provider_logout?: boolean;
+        };
+        /** @description The identity bound to the administrator, as far as it is shown. */
+        OidcIdentity: {
+            issuer: string;
+            /** @description What the provider called the person when it was linked. */
+            label?: string | null;
+            /** Format: date-time */
+            linked_at: string;
+        };
+        /** @description Where to send the browser to link the identity. */
+        OidcLinkStart: {
+            authorization_url: string;
+        };
+        /** @description The identity provider as *Settings → Security* shows it. Never the client secret. */
+        OidcSettings: {
+            client_id?: string | null;
+            /** @description Whether a client secret is stored. The secret itself is write-only. */
+            client_secret_set: boolean;
+            configured: boolean;
+            display_name?: string | null;
+            group_claim?: string | null;
+            group_value?: string | null;
+            identity?: components["schemas"]["OidcIdentity"] | null;
+            issuer?: string | null;
+            /** @description Whether the password form is offered on the sign-in screen. */
+            password_login: boolean;
+            provider_logout: boolean;
+            /**
+             * @description Whether this session was opened by the latest sign-in through the provider, which is what
+             *     switching the password sign-in off requires.
+             */
+            provider_session: boolean;
+            /**
+             * @description The address to register at the provider: the external URL and the callback path.
+             *     `None` without an external URL, which the provider sign-in cannot work without.
+             */
+            redirect_uri?: string | null;
+        };
+        /** @description The password, again, for a change that needs nothing else. */
+        OidcStepUpRequest: {
+            password: string;
+        };
         /**
          * @description How a field is compared to a value.
          * @enum {string}
@@ -10135,6 +10642,24 @@ export interface components {
             current_password: string;
             /** @description The replacement, judged by the same policy the first password was. */
             new_password: string;
+        };
+        /**
+         * @description A new administrator password set on the machine the service runs on, without the current
+         *     one (RD-190-24): what `rdownloader auth reset-password` sends with the local control token.
+         */
+        PasswordResetRequest: {
+            /** @description Remove the authenticator apps and the recovery codes as well (`--disable-totp`). */
+            disable_totp?: boolean;
+            /**
+             * @description The new password, judged by the same policy as every other one. Generated by the
+             *     command unless the owner typed it (`--prompt`).
+             */
+            new_password: string;
+            /**
+             * @description Whether the owner typed the password rather than the command drawing it; only for the
+             *     audit record.
+             */
+            prompted?: boolean;
         };
         /** @description A power action waiting out its countdown. */
         PendingAction: {
@@ -10462,7 +10987,7 @@ export interface components {
          * @description Persistent kind of one postprocessing operation.
          * @enum {string}
          */
-        PostprocessKind: "par2" | "sfv" | "rar_test" | "extract_zip" | "extract_seven_zip" | "extract_rar" | "delete_archives" | "delete_par2" | "cleanup" | "remux" | "plugin_step" | "script" | "upload";
+        PostprocessKind: "par2" | "sfv" | "rar_test" | "extract_zip" | "extract_seven_zip" | "extract_rar" | "delete_archives" | "delete_par2" | "cleanup" | "remux" | "malware_scan" | "plugin_step" | "script" | "upload";
         /**
          * @description Cumulative post-processing level (`Repair` ⊂ `Unpack` ⊂ `Delete`), like SABnzbd's
          *     `+R` / `+RU` / `+RUD` job options.
@@ -10498,7 +11023,7 @@ export interface components {
          * @description Pipeline stage a package is currently in while post-processing.
          * @enum {string}
          */
-        PostprocessStage: "repairing" | "verifying" | "extracting" | "deleting_archives" | "deleting_par2" | "cleaning" | "remuxing" | "plugin_step" | "script" | "uploading";
+        PostprocessStage: "repairing" | "verifying" | "extracting" | "deleting_archives" | "deleting_par2" | "cleaning" | "remuxing" | "scanning" | "plugin_step" | "script" | "uploading";
         /**
          * @description Crash-recoverable lifecycle of a postprocessing operation.
          * @enum {string}
@@ -10652,6 +11177,11 @@ export interface components {
             value: string;
         };
         /**
+         * @description Why the active profile is the one in force (RD-190-20).
+         * @enum {string}
+         */
+        ProfileSource: "schedule" | "manual";
+        /**
          * @description The shape of the credential(s) a provider account stores (mirrors
          *     `rd_provider_registry::CredentialKind`).
          * @enum {string}
@@ -10719,6 +11249,39 @@ export interface components {
         };
         /** Format: uuid */
         ProxyProfileId: string;
+        QueuePauseRequest: {
+            /**
+             * Format: int32
+             * @description How long, in minutes from now; give this or `until`.
+             */
+            minutes?: number | null;
+            /**
+             * Format: date-time
+             * @description When the pause ends; give this or `minutes`.
+             */
+            until?: string | null;
+        };
+        QueuePauseResponse: {
+            /**
+             * Format: int32
+             * @description The files it stopped; its end resumes those still paused.
+             */
+            files: number;
+            /** @description Whether a timed pause is in force. */
+            paused: boolean;
+            /**
+             * Format: date-time
+             * @description When it ends and the queue runs again.
+             */
+            until?: string | null;
+        };
+        QueueResumeResponse: {
+            /**
+             * Format: int32
+             * @description Files the ended pause queued again.
+             */
+            resumed: number;
+        };
         /** @description The configured quiet hours. */
         QuietHours: {
             /** @default false */
@@ -11707,6 +12270,7 @@ export interface components {
         SettingsBundle: {
             accounts?: components["schemas"]["BundleAccount"][];
             app_version: string;
+            archive_passwords?: components["schemas"]["BundleArchivePassword"][];
             auth_profiles?: components["schemas"]["BundleAuthProfile"][];
             categories?: components["schemas"]["Category"][];
             category_rules?: components["schemas"]["CategoryRule"][];
@@ -11714,6 +12278,11 @@ export interface components {
             exported_at: string;
             format: string;
             hotfolders?: components["schemas"]["HotFolderConfig"][];
+            /**
+             * @description The Newznab indexers (RD-190-22). Absent from a bundle written before they travelled,
+             *     which restores none.
+             */
+            indexers?: components["schemas"]["BundleIndexer"][];
             proxy_profiles?: components["schemas"]["BundleProxyProfile"][];
             secrets?: components["schemas"]["EncryptedSecrets"] | null;
             settings: components["schemas"]["SettingsResponse"];
@@ -11798,6 +12367,12 @@ export interface components {
              * @default auto
              */
             byte_unit: string;
+            /**
+             * @description Where `clamd` listens: `host:port`, or `unix:/path` for its local socket; empty =
+             *     `127.0.0.1:3310`. Nothing but the files' bytes goes there, and nothing goes anywhere else.
+             * @default null
+             */
+            clamd_address: string | null;
             /**
              * @description Extensions (without dot) deleted from the package folder after unpacking.
              * @default [
@@ -11944,6 +12519,25 @@ export interface components {
              * @default 20000
              */
             log_retention_records: number;
+            /**
+             * @description Scan every finished package with ClamAV before it counts as finished (RD-190-14). A
+             *     finding fails the package and stops everything after the scan; a `clamd` that cannot be
+             *     reached is a warning on the step and the package carries on. Off by default.
+             * @default false
+             */
+            malware_scan_enabled: boolean;
+            /**
+             * @description Largest file streamed to `clamd`; a larger one is not scanned and the step counts it.
+             *     `clamd`'s `StreamMaxLength` has to be at least this.
+             * @default 26214400
+             */
+            malware_scan_max_bytes: components["schemas"]["ByteCount"];
+            /**
+             * Format: int32
+             * @description Seconds one exchange with `clamd` may take: the connection, a chunk, the verdict (5–3600).
+             * @default 120
+             */
+            malware_scan_timeout_seconds: number;
             /**
              * @description Whether this installation may download, verify and activate tool versions itself
              *     (RD-102-02). Off by default: fetching executables is not something to start unasked.
@@ -13099,6 +13693,11 @@ export interface components {
              */
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
+            /**
+             * @description Which assets a git-release subscription downloads (RD-190-13). Empty for every other
+             *     kind.
+             */
+            git_release?: components["schemas"]["GitReleaseOptions"];
             /** @description Whether a key is stored, which is all a client is told about it. */
             has_secret?: boolean;
             id: components["schemas"]["SubscriptionId"];
@@ -13337,7 +13936,7 @@ export interface components {
          * @description Where a subscription's items come from.
          * @enum {string}
          */
-        SubscriptionKind: "media" | "gallery" | "feed" | "indexer" | "site_rule" | "script";
+        SubscriptionKind: "media" | "gallery" | "feed" | "indexer" | "site_rule" | "script" | "git_release";
         /**
          * @description What happens to an item that passes the filters.
          * @enum {string}
@@ -13346,8 +13945,9 @@ export interface components {
         /** @description Create or replace one subscription. */
         SubscriptionRequest: {
             /**
-             * @description Indexer API key (RD-080-11); write-only, and stored in the vault. Omitting it on an
-             *     edit keeps the existing key rather than clearing it.
+             * @description Indexer API key (RD-080-11), or a git-release subscription's read-only token
+             *     (RD-190-13); write-only, and stored in the vault. Omitting it on an edit keeps the
+             *     existing key rather than clearing it.
              */
             api_key?: string | null;
             /**
@@ -13372,6 +13972,15 @@ export interface components {
              */
             every_release?: boolean;
             filters?: components["schemas"]["SubscriptionFilters"];
+            /**
+             * @description Which release files a `git_release` subscription downloads (RD-190-13): `forge`
+             *     (`github`|`gitlab`, needed for a host other than github.com and gitlab.com),
+             *     `asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200
+             *     characters), `platforms` (`linux`|`windows`|`macos`), `architectures`
+             *     (`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never
+             *     downloaded. Only a git-release subscription takes them; its read-only token is `api_key`.
+             */
+            git_release?: components["schemas"]["GitReleaseOptions"];
             indexer_id?: components["schemas"]["IndexerId"] | null;
             /**
              * @description The search term and parameters an indexer subscription sends (RD-180-20): `query` as
@@ -14293,6 +14902,11 @@ export interface components {
         /** @description The update check's state, as `GET /api/v1/system/update` answers it. */
         UpdateStatusResponse: {
             available?: components["schemas"]["UpdateOffer"] | null;
+            /**
+             * @description The capture agents connected right now, by the version each reported (RD-190-07); empty
+             *     when none runs. Labels are not part of it: this status is readable with `api:read`.
+             */
+            capture_agents?: components["schemas"]["CaptureAgentVersion"][];
             /** @description The chosen channel, `stable` or `beta` (`update_channel`). */
             channel: string;
             /** @description Whether the service checks by itself (`update_check_enabled`). */
@@ -15353,8 +15967,321 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+        };
+    };
+    get_oidc_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcSettings"];
+                };
+            };
+        };
+    };
+    put_oidc_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcSettings"];
+                };
+            };
+            /** @description A field is not usable */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No external URL, or the password sign-in is off */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The provider breaks a rule */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The provider could not be reached */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete_oidc_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcStepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The password sign-in is off */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    oidc_callback: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+                /** @description RFC 9207: the issuer of the answer, compared when the provider sends it. */
+                iss?: string | null;
+                /** @description The provider's refusal, if it refused. Only its kind is read, never its description. */
+                error?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed in (with the session cookie) or linked, or back to where the flow started with `oidc_error` set to a stable code */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unlink_oidc_identity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcStepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No identity is linked */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The password sign-in is off */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    link_oidc_identity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcStepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcLinkStart"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No provider configured, or no external URL */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    oidc_start: {
+        parameters: {
+            query?: {
+                /** @description Where to land after signing in, inside this application. Anything else lands on `/`. */
+                return_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the provider's authorization endpoint, with the `rd_oidc` cookie */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Back to the sign-in screen with `oidc_error` set to a stable code */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -15471,6 +16398,137 @@ export interface operations {
             };
             /** @description Too many failed attempts from this address */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    switch_password_login_off: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcStepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description This session was not opened through the provider */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    switch_password_login_on: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not the command line on this machine */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reset_password_locally: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description The new password does not meet the policy */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not the command line on this machine */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No administrator password was set yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16594,6 +17652,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunnerLimitSupport"][];
+                };
+            };
+        };
+    };
+    switch_bandwidth_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandwidthStatusResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    return_to_bandwidth_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandwidthStatusResponse"];
                 };
             };
         };
@@ -23424,6 +24535,44 @@ export interface operations {
             };
         };
     };
+    test_malware_scanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MalwareScannerTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MalwareScannerTestResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_plugin_steps: {
         parameters: {
             query?: never;
@@ -23674,6 +24823,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_queue_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuePauseResponse"];
+                };
+            };
+        };
+    };
+    pause_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueuePauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuePauseResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    resume_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueResumeResponse"];
+                };
             };
         };
     };

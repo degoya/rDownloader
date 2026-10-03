@@ -1,11 +1,11 @@
 use rd_core::{
     AccountId, AuthMethod, AuthOrigin, AuthProfileId, AuthScope, Category, CategoryId,
     CategoryRule, CategoryRuleId, EventKind, HotFolderConfig, HotFolderExecutor, HotFolderId,
-    ImportMode, ProxyKind, ProxyProfileId, StorageRootConfig, StorageRootId, StreamChannelId,
-    UsenetServerId,
+    ImportMode, IndexerId, ProxyKind, ProxyProfileId, StorageRootConfig, StorageRootId,
+    StreamChannelId, UsenetServerId,
 };
 use rd_db::{
-    ConfigReplacement, Database, ReplacementAccount, ReplacementAuthProfile,
+    ConfigReplacement, Database, ReplacementAccount, ReplacementAuthProfile, ReplacementIndexer,
     ReplacementProxyProfile, ReplacementStreamChannel, ReplacementUsenetServer,
 };
 
@@ -34,6 +34,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             recursive_unpack: Some(true),
             // Non-default (the global setting is off) so the round trip proves it survives.
             unpack_to_subfolder: Some(true),
+            malware_scan: Some(true),
             // Non-default (the global setting is on) so the round trip proves it survives.
             sfv_verify: Some(false),
             safe_postproc: Some(false),
@@ -142,6 +143,11 @@ fn replacement(label: &str) -> ConfigReplacement {
                 hide_passworded: true,
                 pretime: None,
             },
+            git_release: rd_core::GitReleaseOptions {
+                asset_patterns: vec!["*.AppImage".to_owned()],
+                platforms: vec![rd_core::GitPlatform::Linux],
+                ..rd_core::GitReleaseOptions::default()
+            },
             secret_ref: None,
         }],
         auth_profiles: vec![ReplacementAuthProfile {
@@ -155,6 +161,17 @@ fn replacement(label: &str) -> ConfigReplacement {
             username: None,
             secret_ref: Some(format!("vault://{label}-token")),
             certificate_ref: None,
+        }],
+        indexers: vec![ReplacementIndexer {
+            id: IndexerId::new(),
+            name: format!("{label} indexer"),
+            url: "https://indexer.example.test/api"
+                .parse()
+                .expect("indexer URL"),
+            secret_ref: Some(format!("vault://{label}-indexer")),
+            categories: vec!["2000".to_owned(), "5040".to_owned()],
+            enabled: false,
+            list_style: rd_core::IndexerListStyle::Detailed,
         }],
     }
 }
@@ -181,6 +198,7 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
         expected.usenet_servers[0].id,
         expected.stream_channels[0].id,
         expected.auth_profiles[0].id,
+        expected.indexers[0].id,
     );
     let mut events = database.subscribe();
     database
@@ -207,6 +225,10 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(search.query.as_deref(), Some("example show"));
     assert_eq!(search.max_age_days, Some(30));
     assert!(search.hide_passworded);
+    // And which release assets a git-release subscription downloads (RD-190-13).
+    let git_release = &database.list_subscriptions().await.expect("subscriptions")[0].git_release;
+    assert_eq!(git_release.asset_patterns, ["*.AppImage"]);
+    assert_eq!(git_release.platforms, [rd_core::GitPlatform::Linux]);
     let restored = database.list_categories().await.expect("categories");
     assert_eq!(restored[0].id, ids.1);
     // A category seeding override must survive the round trip, not silently reset to
@@ -246,6 +268,18 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(profiles[0].secret_ref.as_deref(), Some("vault://new-token"));
     assert!(profiles[0].scope.include_subdomains);
     assert_eq!(profiles[0].scope.host, "files.example.test");
+    // The Newznab indexers travel with the rest (RD-190-22): key reference, default
+    // categories and the switched-off state, not a fresh indexer that searches everything.
+    let indexers = database.list_indexers().await.expect("indexers");
+    assert_eq!(indexers.len(), 1);
+    assert_eq!(indexers[0].id, ids.9);
+    assert_eq!(
+        indexers[0].secret_ref.as_deref(),
+        Some("vault://new-indexer")
+    );
+    assert_eq!(indexers[0].categories, ["2000", "5040"]);
+    assert!(!indexers[0].enabled);
+    assert_eq!(indexers[0].list_style, rd_core::IndexerListStyle::Detailed);
 
     assert_eq!(
         database

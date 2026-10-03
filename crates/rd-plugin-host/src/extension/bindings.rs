@@ -14,9 +14,9 @@ macro_rules! extension_world {
                 imports: { default: async },
                 exports: { default: async },
                 with: {
-                    "rdownloader:plugin/types@0.9.0": crate::component::rdownloader::plugin::types,
-                    "rdownloader:plugin/host@0.9.0": crate::component::rdownloader::plugin::host,
-                    "rdownloader:plugin/http@0.9.0": crate::component::rdownloader::plugin::http,
+                    "rdownloader:plugin/types@0.10.0": crate::component::rdownloader::plugin::types,
+                    "rdownloader:plugin/host@0.10.0": crate::component::rdownloader::plugin::host,
+                    "rdownloader:plugin/http@0.10.0": crate::component::rdownloader::plugin::http,
                 },
             });
         }
@@ -40,11 +40,11 @@ pub mod crawler {
         imports: { default: async },
         exports: { default: async },
         with: {
-            "rdownloader:plugin/types@0.9.0": crate::component::rdownloader::plugin::types,
-            "rdownloader:plugin/host@0.9.0": crate::component::rdownloader::plugin::host,
-            "rdownloader:plugin/http@0.9.0": crate::component::rdownloader::plugin::http,
-            "rdownloader:plugin/cookies@0.9.0": crate::component::rdownloader::plugin::cookies,
-            "rdownloader:plugin/captcha@0.9.0": crate::component::rdownloader::plugin::captcha,
+            "rdownloader:plugin/types@0.10.0": crate::component::rdownloader::plugin::types,
+            "rdownloader:plugin/host@0.10.0": crate::component::rdownloader::plugin::host,
+            "rdownloader:plugin/http@0.10.0": crate::component::rdownloader::plugin::http,
+            "rdownloader:plugin/cookies@0.10.0": crate::component::rdownloader::plugin::cookies,
+            "rdownloader:plugin/captcha@0.10.0": crate::component::rdownloader::plugin::captcha,
         },
     });
 }
@@ -60,8 +60,8 @@ pub mod postprocess {
         imports: { default: async },
         exports: { default: async },
         with: {
-            "rdownloader:plugin/types@0.9.0": crate::component::rdownloader::plugin::types,
-            "rdownloader:plugin/host@0.9.0": crate::component::rdownloader::plugin::host,
+            "rdownloader:plugin/types@0.10.0": crate::component::rdownloader::plugin::types,
+            "rdownloader:plugin/host@0.10.0": crate::component::rdownloader::plugin::host,
         },
     });
 }
@@ -73,11 +73,11 @@ pub mod storage {
         imports: { default: async },
         exports: { default: async },
         with: {
-            "rdownloader:plugin/types@0.9.0": crate::component::rdownloader::plugin::types,
-            "rdownloader:plugin/host@0.9.0": crate::component::rdownloader::plugin::host,
-            "rdownloader:plugin/http@0.9.0": crate::component::rdownloader::plugin::http,
-            "rdownloader:plugin/net@0.9.0": crate::transfer::rdownloader::plugin::net,
-            "rdownloader:plugin/source@0.9.0": crate::extension::bindings::postprocess::rdownloader::plugin::source,
+            "rdownloader:plugin/types@0.10.0": crate::component::rdownloader::plugin::types,
+            "rdownloader:plugin/host@0.10.0": crate::component::rdownloader::plugin::host,
+            "rdownloader:plugin/http@0.10.0": crate::component::rdownloader::plugin::http,
+            "rdownloader:plugin/net@0.10.0": crate::transfer::rdownloader::plugin::net,
+            "rdownloader:plugin/source@0.10.0": crate::extension::bindings::postprocess::rdownloader::plugin::source,
         },
     });
 }

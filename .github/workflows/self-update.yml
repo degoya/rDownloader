@@ -1,7 +1,7 @@
 name: Self-update
 
-# RD-180-02: the portable self-update with real binaries on Linux and Windows. Two debug builds of
-# this tree — the second with the patch version raised by scripts/set-version.sh — and
+# RD-180-02: the portable self-update with real binaries on Linux (x86_64, aarch64) and Windows.
+# Two debug builds of this tree — the second with the patch version raised by scripts/set-version.sh — and
 # scripts/self-update-smoke.sh, which runs the first as a portable installation and hands it
 # three updates the way the service does: the next version (installed, answers, old files kept in
 # .previous/, with the web interface's and a capture agent's event streams open across the
@@ -50,7 +50,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        # ubuntu-24.04-arm: the same code on Linux aarch64, whose portable archive installs
+        # itself too (RD-190-12). macOS is not run: its minutes cost ten times Linux's.
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     permissions:

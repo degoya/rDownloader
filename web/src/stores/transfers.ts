@@ -2,9 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { Download, DownloadBulkAction, DownloadPackage, DownloadRates } from '@/api/types'
 import { subscribeEvents } from '@/composables/useEventStream'
-import { translateServerMessage } from '@/i18n/server'
+import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
+import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
 import { MIB } from '@/utils/format'
 import {
   appendTransferRateHistory,
@@ -45,6 +47,8 @@ export const useTransfersStore = defineStore('transfers', () => {
   const clearing = ref(false)
   const controlsBusy = ref(false)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const notice = ref<string | null>(null)
   const downloadRates = ref<Record<string, number>>({})
   /** Seconds left per file, as the server measured them. Absent means "nothing to say". */
@@ -277,18 +281,22 @@ export const useTransfersStore = defineStore('transfers', () => {
     }, names.length))
   }
 
-  /** Applies one action to many files server-side; returns the number of affected files. */
+  /**
+   * Applies one action to many files server-side; returns the number of affected files.
+   *
+   * More files than one request may carry go in batches, and what they did and refused is
+   * reported as one outcome.
+   */
   async function bulk(ids: string[], action: DownloadBulkAction): Promise<number> {
     if (!ids.length) return 0
-    const response = await api.POST('/api/v1/downloads/bulk', { body: { ids, action } })
-    if (!response.data) {
-      error.value = responseError(response)
-      await refresh()
-      return 0
-    }
+    const run = await inBatches(ids, batch => api.POST('/api/v1/downloads/bulk', { body: { ids: batch, action } }))
     await refresh()
-    error.value = bulkRefusals(response.data)
-    return response.data.affected
+    const refused = bulkRefusals({
+      errors: run.data.flatMap(result => result.errors),
+      refusals: run.data.flatMap(result => result.refusals)
+    })
+    error.value = [batchError(run), refused].filter(Boolean).join(' · ') || null
+    return run.data.reduce((sum, result) => sum + result.affected, 0)
   }
 
   /**
@@ -319,14 +327,23 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   async function extractDownloads(ids: string[]): Promise<boolean> {
     if (!ids.length) return false
-    const response = await api.POST('/api/v1/downloads/extract', { body: { ids } })
-    if (!response.data) {
-      error.value = responseError(response)
+    // A batch without a completed file is refused on its own; that is no reason to stop the
+    // batches that have some, so it counts as an empty answer unless every batch gives it.
+    let noneCompleted: unknown = null
+    const run = await inBatches(ids, async batch => {
+      const response = await api.POST('/api/v1/downloads/extract', { body: { ids: batch } })
+      if (response.data || serverMessageFrom(response.error)?.code !== 'download.none_completed') return response
+      noneCompleted = response
+      return { data: null }
+    })
+    const queued = run.data.filter(body => body !== null)
+    if (!queued.length) {
+      error.value = run.failure ? responseError(run.failure) : responseError(noneCompleted)
       return false
     }
-    notice.value = resultMessage(response.data)
-    error.value = null
-    return true
+    notice.value = combinedMessage(queued)
+    error.value = batchError(run)
+    return !run.failure
   }
 
   async function renameDownload(id: string, fileName: string): Promise<boolean> {

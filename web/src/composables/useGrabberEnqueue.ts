@@ -66,8 +66,9 @@ export function useGrabberEnqueue(view: {
     view.notice.value = null
     // One round trip per package, but in parallel: awaiting them in sequence made enqueuing ten
     // packages take ten times as long as it needed to.
+    const wanted = new Set(packageIds)
     await Promise.all(view.groups.value
-      .filter(g => packageIds.includes(g.package.id))
+      .filter(g => wanted.has(g.package.id))
       .map(group => collector.reorderCandidates(group.package.id, group.candidates.map(c => c.id))))
   }
 
@@ -85,7 +86,8 @@ export function useGrabberEnqueue(view: {
    */
   function visibleCandidateIds(packageIds: string[]): string[] | undefined {
     if (!view.filterActive.value) return undefined
-    return withMirrors(view.groups.value.filter(g => packageIds.includes(g.package.id)).flatMap(g => g.candidates))
+    const wanted = new Set(packageIds)
+    return withMirrors(view.groups.value.filter(g => wanted.has(g.package.id)).flatMap(g => g.candidates))
   }
 
   /** These links' ids, followed by the ids of every other member of their mirror groups. */
@@ -129,30 +131,49 @@ export function useGrabberEnqueue(view: {
     if (result.created) await transfers.refresh()
   }
 
-  const EMPTY_ENQUEUE: EnqueueBatchResult = { created: 0, failed: 0, firstError: null, freeDownloadFiles: 0 }
+  const EMPTY_ENQUEUE: EnqueueBatchResult = { created: 0, links: 0, failed: 0, firstError: null, freeDownloadFiles: 0 }
 
-  /** Enqueues the selected links; partially selected packages are split off first. */
+  /**
+   * Enqueues the selected links; partially selected packages are split off first.
+   *
+   * Every lookup goes through a set or a map: with `includes` and `some` inside a loop over the
+   * packages this was links × links per package, and a thousand selected links froze the tab for
+   * 46 s before the first request left.
+   */
   async function enqueueSelectedCollector(paused: boolean): Promise<EnqueueBatchResult> {
-    const selected = view.selection.collectorIds.value
-    if (!selected.length) return EMPTY_ENQUEUE
+    const selected = new Set(view.selection.collectorIds.value)
+    if (!selected.size) return EMPTY_ENQUEUE
     // Selecting a mirror group selects its chosen link; its fallbacks count as selected with it,
     // for the split and for which packages go to the queue.
     const shown = view.groups.value.flatMap(g => g.candidates)
-    const ids = withMirrors(shown.filter(c => selected.includes(c.id)))
-    const packageIds = [...new Set(view.groups.value.filter(g => g.candidates.some(c => ids.includes(c.id))).map(g => g.package.id))]
+    const ids = new Set(withMirrors(shown.filter(c => selected.has(c.id))))
+    // Each chosen link under its package, and every package's unfiltered size: an active filter
+    // hides links that must not go along with a "fully" selected filtered view.
+    const packageOf = new Map<string, string>()
+    const packageTotals = new Map<string, number>()
+    for (const candidate of collector.candidates) {
+      if (!candidate.package_id) continue
+      packageOf.set(candidate.id, candidate.package_id)
+      packageTotals.set(candidate.package_id, (packageTotals.get(candidate.package_id) ?? 0) + 1)
+    }
+    // In the displayed order, which is the order a split-off package takes.
+    const chosenByPackage = new Map<string, string[]>()
+    for (const id of ids) {
+      const packageId = packageOf.get(id)
+      if (!packageId) continue
+      const chosen = chosenByPackage.get(packageId)
+      if (chosen) chosen.push(id)
+      else chosenByPackage.set(packageId, [id])
+    }
+    const touched = view.groups.value.filter(g => g.candidates.some(c => ids.has(c.id)))
     // Splitting partially selected packages is independent per package, so these go out together
     // rather than one awaited request after another.
-    await Promise.all(packageIds.map((packageId) => {
-      const group = view.groups.value.find(g => g.package.id === packageId)
-      if (!group) return undefined
-      const chosen = ids.filter(id => collector.candidates.some(c => c.id === id && c.package_id === packageId))
-      // Compare against the unfiltered package size: an active filter hides candidates that must
-      // not be enqueued along with a "fully" selected filtered view.
-      const packageTotal = collector.candidates.filter(c => c.package_id === packageId).length
-      if (chosen.length === packageTotal) return undefined
+    await Promise.all(touched.map((group) => {
+      const chosen = chosenByPackage.get(group.package.id) ?? []
+      if (chosen.length === packageTotals.get(group.package.id)) return undefined
       return collector.moveCandidates(chosen, { newPackageName: t('linkgrabber.selection_package', { name: group.package.name }) })
     }))
-    const targets = view.groups.value.filter(g => g.candidates.every(c => ids.includes(c.id) || !isSelectableCandidate(c)) && g.candidates.some(c => ids.includes(c.id))).map(g => g.package.id)
+    const targets = view.groups.value.filter(g => g.candidates.every(c => ids.has(c.id) || !isSelectableCandidate(c)) && g.candidates.some(c => ids.has(c.id))).map(g => g.package.id)
     await persistDisplayedOrder(targets)
     return collector.enqueuePackages(targets, paused)
   }
@@ -183,7 +204,7 @@ export function useGrabberEnqueue(view: {
     reportEnqueueExtras(links)
     if (!links.created && !imports) return
     await Promise.all([collector.refresh(), transfers.refresh()])
-    toast.add({ title: t('linkgrabber.bulk.enqueued', { links: links.created, nzbs: imports }), color: 'success', icon: 'i-lucide-list-end' })
+    toast.add({ title: t('linkgrabber.bulk.enqueued', { links: links.links, nzbs: imports }), color: 'success', icon: 'i-lucide-list-end' })
   }
 
   /**

@@ -82,10 +82,25 @@ pub struct BindingLimitResponse {
     pub source: LimitSource,
 }
 
+/// Why the active profile is the one in force (RD-190-20).
+#[derive(Clone, Copy, Debug, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileSource {
+    /// The weekly schedule chose it, or its default applies.
+    Schedule,
+    /// Somebody switched to it by hand; `manual` says until when.
+    Manual,
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct BandwidthStatusResponse {
     pub timezone: String,
     pub active_profile: Option<rd_limits::BandwidthProfile>,
+    pub source: ProfileSource,
+    /// The switch made by hand, while it holds.
+    pub manual: Option<rd_limits::ManualProfile>,
+    /// The next change: the end of a switch made by hand while one holds, the schedule's
+    /// next window boundary otherwise.
     pub next_switch_at: Option<chrono::DateTime<chrono::Utc>>,
     pub daily: Option<BudgetUsageResponse>,
     pub monthly: Option<BudgetUsageResponse>,
@@ -278,6 +293,12 @@ pub async fn bandwidth_status(
             .upload_binding_limit()
             .map(binding_response),
         active_profile: status.active_profile,
+        source: if status.manual.is_some() {
+            ProfileSource::Manual
+        } else {
+            ProfileSource::Schedule
+        },
+        manual: status.manual,
     }))
 }
 

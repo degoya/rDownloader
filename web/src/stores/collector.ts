@@ -2,11 +2,13 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useNotifications } from '@/composables/useNotifications'
 import { i18n } from '@/i18n'
 import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import { useNzbImportsStore } from '@/stores/nzbImports'
+import { batchError, inBatches } from '@/utils/bulkBatches'
 
 import { useCandidateActions } from './collectorCandidates'
 import { useMirrorActions } from './collectorMirrors'
@@ -25,6 +27,8 @@ export type { CollectorPackageChange, EnqueueBatchResult, GrabberOrderEntry, Int
 
 /** Stored server-side as the batch origin; deliberately not translated. */
 const WEB_UI_SOURCE_LABEL = 'Web UI'
+/** Link deletions in flight at once; the server writes them one after another anyway. */
+const DELETE_CONCURRENCY = 4
 
 export const useCollectorStore = defineStore('collector', () => {
   const packages = ref<CollectorPackage[]>([])
@@ -39,6 +43,8 @@ export const useCollectorStore = defineStore('collector', () => {
    */
   const settled = ref(false)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const enqueuingIds = ref<Set<string>>(new Set())
   const deletingIds = ref<Set<string>>(new Set())
   let releaseEvents: (() => void) | null = null
@@ -148,16 +154,21 @@ export const useCollectorStore = defineStore('collector', () => {
 
   async function updatePackages(ids: string[], change: CollectorPackageChange): Promise<boolean> {
     if (!ids.length) return false
-    const response = ids.length === 1 && ids[0]
-      ? await api.PATCH('/api/v1/collector/packages/{id}', { params: { path: { id: ids[0] } }, body: changeBody(change) })
-      : await api.POST('/api/v1/collector/packages/bulk', { body: { ids, ...changeBody(change) } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
+    if (ids.length === 1 && ids[0]) {
+      const response = await api.PATCH('/api/v1/collector/packages/{id}', { params: { path: { id: ids[0] } }, body: changeBody(change) })
+      if (!response.data) {
+        error.value = responseError(response)
+        return false
+      }
+      error.value = null
+      await refresh()
+      return true
     }
-    error.value = null
-    await refresh()
-    return true
+    // The bulk routes take at most 500 ids; a larger selection goes in batches.
+    const run = await inBatches(ids, batch => api.POST('/api/v1/collector/packages/bulk', { body: { ids: batch, ...changeBody(change) } }))
+    if (run.data.length) await refresh()
+    error.value = batchError(run)
+    return !run.failure
   }
 
   /**
@@ -180,13 +191,23 @@ export const useCollectorStore = defineStore('collector', () => {
     return Boolean(response.data)
   }
 
+  /**
+   * Moves links into a package. In batches, only the first one may create a new package: the
+   * ones after it go into the package that batch created, not into a namesake of their own.
+   */
   async function moveCandidates(ids: string[], target: { packageId?: string, newPackageName?: string }): Promise<boolean> {
-    const response = await api.POST('/api/v1/collector/candidates/move', {
-      body: { ids, ...(target.packageId ? { package_id: target.packageId } : {}), ...(target.newPackageName ? { new_package_name: target.newPackageName } : {}) }
+    let packageId = target.packageId
+    const run = await inBatches(ids, async batch => {
+      const response = await api.POST('/api/v1/collector/candidates/move', {
+        body: { ids: batch, ...(packageId ? { package_id: packageId } : {}), ...(!packageId && target.newPackageName ? { new_package_name: target.newPackageName } : {}) }
+      })
+      packageId ??= response.data?.id
+      return response
     })
-    if (!response.data) error.value = responseError(response)
     await refresh()
-    return Boolean(response.data)
+    // After the refresh, which clears `error` when the lists load.
+    if (run.failure) error.value = batchError(run)
+    return !run.failure
   }
 
   async function checkLinks(ids?: string[]): Promise<boolean> {
@@ -207,37 +228,43 @@ export const useCollectorStore = defineStore('collector', () => {
    * LinkGrabber shows while a filter hides the rest, which then stay behind in their package.
    */
   async function enqueuePackages(ids: string[], paused = false, candidateIds?: string[]): Promise<EnqueueBatchResult> {
-    const empty: EnqueueBatchResult = { created: 0, failed: 0, firstError: null, freeDownloadFiles: 0 }
+    const empty: EnqueueBatchResult = { created: 0, links: 0, failed: 0, firstError: null, freeDownloadFiles: 0 }
     if (!ids.length) return empty
     pending.value = true
     enqueuingIds.value = new Set(ids)
-    const response = await api.POST('/api/v1/collector/packages/enqueue', {
-      body: { ids, paused, ...(candidateIds ? { candidate_ids: candidateIds } : {}) }
-    })
+    // Read before the request: a refused batch refreshes the list, and the links that did go
+    // are counted from what was there when they were sent.
+    const before = candidates.value
+    const run = await inBatches(ids, batch => api.POST('/api/v1/collector/packages/enqueue', {
+      body: { ids: batch, paused, ...(candidateIds ? { candidate_ids: candidateIds } : {}) }
+    }))
     enqueuingIds.value = new Set()
     pending.value = false
-    if (!response.data) {
-      error.value = responseError(response)
+    if (run.failure) {
       await refresh()
-      return empty
+      error.value = batchError(run)
+      if (!run.data.length) return empty
+    } else {
+      error.value = null
     }
-    error.value = null
     // Drop the enqueued packages locally instead of waiting for a round trip: the caller
     // refreshes both lists straight afterwards, so re-reading here only delayed the rows
     // disappearing by the length of three more GETs.
     // Only what was sent goes: a package that kept links the filter hid keeps its row.
-    const enqueued = new Set(response.data.created.length ? ids : [])
+    const enqueued = new Set(run.data.flatMap((result, index) => result.created.length ? run.sent[index] ?? [] : []))
+    const sent = candidateIds ? new Set(candidateIds) : null
+    const went = (item: LinkCandidate): boolean => Boolean(item.package_id && enqueued.has(item.package_id) && (sent === null || sent.has(item.id)))
     if (enqueued.size) {
-      const sent = candidateIds ? new Set(candidateIds) : null
-      candidates.value = candidates.value.filter(item => !item.package_id || !enqueued.has(item.package_id) || (sent !== null && !sent.has(item.id)))
+      candidates.value = candidates.value.filter(item => !went(item))
       const kept = new Set(candidates.value.map(item => item.package_id))
       packages.value = packages.value.filter(item => !enqueued.has(item.id) || kept.has(item.id))
     }
     return {
-      created: response.data.created.length,
-      failed: response.data.failed,
-      firstError: response.data.first_error ?? null,
-      freeDownloadFiles: response.data.free_download_files
+      created: run.data.reduce((sum, result) => sum + result.created.length, 0),
+      links: enqueued.size ? before.filter(went).length : 0,
+      failed: run.data.reduce((sum, result) => sum + result.failed, 0),
+      firstError: run.data.find(result => result.first_error)?.first_error ?? null,
+      freeDownloadFiles: run.data.reduce((sum, result) => sum + result.free_download_files, 0)
     }
   }
 
@@ -269,6 +296,41 @@ export const useCollectorStore = defineStore('collector', () => {
     }
     await refresh()
     return true
+  }
+
+  /**
+   * Deletes these links, a few requests at a time, and reads the list once at the end.
+   *
+   * There is no route for a chosen set of links, and one request after another — each followed
+   * by a full refresh — took 70 s for 392 links with nothing on screen moving. `onProgress` is
+   * told how many have been answered.
+   */
+  async function deleteCandidates(ids: readonly string[], onProgress?: (done: number) => void): Promise<number> {
+    const queue = ids.filter(id => !deletingIds.value.has(id))
+    if (!queue.length) return 0
+    deletingIds.value = new Set([...deletingIds.value, ...queue])
+    const removed = new Set<string>()
+    let failure: unknown = null
+    let next = 0
+    let answered = 0
+    async function worker(): Promise<void> {
+      while (next < queue.length) {
+        const id = queue[next++] as string
+        const response = await api.DELETE('/api/v1/collector/candidates/{id}', { params: { path: { id } } })
+        if (response.data) removed.add(id)
+        else failure ??= response
+        onProgress?.(++answered)
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(DELETE_CONCURRENCY, queue.length) }, worker))
+    const left = new Set(deletingIds.value)
+    for (const id of queue) left.delete(id)
+    deletingIds.value = left
+    candidates.value = candidates.value.filter(item => !removed.has(item.id))
+    await refresh()
+    // After the refresh, which clears `error` when the lists load.
+    if (failure) error.value = responseError(failure)
+    return removed.size
   }
 
   async function deletePackage(id: string): Promise<boolean> {
@@ -354,6 +416,7 @@ export const useCollectorStore = defineStore('collector', () => {
     grantReplayConsent,
     revokeReplayConsent,
     deleteCandidate,
+    deleteCandidates,
     deletePackage,
     clearCandidates,
     connectEvents,

@@ -215,7 +215,18 @@ export function formatLongMoment(value: string | null | undefined): string {
   return formatAt(value, 'long')
 }
 
-function formatAt(value: string | null | undefined, format: 'short' | 'date' | 'long'): string {
+/**
+ * When a pause or a switch ends: the clock alone within the next day, the date with it beyond
+ * (RD-190-20) — "until 18:30" reads at a glance, "until 18:30" two days ahead would mislead.
+ */
+export function formatPauseEnd(value: string | null | undefined, now: number = Date.now()): string {
+  if (!value) return ''
+  const at = Date.parse(value)
+  if (Number.isNaN(at)) return ''
+  return formatAt(value, at - now < 24 * 60 * 60 * 1000 ? 'time' : 'short')
+}
+
+function formatAt(value: string | null | undefined, format: 'short' | 'date' | 'long' | 'time'): string {
   if (!value) return ''
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? '' : i18n.global.d(parsed, format)

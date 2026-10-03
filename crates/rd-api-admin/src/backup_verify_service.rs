@@ -151,6 +151,20 @@ pub async fn start_verification(
     let archive = archive.clone();
     tokio::spawn(async move {
         let outcome = check(&task_state, &record, &archive, &key_record).await;
+        // Nobody watches a scheduled verification (RD-190-19); one started by hand shows its
+        // result to whoever started it.
+        let notice = match &outcome {
+            Err(error) if origin == BackupOrigin::Scheduled => {
+                Some(rd_api_core::notify_notice::Notice::backup_verify_failed(
+                    &id,
+                    &archive.archive_name,
+                    &backup_delivery::label(&record),
+                    error.code,
+                    &error.detail,
+                ))
+            }
+            _ => None,
+        };
         let (stored, event) = match outcome {
             Ok(content_checked) => {
                 tracing::info!(archive = %archive.archive_name, content_checked, "backup archive verified");
@@ -182,6 +196,9 @@ pub async fn start_verification(
             .await
         {
             tracing::warn!(%error, "the end of a backup verification could not be recorded");
+        }
+        if let Some(notice) = notice {
+            rd_api_core::notify_notice::announce(&task_state.database, notice).await;
         }
         crate::audit::record(
             &task_state,

@@ -1,6 +1,7 @@
 //! Service-wide operations that belong to no single domain: the settings blob, the whole-file
-//! restore from `backup_store`, the WAL checkpoint, the consistent copy a full backup is built
-//! from, the interrupted-work sweep and the event retention sweep.
+//! restore from `backup_store`, the WAL checkpoint, the rewrite without free pages, the
+//! consistent copy a full backup is built from, the interrupted-work sweep and the event
+//! retention sweep.
 
 use super::{Writer, purge_old_events, send};
 use crate::commands::WriterCommand;
@@ -43,6 +44,14 @@ impl Writer {
             }
             WriterCommand::ClearTransferStats { reply } => {
                 send(reply, crate::stats_store::clear(&mut self.connection).await);
+            }
+            WriterCommand::Vacuum { reply } => {
+                let result = sqlx::query("VACUUM")
+                    .execute(&mut self.connection)
+                    .await
+                    .map(|_| ())
+                    .map_err(anyhow::Error::from);
+                send(reply, result);
             }
             WriterCommand::VacuumInto { path, reply } => {
                 send(reply, self.vacuum_into(&path).await);

@@ -7,11 +7,13 @@
 //! an [`Options`] now, so the next difference is one more option rather than an eighth copy.
 //!
 //! The request helpers live in `requests`, the waiting in `wait`, fixtures in `fixtures`; all of
-//! it is re-exported here, so a test file names `common::…` and nothing deeper.
+//! it is re-exported here, so a test file names `common::…` and nothing deeper. The stand-in
+//! identity provider is `common::idp`, by name: two suites in two binaries need it.
 
 #![allow(dead_code, unused_imports)]
 
 mod fixtures;
+pub mod idp;
 mod requests;
 mod wait;
 
@@ -153,6 +155,9 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
     let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
         .await
         .expect("secrets");
+    // As `serve` does: archive passwords live in the vault (RD-190-04), and link fragments a
+    // provider declared go there too.
+    database.install_secret_vault(secrets.clone());
     let plugins = rd_plugin_host::PluginInstaller::new(
         directory.join("plugins"),
         rd_plugin_host::PluginVerifier::new(true),

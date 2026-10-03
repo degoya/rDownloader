@@ -144,6 +144,71 @@ async fn an_indexer_subscription_from_before_the_search_fields_sends_none() {
     assert!(database.list_indexers().await.expect("indexers").is_empty());
 }
 
+/// An indexer stored before RD-190-16 keeps the compact list on upgrade.
+///
+/// Migration `0114` gives every row `compact`, which is what every indexer's hits looked like
+/// before the choice existed. Seeded on the `0112` schema, the last one on this branch below
+/// `0114`; `0113` belongs to a parallel branch and does not touch `indexers`.
+#[tokio::test]
+async fn an_indexer_from_before_the_list_style_stays_compact() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 112)
+        .await
+        .expect("schema at 0112");
+    {
+        let url = format!("sqlite://{}", path.display());
+        let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+        sqlx::query(
+            "INSERT INTO indexers (id, name, url, secret_ref, categories_json, enabled,
+                                   created_at, updated_at)
+             VALUES ('019d0000-0000-7000-8000-0000000000e5', 'Old indexer',
+                     'https://indexer.example.test/api', NULL, '[]', 1,
+                     '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .execute(&mut connection)
+        .await
+        .expect("insert an indexer on the 0112 schema");
+        connection.close().await.expect("close");
+    }
+
+    let database = rd_db::Database::open(&path).await.expect("upgrade");
+    let indexers = database.list_indexers().await.expect("indexers");
+    assert_eq!(indexers.len(), 1);
+    assert_eq!(indexers[0].name, "Old indexer");
+    assert_eq!(indexers[0].list_style, rd_core::IndexerListStyle::Compact);
+}
+
+/// A subscription stored before RD-190-13 reads its git-release options as the empty choice.
+///
+/// Migration `0115` gives every row the empty object, which no kind but `git_release` reads.
+#[tokio::test]
+async fn a_subscription_from_before_the_git_release_options_reads_them_empty() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 112)
+        .await
+        .expect("schema at 0112");
+    {
+        let url = format!("sqlite://{}", path.display());
+        let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+        sqlx::query(
+            "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, priority,
+                                        interval_seconds, created_at, updated_at)
+             VALUES ('019d0000-0000-7000-8000-0000000000e5', 'Old feed',
+                     'https://example.test/feed.xml', 'feed', 1,
+                     'review', 0, 3600, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .execute(&mut connection)
+        .await
+        .expect("insert a subscription on the 0112 schema");
+        connection.close().await.expect("close");
+    }
+
+    let database = rd_db::Database::open(&path).await.expect("upgrade");
+    let subscriptions = database.list_subscriptions().await.expect("subscriptions");
+    assert_eq!(subscriptions.len(), 1);
+    assert!(subscriptions[0].git_release.is_empty());
+}
+
 /// RD-130-07: migration `0095` merges `comics` and `magazines` into `ebooks`, leaves `graphics`
 /// alone, and lets go of the compiled-in pack's switches.
 ///
@@ -229,4 +294,81 @@ async fn the_site_rule_groups_are_merged_into_ebooks_and_off_wins() {
         ],
         "the merged groups' rows and the compiled-in pack's rule rows are gone"
     );
+}
+
+/// The owner's upgrade to 1.9 (RD-190-04): a package stored before migration `0113` keeps its
+/// archive password through the upgrade, the first start moves it into the vault, and neither
+/// the database file nor the copy the upgrade wrote beside it holds it afterwards.
+#[tokio::test]
+async fn an_archive_password_from_before_the_vault_survives_the_upgrade_and_leaves_the_files() {
+    const PASSWORD: &str = "rd190-from-the-0111-schema";
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 111)
+        .await
+        .expect("schema at 0111");
+    {
+        let url = format!("sqlite://{}", path.display());
+        let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+        sqlx::query(
+            "INSERT INTO packages (id, name, state, destination, priority, position, kind,
+                                   password, created_at, updated_at)
+             VALUES ('019d0000-0000-7000-8000-0000000000f1', 'Protected', 'queued', 'downloads',
+                     0, 1, 'http', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .bind(PASSWORD)
+        .execute(&mut connection)
+        .await
+        .expect("insert a package on the 0111 schema");
+        connection.close().await.expect("close");
+    }
+
+    let database = rd_db::Database::open(&path).await.expect("upgrade");
+    database
+        .install_file_vault(directory.path().join("secrets"))
+        .await
+        .expect("vault");
+    let copies = directory.path().join(rd_db::pre_migration::DIRECTORY);
+    let copy_holds_it = || {
+        std::fs::read_dir(&copies)
+            .expect("the upgrade wrote a copy")
+            .filter_map(Result::ok)
+            .any(|entry| {
+                std::fs::read(entry.path()).is_ok_and(|bytes| {
+                    bytes
+                        .windows(PASSWORD.len())
+                        .any(|window| window == PASSWORD.as_bytes())
+                })
+            })
+    };
+    assert!(
+        copy_holds_it(),
+        "the copy before the upgrade is the old file"
+    );
+
+    assert_eq!(
+        database
+            .take_over_archive_passwords()
+            .await
+            .expect("takeover"),
+        1
+    );
+    assert_eq!(
+        rd_db::pre_migration::scrub_archive_passwords(&copies).await,
+        1
+    );
+
+    let packages = database
+        .list_packages_with_passwords()
+        .await
+        .expect("packages");
+    assert_eq!(packages[0].password.as_deref(), Some(PASSWORD));
+    database.checkpoint_wal().await.expect("checkpoint");
+    let file = std::fs::read(&path).expect("database file");
+    assert!(
+        !file
+            .windows(PASSWORD.len())
+            .any(|window| window == PASSWORD.as_bytes()),
+        "the database file still holds the password"
+    );
+    assert!(!copy_holds_it(), "the copy still holds the password");
 }

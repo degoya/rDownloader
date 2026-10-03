@@ -23,7 +23,10 @@
     "apply": "Appliquer",
     "reveal": "Afficher dans la liste",
     "cancel_edit": "Annuler la modification",
-    "duplicate": "Dupliquer"
+    "duplicate": "Dupliquer",
+    "copy_link": "Copier le lien",
+    "copy_links": "Copier les liens",
+    "open_source_page": "Ouvrir la page d'origine"
   },
   "states": {
     "queued": "En attente",
@@ -60,7 +63,8 @@
     "no": "Non"
   },
   "errors": {
-    "request_failed": "La requête n'a pas pu être traitée."
+    "request_failed": "La requête n'a pas pu être traitée.",
+    "batch_stopped": "{error} – arrêté après la partie {done} sur {total} ; les parties précédentes ont été appliquées."
   },
   "data": {
     "loading": "Chargement",
@@ -105,7 +109,7 @@
     "go_remote_jobs": "Aller aux travaux distants",
     "go_automation": "Aller à l'automatisation",
     "go_settings": "Aller aux paramètres",
-    "import_nzb": "Importer NZB/torrent",
+    "import_nzb": "Importer des fichiers",
     "toggle_transfers": "Démarrer ou mettre en pause tous les téléchargements",
     "show_help": "Afficher les raccourcis clavier",
     "toast": {
@@ -119,7 +123,7 @@
     "go_audit": "Aller à l'audit",
     "open_search": "Ouvrir la recherche",
     "clear_completed": "Retirer les paquets terminés (dans les téléchargements)",
-    "focus_indexer_search": "Aller à la recherche dans les indexeurs (dans le LinkGrabber)",
+    "focus_indexer_search": "Aller à la recherche : dans les indexeurs dans le LinkGrabber, par nom dans Téléchargements",
     "add_links": "Ajouter des liens (dans le LinkGrabber)",
     "enqueue_all": "Tout charger (dans le LinkGrabber)",
     "enqueue_paused": "Tout ajouter en pause (dans le LinkGrabber)",
@@ -163,7 +167,8 @@
   },
   "copy": {
     "failed_title": "La copie a échoué",
-    "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement."
+    "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement.",
+    "links_copied": "Aucun lien copié | {count} lien copié | {count} liens copiés"
   },
   "unsaved": {
     "title": "Abandonner les modifications non enregistrées ?",

@@ -34,7 +34,7 @@ function offer(name: string, version: string, overrides: Partial<PluginOffer> = 
       name,
       version,
       plugin_type: 'resolver',
-      api_version: '0.9.0',
+      api_version: '0.10.0',
       min_app_version: null,
       package_digest: 'cd'.repeat(32),
       size: 4096,

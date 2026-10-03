@@ -293,3 +293,55 @@ describe('PackageGroup grid cells', () => {
     }
   })
 })
+
+/** "Copy links" and "Open source page" (RD-190-21), offered for what the files' data has. */
+describe('PackageGroup link actions', () => {
+  interface LinkItem { label: string, to?: string, target?: string }
+
+  function itemsFor(files: Record<string, unknown>[]): LinkItem[] {
+    const items: LinkItem[] = []
+    mountComponent(PackageGroup, {
+      messages: { downloads, common },
+      props: {
+        package: group(), downloads: files, categories: [], selection: 'none', open: false, complete: false,
+        packageRate: 0, packageEta: null, dragging: false, canPause: false, canResume: false, controlBusy: null
+      },
+      stubs: {
+        UDropdownMenu: {
+          props: ['items'],
+          setup(props: { items: LinkItem[][] }) {
+            items.push(...props.items.flat())
+            return () => null
+          }
+        }
+      }
+    })
+    return items
+  }
+
+  const media = (id: string, page: string) => ({
+    id, file_name: `${id}.mp4`, state: 'queued', committed_bytes: '0', total_bytes: '1', kind: 'media',
+    media: { page_url: page }
+  })
+
+  it('hands the package to the view to copy every link of it', async () => {
+    const { emitted } = renderGroup(group())
+    const cell = document.querySelector('.queue-cell-actions') as HTMLElement
+    ;(within(cell).getByText(common.actions.copy_links) as HTMLButtonElement).click()
+    await Promise.resolve()
+    expect(emitted().copyLinks?.[0]).toEqual(['package-1'])
+  })
+
+  it('opens the one page its files came from in a new tab', () => {
+    const open = itemsFor([media('a', 'https://video.example/v/1'), media('b', 'https://video.example/v/1')])
+      .find(item => item.label === common.actions.open_source_page)
+    expect(open).toMatchObject({ to: 'https://video.example/v/1', target: '_blank' })
+  })
+
+  /** A playlist's files each have their own page; picking one of them would open the wrong one. */
+  it('offers no page when the files name several, or none', () => {
+    const labels = (files: Record<string, unknown>[]) => itemsFor(files).map(item => item.label)
+    expect(labels([media('a', 'https://video.example/v/1'), media('b', 'https://video.example/v/2')])).not.toContain(common.actions.open_source_page)
+    expect(labels([{ id: 'c', file_name: 'c.bin', state: 'queued', committed_bytes: '0', total_bytes: '1' }])).not.toContain(common.actions.open_source_page)
+  })
+})

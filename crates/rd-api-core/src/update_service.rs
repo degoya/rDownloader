@@ -125,14 +125,17 @@ struct Inner {
     /// Held while an artifact is fetched, so the background download and an install never write
     /// the same file at once.
     fetching: tokio::sync::Mutex<()>,
+    /// The connected capture agents, whose versions the status reports beside this one's.
+    capture_agents: crate::capture_agents::CaptureAgents,
 }
 
 impl UpdateService {
     /// A service over the official releases for the running build. Starts nothing.
     #[must_use]
-    pub fn new(database: Database) -> Self {
+    pub fn new(database: Database, capture_agents: crate::capture_agents::CaptureAgents) -> Self {
         Self(Arc::new(Inner {
             database,
+            capture_agents,
             source: RwLock::new(Source {
                 fetcher: Arc::new(HttpFetcher::new()),
                 sources: Sources::official(),
@@ -280,7 +283,18 @@ impl UpdateService {
             .map_err(UpdateError::Other)?;
         match &state.offer {
             Some(offer) => {
-                tracing::info!(version = %offer.version, "a newer rDownloader is available")
+                tracing::info!(version = %offer.version, "a newer rDownloader is available");
+                // Every check finds it again; the notice goes out once per version.
+                if rd_update::is_newer(&offer.version, &self.0.current) {
+                    crate::notify_notice::announce(
+                        &self.0.database,
+                        crate::notify_notice::Notice::update_available(
+                            &offer.version,
+                            &self.0.current,
+                        ),
+                    )
+                    .await;
+                }
             }
             None if state.last_error.is_none() => tracing::debug!("rDownloader is up to date"),
             None => {}
@@ -328,6 +342,7 @@ impl UpdateService {
             available,
             install: self.install_status(),
             download,
+            capture_agents: self.0.capture_agents.versions(&self.0.current),
         }
     }
 

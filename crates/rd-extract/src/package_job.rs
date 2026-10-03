@@ -1,5 +1,6 @@
 //! Orchestrates the post-processing pipeline of one package:
-//! PAR2 (Usenet) → SFV → unpack → delete archives → cleanup → script.
+//! PAR2 (Usenet) → SFV → unpack → delete archives → cleanup → malware scan → plugin steps →
+//! script → upload.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -11,7 +12,7 @@ use rd_core::{
 use rd_postprocess::{group_archive_sets, is_sfv, load_password_file, password_candidates};
 
 use crate::{
-    ExtractionTrigger, Inner, cleanup_job, object_upload, par2_job, par2_refill,
+    ExtractionTrigger, Inner, cleanup_job, malware_scan, object_upload, par2_job, par2_refill,
     pipeline::{self, PlanInput},
     plugin_step, rar_test_job, rclone_job, script_job, settings, sfv_job, storage_upload,
     unpack_job,
@@ -127,6 +128,10 @@ pub(crate) async fn run_package(
         .into_iter()
         .filter(|plugin_id| inner.plugin_step_installed(plugin_id))
         .collect();
+    // Same precedence once more: category override, else the global switch (RD-190-14).
+    let scan = category
+        .and_then(|category| category.malware_scan)
+        .unwrap_or(settings.malware_scan_enabled);
     let plan = pipeline::plan(&PlanInput {
         level,
         kind: package.kind,
@@ -138,6 +143,7 @@ pub(crate) async fn run_package(
         upload: upload.as_deref(),
         delete_par2,
         plugin_steps: &plugin_steps,
+        malware_scan: scan,
     });
     let download_failed = downloads.iter().any(|file| {
         !matches!(
@@ -179,6 +185,13 @@ pub(crate) async fn run_package(
         .set_package_state(package_id, PackageState::Postprocessing, None, None, None)
         .await?;
     let steps = inner.database.list_postprocess_steps(&owner).await?;
+    // What the package holds before anything is unpacked or removed, so a plugin step can be
+    // told which files the pipeline took away (RD-190-06).
+    let before = if plugin_steps.is_empty() {
+        Vec::new()
+    } else {
+        package_file_names(&directory).await
+    };
 
     // Loaded before the checks, not inside the unpack: the RAR integrity test asks the
     // archive itself whether it is intact, and an encrypted archive needs the same passwords
@@ -258,13 +271,13 @@ pub(crate) async fn run_package(
         && trigger != ExtractionTrigger::Force;
     let verification_gate = verified || !safe_postproc;
 
+    // Same precedence as the rest: category override, else the global setting (RD-170-16).
+    let own_folders = category
+        .and_then(|category| category.unpack_to_subfolder)
+        .unwrap_or(settings.unpack_to_subfolder);
     let mut unpack_ok = true;
     if level.unpacks() && verification_gate && !sets.is_empty() {
-        // Same precedence as the rest: category override, else the global setting (RD-170-16).
-        let target = if category
-            .and_then(|category| category.unpack_to_subfolder)
-            .unwrap_or(settings.unpack_to_subfolder)
-        {
+        let target = if own_folders {
             unpack_job::UnpackTarget::OwnFolder
         } else {
             unpack_job::UnpackTarget::Package
@@ -297,23 +310,43 @@ pub(crate) async fn run_package(
     if delete_par2 && level.deletes() && par2_ok && sfv_ok && unpack_ok {
         par2_job::delete_sets(inner, &owner, &steps, &files).await?;
     }
+    let mut cleaned = Vec::new();
     if level.unpacks() && verification_gate && unpack_ok && rules.is_active() {
-        cleanup_job::run(inner, &owner, &directory, &rules).await?;
+        // A folder per archive is a level of its own; the content below it is cleaned as deep
+        // as it would be in the package folder (RD-190-06).
+        let depth = cleanup_job::depth(own_folders && !sets.is_empty());
+        cleaned = cleanup_job::run(inner, &owner, &directory, &rules, depth).await?;
     }
     // A livestream recording's segments are joined here rather than by the recorder: a
     // six-hour remux has to survive a restart, and a persisted step is what makes that a
     // resumed job instead of a lost one (RD-080-09).
     remux_recording(inner, &owner, &downloads, &directory, &settings).await?;
+    // After cleanup, so what is scanned is what will be kept, and before anything hands the
+    // package on — a plugin step, the user script, an upload (RD-190-14). It runs whatever the
+    // unpack made of the package: an upload goes ahead after a failed unpack too, and clamd
+    // looks inside the archives that are left. A finding stops everything after it.
+    let mut scan_clean = true;
+    if scan {
+        scan_clean = malware_scan::run(inner, &owner, &package, &directory, &settings).await?;
+        if !scan_clean {
+            malware_scan::skip_after_finding(inner, &owner).await?;
+        }
+    }
     // After cleanup, so a plugin sees the package as it will finally be, and before the user
     // script, which stays the last word. Only for a package that got that far: running a
     // checksum step over a half-unpacked package would report a mismatch that says nothing.
     let mut plugin_steps_ok = true;
-    if !plugin_steps.is_empty() && verification_gate && unpack_ok {
+    if scan_clean && !plugin_steps.is_empty() && verification_gate && unpack_ok {
         let names = package_file_names(&directory).await;
+        let downloaded: Vec<String> = downloads
+            .iter()
+            .map(|file| plugin_step::relative_name(Path::new(&file.file_name)))
+            .collect();
+        let removed = plugin_step::removed_files(&names, &before, &downloaded, &cleaned);
         plugin_steps_ok =
-            plugin_step::run(inner, &owner, &plugin_steps, &directory, &names).await?;
+            plugin_step::run(inner, &owner, &plugin_steps, &directory, &names, &removed).await?;
     }
-    if let Some(name) = &script {
+    if let Some(name) = script.as_ref().filter(|_| scan_clean) {
         // SABnzbd only defines 0-3; a failed SFV check is a verification failure like PAR2.
         let status = if !verified {
             3
@@ -340,7 +373,7 @@ pub(crate) async fn run_package(
         let _ = script_job::run(inner, &owner, &scripts_dir, name, &context, timeout).await?;
     }
     let mut upload_ok = true;
-    if let Some(remote) = &upload {
+    if let Some(remote) = upload.as_ref().filter(|_| scan_clean) {
         // Moving a seeding torrent's payload would break the seed, so torrents copy.
         let mode = if package.kind == rd_core::DownloadKind::Torrent {
             rclone_job::UploadMode::Copy
@@ -392,11 +425,12 @@ pub(crate) async fn run_package(
             upload_ok = rclone_job::run(inner, &owner, &context).await?;
         }
     }
-    let final_state = if verification_gate && unpack_ok && plugin_steps_ok && upload_ok {
-        PackageState::Completed
-    } else {
-        PackageState::Failed
-    };
+    let final_state =
+        if verification_gate && unpack_ok && scan_clean && plugin_steps_ok && upload_ok {
+            PackageState::Completed
+        } else {
+            PackageState::Failed
+        };
     // Written before the state so the refresh triggered by `package.state` sees it.
     if level.unpacks() && verification_gate && !sets.is_empty() {
         let outcome = if unpack_ok {

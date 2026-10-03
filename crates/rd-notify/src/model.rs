@@ -48,18 +48,44 @@ pub enum NotificationEvent {
     CaptchaWaiting,
     /// A queue completion action is counting down (RD-050-13).
     PowerPending,
+    /// A scheduled full backup failed, or reached only some of its destinations (RD-190-19).
+    BackupFailed,
+    /// A scheduled verification found an archive at its destination unreadable, changed or
+    /// gone (RD-190-19).
+    BackupVerifyFailed,
+    /// A newer rDownloader is offered on the update channel (RD-190-19). Once per version.
+    UpdateAvailable,
+    /// A newer version of an installed plugin waits to be installed by hand (RD-190-19). Once
+    /// per plugin and version.
+    PluginUpdateAvailable,
+    /// An automatic plugin update could not be downloaded or installed (RD-190-19). Once per
+    /// plugin and version.
+    PluginUpdateFailed,
+    /// An account check reported a premium end within the next days (RD-190-19). Once per
+    /// account and end date.
+    AccountExpiring,
+    /// An account no longer signs in: a check refused it, or a token renewal failed for good
+    /// (RD-190-19). At most once per account and day.
+    AccountInvalid,
 }
 
 impl NotificationEvent {
     #[must_use]
     pub fn severity(self) -> Severity {
         match self {
-            Self::PackageCompleted => Severity::Info,
-            Self::PackageFailed => Severity::Error,
+            Self::PackageCompleted | Self::UpdateAvailable | Self::PluginUpdateAvailable => {
+                Severity::Info
+            }
+            Self::PackageFailed
+            | Self::BackupFailed
+            | Self::BackupVerifyFailed
+            | Self::PluginUpdateFailed
+            | Self::AccountInvalid => Severity::Error,
             Self::StorageBlocked
             | Self::BudgetExhausted
             | Self::CaptchaWaiting
-            | Self::PowerPending => Severity::Warning,
+            | Self::PowerPending
+            | Self::AccountExpiring => Severity::Warning,
         }
     }
 
@@ -73,6 +99,13 @@ impl NotificationEvent {
             Self::BudgetExhausted,
             Self::CaptchaWaiting,
             Self::PowerPending,
+            Self::BackupFailed,
+            Self::BackupVerifyFailed,
+            Self::UpdateAvailable,
+            Self::PluginUpdateAvailable,
+            Self::PluginUpdateFailed,
+            Self::AccountExpiring,
+            Self::AccountInvalid,
         ]
     }
 }
@@ -208,6 +241,55 @@ mod tests {
         assert!(rule.matches(NotificationEvent::PackageCompleted, Some(wanted)));
         assert!(!rule.matches(NotificationEvent::PackageCompleted, Some(CategoryId::new())));
         assert!(!rule.matches(NotificationEvent::PackageCompleted, None));
+    }
+
+    #[test]
+    fn the_operational_events_have_their_severity_and_their_wire_name() {
+        let cases = [
+            (
+                NotificationEvent::BackupFailed,
+                Severity::Error,
+                "backup_failed",
+            ),
+            (
+                NotificationEvent::BackupVerifyFailed,
+                Severity::Error,
+                "backup_verify_failed",
+            ),
+            (
+                NotificationEvent::PluginUpdateFailed,
+                Severity::Error,
+                "plugin_update_failed",
+            ),
+            (
+                NotificationEvent::UpdateAvailable,
+                Severity::Info,
+                "update_available",
+            ),
+            (
+                NotificationEvent::PluginUpdateAvailable,
+                Severity::Info,
+                "plugin_update_available",
+            ),
+            (
+                NotificationEvent::AccountExpiring,
+                Severity::Warning,
+                "account_expiring",
+            ),
+            (
+                NotificationEvent::AccountInvalid,
+                Severity::Error,
+                "account_invalid",
+            ),
+        ];
+        for (event, severity, name) in cases {
+            assert_eq!(event.severity(), severity, "{name}");
+            assert_eq!(
+                serde_json::to_value(event).expect("serialize"),
+                serde_json::json!(name)
+            );
+            assert!(NotificationEvent::all().contains(&event), "{name}");
+        }
     }
 
     #[test]

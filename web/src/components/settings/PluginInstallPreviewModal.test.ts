@@ -46,7 +46,7 @@ function shown(overrides: Partial<PluginPreview> = {}): PluginPreview {
     name: 'DDownload',
     version: '1.2.4',
     plugin_type: 'resolver',
-    api_version: '0.9.0',
+    api_version: '0.10.0',
     min_app_version: null,
     description: 'Resolves DDownload links.',
     homepage: null,

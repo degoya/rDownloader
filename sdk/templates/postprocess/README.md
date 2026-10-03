@@ -21,10 +21,12 @@ in the handbook walks from this scaffold to a signed package in a repository of 
 It asks for nothing — reading the package is part of the type, through a handle. Ask for exactly
 what you use: the plugin manager shows the grants to the person deciding whether to install it.
 
-## Two rules worth knowing first
+## Three rules worth knowing first
 
 - Nothing to do is `skipped`, not `failed`.
 - The checkpoint holds everything a resumed run needs, not only an offset.
+- A pass with something to say says it in `warnings` on `complete`, translated from `locales/`;
+  `failed` is for a package that is wrong. Files earlier steps removed are in `input.removed`.
 
 ## Build, test, package
 

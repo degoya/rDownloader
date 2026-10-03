@@ -291,8 +291,12 @@ pub(crate) enum WriterCommand {
     RecordSubscriptionItems {
         subscription_id: rd_core::SubscriptionId,
         items: Vec<crate::subscription_store::NewSubscriptionItem>,
-        /// Only the rows this call created; the rest were already archived.
-        reply: Reply<Vec<rd_core::SubscriptionItem>>,
+        /// Only the rows this call created, the rest were already archived; and the archive
+        /// password of every row it wrote, for the vault (RD-190-04).
+        reply: Reply<(
+            Vec<rd_core::SubscriptionItem>,
+            crate::subscription_store::ItemPasswords,
+        )>,
     },
     SetSubscriptionItemState {
         id: rd_core::SubscriptionItemId,
@@ -549,6 +553,7 @@ pub(crate) enum WriterCommand {
             rd_core::CollectorBatch,
             Vec<rd_core::CollectorPackage>,
             Vec<rd_core::LinkCandidate>,
+            crate::collector_store::BatchPasswords,
         )>,
     },
     UpdateCollectorPackages {
@@ -874,6 +879,11 @@ pub(crate) enum WriterCommand {
     QueueNotificationDelivery {
         input: crate::notify_store::NewDelivery,
         reply: Reply<bool>,
+    },
+    /// Queues an operational notice's deliveries, each at most once per key (RD-190-19).
+    QueueNotificationNotice {
+        deliveries: Vec<crate::notify_store::NewDelivery>,
+        reply: Reply<u64>,
     },
     RecordNotificationAttempt {
         id: rd_core::NotificationDeliveryId,
@@ -1255,6 +1265,32 @@ pub(crate) enum WriterCommand {
     /// Empties the storage history except the rows still running (RD-180-13).
     ClearStorageOperations {
         reply: Reply<u64>,
+    },
+    /// Rewrites the database file without its free pages (RD-190-04: after the takeover of
+    /// the archive passwords, so no page the plain columns once used survives in the file).
+    Vacuum {
+        reply: Reply<()>,
+    },
+    /// Records vault references before their values are written (RD-190-04).
+    ReserveArchivePasswords {
+        references: Vec<String>,
+        reply: Reply<()>,
+    },
+    /// Hands reservations whose values could not be written to the sweep.
+    ReleaseArchivePasswords {
+        references: Vec<String>,
+        reply: Reply<()>,
+    },
+    /// Points rows at their new references and empties the plain column in one transaction.
+    AdoptArchivePasswords {
+        table: crate::archive_password::PasswordTable,
+        entries: Vec<(String, Option<String>)>,
+        reply: Reply<()>,
+    },
+    /// Drops the sweep rows whose vault entries were removed.
+    ForgetArchivePasswords {
+        references: Vec<String>,
+        reply: Reply<()>,
     },
     /// Writes a consistent copy of the whole database to `path` (RD-160-01).
     VacuumInto {

@@ -39,6 +39,8 @@ cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usene
     -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
 # The plugin update's two points sit in rd-api-admin and are driven through the admin suite.
 cargo nextest run --features rd-api/failpoints -j 2 -p rd-api --test admin stopped_updates
+# The archive passwords' two points sit in rd-db; only their own test binary runs here.
+cargo nextest run --features rd-db/failpoints -j 2 -p rd-db --test archive_password_crash
 ```
 
 `rd-core/failpoints` on its own is not enough, however plausible it looks. Every crash-test
@@ -56,7 +58,9 @@ next run as well. The `rd-plugin-transfer` case drives the reference backend com
 components are built. RD-180-03 added two `rd-backup` cases (`tests/pre_update_crash.rs`, the
 backup before an update); the count is measured with the next run. RD-180-02 added four
 `rd-update` cases (`tests/install_crash.rs`, the portable self-update's switch); `rd-update` has
-no count recorded yet.
+no count recorded yet. RD-190-04 added two `rd-db` cases in a binary of their own
+(`tests/archive_password_crash.rs`, compiled to nothing without `rd-db/failpoints`); its count is
+measured with the next run.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything
@@ -92,6 +96,8 @@ row for a point that does not exist.
 
 | Point | Owner | A restart must show |
 | --- | --- | --- |
+| `archive_password.after_secret_removed` | rd-db | a sweep stopped after it removed released archive passwords from the vault and before it recorded that keeps the record and never the entry; the next start removes the record, and no row points at an entry that is gone |
+| `archive_password.before_reference_adopted` | rd-db | archive passwords written to the vault before any row points at them lose nothing: a stopped takeover keeps every plain value, the next start removes the entries the first attempt reserved and moves the values again, and the vault ends with exactly one entry per password; a stopped write keeps the row's previous password |
 | `automation.before_outcome_recorded` | rd-api-core | a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes |
 | `backup.after_database_snapshot` | rd-backup | a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination |
 | `backup.after_retention_removal` | rd-backup | an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed |
@@ -107,15 +113,18 @@ row for a point that does not exist.
 | `plugin.before_pointers_followed` | rd-api-admin | an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
 | `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
+| `postprocess.before_scan_recorded` | rd-extract | a package whose malware scan ran before its verdict was recorded is scanned again by the next start and never released on a verdict nobody recorded; a finding fails it then, with the steps after the scan skipped and not run |
 | `postprocess.before_unpack_recorded` | rd-extract | an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives |
 | `pre_update.before_archive_published` | rd-backup | an archive sealed and checked before an update but not yet moved into the pre-update folder never appears there; the next start removes the staging with the unencrypted copy it held, and the next preparation seals a whole one |
 | `pre_update.before_copy_published` | rd-backup | a database copy written before an update but not yet checked never carries a copy's name, so no rollback can pick it; the live database is untouched and opens as it was, the next start removes the partial file, and the next preparation writes a whole, checked copy |
 | `restore.after_live_set_aside` | rd-backup | a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
+| `scheduler.after_queue_pause_recorded` | rd-scheduler | a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
 | `scheduler.before_move_source_removed` | rd-scheduler | a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it |
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
+| `subscription.after_items_archived` | rd-api-core | release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them |
 | `torrent.before_seed_completed` | rd-torrent | a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once |
 | `update.after_leftover_set_aside` | rd-update | a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update |
 | `update.after_new_placed` | rd-update | a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes |
@@ -123,6 +132,18 @@ row for a point that does not exist.
 | `update.before_health_check` | rd-update | a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
 | `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
+
+`archive_password.before_reference_adopted` and `archive_password.after_secret_removed` are the
+archive passwords in the vault (RD-190-04, `rd-db/src/archive_password.rs`). A write records the
+new references as reserved, writes the values into the vault under them, and only then points the
+rows at them and empties the old plain column in one transaction; whatever a row lets go of, a
+trigger records as released in the transaction that lets go, and the sweep removes the vault entry
+before it removes the record. The first case stops a start's takeover after the vault holds the
+values and before any row points at them, and asserts that the plain values are all still there,
+that the next start removes the reserved entries and moves the values again, and that the vault
+then holds one entry per password. The second stops the sweep after a deleted package's entry left
+the vault and before the record did, and asserts that the next start removes the record. Both
+cases (`crates/rd-db/tests/archive_password_crash.rs`) run with `rd-db/failpoints`.
 
 `backup.before_archive_published` is the full backup's two-phase step (RD-160-01): the
 encrypted archive is complete in the staging folder below the data directory, and only then is
@@ -276,6 +297,15 @@ long as the install lives. Its case therefore asserts the queue-level form of in
 the start that follows finds the group with nobody holding it and gives the turn to the next
 mirror, and it does so without the person touching anything.
 
+`scheduler.after_queue_pause_recorded` is the timed pause of the whole queue (RD-190-20). The
+pause is recorded first — its end and the files it stops — and the files are paused one by one
+after it, each a write of its own. A stop between the two leaves the record and files that are
+still queued. The case asserts the queue-level form of invariant 4: the start that follows holds
+the queue again before its first dispatch, so none of those files starts before the end, and a
+pause whose end passed while the service was down queues its files again on the first tick
+rather than leaving them paused for good. The order is the point: the other way round, a stop
+after the files and before the record would leave them paused with no end anybody remembers.
+
 `postprocess.before_unpack_recorded` is the pipeline's step between an archive being unpacked
 and its step being recorded (RD-180-12, `rd_extract::unpack_job`). A stop there leaves the payload
 in the package folder, a step still `Running` and a package still `Postprocessing`, which is the
@@ -287,6 +317,14 @@ that before RD-180-12; now every extraction first removes the staging directorie
 left in its destination (only one job runs at a time, so any that is there is stale), and the case
 plants one to prove it goes. The case runs with `rd-extract/failpoints`.
 
+`postprocess.before_scan_recorded` is the malware scan between `clamd` answering and the scan
+step recording the verdict (RD-190-14, `rd_extract::malware_scan`). The scan itself writes nothing
+but its step, so a stop there leaves the step `Running` and the package `Postprocessing`, and the
+start that follows runs the pipeline again. The scan is never taken from an earlier pass — it runs
+on every pass, having no side effects — so the case asserts that the restart asks `clamd` again,
+that a finding then fails the package with the steps after the scan recorded as skipped, and that
+the package was at no point `Completed`. The case runs with `rd-extract/failpoints`.
+
 `automation.before_outcome_recorded` is an automation run between an action taking effect and the
 run recording it (RD-180-12, `rd_api_core::automation_service`). The run is claimed as `running`
 before its action executes, and a start queues every `running` run again before it does anything
@@ -294,6 +332,16 @@ else. Its case asserts that the run is not due until that recovery, that the rec
 at the same action — which therefore runs a second time: an action is carried out at least once,
 so a webhook's receiver or a script can see the same event twice after a stop — and that it then
 completes, never skipping an action whose outcome nobody recorded. The case runs with `rd-api-core/failpoints`.
+
+`subscription.after_items_archived` is a subscription poll between archiving its accepted items
+and handing them to the LinkGrabber (RD-190-13, `rd_api_core::subscription_service`). An accepted
+item is archived as pending and marked queued only once the LinkGrabber has it, so a stop there
+leaves pending items and no LinkGrabber entry. Its case asserts, for a git-release subscription's
+file, that the next poll finds the file archived and hands nothing over a second time, and that
+the file is still pending, where the review list queues it by hand. An automatic queueing after
+such a stop is deliberately not attempted: a pending item of an auto-queue subscription can also
+be a backlog item kept for review, and the archive does not tell the two apart. The case runs
+with `rd-api-core/failpoints`.
 
 `torrent.before_seed_completed` is the end of a seed (RD-180-12, `rd_torrent::seeding`): the seed
 time is folded into its total and the torrent left the session, but the queue row still says

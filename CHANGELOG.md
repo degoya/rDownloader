@@ -5,6 +5,225 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-02
+
+### Added
+
+- **The update card names the running capture agents' versions (RD-190-07).** The capture agent
+  now sends its version with every request, and *Settings → System → Updates* lists it beside the
+  service's. An agent older than the service — one from before 1.8.1, which does not restart
+  itself after an update, or one another user started — gets a hint with both versions and how to
+  restart it; without a running agent there is no hint.
+- **The indexer search can show covers and metadata (RD-190-16).** Each indexer under
+  Settings › Usenet › Indexers has a list style: *Compact*, one line per hit as before, or
+  *Detailed*, with a small cover beside the title and a line of what the indexer sends — year,
+  genre, IMDb score, language, resolution, a short description. Covers load only while pictures
+  from indexers are allowed; a hit without one shows the subscription lists' placeholder.
+- **Subscriptions to GitHub and GitLab releases (RD-190-13).** A repository on `github.com`,
+  `gitlab.com`, GitHub Enterprise Server or a self-hosted GitLab downloads the files of every new
+  release once, chosen by platform, architecture, name pattern, pre-releases and source archives;
+  drafts never. The list is polled with its `ETag`, a rate limit pauses the subscription until the
+  named time, a checksum the release states is checked after the download, and a private
+  repository is read with a vaulted token that needs no more than *Contents: read* (GitHub) or
+  `read_api` (GitLab). Migration `0115`.
+- **Malware scanning with ClamAV (RD-190-14).** Switched on in Settings > Post-processing (and
+  per category), every finished package is streamed to your `clamd` — TCP or Unix socket — after
+  unpacking and before plugin steps, the script and the upload. A finding fails the package with
+  the signature and the file, skips everything after the scan, writes an audit record and says so
+  in the package-failed notification; the files stay where they are. An unreachable `clamd` is a
+  warning on the step and the package carries on. A button asks `clamd` for its version, also as
+  the MCP tool `test_malware_scanner`; `docker/compose.yml` has a commented `clamav/clamav`
+  service.
+- **Every shipped Linux arm64 and Intel Mac artefact is now started in CI (RD-190-12).** The
+  aarch64 binary through its launchers, the arm64 image, the aarch64 deb and rpm, the self-update
+  and the apt/dnf repository run natively on `ubuntu-24.04-arm`; the Homebrew tap is installed on
+  an Intel Mac (`macos-15-intel`) and on Linux arm64; openSUSE's zypper installs from the package
+  repository. The arm64 image is smoke-tested before a release pushes it. The AUR package for
+  aarch64 is listed as not supported, and the support matrix says so.
+- **Releases submit the browser extension to Microsoft Edge Add-ons as well (RD-190-11).** The
+  Chrome build goes unchanged to Edge's store for certification, beside the Chrome Web Store and
+  Firefox Add-ons; without the store's credentials the release only warns.
+- **Notifications for what happens in the background (RD-190-19).** Seven new events for the
+  notification rules: `backup_failed` (a scheduled full backup failed or missed a destination),
+  `backup_verify_failed` (a scheduled verification found an archive changed or unreadable),
+  `update_available` (a newer rDownloader, once per version), `plugin_update_available` (a plugin
+  update that waits for a click, once per plugin and version), `plugin_update_failed` (an
+  automatic plugin update was not installed, once per plugin and version), `account_expiring` (an account
+  check finds the premium ending within seven days or ended, once per account and end date) and
+  `account_invalid` (a check refuses the account or a token renewal fails for good, at most once
+  a day per account). A repeating check never sends the same notice twice, even after a restart
+  or a cleared history. Selectable in the rule editor, the REST API and the MCP rule tools.
+- **Pause the whole queue for a while, and switch a bandwidth profile by hand (RD-190-20).** Beside
+  the global pause button a menu pauses for 30 minutes, an hour, three hours or until a time; the
+  rail shows *Paused until …*, and at the end exactly the downloads the pause stopped resume — also
+  after a restart. Under *Settings → Bandwidth* a profile, or no limits, can be put in front of the
+  weekly schedule until its next change, for a while or until you switch back, and the status says
+  which profile is active and why. REST (`/api/v1/queue/pause`, `/api/v1/bandwidth/manual`) and
+  seven MCP tools.
+- **Search the download list, and filter it by Paused, Failed and Seeding (RD-190-21).** A field
+  above the queue narrows it to package and file names, `F` puts the keyboard in it, and filter
+  and search stay in the address (`/downloads?filter=failed&q=…`). File, package and LinkGrabber
+  rows offer *Copy links* and, where the page a link came from is known, *Open source page*. Over
+  MCP, `list_downloads` takes the state `seeding` and matches package names too.
+- **Four settings gaps closed (RD-190-22).** Proxy profiles can be edited, duplicated and
+  deleted, not only created; a profile still chosen as the global route or as the torrent peer
+  proxy is refused like one an account uses. The torrent settings show the engine's network
+  status — bound interface, kill switch, a failed session rebuild — and the downloads view warns
+  while the kill switch holds the torrents. The settings export carries the Newznab indexers,
+  their API key sealed like every other credential, so the full restore puts it back too. An
+  automation's saved versions open from its row, with what each one changed and a restore.
+- **Sign in through an identity provider (RD-190-15).** The administrator can sign in with the
+  account they already use at Authentik, Authelia, Keycloak or Pocket ID (OpenID Connect,
+  authorization code with PKCE; ADR 0021). The account is linked once under Settings → Security,
+  the redirect URI comes from the external URL, and every other account is refused. The password
+  sign-in stays as the way back; once switched off from a provider session, only
+  `rdownloader auth password-login on` on the machine itself turns it back on. The protocol is
+  the `openidconnect` crate's, running on rDownloader's own HTTP client.
+- **A forgotten administrator password is recovered on the host (RD-190-24).**
+  `rdownloader auth reset-password` on the machine the service runs on prints a random new
+  password once (or reads one you type with `--prompt`), whether the service runs or not. It ends
+  every session and clears the sign-in lockout; passkeys and API tokens stay, the authenticator
+  app too unless `--disable-totp` is given. Nothing over the network can do this, and the audit
+  log records the reset without the password.
+
+### Changed
+
+- **A refused host name says how to allow it (RD-190-17).** A browser that opens rDownloader by a
+  name it does not answer to — a Cloudflare Tunnel's, a proxy's — now gets a short page instead
+  of a bare JSON error: the name, *Settings → Security → Reverse proxy → Allowed host names*, and
+  that the change is made from an address such as `http://127.0.0.1:8710`. The translated message
+  says the same; the reverse-proxy guide and the wiki gained a Cloudflare Tunnel section.
+- **The bulk actions of an indexer subscription's hits repeat under the list.** In the
+  LinkGrabber, *Queue all* and *Dismiss all* now also sit in a footer below an open list, beside
+  its pages, so the end of a long list no longer means scrolling back to the header.
+- **The LinkGrabber's import button is called *Import* and shows its key `N`.** It reads more
+  than NZB and torrent files (containers, link lists), which the old label *Import NZB/torrent*
+  left out; the shortcut help says *Import files*.
+- **Unpacking into a folder per archive loses nothing any more** (RD-190-06). Two archives whose
+  folder would be the same (`Film.zip` beside `Film.rar`) get one each, `Film/` and `Film (1)/`,
+  the same on every run; the cleanup reaches as deep into what an archive held as without the
+  option; and the MD5 and SHA-256 steps are told which files post-processing removed instead of
+  guessing from the extension, and show "passed, but these listed files were not here" on the
+  step rather than only in the log. For plugin authors this is contract
+  `rdownloader:plugin@0.10.0`: a post-processing step's input carries `removed`, and `complete`
+  carries `warnings`. Every bundled plugin is rebuilt; a plugin built against `0.9.0` is refused
+  (`plugin.capability_unknown`) until it is rebuilt against the new `wit/`.
+- **Every bundled plugin is built for the plugin contract `0.10.0`** (RD-190-06). Nothing changes in
+  what a plugin does; it is rebuilt against the new `wit/` so that it still loads next to 1.9's
+  post-processing steps, and a plugin built against `0.9.0` is refused until it is rebuilt. The
+  versions this release raises: `metadata-enricher` 0.1.6; `box-crawler`, `box-oauth`,
+  `directory-index-crawler`, `dropbox-crawler`, `dropbox-oauth`, `google-drive-crawler`,
+  `google-drive-oauth`, `hitfile`, `mediafire`, `mediafire-crawler`, `offcloud-cloud`,
+  `onedrive-crawler`, `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`,
+  `premiumize-crawler`, `putio-oauth`, `seedr-jobs`, `torbox-auth` and `turbobit` 0.1.7; `box`,
+  `dropbox`, `google-drive`, `krakenfiles`, `mega`, `mega-crawler`, `nextcloud-crawler`, `offcloud`,
+  `onedrive`, `pcloud`, `pcloud-oauth`, `peeplink-crawler`, `putio`, `putio-transfers`, `seedr`,
+  `torbox` and `xfs-generic` 0.1.8; `mega-auth` and `pixeldrain` 0.1.9; `realdebrid-auth` and
+  `realdebrid-torrents` 0.2.4; `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.5;
+  `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.9;
+  `onefichier` 0.7.10; `premiumize` 0.7.11; `filejoker` 0.7.12; `crawljob-intake` and
+  `sponsorblock-enricher` 0.9.6; `alldebrid-auth`, `debridlink-auth`, `discord-notifier`,
+  `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.7; `md5-postprocess` and
+  `telegram-notifier` 0.9.8; `rename-postprocess` 0.9.9; `katfile` 0.9.11; `ntfy-notifier` 0.10.1;
+  `metalink-intake` 0.10.3; `ddownload` 0.10.16.
+- **The README and the feature list name every install channel.** Beside the archives, Homebrew,
+  Scoop and Docker they now show the Windows MSI, the deb and rpm packages for x86-64 and arm64
+  and the signed apt and dnf repository, with its commands.
+
+### Security
+
+- **Wasmtime 49.0.2 runs the plugins.** It closes RUSTSEC-2026-0325, -0326 and -0327 — a
+  mis-typed tag import and missing GC rooting that could corrupt the GC heap, and an unchecked
+  callback result count in async component calls — in the runtime of the plugin sandbox.
+
+- **An unpacked file with a second name is refused on Windows too** (RD-190-05). The check
+  after an external tool has unpacked now reads the link count there as well, so a hard link
+  from staging to a file outside it fails the unpack instead of landing in the package; a count
+  that cannot be read fails it too. The residual risk from the review of 2026-09-28 is closed.
+- **Archive passwords are kept in the vault, not in the database (RD-190-04).** The passwords of
+  download and LinkGrabber packages, NZB imports and subscription hits were plain columns of
+  `rdownloader.db` and of every copy it took before a migration or an update. They now live in
+  the encrypted vault like account credentials, each row holding a reference to its own entry,
+  and deleting a package removes its entry. The first start moves the passwords already stored
+  and empties them from the existing copies (migration `0113`). The interface shows and edits
+  them as before. A full backup carries them sealed under its own key, never in plain, and a
+  restore — on this machine or another — puts them back into that machine's vault.
+
+### Fixed
+
+- **`scripts/prune-target.sh` keeps a test binary beside a newer `check`** (RD-160-06). It keeps
+  the newest variant per crate and kind of artifact instead of per crate, so the `.d` of a
+  `check` run no longer evicts the test binary or the `.rlib` of the same crate; on the shared
+  `target/` it now leaves ~28 GiB of working state instead of ~3 GiB.
+  `scripts/plugin-release-notes.sh --missing <tag>` names every plugin raised since a release that
+  no entry names yet, as the line to end an entry with (RD-160-09).
+- **A subscription's first check that failed no longer counts as its first (RD-190-13).** Until
+  now it recorded the backlog decision anyway, so the next check took the whole history as new;
+  and an auto-queued hit is marked queued only once the LinkGrabber has it, so a stop or a refused
+  intake in between leaves it in the review list instead of claiming a download nobody started.
+- **The LinkGrabber's toolbar wraps on a narrow screen.** At phone width the *Show metadata*
+  switch was drawn over the language filter; the right-hand part now moves to its own line.
+- **Downloads, LinkGrabber and the notification settings fit a phone.** At 390 px the Downloads
+  header covered the sidebar toggle and cut off *Clear list*, and its toolbar hid *Select all*;
+  the header now keeps only icons there and the toolbar wraps. The LinkGrabber's navbar measures
+  its own width — key hints go first, then labels, and on a phone *Import*, the NZB history,
+  *Check links*, *Add paused* and *Delete all* move into a menu — and a package or NZB row wraps
+  its controls under the name, as the notification targets and rules now do with their actions.
+  The rows and the *Direct job* form decide that on their own width rather than the window's, so
+  beside an open sidebar a package name no longer shrinks to nothing and the form's last fields
+  no longer run off the edge; on a phone the status bar drops the speed chart and the version
+  instead of writing the version over the connection count.
+- **A large LinkGrabber selection is enqueued and deleted without stalling.** Enqueuing 1042
+  selected links froze the tab for 46 s before the first request, and the notice then counted
+  the packages as links; it now starts at once and counts the links. Deleting a selection sent
+  one request per link, each followed by a full reload of the list (392 links: 70 s); it now
+  sends four at a time, reads the list once at the end and shows how far it has got.
+- **A subscription the server refuses says so beside the form.** The refusal (an unknown forge,
+  for one) stood at the top of the page, a screen above the *Create* button of a release form;
+  it now stands above the form and is scrolled into view.
+- **The sidebar says when the service is gone.** Its green dot and *Service connected* were a
+  fixed label; they now follow the event stream and every request — red with *Connection to the
+  service lost* and one warning toast once the stream broke off or a request got no answer for
+  1.5 s, green again when it answers. Its return clears a *service could not be reached* alert,
+  and a view whose code could not be fetched meanwhile says so and loads once the service is back.
+- **The setup's storage step works on the first try on a phone.** The first root's name starts as
+  *Downloads* instead of an empty required field, and a refused path (a folder inside the data
+  directory, for one) is shown under the path field and focused — with what to pick instead —
+  rather than at the top of the step, off-screen at 390 px.
+- **The logs fit a phone.** Each record's message takes a line of its own under time, level and
+  component instead of a 60 px column that wrapped letter by letter; the statistics header gives
+  its four ranges a second row there.
+- **Number fields accept the values they hold.** *Minimum free space* at 0.25 GiB was `:invalid`
+  on load because of `step="1"`; every field converted from bytes, the seed ratios and the
+  retention record counts now take any value their range allows.
+- **German wording.** *Passwort* throughout (never *Kennwort*), *Speicherort* and
+  *Standard-Speicherort* for a storage root, *Gratis/Direkt* for a download without an account;
+  the container import toast counts its links with a real plural in all four languages.
+- **Sonarr and Radarr see their downloads through the SABnzbd adapter (RD-190-18).** Queue and
+  history reported every job under the category `*`, and these clients keep only the jobs in
+  their own category, so nothing they queued was ever imported. Both now report the package's
+  category by name, `*` only for a package without one.
+- **A duplicated subscription keeps all its settings (RD-190-18).** The copy lost an indexer
+  subscription's search, *every release*, its view, autoplay and card shape.
+- **Every runtime failure is translated (RD-190-18).** 36 codes from plugins, transfers and
+  mirrors (`plugin.net_*`, `plugin.store_token_*`, `plugin.key_derivation_*`, `download.failed`
+  and others) reached the reader as the server's English text in every language; a test now
+  reads the codes from every crate, so a new one cannot land untranslated.
+- **A release reaches winget again (RD-180-07).** 1.8.1 was not submitted because GitHub refused
+  the branch in the out-of-date winget-pkgs fork; the release now syncs the fork first and tries
+  a refused branch again. The AUR push also refuses a package without a real maintainer
+  (RD-190-10).
+- **`K` removes only the packages that succeeded.** A package whose files all came down but whose
+  post-processing failed (a repair or an unpack that did not work) is a failure: *Remove finished
+  packages* now leaves it in the list, named as kept with that reason, and *Remove failed* or
+  *Clear the entire list* removes it.
+- **A bulk action on more than 500 selected entries works.** *Select all* over 733 files and then
+  pause, start, cancel, reset or remove did nothing but show *Provide between 1 and 500 ids*; the
+  interface now sends such a selection in batches of 500 — downloads, packages and the
+  LinkGrabber's packages alike — reports their sum as one result, and when a batch is refused
+  says how many went through before it. A reorder, which carries the whole order and cannot be
+  split, now takes up to 10 000 entries, so a queue of more than 500 packages can be sorted.
+
 ## [1.8.1] - 2026-10-02
 
 Fixes from the first day of 1.8.0 on Windows and the owner's wishes after it: no console windows

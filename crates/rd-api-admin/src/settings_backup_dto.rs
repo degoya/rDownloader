@@ -72,6 +72,36 @@ pub struct BundleUsenetServer {
     pub password_slot: Option<String>,
 }
 
+/// One archive password a full backup carries (RD-190-04): the row it belongs to, and the slot
+/// of its value in the sealed `secrets`. Only the full backup's bundle has any; a settings
+/// export never carries packages.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct BundleArchivePassword {
+    /// `packages`, `collector_packages`, `nzb_imports` or `subscription_items`.
+    pub table: String,
+    pub id: String,
+    pub slot: String,
+}
+
+/// A Newznab indexer in a settings bundle (RD-190-22). The API key travels like every other
+/// credential: as a slot name here, its value only inside the encrypted section.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct BundleIndexer {
+    pub id: rd_core::IndexerId,
+    pub name: String,
+    #[schema(value_type = String, format = "uri")]
+    pub url: Url,
+    #[serde(default)]
+    pub categories: Vec<String>,
+    pub enabled: bool,
+    #[serde(default)]
+    pub secret_slot: Option<String>,
+    /// How its search hits are listed (RD-190-16); a bundle from before the choice lists them
+    /// compact.
+    #[serde(default)]
+    pub list_style: rd_core::IndexerListStyle,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BundleStreamChannel {
     pub id: rd_core::StreamChannelId,
@@ -143,7 +173,12 @@ pub struct BundleSubscription {
     /// written before they existed, which restores the empty search every subscription sent then.
     #[serde(default)]
     pub indexer_search: rd_core::IndexerSearch,
-    /// Slot of the indexer API key inside the encrypted section, if the subscription has one.
+    /// Which release files a git-release subscription downloads (RD-190-13). Absent from a
+    /// bundle written before they existed, which carries no such subscription.
+    #[serde(default)]
+    pub git_release: rd_core::GitReleaseOptions,
+    /// Slot of the indexer API key — or a git-release subscription's token (RD-190-13) — inside
+    /// the encrypted section, if the subscription has one.
     #[serde(default)]
     pub secret_slot: Option<String>,
 }
@@ -175,6 +210,12 @@ pub struct SettingsBundle {
     pub usenet_servers: Vec<BundleUsenetServer>,
     #[serde(default)]
     pub auth_profiles: Vec<BundleAuthProfile>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub archive_passwords: Vec<BundleArchivePassword>,
+    /// The Newznab indexers (RD-190-22). Absent from a bundle written before they travelled,
+    /// which restores none.
+    #[serde(default)]
+    pub indexers: Vec<BundleIndexer>,
     #[serde(default)]
     pub secrets: Option<EncryptedSecrets>,
 }
@@ -205,6 +246,7 @@ pub struct ImportSummaryResponse {
     pub proxy_profiles: usize,
     pub accounts: usize,
     pub usenet_servers: usize,
+    pub indexers: usize,
 }
 
 impl ImportSummaryResponse {
@@ -220,6 +262,7 @@ impl ImportSummaryResponse {
             proxy_profiles: bundle.proxy_profiles.len(),
             accounts: bundle.accounts.len(),
             usenet_servers: bundle.usenet_servers.len(),
+            indexers: bundle.indexers.len(),
         }
     }
 }

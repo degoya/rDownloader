@@ -52,7 +52,8 @@
     "ephemeral_title": "Almacenamiento fuera de un volumen montado",
     "ephemeral_description": "Esta ruta está dentro de la capa escribible del contenedor o en un sistema de archivos en memoria. Todo lo que haya debajo se elimina cuando el contenedor se elimina o se vuelve a crear. Monta un volumen de Docker en esta ruta o elige una que ya esté montada.",
     "default_locked_hint": "No se puede renunciar al valor predeterminado mientras esta sea la única raíz de almacenamiento.",
-    "form_new": "Nueva raíz de almacenamiento"
+    "form_new": "Nueva raíz de almacenamiento",
+    "protected_hint": "Elige una carpeta fuera del directorio de datos del servicio, por ejemplo una carpeta de descargas propia."
   },
   "category": {
     "eyebrow": "Mapa de destinos",
@@ -142,7 +143,12 @@
     "subfolder_description": "Extraer cada archivo en una carpeta propia (heredar = ajuste global).",
     "subfolder_inherit": "Heredar",
     "subfolder_on": "Activado",
-    "subfolder_off": "Desactivado"
+    "subfolder_off": "Desactivado",
+    "malware_scan_label": "Análisis de malware (ClamAV)",
+    "malware_scan_description": "Analizar con ClamAV los paquetes de esta categoría (heredar = ajuste global).",
+    "malware_scan_inherit": "Heredar",
+    "malware_scan_on": "Activado",
+    "malware_scan_off": "Desactivado"
   },
   "rule": {
     "eyebrow": "Clasificador",

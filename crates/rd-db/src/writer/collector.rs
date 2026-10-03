@@ -80,11 +80,11 @@ impl Writer {
                     secret_fragment_refs,
                 )
                 .await
-                .map(|(batch, packages, candidates, events)| {
+                .map(|(batch, packages, candidates, passwords, events)| {
                     for event in events {
                         let _ = self.events.send(event);
                     }
-                    (batch, packages, candidates)
+                    (batch, packages, candidates, passwords)
                 });
                 send(reply, result);
             }

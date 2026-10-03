@@ -140,6 +140,15 @@ async function duplicate(subscription: Subscription): Promise<void> {
     source_categories: [...(subscription.source_categories ?? [])],
     schedule: subscription.schedule ?? null,
     script_arguments: [...(subscription.script_arguments ?? [])],
+    // Every setting the form edits, so the copy only differs where somebody changes it; a
+    // copied indexer subscription used to lose its search and its view (RD-190-18).
+    every_release: subscription.every_release ?? false,
+    view: subscription.view ?? 'list',
+    autoplay: subscription.autoplay ?? false,
+    ...(subscription.card_ratio ? { card_ratio: subscription.card_ratio } : {}),
+    ...(subscription.indexer_search ? { indexer_search: subscription.indexer_search } : {}),
+    // Without it a copied release subscription would download every file of every release.
+    ...(subscription.git_release ? { git_release: subscription.git_release } : {}),
     api_key: null
   }
   // A failure surfaces through the store's own error, the same way creating one from the form
@@ -190,6 +199,7 @@ const KIND_ICONS: Record<Subscription['kind'], string> = {
   feed: 'i-lucide-rss',
   indexer: 'i-lucide-search',
   site_rule: 'i-lucide-file-search',
+  git_release: 'i-lucide-git-branch',
   script: 'i-lucide-terminal'
 }
 const MODE_ICONS: Record<Subscription['mode'], string> = {

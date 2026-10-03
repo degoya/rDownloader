@@ -167,6 +167,26 @@ docker exec rdownloader mkdir -p /config/vendor
 `rclone` is not in the image. If you use the upload storage plugin, mount or copy an `rclone`
 binary into `/config/vendor` the same way.
 
+## Scanning packages with ClamAV
+
+rDownloader can hand every finished package to a `clamd` before it counts as finished, uploads
+or runs a plugin step or your script (Settings > Post-processing > *Scan packages for malware*).
+The scanner is not in the rDownloader image: run the official `clamav/clamav` image beside it —
+`compose.yml` has the service commented out — and enter `clamav:3310` as the clamd address. Only
+the bytes of the package's files go to that address, nothing else and nowhere else.
+
+- A finding fails the package and stops everything after the scan; the files stay where they
+  are. A clamd that cannot be reached is a warning on the package's scan step, and the package
+  carries on.
+- clamd refuses a stream longer than its `StreamMaxLength` (25 MiB by default), and rDownloader
+  does not send a file larger than its own scan limit (also 25 MiB by default). To scan larger
+  files, raise both: mount a `clamd.conf` with a larger `StreamMaxLength` into the container
+  (`/etc/clamav/clamd.conf`) and set the same limit in the settings.
+- Mount `/var/lib/clamav` so the signature database survives a restart instead of being
+  downloaded again.
+
+The CI checks the scan against `clamav/clamav:1.5.4`.
+
 ## Setting it up on a Synology NAS
 
 DSM 7.2 or newer, using **Container Manager** (called Docker on older DSM versions).

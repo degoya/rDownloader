@@ -81,6 +81,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     available: offer,
     install: null,
     download: null,
+    capture_agents: [],
     ...patch
   }
 }

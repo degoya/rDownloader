@@ -164,6 +164,29 @@ expect "no placeholder is left in PKGBUILD or .SRCINFO" "0" \
 run_status bash -n "$pkgbuild"
 expect_status "the PKGBUILD is bash" 0
 
+# --check-aur (RD-190-10): the release refuses to push the template's maintainer placeholder.
+# Both cases are made here, so the test holds before and after the template names the account.
+mkdir -p "$SCRATCH/placeholder/aur" "$SCRATCH/maintained/aur" "$SCRATCH/unnamed/aur"
+sed 's/^# Maintainer: .*/# Maintainer: AUR_MAINTAINER <AUR_MAINTAINER_EMAIL>/' "$pkgbuild" \
+    > "$SCRATCH/placeholder/aur/PKGBUILD"
+sed 's/^# Maintainer: .*/# Maintainer: Jane Doe <jane at example dot org>/' "$pkgbuild" \
+    > "$SCRATCH/maintained/aur/PKGBUILD"
+grep -v '^# Maintainer: ' "$pkgbuild" > "$SCRATCH/unnamed/aur/PKGBUILD"
+run_status render --check-aur "$SCRATCH/placeholder"
+expect_status "a PKGBUILD with the maintainer placeholder is refused" 1
+expect_output "naming the placeholder and the template" \
+    "(# Maintainer: AUR_MAINTAINER <AUR_MAINTAINER_EMAIL>); put the AUR account's name and address into packaging/aur/PKGBUILD.in"
+run_status render --check-aur "$SCRATCH/unnamed"
+expect_status "a PKGBUILD without a maintainer line is refused" 1
+expect_output "saying so" "(no '# Maintainer:' line)"
+run_status render --check-aur "$SCRATCH/maintained"
+expect_status "a PKGBUILD that names its maintainer passes" 0
+expect_output "and the maintainer is printed" "Maintainer: Jane Doe <jane at example dot org>"
+run_status render --check-aur "$SCRATCH/none"
+expect_status "a missing PKGBUILD is refused" 1
+run_status render --check-aur
+expect_status "--check-aur without a directory is a usage error" 2
+
 # A fork and a local fixture: the repository names tap, bucket and URLs, --base-url the archives.
 run_status render 1.6.1-rc.1 "$SUMS" "$SCRATCH/fork" --repository someone/rDownloader \
     --base-url "file:///tmp/fixture/"

@@ -11,10 +11,15 @@
 #
 # The rule: files named `<stem>-<16 hex><anything>` are grouped by their stem — `lib` prefix
 # included, so a library's `.rlib`/`.rmeta` and a test binary of the same crate are separate
-# groups — and per group the hash whose newest file is the newest is kept, with every file of the
-# other hashes removed (`--keep N` keeps the newest N). A variant that is still in use (a second
-# feature set, a `check` beside a `build`) is simply rebuilt the next time it is asked for: cargo
-# notices a missing output and compiles it again, so this costs time, never correctness.
+# groups — and within a stem by the kind of artifact a hash built: its outputs without the `.d`
+# and the split debug info beside them (`.rlib`+`.rmeta` of a build, `.rmeta` of a `check`, the
+# extensionless test binary), or, with nothing else, by those alone (a `check`'s `.d`, a library
+# build's debug info). Per stem and kind the hash whose newest file is the newest is kept, with
+# every file of the other hashes removed (`--keep N` keeps the newest N). Until RD-160-06 the
+# kind was not looked at, and the `.d` of a `check` run evicted the test binary of the same stem.
+# A variant that is still in use (a second feature set, a library's `check` beside its test's)
+# is simply rebuilt the next time it is asked for: cargo notices a missing output and compiles
+# it again, so this costs time, never correctness.
 #
 # One more kind of leftover has no hash to group by: the split debug info (`split-debuginfo =
 # "unpacked"`) of a crate built without one, which the plugin cdylibs are on the host —
@@ -44,7 +49,7 @@
 #   scripts/prune-target.sh              # prune (takes the build lock)
 #   scripts/prune-target.sh --if-free    # prune what no build holds right now; never wait
 #   scripts/prune-target.sh --dry-run    # say what would go, change nothing (lock-free)
-#   scripts/prune-target.sh --keep 2     # keep the newest two variants per stem
+#   scripts/prune-target.sh --keep 2     # keep the newest two variants per stem and kind
 #   scripts/prune-target.sh --all        # ... and every worktree's own target
 #
 set -euo pipefail
@@ -66,7 +71,7 @@ while [[ $# -gt 0 ]]; do
         --keep)
             [[ "${2:-}" =~ ^[1-9][0-9]*$ ]] || { echo "--keep wants a positive whole number" >&2; exit 2; }
             keep="$2"; shift 2 ;;
-        -h|--help) sed -n '2,48p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,53p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -125,6 +130,7 @@ import sys
 
 target, keep, dry_run = sys.argv[1], int(sys.argv[2]), sys.argv[3] == "1"
 VARIANT = re.compile(r"^(?P<stem>.+)-(?P<hash>[0-9a-f]{16})(?P<rest>.*)$")
+BESIDE = (".d", ".dwo", ".dwp", ".o", ".pdb", ".dSYM")
 UNHASHED = re.compile(r"^(?:lib)?(?P<stem>[^.]+)\.(?P<rest>.+)$")
 DWO_MARGIN = 3600
 # The components, and the lanes, which are target directories of their own and pruned as such.
@@ -149,6 +155,14 @@ def candidates(name):
                 found.append(path)
     return found
 
+
+def kind(rests):
+    """What a variant built: its outputs without the dep-info and debug files beside them, or,
+    with nothing else, those (a `check`'s `.d`; a library build's `.d` and debug info)."""
+    outputs = {rest for rest in rests if not rest.endswith(BESIDE)}
+    if outputs:
+        return tuple(sorted(outputs))
+    return tuple(sorted({".d" if rest == ".d" else "debug" for rest in rests}))
 
 def human(size):
     for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
@@ -178,14 +192,19 @@ for deps in candidates("deps"):
                     newest_artifact[stem] = max(newest_artifact.get(stem, 0.0), stat.st_mtime)
                 continue
             variants = groups.setdefault(match["stem"], {})
-            files = variants.setdefault(match["hash"], [0.0, []])
+            files = variants.setdefault(match["hash"], [0.0, [], set()])
             files[0] = max(files[0], stat.st_mtime)
             files[1].append((entry.path, stat.st_size, entry.is_dir(follow_symlinks=False)))
+            files[2].add(match["rest"])
     doomed = []
     for variants in groups.values():
-        ordered = sorted(variants.values(), key=lambda variant: variant[0], reverse=True)
-        for _, files in ordered[keep:]:
-            doomed.extend(files)
+        kinds = {}
+        for variant in variants.values():
+            kinds.setdefault(kind(variant[2]), []).append(variant)
+        for same_kind in kinds.values():
+            ordered = sorted(same_kind, key=lambda variant: variant[0], reverse=True)
+            for _, files, _ in ordered[keep:]:
+                doomed.extend(files)
     for stem, mtime, path, size in unhashed_dwo:
         if stem in newest_artifact and mtime < newest_artifact[stem] - DWO_MARGIN:
             doomed.append((path, size, False))
@@ -225,5 +244,5 @@ for incremental in candidates("incremental"):
     total_bytes += size
 
 print(f"==> {'would free' if dry_run else 'freed'} {human(total_bytes)} "
-      f"({total_files} files: variants past the newest {keep} per stem, and stale split debug info)")
+      f"({total_files} files: variants past the newest {keep} per stem and kind, and stale split debug info)")
 PY

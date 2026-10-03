@@ -738,6 +738,13 @@ impl AuthFlowService {
                 RenewalAction::Settle => {}
                 RenewalAction::Defer(seconds) => self.defer(flow.account_id, now, seconds).await,
                 RenewalAction::Fail(message) => {
+                    // Nobody is in front of a renewal, and the account signs in no more until
+                    // somebody does it again (RD-190-19).
+                    let notice = crate::notify_notice::Notice::account_invalid(
+                        account,
+                        &message,
+                        now.date_naive(),
+                    );
                     let _ = self
                         .store(
                             flow.account_id,
@@ -745,6 +752,7 @@ impl AuthFlowService {
                             AuthProgress::Failed { message },
                         )
                         .await;
+                    crate::notify_notice::announce(&self.inner.database, notice).await;
                 }
             }
         }

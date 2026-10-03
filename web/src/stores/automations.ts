@@ -2,12 +2,14 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { subscribeEvents } from '@/composables/useEventStream'
 import type {
   Automation,
   AutomationDryRun,
   AutomationRequest,
   AutomationRun,
+  AutomationVersion,
   AutomationVocabulary
 } from '@/api/types'
 
@@ -23,6 +25,8 @@ export const useAutomationsStore = defineStore('automations', () => {
   const runs = ref<AutomationRun[]>([])
   const vocabulary = ref<AutomationVocabulary | null>(null)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const busy = ref(false)
   /** True while the automation list is being fetched — `busy` covers the write actions. */
   const fetching = ref(false)
@@ -124,6 +128,37 @@ export const useAutomationsStore = defineStore('automations', () => {
     await refresh()
   }
 
+  /**
+   * The saved versions of one automation, newest first (RD-190-22), or `null` with `error` set.
+   * Read on demand rather than kept: only the history dialog asks, for one automation at a time.
+   */
+  async function versions(id: string): Promise<AutomationVersion[] | null> {
+    const response = await api.GET('/api/v1/automations/{id}/versions', { params: { path: { id } } })
+    if (!response.data) {
+      error.value = responseError(response)
+      return null
+    }
+    error.value = null
+    return [...response.data].sort((left, right) => right.version - left.version)
+  }
+
+  /**
+   * Puts an older version's trigger, condition and actions back in force (RD-190-22).
+   *
+   * There is no restore route and none is needed: the ordinary update stores a new version, so
+   * the restored definition is the newest one and the versions in between stay in the history.
+   * Name and switch are the automation's current ones — a version holds neither.
+   */
+  async function restore(automation: Automation, version: AutomationVersion): Promise<Automation | null> {
+    return save({
+      name: automation.name,
+      enabled: automation.enabled,
+      trigger: version.trigger,
+      condition: version.condition,
+      actions: version.actions
+    }, automation.id)
+  }
+
   /** Evaluates a trigger and a sample package. Never has an effect. */
   async function dryRun(trigger: string, packageId: string | null): Promise<AutomationDryRun[]> {
     const response = await api.POST('/api/v1/automations/dry-run', {
@@ -192,6 +227,8 @@ export const useAutomationsStore = defineStore('automations', () => {
     setEnabled,
     remove,
     dryRun,
+    versions,
+    restore,
     connectEvents,
     disconnectEvents
   }

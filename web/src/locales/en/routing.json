@@ -52,7 +52,8 @@
     "ephemeral_title": "Storage outside a mounted volume",
     "ephemeral_description": "This path is inside the container's writable layer or on a memory-backed filesystem. Everything below it is deleted when the container is removed or recreated. Mount a Docker volume at this path, or point the root at one that is already mounted.",
     "default_locked_hint": "The default cannot be given up while this is the only storage root.",
-    "form_new": "New storage root"
+    "form_new": "New storage root",
+    "protected_hint": "Choose a folder outside the service's data directory, for example a download folder of its own."
   },
   "category": {
     "eyebrow": "Destination map",
@@ -142,7 +143,12 @@
     "subfolder_description": "Unpack each archive into a folder of its own (inherit = global setting).",
     "subfolder_inherit": "Inherit",
     "subfolder_on": "On",
-    "subfolder_off": "Off"
+    "subfolder_off": "Off",
+    "malware_scan_label": "Malware scan (ClamAV)",
+    "malware_scan_description": "Have ClamAV scan this category’s packages (inherit = global setting).",
+    "malware_scan_inherit": "Inherit",
+    "malware_scan_on": "On",
+    "malware_scan_off": "Off"
   },
   "rule": {
     "eyebrow": "Classifier",

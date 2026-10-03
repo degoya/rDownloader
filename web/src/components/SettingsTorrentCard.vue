@@ -107,7 +107,7 @@ const uploadLimitMiB = byteModel(
       <USwitch v-model="settings.torrent_sharing_enabled" data-testid="torrent-sharing" />
     </UFormField>
     <UFormField data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
-      <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.1" :disabled="!settings.torrent_sharing_enabled" class="w-full">
+      <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="any" :disabled="!settings.torrent_sharing_enabled" class="w-full">
         <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
       </UInput>
     </UFormField>
@@ -115,7 +115,7 @@ const uploadLimitMiB = byteModel(
       <USwitch v-model="settings.torrent_seeding_enabled" :disabled="!settings.torrent_sharing_enabled" />
     </UFormField>
     <UFormField data-settings-anchor="torrent.seed_ratio" :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
-      <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="0.1" :disabled="!seeding" class="w-full" />
+      <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="any" :disabled="!seeding" class="w-full" />
     </UFormField>
     <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
       <UInput v-model.number="seedTime" type="number" min="1" :disabled="!seeding" class="w-full">

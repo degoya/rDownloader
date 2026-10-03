@@ -36,7 +36,7 @@ pub use enricher::MetadataEnricher;
 pub use intake::{IntakeParser, IntakeProposal, SourceSetProposal};
 pub use notifier::{Delivery, NotifierPlugin, settings_from_config};
 pub use oauth::{AuthorizationRequest, DeviceAuthorization, OAuthProvider, TokenOutcome};
-pub use postprocess::{PostprocessPlugin, StepOutcome};
+pub use postprocess::{MAX_STEP_WARNINGS, PostprocessPlugin, StepOutcome, StepWarning};
 pub use remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, MAX_CACHE_CONTAINER_BYTES, MAX_CACHE_QUERIES,
     MAX_JOB_ARTIFACTS, MAX_JOB_ENTRIES, RemoteJobArtifact, RemoteJobEntry, RemoteJobHandle,

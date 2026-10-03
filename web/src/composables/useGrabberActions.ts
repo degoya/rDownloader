@@ -1,4 +1,4 @@
-import type { Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { DownloadPriority, PostprocessLevel } from '@/api/types'
@@ -36,6 +36,8 @@ export function useGrabberActions(view: {
   const editPackage = usePackageEdit()
   const rename = useRename()
   const { selection, bulkBusy } = view
+  /** How far a removal of the selection has got, while it runs. */
+  const removeProgress = ref<{ done: number, total: number } | null>(null)
 
   async function removeSelected(): Promise<void> {
     const count = selection.count.value
@@ -43,8 +45,15 @@ export function useGrabberActions(view: {
     if (!confirmed) return
     bulkBusy.value = true
     const nzbIds = [...selection.nzbIds.value]
-    for (const id of selection.collectorIds.value) await collector.deleteCandidate(id)
-    for (const id of nzbIds) await nzb.remove(id)
+    const linkIds = [...selection.collectorIds.value]
+    const total = linkIds.length + nzbIds.length
+    removeProgress.value = { done: 0, total }
+    await collector.deleteCandidates(linkIds, (done) => { removeProgress.value = { done, total } })
+    for (const [index, id] of nzbIds.entries()) {
+      await nzb.remove(id)
+      removeProgress.value = { done: linkIds.length + index + 1, total }
+    }
+    removeProgress.value = null
     bulkBusy.value = false
     selection.clear()
   }
@@ -166,7 +175,7 @@ export function useGrabberActions(view: {
   }
 
   return {
-    removeSelected, moveSelected, editPackageDialog, renameCandidate, removePackage, removeCandidate,
+    removeSelected, removeProgress, moveSelected, editPackageDialog, renameCandidate, removePackage, removeCandidate,
     dissolveMirror, clearAll, enqueueNzb, deleteNzb, setNzbCategory, setNzbPriority, setCategory,
     setPriority, applyToSelection, setSelectionPostprocessLevel
   }

@@ -63,6 +63,54 @@ function actionsFor(state: DownloadState): string[] {
   return labels
 }
 
+interface LinkItem { label: string, to?: string, target?: string, onSelect?: () => void }
+
+/** The menu items for one download, so a case can read `to`/`target` and run `onSelect`. */
+function itemsFor(download: Record<string, unknown>): { items: LinkItem[], emitted: () => Record<string, unknown[][]> } {
+  const items: LinkItem[] = []
+  const view = mountComponent(TransferCard, {
+    messages: { downloads, torrent, common },
+    props: {
+      download: {
+        id: 'd1', kind: 'http', state: 'queued', file_name: 'release.rar',
+        source: 'https://example.invalid/release.rar',
+        committed_bytes: '0', total_bytes: '100',
+        ...download
+      } as unknown as Download
+    },
+    stubs: {
+      UDropdownMenu: {
+        props: ['items'],
+        setup(props: { items: LinkItem[][] }) {
+          items.push(...props.items.flat())
+          return () => null
+        }
+      }
+    }
+  })
+  return { items, emitted: () => view.emitted() as Record<string, unknown[][]> }
+}
+
+/** "Copy link" and "Open source page" (RD-190-21): offered for what the row's data has. */
+describe('TransferCard link actions', () => {
+  it('copies the row\'s own address in every state', () => {
+    for (const state of ['queued', 'downloading', 'failed', 'completed', 'seeding'] as const) {
+      expect(actionsFor(state)).toContain(common.actions.copy_link)
+    }
+    const { items, emitted } = itemsFor({})
+    items.find(item => item.label === common.actions.copy_link)?.onSelect?.()
+    expect(emitted().copyLinks).toEqual([[['https://example.invalid/release.rar']]])
+  })
+
+  it('opens the media page in a new tab, and offers nothing without one', () => {
+    expect(itemsFor({}).items.map(item => item.label)).not.toContain(common.actions.open_source_page)
+
+    const { items } = itemsFor({ kind: 'media', media: { page_url: 'https://video.example/watch?v=1' } })
+    const open = items.find(item => item.label === common.actions.open_source_page)
+    expect(open).toMatchObject({ to: 'https://video.example/watch?v=1', target: '_blank' })
+  })
+})
+
 describe('TransferCard actions', () => {
   it('offers pause while running and start once it has stopped', () => {
     expect(actionsFor('downloading')).toContain(common.actions.pause)

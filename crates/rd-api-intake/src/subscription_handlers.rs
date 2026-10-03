@@ -90,13 +90,22 @@ pub struct SubscriptionRequest {
     /// not already in the address. Only an indexer subscription takes them.
     #[serde(default)]
     pub indexer_search: rd_core::IndexerSearch,
+    /// Which release files a `git_release` subscription downloads (RD-190-13): `forge`
+    /// (`github`|`gitlab`, needed for a host other than github.com and gitlab.com),
+    /// `asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200
+    /// characters), `platforms` (`linux`|`windows`|`macos`), `architectures`
+    /// (`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never
+    /// downloaded. Only a git-release subscription takes them; its read-only token is `api_key`.
+    #[serde(default)]
+    pub git_release: rd_core::GitReleaseOptions,
     /// A defined indexer to take over (RD-180-20): its address when `url` is empty (else `url`
     /// must be on the same server), its categories when `source_categories` is empty, and a copy
     /// of its API key when `api_key` is absent. Copied when saved, not linked.
     #[serde(default)]
     pub indexer_id: Option<rd_core::IndexerId>,
-    /// Indexer API key (RD-080-11); write-only, and stored in the vault. Omitting it on an
-    /// edit keeps the existing key rather than clearing it.
+    /// Indexer API key (RD-080-11), or a git-release subscription's read-only token
+    /// (RD-190-13); write-only, and stored in the vault. Omitting it on an edit keeps the
+    /// existing key rather than clearing it.
     #[serde(default)]
     #[schema(write_only)]
     pub api_key: Option<String>,
@@ -416,6 +425,7 @@ pub(crate) fn subscription_input(
     let schedule = schedule_input(request)?;
     let script_arguments = script_arguments_input(request)?;
     let indexer_search = indexer_search_input(request)?;
+    let git_release = git_release_input(request, &url)?;
     // Refused rather than clamped: a person who typed 30 seconds should be told the limit,
     // not silently given something twenty times slower than they asked for. The floor is the
     // kind's (RD-110-21), because a board page is not an indexer -- `effective_interval`
@@ -463,8 +473,84 @@ pub(crate) fn subscription_input(
         schedule,
         script_arguments,
         indexer_search,
+        git_release,
         secret_ref,
     })
+}
+
+/// Which release files a git-release subscription downloads (RD-190-13), checked.
+///
+/// The address is read the way the poller will read it, so a repository nobody can poll is a
+/// form error and not a failure in the history.
+fn git_release_input(
+    request: &SubscriptionRequest,
+    url: &url::Url,
+) -> Result<rd_core::GitReleaseOptions, ApiError> {
+    let options = &request.git_release;
+    if request.kind != SubscriptionKind::GitRelease {
+        if options.is_empty() {
+            return Ok(rd_core::GitReleaseOptions::default());
+        }
+        return Err(ApiError::unprocessable(
+            "subscription.git_release_kind",
+            "Only a git-release subscription takes release options",
+        ));
+    }
+    let mut patterns: Vec<String> = Vec::new();
+    for pattern in &options.asset_patterns {
+        let pattern = pattern.trim();
+        if pattern.is_empty() || patterns.iter().any(|kept| kept == pattern) {
+            continue;
+        }
+        if pattern.chars().count() > rd_core::MAX_ASSET_PATTERN_CHARS {
+            return Err(ApiError::unprocessable(
+                "subscription.asset_pattern_too_long",
+                "An asset name pattern is too long",
+            )
+            .with_param("maximum", rd_core::MAX_ASSET_PATTERN_CHARS.to_string()));
+        }
+        patterns.push(pattern.to_owned());
+    }
+    if patterns.len() > rd_core::MAX_ASSET_PATTERNS {
+        return Err(ApiError::unprocessable(
+            "subscription.asset_patterns_too_many",
+            "Too many asset name patterns",
+        )
+        .with_param("maximum", rd_core::MAX_ASSET_PATTERNS.to_string()));
+    }
+    let host = url.host_str().unwrap_or_default();
+    if options.forge.is_none() && rd_core::GitForge::of_host(host).is_none() {
+        return Err(ApiError::unprocessable(
+            "subscription.git_forge_unknown",
+            "A self-hosted repository needs its forge named: GitHub or GitLab",
+        )
+        .with_param("host", host.chars().take(64).collect::<String>()));
+    }
+    rd_subscription::GitRepository::parse(url, options.forge).map_err(|_| {
+        ApiError::unprocessable(
+            "subscription.git_repository_invalid",
+            "The address does not name a repository: owner and name are needed",
+        )
+    })?;
+    Ok(rd_core::GitReleaseOptions {
+        forge: options.forge,
+        asset_patterns: patterns,
+        platforms: distinct(&options.platforms),
+        architectures: distinct(&options.architectures),
+        prereleases: options.prereleases,
+        source_archives: options.source_archives,
+    })
+}
+
+/// The entries of `values` in their order, each once.
+fn distinct<T: Copy + PartialEq>(values: &[T]) -> Vec<T> {
+    let mut kept = Vec::with_capacity(values.len());
+    for value in values {
+        if !kept.contains(value) {
+            kept.push(*value);
+        }
+    }
+    kept
 }
 
 /// The search an indexer subscription sends (RD-180-20), checked like an interactive search's.
@@ -996,6 +1082,18 @@ async fn queue_reviewed_item(state: &AppState, id: SubscriptionItemId) -> Result
         .map_err(ApiError::from)?
         .ok_or_else(|| ApiError::not_found("subscription.not_found", "Subscription not found"))?;
     let category_id = subscription.category_for(item.source_category.as_deref());
+    // A private repository's file is resolved with the token now, at the moment it is handed
+    // over; the address that answers without one is valid for minutes (RD-190-13).
+    let url = state
+        .subscriptions
+        .download_address(&subscription, &item.url)
+        .await
+        .map_err(|error| {
+            ApiError::bad_gateway(
+                "subscription.download_address_unavailable",
+                rd_core::redact_text(&error.to_string()),
+            )
+        })?;
     let intake = crate::subscription_service::SubscriptionIntake {
         database: &state.database,
         link_check: &state.link_check,
@@ -1006,7 +1104,7 @@ async fn queue_reviewed_item(state: &AppState, id: SubscriptionItemId) -> Result
         &intake,
         &subscription.name,
         vec![crate::collector_intake::DeclaredLink {
-            url: item.url.clone(),
+            url,
             media_type: item.media_type.clone(),
             name: Some(rd_files::strip_password_marker(&item.title).0),
             // Read back from the archived row, so a hit queued after review carries the same

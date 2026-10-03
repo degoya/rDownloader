@@ -71,7 +71,7 @@ fn the_manifest_declares_the_new_type_and_one_reachable_host() {
     assert!(manifest.capabilities.net_stream.is_none());
     assert!(!manifest.capabilities.cookies);
     assert!(!manifest.capabilities.captcha);
-    assert_eq!(manifest.api_version, "0.9.0");
+    assert_eq!(manifest.api_version, "0.10.0");
 }
 
 /// A component built against this contract satisfies the world its type declares.
@@ -199,17 +199,17 @@ fn a_plugin_that_does_not_use_the_new_world_is_unaffected() {
 /// The canonical contract and every SDK copy of it are the same bytes.
 ///
 /// The twelfth world was additive and left the package version alone; RD-120-20 moved it to
-/// `0.7.0`, RD-120-36 to `0.8.0` and RD-130-11 to `0.9.0`, each for a reason of its own
-/// (`docs/plugins.md`, "What moves `api_version`"). What this test has always been about is
-/// the other half and still is: **one copy per world, one text** — thirteen since RD-160-04
-/// gave `stream-transform` and `intake-mirrors` templates of their own. CI diffs them too, and
-/// this is the same question asked where a plugin author would notice.
+/// `0.7.0`, RD-120-36 to `0.8.0`, RD-130-11 to `0.9.0` and RD-190-06 to `0.10.0`, each for a
+/// reason of its own (`docs/plugins.md`, "What moves `api_version`"). What this test has always
+/// been about is the other half and still is: **one copy per world, one text** — thirteen since
+/// RD-160-04 gave `stream-transform` and `intake-mirrors` templates of their own. CI diffs them
+/// too, and this is the same question asked where a plugin author would notice.
 #[test]
 fn the_contract_is_copied_verbatim_into_every_template() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let canonical = std::fs::read_to_string(root.join("crates/rd-plugin-api/wit/rdownloader.wit"))
         .expect("wit");
-    assert!(canonical.starts_with("package rdownloader:plugin@0.9.0;"));
+    assert!(canonical.starts_with("package rdownloader:plugin@0.10.0;"));
     assert!(canonical.contains("interface stream-transform {"));
     assert!(canonical.contains("world stream-transform-plugin {"));
     let mut copies = 0;

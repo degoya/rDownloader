@@ -10,6 +10,7 @@
 # Usage:
 #   scripts/package-managers.sh <version> <SHA256SUMS> <outdir> [--repository OWNER/NAME]
 #                               [--base-url URL]
+#   scripts/package-managers.sh --check-aur <outdir>
 #
 # Writes <outdir>/rdownloader.rb and <outdir>/rdownloader-capture.rb (the tap's
 # Formula/rdownloader.rb and Formula/rdownloader-capture.rb), <outdir>/rdownloader.json (the
@@ -34,6 +35,11 @@
 #
 # Every archive the files name must be in SHA256SUMS (`<sha256>  ./<name>`, as the release
 # writes it, or `<sha256>  <name>`), and nothing of a template may stay unreplaced.
+#
+# --check-aur refuses an <outdir>/aur/PKGBUILD whose `# Maintainer:` line is missing or still the
+# template's AUR_MAINTAINER placeholder (RD-190-10); the release runs it before the AUR push, so
+# switching AUR_ENABLED on before packaging/aur/PKGBUILD.in names the account fails loudly instead
+# of publishing the placeholder.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,8 +48,23 @@ shopt -u patsub_replacement 2> /dev/null || true
 
 usage() {
     echo "usage: $0 <version> <SHA256SUMS> <outdir> [--repository OWNER/NAME] [--base-url URL]" >&2
+    echo "       $0 --check-aur <outdir>" >&2
     exit 2
 }
+
+if [[ "${1:-}" == --check-aur ]]; then
+    [[ $# -eq 2 ]] || usage
+    pkgbuild="$2/aur/PKGBUILD"
+    [[ -f "$pkgbuild" ]] || { echo "error: $pkgbuild does not exist" >&2; exit 1; }
+    maintainer="$(grep -m 1 '^# Maintainer: ' "$pkgbuild" || true)"
+    if [[ -z "$maintainer" || "$maintainer" == *AUR_MAINTAINER* ]]; then
+        echo "error: $pkgbuild names no AUR maintainer (${maintainer:-no '# Maintainer:' line});" \
+            "put the AUR account's name and address into packaging/aur/PKGBUILD.in" >&2
+        exit 1
+    fi
+    echo "$pkgbuild: ${maintainer#\# }"
+    exit 0
+fi
 
 [[ $# -ge 3 ]] || usage
 version="${1#v}"

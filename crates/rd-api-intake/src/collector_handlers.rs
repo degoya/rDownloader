@@ -776,7 +776,7 @@ pub async fn reorder_collector_packages(
     State(state): State<AppState>,
     Json(request): Json<CollectorPackageReorderRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    validate_bulk(request.ids.len())?;
+    crate::error_codes::validate_reorder_size(request.ids.len())?;
     state
         .database
         .reorder_collector_packages(request.ids)
@@ -801,7 +801,7 @@ pub async fn reorder_grabber_entries(
     State(state): State<AppState>,
     Json(request): Json<GrabberEntryReorderRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    validate_bulk(request.entries.len())?;
+    crate::error_codes::validate_reorder_size(request.entries.len())?;
     // The anchor is spliced *behind*, so it cannot also be one of the entries being moved: it
     // leaves the sequence together with them, and nothing is left to splice behind. The store
     // sees only an anchor it cannot find at that point; here both halves of the request are
@@ -1132,7 +1132,7 @@ pub async fn reorder_candidates(
     State(state): State<AppState>,
     Json(request): Json<CandidateReorderRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    validate_bulk(request.ids.len())?;
+    crate::error_codes::validate_reorder_size(request.ids.len())?;
     let members: Vec<rd_core::CandidateId> = state
         .database
         .list_candidates()

@@ -23,7 +23,10 @@
     "apply": "Aplicar",
     "reveal": "Mostrar en la lista",
     "cancel_edit": "Cancelar edición",
-    "duplicate": "Duplicar"
+    "duplicate": "Duplicar",
+    "copy_link": "Copiar enlace",
+    "copy_links": "Copiar enlaces",
+    "open_source_page": "Abrir página de origen"
   },
   "states": {
     "queued": "En cola",
@@ -60,7 +63,8 @@
     "no": "No"
   },
   "errors": {
-    "request_failed": "No se pudo procesar la solicitud."
+    "request_failed": "No se pudo procesar la solicitud.",
+    "batch_stopped": "{error} – detenido tras la parte {done} de {total}; las partes anteriores se aplicaron."
   },
   "data": {
     "loading": "Cargando",
@@ -105,7 +109,7 @@
     "go_remote_jobs": "Ir a Trabajos remotos",
     "go_automation": "Ir a Automatización",
     "go_settings": "Ir a Ajustes",
-    "import_nzb": "Importar NZB/torrent",
+    "import_nzb": "Importar archivos",
     "toggle_transfers": "Iniciar o pausar todas las descargas",
     "show_help": "Mostrar atajos de teclado",
     "toast": {
@@ -119,7 +123,7 @@
     "go_audit": "Ir a Auditoría",
     "open_search": "Abrir búsqueda",
     "clear_completed": "Quitar paquetes completados (en Descargas)",
-    "focus_indexer_search": "Ir a la búsqueda en indexadores (en el LinkGrabber)",
+    "focus_indexer_search": "Ir a la búsqueda: en indexadores en el LinkGrabber, por nombre en Descargas",
     "add_links": "Añadir enlaces (en el LinkGrabber)",
     "enqueue_all": "Cargar todo (en el LinkGrabber)",
     "enqueue_paused": "Añadir todo en pausa (en el LinkGrabber)",
@@ -163,7 +167,8 @@
   },
   "copy": {
     "failed_title": "No se pudo copiar",
-    "failed_description": "El navegador no permitió acceder al portapapeles. Selecciona el texto y cópialo a mano."
+    "failed_description": "El navegador no permitió acceder al portapapeles. Selecciona el texto y cópialo a mano.",
+    "links_copied": "Ningún enlace copiado | {count} enlace copiado | {count} enlaces copiados"
   },
   "unsaved": {
     "title": "¿Descartar los cambios sin guardar?",

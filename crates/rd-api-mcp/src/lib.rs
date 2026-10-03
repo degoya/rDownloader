@@ -31,6 +31,7 @@ mod tools_insight;
 mod tools_intake;
 mod tools_notify;
 mod tools_operations;
+mod tools_pause;
 mod tools_queue;
 mod tools_remote;
 mod tools_routing;
@@ -77,8 +78,9 @@ use rd_api_intake::{
     subscription_handlers,
 };
 use rd_api_queue::{
-    collision_handlers, download_handlers, download_sources, duplicates, media_handlers, metrics,
-    package_clear, package_handlers, power_handlers, reconnect_handlers, remote_job_handlers,
+    bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, download_handlers,
+    download_sources, duplicates, media_handlers, metrics, package_clear, package_handlers,
+    power_handlers, queue_pause_handlers, reconnect_handlers, remote_job_handlers,
     storage_handlers, torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
 };
 
@@ -110,7 +112,10 @@ queue an NZB. search_indexers searches the Newznab indexers defined in the web U
 (list_indexers) and grab_indexer_results puts chosen hits into the LinkGrabber as NZB imports. \
 The queue is ordered with reorder_downloads and reorder_packages, renamed \
 with rename_download, update_package and rename_package_folder, tidied with \
-clear_finished_packages and unpacked with extract_packages. get_torrent_details, the \
+clear_finished_packages and unpacked with extract_packages. pause_queue pauses the whole \
+queue for a while and resumes it by itself (resume_queue ends it early); \
+switch_bandwidth_profile puts one of list_bandwidth_profiles in front of the schedule \
+until its next change, a time or return_to_bandwidth_schedule. get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
 and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out. The histories and catalogues beside the editors are \
 here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
@@ -168,6 +173,7 @@ impl RdMcpServer {
             + Self::stream_schedules_router()
             + Self::collisions_router()
             + Self::backup_router()
+            + Self::pause_router()
     }
 }
 

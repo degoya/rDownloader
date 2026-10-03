@@ -93,8 +93,15 @@ async fn the_sabnzbd_download_client_sequence_completes() {
         config["config"]["misc"]["complete_dir"].is_string(),
         "the client stores this path and looks for imports under it: {body}"
     );
+    // The category the client is configured with has to exist here (docs/compatibility.md).
+    seed_category(&harness, directory.path(), "tv").await;
     let (_, body) = send(&harness.router, get(&format!("/api?mode=get_cats&{key}"))).await;
-    assert!(json(&body)["categories"].is_array(), "{body}");
+    assert!(
+        json(&body)["categories"]
+            .as_array()
+            .is_some_and(|names| names.iter().any(|name| name == "tv")),
+        "{body}"
+    );
 
     // 3. Push a release, with the category the client configured.
     let nzb = minimal_nzb("Some.Release.S01E01");
@@ -121,9 +128,11 @@ async fn the_sabnzbd_download_client_sequence_completes() {
         .as_array()
         .and_then(|slots| slots.iter().find(|slot| slot["nzo_id"] == nzo_id))
         .unwrap_or_else(|| panic!("added job missing from the queue: {body}"));
-    for field in ["filename", "status", "mb", "mbleft", "percentage", "cat"] {
+    for field in ["filename", "status", "mb", "mbleft", "percentage"] {
         assert!(!slot[field].is_null(), "queue slot.{field}: {body}");
     }
+    // The client keeps only the slots whose category is its own; `*` hid every job it added.
+    assert_eq!(slot["cat"], "tv", "queue slot.cat: {body}");
 
     // 5. Poll the history. Nothing has finished, so the job must not be there yet — a
     //    client that saw it here would try to import an empty directory.
@@ -151,6 +160,57 @@ async fn the_sabnzbd_download_client_sequence_completes() {
         Some(0),
         "{body}"
     );
+}
+
+/// A finished job comes back in the history under the category the client set, which is the
+/// filter it applies before importing anything.
+#[tokio::test]
+async fn the_sabnzbd_history_reports_the_category_the_client_set() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let key = format!("apikey={API_BEARER}&output=json");
+    seed_category(&harness, directory.path(), "movies").await;
+
+    let nzb = minimal_nzb("Some.Movie.2024");
+    let multipart = format!(
+        "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"nzbfile\"; filename=\"Some.Movie.2024.nzb\"\r\nContent-Type: application/x-nzb\r\n\r\n{nzb}\r\n--{BOUNDARY}--\r\n"
+    );
+    let (_, body) = send(
+        &harness.router,
+        post_multipart(
+            &format!("/api?mode=addfile&cat=movies&{key}"),
+            multipart,
+            false,
+        ),
+    )
+    .await;
+    let nzo_id = json(&body)["nzo_ids"][0]
+        .as_str()
+        .unwrap_or_else(|| panic!("addfile returned no job id: {body}"))
+        .to_owned();
+    let package_id: rd_core::PackageId = nzo_id
+        .strip_prefix("rd_nzo_")
+        .and_then(|id| id.parse().ok())
+        .unwrap_or_else(|| panic!("not one of our job ids: {nzo_id}"));
+    harness
+        .database
+        .set_package_state(
+            package_id,
+            rd_core::PackageState::Completed,
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("complete the package");
+
+    let (_, body) = send(&harness.router, get(&format!("/api?mode=history&{key}"))).await;
+    let history = json(&body);
+    let slot = history["history"]["slots"]
+        .as_array()
+        .and_then(|slots| slots.iter().find(|slot| slot["nzo_id"] == nzo_id))
+        .unwrap_or_else(|| panic!("the finished job is missing from the history: {body}"));
+    assert_eq!(slot["category"], "movies", "history slot.category: {body}");
 }
 
 /// The full qBittorrent sequence, including the category dance clients do on connect.
@@ -203,6 +263,8 @@ async fn the_qbittorrent_download_client_sequence_completes() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    // That request has no effect, so the user created the category here beforehand.
+    seed_category(&harness, directory.path(), "tv-sonarr").await;
 
     // 5. Add a magnet and immediately look for it under the hash it computed itself.
     const HASH: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -226,6 +288,18 @@ async fn the_qbittorrent_download_client_sequence_completes() {
     for field in ["name", "state", "progress", "save_path", "size"] {
         assert!(!entry[field].is_null(), "info.{field}: {body}");
     }
+    assert_eq!(entry["category"], "tv-sonarr", "info.category: {body}");
+    let (_, body) = send(
+        &harness.router,
+        get_with_cookie("/api/v2/torrents/info?category=tv-sonarr"),
+    )
+    .await;
+    assert!(
+        json(&body)
+            .as_array()
+            .is_some_and(|items| items.iter().any(|item| item["hash"] == HASH)),
+        "the client's own category filter lost the torrent: {body}"
+    );
 
     // 6. Inspect it, which the client does before importing.
     let (status, _) = send(
@@ -290,6 +364,46 @@ async fn both_adapters_serve_the_same_installation_at_once() {
     // And neither has displaced the native contract or the web interface.
     let (native, _) = send(&harness.router, get("/api/v1/health")).await;
     assert_eq!(native, StatusCode::OK);
+}
+
+/// Creates the category an *arr client is configured with, as the user does under
+/// Settings -> Storage & rules.
+async fn seed_category(harness: &common::Harness, directory: &std::path::Path, name: &str) {
+    let root = harness
+        .database
+        .create_storage_root(
+            rd_core::StorageRootId::new(),
+            rd_db::NewStorageRoot {
+                name: format!("{name} root"),
+                path: directory.join(name).to_string_lossy().into_owned(),
+                is_default: false,
+                minimum_free_bytes: None,
+            },
+        )
+        .await
+        .expect("storage root");
+    harness
+        .database
+        .create_category(rd_db::NewCategory {
+            name: name.to_owned(),
+            color: "#336699".to_owned(),
+            storage_root_id: root.id,
+            relative_path: name.to_owned(),
+            is_default: false,
+            postprocess_level: None,
+            script: None,
+            cleanup_extensions: None,
+            recursive_unpack: None,
+            unpack_to_subfolder: None,
+            malware_scan: None,
+            sfv_verify: None,
+            safe_postproc: None,
+            delete_par2: None,
+            upload_enabled: None,
+            upload_remote: None,
+        })
+        .await
+        .expect("category");
 }
 
 fn minimal_nzb(name: &str) -> String {

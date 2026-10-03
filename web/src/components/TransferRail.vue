@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
@@ -66,17 +67,7 @@ onMounted(async () => {
   -->
   <footer data-tour="rail" class="@container relative z-20 flex h-11 shrink-0 items-center justify-between gap-4 border-t border-muted bg-elevated px-4 text-xs sm:px-6">
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-      <UButton
-        v-if="transfers.globalControl"
-        :icon="transfers.globalControl === 'pause' ? 'i-lucide-pause' : 'i-lucide-play'"
-        size="xs"
-        :color="transfers.globalControl === 'pause' ? 'neutral' : 'primary'"
-        variant="ghost"
-        :aria-label="transfers.globalControl === 'pause' ? t('downloads.header.pause_all') : t('downloads.header.resume_all')"
-        :title="transfers.globalControl === 'pause' ? t('downloads.header.pause_all') : t('downloads.header.resume_all')"
-        :loading="transfers.controlsBusy"
-        @click="transfers.controlAll(transfers.globalControl)"
-      />
+      <QueuePauseControl placement="rail" />
       <div class="flex shrink-0 items-center gap-1.5" :title="t('downloads.rail.speed')">
         <UIcon name="i-lucide-activity" class="size-3.5 text-primary" />
         <span class="numeric font-semibold text-highlighted">{{ formatRate(transfers.globalRate) }}</span>
@@ -85,7 +76,9 @@ onMounted(async () => {
         <UIcon name="i-lucide-hourglass" class="size-3.5 text-muted" />
         <span class="numeric">{{ t('downloads.rail.eta', { duration: etaLabel }) }}</span>
       </div>
-      <div class="w-16 shrink-0 border-x border-muted px-2 sm:w-24">
+      <!-- On a phone the rail has no room for the chart beside a timed pause's "paused until",
+           and the version wrote over the connection count; both wait for a wider rail. -->
+      <div class="hidden w-16 shrink-0 border-x border-muted px-2 @min-[26rem]:block sm:w-24">
         <SpeedHistoryChart compact :current-rate="transfers.globalRate" :points="transfers.speedHistory" />
       </div>
       <div class="flex shrink-0 items-center gap-1.5 text-toned" :title="t('downloads.rail.parallel_title')">
@@ -130,7 +123,7 @@ onMounted(async () => {
         <!-- The name only where the rail has room for it: at 1280 px beside the open sidebar
              it cut the volume line, and the sidebar names the application anyway (RD-120-53). -->
         <span class="hidden font-semibold text-highlighted @min-[72rem]:inline">rDownloader</span>
-        <span v-if="serviceVersion" class="font-mono text-muted">v{{ serviceVersion }}</span>
+        <span v-if="serviceVersion" class="hidden font-mono text-muted @min-[48rem]:inline">v{{ serviceVersion }}</span>
         <span class="hidden items-center gap-1 @min-[96rem]:flex">
           —
           {{ t('common.footer.made_with') }}

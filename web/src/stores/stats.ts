@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { subscribeEvents } from '@/composables/useEventStream'
 import type { StatsRange, TransferStats } from '@/api/types'
 
@@ -20,6 +21,8 @@ export const useStatsStore = defineStore('stats', () => {
   const range = ref<StatsRange>('day')
   const stats = ref<TransferStats | null>(null)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const fetching = ref(false)
   /** True once the first fetch has settled, so "nothing here" is only said when it is true. */
   const settled = ref(false)

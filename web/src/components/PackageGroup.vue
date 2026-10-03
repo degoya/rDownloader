@@ -8,6 +8,7 @@ import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
+import { sourcePageUrl } from '@/utils/sourcePage'
 
 const PRIORITY_ITEMS = computed(() => priorityItems())
 const { t } = useI18n()
@@ -58,6 +59,8 @@ const emit = defineEmits<{
   toggle: [id: string]
   deletePackage: [id: string]
   copyPath: [path: string]
+  /** Every file's address of the package onto the clipboard; the view gathers them (RD-190-21). */
+  copyLinks: [id: string]
   pausePackage: [id: string]
   resumePackage: [id: string]
 }>()
@@ -65,6 +68,14 @@ const emit = defineEmits<{
 const dragTitle = computed(() => `${t('downloads.package.drag_title')} — ${t('common.a11y.reorder_keys')}`)
 
 const hasArchive = computed(() => hasExtractable(props.downloads))
+/**
+ * The page the package came from, offered only when its files name exactly one: a playlist's
+ * files each have a page of their own, and picking one of them would open the wrong one.
+ */
+const sourcePage = computed(() => {
+  const pages = new Set(props.downloads.map(item => sourcePageUrl(item.media?.page_url)).filter(page => page !== null))
+  return pages.size === 1 ? [...pages][0] ?? null : null
+})
 /**
  * Fields enrichers contributed to the links this package was built from (RD-107-02).
  *
@@ -209,6 +220,11 @@ const actions = computed(() => [[
         description: t('downloads.package.force_extract_title'),
         onSelect: () => emit('forceExtract', props.package.id)
       }]
+    : [])
+], [
+  { label: t('common.actions.copy_links'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', props.package.id) },
+  ...(sourcePage.value
+    ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : [])
 ], [
   ...(usenet.value && props.package.nzb_import_id

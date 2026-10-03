@@ -1,4 +1,5 @@
 import type { IndexerSearchHit } from '@/api/types'
+import { hitCover, type HitFact } from '@/utils/subscriptionHit'
 
 /**
  * The interactive indexer search's rules on the client side (RD-180-19).
@@ -101,4 +102,32 @@ export function sortHits(hits: readonly IndexerSearchHit[], key: HitSortKey | nu
       return left.position - right.position
     })
     .map(entry => entry.hit)
+}
+
+/**
+ * The facts a detailed result row shows (RD-190-16), in reading order, as far as the indexer sent
+ * them. The server sends these five and the description and nothing else
+ * (`crates/rd-subscription/src/search.rs`); the labels are the subscription hits' own, so a fact
+ * is called the same in both lists.
+ */
+const FACTS = ['year', 'genre', 'imdbscore', 'language', 'resolution'] as const
+
+export function hitFacts(hit: Pick<IndexerSearchHit, 'metadata'>, t: (key: string) => string): HitFact[] {
+  const metadata: Record<string, string> = hit.metadata ?? {}
+  return FACTS
+    .filter(key => Boolean(metadata[key]))
+    .map(key => ({ key, label: t(`subscriptions.items.attributes.${key}`), value: metadata[key] as string }))
+}
+
+/** The short description a detailed row ends its metadata line with, or `null`. */
+export function hitDescription(hit: Pick<IndexerSearchHit, 'metadata'>): string | null {
+  return hit.metadata?.description || null
+}
+
+/**
+ * The cover a detailed row loads, by the subscription hits' rule: none while pictures from third
+ * parties are switched off. The server sends only absolute http(s) addresses without the key.
+ */
+export function hitCoverUrl(hit: Pick<IndexerSearchHit, 'cover_url'>, showImages: boolean): string | null {
+  return hit.cover_url ? hitCover({ coverurl: hit.cover_url }, showImages) : null
 }

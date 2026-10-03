@@ -4,7 +4,7 @@ import type { Download } from '@/api/types'
 import { i18n, setLocale } from '@/i18n'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 
-import { GIB, MIB, byteModel, formatByteProgress, formatBytes, formatDay, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, progressOf, stateLabel } from './format'
+import { GIB, MIB, byteModel, formatByteProgress, formatBytes, formatDay, formatDuration, formatMoment, formatPauseEnd, formatRate, hasExtractable, isRecoveryVolume, progressOf, stateLabel } from './format'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
@@ -215,6 +215,18 @@ describe('timestamp formatting', () => {
    * `d()` answers an unregistered format name with an empty string rather than a complaint,
    * which is how two templates came to render nothing at all where a timestamp belonged.
    */
+  /** RD-190-20: "until 18:30" within the day, the date as well once it lies further ahead. */
+  it('names the end of a pause by the clock alone within a day', () => {
+    const now = Date.parse('2026-09-18T12:00:00Z')
+    const soon = formatPauseEnd('2026-09-18T14:30:00Z', now)
+    const later = formatPauseEnd('2026-09-20T14:30:00Z', now)
+    expect(soon).not.toBe('')
+    expect(soon).not.toContain('2026')
+    expect(later).toContain('2026')
+    expect(formatPauseEnd(null, now)).toBe('')
+    expect(formatPauseEnd('not-a-date', now)).toBe('')
+  })
+
   it('has a registered shape for every format name a template passes', () => {
     const date = new Date('2026-09-18T14:30:00Z')
     for (const format of ['short', 'long', 'date', 'time']) {

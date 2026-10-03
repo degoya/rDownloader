@@ -368,12 +368,14 @@ async function remove(target: NotificationTarget): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="target in targets" :key="target.id" class="flex items-center gap-3 p-3" :class="editingId === target.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="target in targets" :key="target.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === target.id ? 'border-l-2 border-l-primary' : ''">
             <UIcon name="i-lucide-send" class="text-primary" />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 shrink grow basis-[200px]">
               <p class="text-sm font-medium text-highlighted">{{ target.name }}</p>
               <p class="truncate font-mono text-[11px] text-muted">{{ target.endpoint }}</p>
             </div>
+            <!-- The badges and actions wrap under the name as one group on a narrow screen. -->
+            <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
             <UBadge v-if="editingId === target.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge color="neutral" variant="subtle">{{ t(`notifications.kind.${target.kind}`) }}</UBadge>
             <UBadge v-if="!target.enabled" color="neutral" variant="outline">{{ t('notifications.target.disabled') }}</UBadge>
@@ -381,6 +383,7 @@ async function remove(target: NotificationTarget): Promise<void> {
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" :loading="duplicatingId === target.id" @click="duplicate(target)" />
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(target)" />
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(target)" />
+            </div>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!targets.length" variant="inline" class="p-5">
             <p class="text-center text-sm text-muted">{{ t('notifications.target.empty') }}</p>

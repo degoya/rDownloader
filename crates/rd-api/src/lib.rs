@@ -35,8 +35,8 @@ pub use rd_api_admin::{
 pub use rd_api_core::{
     ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService,
     RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused, RemoteJobService,
-    RemoteJobSubmitOutcome, RemoteServices, local_control, policy_rows, required_scope,
-    service_switches,
+    RemoteJobSubmitOutcome, RemoteServices, audit, local_control, oidc_client, password_reset,
+    policy_rows, required_scope, service_switches,
 };
 pub use rd_api_intake::{site_rules_service, site_rules_service::catalogue as site_rule_catalogue};
 
@@ -44,7 +44,8 @@ pub use rd_api_intake::{site_rules_service, site_rules_service::catalogue as sit
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).
 use rd_api_access::{
     api_tokens, audit_handlers, auth_flow_handlers, auth_profile_handlers,
-    browser_session_handlers, login_handlers, mfa_handlers, passkey_handlers, password_handlers,
+    browser_session_handlers, login_handlers, mfa_handlers, oidc_handlers, oidc_settings_handlers,
+    passkey_handlers, password_handlers, password_login_handlers, password_reset_handlers,
     session_handlers, setup_handlers,
 };
 use rd_api_admin::{
@@ -68,11 +69,11 @@ use rd_api_intake::{
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
-    auto_remove_service, bandwidth_handlers, capture_summary, collision_handlers,
-    download_handlers, download_sources, duplicates, media_dto, media_handlers, metrics,
-    package_clear, package_handlers, power_handlers, reconnect_handlers, remote_job_handlers,
-    replay_dto, replay_handlers, storage_handlers, torrent_control, torrent_handlers,
-    torrent_trackers, usenet_handlers,
+    auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_summary,
+    collision_handlers, download_handlers, download_sources, duplicates, media_dto, media_handlers,
+    metrics, package_clear, package_handlers, power_handlers, queue_pause_handlers,
+    reconnect_handlers, remote_job_handlers, replay_dto, replay_handlers, storage_handlers,
+    torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
 };
 
 /// The body limit of the routes reachable without a credential: sign-in, setup, passkeys.
@@ -109,6 +110,15 @@ pub fn router(state: AppState) -> Router {
             post(passkey_handlers::passkey_login),
         )
         .route("/api/v1/auth/logout", post(session_handlers::logout))
+        // Signing in through the identity provider (RD-190-15): two browser navigations, the
+        // start and the provider's redirect back. Public like the password sign-in; the
+        // callback's credential is its `state` together with the `rd_oidc` binding cookie of the
+        // browser that started it (ADR 0021).
+        .route("/api/v1/auth/oidc/start", get(oidc_handlers::oidc_start))
+        .route(
+            "/api/v1/auth/oidc/callback",
+            get(oidc_handlers::oidc_callback),
+        )
         // The provider's redirect back from an OAuth sign-in. Public because it arrives from the
         // provider's site, which a `SameSite=Strict` session cookie does not travel from; the
         // `state` it echoes is its credential (`rd_api_core::auth_flow_guard`, security audit

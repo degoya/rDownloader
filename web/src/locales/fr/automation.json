@@ -103,5 +103,17 @@
   "list_title": "Automatisations",
   "pick_or_create": "Choisissez une automatisation dans la liste pour la modifier, ou créez-en une nouvelle.",
   "eyebrow": "Si – alors",
-  "duplicate_hint": "Crée une copie désactivée et l’ouvre pour la modifier ; activée, elle agirait une seconde fois à côté de l’original"
+  "duplicate_hint": "Crée une copie désactivée et l’ouvre pour la modifier ; activée, elle agirait une seconde fois à côté de l’original",
+  "history": {
+    "open": "Historique des versions",
+    "title": "Versions de « {name} »",
+    "description": "Chaque enregistrement conserve la définition précédente. Restaurer une version l’enregistre à nouveau comme la plus récente ; l’historique des exécutions reste.",
+    "current": "Actuelle",
+    "changed": "modifié",
+    "empty": "Aucune version enregistrée pour l’instant.",
+    "restore": "Restaurer",
+    "restore_title": "Restaurer la version {version} ?",
+    "restore_description": "Le déclencheur, la condition et les actions de la version {version} redeviennent la définition de « {name} », enregistrés comme une nouvelle version. Le nom et l’interrupteur d’activation restent tels quels.",
+    "restored": "La version {version} est de nouveau en vigueur, enregistrée comme version {current}."
+  }
 }

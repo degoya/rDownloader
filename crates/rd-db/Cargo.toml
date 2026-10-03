@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Forwards rd-core's deterministic crash points; see crates/rd-core/src/failpoint.rs.
+failpoints = ["rd-core/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true

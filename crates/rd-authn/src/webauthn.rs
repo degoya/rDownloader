@@ -136,6 +136,10 @@ pub type CeremonyId = String;
 /// is a challenge that can be replayed into it. A restart mid-sign-in costs one retry.
 pub struct CeremonyStore<T> {
     entries: Mutex<HashMap<CeremonyId, Entry<T>>>,
+    /// How long an entry stays answerable: [`CEREMONY_TTL`] for a passkey, longer for a sign-in
+    /// at an identity provider, where a person may first have to type a password there
+    /// (`crate::oidc::FLOW_TTL`).
+    ttl: Duration,
 }
 
 struct Entry<T> {
@@ -149,6 +153,7 @@ impl<T> Default for CeremonyStore<T> {
     fn default() -> Self {
         Self {
             entries: Mutex::new(HashMap::new()),
+            ttl: CEREMONY_TTL,
         }
     }
 }
@@ -157,6 +162,15 @@ impl<T> CeremonyStore<T> {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A store whose entries stay answerable for `ttl` instead of [`CEREMONY_TTL`].
+    #[must_use]
+    pub fn with_ttl(ttl: Duration) -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            ttl,
+        }
     }
 
     /// Files a started ceremony and returns the handle that finishes it.
@@ -168,7 +182,8 @@ impl<T> CeremonyStore<T> {
     pub fn insert(&self, owner: IpAddr, state: T) -> CeremonyId {
         let id = random_handle();
         let mut entries = self.lock();
-        entries.retain(|_, entry| entry.started.elapsed() < CEREMONY_TTL);
+        let ttl = self.ttl;
+        entries.retain(|_, entry| entry.started.elapsed() < ttl);
         while entries
             .values()
             .filter(|entry| entry.owner == owner)
@@ -203,7 +218,7 @@ impl<T> CeremonyStore<T> {
     /// Claims a ceremony. Removing rather than reading is what makes a challenge single-use.
     pub fn take(&self, id: &str) -> Option<T> {
         let entry = self.lock().remove(id)?;
-        (entry.started.elapsed() < CEREMONY_TTL).then_some(entry.state)
+        (entry.started.elapsed() < self.ttl).then_some(entry.state)
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<CeremonyId, Entry<T>>> {

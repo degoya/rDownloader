@@ -315,7 +315,10 @@ async fn build_and_enqueue(
         // The mirrors and hashes a Metalink parser stated for this link (RD-150-03). Only
         // for a plain HTTP row: every other kind has a runner of its own that knows no sets.
         let stated = if kind == rd_core::DownloadKind::Http {
-            state.database.candidate_source_set(candidate.id).await?
+            match state.database.candidate_source_set(candidate.id).await? {
+                Some(set) => Some(set),
+                None => declared_checksum(state, &candidate, &source, reach).await?,
+            }
         } else {
             None
         };
@@ -611,6 +614,40 @@ fn object_files(
 /// its trackers name, and those are held to the rule where they are scraped; a transfer
 /// plugin, Usenet and a bucket (whose endpoint is the person's own profile) have no address
 /// of the link's to hold.
+/// The single-source set of a link whose source declared the file's SHA-256 (RD-190-13): a
+/// release file's digest, or its line in the release's checksum list.
+///
+/// The set is how a checksum reaches the download, and a set holds its source to an address
+/// reach; a link the person added themselves keeps the local network open, as a pasted
+/// Metalink's mirrors do. Without a declared checksum there is no set, and nothing changes.
+async fn declared_checksum(
+    state: &AppState,
+    candidate: &LinkCandidate,
+    source: &url::Url,
+    reach: Option<bool>,
+) -> Result<Option<rd_core::SourceSet>, ApiError> {
+    let attributes = state
+        .database
+        .candidate_source_attributes(candidate.id)
+        .await?;
+    let Some(value) = attributes
+        .get("sha256")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    else {
+        return Ok(None);
+    };
+    Ok(
+        rd_core::SourceSet::of_link(source, reach.unwrap_or(true)).map(|mut set| {
+            set.checksum = Some(rd_core::ExpectedChecksum {
+                algorithm: rd_core::ChecksumAlgorithm::Sha256,
+                value,
+            });
+            set
+        }),
+    )
+}
+
 fn held_to_reach(
     kind: rd_core::DownloadKind,
     source: &url::Url,

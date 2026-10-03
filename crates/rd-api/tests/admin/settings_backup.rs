@@ -47,6 +47,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -249,6 +250,7 @@ async fn full_round_trip_preserves_ids_and_rekeys_secrets() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -548,5 +550,135 @@ async fn auth_profiles_are_backed_up_without_leaking_their_credentials() {
             .expect("match")
             .is_some(),
         "the restored profile must still apply"
+    );
+}
+
+/// RD-190-22: the Newznab indexers travel in the settings bundle, their API key the way every
+/// other credential does — a slot name in the body, the value only in the encrypted section.
+#[tokio::test]
+async fn indexers_round_trip_with_their_key_behind_a_slot() {
+    const INDEXER_KEY: &str = "indexer-api-key-must-stay-sealed";
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    seed_all(&harness, directory.path()).await;
+    let key_ref = harness
+        .secrets
+        .put_string(INDEXER_KEY.to_owned())
+        .await
+        .expect("indexer key");
+    let indexer = harness
+        .database
+        .create_indexer(rd_db::NewIndexer {
+            name: "Example indexer".to_owned(),
+            url: "https://indexer.example.test/api"
+                .parse()
+                .expect("indexer URL"),
+            secret_ref: Some(key_ref.clone()),
+            categories: vec!["2000".to_owned()],
+            enabled: false,
+            list_style: rd_core::IndexerListStyle::Detailed,
+        })
+        .await
+        .expect("indexer");
+
+    let plain = export(&harness.router, false).await;
+    let bundled = &plain["indexers"][0];
+    assert_eq!(bundled["id"], indexer.id.to_string());
+    assert_eq!(bundled["url"], "https://indexer.example.test/api");
+    assert_eq!(bundled["categories"], serde_json::json!(["2000"]));
+    assert_eq!(bundled["enabled"], false);
+    assert_eq!(bundled["list_style"], "detailed");
+    assert!(bundled["secret_slot"].is_null(), "{bundled}");
+    assert!(!plain.to_string().contains(INDEXER_KEY));
+
+    let sealed = export(&harness.router, true).await;
+    assert!(sealed["indexers"][0]["secret_slot"].is_string());
+    let without_blob = {
+        let mut copy = sealed.clone();
+        copy["secrets"] = serde_json::Value::Null;
+        copy.to_string()
+    };
+    assert!(!without_blob.contains(INDEXER_KEY));
+    assert!(!without_blob.contains("vault://"));
+
+    // The import replaces the stored indexer and drops the key reference it held.
+    let (status, summary) = import(&harness.router, sealed, Some("backup-passphrase")).await;
+    assert_eq!(status, StatusCode::OK, "{summary}");
+    assert_eq!(summary["indexers"], 1);
+    let restored = harness.database.list_indexers().await.expect("indexers");
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].id, indexer.id);
+    assert_eq!(restored[0].categories, ["2000"]);
+    assert!(!restored[0].enabled);
+    assert_eq!(restored[0].list_style, rd_core::IndexerListStyle::Detailed);
+    let reference = restored[0].secret_ref.as_deref().expect("key reference");
+    assert_ne!(
+        reference, key_ref,
+        "the key is minted into a fresh reference"
+    );
+    assert_eq!(
+        harness
+            .secrets
+            .get(reference)
+            .await
+            .expect("key")
+            .expose_secret(),
+        INDEXER_KEY
+    );
+    assert!(harness.secrets.get(&key_ref).await.is_err());
+
+    // Without secrets the indexer is restored, its key is not. An import switches the login
+    // back on, so this one goes into a second installation whose login is still off.
+    let elsewhere = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(elsewhere.path()).await;
+    let (status, body) = import(&harness.router, plain, None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let restored = harness.database.list_indexers().await.expect("indexers");
+    assert_eq!(restored[0].id, indexer.id);
+    assert!(!restored[0].has_secret);
+}
+
+/// RD-190-22: a proxy profile the settings document still names — as the global route or as
+/// the torrent engine's peer proxy — is refused with `proxy.in_use`, not deleted from under it.
+#[tokio::test]
+async fn a_proxy_the_settings_still_name_is_not_deleted() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let proxy = harness
+        .database
+        .create_proxy_profile(rd_db::NewProxyProfile {
+            name: "Tunnel".to_owned(),
+            kind: rd_core::ProxyKind::Socks5,
+            endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
+            username: None,
+            secret_ref: None,
+        })
+        .await
+        .expect("proxy");
+    for field in ["global_proxy_profile_id", "torrent_proxy_profile_id"] {
+        harness
+            .database
+            .set_setting(
+                "service.settings".to_owned(),
+                serde_json::json!({ field: proxy.id }),
+            )
+            .await
+            .expect("settings naming the proxy");
+        let (status, body) = common::delete_json(
+            &harness.router,
+            &format!("/api/v1/proxy-profiles/{}", proxy.id),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{field}: {body}");
+        assert_eq!(body["code"], "proxy.in_use");
+    }
+    assert_eq!(
+        harness
+            .database
+            .list_proxy_profiles()
+            .await
+            .expect("proxies")
+            .len(),
+        1
     );
 }

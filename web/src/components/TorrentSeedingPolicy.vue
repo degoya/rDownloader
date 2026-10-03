@@ -102,7 +102,7 @@ function save(): void {
         />
       </UFormField>
       <UFormField :label="t('torrent.seeding.override_ratio')" size="xs">
-        <UInput v-model.number="ratio" type="number" min="0" max="100" step="0.1" :disabled="props.busy" />
+        <UInput v-model.number="ratio" type="number" min="0" max="100" step="any" :disabled="props.busy" />
       </UFormField>
       <UFormField :label="t('torrent.seeding.override_unlimited')" size="xs" orientation="horizontal">
         <USwitch v-model="unlimited" :disabled="props.busy" />

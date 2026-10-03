@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SubscriptionItem } from '@/api/types'
+import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
 import SubscriptionItemDetails from '@/components/SubscriptionItemDetails.vue'
 import { useCoverPreview } from '@/composables/useCoverPreview'
 import { hitCover, hitLocked, hitSize, hitTitle, promotedFacts as promotedFactsOf } from '@/utils/subscriptionHit'
@@ -180,17 +181,8 @@ const detailsLabel = computed(() =>
           >
         </template>
       </UPopover>
-      <!-- No cover, no gap: without a stand-in the titles of a list start in two different
-           places, which is what makes a long list read as unruly. Decoration, so it is hidden
-           from screen readers and carries the application's own mark rather than a picture
-           that pretends to be of the thing. -->
-      <span
-        v-else
-        aria-hidden="true"
-        data-testid="cover-placeholder"
-        class="size-12 shrink-0 bg-elevated bg-[length:1.5rem] bg-center bg-no-repeat"
-        style="background-image: url(/favicon.svg)"
-      />
+      <!-- No cover, no gap: the titles of the list start in one place (`CoverPlaceholder.vue`). -->
+      <CoverPlaceholder v-else class="size-12" />
 
       <!-- Grows, shrinks, but starts from 200 px: below that the rest wraps under it. -->
       <div class="min-w-0 grow shrink basis-[200px]">

@@ -1,7 +1,8 @@
 //! Scheduled encrypted full backups through the REST surface (RD-160-01): the passphrase goes
 //! in once and never comes out, replacing it asks for the current one, no backup is written without it, the schedule survives a
 //! restart and runs once when due, a failure lands in the history and leaves the queue alone,
-//! and the settings bundle inside an archive restores with the same passphrase.
+//! and the settings bundle inside an archive restores with the same passphrase. A failed
+//! scheduled run is announced as `backup_failed` (RD-190-19).
 
 use std::time::Duration;
 
@@ -379,4 +380,82 @@ async fn a_failed_backup_is_recorded_and_the_queue_goes_on() {
     let (status, again) =
         common::post_json(&harness.router, "/api/v1/backups/runs", json!({})).await;
     assert_eq!(status, StatusCode::ACCEPTED, "{again}");
+}
+
+/// A scheduled run that fails reaches a rule asking for `backup_failed`; a manual run that fails
+/// the same way does not, because whoever started it sees its outcome (RD-190-19).
+#[tokio::test]
+async fn a_failed_scheduled_backup_is_announced_and_a_failed_manual_one_is_not() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let (status, target) = common::post_json(
+        &harness.router,
+        "/api/v1/notifications/targets",
+        json!({ "name": "hook", "kind": "webhook", "endpoint": "http://127.0.0.1:9/hook" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{target}");
+    let (status, rule) = common::post_json(
+        &harness.router,
+        "/api/v1/notifications/rules",
+        json!({ "name": "backups", "target_id": target["id"], "events": ["backup_failed"] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{rule}");
+    set_passphrase(&harness).await;
+    let folder = directory.path().join("nas");
+    add_folder(&harness, &folder).await;
+    let (status, body) = configure(&harness, true).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    std::fs::remove_dir_all(&folder).expect("remove folder");
+    std::fs::write(&folder, b"not a folder").expect("occupy");
+
+    let manual = start_by_hand(&harness).await;
+    assert_eq!(
+        finished(&harness, &manual).await.state,
+        rd_core::BackupRunState::Failed
+    );
+    let due = harness
+        .database
+        .backup_config()
+        .await
+        .expect("config")
+        .next_run_at
+        .expect("armed");
+    let scheduled =
+        rd_api::backup_service::tick(&harness.state, due + chrono::Duration::minutes(1))
+            .await
+            .expect("a run");
+    assert_eq!(
+        finished(&harness, &scheduled).await.state,
+        rd_core::BackupRunState::Failed
+    );
+
+    // The notice is queued right after the run's row ends.
+    let database = &harness.database;
+    let deliveries = common::eventually(
+        Duration::from_secs(20),
+        "no backup_failed delivery was queued",
+        || async move {
+            let deliveries = database
+                .list_notification_deliveries(100)
+                .await
+                .expect("deliveries");
+            (!deliveries.is_empty()).then_some(deliveries)
+        },
+    )
+    .await;
+    assert_eq!(
+        deliveries.len(),
+        1,
+        "only the scheduled run: {deliveries:?}"
+    );
+    assert_eq!(
+        deliveries[0].event,
+        rd_notify::NotificationEvent::BackupFailed
+    );
+    assert!(
+        deliveries[0].body.contains("storage_root.path_is_file"),
+        "{deliveries:?}"
+    );
 }

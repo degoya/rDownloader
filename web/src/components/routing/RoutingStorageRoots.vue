@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage } from '@/api/client'
@@ -7,8 +7,9 @@ import type { CreateStorageRoot, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
-import { useEditableList } from '@/composables/useEditableList'
+import { useEditableList, type ApiResult } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { serverMessageFrom } from '@/i18n/server'
 import { GIB, byteModel, formatBytes } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -22,6 +23,12 @@ const props = defineProps<{
    * empty, which is at least honest.
    */
   suggestedPath?: string
+  /**
+   * Name to offer for the first root. The setup wizard passes the placeholder's "Downloads":
+   * left as a placeholder, the empty field failed the browser's required check on the first
+   * try, and the button seemed to do nothing.
+   */
+  suggestedName?: string
   /** True while the tab's fetch is still running; the empty state waits for it (RD-104-07). */
   loading?: boolean | undefined
   /** The tab's fetch failure, so an unreachable service is not drawn as an empty list. */
@@ -31,16 +38,39 @@ const { t } = useI18n()
 const message = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
+const refusalElement = ref<HTMLElement | null>(null)
 const deletingId = ref<string | null>(null)
-const form = reactive<CreateStorageRoot>({ name: '', path: props.suggestedPath ?? '', is_default: false, minimum_free_bytes: null })
+const form = reactive<CreateStorageRoot>({ name: props.suggestedName ?? '', path: props.suggestedPath ?? '', is_default: false, minimum_free_bytes: null })
+
+/**
+ * Refusals that are about the path. They are shown under the path field, which the failed save
+ * focuses: above the form they stood off-screen on a phone, so "Create root" seemed to do nothing.
+ */
+const PATH_CODES = new Set([
+  'storage_root.path_not_absolute',
+  'storage_root.path_is_file',
+  'storage_root.not_creatable',
+  'storage_root.not_writable',
+  'storage_root.permission_denied',
+  'storage_root.read_only_filesystem',
+  'storage_root.protected_directory'
+])
+/** The code of the last refused save, kept beside the translated text `useEditableList` holds. */
+const errorCode = ref<string | null>(null)
+
+async function coded<R extends ApiResult<unknown>>(request: Promise<R>): Promise<R> {
+  const response = await request
+  errorCode.value = response.data === undefined ? serverMessageFrom(response.error)?.code ?? null : null
+  return response
+}
 
 const list = useEditableList<StorageRoot, CreateStorageRoot>({
   list: roots,
-  create: body => api.POST('/api/v1/storage-roots', { body }),
-  update: (id, body) => api.PUT('/api/v1/storage-roots/{id}', { params: { path: { id } }, body }),
+  create: body => coded(api.POST('/api/v1/storage-roots', { body })),
+  update: (id, body) => coded(api.PUT('/api/v1/storage-roots/{id}', { params: { path: { id } }, body })),
   destroy: id => api.DELETE('/api/v1/storage-roots/{id}', { params: { path: { id } } }),
   reset: () => {
-    form.name = ''
+    form.name = roots.value.length ? '' : props.suggestedName ?? ''
     form.path = props.suggestedPath ?? ''
     form.is_default = lockDefault.value
     form.minimum_free_bytes = null
@@ -54,6 +84,14 @@ const list = useEditableList<StorageRoot, CreateStorageRoot>({
   })
 })
 const { editingId, pending, error } = list
+
+/** The refusal under the path field; a folder inside the data directory also says what to pick. */
+const pathError = computed(() => {
+  if (!error.value || !errorCode.value || !PATH_CODES.has(errorCode.value)) return null
+  return errorCode.value === 'storage_root.protected_directory'
+    ? `${error.value} ${t('routing.root.protected_hint')}`
+    : error.value
+})
 
 // The suggestion is fetched, so it usually arrives after this component is set up. Filling the
 // field then is only right while nobody has typed in it and no existing root is being edited —
@@ -95,7 +133,13 @@ async function submit(): Promise<void> {
   message.value = null
   const updating = editingId.value !== null
   const saved = await list.submit({ ...form })
-  if (!saved) return
+  if (!saved) {
+    await nextTick()
+    // Focusing scrolls the field — and the refusal under it — into view.
+    if (pathError.value) formElement.value?.querySelector<HTMLInputElement>('input[name="path"]')?.focus()
+    else refusalElement.value?.scrollIntoView({ block: 'nearest' })
+    return
+  }
   // A root the server made the default takes it away from whichever root held it before.
   roots.value = applyDefault(roots.value, saved)
   message.value = updating ? t('routing.root.updated') : t('routing.root.created')
@@ -131,7 +175,9 @@ async function remove(root: StorageRoot): Promise<void> {
           :description="t('routing.root.description')"
           class="mb-4"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
+        <div v-if="error && !pathError" ref="refusalElement" class="mb-3 scroll-mt-4">
+          <UAlert color="error" variant="subtle" :description="error" />
+        </div>
         <!-- Between the two on purpose: the warning is a standing condition, the success message
              below it a receipt for the last save. Both can be on screen at once. -->
         <UAlert v-if="ephemeral.length" class="mb-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('routing.root.ephemeral_title')" :description="t('routing.root.ephemeral_description')" />
@@ -140,11 +186,11 @@ async function remove(root: StorageRoot): Promise<void> {
           <UFormField required :label="t('routing.root.name_label')" :description="t('routing.root.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.root.name_placeholder')" icon="i-lucide-hard-drive" />
           </UFormField>
-          <UFormField required :label="t('routing.root.path_label')" :description="t('routing.root.path_description')">
-            <UInput v-model="form.path" required class="w-full font-mono" :placeholder="t('routing.root.path_placeholder')" icon="i-lucide-folder" />
+          <UFormField required :label="t('routing.root.path_label')" :description="t('routing.root.path_description')" :error="pathError ?? false">
+            <UInput v-model="form.path" name="path" required class="w-full font-mono" :placeholder="t('routing.root.path_placeholder')" icon="i-lucide-folder" />
           </UFormField>
           <UFormField :label="t('routing.root.minimum_free_label')" :description="t('routing.root.minimum_free_description')">
-            <UInput v-model.number="minimumFreeGiB" type="number" min="0" step="1" class="w-full" :placeholder="t('routing.root.minimum_free_placeholder')" icon="i-lucide-shield-check">
+            <UInput v-model.number="minimumFreeGiB" type="number" min="0" step="any" class="w-full" :placeholder="t('routing.root.minimum_free_placeholder')" icon="i-lucide-shield-check">
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>
           </UFormField>
@@ -157,10 +203,12 @@ async function remove(root: StorageRoot): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="root in roots" :key="root.id" class="flex items-center gap-3 p-3" :class="editingId === root.id ? 'border-l-2 border-l-primary' : ''">
+          <!-- Wraps: on a phone the badges and buttons took the row's width and the name ran
+               under them; now they move to a line of their own instead. -->
+          <div v-for="root in roots" :key="root.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === root.id ? 'border-l-2 border-l-primary' : ''">
             <UIcon name="i-lucide-folder-lock" class="text-primary" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-highlighted">{{ root.name }}</p>
+            <div class="min-w-40 flex-1">
+              <p class="break-words text-sm font-medium text-highlighted">{{ root.name }}</p>
               <p class="truncate font-mono text-[11px] text-muted">{{ root.path }}</p>
               <p v-if="root.minimum_free_bytes" class="text-[11px] text-muted">{{ t('routing.root.minimum_free_badge', { value: formatBytes(root.minimum_free_bytes) }) }}</p>
             </div>

@@ -72,11 +72,17 @@ Stated so a report can be aimed at what is *not* covered, rather than at what is
   `SameSite=Strict`, and sessions are stored as a SHA-256 digest rather than as the bearer.
 - Optional two-factor sign-in (TOTP) and passkeys, the latter bound to the configured external
   URL so the credential cannot be phished onto another origin.
+- Optional sign-in through an OpenID Connect provider (authorization code with PKCE) for exactly
+  one linked account; ID tokens are checked against a fixed algorithm allowlist, issuer, audience,
+  nonce and time, the callback is bound to the browser that started it, and the password sign-in
+  can be switched back on only from the machine itself.
 - Machine tokens carry one or more of six permission areas; nothing confers stored credentials
   or administration implicitly, and the route policy is checked against the OpenAPI document in
   both directions by a test.
 - Stored credentials live in an encrypted store behind references, never in the database in
   clear, and are excluded from settings backups unless explicitly exported with a passphrase.
+  Archive passwords of packages, NZB imports and subscription hits are kept the same way: the
+  database and its copies before a migration or an update hold a reference, not the password.
 - Plugins are WebAssembly components with no WASI access, verified against an Ed25519 trust
   root, limited by fuel, memory and an allowed-domain list.
 - Release artifacts ship an SPDX SBOM, a SHA-256 manifest and a Sigstore bundle; container

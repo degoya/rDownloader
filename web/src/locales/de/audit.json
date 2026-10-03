@@ -71,7 +71,12 @@
     "content_index_cleared": "Inhaltsindex geleert",
     "setup_completed": "Ersteinrichtung abgeschlossen",
     "mfa_enrolled": "Zweiter Faktor hinzugefügt",
-    "mfa_removed": "Zweiter Faktor entfernt"
+    "mfa_removed": "Zweiter Faktor entfernt",
+    "malware_detected": "Schadsoftware gefunden",
+    "identity_linked": "Konto beim Identitätsanbieter verknüpft",
+    "identity_unlinked": "Verknüpfung zum Identitätsanbieter gelöst",
+    "password_login_changed": "Passwort-Anmeldung umgeschaltet",
+    "password_reset_local": "Passwort auf dem Host zurückgesetzt"
   },
   "list": {
     "title": "Einträge",

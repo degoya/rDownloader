@@ -10,12 +10,13 @@
  * The view starts an edit through `edit()` and learns which row is being edited through the
  * `editing` model, which it highlights in the list.
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, CategoryMapping, IndexerCaps, IndexerCategory, Subscription, SubscriptionRequest } from '@/api/types'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SubscriptionGitRelease from '@/components/SubscriptionGitRelease.vue'
 import SubscriptionIndexerSearch from '@/components/SubscriptionIndexerSearch.vue'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
@@ -23,6 +24,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 import { NO_INDEXER, maxAgeDays, queryProblem, type IndexerSearchFields } from '@/utils/indexerSearch'
+import { emptyGitRelease, gitReleaseFields, gitReleaseOptions, type GitReleaseFields } from '@/utils/gitRelease'
 import { argumentsProblem, joinArguments, splitArguments } from '@/utils/scriptArguments'
 import { CARD_RATIOS, type CardRatio, cardRatio, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
 
@@ -38,6 +40,14 @@ const store = useSubscriptionsStore()
 const postprocess = usePostprocessStore()
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
+/**
+ * What the server refused on the last save, shown above the form (`design.md`, *Forms Share One
+ * Shape*) rather than at the top of the page. The form is long — a release subscription's ends a
+ * screen below its first field — so the alert is also scrolled into view: the reader is at the
+ * button they pressed, and a refusal they cannot see reads as a button that did nothing.
+ */
+const refusal = ref<string | null>(null)
+const refusalElement = ref<HTMLElement | null>(null)
 const editRegex = useRegexEditor()
 const caps = ref<IndexerCaps | null>(null)
 const capsError = ref<string | null>(null)
@@ -70,6 +80,8 @@ interface Form {
   indexerId: string
   /** `q`, `maxage`, `pw` and `pred` of an indexer subscription (RD-180-20). */
   search: IndexerSearchFields
+  /** Which release files a git-release subscription downloads (RD-190-13). */
+  gitRelease: GitReleaseFields
 }
 
 /** The address scheme a script subscription's name is stored under, as the server writes it. */
@@ -97,7 +109,8 @@ function emptyForm(): Form {
     script: '',
     scriptArguments: '',
     indexerId: NO_INDEXER,
-    search: { query: '', maxAge: '', hidePassworded: false, pretime: 'none' }
+    search: { query: '', maxAge: '', hidePassworded: false, pretime: 'none' },
+    gitRelease: emptyGitRelease()
   }
 }
 
@@ -121,6 +134,7 @@ const kindItems = computed(() => [
   { value: 'feed', label: t('subscriptions.kinds.feed') },
   { value: 'indexer', label: t('subscriptions.kinds.indexer') },
   { value: 'site_rule', label: t('subscriptions.kinds.site_rule') },
+  { value: 'git_release', label: t('subscriptions.kinds.git_release') },
   { value: 'script', label: t('subscriptions.kinds.script') }
 ])
 
@@ -160,8 +174,14 @@ watch(
   }
 )
 
-/** The floor the server enforces per kind, in minutes: a board page is not an indexer. */
-const minimumMinutes = computed(() => (form.kind === 'site_rule' ? 30 : 5))
+/**
+ * The floor the server enforces per kind, in minutes: a board page is not an indexer, and a
+ * forge counts every request against an hourly budget (RD-190-13).
+ */
+const minimumMinutes = computed(() => (form.kind === 'site_rule' ? 30 : form.kind === 'git_release' ? 15 : 5))
+
+/** Where a key or token is entered at all: an indexer's key, a private repository's token. */
+const takesSecret = computed(() => form.kind === 'indexer' || form.kind === 'git_release')
 
 const modeItems = computed(() => [
   { value: 'review', label: t('subscriptions.modes.review') },
@@ -240,6 +260,8 @@ function body(): SubscriptionRequest {
         }
       : {},
     indexer_id: takesOver.value ? form.indexerId : null,
+    // Only a git-release subscription takes release options; every other kind is refused them.
+    git_release: form.kind === 'git_release' ? gitReleaseOptions(form.gitRelease) : {},
     // Omitted rather than cleared when left blank, so an edit that does not retype the key
     // keeps the stored one.
     api_key: form.apiKey.trim() || null
@@ -249,18 +271,29 @@ function body(): SubscriptionRequest {
 function reset(): void {
   Object.assign(form, emptyForm())
   editing.value = null
+  refusal.value = null
 }
 
 async function submit(): Promise<void> {
   // The field says what is wrong; a line that would not arrive as shown is not sent.
   if (form.kind === 'script' && scriptArgumentsError.value) return
   if (searchInvalid.value) return
+  refusal.value = null
   const saved = editing.value ? await store.update(editing.value, body()) : await store.create(body())
-  if (saved) reset()
+  if (saved) {
+    reset()
+    return
+  }
+  // Taken over from the store, so the page's own alert does not say it a second time.
+  refusal.value = store.error
+  store.error = null
+  await nextTick()
+  refusalElement.value?.scrollIntoView({ block: 'nearest' })
 }
 
 function edit(subscription: Subscription): void {
   editing.value = subscription.id
+  refusal.value = null
   form.name = subscription.name
   // A script is edited by its name; the server stores it as `script:<name>` and takes either.
   const script = subscription.kind === 'script' && subscription.url.startsWith(SCRIPT_PREFIX)
@@ -292,6 +325,7 @@ function edit(subscription: Subscription): void {
     hidePassworded: search?.hide_passworded ?? false,
     pretime: search?.pretime === 0 || search?.pretime === 1 || search?.pretime === 2 ? String(search.pretime) as '0' | '1' | '2' : 'none'
   }
+  form.gitRelease = gitReleaseFields(subscription.git_release)
   caps.value = null
   capsError.value = null
   void focusForm()
@@ -379,6 +413,9 @@ defineExpose({ edit, reset })
       :eyebrow="t('subscriptions.title')"
       :title="editing ? t('subscriptions.form.edit') : t('subscriptions.form.form_new')"
     />
+    <div v-if="refusal" ref="refusalElement" class="mb-4 scroll-mt-4" data-testid="subscription-refusal">
+      <UAlert color="error" variant="subtle" icon="i-lucide-circle-alert" :description="refusal" />
+    </div>
     <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
       <!-- First: the type decides which fields follow (script, address, schedule, filters). -->
       <UFormField :label="t('subscriptions.form.kind')">
@@ -436,10 +473,11 @@ defineExpose({ edit, reset })
       <UFormField
         v-else
         :label="t('subscriptions.form.url')"
-        :description="form.kind === 'site_rule' ? t('subscriptions.form.site_rule_description') : takesOver ? t('subscriptions.form.url_from_indexer') : undefined"
+        :description="form.kind === 'site_rule' ? t('subscriptions.form.site_rule_description') : form.kind === 'git_release' ? t('subscriptions.form.git_url_description') : takesOver ? t('subscriptions.form.url_from_indexer') : undefined"
       >
         <UInput v-model="form.url" type="url" :required="!takesOver" class="w-full" data-testid="subscription-url" />
       </UFormField>
+      <SubscriptionGitRelease v-if="form.kind === 'git_release'" v-model:fields="form.gitRelease" />
       <SubscriptionIndexerSearch
         v-if="form.kind === 'indexer'"
         v-model:indexer-id="form.indexerId"
@@ -523,16 +561,16 @@ defineExpose({ edit, reset })
         </UFieldGroup>
       </UFormField>
       <UFormField
-        v-if="form.kind === 'indexer'"
-        :label="t('subscriptions.form.api_key')"
-        :description="t('subscriptions.form.api_key_hint')"
+        v-if="takesSecret"
+        :label="form.kind === 'git_release' ? t('subscriptions.form.git_token') : t('subscriptions.form.api_key')"
+        :description="form.kind === 'git_release' ? t('subscriptions.form.git_token_hint') : t('subscriptions.form.api_key_hint')"
       >
         <UInput
           v-model="form.apiKey"
           class="w-full"
           type="password"
           autocomplete="off"
-          :placeholder="editing ? t('subscriptions.form.api_key_keep') : takesOver ? t('subscriptions.form.api_key_from_indexer') : ''"
+          :placeholder="editing ? (form.kind === 'git_release' ? t('subscriptions.form.git_token_keep') : t('subscriptions.form.api_key_keep')) : takesOver ? t('subscriptions.form.api_key_from_indexer') : ''"
           data-testid="subscription-api-key"
         />
       </UFormField>

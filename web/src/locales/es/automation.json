@@ -103,5 +103,17 @@
   "list_title": "Automatizaciones",
   "pick_or_create": "Elige una automatización de la lista para editarla o crea una nueva.",
   "eyebrow": "Si – entonces",
-  "duplicate_hint": "Crea una copia desactivada y la abre para editarla; activada, actuaría por segunda vez junto al original"
+  "duplicate_hint": "Crea una copia desactivada y la abre para editarla; activada, actuaría por segunda vez junto al original",
+  "history": {
+    "open": "Historial de versiones",
+    "title": "Versiones de «{name}»",
+    "description": "Cada guardado conserva la definición anterior. Al restaurar una versión se guarda de nuevo como la más reciente; el historial de ejecuciones se mantiene.",
+    "current": "Actual",
+    "changed": "cambiado",
+    "empty": "Todavía no hay ninguna versión guardada.",
+    "restore": "Restaurar",
+    "restore_title": "¿Restaurar la versión {version}?",
+    "restore_description": "El disparador, la condición y las acciones de la versión {version} vuelven a ser la definición de «{name}», guardados como una versión nueva. El nombre y el interruptor de activación se quedan como están.",
+    "restored": "La versión {version} vuelve a estar en vigor, guardada como versión {current}."
+  }
 }

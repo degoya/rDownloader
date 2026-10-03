@@ -62,7 +62,7 @@ INLINE = re.compile(r"(\]\(\s*<?)([^)\s>]+)")
 REFERENCE = re.compile(r"^(\s{0,3}\[[^\]]+\]:\s*<?)(\S+?)(?=>?(?:\s|$))")
 HTML = re.compile(r"(\b(?:href|src)\s*=\s*[\"'])([^\"']+)", re.IGNORECASE)
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
-WORKING_FILE = re.compile(r"^(\d)(\d)(\d)-00-.*\.md$")
+WORKING_FILE = re.compile(r"^(\d)(\d{1,2})(\d)-00-.*\.md$")
 
 
 def git(repo, *args):
@@ -156,8 +156,8 @@ def rewrite_references(repo, moved):
 
     alternatives = "|".join(re.escape(n) for n in sorted(moved, key=len, reverse=True))
     mention = re.compile(r"(roadmap/jobs/)(" + alternatives + r")(?![\w-])")
-    ids = {n.split("-")[0] + "-" + n.split("-")[1] for n in moved if re.match(r"^\d{3}-\d{2}-", n)}
-    glob = re.compile(r"(roadmap/jobs/)(\d{3}-\d{2})(-\*\.md)")
+    ids = {n.split("-")[0] + "-" + n.split("-")[1] for n in moved if re.match(r"^\d{3,4}-\d{2}-", n)}
+    glob = re.compile(r"(roadmap/jobs/)(\d{3,4}-\d{2})(-\*\.md)")
     counts = {"links": 0, "mentions": 0, "files": 0}
 
     def mentioned(m):

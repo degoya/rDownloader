@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { StreamChannel, StreamSchedule, StreamScheduleRequest, StreamScheduledRun } from '@/api/types'
 
 /** Shared so the nav badge shows the channel count without opening the Streams route. */
@@ -10,6 +11,8 @@ export const useStreamsStore = defineStore('streams', () => {
   const schedules = ref<StreamSchedule[]>([])
   const runs = ref<StreamScheduledRun[]>([])
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
 
   async function refresh(): Promise<void> {
     const response = await api.GET('/api/v1/streams/channels')

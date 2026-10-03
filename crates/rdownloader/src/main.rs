@@ -16,9 +16,11 @@ use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
+mod auth_cli;
 mod doctor_site_rules;
 mod plugin_cli;
 mod remote;
+mod reset_password_cli;
 mod site_rules_cli;
 mod startup;
 mod stop_cli;
@@ -63,6 +65,10 @@ enum Command {
     Links(remote::LinksArgs),
     /// Stops the service running on this machine gracefully and waits until it has ended.
     Stop(stop_cli::StopArgs),
+    /// Sign-in steps only this machine may take: `auth password-login on` switches the
+    /// password sign-in back on after it was switched off for the identity provider, `auth
+    /// reset-password` sets a new administrator password without the current one.
+    Auth(auth_cli::AuthArgs),
     /// Installs a downloaded update and takes it back when the new version does not answer
     /// (RD-180-02). Started by the service from a copy of itself, not by hand.
     #[command(name = "apply-update", hide = true)]
@@ -192,6 +198,11 @@ async fn main() -> Result<()> {
             enter_installed_home()?;
             remote::finish(stop_cli::run(args).await)
         }
+        Command::Auth(args) => {
+            // The same data folder `stop` reads its control file from.
+            enter_installed_home()?;
+            remote::finish(auth_cli::run(args).await)
+        }
         Command::ApplyUpdate(args) => updater_cli::run(args).await,
     }
 }
@@ -199,7 +210,7 @@ async fn main() -> Result<()> {
 /// Moves an installed build into the user's data folder (RD-180-05), so the relative defaults
 /// (`data/`, `downloads`) resolve there as they resolve beside the executable in the portable
 /// package, whose launcher starts it in its own folder. Only for the commands that open the
-/// data (`serve`, `doctor`, `stop`): every other one keeps the working folder its relative
+/// data (`serve`, `doctor`, `stop`, `auth`): every other one keeps the working folder its relative
 /// arguments were written against.
 fn enter_installed_home() -> Result<()> {
     let executable = std::env::current_exe().context("locate rDownloader executable")?;

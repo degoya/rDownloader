@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
+import type { CaptureAgentVersion } from '@/api/updates'
 import SectionHeader from '@/components/SectionHeader.vue'
 import UpdateDetailsModal from '@/components/UpdateDetailsModal.vue'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
@@ -12,7 +13,9 @@ import { formatMoment } from '@/utils/format'
 /**
  * Settings > System > Updates (RD-180-01): whether and how often the service checks, which
  * channel it reads, what it found, and "check now". The three settings are fields of the
- * settings document and are saved with it; the check itself runs on the service.
+ * settings document and are saved with it; the check itself runs on the service. Beside the
+ * running version, the versions of the running capture agents and, for one older than the
+ * service, how to restart it (RD-190-07).
  */
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -53,6 +56,27 @@ const lastInstall = computed(() => {
   return { failed, text: reason ? `${text} ${reason}` : text }
 })
 
+/** A capture agent's version as shown; an agent from before 1.9 reports none. */
+function agentVersion(version: string | null): string {
+  return version ?? t('system.updates.agents.unknown')
+}
+
+/** The versions of the running capture agents (RD-190-07), each once. */
+function versionsOf(agents: CaptureAgentVersion[]): string {
+  return [...new Set(agents.map((agent) => agentVersion(agent.version)))].join(', ')
+}
+
+const agentVersions = computed(() => versionsOf(status.value?.capture_agents ?? []))
+
+/**
+ * The running agents older than the service: they did not pick up the update by themselves
+ * (before 1.8.1, or started by another user), and only a restart by hand does. The service cannot
+ * restart an agent — it runs in someone's desktop session, perhaps on another machine — so the
+ * hint says how instead of offering a button.
+ */
+const outdatedAgents = computed(() =>
+  versionsOf((status.value?.capture_agents ?? []).filter((agent) => agent.outdated)))
+
 async function checkNow(): Promise<void> {
   await check()
 }
@@ -92,6 +116,9 @@ async function checkNow(): Promise<void> {
         {{ t('system.updates.current', { version: status.current_version }) }}
         <span class="text-muted">· {{ t('system.updates.installed_as', { kind: t(`system.updates.kind.${status.install_kind}`) }) }}</span>
       </p>
+      <p v-if="agentVersions" class="text-muted" data-testid="update-capture-agents">
+        {{ t('system.updates.agents.running', { versions: agentVersions }) }}
+      </p>
       <p class="text-muted">
         {{ status.last_checked_at ? t('system.updates.last_checked', { when: formatMoment(status.last_checked_at) }) : t('system.updates.never_checked') }}
         <template v-if="status.next_check_at"> · {{ t('system.updates.next_check', { when: formatMoment(status.next_check_at) }) }}</template>
@@ -107,6 +134,16 @@ async function checkNow(): Promise<void> {
       </p>
       <p v-if="lastInstall" class="mt-2" :class="lastInstall.failed ? 'text-error' : 'text-toned'" data-testid="update-install-last">{{ lastInstall.text }}</p>
       <p v-if="lastError" class="mt-2 text-error" data-testid="update-error">{{ lastError }}</p>
+      <UAlert
+        v-if="outdatedAgents"
+        class="mt-2"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-rotate-cw"
+        :title="t('system.updates.agents.outdated_title')"
+        :description="t('system.updates.agents.outdated_description', { agent: outdatedAgents, service: status.current_version })"
+        data-testid="update-capture-outdated"
+      />
     </div>
 
     <div class="mt-4 grid gap-4">

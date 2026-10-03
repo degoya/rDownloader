@@ -171,7 +171,7 @@ export function useFileImport(categories: Ref<Category[]>) {
     }
     toast.add({
       title: t('linkgrabber.files.container_imported'),
-      description: t('linkgrabber.files.container_imported_description', { name: result.name, count: result.links ?? 0 }),
+      description: t('linkgrabber.files.container_imported_description', { name: result.name, count: result.links ?? 0 }, result.links ?? 0),
       color: 'success',
       icon: 'i-lucide-package-open'
     })

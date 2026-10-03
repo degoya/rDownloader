@@ -1,4 +1,4 @@
-package rdownloader:plugin@0.9.0;
+package rdownloader:plugin@0.10.0;
 
 interface types {
   variant failure-kind {
@@ -53,7 +53,8 @@ interface types {
     client: client-identity,
   }
 
-  /// One translatable part of what stands next to a provider account.
+  /// One translatable part of what stands next to a provider account, or of what a
+  /// post-processing step warns about in `postprocess.step-complete` (RD-190-06).
   ///
   /// Translated exactly like `failure`: the interface looks `code` up in the active language,
   /// then in English, interpolates `params`, and only when no catalogue knows the code does
@@ -497,7 +498,7 @@ interface crawler {
 
 /// What the host knows about the job a `remote-job` call is made for, beyond the source.
 ///
-/// Additive (still `rdownloader:plugin@0.9.0`): an interface of its own, imported by
+/// Additive (it came within contract `0.9.0`): an interface of its own, imported by
 /// `remote-job-plugin` only, so a component built before it existed links unchanged and a
 /// record the guest already knows keeps its shape.
 interface job-context {
@@ -970,7 +971,7 @@ interface enricher {
 
 /// The settings a notification target was saved with (RD-170-09).
 ///
-/// Additive (still `rdownloader:plugin@0.9.0`): an interface of its own, imported by
+/// Additive (it came within contract `0.9.0`): an interface of its own, imported by
 /// `notifier-plugin` only, so a destination built before it existed links unchanged and the
 /// `notification` record keeps its shape. What a destination may be set to is declared in its
 /// manifest (`[[extension.settings]]`, a name and the values it accepts); the host refuses
@@ -1014,20 +1015,35 @@ interface notifier {
 
 /// One step in the post-processing pipeline (RD-090-16).
 interface postprocess {
-  use types.{failure};
+  use types.{failure, label-part};
 
   record step-input {
     /// Package-scoped handle. Not a path: the plugin cannot name a file of its own.
     handle: string,
-    /// Files in the package, relative to its directory.
+    /// Files in the package, relative to its directory, `/` between folders.
     files: list<string>,
+    /// Files the package had that the pipeline removed before this step ran, named like
+    /// `files` (RD-190-06): archive volumes once they are unpacked, PAR2 files once the repair
+    /// is through, what the cleanup deleted. None of them can be read; a checksum list that
+    /// names one is not wrong for it, and the step need not guess from a file's extension.
+    removed: list<string>,
     /// The checkpoint this step wrote when it last stopped, if any.
     checkpoint: option<list<u8>>,
   }
 
+  /// How a step that finished ends (RD-190-06).
+  record step-complete {
+    /// An optional final checkpoint the host stores.
+    checkpoint: option<list<u8>>,
+    /// What the person should know although the step passed, such as listed files it could
+    /// not check. Shown on the step and translated like `failure`, with `<provider.slug>.*`
+    /// codes from the plugin's own catalogue; never a failure. Empty for a plain pass.
+    warnings: list<label-part>,
+  }
+
   variant step-end {
-    /// Finished; the payload is an optional final checkpoint the host stores.
-    complete(option<list<u8>>),
+    /// Finished, with what the host keeps and shows of it.
+    complete(step-complete),
     /// Interrupted with a checkpoint to resume from.
     stopped(list<u8>),
     /// Nothing to do for this package, which is not a failure.

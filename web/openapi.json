@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.8.1"
+    "version": "1.9.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -1296,10 +1296,405 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc": {
+      "get": {
+        "tags": [
+          "security"
+        ],
+        "summary": "The identity provider's configuration and the bound identity.",
+        "operationId": "get_oidc_settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Configures the identity provider. Requires a signed-in session and the password.",
+        "description": "The provider's discovery document is fetched and checked before anything is stored, so a\nprovider that could not be used — another issuer, no PKCE, no allowed algorithm — is refused\nhere and not at the first sign-in.",
+        "operationId": "put_oidc_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A field is not usable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No external URL, or the password sign-in is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The provider breaks a rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The provider could not be reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Removes the identity provider, its secret and the bound identity.",
+        "operationId": "delete_oidc_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The password sign-in is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Where the provider sends the browser back. Finishes the sign-in or the link.",
+        "operationId": "oidc_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "iss",
+            "in": "query",
+            "description": "RFC 9207: the issuer of the answer, compared when the provider sends it.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "The provider's refusal, if it refused. Only its kind is read, never its description.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Signed in (with the session cookie) or linked, or back to where the flow started with `oidc_error` set to a stable code"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/identity": {
+      "delete": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Releases the bound identity. Requires a signed-in session and the password.",
+        "operationId": "unlink_oidc_identity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No identity is linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The password sign-in is off",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/link": {
+      "post": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Starts linking an identity at the provider to the administrator (D2). Requires a signed-in\nsession and the password; the browser is then sent to the provider and comes back to\n*Settings → Security*.",
+        "operationId": "link_oidc_identity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcLinkStart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No provider configured, or no external URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Starts signing in through the provider: files a flow and sends the browser there.",
+        "operationId": "oidc_start",
+        "parameters": [
+          {
+            "name": "return_to",
+            "in": "query",
+            "description": "Where to land after signing in, inside this application. Anything else lands on `/`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the provider's authorization endpoint, with the `rd_oidc` cookie"
+          },
+          "303": {
+            "description": "Back to the sign-in screen with `oidc_error` set to a stable code"
           }
         }
       }
@@ -1435,6 +1830,159 @@
           },
           "429": {
             "description": "Too many failed attempts from this address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-login/off": {
+      "post": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Switches the password sign-in off (D3). Requires the session the latest provider sign-in\nopened, and the password; only `rdownloader auth password-login on` turns it back on.",
+        "operationId": "switch_password_login_off",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This session was not opened through the provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-login/on": {
+      "post": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Switches the password sign-in back on (D3): `rdownloader auth password-login on`, with the\nlocal control token, from this machine. Neither a session nor any API token may.",
+        "operationId": "switch_password_login_on",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the command line on this machine",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "tags": [
+          "security"
+        ],
+        "summary": "Sets a new administrator password without the current one: `rdownloader auth\nreset-password`, with the local control token, from this machine. Neither a session nor any\nAPI token may.",
+        "operationId": "reset_password_locally",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The new password does not meet the policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the command line on this machine",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No administrator password was set yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2777,6 +3325,66 @@
                   "items": {
                     "$ref": "#/components/schemas/RunnerLimitSupport"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bandwidth/manual": {
+      "put": {
+        "tags": [
+          "bandwidth"
+        ],
+        "summary": "Switches to a profile by hand until the chosen end, then answers the status.",
+        "operationId": "switch_bandwidth_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandwidthStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "bandwidth"
+        ],
+        "summary": "Ends a switch made by hand, so the schedule decides again; answers the status.",
+        "operationId": "return_to_bandwidth_schedule",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandwidthStatusResponse"
                 }
               }
             }
@@ -11093,6 +11701,44 @@
         }
       }
     },
+    "/api/v1/postprocess/malware-scanner/test": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Asks `clamd` for `PING` and `VERSION` (RD-190-14).",
+        "description": "Nothing is scanned and nothing but the two commands is sent. The address is the one given,\nelse the saved one; it is read by the same parser the settings use, so what passes here is\nwhat the scan step will use.",
+        "operationId": "test_malware_scanner",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MalwareScannerTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MalwareScannerTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
     "/api/v1/postprocess/plugin-steps": {
       "get": {
         "tags": [
@@ -11370,6 +12016,85 @@
           },
           "409": {
             "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/queue/pause": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "The timed pause in force, if any.",
+        "operationId": "get_queue_pause",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuePauseResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Pauses every waiting and running file until the end, and holds back new ones until then.\nA pause already in force moves to the new end and keeps the files it holds.",
+        "operationId": "pause_queue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueuePauseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuePauseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Ends the timed pause now: the files it stopped are queued again, and the hold goes.",
+        "operationId": "resume_queue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueResumeResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -15480,7 +16205,12 @@
           "update_install_started",
           "setup_completed",
           "mfa_enrolled",
-          "mfa_removed"
+          "mfa_removed",
+          "malware_detected",
+          "identity_linked",
+          "identity_unlinked",
+          "password_login_changed",
+          "password_reset_local"
         ]
       },
       "AuditActorKind": {
@@ -15959,7 +16689,8 @@
         "description": "Whether initial setup has been completed.",
         "required": [
           "setup_required",
-          "authenticated"
+          "authenticated",
+          "password_login"
         ],
         "properties": {
           "authenticated": {
@@ -15969,9 +16700,24 @@
             "type": "boolean",
             "description": "The administrator login is switched off in the settings; every request is trusted."
           },
+          "oidc_available": {
+            "type": "boolean",
+            "description": "Whether signing in through the identity provider is possible: configured, an identity\nbound, and an external URL to come back to (RD-190-15)."
+          },
+          "oidc_display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the sign-in button calls the provider, when it is offered."
+          },
           "passkeys_available": {
             "type": "boolean",
             "description": "Whether a passkey is enrolled, so the sign-in screen knows to offer it."
+          },
+          "password_login": {
+            "type": "boolean",
+            "description": "Whether the password form is offered. Off only after a proven provider sign-in, and back\non only from the machine the service runs on (D3)."
           },
           "setup_required": {
             "type": "boolean"
@@ -16985,6 +17731,7 @@
         "type": "object",
         "required": [
           "timezone",
+          "source",
           "budget_exhausted"
         ],
         "properties": {
@@ -17023,6 +17770,17 @@
               }
             ]
           },
+          "manual": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ManualProfile",
+                "description": "The switch made by hand, while it holds."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "monthly": {
             "oneOf": [
               {
@@ -17038,7 +17796,11 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "The next change: the end of a switch made by hand while one holds, the schedule's\nnext window boundary otherwise."
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProfileSource"
           },
           "timezone": {
             "type": "string"
@@ -17216,6 +17978,27 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "BundleArchivePassword": {
+        "type": "object",
+        "description": "One archive password a full backup carries (RD-190-04): the row it belongs to, and the slot\nof its value in the sealed `secrets`. Only the full backup's bundle has any; a settings\nexport never carries packages.",
+        "required": [
+          "table",
+          "id",
+          "slot"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string",
+            "description": "`packages`, `collector_packages`, `nzb_imports` or `subscription_items`."
           }
         }
       },
@@ -17468,6 +18251,10 @@
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
           },
+          "git_release": {
+            "$ref": "#/components/schemas/GitReleaseOptions",
+            "description": "Which release files a git-release subscription downloads (RD-190-13); absent from an\nolder bundle, which has no such subscription."
+          },
           "indexer_search": {
             "$ref": "#/components/schemas/IndexerSearch",
             "description": "The search an indexer subscription sends (RD-180-20); absent from an older bundle,\nwhich restores the empty search every subscription sent then."
@@ -17590,6 +18377,47 @@
           }
         }
       },
+      "BundleIndexer": {
+        "type": "object",
+        "description": "A Newznab indexer in a settings bundle (RD-190-22). The API key travels like every other\ncredential: as a slot name here, its value only inside the encrypted section.",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "enabled"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/components/schemas/IndexerId"
+          },
+          "list_style": {
+            "$ref": "#/components/schemas/IndexerListStyle",
+            "description": "How its search hits are listed (RD-190-16); a bundle from before the choice lists them\ncompact."
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret_slot": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
       "BundlePreviewResponse": {
         "type": "object",
         "description": "The preview a person approves before a bundle is written.",
@@ -17690,6 +18518,12 @@
           },
           "is_default": {
             "type": "boolean"
+          },
+          "malware_scan": {
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "name": {
             "type": "string"
@@ -17912,6 +18746,10 @@
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
           },
+          "git_release": {
+            "$ref": "#/components/schemas/GitReleaseOptions",
+            "description": "Which release files a git-release subscription downloads (RD-190-13). Absent from a\nbundle written before they existed, which carries no such subscription."
+          },
           "id": {
             "$ref": "#/components/schemas/SubscriptionId"
           },
@@ -17955,7 +18793,7 @@
               "string",
               "null"
             ],
-            "description": "Slot of the indexer API key inside the encrypted section, if the subscription has one."
+            "description": "Slot of the indexer API key — or a git-release subscription's token (RD-190-13) — inside\nthe encrypted section, if the subscription has one."
           },
           "source_categories": {
             "type": "array",
@@ -18639,6 +19477,26 @@
         "type": "string",
         "format": "uuid"
       },
+      "CaptureAgentVersion": {
+        "type": "object",
+        "description": "One connected capture agent's version, measured against the service's.",
+        "required": [
+          "outdated"
+        ],
+        "properties": {
+          "outdated": {
+            "type": "boolean",
+            "description": "Whether the agent is older than the service -- it reported an older version, or none --\nand so still runs the program file from before the update."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version the agent reported; empty for an agent from before 1.9, which reports none."
+          }
+        }
+      },
       "CaptureBrowserSession": {
         "type": "object",
         "description": "A waiting handover as the extension sees it: what it needs to ask the person, and nothing\nelse. The scope is the service's, never the page's — the extension reads exactly this.",
@@ -19149,6 +20007,13 @@
           "is_default": {
             "type": "boolean"
           },
+          "malware_scan": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages in this category are scanned by ClamAV before they count as finished;\n`None` = global default (RD-190-14)."
+          },
           "name": {
             "type": "string"
           },
@@ -19282,6 +20147,13 @@
               "null"
             ],
             "description": "Whether packages of this category discard the PAR2 recovery set after a successful\nunpack (`null` = global default)."
+          },
+          "malware_scan": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category are scanned by ClamAV before they count as finished\n(`null` = global default, RD-190-14)."
           },
           "plugin_steps": {
             "type": [
@@ -20516,6 +21388,13 @@
           },
           "is_default": {
             "type": "boolean"
+          },
+          "malware_scan": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category are scanned by ClamAV before they count as finished\n(`null` = global default, RD-190-14)."
           },
           "name": {
             "type": "string"
@@ -22729,8 +23608,88 @@
           "too_old",
           "language_not_wanted",
           "resolution_too_low",
-          "backlog"
+          "backlog",
+          "asset_not_wanted"
         ]
+      },
+      "GitArchitecture": {
+        "type": "string",
+        "description": "A processor architecture a release file can be built for.",
+        "enum": [
+          "x86_64",
+          "aarch64",
+          "x86",
+          "arm"
+        ]
+      },
+      "GitForge": {
+        "type": "string",
+        "description": "Which API a repository speaks.",
+        "enum": [
+          "github",
+          "gitlab"
+        ]
+      },
+      "GitPlatform": {
+        "type": "string",
+        "description": "An operating system a release file can be built for.",
+        "enum": [
+          "linux",
+          "windows",
+          "macos"
+        ]
+      },
+      "GitReleaseOptions": {
+        "type": "object",
+        "description": "Which assets of a release a git-release subscription downloads.\n\nEvery list empty and both switches off downloads every asset of every full release —\nwhich is what a subscription with no opinion should do.",
+        "properties": {
+          "architectures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitArchitecture"
+            },
+            "description": "When any are set, an asset that names an architecture must name one of these. A file\nthat names none — a universal macOS image, an installer — passes.",
+            "default": []
+          },
+          "asset_patterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Asset name patterns, `*` and `?` as wildcards, case-insensitive. When any are set, an\nasset must match one of them.",
+            "default": []
+          },
+          "forge": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GitForge",
+                "description": "The API the repository speaks. `None` reads it from the host, which only works for\n`github.com` and `gitlab.com`; a self-hosted instance names it."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitPlatform"
+            },
+            "description": "When any are set, an asset must name one of these platforms — in its name or by a\ntelling extension (`.exe`, `.dmg`, `.deb`, …). A file that names none is not taken, and\nneither is a checksum file.",
+            "default": []
+          },
+          "prereleases": {
+            "type": "boolean",
+            "description": "Whether pre-releases count as releases.",
+            "default": false
+          },
+          "source_archives": {
+            "type": "boolean",
+            "description": "Whether the source archives every release carries (`.zip`, `.tar.gz`) are downloaded.",
+            "default": false
+          }
+        }
       },
       "GrabberEntryKind": {
         "type": "string",
@@ -22993,7 +23952,8 @@
           "subscriptions",
           "proxy_profiles",
           "accounts",
-          "usenet_servers"
+          "usenet_servers",
+          "indexers"
         ],
         "properties": {
           "accounts": {
@@ -23009,6 +23969,10 @@
             "minimum": 0
           },
           "hotfolders": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "indexers": {
             "type": "integer",
             "minimum": 0
           },
@@ -23126,6 +24090,10 @@
           },
           "id": {
             "$ref": "#/components/schemas/IndexerId"
+          },
+          "list_style": {
+            "$ref": "#/components/schemas/IndexerListStyle",
+            "description": "How the LinkGrabber's search draws this indexer's hits (RD-190-16)."
           },
           "name": {
             "type": "string"
@@ -23295,6 +24263,14 @@
         "type": "string",
         "format": "uuid"
       },
+      "IndexerListStyle": {
+        "type": "string",
+        "description": "How the LinkGrabber's search draws one indexer's hits (RD-190-16).\n\nChosen per indexer, where it is defined, rather than in the result list: some indexers send\ncovers and film or series data with every hit, others nothing beyond the name, and only the\nfirst kind is worth the taller row. Compact is the default because it is what every indexer\nshowed before the choice existed.",
+        "enum": [
+          "compact",
+          "detailed"
+        ]
+      },
       "IndexerRequest": {
         "type": "object",
         "description": "Create or replace one indexer.",
@@ -23320,6 +24296,10 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "list_style": {
+            "$ref": "#/components/schemas/IndexerListStyle",
+            "description": "How the LinkGrabber's search draws this indexer's hits (RD-190-16); `compact` when\nabsent. Like every field here an edit replaces it, so a form sends the stored one back."
           },
           "name": {
             "type": "string"
@@ -23388,6 +24368,14 @@
             ],
             "description": "The indexer's category id, e.g. `5040`."
           },
+          "cover_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "The cover, only ever an absolute http or https address that does not carry the API key."
+          },
           "download": {
             "type": "string",
             "description": "Where the NZB is fetched from, with the API key replaced by `rdownloader-indexer-key`:\nwhat `POST /api/v1/indexers/grab` takes back. Never the key itself."
@@ -23412,6 +24400,16 @@
           },
           "indexer_name": {
             "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "What a detailed result row shows besides the title (RD-190-16), as far as the indexer\nsent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at\nmost 300 characters). Empty when it sent none of them.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "passworded": {
             "type": "boolean",
@@ -24343,6 +25341,64 @@
           }
         }
       },
+      "LogoutResponse": {
+        "type": "object",
+        "description": "What a sign-out answers.",
+        "required": [
+          "message",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/BTreeMap",
+            "description": "Kept from the answer this replaced (`MessageResponse`), so a client of 1.8 reads the same\nshape; a sign-out has no parameters, so it is always empty and never serialised."
+          },
+          "provider_logout_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where to send the browser to sign out at the identity provider as well: present only when\n*sign out at the provider too* is on (D5, RD-190-15). The local session is already ended\nwhen this is handed out, so not following it leaves nothing signed in here."
+          }
+        }
+      },
+      "MalwareScannerTestRequest": {
+        "type": "object",
+        "description": "Which `clamd` to try (RD-190-14).",
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved\naddress, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before\nit is saved."
+          }
+        }
+      },
+      "MalwareScannerTestResponse": {
+        "type": "object",
+        "description": "What `clamd` said when it was tried.",
+        "required": [
+          "address",
+          "version"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address that answered, normalised (`host:port` or `unix:/path`)."
+          },
+          "version": {
+            "type": "string",
+            "description": "clamd's `VERSION` line: the engine, the signature database's version and its date."
+          }
+        }
+      },
       "ManagedToolInfo": {
         "type": "object",
         "description": "One managed external tool: what is installed, what is active, what is on offer.",
@@ -24535,6 +25591,82 @@
           },
           "sha256": {
             "type": "string"
+          }
+        }
+      },
+      "ManualEnd": {
+        "type": "string",
+        "description": "How a manual switch was told to end. `until` carries the instant; this says where it came\nfrom, so the interface can say \"until the schedule changes\" rather than a bare time.",
+        "enum": [
+          "next_switch",
+          "at",
+          "never"
+        ]
+      },
+      "ManualProfile": {
+        "type": "object",
+        "description": "The profile somebody switched to by hand, and until when.",
+        "required": [
+          "ends",
+          "switched_at"
+        ],
+        "properties": {
+          "ends": {
+            "$ref": "#/components/schemas/ManualEnd"
+          },
+          "profile_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BandwidthProfileId",
+                "description": "The profile in force; empty means no limits at all."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "switched_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the schedule takes over again; empty while the switch has no end."
+          }
+        }
+      },
+      "ManualProfileRequest": {
+        "type": "object",
+        "required": [
+          "ends"
+        ],
+        "properties": {
+          "ends": {
+            "$ref": "#/components/schemas/ManualEnd",
+            "description": "`next_switch` (the schedule's next change), `at` (the time in `until`) or `never` (only\nswitching back ends it)."
+          },
+          "profile_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BandwidthProfileId",
+                "description": "The profile to switch to; empty for no limits at all."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The end for `ends: at`; ignored otherwise."
           }
         }
       },
@@ -25956,7 +27088,14 @@
           "storage_blocked",
           "budget_exhausted",
           "captcha_waiting",
-          "power_pending"
+          "power_pending",
+          "backup_failed",
+          "backup_verify_failed",
+          "update_available",
+          "plugin_update_available",
+          "plugin_update_failed",
+          "account_expiring",
+          "account_invalid"
         ]
       },
       "NotificationRule": {
@@ -26579,6 +27718,182 @@
           }
         }
       },
+      "OidcConfigRequest": {
+        "type": "object",
+        "description": "Configures the provider, or changes it.",
+        "required": [
+          "password",
+          "issuer",
+          "client_id",
+          "display_name"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required the first time; left out, the stored secret is kept.",
+            "writeOnly": true
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "group_claim": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "description": "The administrator password, again.",
+            "writeOnly": true
+          },
+          "provider_logout": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OidcIdentity": {
+        "type": "object",
+        "description": "The identity bound to the administrator, as far as it is shown.",
+        "required": [
+          "issuer",
+          "linked_at"
+        ],
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the provider called the person when it was linked."
+          },
+          "linked_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OidcLinkStart": {
+        "type": "object",
+        "description": "Where to send the browser to link the identity.",
+        "required": [
+          "authorization_url"
+        ],
+        "properties": {
+          "authorization_url": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcSettings": {
+        "type": "object",
+        "description": "The identity provider as *Settings → Security* shows it. Never the client secret.",
+        "required": [
+          "configured",
+          "client_secret_set",
+          "provider_logout",
+          "password_login",
+          "provider_session"
+        ],
+        "properties": {
+          "client_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_secret_set": {
+            "type": "boolean",
+            "description": "Whether a client secret is stored. The secret itself is write-only."
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_claim": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identity": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OidcIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password_login": {
+            "type": "boolean",
+            "description": "Whether the password form is offered on the sign-in screen."
+          },
+          "provider_logout": {
+            "type": "boolean"
+          },
+          "provider_session": {
+            "type": "boolean",
+            "description": "Whether this session was opened by the latest sign-in through the provider, which is what\nswitching the password sign-in off requires."
+          },
+          "redirect_uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The address to register at the provider: the external URL and the callback path.\n`None` without an external URL, which the provider sign-in cannot work without."
+          }
+        }
+      },
+      "OidcStepUpRequest": {
+        "type": "object",
+        "description": "The password, again, for a change that needs nothing else.",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "writeOnly": true
+          }
+        }
+      },
       "Operator": {
         "type": "string",
         "description": "How a field is compared to a value.",
@@ -26987,6 +28302,28 @@
             "type": "string",
             "description": "The replacement, judged by the same policy the first password was.",
             "writeOnly": true
+          }
+        }
+      },
+      "PasswordResetRequest": {
+        "type": "object",
+        "description": "A new administrator password set on the machine the service runs on, without the current\none (RD-190-24): what `rdownloader auth reset-password` sends with the local control token.",
+        "required": [
+          "new_password"
+        ],
+        "properties": {
+          "disable_totp": {
+            "type": "boolean",
+            "description": "Remove the authenticator apps and the recovery codes as well (`--disable-totp`)."
+          },
+          "new_password": {
+            "type": "string",
+            "description": "The new password, judged by the same policy as every other one. Generated by the\ncommand unless the owner typed it (`--prompt`).",
+            "writeOnly": true
+          },
+          "prompted": {
+            "type": "boolean",
+            "description": "Whether the owner typed the password rather than the command drawing it; only for the\naudit record."
           }
         }
       },
@@ -27942,6 +29279,7 @@
           "delete_par2",
           "cleanup",
           "remux",
+          "malware_scan",
           "plugin_step",
           "script",
           "upload"
@@ -28058,6 +29396,7 @@
           "deleting_par2",
           "cleaning",
           "remuxing",
+          "scanning",
           "plugin_step",
           "script",
           "uploading"
@@ -28466,6 +29805,14 @@
           }
         }
       },
+      "ProfileSource": {
+        "type": "string",
+        "description": "Why the active profile is the one in force (RD-190-20).",
+        "enum": [
+          "schedule",
+          "manual"
+        ]
+      },
       "ProviderCredentialsResponse": {
         "type": "string",
         "description": "The shape of the credential(s) a provider account stores (mirrors\n`rd_provider_registry::CredentialKind`).",
@@ -28607,6 +29954,69 @@
       "ProxyProfileId": {
         "type": "string",
         "format": "uuid"
+      },
+      "QueuePauseRequest": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "How long, in minutes from now; give this or `until`.",
+            "minimum": 0
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the pause ends; give this or `minutes`."
+          }
+        }
+      },
+      "QueuePauseResponse": {
+        "type": "object",
+        "required": [
+          "paused",
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The files it stopped; its end resumes those still paused.",
+            "minimum": 0
+          },
+          "paused": {
+            "type": "boolean",
+            "description": "Whether a timed pause is in force."
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it ends and the queue runs again."
+          }
+        }
+      },
+      "QueueResumeResponse": {
+        "type": "object",
+        "required": [
+          "resumed"
+        ],
+        "properties": {
+          "resumed": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Files the ended pause queued again.",
+            "minimum": 0
+          }
+        }
       },
       "QuietHours": {
         "type": "object",
@@ -31182,6 +32592,12 @@
           "app_version": {
             "type": "string"
           },
+          "archive_passwords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundleArchivePassword"
+            }
+          },
           "auth_profiles": {
             "type": "array",
             "items": {
@@ -31212,6 +32628,13 @@
             "items": {
               "$ref": "#/components/schemas/HotFolderConfig"
             }
+          },
+          "indexers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundleIndexer"
+            },
+            "description": "The Newznab indexers (RD-190-22). Absent from a bundle written before they travelled,\nwhich restores none."
           },
           "proxy_profiles": {
             "type": "array",
@@ -31347,6 +32770,14 @@
             "type": "string",
             "description": "Which magnitude of the ladder byte counts are printed in: `auto` picks the step that\nfits each value, while `byte`, `kilo`, `mega`, `giga`, `tera` or `peta` pin every value\nto that step so a list of sizes can be compared column by column (RD-106-14).\n\nNamed by magnitude rather than by unit because the unit names belong to `byte_display`:\n`mega` reads as MiB on the binary ladder and MB on the decimal one.",
             "default": "auto"
+          },
+          "clamd_address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where `clamd` listens: `host:port`, or `unix:/path` for its local socket; empty =\n`127.0.0.1:3310`. Nothing but the files' bytes goes there, and nothing goes anywhere else.",
+            "default": null
           },
           "cleanup_extensions": {
             "type": "array",
@@ -31537,6 +32968,23 @@
             "format": "int32",
             "description": "Log records the structured log store keeps at most (1000-500000); the oldest go\nfirst (RD-110-02).",
             "default": 20000,
+            "minimum": 0
+          },
+          "malware_scan_enabled": {
+            "type": "boolean",
+            "description": "Scan every finished package with ClamAV before it counts as finished (RD-190-14). A\nfinding fails the package and stops everything after the scan; a `clamd` that cannot be\nreached is a warning on the step and the package carries on. Off by default.",
+            "default": false
+          },
+          "malware_scan_max_bytes": {
+            "$ref": "#/components/schemas/ByteCount",
+            "description": "Largest file streamed to `clamd`; a larger one is not scanned and the step counts it.\n`clamd`'s `StreamMaxLength` has to be at least this.",
+            "default": "26214400"
+          },
+          "malware_scan_timeout_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Seconds one exchange with `clamd` may take: the connection, a chunk, the verdict (5–3600).",
+            "default": 120,
             "minimum": 0
           },
           "managed_tools_enabled": {
@@ -33643,6 +35091,10 @@
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
           },
+          "git_release": {
+            "$ref": "#/components/schemas/GitReleaseOptions",
+            "description": "Which assets a git-release subscription downloads (RD-190-13). Empty for every other\nkind."
+          },
           "has_secret": {
             "type": "boolean",
             "description": "Whether a key is stored, which is all a client is told about it."
@@ -34076,7 +35528,8 @@
           "feed",
           "indexer",
           "site_rule",
-          "script"
+          "script",
+          "git_release"
         ]
       },
       "SubscriptionMode": {
@@ -34101,7 +35554,7 @@
               "string",
               "null"
             ],
-            "description": "Indexer API key (RD-080-11); write-only, and stored in the vault. Omitting it on an\nedit keeps the existing key rather than clearing it.",
+            "description": "Indexer API key (RD-080-11), or a git-release subscription's read-only token\n(RD-190-13); write-only, and stored in the vault. Omitting it on an edit keeps the\nexisting key rather than clearing it.",
             "writeOnly": true
           },
           "autoplay": {
@@ -34141,6 +35594,10 @@
           },
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
+          },
+          "git_release": {
+            "$ref": "#/components/schemas/GitReleaseOptions",
+            "description": "Which release files a `git_release` subscription downloads (RD-190-13): `forge`\n(`github`|`gitlab`, needed for a host other than github.com and gitlab.com),\n`asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200\ncharacters), `platforms` (`linux`|`windows`|`macos`), `architectures`\n(`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never\ndownloaded. Only a git-release subscription takes them; its read-only token is `api_key`."
           },
           "indexer_id": {
             "oneOf": [
@@ -36427,6 +37884,13 @@
                 "type": "null"
               }
             ]
+          },
+          "capture_agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureAgentVersion"
+            },
+            "description": "The capture agents connected right now, by the version each reported (RD-190-07); empty\nwhen none runs. Labels are not part of it: this status is readable with `api:read`."
           },
           "channel": {
             "type": "string",

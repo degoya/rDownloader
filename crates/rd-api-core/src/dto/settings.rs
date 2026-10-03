@@ -349,6 +349,18 @@ pub struct SettingsResponse {
     /// Absolute path of rclone; empty = look up in the vendor folders and on PATH.
     #[serde(default)]
     pub rclone_executable: Option<String>,
+    /// Scan every finished package with ClamAV before it counts as finished (RD-190-14). A
+    /// finding fails the package and stops everything after the scan; a `clamd` that cannot be
+    /// reached is a warning on the step and the package carries on. Off by default.
+    pub malware_scan_enabled: bool,
+    /// Where `clamd` listens: `host:port`, or `unix:/path` for its local socket; empty =
+    /// `127.0.0.1:3310`. Nothing but the files' bytes goes there, and nothing goes anywhere else.
+    pub clamd_address: Option<String>,
+    /// Largest file streamed to `clamd`; a larger one is not scanned and the step counts it.
+    /// `clamd`'s `StreamMaxLength` has to be at least this.
+    pub malware_scan_max_bytes: rd_core::ByteCount,
+    /// Seconds one exchange with `clamd` may take: the connection, a chunk, the verdict (5–3600).
+    pub malware_scan_timeout_seconds: u32,
     /// Absolute path of the domain blocklist (one host per line); empty =
     /// `excluded_domains.txt` next to the database.
     pub excluded_domains_file: Option<String>,
@@ -611,6 +623,13 @@ impl Default for SettingsResponse {
             upload_remote: None,
             upload_mode: default_upload_mode(),
             rclone_executable: None,
+            malware_scan_enabled: false,
+            clamd_address: None,
+            malware_scan_max_bytes: rd_core::ByteCount::new(
+                rd_core::DEFAULT_MALWARE_SCAN_MAX_BYTES,
+            )
+            .expect("scan limit fits SQLite"),
+            malware_scan_timeout_seconds: rd_core::DEFAULT_MALWARE_SCAN_TIMEOUT_SECONDS,
             excluded_domains_file: None,
             dlc_service_enabled: false,
             subscription_item_images_enabled: true,

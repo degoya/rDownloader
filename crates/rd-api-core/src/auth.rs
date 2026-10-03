@@ -142,11 +142,7 @@ impl AuthService {
 
     /// Returns whether a password was configured.
     pub async fn is_configured(&self, state: &AppState) -> Result<bool, ApiError> {
-        Ok(state
-            .database
-            .get_setting(PASSWORD_SETTING)
-            .await?
-            .is_some())
+        admin_password_configured(&state.database).await
     }
 
     /// Stores the first administrator password, once.
@@ -179,13 +175,7 @@ impl AuthService {
     /// It deliberately checks *no* credential: who may call it is the caller's question, and
     /// a function that both authorised and wrote would let the two disagree.
     pub async fn store_password(&self, state: &AppState, password: &str) -> Result<(), ApiError> {
-        validate_password(password)?;
-        let hash = hash_password(password)?;
-        state
-            .database
-            .set_setting(PASSWORD_SETTING.to_owned(), serde_json::Value::String(hash))
-            .await?;
-        Ok(())
+        store_admin_password(&state.database, password).await
     }
 
     /// What the limiter says about an attempt from `client`.
@@ -214,6 +204,15 @@ impl AuthService {
                 rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
             })
             .record_success(client, Instant::now());
+    }
+
+    /// Forgets every failure the limiter counted, every address's lockout included.
+    ///
+    /// For the password reset on the host (RD-190-24): the owner who forgot the password has
+    /// usually locked their own address out trying, and a new password they cannot try for a
+    /// quarter of an hour would be no way back in. One account, so the whole limiter.
+    pub async fn reset_throttle(&self) {
+        *self.throttle.write().await = None;
     }
 
     /// Records a failed sign-in against the limiter.
@@ -272,17 +271,7 @@ impl AuthService {
         state: &AppState,
         password: &str,
     ) -> Result<bool, ApiError> {
-        let Some(value) = state.database.get_setting(PASSWORD_SETTING).await? else {
-            return Ok(false);
-        };
-        Ok(value
-            .as_str()
-            .and_then(|encoded| PasswordHash::new(encoded).ok())
-            .is_some_and(|parsed| {
-                Argon2::default()
-                    .verify_password(password.as_bytes(), &parsed)
-                    .is_ok()
-            }))
+        admin_password_matches(&state.database, password).await
     }
 
     /// Ends the session behind this request's credential, if it has one.
@@ -825,6 +814,47 @@ pub async fn require_capture(
         ));
     }
     Ok(next.run(request).await)
+}
+
+/// Writes `password` as the administrator password into `database`, judged by the policy and
+/// hashed as every other one; the body of [`AuthService::store_password`].
+///
+/// A free function because the password reset on the host (RD-190-24) writes the database of a
+/// stopped service, where there is no `AppState` to go through.
+pub async fn store_admin_password(
+    database: &rd_db::Database,
+    password: &str,
+) -> Result<(), ApiError> {
+    validate_password(password)?;
+    let hash = hash_password(password)?;
+    database
+        .set_setting(PASSWORD_SETTING.to_owned(), serde_json::Value::String(hash))
+        .await?;
+    Ok(())
+}
+
+/// Whether an administrator password is stored in `database` at all.
+pub async fn admin_password_configured(database: &rd_db::Database) -> Result<bool, ApiError> {
+    Ok(database.get_setting(PASSWORD_SETTING).await?.is_some())
+}
+
+/// Whether `password` is the administrator password stored in `database`; the body of
+/// [`AuthService::password_matches`].
+pub async fn admin_password_matches(
+    database: &rd_db::Database,
+    password: &str,
+) -> Result<bool, ApiError> {
+    let Some(value) = database.get_setting(PASSWORD_SETTING).await? else {
+        return Ok(false);
+    };
+    Ok(value
+        .as_str()
+        .and_then(|encoded| PasswordHash::new(encoded).ok())
+        .is_some_and(|parsed| {
+            Argon2::default()
+                .verify_password(password.as_bytes(), &parsed)
+                .is_ok()
+        }))
 }
 
 /// Argon2id over a fresh 16-byte salt, in the PHC string form the setting stores.

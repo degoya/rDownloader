@@ -46,6 +46,28 @@ impl ExportSlots {
     }
 }
 
+impl ExportSlots {
+    /// [`ExportSlots::add`] for a value the bundle can do without: an archive password whose
+    /// vault entry cannot be read (a reference a restore from elsewhere left) is left out and
+    /// logged by reference, instead of failing the whole backup (RD-190-04).
+    pub(crate) async fn add_readable(
+        &mut self,
+        state: &AppState,
+        reference: String,
+    ) -> Option<String> {
+        match self.add(state, Some(reference)).await {
+            Ok(slot) => slot,
+            Err(error) => {
+                tracing::warn!(
+                    code = error.code(),
+                    "an archive password could not be read for the backup and is left out"
+                );
+                None
+            }
+        }
+    }
+}
+
 pub(crate) fn validate_secret_slots(
     bundle: &SettingsBundle,
     values: &BTreeMap<String, String>,
@@ -109,5 +131,6 @@ pub(crate) async fn current_secret_references(
         }
     }
     references.extend(crate::settings_backup_auth::current_references(state).await?);
+    references.extend(crate::settings_backup_indexers::current_references(state).await?);
     Ok(references)
 }

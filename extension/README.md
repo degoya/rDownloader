@@ -300,9 +300,12 @@ starts from 1.0.8.
 
 After the GitHub release, the release workflow's `extension-stores` job submits both builds for
 review (RD-170-10), for the newest `vX.Y.Z` tag only: `scripts/chrome-webstore.sh publish` uploads
-`rdownloader-chrome.zip` to the Chrome Web Store through its API v2, and `scripts/firefox-amo.sh
+`rdownloader-chrome.zip` to the Chrome Web Store through its API v2, `scripts/firefox-amo.sh
 submit` uploads the Firefox build to the AMO listing (`web-ext sign --channel listed`, without
-waiting for the review). Each first asks its store for the version and leaves one it already has
+waiting for the review), and `scripts/edge-addons.sh publish` uploads the same Chrome ZIP to
+Microsoft Edge Add-ons through its API v1.1 and submits it for certification (RD-190-11). The
+Edge Add-ons API cannot report the version it has; a version it has already ends in its
+`NoModulesUpdated`, which the script reports as nothing to do. Each first asks its store for the version and leaves one it already has
 alone; AMO takes each version number once across the listed and unlisted channels, so a number
 Mozilla signed unlisted (1.6.0) never reaches the listing. Without the credentials, or when a
 store refuses, the step warns and the release is unaffected; the ZIPs on the release are the

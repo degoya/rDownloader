@@ -4,7 +4,8 @@
  * large screens, how long a sign-in lasts, the sessions, and the reverse proxy this service
  * may believe. The page had no header until RD-110-29, no way to change the password until
  * RD-120-22, and a fixed twelve-hour sign-in until RD-130-09. Six cards made it three tabs in
- * RD-180-15: how one signs in, how long a sign-in lasts and where, and the reverse proxy.
+ * RD-180-15: how one signs in, how long a sign-in lasts and where, and the reverse proxy. The
+ * identity provider (RD-190-15) is one more way to sign in, under the first.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,6 +14,7 @@ import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import SettingsMfaCard from '@/components/settings/SettingsMfaCard.vue'
+import SettingsOidcCard from '@/components/settings/SettingsOidcCard.vue'
 import SettingsPasskeysCard from '@/components/settings/SettingsPasskeysCard.vue'
 import SettingsPasswordCard from '@/components/settings/SettingsPasswordCard.vue'
 import SettingsProxyCard from '@/components/settings/SettingsProxyCard.vue'
@@ -50,6 +52,7 @@ const tabItems = computed(() => subTabItems('security', t))
             <SettingsMfaCard />
             <SettingsPasskeysCard />
           </div>
+          <SettingsOidcCard />
         </div>
       </template>
       <template #sessions>

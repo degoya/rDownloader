@@ -5,6 +5,7 @@ import { openPalette } from '@/composables/searchPalette'
 import { toggleSidebarCollapsed } from '@/composables/sidebarCollapse'
 import { i18n } from '@/i18n'
 import { router } from '@/router'
+import { useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
 
 /**
@@ -115,9 +116,27 @@ function goTo(path: string): () => void {
   return () => { void router.push(path) }
 }
 
-/** Reads `transfers.globalControl`, applies it, and (off `/downloads`, where a notice already shows) toasts the result. */
+/**
+ * Reads `transfers.globalControl`, applies it, and (off `/downloads`, where a notice already shows)
+ * toasts the result. While a timed pause holds, `p` ends it instead, as the control's own button
+ * does (RD-190-20): a per-file start would leave the queue held until the pause's end.
+ */
 function toggleTransfers(): void {
   const transfers = useTransfersStore()
+  const queuePause = useQueuePauseStore()
+  if (queuePause.active) {
+    void (async () => {
+      const count = await queuePause.resume()
+      if (count === null) return
+      await transfers.refresh()
+      if (router.currentRoute.value.path === '/downloads') {
+        transfers.notice = t('downloads.notices.resumed_count', { count }, count)
+        return
+      }
+      notify({ title: t('common.shortcuts.toast.resumed', { count }, count), color: 'primary', icon: 'i-lucide-play' })
+    })()
+    return
+  }
   const action = transfers.globalControl
   if (!action) {
     notify({ title: t('common.shortcuts.toast.nothing'), color: 'neutral', icon: 'i-lucide-info' })
@@ -179,7 +198,8 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
   { keys: 'k', labelKeys: ['k'], descriptionKey: 'common.shortcuts.clear_completed', group: 'actions', handler: guarded(() => clearCompleted?.()) },
-  // `f` focuses the LinkGrabber's indexer search, handed in by its panel (`indexerSearchFocus.ts`).
+  // `f` focuses the page's search — the LinkGrabber's indexer search or the download list's name
+  // search — handed in by whichever is mounted (`indexerSearchFocus.ts`).
   // Ctrl/Cmd+F stays the browser's find and Shift+F does nothing: `defineShortcuts` matches
   // modifiers exactly, Shift included for a letter.
   { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },

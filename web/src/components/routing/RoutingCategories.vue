@@ -75,6 +75,7 @@ const form = reactive<CreateCategory>({
   cleanup_extensions: null,
   recursive_unpack: null,
   unpack_to_subfolder: null,
+  malware_scan: null,
   sfv_verify: null,
   safe_postproc: null,
   delete_par2: null,
@@ -126,6 +127,15 @@ const subfolderItems = computed(() => [
 const unpackToSubfolder = computed({
   get: () => form.unpack_to_subfolder == null ? INHERIT_LEVEL : (form.unpack_to_subfolder ? 'on' : 'off'),
   set: (value: string) => { form.unpack_to_subfolder = value === INHERIT_LEVEL ? null : value === 'on' }
+})
+const malwareScanItems = computed(() => [
+  { label: t('routing.category.malware_scan_inherit'), value: INHERIT_LEVEL },
+  { label: t('routing.category.malware_scan_on'), value: 'on' },
+  { label: t('routing.category.malware_scan_off'), value: 'off' }
+])
+const malwareScan = computed({
+  get: () => form.malware_scan == null ? INHERIT_LEVEL : (form.malware_scan ? 'on' : 'off'),
+  set: (value: string) => { form.malware_scan = value === INHERIT_LEVEL ? null : value === 'on' }
 })
 const sfvItems = computed(() => [
   { label: t('routing.category.sfv_inherit'), value: INHERIT_LEVEL },
@@ -278,6 +288,7 @@ const list = useEditableList<Category, CreateCategory>({
     form.script = null
     form.recursive_unpack = null
     form.unpack_to_subfolder = null
+    form.malware_scan = null
     form.sfv_verify = null
     form.safe_postproc = null
     form.delete_par2 = null
@@ -307,6 +318,7 @@ async function savePluginSteps(category: Category): Promise<Category | null> {
       cleanup_extensions: category.cleanup_extensions ?? null,
       recursive_unpack: category.recursive_unpack ?? null,
       unpack_to_subfolder: category.unpack_to_subfolder ?? null,
+      malware_scan: category.malware_scan ?? null,
       sfv_verify: category.sfv_verify ?? null,
       safe_postproc: category.safe_postproc ?? null,
       delete_par2: category.delete_par2 ?? null,
@@ -365,6 +377,7 @@ function edit(category: Category): void {
   form.script = category.script ?? null
   form.recursive_unpack = category.recursive_unpack ?? null
   form.unpack_to_subfolder = category.unpack_to_subfolder ?? null
+  form.malware_scan = category.malware_scan ?? null
   form.sfv_verify = category.sfv_verify ?? null
   form.safe_postproc = category.safe_postproc ?? null
   form.delete_par2 = category.delete_par2 ?? null
@@ -408,6 +421,7 @@ async function duplicate(category: Category): Promise<void> {
         cleanup_extensions: copy.cleanup_extensions ?? null,
         recursive_unpack: copy.recursive_unpack ?? null,
         unpack_to_subfolder: copy.unpack_to_subfolder ?? null,
+        malware_scan: copy.malware_scan ?? null,
         sfv_verify: copy.sfv_verify ?? null,
         safe_postproc: copy.safe_postproc ?? null,
         delete_par2: copy.delete_par2 ?? null,
@@ -489,6 +503,9 @@ async function remove(category: Category): Promise<void> {
           </UFormField>
           <UFormField :label="t('routing.category.subfolder_label')" :description="t('routing.category.subfolder_description')">
             <USelect v-model="unpackToSubfolder" :items="subfolderItems" value-key="value" icon="i-lucide-folder-tree" class="w-full" />
+          </UFormField>
+          <UFormField :label="t('routing.category.malware_scan_label')" :description="t('routing.category.malware_scan_description')">
+            <USelect v-model="malwareScan" :items="malwareScanItems" value-key="value" icon="i-lucide-shield-check" class="w-full" data-testid="category-malware-scan" />
           </UFormField>
           <UFormField :label="t('routing.category.sfv_label')" :description="t('routing.category.sfv_description')">
             <USelect v-model="sfvVerify" :items="sfvItems" value-key="value" icon="i-lucide-file-check" class="w-full" />

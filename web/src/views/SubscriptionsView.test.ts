@@ -436,6 +436,89 @@ describe('SubscriptionsView, an indexer subscription’s search', () => {
 })
 
 /**
+ * RD-190-13: a git-release subscription's choices — which release files — travel as their own
+ * object, the token goes where an indexer's key goes, and no other kind sends them.
+ */
+describe('SubscriptionsView, a git-release subscription', () => {
+  beforeEach(() => {
+    get.mockReset()
+    post.mockReset()
+    get.mockResolvedValue({ data: [] })
+    post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
+  })
+
+  async function releaseForm(): Promise<HTMLFormElement> {
+    const { container } = mount()
+    await waitFor(() => expect(screen.getByText(EMPTY)).toBeTruthy())
+    const form = container.querySelector('form') as HTMLFormElement
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'git_release')
+    await screen.findByTestId('subscription-git-release')
+    return form
+  }
+
+  it('sends the release choices and the token, and asks for a quarter of an hour at least', async () => {
+    const form = await releaseForm()
+    expect(screen.getByText(subscriptions.form.git_token)).toBeTruthy()
+    expect((form.querySelector('input[type="number"]') as HTMLInputElement).min).toBe('15')
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Tool')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://github.com/example/tool')
+    await fireEvent.update(screen.getByTestId('subscription-git-patterns'), ' *.AppImage, , *linux* ')
+    await fireEvent.click(screen.getByTestId('subscription-git-prereleases'))
+    await fireEvent.update(screen.getByTestId('subscription-api-key'), ' github_pat_x ')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body).toMatchObject({ kind: 'git_release', url: 'https://github.com/example/tool', api_key: 'github_pat_x' })
+    expect(body.git_release).toEqual({
+      forge: null,
+      asset_patterns: ['*.AppImage', '*linux*'],
+      platforms: [],
+      architectures: [],
+      prereleases: true,
+      source_archives: false
+    })
+  })
+
+  // The release form is a screen long: a refusal at the top of the page was out of sight of the
+  // Create button that caused it, and the press looked like it did nothing (1.9.0 check, F3).
+  it('shows a refusal above the form, scrolls it into view and keeps what was typed', async () => {
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    post.mockResolvedValue({ error: { error: 'unknown forge', code: 'subscription.git_forge_unknown' }, response: { ok: false, status: 422 } })
+    const form = await releaseForm()
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'Tool')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://git.example/tool')
+    await fireEvent.submit(form)
+
+    const refusal = await screen.findByTestId('subscription-refusal')
+    expect(refusal.textContent).toContain('The service did not answer')
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' })
+    // Said once, beside the form, not a second time at the top of the page.
+    expect(screen.getAllByText('The service did not answer')).toHaveLength(1)
+    expect((screen.getByTestId('subscription-url') as HTMLInputElement).value).toBe('https://git.example/tool')
+
+    post.mockResolvedValue({ data: { id: 'new' }, response: { ok: true } })
+    await fireEvent.submit(form)
+    await waitFor(() => expect(screen.queryByTestId('subscription-refusal')).toBeNull())
+  })
+
+  it('sends no release choices for any other kind', async () => {
+    const form = await releaseForm()
+    await fireEvent.update(screen.getByTestId('subscription-git-patterns'), '*.zip')
+    await fireEvent.update(form.querySelector('select') as HTMLSelectElement, 'feed')
+    expect(screen.queryByTestId('subscription-git-release')).toBeNull()
+    await fireEvent.update(screen.getByTestId('subscription-name'), 'News')
+    await fireEvent.update(screen.getByTestId('subscription-url'), 'https://news.test/feed.xml')
+    await fireEvent.submit(form)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    expect(body).toMatchObject({ kind: 'feed', git_release: {} })
+  })
+})
+
+/**
  * RD-106-10: a filter that rejects a hit keeps it, so the list has to say which is which.
  *
  * The rejected hits are archived on purpose — an unwritten one would be rediscovered on
@@ -810,6 +893,40 @@ describe('SubscriptionsView row', () => {
     expect(body.api_key).toBeNull()
     expect(body.enabled).toBe(false)
     expect(body).not.toHaveProperty('last_run_at')
+  })
+
+  it('keeps every setting of the original in the duplicate, the indexer search included (RD-190-18)', async () => {
+    const configured = {
+      ...first,
+      category_id: 'cat-1',
+      priority: 'high',
+      filters: { title_contains: ['1080p'], title_excludes: ['cam'], languages: [], min_duration_seconds: null, max_duration_seconds: null, published_after: null, min_height: null },
+      backlog: { mode: 'review_all' },
+      category_map: [{ source: '5040', category_id: 'cat-1' }],
+      source_categories: ['5040'],
+      schedule: null,
+      script_arguments: [],
+      every_release: true,
+      view: 'cards',
+      autoplay: true,
+      card_ratio: '16:9',
+      indexer_search: { query: 'some show', max_age_days: 30, hide_passworded: true, pretime: 1 }
+    }
+    // What belongs to the original's runs or to the server, never to a copy's settings.
+    const runtime = ['id', 'name', 'enabled', 'has_secret', 'etag', 'last_modified', 'last_run_at', 'next_run_at', 'last_error', 'consecutive_failures', 'primed', 'created_at', 'updated_at']
+    post.mockReset()
+    post.mockResolvedValue({ data: { id: 'copy' } })
+    get.mockImplementation((path: string) =>
+      Promise.resolve({ data: path === '/api/v1/subscriptions' ? [configured, second] : [] }))
+    mount()
+    const row = await rowOf('My Indexer')
+    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/subscriptions', expect.anything()))
+    const body = post.mock.calls.find(call => call[0] === '/api/v1/subscriptions')?.[1]?.body
+    for (const [key, value] of Object.entries(configured)) {
+      if (runtime.includes(key)) continue
+      expect(body[key], key).toEqual(value)
+    }
   })
 
   it('opens the copy in the form, marked as the one being edited', async () => {

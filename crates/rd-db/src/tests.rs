@@ -628,6 +628,7 @@ async fn category_rules_are_applied_when_links_enter_the_collector() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -737,6 +738,11 @@ async fn collector_intake_groups_multipart_links_and_locks_packages_for_enqueue(
     let database = Database::open(directory.path().join("collector.sqlite"))
         .await
         .expect("database");
+    // Archive passwords live in the vault (RD-190-04).
+    database
+        .install_file_vault(directory.path().join("secrets"))
+        .await
+        .expect("vault");
     let urls: Vec<url::Url> = [
         "https://ddownload.com/aaa111bbb/Game.part1.rar",
         "https://ddownload.com/aaa222bbb/Game.part2.rar",
@@ -859,6 +865,11 @@ async fn collector_groups_keep_the_password_of_their_own_declared_link() {
     let database = Database::open(directory.path().join("collector-passwords.sqlite"))
         .await
         .expect("database");
+    // Archive passwords live in the vault (RD-190-04).
+    database
+        .install_file_vault(directory.path().join("secrets"))
+        .await
+        .expect("vault");
     let urls = vec![
         "https://indexer.test/get/one.nzb".parse().expect("url"),
         "https://indexer.test/get/two.nzb".parse().expect("url"),
@@ -1374,6 +1385,7 @@ async fn routing_category(
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -1766,6 +1778,7 @@ async fn nzb_routing_metadata_can_change_until_enqueue() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
             delete_par2: None,
@@ -2971,6 +2984,7 @@ fn new_subscription(name: &str) -> crate::NewSubscription {
         schedule: None,
         script_arguments: Vec::new(),
         indexer_search: rd_core::IndexerSearch::default(),
+        git_release: rd_core::GitReleaseOptions::default(),
         secret_ref: None,
     }
 }
@@ -3043,6 +3057,11 @@ async fn an_items_attributes_and_password_are_stored_and_read_back() {
     let database = Database::open(directory.path().join("subscriptions.sqlite"))
         .await
         .expect("database");
+    // Archive passwords live in the vault (RD-190-04).
+    database
+        .install_file_vault(directory.path().join("secrets"))
+        .await
+        .expect("vault");
     let subscription = database
         .create_subscription(new_subscription("Indexer"))
         .await
@@ -3293,6 +3312,11 @@ async fn a_repoll_without_attributes_keeps_the_ones_already_stored() {
     let database = Database::open(directory.path().join("subscriptions.sqlite"))
         .await
         .expect("database");
+    // Archive passwords live in the vault (RD-190-04).
+    database
+        .install_file_vault(directory.path().join("secrets"))
+        .await
+        .expect("vault");
     let subscription = database
         .create_subscription(new_subscription("Indexer"))
         .await
@@ -3970,6 +3994,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: Some(true),
             unpack_to_subfolder: Some(true),
+            malware_scan: Some(true),
             sfv_verify: Some(false),
             safe_postproc: Some(false),
             delete_par2: Some(true),
@@ -3980,6 +4005,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
         .expect("category");
     assert_eq!(created.delete_par2, Some(true));
     assert_eq!(created.unpack_to_subfolder, Some(true));
+    assert_eq!(created.malware_scan, Some(true));
     assert_eq!(created.safe_postproc, Some(false));
 
     // The general update path, which is the one that was broken.
@@ -3997,6 +4023,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 cleanup_extensions: None,
                 recursive_unpack: Some(false),
                 unpack_to_subfolder: Some(false),
+                malware_scan: Some(false),
                 sfv_verify: Some(true),
                 safe_postproc: Some(true),
                 delete_par2: Some(false),
@@ -4010,6 +4037,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
     assert_eq!(updated.delete_par2, Some(false));
     assert_eq!(updated.safe_postproc, Some(true));
     assert_eq!(updated.unpack_to_subfolder, Some(false));
+    assert_eq!(updated.malware_scan, Some(false));
 
     // And the post-processing path, which carries the plugin steps.
     database
@@ -4021,6 +4049,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 cleanup_extensions: Some(vec!["sfv".to_owned()]),
                 recursive_unpack: Some(true),
                 unpack_to_subfolder: Some(true),
+                malware_scan: Some(true),
                 sfv_verify: Some(false),
                 safe_postproc: Some(false),
                 delete_par2: Some(true),
@@ -4042,6 +4071,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
     assert_eq!(stored.delete_par2, Some(true));
     assert_eq!(stored.safe_postproc, Some(false));
     assert_eq!(stored.unpack_to_subfolder, Some(true));
+    assert_eq!(stored.malware_scan, Some(true));
     assert_eq!(stored.script.as_deref(), Some("after.sh"));
     assert_eq!(
         stored.plugin_steps.as_deref(),
@@ -8120,4 +8150,58 @@ async fn a_cache_answer_is_a_time_and_the_next_check_clears_it() {
         .expect("row");
     assert_eq!(cleared.cached_at, None);
     assert_eq!(cleared.cached_by, None);
+}
+
+/// Links from three batches moved into a new package stay in it when the first batch's own
+/// links are deleted. The package took the first link's batch, and deleting that batch's last
+/// link used to delete the batch and — by its cascade — the package, which left the other
+/// four links with no package and invisible in the LinkGrabber.
+#[tokio::test]
+async fn a_package_built_by_a_move_outlives_the_batch_it_was_named_after() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(directory.path().join("move-orphan.sqlite"))
+        .await
+        .expect("database");
+    let first = proposed_pair(&database, "Batch.One").await;
+    let second = proposed_pair(&database, "Batch.Two").await;
+    let third = proposed_pair(&database, "Batch.Three").await;
+    let ids: Vec<rd_core::CandidateId> = first
+        .iter()
+        .chain(&second)
+        .chain(&third)
+        .map(|candidate| candidate.id)
+        .collect();
+    let package = database
+        .move_candidates(
+            ids.clone(),
+            crate::MoveTarget::New {
+                name: "Together".to_owned(),
+            },
+        )
+        .await
+        .expect("move");
+
+    for candidate in &first {
+        database
+            .delete_candidate(candidate.id)
+            .await
+            .expect("delete");
+    }
+
+    let left = database.list_candidates().await.expect("candidates");
+    assert_eq!(left.len(), 4);
+    assert!(
+        left.iter()
+            .all(|candidate| candidate.package_id == Some(package.id)),
+        "every remaining link is still in the package: {left:?}"
+    );
+    assert!(
+        database
+            .list_collector_packages()
+            .await
+            .expect("packages")
+            .iter()
+            .any(|kept| kept.id == package.id),
+        "the package outlives the batch it was named after"
+    );
 }

@@ -5,7 +5,7 @@ fn extension_toml(plugin_type: &str, extra: &str) -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "{plugin_type}"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000abce"
 name = "Fixture Extension"
 version = "0.1.0"
@@ -36,7 +36,7 @@ fn toplevel_toml(plugin_type: &str, extra: &str) -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "{plugin_type}"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000abcf"
 name = "Fixture Extension"
 version = "0.1.0"
@@ -221,7 +221,7 @@ fn manifest_toml(extra: &str) -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000abcd"
 name = "Fixture"
 version = "1.2.3"
@@ -465,19 +465,20 @@ fn a_manifest_spells_the_oauth_credential_kind_the_way_the_documentation_does() 
 
 #[test]
 fn an_unsupported_api_version_is_refused() {
-    let toml = manifest_toml("").replace(r#"api_version = "0.9.0""#, r#"api_version = "0.5.0""#);
+    let toml = manifest_toml("").replace(r#"api_version = "0.10.0""#, r#"api_version = "0.5.0""#);
     let manifest: PluginManifest = toml::from_str(&toml).expect("parse");
     assert!(validate_manifest(&manifest).is_err());
 }
 
-/// RD-130-11: a package built for `0.8.0` is refused, and under a code the plugin manager
-/// names, rather than failing at the linker. The release note quotes this code. (RD-120-36
-/// asked the same of `0.7.0`; the contract moved again for `cache-kinds`/`check-cached`.)
+/// RD-190-06: a package built for `0.9.0` is refused, and under a code the plugin manager
+/// names, rather than failing at the linker. The release note quotes this code. (RD-120-36 and
+/// RD-130-11 asked the same of `0.7.0` and `0.8.0`; the contract moved again for the
+/// post-processing step's removed files and warnings.)
 #[test]
 fn a_package_built_for_the_previous_contract_is_refused_by_name() {
-    let toml = manifest_toml("").replace(r#"api_version = "0.9.0""#, r#"api_version = "0.8.0""#);
+    let toml = manifest_toml("").replace(r#"api_version = "0.10.0""#, r#"api_version = "0.9.0""#);
     let manifest: PluginManifest = toml::from_str(&toml).expect("parse");
-    let error = validate_manifest(&manifest).expect_err("0.8.0 no longer links");
+    let error = validate_manifest(&manifest).expect_err("0.9.0 no longer links");
     let rejection = error
         .downcast_ref::<ManifestRejection>()
         .expect("a rejection the plugin manager can name");

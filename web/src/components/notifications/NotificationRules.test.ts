@@ -47,6 +47,14 @@ describe('NotificationRules', () => {
     expect(failed.checked).toBe(true)
   })
 
+  it('offers the operational events next to the queue events (RD-190-19)', () => {
+    mount()
+    const group = screen.getByRole('group', { name: notifications.rule.events_label })
+    for (const event of ['backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available', 'plugin_update_failed', 'account_expiring', 'account_invalid'] as const) {
+      expect(within(group).getByRole('checkbox', { name: notifications.event[event] })).toBeTruthy()
+    }
+  })
+
   it('copies a rule with its target, events, category and severity, and opens the copy', async () => {
     const copy = { ...RULE, id: 'r2', name: `Failures (${common.copy_suffix})` }
     post.mockResolvedValueOnce({ data: copy })

@@ -87,6 +87,64 @@ async fn an_unknown_host_name_is_refused_on_every_surface() {
     assert_eq!(body["code"], REFUSED);
 }
 
+/// A browser opening the service under a refused name gets a page with the way forward instead
+/// of JSON (RD-190-17): the name, the setting that allows it and the address to change it from.
+/// The name is what the caller sent, so markup in it arrives escaped.
+#[tokio::test]
+async fn a_browser_is_shown_the_refused_name_and_where_to_allow_it() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+
+    let request = Request::builder()
+        .uri("/")
+        .header(header::HOST, "rd.example.com")
+        .header(header::ACCEPT, accept)
+        .body(Body::empty())
+        .expect("request");
+    let (status, content_type, page) = common::send_text(&harness.router, request).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{page}");
+    assert!(content_type.starts_with("text/html"), "{content_type}");
+    assert!(page.contains("<code>rd.example.com</code>"), "{page}");
+    assert!(
+        page.contains("Settings → Security → Reverse proxy → Allowed host names"),
+        "{page}"
+    );
+    assert!(page.contains("http://127.0.0.1:8710"), "{page}");
+    assert!(page.contains(REFUSED), "{page}");
+    assert!(
+        !page.contains("<script"),
+        "nothing of the interface's bundle: {page}"
+    );
+
+    let request = Request::builder()
+        .uri("/")
+        .header(header::HOST, "<script>alert(1)</script>.example")
+        .header(header::ACCEPT, accept)
+        .body(Body::empty())
+        .expect("request");
+    let (status, _, page) = common::send_text(&harness.router, request).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{page}");
+    assert!(!page.contains("<script>"), "{page}");
+    assert!(
+        page.contains("&lt;script&gt;alert(1)&lt;/script&gt;.example"),
+        "{page}"
+    );
+
+    // A client that asks for JSON — the interface's own calls, every API client — keeps the
+    // coded refusal.
+    let request = Request::builder()
+        .uri("/api/v1/health")
+        .header(header::HOST, "rd.example.com")
+        .header(header::ACCEPT, "application/json")
+        .body(Body::empty())
+        .expect("request");
+    let (status, body) = send(&harness.router, request).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["code"], REFUSED);
+    assert_eq!(body["params"]["host"], "rd.example.com");
+}
+
 /// Before the owner finishes setup, `/auth/setup` is public: a rebinding page must not be the
 /// one that sets the password.
 #[tokio::test]

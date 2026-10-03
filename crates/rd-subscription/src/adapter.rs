@@ -57,6 +57,10 @@ pub struct DiscoveredItem {
     /// flag. It reaches the extractor and is shown only by authenticated subscription routes so
     /// a failed extraction can be diagnosed.
     pub password: Option<String>,
+    /// The adapter's own verdict against the item, when its options already refuse it
+    /// (RD-190-13): a release file for another platform. Archived as skipped with this reason
+    /// like a filter refusal, so it is neither fetched again on every poll nor invisible.
+    pub refused: Option<rd_core::FilterReason>,
 }
 
 impl DiscoveredItem {
@@ -77,6 +81,7 @@ impl DiscoveredItem {
             attributes: std::collections::BTreeMap::new(),
             release_key: None,
             password: None,
+            refused: None,
         }
     }
 }
@@ -90,7 +95,32 @@ pub struct PollOutcome {
     pub last_modified: Option<String>,
     /// The source said nothing changed, so `items` is empty and means it.
     pub not_modified: bool,
+    /// The source asked not to be asked again before this instant (RD-190-13): an API whose
+    /// request budget this poll used up. The next poll waits for it, whatever the interval says.
+    pub paused_until: Option<DateTime<Utc>>,
 }
+
+/// A poll the source refused for its rate limit, with when it may be asked again (RD-190-13).
+///
+/// An error rather than an outcome, because nothing was learned and the run must say so; but
+/// not a failure the backoff counts: the source named its own time, and a schedule that
+/// doubled on every refusal would wait longer than it asked for.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RateLimited {
+    pub until: DateTime<Utc>,
+}
+
+impl std::fmt::Display for RateLimited {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "rate limit reached; the next request waits until {}",
+            self.until.format("%Y-%m-%d %H:%M UTC")
+        )
+    }
+}
+
+impl std::error::Error for RateLimited {}
 
 /// A kind of pollable source.
 #[async_trait]
@@ -104,6 +134,21 @@ pub trait SourceAdapter: Send + Sync {
     /// after redaction. An adapter should fail rather than return a partial list, because a
     /// short list is indistinguishable from "the channel deleted everything".
     async fn poll(&self, subscription: &Subscription) -> anyhow::Result<PollOutcome>;
+
+    /// The address an archived item is downloaded from, asked for at the moment it is handed
+    /// to the LinkGrabber (RD-190-13).
+    ///
+    /// The archived address is the item's stable one; most sources hand out nothing else, so
+    /// the default is that address. A private repository's release file is the exception: its
+    /// stable address answers only with the token, and the address that answers without one
+    /// is valid for minutes.
+    async fn download_address(
+        &self,
+        _subscription: &Subscription,
+        url: &Url,
+    ) -> anyhow::Result<Url> {
+        Ok(url.clone())
+    }
 }
 
 /// Picks the adapter for a subscription.

@@ -224,6 +224,38 @@ mod tests {
         assert_eq!(error.code(), "settings.backup_passphrase_invalid");
     }
 
+    /// RD-190-04: the archive passwords travel in this map. One sealed by another backup's key
+    /// does not open with this backup's passphrase, and a modified one does not open at all, so
+    /// a restore refuses either instead of minting what it cannot vouch for.
+    #[tokio::test]
+    async fn a_foreign_or_tampered_backup_seal_is_refused() {
+        let ours = rd_backup::BackupKey::derive_new("correct horse")
+            .await
+            .expect("key");
+        let foreign = rd_backup::BackupKey::derive_new("correct horse")
+            .await
+            .expect("another backup's key");
+        let mut values = values();
+        values.insert("s2".to_owned(), "archive password".to_owned());
+        let mut sealed = super::encrypt_secrets_with_key(&foreign, &values).expect("encrypt");
+        // The foreign map under this backup's salt: the passphrase is right, the key is not.
+        sealed.kdf.salt = STANDARD.encode(ours.salt());
+        let error = decrypt_secrets("correct horse", &sealed)
+            .await
+            .expect_err("foreign seal");
+        assert_eq!(error.code(), "settings.backup_passphrase_invalid");
+
+        let mut sealed = super::encrypt_secrets_with_key(&ours, &values).expect("encrypt");
+        let mut ciphertext = STANDARD.decode(&sealed.ciphertext).expect("ciphertext");
+        let last = ciphertext.len() - 1;
+        ciphertext[last] ^= 0x01;
+        sealed.ciphertext = STANDARD.encode(ciphertext);
+        let error = decrypt_secrets("correct horse", &sealed)
+            .await
+            .expect_err("tampered seal");
+        assert_eq!(error.code(), "settings.backup_passphrase_invalid");
+    }
+
     #[tokio::test]
     async fn wrong_passphrase_is_rejected() {
         let encrypted = encrypt_secrets("correct horse", &values())

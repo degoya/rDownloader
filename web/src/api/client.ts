@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 
+import { reportServiceReachable, reportServiceUnreachable } from '@/composables/serviceConnection'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 
 import { BASE_PATH } from '@/basePath'
@@ -44,7 +45,25 @@ export async function noticeLostSession(response: Response): Promise<void> {
   }
 }
 
-api.use({ onResponse: ({ response }) => noticeLostSession(response) })
+/** The stand-in answers `networkFailure` makes; no service sent them. */
+const synthetic = new WeakSet<Response>()
+
+/** Whether the service itself sent this answer, rather than `networkFailure` standing in for it. */
+export function answeredByService(response: Response): boolean {
+  return !synthetic.has(response)
+}
+
+// Any answer, whatever its status, means the service is there (the sidebar's connection dot) —
+// except the stand-in for a request that never arrived: `openapi-fetch` runs `onResponse` on
+// that one too, and reporting it as reachable cancelled the outage the event stream had just
+// noticed, so the dot stayed green while a page kept polling a stopped service.
+api.use({
+  onResponse: ({ response }) => {
+    if (!answeredByService(response)) return undefined
+    reportServiceReachable()
+    return noticeLostSession(response)
+  }
+})
 
 /** The code a request carries when it never reached the service; translated like a server code. */
 export const NETWORK_UNREACHABLE = 'network.unreachable'
@@ -61,10 +80,13 @@ export const NETWORK_UNREACHABLE = 'network.unreachable'
  */
 export function networkFailure(error: unknown): Response | undefined {
   if (error instanceof DOMException && error.name === 'AbortError') return undefined
-  return new Response(
+  reportServiceUnreachable()
+  const response = new Response(
     JSON.stringify({ error: 'The service could not be reached', code: NETWORK_UNREACHABLE }),
     { status: 503, headers: { 'Content-Type': 'application/json' } }
   )
+  synthetic.add(response)
+  return response
 }
 
 api.use({ onError: ({ error }) => networkFailure(error) })

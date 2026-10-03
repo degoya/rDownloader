@@ -679,6 +679,66 @@
       "progress": "{received} de {total}",
       "ready": "{version} está descargada y verificada; «Instalar y reiniciar» usa este archivo.",
       "failed": "La descarga de {version} ha fallado."
+    },
+    "agents": {
+      "running": "Agente de captura: {versions}",
+      "unknown": "anterior a 1.9",
+      "outdated_title": "Reinicia el agente de captura",
+      "outdated_description": "Un agente de captura sigue en la versión {agent} y rDownloader ya en {service}. Desde la 1.8.1, el agente se reinicia solo en menos de un minuto tras una actualización. Si no lo hace —porque es más antiguo o lo inició otro usuario—, ciérralo desde su icono de la bandeja o en el Administrador de tareas y vuelve a iniciarlo; en Linux, systemctl --user restart rdownloader-capture hace ambas cosas."
     }
+  },
+  "oidc": {
+    "eyebrow": "Proveedor de identidad",
+    "title": "Inicio de sesión con un proveedor de identidad",
+    "description": "Inicia sesión con la cuenta que ya usas en Authentik, Authelia, Keycloak o Pocket ID (OpenID Connect). Sigue habiendo un solo administrador: la cuenta que vincules aquí.",
+    "redirect_uri": "URI de redirección: regístrala en el proveedor",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copy_command": "Copiar el comando",
+    "external_url_missing": "Sin URL externa no hay URI de redirección. Configúrala en Seguridad → Proxy inverso.",
+    "linked": "Vinculada: {label}",
+    "unnamed": "una cuenta sin nombre",
+    "linked_at": "Vinculada {moment}",
+    "not_linked": "Ninguna cuenta vinculada todavía",
+    "link_hint": "Vincular abre el proveedor; la cuenta con la que inicies sesión allí será el administrador.",
+    "link": "Vincular una cuenta",
+    "linked_toast": "Cuenta vinculada",
+    "saved_toast": "Proveedor de identidad guardado",
+    "unlink": {
+      "action": "Desvincular",
+      "title": "¿Desvincular esta cuenta?",
+      "description": "Después nadie podrá iniciar sesión con el proveedor hasta que vuelvas a vincular una cuenta.",
+      "confirm": "Desvincular"
+    },
+    "remove": {
+      "action": "Quitar",
+      "title": "¿Quitar el proveedor de identidad?",
+      "description": "Se borran la configuración, el secreto del cliente y la cuenta vinculada.",
+      "confirm": "Quitar"
+    },
+    "password_is_off": "El inicio de sesión con contraseña está desactivado",
+    "password_is_off_hint": "Solo el equipo donde se ejecuta el servicio puede reactivarlo: {command}. Las passkeys siguen funcionando y la contraseña sigue confirmando los cambios.",
+    "password_off": {
+      "action": "Desactivar el inicio con contraseña",
+      "ready": "Esta sesión viene del proveedor: puedes desactivar el inicio de sesión con contraseña.",
+      "needs_provider_session": "Inicia sesión una vez con el proveedor; solo desde esa sesión se puede desactivar el inicio con contraseña.",
+      "title": "¿Desactivar el inicio de sesión con contraseña?",
+      "description": "Después iniciarás sesión con el proveedor o con una passkey. Solo se puede volver atrás en el equipo del servicio: {command}",
+      "confirm": "Desactivar"
+    },
+    "issuer": "Emisor (issuer)",
+    "issuer_hint": "Exactamente como lo indica el proveedor, con o sin barra final.",
+    "client_id": "ID de cliente",
+    "client_secret": "Secreto del cliente",
+    "client_secret_kept": "Déjalo vacío para conservar el guardado.",
+    "display_name": "Nombre en el botón de inicio de sesión",
+    "display_name_hint": "Por ejemplo Authentik o Pocket ID.",
+    "group_claim": "Claim de grupo",
+    "group_value": "Grupo",
+    "group_hint": "Opcional: la cuenta vinculada también debe estar en este grupo.",
+    "provider_logout": "Cerrar sesión también en el proveedor",
+    "provider_logout_hint": "Desactivado: cerrar sesión solo termina la sesión aquí; tus otros servicios siguen conectados.",
+    "step_up_hint": "Cada cambio aquí vuelve a pedir la contraseña.",
+    "save": "Guardar"
   }
 }

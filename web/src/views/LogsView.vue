@@ -152,15 +152,19 @@ onMounted(() => {
 
       <ul v-if="store.records.length" class="divide-y divide-muted border border-muted bg-default" data-testid="log-list">
         <li v-for="record in store.records" :key="record.id" class="px-3 py-2">
+          <!-- Below md the message takes a line of its own under the meta line: inline it was
+               left ~60 px on a phone and wrapped letter by letter. The expand button stays at
+               the end of the meta line there. -->
           <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
             <span class="numeric shrink-0 text-xs text-muted">{{ formatMoment(record.recorded_at) }}</span>
             <UBadge :color="levelColor(record.level)" variant="subtle" size="sm">{{ t(`logs.levels.${record.level}`) }}</UBadge>
             <span class="numeric shrink-0 text-xs text-muted">{{ record.component }}</span>
             <UBadge v-if="record.code" color="neutral" variant="outline" size="sm" class="numeric">{{ record.code }}</UBadge>
             <UBadge v-if="record.correlation_id" color="neutral" variant="soft" size="sm" class="numeric" :title="t('logs.filters.correlation')">{{ record.correlation_id }}</UBadge>
-            <span class="min-w-0 flex-1 break-words text-sm text-highlighted">{{ record.message }}</span>
+            <span class="order-last min-w-0 basis-full break-words text-sm text-highlighted md:order-none md:min-w-64 md:flex-1 md:basis-0" data-testid="log-message">{{ record.message }}</span>
             <UButton
               v-if="hasFields(record)"
+              class="ml-auto md:ml-0"
               size="xs"
               variant="ghost"
               color="neutral"

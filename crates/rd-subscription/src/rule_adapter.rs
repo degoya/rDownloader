@@ -88,6 +88,7 @@ impl SourceAdapter for RuleAdapter {
                 etag: fetched.etag,
                 last_modified: fetched.last_modified,
                 not_modified: true,
+                paused_until: None,
             });
         };
         let base = fetched.final_url.as_ref().unwrap_or(&subscription.url);
@@ -97,6 +98,7 @@ impl SourceAdapter for RuleAdapter {
             etag: fetched.etag,
             last_modified: fetched.last_modified,
             not_modified: false,
+            paused_until: None,
         })
     }
 }

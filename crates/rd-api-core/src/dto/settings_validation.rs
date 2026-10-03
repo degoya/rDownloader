@@ -312,6 +312,7 @@ impl SettingsResponse {
             )
             .with_param("max", MAX_PATH_LENGTH));
         }
+        self.validate_malware_scan()?;
         if self.max_retries > rd_scheduler::MAX_CONFIGURABLE_RETRIES {
             return Err(crate::ApiError::bad_request(
                 "settings.max_retries_too_high",
@@ -510,5 +511,81 @@ impl SettingsResponse {
             .with_param("max", 65_535));
         }
         Ok(())
+    }
+}
+
+impl SettingsResponse {
+    /// The ClamAV scan (RD-190-14): an address the client can read, a limit clamd can take, a
+    /// timeout that is neither instant nor forever.
+    fn validate_malware_scan(&mut self) -> Result<(), crate::ApiError> {
+        /// clamd's `StreamMaxLength` is capped at 4 GiB.
+        const MAX_SCAN_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+        self.clamd_address = self
+            .clamd_address
+            .take()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        if let Some(address) = &self.clamd_address
+            && let Err(error) = rd_extract::clamd::ClamdAddress::parse(address)
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.clamd_address_invalid",
+                format!("The clamd address must be host:port or unix:/path ({error})"),
+            )
+            .with_param("value", address.clone()));
+        }
+        if !(1..=MAX_SCAN_BYTES).contains(&self.malware_scan_max_bytes.get()) {
+            return Err(crate::ApiError::bad_request(
+                "settings.malware_scan_max_bytes_invalid",
+                "The scan limit must be between 1 byte and 4 GiB",
+            )
+            .with_param("max", MAX_SCAN_BYTES));
+        }
+        if !(5..=3600).contains(&self.malware_scan_timeout_seconds) {
+            return Err(crate::ApiError::bad_request(
+                "settings.malware_scan_timeout_invalid",
+                "The scan timeout must be between 5 and 3600 seconds",
+            )
+            .with_param("min", 5)
+            .with_param("max", 3600));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SettingsResponse;
+
+    fn error_code(settings: &mut SettingsResponse) -> Option<String> {
+        settings
+            .validate_malware_scan()
+            .err()
+            .map(|error| error.code().to_owned())
+    }
+
+    #[test]
+    fn the_malware_scan_settings_are_checked_before_they_are_stored() {
+        let mut settings = SettingsResponse {
+            clamd_address: Some("  clamav:3310 ".to_owned()),
+            ..SettingsResponse::default()
+        };
+        assert_eq!(error_code(&mut settings), None);
+        assert_eq!(settings.clamd_address.as_deref(), Some("clamav:3310"));
+        // Blank is "the default", not an address.
+        settings.clamd_address = Some("   ".to_owned());
+        assert_eq!(error_code(&mut settings), None);
+        assert_eq!(settings.clamd_address, None);
+        settings.clamd_address = Some("http://scanner/".to_owned());
+        assert_eq!(
+            error_code(&mut settings).as_deref(),
+            Some("settings.clamd_address_invalid")
+        );
+        settings.clamd_address = None;
+        settings.malware_scan_timeout_seconds = 1;
+        assert_eq!(
+            error_code(&mut settings).as_deref(),
+            Some("settings.malware_scan_timeout_invalid")
+        );
     }
 }

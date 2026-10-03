@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { BundleCreated, BundlePreview, LogLevel, LogRecord, LogRecordsPage } from '@/api/types'
 
 /** Records one read asks for; the server caps a page at 500. */
@@ -50,6 +51,8 @@ export const useLogsStore = defineStore('logs', () => {
   const dropped = ref(0)
   const retention = ref<LogRecordsPage['retention'] | null>(null)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const fetching = ref(false)
   const settled = ref(false)
   /** The first fetch alone shows the loading surface (`design.md`). */

@@ -1,5 +1,6 @@
 //! The repository refresh with its automatic updates (RD-160-09): `refresh_and_update`, which
-//! the refresh route and the background loop both run, against an in-memory fetcher.
+//! the refresh route and the background loop both run, against an in-memory fetcher, and what
+//! it announces (RD-190-19).
 //!
 //! What it fetches, verifies and offers is tested in `rd_plugin_host::repository`; what it
 //! installs is decided here, in the API layer, and so is tested here.
@@ -67,7 +68,7 @@ fn update_fixture(
     let manifest = format!(
         r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "{id}"
 name = "Update fixture {slug}"
 version = "{version}"
@@ -310,6 +311,122 @@ async fn the_refresh_installs_only_automatic_updates_that_ask_for_nothing_new() 
     assert_eq!(lifecycle["active_version"], "1.1.0", "{lifecycle}");
     assert_eq!(lifecycle["running_version"], "1.0.0", "{lifecycle}");
     assert_eq!(lifecycle["restart_required"], true, "{lifecycle}");
+}
+
+/// RD-190-19: an automatic update that cannot be fetched is announced as `plugin_update_failed`,
+/// one that waits for a click as `plugin_update_available`, and the next refresh, which finds
+/// both again, announces neither a second time.
+#[tokio::test]
+async fn the_refresh_announces_a_failed_automatic_update_and_a_waiting_one_once() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let repository = rd_plugin_host::generate_signing_key();
+    let author = rd_plugin_host::generate_signing_key();
+    harness
+        .state
+        .plugins
+        .verifier()
+        .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
+        .expect("trust the author");
+    for id in [AUTOMATIC, MANUAL] {
+        harness
+            .state
+            .plugins
+            .install_bytes(update_fixture(&author, id, "1.0.0", r#""example.test""#))
+            .await
+            .expect("install 1.0.0");
+    }
+    harness
+        .state
+        .plugins
+        .record_started_versions()
+        .await
+        .expect("the start records what it loads");
+
+    let fetcher = std::sync::Arc::new(MapFetcher::default());
+    let mut state = harness.state.clone();
+    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+        harness.database.clone(),
+        directory.path().join("plugin-repositories"),
+        state.plugins.clone(),
+        fetcher.clone(),
+        None,
+    );
+    state
+        .plugin_repositories
+        .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
+            harness.database.clone(),
+        )));
+    let router = rd_api::router(state);
+    let (status, body) = put_json(
+        &router,
+        &format!("/api/v1/plugins/{AUTOMATIC}/lifecycle/policy"),
+        serde_json::json!({ "policy": "automatic" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, target) = post_json(
+        &router,
+        "/api/v1/notifications/targets",
+        serde_json::json!({ "name": "hook", "kind": "webhook", "endpoint": "http://127.0.0.1:9/hook" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{target}");
+    let (status, rule) = post_json(
+        &router,
+        "/api/v1/notifications/rules",
+        serde_json::json!({
+            "name": "plugins",
+            "target_id": target["id"],
+            "events": ["plugin_update_available", "plugin_update_failed"]
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{rule}");
+    fetcher.serve(GOOD_INDEX, signed_index(&repository, 1, &[]));
+    add_repository(&router, GOOD_INDEX, &repository.public_base64).await;
+
+    // The index names both updates, but only the manual one's package can be fetched.
+    let same = update_fixture(&author, AUTOMATIC, "1.1.0", r#""example.test""#);
+    let manual = update_fixture(&author, MANUAL, "1.1.0", r#""example.test""#);
+    fetcher.serve(&package_url(MANUAL, "1.1.0"), manual.clone());
+    fetcher.serve(
+        GOOD_INDEX,
+        signed_index(
+            &repository,
+            2,
+            &[
+                (AUTOMATIC, "1.1.0", same.as_slice()),
+                (MANUAL, "1.1.0", manual.as_slice()),
+            ],
+        ),
+    );
+    for _ in 0..2 {
+        let (status, body) = post_json(
+            &router,
+            "/api/v1/plugins/repositories/refresh",
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+    }
+
+    let deliveries = harness
+        .database
+        .list_notification_deliveries(100)
+        .await
+        .expect("deliveries");
+    assert_eq!(deliveries.len(), 2, "{deliveries:?}");
+    let event = |event: rd_notify::NotificationEvent| {
+        deliveries
+            .iter()
+            .find(|delivery| delivery.event == event)
+            .unwrap_or_else(|| panic!("no {event:?} in {deliveries:?}"))
+    };
+    let failed = event(rd_notify::NotificationEvent::PluginUpdateFailed);
+    assert!(failed.title.contains("1.1.0"), "{failed:?}");
+    let waiting = event(rd_notify::NotificationEvent::PluginUpdateAvailable);
+    assert!(waiting.body.contains("1.0.0"), "{waiting:?}");
 }
 
 /// Crash and restart of an automatic update after its version folder exists (RD-180-12,

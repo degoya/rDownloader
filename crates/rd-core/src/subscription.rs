@@ -40,6 +40,13 @@ pub const MIN_POLL_INTERVAL_SECONDS: u32 = 300;
 /// Half an hour. A release page appears once and stays; asking every five minutes finds the
 /// same page 359 times out of 360 and reads like a crawler to the server that serves it.
 pub const SITE_RULE_MIN_POLL_INTERVAL_SECONDS: u32 = 1_800;
+/// Shortest poll interval for a git-release subscription (RD-190-13).
+///
+/// A quarter of an hour. GitHub allows sixty requests an hour to a caller without a token,
+/// counted per address and including the `304` of an unchanged list, so five minutes would
+/// spend a fifth of that on one repository. Releases are rare; nobody misses one by fifteen
+/// minutes.
+pub const GIT_RELEASE_MIN_POLL_INTERVAL_SECONDS: u32 = 900;
 /// Longest poll interval, so a subscription cannot be configured into never running.
 pub const MAX_POLL_INTERVAL_SECONDS: u32 = 7 * 24 * 60 * 60;
 /// Default interval for a new subscription.
@@ -77,6 +84,9 @@ pub enum SubscriptionKind {
     /// It starts code on the machine, so only the administrator may create or change one,
     /// and no road that moves configuration in bulk -- MCP, import, backup -- carries it.
     Script,
+    /// The releases of a GitHub or GitLab repository, read through the forge's API
+    /// (RD-190-13); every release asset the options select is one item.
+    GitRelease,
 }
 
 impl SubscriptionKind {
@@ -90,6 +100,7 @@ impl SubscriptionKind {
     pub const fn min_interval_seconds(self) -> u32 {
         match self {
             Self::SiteRule => SITE_RULE_MIN_POLL_INTERVAL_SECONDS,
+            Self::GitRelease => GIT_RELEASE_MIN_POLL_INTERVAL_SECONDS,
             _ => MIN_POLL_INTERVAL_SECONDS,
         }
     }
@@ -339,6 +350,10 @@ pub struct Subscription {
     /// every other kind.
     #[serde(default)]
     pub indexer_search: crate::IndexerSearch,
+    /// Which assets a git-release subscription downloads (RD-190-13). Empty for every other
+    /// kind.
+    #[serde(default)]
+    pub git_release: crate::GitReleaseOptions,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -450,6 +465,7 @@ mod tests {
             schedule: None,
             script_arguments: Vec::new(),
             indexer_search: crate::IndexerSearch::default(),
+            git_release: crate::GitReleaseOptions::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

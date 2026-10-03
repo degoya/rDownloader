@@ -34,7 +34,7 @@ fn package() -> IndexPackage {
         name: "Fixture".to_owned(),
         version: "1.2.3".to_owned(),
         plugin_type: PluginType::Resolver,
-        api_version: "0.9.0".to_owned(),
+        api_version: "0.10.0".to_owned(),
         min_app_version: Some("1.4.0".to_owned()),
         package_digest: DIGEST.to_owned(),
         size: 4096,
@@ -91,7 +91,7 @@ fn a_signed_index_verifies_and_yields_its_packages() {
     assert_eq!(verified.sequence, 5);
     assert_eq!(verified.packages.len(), 1);
     let entry = &verified.packages[0];
-    assert_eq!(entry.contract(), "rdownloader:plugin@0.9.0");
+    assert_eq!(entry.contract(), "rdownloader:plugin@0.10.0");
     assert_eq!(
         format_package_digest(&entry.digest().expect("digest")),
         DIGEST

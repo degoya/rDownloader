@@ -57,7 +57,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the saved versions of one automation (id from list_automations): version number, trigger, condition, actions and when each was saved."
+        description = "List the saved versions of one automation (id from list_automations): version number, trigger, condition, actions and when each was saved. To restore an older version, pass its trigger, condition and actions to update_automation, which saves them as a new version."
     )]
     pub async fn list_automation_versions(
         &self,

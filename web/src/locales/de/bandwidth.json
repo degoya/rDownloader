@@ -103,5 +103,19 @@
     "windows_title": "Zeitfenster",
     "days_label": "Tage",
     "duplicate_hint": "Legt eine Kopie des Fensters direkt darunter an; gespeichert wird mit dem Zeitplan"
+  },
+  "manual": {
+    "profile": "Profil",
+    "ends": "Gilt",
+    "switch": "Umschalten",
+    "no_limits": "Keine Limits",
+    "until_next_switch": "Bis zum nächsten Wechsel im Zeitplan",
+    "for_1h": "Für 1 Stunde",
+    "for_3h": "Für 3 Stunden",
+    "until_back": "Bis ich zurückschalte",
+    "source_schedule": "Vom Zeitplan gewählt",
+    "source_manual_until": "Von Hand gewählt, bis {time}",
+    "source_manual_open": "Von Hand gewählt, bis du zurückschaltest",
+    "back_to_schedule": "Zurück zum Zeitplan"
   }
 }

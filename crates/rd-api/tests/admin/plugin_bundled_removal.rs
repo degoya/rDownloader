@@ -19,7 +19,7 @@ fn checksums_manifest() -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "postprocess"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-0000000180e2"
 name = "Bundle Checksums"
 version = "1.0.0"

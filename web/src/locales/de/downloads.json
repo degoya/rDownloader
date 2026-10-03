@@ -16,7 +16,15 @@
     "all": "Alle",
     "active": "Aktiv",
     "queued": "Wartend",
-    "completed": "Fertig"
+    "completed": "Fertig",
+    "paused": "Pausiert",
+    "failed": "Fehlgeschlagen",
+    "seeding": "Seedet",
+    "search_label": "Downloads nach Paket- oder Dateinamen durchsuchen",
+    "search_placeholder": "Paket oder Datei",
+    "no_match_title": "Nichts passt zu Filter und Suche",
+    "no_match_hint": "Die Warteschlange ist nicht leer – setz den Filter zurück, um alles zu sehen.",
+    "reset": "Filter zurücksetzen"
   },
   "toolbar": {
     "speed_limit_title": "Globales Geschwindigkeitslimit (leer = unbegrenzt)",
@@ -240,7 +248,8 @@
       "remux": "Remuxen",
       "plugin_step": "Plugin-Schritt",
       "script": "Skript",
-      "upload": "Upload"
+      "upload": "Upload",
+      "malware_scan": "Virenprüfung"
     },
     "states": {
       "queued": "wartend",
@@ -264,7 +273,8 @@
       "extracting": "Entpacke",
       "deleting_archives": "Lösche Archive",
       "cleaning": "Räume auf",
-      "script": "Skript läuft"
+      "script": "Skript läuft",
+      "scanning": "Prüfe auf Schadsoftware"
     },
     "queue": {
       "title": "Nachbearbeitung",
@@ -293,8 +303,8 @@
     "variant": "Variante:",
     "open_page": "Medienseite öffnen"
   },
-  "free_download": "Free/Direkt",
-  "free_download_hint": "Kein Providerkonto – die Datei wird als Free-/Direktdownload geladen",
+  "free_download": "Gratis/Direkt",
+  "free_download_hint": "Kein Providerkonto – die Datei wird als Gratis-/Direktdownload geladen",
   "capacity": {
     "title": "„{name}“ hat keinen Platz mehr",
     "description": "{free} frei, {required} nötig. Downloads für dieses Ziel sind angehalten; alle anderen Ziele laufen weiter.",
@@ -392,5 +402,25 @@
     "delete_partial": "Auch teilweise heruntergeladene Dateien löschen",
     "delete_partial_hint": "Kann nicht rückgängig gemacht werden: unfertige Torrent-Daten und Fragmente neben der Zieldatei. Unvollständige Dateien im Staging-Ordner werden immer entfernt.",
     "confirm": "Liste leeren"
+  },
+  "pause": {
+    "menu_aria": "Für eine Weile pausieren",
+    "for_30m": "30 Minuten pausieren",
+    "for_1h": "1 Stunde pausieren",
+    "for_3h": "3 Stunden pausieren",
+    "until": "Pausieren bis …",
+    "until_title": "Pausieren bis",
+    "until_hint": "Die Downloads laufen zu dieser Uhrzeit von selbst weiter – heute oder, wenn sie schon vorbei ist, morgen.",
+    "until_time": "Uhrzeit",
+    "confirm": "Pausieren",
+    "paused_until": "Pausiert bis {time}",
+    "remaining_title": "Die Warteschlange läuft in {duration} weiter. Klicke, um sofort fortzusetzen.",
+    "resume_now": "Jetzt fortsetzen",
+    "notice_paused": "Warteschlange pausiert bis {time}"
+  },
+  "kill_switch": {
+    "title": "Torrents vom Kill-Switch angehalten",
+    "description": "Das gebundene Interface {name} ist weg. Die Torrents bleiben angehalten, bis es zurückkommt; andere Downloads laufen weiter.",
+    "open": "Netzwerkstatus"
   }
 }

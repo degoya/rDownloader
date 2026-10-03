@@ -6,7 +6,8 @@
     "feed": "Flux ou podcast",
     "indexer": "Indexeur",
     "site_rule": "Page de releases",
-    "script": "Script personnel"
+    "script": "Script personnel",
+    "git_release": "Versions GitHub/GitLab"
   },
   "modes": {
     "review": "Vérifier d'abord",
@@ -30,7 +31,8 @@
     "too_old": "Publié avant la date limite",
     "language_not_wanted": "La langue ne fait pas partie de celles souhaitées",
     "resolution_too_low": "En dessous de la résolution minimale",
-    "backlog": "Existait déjà lors de l'activation de l'abonnement"
+    "backlog": "Existait déjà lors de l'activation de l'abonnement",
+    "asset_not_wanted": "Le fichier ne correspond pas aux plateformes, architectures ou motifs de nom"
   },
   "form": {
     "add": "Ajouter un abonnement",
@@ -96,7 +98,27 @@
     "search_pretime": "Filtre de pré-temps (pred)",
     "search_pretime_description": "Envoyé à l’indexeur comme pred ; l’indexeur définit ce que signifient 0, 1 et 2",
     "pretime_none": "Ne pas envoyer",
-    "search_hide_passworded": "Masquer les sorties avec mot de passe (pw=2)"
+    "search_hide_passworded": "Masquer les sorties avec mot de passe (pw=2)",
+    "git_url_description": "L'adresse du dépôt, par ex. https://github.com/proprietaire/nom ou https://gitlab.com/groupe/projet.",
+    "git_forge": "Service",
+    "git_forge_description": "Reconnu pour github.com et gitlab.com ; à préciser ici pour un serveur auto-hébergé.",
+    "git_forges": {
+      "auto": "D'après l'adresse",
+      "github": "GitHub (Enterprise Server inclus)",
+      "gitlab": "GitLab"
+    },
+    "git_platforms": "Plateformes",
+    "git_platforms_description": "Uniquement les fichiers pour ces systèmes, reconnus au nom ou à l'extension (.exe, .dmg, .deb …). Vide signifie tous.",
+    "git_architectures": "Architectures",
+    "git_architectures_description": "Les fichiers sans architecture dans le nom, comme les images macOS universelles, comptent toujours. Vide signifie toutes.",
+    "git_all": "Toutes",
+    "git_asset_patterns": "Motifs de nom de fichier",
+    "git_asset_patterns_description": "Séparés par des virgules, * et ? comme jokers, par ex. *.AppImage. Vide signifie tous.",
+    "git_prereleases": "Télécharger les préversions",
+    "git_source_archives": "Télécharger les archives des sources",
+    "git_token": "Jeton",
+    "git_token_hint": "Uniquement pour les dépôts privés, et le droit minimal suffit : sur GitHub un jeton fine-grained avec « Contents: read », sur GitLab « read_api ». Stocké chiffré et jamais réaffiché.",
+    "git_token_keep": "Laisser vide pour conserver le jeton enregistré"
   },
   "list": {
     "title": "Abonnements",

@@ -92,11 +92,27 @@ pub async fn revoke_other_sessions(
     ))
 }
 
+/// What a sign-out answers.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct LogoutResponse {
+    pub message: String,
+    pub code: String,
+    /// Kept from the answer this replaced (`MessageResponse`), so a client of 1.8 reads the same
+    /// shape; a sign-out has no parameters, so it is always empty and never serialised.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub params: rd_api_core::error::MessageParams,
+    /// Where to send the browser to sign out at the identity provider as well: present only when
+    /// *sign out at the provider too* is on (D5, RD-190-15). The local session is already ended
+    /// when this is handed out, so not following it leaves nothing signed in here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_logout_url: Option<String>,
+}
+
 #[utoipa::path(
     post,
     path = "/api/v1/auth/logout",
     tag = "security",
-    responses((status = 200, body = MessageResponse))
+    responses((status = 200, body = LogoutResponse))
 )]
 pub async fn logout(
     State(state): State<AppState>,
@@ -112,13 +128,31 @@ pub async fn logout(
         .await
         .map(|session| session.id);
     state.auth.logout(&state, &headers).await?;
+    // Only for a caller that had a session: an anonymous request to this public route learns
+    // nothing about the provider from it.
+    let provider_logout_url = match session {
+        Some(_) => crate::oidc_handlers::provider_logout_url(&state).await,
+        None => None,
+    };
     let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::Logout).by(&audit);
+    // The route is public, so no middleware named the actor: the session that ended is it.
     if let Some(id) = session {
-        event = event.target("session", id);
+        event = event
+            .actor(crate::audit::Actor::session(id.to_string()))
+            .target("session", id);
+    }
+    if provider_logout_url.is_some() {
+        event = event.detail("provider", true);
     }
     crate::audit::record(&state, event).await;
     let expired = crate::AuthService::expired_cookie(state.proxy.read().await.base_path());
-    let mut response = Json(MessageResponse::new("auth.logged_out", "Signed out")).into_response();
+    let mut response = Json(LogoutResponse {
+        message: "Signed out".to_owned(),
+        code: "auth.logged_out".to_owned(),
+        params: rd_api_core::error::MessageParams::default(),
+        provider_logout_url,
+    })
+    .into_response();
     response.headers_mut().insert(
         axum::http::header::SET_COOKIE,
         // A base path that is no header value could not have carried the sign-in cookie

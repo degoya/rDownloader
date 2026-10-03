@@ -142,14 +142,16 @@ pub(crate) async fn add_import(
         source_path: new.source_path,
         error: None,
         duplicate: false,
+        // The answer carries the value it was given; the row gets a vault reference from
+        // `Database::add_nzb_import` once it exists (RD-190-04).
         has_password: new.password.is_some(),
         password: new.password.clone(),
         position,
         created_at: Utc::now(),
     };
     sqlx::query(
-        "INSERT INTO nzb_imports (id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, password, position, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO nzb_imports (id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, position, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(import.id.to_string())
     .bind(&import.name)
@@ -162,7 +164,6 @@ pub(crate) async fn add_import(
     .bind(import.priority.map(|value| i64::from(value.as_i32())))
     .bind(enum_string(import.import_mode)?)
     .bind(&import.source_path)
-    .bind(&new.password)
     .bind(import.position)
     .bind(import.created_at)
     .bind(import.created_at)
@@ -657,7 +658,7 @@ async fn get_by_id_connection(
         .transpose()
 }
 
-const IMPORT_SELECT: &str = "SELECT id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, last_error, password IS NOT NULL AS has_password, password, position, created_at FROM nzb_imports";
+const IMPORT_SELECT: &str = "SELECT id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, last_error, password_ref IS NOT NULL AS has_password, position, created_at FROM nzb_imports";
 
 #[derive(FromRow)]
 struct NzbImportRow {
@@ -674,7 +675,6 @@ struct NzbImportRow {
     source_path: Option<String>,
     last_error: Option<String>,
     has_password: i64,
-    password: Option<String>,
     position: i64,
     created_at: DateTime<Utc>,
 }
@@ -701,7 +701,8 @@ impl TryFrom<NzbImportRow> for NzbImport {
             error: row.last_error,
             duplicate: false,
             has_password: row.has_password != 0,
-            password: row.password,
+            // In the vault (RD-190-04); revealed for the answers that show it.
+            password: None,
             position: row.position,
             created_at: row.created_at,
         })

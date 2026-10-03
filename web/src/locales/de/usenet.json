@@ -87,6 +87,14 @@
       "updated": "Indexer gespeichert",
       "deleted": "{name} gelöscht",
       "tested": "{server} antwortet: {count} Kategorien"
+    },
+    "list_style": "Listenstil der Suche",
+    "list_style_hint": "Wie die Treffer dieses Indexers in der Suche im LinkGrabber erscheinen.",
+    "list_styles": {
+      "compact": "Kompakt",
+      "compact_hint": "Eine Zeile je Treffer: Titel, Größe, Alter, Kategorie.",
+      "detailed": "Ausführlich",
+      "detailed_hint": "Zusätzlich ein kleines Cover und die Angaben, die der Indexer mitliefert: Jahr, Genre, IMDb-Bewertung, Sprache, Auflösung, Kurzbeschreibung."
     }
   }
 }

@@ -103,5 +103,19 @@
     "windows_title": "Plages horaires",
     "days_label": "Jours",
     "duplicate_hint": "Ajoute une copie de la fenêtre juste en dessous ; elle est enregistrée avec le planning"
+  },
+  "manual": {
+    "profile": "Profil",
+    "ends": "Valable",
+    "switch": "Basculer",
+    "no_limits": "Aucune limite",
+    "until_next_switch": "Jusqu’au prochain basculement du planning",
+    "for_1h": "Pendant 1 heure",
+    "for_3h": "Pendant 3 heures",
+    "until_back": "Jusqu’à ce que je revienne",
+    "source_schedule": "Choisi par le planning",
+    "source_manual_until": "Choisi à la main, jusqu’à {time}",
+    "source_manual_open": "Choisi à la main, jusqu’à ce que vous reveniez",
+    "back_to_schedule": "Revenir au planning"
   }
 }

@@ -111,7 +111,6 @@ pub(crate) struct PackageRow {
     priority: i64,
     position: i64,
     has_password: i64,
-    password: Option<String>,
     kind: String,
     nzb_import_id: Option<String>,
     postprocess_level: Option<String>,
@@ -201,7 +200,9 @@ impl TryFrom<PackageRow> for DownloadPackage {
             ),
             position: row.position,
             has_password: row.has_password != 0,
-            password: row.password,
+            // In the vault (RD-190-04); `Database::reveal_archive_passwords` fills it for the
+            // answers that show it.
+            password: None,
             kind: parse_kind(&row.kind),
             nzb_import_id: row.nzb_import_id.as_deref().map(parse_id).transpose()?,
             completed_at: row.completed_at,
@@ -303,7 +304,7 @@ pub(crate) const PACKAGE_ORDER: &str =
 
 pub(crate) const PACKAGE_COLUMNS: &str = "SELECT packages.id, packages.name, packages.state, packages.destination, packages.created_at, \
      packages.category_id, packages.priority, packages.position, \
-     packages.password IS NOT NULL AS has_password, packages.password, packages.kind, \
+     packages.password_ref IS NOT NULL AS has_password, packages.kind, \
      packages.nzb_import_id, \
      packages.postprocess_level, packages.script, packages.postprocess_stage, \
      packages.postprocess_percent, packages.postprocess_current, packages.extraction_result, \

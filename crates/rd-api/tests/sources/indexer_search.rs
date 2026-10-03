@@ -70,6 +70,11 @@ fn results(base: &str, key: &str) -> String {
       <newznab:attr name="category" value="5040"/>
       <newznab:attr name="grabs" value="12"/>
       <newznab:attr name="password" value="1"/>
+      <newznab:attr name="coverurl" value="{base}/covers/abc.jpg"/>
+      <newznab:attr name="imdbyear" value="2026"/>
+      <newznab:attr name="genre" value="Drama"/>
+      <newznab:attr name="imdbscore" value="7.5"/>
+      <newznab:attr name="imdbplot" value="Somebody does something."/>
     </item>
     <item>
       <title>Some.Show.S01E02.720p</title>
@@ -77,6 +82,7 @@ fn results(base: &str, key: &str) -> String {
       <enclosure url="{base}/getnzb?id=def&amp;apikey={key}" length="700000"
                  type="application/x-nzb"/>
       <newznab:attr name="category" value="5030"/>
+      <newznab:attr name="coverurl" value="{base}/covers/{key}/def.jpg"/>
     </item>
   </channel>
 </rss>"#
@@ -198,6 +204,8 @@ async fn an_indexer_is_defined_edited_and_removed_without_its_key_ever_coming_ba
     assert_no_key(&created);
     assert_eq!(created["has_secret"], true);
     assert_eq!(created["categories"], json!(["5040"]));
+    // RD-190-16: a new indexer's hits are drawn compact unless it asks otherwise.
+    assert_eq!(created["list_style"], "compact");
     let id = created["id"].as_str().expect("id");
 
     let (status, duplicate) = post_json(
@@ -213,12 +221,18 @@ async fn an_indexer_is_defined_edited_and_removed_without_its_key_ever_coming_ba
     let (status, edited) = put_json(
         &router,
         &format!("/api/v1/indexers/{id}"),
-        json!({ "name": "Renamed", "url": format!("{base}/api"), "enabled": false }),
+        json!({
+            "name": "Renamed",
+            "url": format!("{base}/api"),
+            "enabled": false,
+            "list_style": "detailed",
+        }),
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{edited}");
     assert_eq!(edited["name"], "Renamed");
     assert_eq!(edited["enabled"], false);
+    assert_eq!(edited["list_style"], "detailed");
     assert_eq!(edited["has_secret"], true);
     let (status, caps) =
         post_json(&router, &format!("/api/v1/indexers/{id}/caps"), json!({})).await;
@@ -228,6 +242,14 @@ async fn an_indexer_is_defined_edited_and_removed_without_its_key_ever_coming_ba
     let (_, listed) = get_json(&router, "/api/v1/indexers").await;
     assert_no_key(&listed);
     assert_eq!(listed.as_array().expect("list").len(), 1);
+    assert_eq!(listed[0]["list_style"], "detailed");
+    let (status, refused) = put_json(
+        &router,
+        &format!("/api/v1/indexers/{id}"),
+        json!({ "name": "Renamed", "url": format!("{base}/api"), "list_style": "cards" }),
+    )
+    .await;
+    assert!(status.is_client_error(), "{status} {refused}");
 
     let (status, _) = delete_json(&router, &format!("/api/v1/indexers/{id}")).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
@@ -294,6 +316,20 @@ async fn a_search_sends_its_parameters_once_and_answers_hits_without_the_key() {
         "{first}"
     );
     assert_eq!(hits[1]["passworded"], false);
+    // RD-190-16: the detailed row's facts and the cover come with the hit; a cover whose
+    // address carries the key does not.
+    assert_eq!(first["cover_url"], format!("{base}/covers/abc.jpg"));
+    assert_eq!(
+        first["metadata"],
+        json!({
+            "year": "2026",
+            "genre": "Drama",
+            "imdbscore": "7.5",
+            "description": "Somebody does something.",
+        })
+    );
+    assert!(hits[1].get("cover_url").is_none(), "{}", hits[1]);
+    assert!(hits[1].get("metadata").is_none(), "{}", hits[1]);
     let outcome = &answer["indexers"][0];
     assert_eq!(outcome["returned"], 2);
     assert_eq!(outcome["total"], 2);

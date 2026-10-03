@@ -62,7 +62,14 @@
       "signature": "Signatur, Schlüssel, Herausgeber, Vertrauen",
       "managed_tools": "Werkzeuge herunterladen, automatisch installieren, aktualisieren",
       "updates": "Update, Aktualisierung, neue Version, Beta, Versionskanal",
-      "indexers": "Indexer, Newznab, NZB-Suche, API-Schlüssel"
+      "indexers": "Indexer, Newznab, NZB-Suche, API-Schlüssel, Listenstil, Cover"
     }
+  },
+  "connection": {
+    "lost": "Verbindung zum Dienst unterbrochen",
+    "lost_hint": "Die Anzeige aktualisiert sich wieder, sobald der Dienst erreichbar ist.",
+    "view_failed": "Diese Ansicht konnte nicht geladen werden",
+    "view_failed_hint": "Die Ansicht wird geladen, sobald der Dienst wieder erreichbar ist.",
+    "reload": "Neu laden"
   }
 }

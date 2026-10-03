@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 
+import { api } from '@/api/client'
 import type { StorageRoot } from '@/api/types'
 import routing from '@/locales/en/routing.json'
 import common from '@/locales/en/common.json'
@@ -39,7 +40,10 @@ const components = {
     props: ['title', 'description', 'color'],
     template: '<div :data-color="color">{{ title }} {{ description }}</div>'
   },
-  UFormField: passthrough,
+  UFormField: {
+    props: ['error'],
+    template: '<div><slot /><p v-if="error" data-testid="field-error">{{ error }}</p></div>'
+  },
   UBadge: passthrough,
   UIcon: { template: '<span />' }
 }
@@ -56,9 +60,9 @@ function root(overrides: Partial<StorageRoot> = {}): StorageRoot {
   }
 }
 
-function mount(roots: StorageRoot[]) {
+function mount(roots: StorageRoot[], props: Record<string, unknown> = {}) {
   return render(RoutingStorageRoots, {
-    props: { modelValue: roots },
+    props: { modelValue: roots, ...props },
     global: { plugins: [i18n], components }
   })
 }
@@ -96,5 +100,36 @@ describe('RoutingStorageRoots', () => {
 
     const toggle = screen.getByRole('switch') as HTMLInputElement
     expect(toggle.disabled).toBe(false)
+  })
+
+  it('offers the suggested name for the first root, so the required field is not empty', () => {
+    mount([], { suggestedName: 'Downloads', suggestedPath: '/srv/downloads' })
+
+    expect((screen.getByPlaceholderText(routing.root.name_placeholder) as HTMLInputElement).value).toBe('Downloads')
+  })
+
+  it('shows a path refusal under the path field and says what to pick for a protected one', async () => {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      error: { error: 'protected', code: 'storage_root.protected_directory', params: { directory: '/data' } }
+    } as never)
+    const { container } = mount([], { suggestedName: 'Downloads', suggestedPath: '/data/downloads' })
+
+    await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    await waitFor(() => expect(screen.getByTestId('field-error').textContent).toContain(routing.root.protected_hint))
+    expect(document.activeElement?.getAttribute('name')).toBe('path')
+  })
+
+  it('keeps a refusal that is not about the path above the form', async () => {
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    vi.mocked(api.POST).mockResolvedValueOnce({ error: { error: 'busy', code: 'storage_root.in_use' } } as never)
+    const { container } = mount([], { suggestedName: 'Downloads', suggestedPath: '/srv/downloads' })
+
+    await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    await waitFor(() => expect(screen.getByText(/rejected/)).toBeTruthy())
+    expect(screen.queryByTestId('field-error')).toBeNull()
+    expect(scrolled).toHaveBeenCalled()
   })
 })

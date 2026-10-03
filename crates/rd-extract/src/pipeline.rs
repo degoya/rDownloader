@@ -31,13 +31,18 @@ pub(crate) struct PlanInput<'a> {
     pub delete_par2: bool,
     /// Installed plugin steps to run, by plugin id and in the order they should run.
     pub plugin_steps: &'a [String],
+    /// Whether the package is scanned for malware (RD-190-14).
+    pub malware_scan: bool,
 }
 
 /// Order: PAR2 (Usenet only) → SFV → unpack → delete archives → delete PAR2 → cleanup →
-/// plugin steps → script → upload.
+/// malware scan → plugin steps → script → upload.
 ///
 /// Plugin steps come after cleanup and before scripts: by then the package is what it will
-/// finally be — unpacked and tidied — and a user script stays the last word, as it was.
+/// finally be — unpacked and tidied — and a user script stays the last word, as it was. The
+/// malware scan comes right before them (RD-190-14): what it scans is what will be kept, and
+/// nothing hands the package on before it has had its say. It runs at every level, `None`
+/// included — whether a package is scanned is its own switch, not a degree of unpacking.
 pub(crate) fn plan(input: &PlanInput<'_>) -> Vec<PlannedStep> {
     let mut steps = Vec::new();
     let mut position = 0_i64;
@@ -122,6 +127,13 @@ pub(crate) fn plan(input: &PlanInput<'_>) -> Vec<PlannedStep> {
             );
         }
     }
+    if input.malware_scan {
+        push(
+            PostprocessKind::MalwareScan,
+            crate::malware_scan::SCANNER.to_owned(),
+            PostprocessStage::Scanning,
+        );
+    }
     for plugin_id in input.plugin_steps {
         push(
             PostprocessKind::PluginStep,
@@ -194,6 +206,7 @@ mod tests {
             upload: Some("archive:releases"),
             delete_par2: false,
             plugin_steps: &steps,
+            malware_scan: false,
         })
         .into_iter()
         .map(|step| step.kind)
@@ -218,6 +231,73 @@ mod tests {
     }
 
     #[test]
+    fn the_malware_scan_runs_after_cleanup_and_before_anything_hands_the_package_on() {
+        // RD-190-14: what is scanned is what will be kept, and neither a plugin step, the user
+        // script nor the upload sees the package before the scan has had its say.
+        let files = files();
+        let sets = group_archive_sets(&files);
+        let steps = ["checksums".to_owned()];
+        let kinds: Vec<PostprocessKind> = plan(&PlanInput {
+            level: PostprocessLevel::Delete,
+            kind: DownloadKind::Usenet,
+            files: &files,
+            sets: &sets,
+            sfv: &[],
+            script: Some("done.sh"),
+            cleanup_enabled: true,
+            upload: Some("archive:releases"),
+            delete_par2: false,
+            plugin_steps: &steps,
+            malware_scan: true,
+        })
+        .into_iter()
+        .map(|step| step.kind)
+        .collect();
+        let at = |wanted: PostprocessKind| {
+            kinds
+                .iter()
+                .position(|kind| *kind == wanted)
+                .unwrap_or_else(|| panic!("{wanted:?} missing from {kinds:?}"))
+        };
+        let scan = at(PostprocessKind::MalwareScan);
+        assert!(at(PostprocessKind::Cleanup) < scan, "{kinds:?}");
+        assert!(scan < at(PostprocessKind::PluginStep), "{kinds:?}");
+        assert!(scan < at(PostprocessKind::Script), "{kinds:?}");
+        assert!(scan < at(PostprocessKind::Upload), "{kinds:?}");
+    }
+
+    #[test]
+    fn the_malware_scan_is_its_own_switch_and_not_a_level() {
+        // A package that is not unpacked is still scanned when the switch is on — clamd looks
+        // inside the archives — and none is scanned when it is off.
+        let files = files();
+        let sets = group_archive_sets(&files);
+        let kinds = |malware_scan| {
+            plan(&PlanInput {
+                level: PostprocessLevel::None,
+                kind: DownloadKind::Http,
+                files: &files,
+                sets: &sets,
+                sfv: &[],
+                script: None,
+                cleanup_enabled: true,
+                upload: None,
+                delete_par2: false,
+                plugin_steps: &[],
+                malware_scan,
+            })
+            .into_iter()
+            .map(|step| (step.kind, step.source))
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            kinds(true),
+            vec![(PostprocessKind::MalwareScan, "clamav".to_owned())]
+        );
+        assert!(kinds(false).is_empty());
+    }
+
+    #[test]
     fn plugin_steps_keep_the_order_they_were_enabled_in() {
         // The list is ordered, and running them in a different order than the one somebody
         // configured would make "first this, then that" impossible to express.
@@ -235,6 +315,7 @@ mod tests {
             upload: None,
             delete_par2: false,
             plugin_steps: &steps,
+            malware_scan: false,
         })
         .into_iter()
         .filter(|step| step.kind == PostprocessKind::PluginStep)
@@ -261,6 +342,7 @@ mod tests {
             upload: None,
             delete_par2: true,
             plugin_steps: &[],
+            malware_scan: false,
         })
         .into_iter()
         .map(|step| step.kind)
@@ -299,6 +381,7 @@ mod tests {
                 upload: None,
                 delete_par2: true,
                 plugin_steps: &[],
+                malware_scan: false,
             })
             .into_iter()
             .map(|step| step.kind)
@@ -325,6 +408,7 @@ mod tests {
             upload: None,
             delete_par2: false,
             plugin_steps: &[],
+            malware_scan: false,
         })
         .into_iter()
         .map(|step| step.kind)
@@ -348,6 +432,7 @@ mod tests {
                 upload: None,
                 delete_par2: false,
                 plugin_steps: &[],
+                malware_scan: false,
             })
             .into_iter()
             .map(|step| step.kind)
@@ -416,6 +501,7 @@ mod tests {
             upload: None,
             delete_par2: false,
             plugin_steps: &[],
+            malware_scan: false,
         });
         let kinds: Vec<PostprocessKind> = steps.iter().map(|step| step.kind).collect();
         assert_eq!(kinds[0], PostprocessKind::Par2);
@@ -442,6 +528,7 @@ mod tests {
                 upload: None,
                 delete_par2: false,
                 plugin_steps: &[],
+                malware_scan: false,
             })
             .into_iter()
             .map(|step| step.kind)
@@ -472,6 +559,7 @@ mod tests {
             upload: Some("remote:downloads"),
             delete_par2: false,
             plugin_steps: &[],
+            malware_scan: false,
         });
         let positions: Vec<i64> = steps.iter().map(|step| step.position).collect();
         assert_eq!(positions, (1..=positions.len() as i64).collect::<Vec<_>>());
@@ -492,6 +580,7 @@ mod tests {
             upload: Some("remote:downloads"),
             delete_par2: false,
             plugin_steps: &[],
+            malware_scan: false,
         });
         let last = steps.last().expect("steps");
         assert_eq!(last.kind, PostprocessKind::Upload);
@@ -508,6 +597,7 @@ mod tests {
             upload: Some("remote:downloads"),
             delete_par2: false,
             plugin_steps: &[],
+            malware_scan: false,
         });
         assert_eq!(
             only_upload.iter().map(|step| step.kind).collect::<Vec<_>>(),

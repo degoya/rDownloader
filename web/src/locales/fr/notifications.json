@@ -11,7 +11,14 @@
     "storage_blocked": "Stockage saturé",
     "budget_exhausted": "Quota de trafic épuisé",
     "captcha_waiting": "Captcha en attente",
-    "power_pending": "Action d'alimentation en attente"
+    "power_pending": "Action d'alimentation en attente",
+    "backup_failed": "Sauvegarde planifiée échouée",
+    "update_available": "Mise à jour de rDownloader disponible",
+    "plugin_update_available": "Mise à jour de plugin disponible",
+    "account_expiring": "Compte bientôt expiré",
+    "account_invalid": "Le compte ne se connecte plus",
+    "backup_verify_failed": "Vérification de la sauvegarde échouée",
+    "plugin_update_failed": "Mise à jour automatique de plugin échouée"
   },
   "severity": {
     "info": "Info et plus",

@@ -75,6 +75,7 @@ impl SourceAdapter for FeedAdapter {
                 etag: fetched.etag,
                 last_modified: fetched.last_modified,
                 not_modified: true,
+                paused_until: None,
             });
         };
         let base = fetched.final_url.as_ref().unwrap_or(&subscription.url);
@@ -103,6 +104,7 @@ impl SourceAdapter for FeedAdapter {
                     // release page, and reading names for it is RD-110-21's business alone.
                     release_key: None,
                     password: None,
+                    refused: None,
                 })
             })
             .collect();
@@ -111,6 +113,7 @@ impl SourceAdapter for FeedAdapter {
             etag: fetched.etag,
             last_modified: fetched.last_modified,
             not_modified: false,
+            paused_until: None,
         })
     }
 }
@@ -182,6 +185,7 @@ mod tests {
             schedule: None,
             script_arguments: Vec::new(),
             indexer_search: rd_core::IndexerSearch::default(),
+            git_release: rd_core::GitReleaseOptions::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

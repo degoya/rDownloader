@@ -65,7 +65,7 @@ pub(crate) struct IndexerGrabParams {
 #[tool_router(router = indexers_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the Newznab indexers defined in the web UI: id, name, address, default categories, whether it is enabled and whether a key is stored. The key itself is never included; indexers are defined and tested in the web UI only."
+        description = "List the Newznab indexers defined in the web UI: id, name, address, default categories, whether it is enabled, whether a key is stored, and its list_style (compact or detailed: how the web UI draws its hits). The key itself is never included; indexers are defined and tested in the web UI only."
     )]
     pub async fn list_indexers(&self) -> McpToolResult {
         respond(
@@ -76,7 +76,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Search one or every enabled indexer, one request per indexer and page (indexers cache and count requests, so do not repeat a search to wait for news). Answers the hits (title, size_bytes, published_at, category, grabs, passworded, indexer, download) and per indexer how many came, whether a next page may hold more, and a coded error when it refused (indexer.credentials_refused, indexer.query_rejected, indexer.limit_reached, ...). A term of one or two characters is refused as indexer.query_too_short."
+        description = "Search one or every enabled indexer, one request per indexer and page (indexers cache and count requests, so do not repeat a search to wait for news). Answers the hits (title, size_bytes, published_at, category, grabs, passworded, indexer, download, and when the indexer sent them metadata -- year, genre, imdbscore, language, resolution, description -- and cover_url) and per indexer how many came, whether a next page may hold more, and a coded error when it refused (indexer.credentials_refused, indexer.query_rejected, indexer.limit_reached, ...). A term of one or two characters is refused as indexer.query_too_short."
     )]
     pub async fn search_indexers(
         &self,

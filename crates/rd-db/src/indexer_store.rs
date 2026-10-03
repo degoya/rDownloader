@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, EventKind, Indexer, IndexerId};
+use rd_core::{EventEnvelope, EventKind, Indexer, IndexerId, IndexerListStyle};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
@@ -21,9 +21,12 @@ pub struct NewIndexer {
     pub secret_ref: Option<String>,
     pub categories: Vec<String>,
     pub enabled: bool,
+    /// How the LinkGrabber's search draws this indexer's hits (RD-190-16).
+    pub list_style: IndexerListStyle,
 }
 
-const COLUMNS: &str = "id, name, url, secret_ref, categories_json, enabled, created_at, updated_at";
+const COLUMNS: &str =
+    "id, name, url, secret_ref, categories_json, enabled, list_style, created_at, updated_at";
 
 const DUPLICATE: &str = "an indexer with this name already exists";
 
@@ -66,8 +69,8 @@ pub(crate) async fn create(
     let event = changed_event();
     let mut tx = connection.begin().await?;
     sqlx::query(
-        "INSERT INTO indexers (id, name, url, secret_ref, categories_json, enabled, created_at, \
-         updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO indexers (id, name, url, secret_ref, categories_json, enabled, list_style, \
+         created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(id.to_string())
     .bind(&input.name)
@@ -75,6 +78,7 @@ pub(crate) async fn create(
     .bind(input.secret_ref.as_deref())
     .bind(serde_json::to_string(&input.categories)?)
     .bind(input.enabled)
+    .bind(input.list_style.as_str())
     .bind(now)
     .bind(now)
     .execute(&mut *tx)
@@ -108,13 +112,14 @@ pub(crate) async fn update(
     let secret_ref = input.secret_ref.or(previous);
     sqlx::query(
         "UPDATE indexers SET name = ?, url = ?, secret_ref = ?, categories_json = ?, \
-         enabled = ?, updated_at = ? WHERE id = ?",
+         enabled = ?, list_style = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&input.name)
     .bind(input.url.as_str())
     .bind(secret_ref.as_deref())
     .bind(serde_json::to_string(&input.categories)?)
     .bind(input.enabled)
+    .bind(input.list_style.as_str())
     .bind(Utc::now())
     .bind(id.to_string())
     .execute(&mut *tx)
@@ -169,6 +174,7 @@ struct IndexerRow {
     secret_ref: Option<String>,
     categories_json: String,
     enabled: bool,
+    list_style: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -186,6 +192,7 @@ impl TryFrom<IndexerRow> for Indexer {
             categories: serde_json::from_str(&row.categories_json)
                 .context("indexer categories are unreadable")?,
             enabled: row.enabled,
+            list_style: IndexerListStyle::from_stored(&row.list_style),
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

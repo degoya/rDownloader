@@ -58,6 +58,21 @@ pub(crate) fn is_history(package: &DownloadPackage) -> bool {
     )
 }
 
+/// SABnzbd's category of a package: the name of its category, or `*` when it has none.
+///
+/// Reported as it is, because an automation client keeps only the queue and history entries
+/// whose category is the one it set on `addfile`; a fixed `*` hid every job it added.
+#[must_use]
+pub(crate) fn category<'a>(
+    package: &DownloadPackage,
+    categories: &'a [rd_core::Category],
+) -> &'a str {
+    categories
+        .iter()
+        .find(|category| Some(category.id) == package.category_id)
+        .map_or("*", |category| category.name.as_str())
+}
+
 /// Megabytes as SABnzbd writes them: a decimal string, never a number.
 #[must_use]
 pub(crate) fn megabytes(bytes: u64) -> String {

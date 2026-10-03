@@ -26,19 +26,14 @@ pub(crate) async fn enqueue_import(
     // `destination` is the category directory; the package gets its own folder below it.
     let now = Utc::now();
     let mut tx = connection.begin().await?;
-    let (name, category_id, password, state, stored_priority): (
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        Option<i64>,
-    ) = sqlx::query_as(
-        "SELECT name, category_id, password, state, priority FROM nzb_imports WHERE id = ?",
-    )
-    .bind(import_id.to_string())
-    .fetch_optional(&mut *tx)
-    .await?
-    .context(StoreError::not_found("NZB import not found"))?;
+    // The archive password is not carried here: `Database::enqueue_nzb_import` gives the
+    // package a vault entry of its own once the package exists (RD-190-04).
+    let (name, category_id, state, stored_priority): (String, Option<String>, String, Option<i64>) =
+        sqlx::query_as("SELECT name, category_id, state, priority FROM nzb_imports WHERE id = ?")
+            .bind(import_id.to_string())
+            .fetch_optional(&mut *tx)
+            .await?
+            .context(StoreError::not_found("NZB import not found"))?;
     // The priority picked during import wins; the argument stays the fallback for imports
     // created before the column existed.
     let priority =
@@ -69,8 +64,8 @@ pub(crate) async fn enqueue_import(
         .fetch_one(&mut *tx)
         .await?;
     sqlx::query(
-        "INSERT INTO packages (id, name, state, destination, category_id, priority, position, kind, nzb_import_id, password, created_at, updated_at) \
-         VALUES (?, ?, 'queued', ?, ?, ?, ?, 'usenet', ?, ?, ?, ?)",
+        "INSERT INTO packages (id, name, state, destination, category_id, priority, position, kind, nzb_import_id, created_at, updated_at) \
+         VALUES (?, ?, 'queued', ?, ?, ?, ?, 'usenet', ?, ?, ?)",
     )
     .bind(package_id.to_string())
     .bind(package_name)
@@ -79,7 +74,6 @@ pub(crate) async fn enqueue_import(
     .bind(priority.as_i32())
     .bind(position)
     .bind(import_id.to_string())
-    .bind(&password)
     .bind(now)
     .bind(now)
     .execute(&mut *tx)

@@ -79,15 +79,35 @@ impl Fixture {
 
 async fn fixture(start: DateTime<Utc>) -> Fixture {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = rd_db::Database::open(directory.path().join("poller.sqlite3"))
+    let script = Arc::new(CountingScript::default());
+    let time = Arc::new(Mutex::new(start));
+    let adapters: Vec<Arc<dyn SourceAdapter>> = vec![script.clone()];
+    let (service, database) = service_with(directory.path(), adapters, Arc::clone(&time)).await;
+    Fixture {
+        service,
+        database,
+        script,
+        time,
+        _directory: directory,
+    }
+}
+
+/// The poll loop over a real database in `directory`, polling with `adapters` by a clock that
+/// reads `time`.
+pub(super) async fn service_with(
+    directory: &std::path::Path,
+    adapters: Vec<Arc<dyn SourceAdapter>>,
+    time: Arc<Mutex<DateTime<Utc>>>,
+) -> (SubscriptionService, rd_db::Database) {
+    let database = rd_db::Database::open(directory.join("poller.sqlite3"))
         .await
         .expect("database");
-    let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
+    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
         .await
         .expect("secrets");
     let scheduler = rd_scheduler::SchedulerHandle::start(
         database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.path().join("downloads")),
+        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
         secrets.clone(),
         None,
         Vec::new(),
@@ -120,34 +140,24 @@ async fn fixture(start: DateTime<Utc>) -> Fixture {
             rd_torrent::shared_settings(&database)
                 .await
                 .expect("torrent settings"),
-            directory.path().join("torrent"),
-            directory.path().join("downloads"),
+            directory.join("torrent"),
+            directory.join("downloads"),
         ),
         rd_plugin_host::PluginInstaller::new(
-            directory.path().join("plugins"),
+            directory.join("plugins"),
             rd_plugin_host::PluginVerifier::new(true),
         ),
         scheduler.plugin_host(),
     );
-    let script = Arc::new(CountingScript::default());
-    let time = Arc::new(Mutex::new(start));
-    let clock_time = Arc::clone(&time);
-    let adapters: Vec<Arc<dyn SourceAdapter>> = vec![script.clone()];
     let service = SubscriptionService::start_with_clock(
         database.clone(),
         link_check,
         media_settings,
         gallery_settings,
         adapters,
-        Arc::new(move || *clock_time.lock().expect("clock")),
+        Arc::new(move || *time.lock().expect("clock")),
     );
-    Fixture {
-        service,
-        database,
-        script,
-        time,
-        _directory: directory,
-    }
+    (service, database)
 }
 
 fn daily_at_six() -> rd_db::NewSubscription {
@@ -172,6 +182,7 @@ fn daily_at_six() -> rd_db::NewSubscription {
         schedule: Some("0 6 * * *".to_owned()),
         script_arguments: Vec::new(),
         indexer_search: rd_core::IndexerSearch::default(),
+        git_release: rd_core::GitReleaseOptions::default(),
         secret_ref: None,
     }
 }

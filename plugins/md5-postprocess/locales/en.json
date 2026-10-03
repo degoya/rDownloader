@@ -4,6 +4,7 @@
   "codes": {
     "md5_postprocess.mismatch": "A file did not match its recorded MD5.",
     "md5_postprocess.missing": "None of the files an MD5 checksum file names is in the package.",
-    "md5_postprocess.empty": "An MD5 checksum file lists no checksum that could be read."
+    "md5_postprocess.empty": "An MD5 checksum file lists no checksum that could be read.",
+    "md5_postprocess.unchecked": "MD5 checksums matched, but {count} listed file(s) are not in this package and were not checked: {files}"
   }
 }

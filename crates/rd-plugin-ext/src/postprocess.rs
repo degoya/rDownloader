@@ -9,7 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rd_extract::{PluginStepJob, PluginStepOutcome, PluginStepRunner};
+use rd_extract::{PluginStepJob, PluginStepOutcome, PluginStepRunner, PluginStepWarning};
 use rd_plugin_api::ResolverHost;
 use rd_plugin_host::{
     PluginInstaller, PluginManifest, PluginType, PluginTypeRegistry,
@@ -120,11 +120,26 @@ impl PluginStepRunner for PluginSteps {
             job.directory.to_path_buf(),
             job.files.to_vec(),
         );
-        Ok(match step.plugin.run(source, job.checkpoint).await? {
-            StepOutcome::Complete { .. } => PluginStepOutcome::Complete,
-            StepOutcome::Stopped { checkpoint } => PluginStepOutcome::Stopped { checkpoint },
-            StepOutcome::Skipped => PluginStepOutcome::Skipped,
-            StepOutcome::Failed { message } => PluginStepOutcome::Failed { message },
-        })
+        Ok(
+            match step
+                .plugin
+                .run(source, job.removed.to_vec(), job.checkpoint)
+                .await?
+            {
+                StepOutcome::Complete { warnings, .. } => PluginStepOutcome::Complete {
+                    warnings: warnings
+                        .into_iter()
+                        .map(|warning| PluginStepWarning {
+                            code: warning.code,
+                            params: warning.params.into_iter().collect(),
+                            message: warning.message,
+                        })
+                        .collect(),
+                },
+                StepOutcome::Stopped { checkpoint } => PluginStepOutcome::Stopped { checkpoint },
+                StepOutcome::Skipped => PluginStepOutcome::Skipped,
+                StepOutcome::Failed { message } => PluginStepOutcome::Failed { message },
+            },
+        )
     }
 }

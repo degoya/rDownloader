@@ -87,6 +87,14 @@
       "updated": "Indexer saved",
       "deleted": "{name} deleted",
       "tested": "{server} answers: {count} categories"
+    },
+    "list_style": "Search list style",
+    "list_style_hint": "How this indexer's hits appear in the LinkGrabber's search.",
+    "list_styles": {
+      "compact": "Compact",
+      "compact_hint": "One line per hit: title, size, age, category.",
+      "detailed": "Detailed",
+      "detailed_hint": "Adds a small cover and what the indexer sends along: year, genre, IMDb rating, language, resolution, a short description."
     }
   }
 }

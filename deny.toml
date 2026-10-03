@@ -21,7 +21,9 @@ ignore = [
   # be useful. Disabling the feature removes the advisory but also drops ssh-rsa and
   # rsa-sha2-* host keys, which are still common on default sshd installations, so the
   # compatibility cost outweighs the exposure.
-  { id = "RUSTSEC-2023-0071", reason = "rsa via russh; Marvin targets private-key operations, which SSH host key verification does not perform. No safe upgrade is available." },
+  # openidconnect (RD-190-15) reaches the same rsa 0.9 to *verify* RS256/PS256 ID tokens — public
+  # key operations again; this service never signs or decrypts with RSA for a sign-in.
+  { id = "RUSTSEC-2023-0071", reason = "rsa via russh and openidconnect; Marvin targets private-key operations, which SSH host key verification and ID-token verification do not perform. No safe upgrade is available." },
 
   # The archived GTK3 bindings below, and proc-macro-error underneath them, are graph
   # artifacts rather than real dependencies: nothing here ever compiles them. rd-capture
@@ -167,6 +169,13 @@ skip = [
 
   # wasmtime 49 / cranelift 0.136 (rd-plugin-host).
   { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 49" },
+  # openidconnect 4.0 (rd-authn, RD-190-15) verifies EdDSA ID tokens with ed25519-dalek 2 and the
+  # previous RustCrypto line; the service's own Ed25519 (rd-sign) is on 3. They leave with an
+  # openidconnect release on ed25519-dalek 3.
+  { crate = "ed25519-dalek:2", reason = "openidconnect 4.0 (rd-authn)" },
+  { crate = "ed25519:2", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
+  { crate = "curve25519-dalek:4", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
+  { crate = "itertools:0.10", reason = "openidconnect 4.0 (rd-authn)" },
   # The wasm-tools line: wasmtime 49.0.1, the newest release, is on 0.258, the wit-bindgen 0.62
   # proc macro the plugin crates compile with on 0.259 (RD-160-08). The service ships 0.258 only;
   # 0.259 lives in the plugins' build. They leave when a wasmtime release moves to 0.259.

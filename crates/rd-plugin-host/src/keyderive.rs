@@ -288,7 +288,7 @@ fn decrypt_ecb(key: &[u8; BLOCK], data: &[u8]) -> Vec<u8> {
 }
 
 /// The interface name the guest imports, version and all.
-const INTERFACE: &str = "rdownloader:plugin/key-derivation@0.9.0";
+const INTERFACE: &str = "rdownloader:plugin/key-derivation@0.10.0";
 
 /// The guest's `secret-handle`.
 #[derive(wasmtime::component::ComponentType, wasmtime::component::Lift)]

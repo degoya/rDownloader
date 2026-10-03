@@ -52,7 +52,8 @@
     "ephemeral_title": "Stockage hors d'un volume monté",
     "ephemeral_description": "Ce chemin se trouve dans la couche inscriptible du conteneur ou sur un système de fichiers en mémoire. Tout ce qui s'y trouve est supprimé lorsque le conteneur est supprimé ou recréé. Montez un volume Docker sur ce chemin, ou choisissez-en un déjà monté.",
     "default_locked_hint": "La valeur par défaut ne peut pas être abandonnée tant qu'il s'agit de la seule racine de stockage.",
-    "form_new": "Nouvelle racine de stockage"
+    "form_new": "Nouvelle racine de stockage",
+    "protected_hint": "Choisissez un dossier en dehors du répertoire de données du service, par exemple un dossier de téléchargement dédié."
   },
   "category": {
     "eyebrow": "Carte des destinations",
@@ -142,7 +143,12 @@
     "subfolder_description": "Extraire chaque archive dans un dossier à part (hériter = réglage global).",
     "subfolder_inherit": "Hériter",
     "subfolder_on": "Activé",
-    "subfolder_off": "Désactivé"
+    "subfolder_off": "Désactivé",
+    "malware_scan_label": "Analyse antivirus (ClamAV)",
+    "malware_scan_description": "Faire analyser par ClamAV les paquets de cette catégorie (hériter = réglage global).",
+    "malware_scan_inherit": "Hériter",
+    "malware_scan_on": "Activé",
+    "malware_scan_off": "Désactivé"
   },
   "rule": {
     "eyebrow": "Classificateur",

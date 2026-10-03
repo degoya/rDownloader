@@ -4,6 +4,7 @@
   "codes": {
     "md5_postprocess.mismatch": "Un fichier ne correspondait pas à sa somme MD5 enregistrée.",
     "md5_postprocess.missing": "Aucun des fichiers cités dans un fichier de sommes MD5 ne se trouve dans le paquet.",
-    "md5_postprocess.empty": "Un fichier de sommes MD5 ne contient aucune somme lisible."
+    "md5_postprocess.empty": "Un fichier de sommes MD5 ne contient aucune somme lisible.",
+    "md5_postprocess.unchecked": "Les sommes MD5 correspondent, mais {count} fichier(s) listé(s) ne sont pas dans ce paquet et n'ont pas été vérifiés : {files}"
   }
 }

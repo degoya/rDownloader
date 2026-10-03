@@ -66,6 +66,14 @@ pub const BUNDLED_SECRET_COLUMNS: &[CopyColumn] = &[
     column("subscriptions", "secret_ref", "id"),
     column("auth_profiles", "secret_ref", "id"),
     column("auth_profiles", "certificate_ref", "id"),
+    column("indexers", "secret_ref", "id"),
+    // RD-190-04: archive passwords, sealed in the full backup's bundle under its own key (the
+    // settings export never carries them). They stay the last four: `restore_checks` pairs
+    // them with the bundle by their place at the end.
+    column("packages", "password_ref", "id"),
+    column("collector_packages", "password_ref", "id"),
+    column("nzb_imports", "password_ref", "id"),
+    column("subscription_items", "password_ref", "id"),
 ];
 
 /// References the bundle deliberately does not carry (the second factor, sign-in sessions,
@@ -77,7 +85,6 @@ pub const UNBUNDLED_SECRET_COLUMNS: &[CopyColumn] = &[
     column("remote_credentials", "passphrase_ref", "rowid"),
     column("object_storage_profiles", "secret_ref", "rowid"),
     column("object_storage_profiles", "session_token_ref", "rowid"),
-    column("indexers", "secret_ref", "rowid"),
     column("mfa_credentials", "material_ref", "rowid"),
     column("auth_flows", "access_ref", "rowid"),
     column("auth_flows", "refresh_ref", "rowid"),

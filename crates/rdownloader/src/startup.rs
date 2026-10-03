@@ -100,12 +100,51 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
             }
         }
     }
+    take_over_archive_passwords(&database, &data_directory).await;
     Ok(Store {
         data_directory,
         database,
         secrets,
         restore,
     })
+}
+
+/// Moves the archive passwords still in plain columns into the vault, before anything else
+/// reads or writes them, and then empties the old columns of the database copies beside it
+/// (RD-190-04).
+///
+/// A failure does not stop the start: the values stay where they were, nothing is lost, and the
+/// next start tries again. The copies are only scrubbed once the live database holds none.
+async fn take_over_archive_passwords(database: &Database, data_directory: &Path) {
+    match database.take_over_archive_passwords().await {
+        Ok(moved) => {
+            if moved > 0 {
+                tracing::info!(moved, "archive passwords moved into the vault");
+            }
+        }
+        Err(error) => {
+            tracing::error!(
+                %error,
+                code = "db.archive_password_takeover_failed",
+                "archive passwords stay in the database until the next start"
+            );
+            return;
+        }
+    }
+    for folder in [
+        rd_db::pre_migration::DIRECTORY,
+        rd_backup::pre_update::DIRECTORY,
+    ] {
+        let scrubbed =
+            rd_db::pre_migration::scrub_archive_passwords(&data_directory.join(folder)).await;
+        if scrubbed > 0 {
+            tracing::info!(
+                scrubbed,
+                folder,
+                "archive passwords removed from database copies"
+            );
+        }
+    }
 }
 
 /// The first start with a restored state completed: the previous installation, kept until

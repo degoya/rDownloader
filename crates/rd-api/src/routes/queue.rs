@@ -8,7 +8,7 @@ use utoipa::OpenApi;
 
 use crate::{
     AppState, download_handlers, download_sources, package_clear, package_handlers,
-    postprocess_handlers,
+    postprocess_handlers, queue_pause_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -29,6 +29,12 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/downloads/bulk",
             post(download_handlers::bulk_downloads),
+        )
+        .route(
+            "/api/v1/queue/pause",
+            get(queue_pause_handlers::get_queue_pause)
+                .put(queue_pause_handlers::pause_queue)
+                .delete(queue_pause_handlers::resume_queue),
         )
         .route(
             "/api/v1/downloads/extract",
@@ -116,6 +122,10 @@ pub(crate) fn routes() -> Router<AppState> {
             get(postprocess_handlers::list_upload_destinations),
         )
         .route(
+            "/api/v1/postprocess/malware-scanner/test",
+            post(postprocess_handlers::test_malware_scanner),
+        )
+        .route(
             "/api/v1/categories/{id}/postprocess",
             axum::routing::patch(postprocess_handlers::update_category_postprocess),
         )
@@ -143,6 +153,9 @@ pub(crate) fn routes() -> Router<AppState> {
     download_handlers::delete_download,
     download_handlers::rename_download,
     download_handlers::bulk_downloads,
+    queue_pause_handlers::get_queue_pause,
+    queue_pause_handlers::pause_queue,
+    queue_pause_handlers::resume_queue,
     download_handlers::extract_downloads,
     package_handlers::update_package,
     package_handlers::bulk_update_packages,
@@ -160,6 +173,7 @@ pub(crate) fn routes() -> Router<AppState> {
     postprocess_handlers::list_postprocess_scripts,
     postprocess_handlers::list_plugin_steps,
     postprocess_handlers::list_upload_destinations,
+    postprocess_handlers::test_malware_scanner,
     postprocess_handlers::update_category_postprocess,
     download_handlers::set_download_auth_profile,
     download_sources::list_download_sources,

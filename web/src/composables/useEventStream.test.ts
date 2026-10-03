@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { GRACE_MS, reportServiceReachable, resetServiceConnection, serviceConnection } from '@/composables/serviceConnection'
 import {
   resetEventStream,
   resumeEventStream,
@@ -64,6 +65,7 @@ describe('useEventStream', () => {
 
   afterEach(() => {
     resetEventStream()
+    resetServiceConnection()
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
@@ -238,5 +240,42 @@ describe('useEventStream', () => {
     window.dispatchEvent(new Event('online'))
 
     expect(FakeEventSource.instances).toHaveLength(1)
+  })
+
+  it('reports the stream breaking off and coming back to the connection state', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+    const first = FakeEventSource.instances[0]
+    first?.open()
+    expect(serviceConnection.value).toBe('connected')
+
+    first?.fail()
+    vi.advanceTimersByTime(GRACE_MS)
+    expect(serviceConnection.value).toBe('disconnected')
+
+    // The backoff's own retry opens a new stream; its open is the way back.
+    vi.advanceTimersByTime(1_000)
+    FakeEventSource.instances[1]?.open()
+    expect(serviceConnection.value).toBe('connected')
+  })
+
+  it('opens a stream waiting out its backoff as soon as a request is answered again', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+    FakeEventSource.instances[0]?.fail()
+    vi.advanceTimersByTime(GRACE_MS)
+    expect(FakeEventSource.instances).toHaveLength(2)
+    FakeEventSource.instances[1]?.fail()
+    vi.advanceTimersByTime(GRACE_MS)
+
+    reportServiceReachable()
+
+    expect(FakeEventSource.instances).toHaveLength(3)
+  })
+
+  it('says nothing about the service while there is no session', () => {
+    subscribeEvents({ 'a.changed': () => {} })
+    FakeEventSource.instances[0]?.fail()
+    suspendEventStream()
+    vi.advanceTimersByTime(GRACE_MS)
+    expect(serviceConnection.value).toBe('connected')
   })
 })

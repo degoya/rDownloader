@@ -26,9 +26,9 @@ wasmtime::component::bindgen!({
     imports: { default: async },
     exports: { default: async },
     with: {
-        "rdownloader:plugin/types@0.9.0": crate::component::rdownloader::plugin::types,
-        "rdownloader:plugin/host@0.9.0": crate::component::rdownloader::plugin::host,
-        "rdownloader:plugin/http@0.9.0": crate::component::rdownloader::plugin::http,
+        "rdownloader:plugin/types@0.10.0": crate::component::rdownloader::plugin::types,
+        "rdownloader:plugin/host@0.10.0": crate::component::rdownloader::plugin::host,
+        "rdownloader:plugin/http@0.10.0": crate::component::rdownloader::plugin::http,
     },
 });
 

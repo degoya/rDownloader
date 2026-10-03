@@ -86,7 +86,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List downloads with optional state/package/name filters, paginated. Poll this or get_status_summary to observe progress."
+        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress."
     )]
     pub async fn list_downloads(
         &self,
@@ -110,7 +110,19 @@ impl RdMcpServer {
                 .map(str::to_lowercase)
                 .filter(|needle| !needle.is_empty())
             {
-                rows.retain(|file| file.file_name.to_lowercase().contains(&needle));
+                let packages: std::collections::HashSet<rd_core::PackageId> = self
+                    .state
+                    .database
+                    .list_packages()
+                    .await?
+                    .into_iter()
+                    .filter(|package| package.name.to_lowercase().contains(&needle))
+                    .map(|package| package.id)
+                    .collect();
+                rows.retain(|file| {
+                    packages.contains(&file.package_id)
+                        || file.file_name.to_lowercase().contains(&needle)
+                });
             }
             Ok(paginate(
                 rows,

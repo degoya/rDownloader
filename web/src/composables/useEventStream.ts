@@ -10,6 +10,12 @@
  */
 
 import { withBase } from '@/basePath'
+import {
+  onServiceReconnected,
+  reportServiceReachable,
+  reportServiceUnreachable,
+  resetServiceConnection
+} from '@/composables/serviceConnection'
 
 type StreamListener = (event: MessageEvent) => void
 
@@ -112,6 +118,7 @@ function open(): void {
   for (const name of listeners.keys()) bind(name)
   stream.onopen = () => {
     attempt = 0
+    reportServiceReachable()
     if (!resync) return
     resync = false
     dispatchLagged(new MessageEvent(RESUMED_EVENT, { data: '{}' }))
@@ -123,6 +130,9 @@ function open(): void {
       stream.close()
       return
     }
+    // Whether the browser retries or gave up, the stream is down: the sidebar says so, and the
+    // next open (or any answered request) says it is back.
+    reportServiceUnreachable()
     // While the browser is still reconnecting on its own, it is the one doing the resume: it
     // sends `Last-Event-ID` and waits the `retry:` the service asked for, and only an
     // `EventSource` that reconnects by itself carries the id — a new one starts from nothing.
@@ -191,6 +201,7 @@ export function suspendEventStream(): void {
   suspended = true
   resync = false
   closeStream()
+  resetServiceConnection()
 }
 
 /** Lifts `suspendEventStream()` and opens the stream straight away, with a fresh backoff. */
@@ -215,6 +226,8 @@ export function reconnectEventStream(): void {
 }
 
 window.addEventListener('online', reconnectEventStream)
+// A request answered while the stream waits out its backoff (up to 30 s): open it now.
+onServiceReconnected(reconnectEventStream)
 
 /** Test seam: drops every subscription and closes the stream. */
 export function resetEventStream(): void {

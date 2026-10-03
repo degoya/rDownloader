@@ -30,6 +30,12 @@ impl Writer {
                 let result = crate::notify_store::queue_delivery(&mut self.connection, input).await;
                 send(reply, result);
             }
+            WriterCommand::QueueNotificationNotice { deliveries, reply } => {
+                // Silent like a single delivery.
+                let result =
+                    crate::notice_store::queue_notice(&mut self.connection, deliveries).await;
+                send(reply, result);
+            }
             WriterCommand::RecordNotificationAttempt {
                 id,
                 state,

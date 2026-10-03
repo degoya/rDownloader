@@ -679,6 +679,66 @@
       "progress": "{received} of {total}",
       "ready": "{version} is downloaded and verified; “Install and restart” uses this file.",
       "failed": "Downloading {version} failed."
+    },
+    "agents": {
+      "running": "Capture agent: {versions}",
+      "unknown": "before 1.9",
+      "outdated_title": "Restart the capture agent",
+      "outdated_description": "A capture agent still runs version {agent}, rDownloader already runs {service}. From 1.8.1 on, the agent restarts itself within a minute of an update. If it does not — because it is older, or another user started it — quit it from its tray icon or in Task Manager and start it again; on Linux, systemctl --user restart rdownloader-capture does both."
     }
+  },
+  "oidc": {
+    "eyebrow": "Identity provider",
+    "title": "Sign in through an identity provider",
+    "description": "Sign in with the account you already use at Authentik, Authelia, Keycloak or Pocket ID (OpenID Connect). There is still one administrator: the one account you link here.",
+    "redirect_uri": "Redirect URI – register it at the provider",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copy_command": "Copy the command",
+    "external_url_missing": "Without an external URL there is no redirect URI. Set it under Security → Reverse proxy.",
+    "linked": "Linked: {label}",
+    "unnamed": "an account without a name",
+    "linked_at": "Linked {moment}",
+    "not_linked": "No account linked yet",
+    "link_hint": "Linking opens the provider; the account you sign in with there becomes the administrator.",
+    "link": "Link an account",
+    "linked_toast": "Account linked",
+    "saved_toast": "Identity provider saved",
+    "unlink": {
+      "action": "Unlink",
+      "title": "Unlink this account?",
+      "description": "Nobody signs in through the provider afterwards until you link an account again.",
+      "confirm": "Unlink"
+    },
+    "remove": {
+      "action": "Remove",
+      "title": "Remove the identity provider?",
+      "description": "The configuration, the client secret and the linked account are deleted.",
+      "confirm": "Remove"
+    },
+    "password_is_off": "Signing in with the password is switched off",
+    "password_is_off_hint": "Only the machine the service runs on brings it back: {command}. Passkeys keep working, and the password still confirms changes.",
+    "password_off": {
+      "action": "Switch password sign-in off",
+      "ready": "This session came from the provider: you can switch the password sign-in off.",
+      "needs_provider_session": "Sign in through the provider once; only from that session can the password sign-in be switched off.",
+      "title": "Switch the password sign-in off?",
+      "description": "Afterwards you sign in through the provider or with a passkey. The way back is only on the machine the service runs on: {command}",
+      "confirm": "Switch off"
+    },
+    "issuer": "Issuer",
+    "issuer_hint": "Exactly as the provider states it – with or without the trailing slash.",
+    "client_id": "Client ID",
+    "client_secret": "Client secret",
+    "client_secret_kept": "Leave empty to keep the stored one.",
+    "display_name": "Name on the sign-in button",
+    "display_name_hint": "For example Authentik or Pocket ID.",
+    "group_claim": "Group claim",
+    "group_value": "Group",
+    "group_hint": "Optional: the linked account must also be in this group.",
+    "provider_logout": "Sign out at the provider too",
+    "provider_logout_hint": "Off: signing out ends only the session here, your other services stay signed in.",
+    "step_up_hint": "Every change here asks for the password again.",
+    "save": "Save"
   }
 }

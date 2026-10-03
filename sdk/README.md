@@ -254,16 +254,24 @@ also re-signs once a month. Hosting, withdrawing a version and a lost key are in
 manifest names the WIT package version you built against, and a core that does not support it
 refuses your package rather than running it against a contract you did not write for.
 
-The current package is `rdownloader:plugin@0.9.0` (RD-130-11). It adds two functions to
-`interface remote-job`: `cache-kinds`, which names the kinds of source your provider's cache can
+The current package is `rdownloader:plugin@0.10.0` (RD-190-06). It changes the `postprocess`
+world: `step-input` carries `removed`, the files the pipeline removed before your step ran
+(unpacked volumes, PAR2 files, what the cleanup deleted), named like `files`, so a step that
+reads a list of files need not guess from an extension which ones are gone on purpose; and
+`complete` carries a `step-complete` record, the optional checkpoint as before plus `warnings`, a
+list of `label-part`s the host shows on the step although it passed -- a code from your own
+catalogue, its parameters and an English fallback. The `postprocess` template returns no
+warnings. A plugin of any other world builds unchanged against the new `wit/`, but like every
+plugin it has to be rebuilt: a plugin built against `0.9.0` does not load any more. It is refused
+as `plugin.capability_unknown` (unknown `api_version`) and stays listed in the plugin manager.
+Rebuild it against the new `wit/` and raise `api_version` together with your plugin's `version`.
+
+`0.9.0` (RD-130-11) added two functions to `interface remote-job`: `cache-kinds`, which names the kinds of source your provider's cache can
 be asked about (`torrent`, `usenet`, `hoster`), and `check-cached`, which answers for a batch of
 sources -- one answer per query, in order, read-only at the provider, `cached`, `known` or
 `unknown` and never `offline`. The `remote-job` template answers "no kinds" and `unknown`, which
 is right for every provider without a cache query; [The cache question](https://github.com/degoya/rDownloader/wiki/plugin-reference#the-cache-question)
-has the rules. A plugin of any other world builds unchanged against the new `wit/`, but it has
-to be rebuilt: a plugin built against `0.8.0` does not load any more. It is refused as
-`plugin.capability_unknown` (unknown `api_version`) and stays listed in the plugin manager.
-Rebuild it against the new `wit/` and raise `api_version` together with your plugin's `version`.
+has the rules.
 
 `0.8.0` (RD-120-36) added one case to `link-status`: `cached`, for a file your provider says it
 holds in its own cache right now. That is not the same as `online`. The host shows it with the

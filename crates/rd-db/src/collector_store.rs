@@ -21,6 +21,7 @@ pub(crate) async fn add_batch(
     CollectorBatch,
     Vec<rd_core::CollectorPackage>,
     Vec<LinkCandidate>,
+    BatchPasswords,
     Vec<EventEnvelope>,
 )> {
     // Every intake path ends here -- pasted text, a DLC, an NZB import, a hotfolder, a
@@ -117,6 +118,7 @@ pub(crate) async fn add_batch(
     let groups = rd_collector::group_links(&inputs, intake.package_name.as_deref(), "Links");
 
     let mut packages = Vec::with_capacity(groups.len());
+    let mut passwords = BatchPasswords::new();
     let mut candidates = Vec::with_capacity(intake.urls.len());
     for group in groups {
         let group_password = group
@@ -179,9 +181,13 @@ pub(crate) async fn add_batch(
                         !group.named_by_source,
                         category_id,
                         priority,
-                        group_password,
                     )
                     .await?;
+                    // Not a column: `Database::add_collector_batch` puts it in the vault once
+                    // the batch is in (RD-190-04).
+                    if let Some(password) = group_password {
+                        passwords.push((id, password.to_owned()));
+                    }
                     package_id = Some(id);
                     package_category = category_id;
                     id
@@ -315,8 +321,11 @@ pub(crate) async fn add_batch(
             created.push(package);
         }
     }
-    Ok((batch, created, candidates, vec![event, intake]))
+    Ok((batch, created, candidates, passwords, vec![event, intake]))
 }
+
+/// The archive password each new package of a batch is to get, by package.
+pub(crate) type BatchPasswords = Vec<(rd_core::CollectorPackageId, String)>;
 
 /// One LinkGrabber submission.
 pub struct NewCollectorBatch {
@@ -559,9 +568,14 @@ pub(crate) async fn delete_empty_batches(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
 ) -> Result<()> {
     crate::collector_packages::delete_empty_packages(transaction).await?;
+    // A batch still owning a package stays even without links of its own: a package made by
+    // moving links in takes the first link's batch, and that batch's `ON DELETE CASCADE` used
+    // to take the package — and the moved links' package — with it once the batch's own links
+    // were gone, leaving the rest with no package and out of sight.
     sqlx::query(
         "DELETE FROM collector_batches WHERE NOT EXISTS \
-         (SELECT 1 FROM link_candidates WHERE batch_id = collector_batches.id)",
+         (SELECT 1 FROM link_candidates WHERE batch_id = collector_batches.id) \
+         AND NOT EXISTS (SELECT 1 FROM collector_packages WHERE batch_id = collector_batches.id)",
     )
     .execute(&mut **transaction)
     .await?;

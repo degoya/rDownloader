@@ -103,5 +103,17 @@
   "list_title": "Automations",
   "pick_or_create": "Pick an automation from the list to edit it, or create a new one.",
   "eyebrow": "When – then",
-  "duplicate_hint": "Creates a switched-off copy and opens it for editing — switched on, it would act a second time beside the original"
+  "duplicate_hint": "Creates a switched-off copy and opens it for editing — switched on, it would act a second time beside the original",
+  "history": {
+    "open": "Version history",
+    "title": "Versions of “{name}”",
+    "description": "Every save keeps the definition before it. Restoring a version saves it again as the newest one; the run history stays.",
+    "current": "Current",
+    "changed": "changed",
+    "empty": "No saved version yet.",
+    "restore": "Restore",
+    "restore_title": "Restore version {version}?",
+    "restore_description": "The trigger, condition and actions of version {version} become the definition of “{name}” again, saved as a new version. Name and the enabled switch stay as they are.",
+    "restored": "Version {version} is in force again, saved as version {current}."
+  }
 }

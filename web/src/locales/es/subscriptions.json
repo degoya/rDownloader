@@ -6,7 +6,8 @@
     "feed": "Feed o pódcast",
     "indexer": "Indexador",
     "site_rule": "Página de releases",
-    "script": "Script propio"
+    "script": "Script propio",
+    "git_release": "Versiones de GitHub/GitLab"
   },
   "modes": {
     "review": "Revisar primero",
@@ -30,7 +31,8 @@
     "too_old": "Publicado antes de la fecha límite",
     "language_not_wanted": "El idioma no está entre los deseados",
     "resolution_too_low": "Por debajo de la resolución mínima",
-    "backlog": "Ya existía cuando se activó la suscripción"
+    "backlog": "Ya existía cuando se activó la suscripción",
+    "asset_not_wanted": "El archivo no coincide con las plataformas, arquitecturas o patrones de nombre"
   },
   "form": {
     "add": "Añadir suscripción",
@@ -96,7 +98,27 @@
     "search_pretime": "Filtro de pre-time (pred)",
     "search_pretime_description": "Se envía al indexador como pred; el indexador define qué significan 0, 1 y 2",
     "pretime_none": "No enviar",
-    "search_hide_passworded": "Ocultar publicaciones con contraseña (pw=2)"
+    "search_hide_passworded": "Ocultar publicaciones con contraseña (pw=2)",
+    "git_url_description": "La dirección del repositorio, p. ej. https://github.com/propietario/nombre o https://gitlab.com/grupo/proyecto.",
+    "git_forge": "Servicio",
+    "git_forge_description": "Se reconoce en github.com y gitlab.com; indícalo aquí para un servidor propio.",
+    "git_forges": {
+      "auto": "Según la dirección",
+      "github": "GitHub (también Enterprise Server)",
+      "gitlab": "GitLab"
+    },
+    "git_platforms": "Plataformas",
+    "git_platforms_description": "Solo archivos para estos sistemas, reconocidos por el nombre o la extensión (.exe, .dmg, .deb …). Vacío significa todos.",
+    "git_architectures": "Arquitecturas",
+    "git_architectures_description": "Los archivos sin arquitectura en el nombre, como las imágenes universales de macOS, siempre cuentan. Vacío significa todas.",
+    "git_all": "Todas",
+    "git_asset_patterns": "Patrones de nombre de archivo",
+    "git_asset_patterns_description": "Separados por comas, * y ? como comodines, p. ej. *.AppImage. Vacío significa todos.",
+    "git_prereleases": "Descargar versiones preliminares",
+    "git_source_archives": "Descargar archivos del código fuente",
+    "git_token": "Token",
+    "git_token_hint": "Solo para repositorios privados, y basta el permiso mínimo: en GitHub un token fine-grained con «Contents: read», en GitLab «read_api». Se guarda cifrado y no se vuelve a mostrar.",
+    "git_token_keep": "Déjalo vacío para conservar el token guardado"
   },
   "list": {
     "title": "Suscripciones",

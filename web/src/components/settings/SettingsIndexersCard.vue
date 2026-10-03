@@ -7,6 +7,10 @@
  * stored, and an edit that leaves the field empty keeps it. The test is `t=caps` with the stored
  * key — the cheapest request that proves address and key — and it is also where the category
  * list for the defaults comes from.
+ *
+ * The list style (RD-190-16) is chosen here, where the indexer is defined, and not in the result
+ * list: whether an indexer's hits are worth a cover and a line of metadata depends on what that
+ * indexer sends, which does not change from one search to the next.
  */
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -26,6 +30,8 @@ import { useIndexersStore } from '@/stores/indexers'
 /** `MAX_NAME` in `crates/rd-api-intake/src/indexer_handlers.rs`. */
 const MAX_NAME = 200
 
+type ListStyle = NonNullable<Indexer['list_style']>
+
 const { t } = useI18n()
 const store = useIndexersStore()
 const { indexers } = storeToRefs(store)
@@ -44,7 +50,8 @@ const form = reactive({
   url: '',
   apiKey: '',
   categories: [] as string[],
-  enabled: true
+  enabled: true,
+  listStyle: 'compact' as ListStyle
 })
 
 const list = useEditableList<Indexer, IndexerRequest>({
@@ -58,6 +65,7 @@ const list = useEditableList<Indexer, IndexerRequest>({
     form.apiKey = ''
     form.categories = []
     form.enabled = true
+    form.listStyle = 'compact'
     caps.value = null
   },
   confirmDelete: indexer => ({
@@ -82,6 +90,12 @@ function categoryLabel(category: IndexerCategory): string {
   return `${category.id} · ${parent ? `${parent.name} / ${category.name}` : category.name}`
 }
 
+const listStyleItems = computed(() => (['compact', 'detailed'] as const).map(value => ({
+  value,
+  label: t(`usenet.indexers.list_styles.${value}`),
+  description: t(`usenet.indexers.list_styles.${value}_hint`)
+})))
+
 const categoryItems = computed(() => (caps.value?.categories ?? []).map(category => ({ value: category.id, label: categoryLabel(category) })))
 
 function body(): IndexerRequest {
@@ -91,7 +105,8 @@ function body(): IndexerRequest {
     // Omitted rather than cleared when left blank: an edit that does not retype the key keeps it.
     api_key: form.apiKey.trim() || null,
     categories: form.categories.map(entry => entry.trim()).filter(Boolean),
-    enabled: form.enabled
+    enabled: form.enabled,
+    list_style: form.listStyle
   }
 }
 
@@ -112,6 +127,7 @@ function edit(indexer: Indexer): void {
   form.apiKey = ''
   form.categories = [...(indexer.categories ?? [])]
   form.enabled = indexer.enabled
+  form.listStyle = indexer.list_style ?? 'compact'
   caps.value = null
   void focusForm()
 }
@@ -217,6 +233,9 @@ async function remove(indexer: Indexer): Promise<void> {
               />
             </div>
           </UFormField>
+          <UFormField :label="t('usenet.indexers.list_style')" name="list_style" :description="t('usenet.indexers.list_style_hint')">
+            <URadioGroup v-model="form.listStyle" :items="listStyleItems" data-testid="indexer-list-style" />
+          </UFormField>
           <USwitch v-model="form.enabled" :label="t('usenet.indexers.enabled')" />
           <FormActions
             :editing="editingId !== null"
@@ -250,6 +269,7 @@ async function remove(indexer: Indexer): Promise<void> {
               <div class="flex flex-wrap items-center gap-2">
                 <UBadge v-if="editingId === indexer.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                 <UBadge v-if="!indexer.enabled" color="neutral" variant="subtle">{{ t('usenet.indexers.disabled') }}</UBadge>
+                <UBadge v-if="indexer.list_style === 'detailed'" color="neutral" variant="outline" icon="i-lucide-image" data-testid="indexer-detailed">{{ t('usenet.indexers.list_styles.detailed') }}</UBadge>
                 <UIcon v-if="indexer.has_secret" name="i-lucide-key-round" class="text-primary" :aria-label="t('usenet.indexers.has_key')" />
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="testingId === indexer.id" :data-testid="`indexer-test-${indexer.id}`" @click="test(indexer)" />
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('usenet.indexers.edit')" :title="t('usenet.indexers.edit')" @click="edit(indexer)" />

@@ -16,7 +16,15 @@
     "all": "Tous",
     "active": "Actifs",
     "queued": "En attente",
-    "completed": "Terminés"
+    "completed": "Terminés",
+    "paused": "En pause",
+    "failed": "En échec",
+    "seeding": "En seed",
+    "search_label": "Rechercher les téléchargements par nom de paquet ou de fichier",
+    "search_placeholder": "Paquet ou fichier",
+    "no_match_title": "Rien ne correspond au filtre et à la recherche",
+    "no_match_hint": "La file n'est pas vide : réinitialise le filtre pour tout voir.",
+    "reset": "Réinitialiser le filtre"
   },
   "toolbar": {
     "speed_limit_title": "Limite de vitesse globale (vide = illimitée)",
@@ -240,7 +248,8 @@
       "remux": "Remultiplexage",
       "plugin_step": "Étape de plugin",
       "script": "Script",
-      "upload": "Envoi"
+      "upload": "Envoi",
+      "malware_scan": "Analyse antivirus"
     },
     "states": {
       "queued": "en attente",
@@ -264,7 +273,8 @@
       "extracting": "Extraction",
       "deleting_archives": "Suppression des archives",
       "cleaning": "Nettoyage",
-      "script": "Script en cours"
+      "script": "Script en cours",
+      "scanning": "Recherche de logiciels malveillants"
     },
     "queue": {
       "title": "Post-traitement",
@@ -392,5 +402,25 @@
     "delete_partial": "Supprimer aussi les fichiers partiellement téléchargés",
     "delete_partial_hint": "Irréversible : données de torrent inachevées et fragments à côté du fichier cible. Les fichiers incomplets du dossier temporaire sont toujours supprimés.",
     "confirm": "Vider la liste"
+  },
+  "pause": {
+    "menu_aria": "Mettre en pause un moment",
+    "for_30m": "Mettre en pause 30 minutes",
+    "for_1h": "Mettre en pause 1 heure",
+    "for_3h": "Mettre en pause 3 heures",
+    "until": "Mettre en pause jusqu’à…",
+    "until_title": "Mettre en pause jusqu’à",
+    "until_hint": "Les téléchargements reprennent d’eux-mêmes à cette heure : aujourd’hui, ou demain si elle est déjà passée.",
+    "until_time": "Heure",
+    "confirm": "Mettre en pause",
+    "paused_until": "En pause jusqu’à {time}",
+    "remaining_title": "La file reprend dans {duration}. Cliquez pour reprendre maintenant.",
+    "resume_now": "Reprendre maintenant",
+    "notice_paused": "File en pause jusqu’à {time}"
+  },
+  "kill_switch": {
+    "title": "Torrents mis en pause par le coupe-circuit",
+    "description": "L’interface liée {name} a disparu. Les torrents restent en pause jusqu’à son retour ; les autres téléchargements continuent.",
+    "open": "État du réseau"
   }
 }

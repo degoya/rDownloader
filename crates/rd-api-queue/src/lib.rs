@@ -4,6 +4,7 @@
 
 pub mod auto_remove_service;
 pub mod bandwidth_handlers;
+pub mod bandwidth_manual_handlers;
 pub mod capture_summary;
 pub mod collision_handlers;
 pub mod download_handlers;
@@ -16,6 +17,7 @@ pub mod metrics_format;
 pub mod package_clear;
 pub mod package_handlers;
 pub mod power_handlers;
+pub mod queue_pause_handlers;
 pub mod reconnect_handlers;
 pub mod remote_job_handlers;
 pub mod replay_dto;

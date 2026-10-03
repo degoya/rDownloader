@@ -18,6 +18,7 @@ import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import { setLinkGrabberActions } from '@/composables/linkGrabberActions'
 import { refreshQueuedSources } from '@/composables/useQueuedSources'
+import { useCopyLinks } from '@/composables/useCopyLinks'
 import { consumeFileImportRequest, fileImportRequested } from '@/composables/nzbImportRequest'
 import { useFileImport } from '@/composables/useFileImport'
 import { useGrabberActions } from '@/composables/useGrabberActions'
@@ -40,6 +41,7 @@ const collector = useCollectorStore()
 const nzb = useNzbImportsStore()
 const openIntake = useIntakeModal()
 const toast = useToast()
+const copyLinks = useCopyLinks()
 const { t } = useI18n()
 
 const categories = ref<Category[]>([])
@@ -82,7 +84,7 @@ const {
 } = useGrabberReorder({ groups, nzbGroups, sort, filterActive, notice, list: grabberList })
 
 const {
-  removeSelected, moveSelected, editPackageDialog, renameCandidate, removePackage, removeCandidate,
+  removeSelected, removeProgress, moveSelected, editPackageDialog, renameCandidate, removePackage, removeCandidate,
   dissolveMirror, clearAll, enqueueNzb, deleteNzb, setNzbCategory, setNzbPriority, setCategory,
   setPriority, applyToSelection, setSelectionPostprocessLevel
 } = useGrabberActions({ nzbGroups, selection, bulkBusy })
@@ -172,6 +174,11 @@ watch(fileImportRequested, (pending) => {
 // be empty right now would throw away a decision the next package still needs. The select
 // keeps offering the value in force, so it can always be cleared by hand.
 
+/** Every link of the package, whatever the filters hide: the package is what was asked for (RD-190-21). */
+function copyPackageLinks(id: string): void {
+  void copyLinks(collector.candidates.filter(candidate => candidate.package_id === id).map(candidate => candidate.url))
+}
+
 /**
  * Takes over a link shared from a mobile browser (RD-090-08).
  *
@@ -226,40 +233,64 @@ function openNzbHistory(): void {
   void nzb.refresh()
   nzbHistoryModal.open()
 }
+
+/*
+ * The navbar measures its own width (`@container`), not the window's: beside the sidebar the
+ * labelled row needs about 1200 px, and below that it ran over the title and the sidebar toggle;
+ * on a phone it ran off the screen. So the key hints go first, then the labels — every button
+ * keeps its name as `aria-label` and `title` — and on a phone what is neither adding nor
+ * enqueuing moves into one menu, its keys shown there.
+ */
+const NAV_KBD = 'hidden @min-[80rem]:inline-flex'
+const NAV_LABEL = { label: 'hidden @min-[70rem]:inline' }
+const NAV_WIDE = 'hidden @min-[40rem]:inline-flex'
+const navbarMenu = computed(() => [[
+  { label: t('linkgrabber.actions.import_files'), icon: 'i-lucide-file-up', kbds: ['n'], onSelect: () => { void importFiles() } },
+  { label: t('linkgrabber.nzb.history.title'), icon: 'i-lucide-history', onSelect: openNzbHistory },
+  { label: t('linkgrabber.actions.check_links'), icon: 'i-lucide-radar', disabled: !collector.candidates.length || (filterActive.value && !visibleLinks.value), onSelect: checkVisible },
+  { label: t('linkgrabber.actions.enqueue_paused'), icon: 'i-lucide-pause', kbds: ['w'], disabled: !entries.value.length || checking.value, onSelect: () => { void enqueueAll(true) } }
+], [
+  { label: t('linkgrabber.actions.clear_all'), icon: 'i-lucide-list-x', color: 'error' as const, kbds: ['r'], disabled: !entries.value.length, onSelect: () => { void clearAll() } }
+]])
 </script>
 
 <template>
   <UDashboardPanel id="linkgrabber">
     <template #header>
-      <UDashboardNavbar :title="t('linkgrabber.title')">
+      <UDashboardNavbar :title="t('linkgrabber.title')" :ui="{ root: '@container' }">
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
           <div data-tour="grabber-add" class="flex items-center gap-2">
-          <UButton icon="i-lucide-plus" :label="t('linkgrabber.actions.add_links')" color="neutral" variant="outline" @click="addLinks">
-            <template #trailing><UKbd value="a" /></template>
+          <UButton icon="i-lucide-plus" :label="t('linkgrabber.actions.add_links')" :aria-label="t('linkgrabber.actions.add_links')" :title="t('linkgrabber.actions.add_links')" :ui="NAV_LABEL" color="neutral" variant="outline" @click="addLinks">
+            <template #trailing><UKbd value="a" :class="NAV_KBD" /></template>
           </UButton>
-          <UButton icon="i-lucide-file-up" :label="t('linkgrabber.actions.import_files')" color="neutral" variant="outline" :loading="importingFiles || nzb.pending" @click="() => importFiles()" />
-          <UButton icon="i-lucide-history" color="neutral" variant="outline" :aria-label="t('linkgrabber.nzb.history.title')" :title="t('linkgrabber.nzb.history.title')" @click="openNzbHistory" />
-          <UButton icon="i-lucide-radar" :label="t('linkgrabber.actions.check_links')" color="neutral" variant="outline" :loading="checking" :disabled="!collector.candidates.length || (filterActive && !visibleLinks)" @click="checkVisible" />
+          <UButton icon="i-lucide-file-up" :label="t('linkgrabber.actions.import_files')" :aria-label="t('linkgrabber.actions.import_files')" :title="t('linkgrabber.actions.import_files')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :loading="importingFiles || nzb.pending" @click="() => importFiles()">
+            <template #trailing><UKbd value="n" :class="NAV_KBD" /></template>
+          </UButton>
+          <UButton icon="i-lucide-history" :class="NAV_WIDE" color="neutral" variant="outline" :aria-label="t('linkgrabber.nzb.history.title')" :title="t('linkgrabber.nzb.history.title')" @click="openNzbHistory" />
+          <UButton icon="i-lucide-radar" :label="t('linkgrabber.actions.check_links')" :aria-label="t('linkgrabber.actions.check_links')" :title="t('linkgrabber.actions.check_links')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :loading="checking" :disabled="!collector.candidates.length || (filterActive && !visibleLinks)" @click="checkVisible" />
           <!-- The one solid button in this bar. Getting the reviewed links into the queue is what
                the LinkGrabber is for; adding and importing are how they arrive, and they read as
                the neutral pair they belong to. As `soft` beside a solid "Add links" this sat
                below the action that only fills the list it is meant to empty. -->
-          <UButton icon="i-lucide-list-end" :label="t('linkgrabber.actions.enqueue_all')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(false)">
-            <template #trailing><UKbd value="e" /></template>
+          <UButton icon="i-lucide-list-end" :label="t('linkgrabber.actions.enqueue_all')" :aria-label="t('linkgrabber.actions.enqueue_all')" :title="t('linkgrabber.actions.enqueue_all')" :ui="NAV_LABEL" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(false)">
+            <template #trailing><UKbd value="e" :class="NAV_KBD" /></template>
           </UButton>
-          <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" color="neutral" variant="outline" :title="t('linkgrabber.actions.enqueue_paused_hint')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(true)">
-            <template #trailing><UKbd value="w" /></template>
+          <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :aria-label="t('linkgrabber.actions.enqueue_paused')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :title="t('linkgrabber.actions.enqueue_paused_hint')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(true)">
+            <template #trailing><UKbd value="w" :class="NAV_KBD" /></template>
           </UButton>
-          <UButton icon="i-lucide-list-x" :label="t('linkgrabber.actions.clear_all')" color="error" variant="soft" :disabled="!entries.length" @click="clearAll">
-            <template #trailing><UKbd value="r" /></template>
+          <UButton icon="i-lucide-list-x" :label="t('linkgrabber.actions.clear_all')" :aria-label="t('linkgrabber.actions.clear_all')" :title="t('linkgrabber.actions.clear_all')" :ui="NAV_LABEL" :class="NAV_WIDE" color="error" variant="soft" :disabled="!entries.length" @click="clearAll">
+            <template #trailing><UKbd value="r" :class="NAV_KBD" /></template>
           </UButton>
+          <UDropdownMenu :items="navbarMenu">
+            <UButton icon="i-lucide-ellipsis" class="@min-[40rem]:hidden" color="neutral" variant="outline" :aria-label="t('linkgrabber.actions.more')" :title="t('linkgrabber.actions.more')" data-testid="linkgrabber-more" />
+          </UDropdownMenu>
           </div>
         </template>
       </UDashboardNavbar>
       <!-- The facets wrap onto a second row where the panel is too narrow for them, rather than
            squeezing "Select all" onto two lines or scrolling the count out of view (RD-120-48). -->
-      <UDashboardToolbar :ui="{ root: 'py-1.5', left: 'min-w-0 flex-1 flex-wrap' }">
+      <UDashboardToolbar :ui="{ root: 'flex-wrap gap-y-1.5 py-1.5', left: 'min-w-0 flex-auto flex-wrap', right: 'ms-auto flex-wrap' }">
         <template #left>
           <UCheckbox
             :model-value="selection.state.value === 'all' ? true : selection.state.value === 'some' ? 'indeterminate' : false"
@@ -321,6 +352,9 @@ function openNzbHistory(): void {
         >
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-folder-input" :label="t('linkgrabber.actions.move_to_new_package')" :disabled="!selection.collectorIds.value.length" :loading="bulkBusy" @click="moveSelected" />
+          <span v-if="removeProgress" class="numeric text-xs text-muted" role="status" data-testid="grabber-remove-progress">
+            {{ t('linkgrabber.bulk.removing', { done: removeProgress.done, total: removeProgress.total }) }}
+          </span>
         </BulkActionBar>
         <!--
           One flattened stream of rows through the shared list block: package headers, the links
@@ -353,6 +387,7 @@ function openNzbHistory(): void {
               @enqueue="enqueuePackage"
               @enqueue-paused="(id: string) => enqueuePackage(id, true)"
               @remove="removePackage"
+              @copy-links="copyPackageLinks"
               @dragstart="(id: string) => draggingEntry = grabberKey('collector', id)"
               @drop="dropOnPackage"
               @move="(id: string, delta: -1 | 1) => moveEntry('collector', id, delta)"
@@ -375,6 +410,7 @@ function openNzbHistory(): void {
               @rename="renameCandidate"
               @enqueue="enqueueCandidate"
               @remove="removeCandidate"
+              @copy-links="copyLinks"
               @dragstart="(id) => draggingCandidate = id"
               @drop="dropOnCandidate"
               @variant="(id, variantId) => void collector.setMediaVariant(id, variantId)"

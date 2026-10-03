@@ -51,6 +51,25 @@ pub fn bulk_range(max: usize) -> ApiError {
     .with_param("max", max)
 }
 
+/// The longest list a reorder accepts.
+///
+/// A reorder carries the whole order of a list, so it cannot be sent in batches the way a bulk
+/// action can (500 ids each); with the bulk limit a queue of more than 500 packages could not be
+/// reordered at all. Ten thousand UUIDs stay well inside the JSON body limit.
+pub const MAX_REORDER: usize = 10_000;
+
+/// `400` unless a reorder list holds between 1 and [`MAX_REORDER`] entries.
+///
+/// # Errors
+///
+/// [`bulk_range`] with [`MAX_REORDER`] for an empty or a longer list.
+pub fn validate_reorder_size(count: usize) -> Result<(), ApiError> {
+    if count == 0 || count > MAX_REORDER {
+        return Err(bulk_range(MAX_REORDER));
+    }
+    Ok(())
+}
+
 /// `400` for a reorder whose id list is not exactly the members of one package.
 ///
 /// Both reorder endpoints hand out the positions 1..n from the list they are given. A list that
@@ -169,6 +188,19 @@ pub const MEDIA_SELECTION_MISSING: &str = "collector.media_selection_missing";
 /// An NZB link a document or a page proposed points at this machine or, unless the person
 /// handed the document over, into their network; it is not fetched (RD-150-03).
 pub const NZB_INTERNAL_ADDRESS: &str = "collector.nzb_internal_address";
+
+#[cfg(test)]
+mod reorder_size_tests {
+    use super::{MAX_REORDER, validate_reorder_size};
+
+    #[test]
+    fn a_reorder_takes_more_than_a_bulk_batch_but_not_an_empty_or_endless_list() {
+        assert!(validate_reorder_size(733).is_ok());
+        assert!(validate_reorder_size(MAX_REORDER).is_ok());
+        assert!(validate_reorder_size(0).is_err());
+        assert!(validate_reorder_size(MAX_REORDER + 1).is_err());
+    }
+}
 
 #[cfg(test)]
 mod tests {

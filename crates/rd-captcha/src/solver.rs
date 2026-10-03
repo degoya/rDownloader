@@ -215,14 +215,14 @@ async fn post(
         .await
         // The URL carries the solver API key in neither path nor query, but the error's
         // Display appends the full URL; strip it anyway to keep the habit.
-        .map_err(|error| solver_failure(&error.without_url().to_string()))?;
+        .map_err(|error| solver_failure(&rd_core::error_with_causes(&error.without_url())))?;
     if !response.status().is_success() {
         return Err(solver_failure(&format!("HTTP {}", response.status())));
     }
     response
         .json()
         .await
-        .map_err(|error| solver_failure(&error.without_url().to_string()))
+        .map_err(|error| solver_failure(&rd_core::error_with_causes(&error.without_url())))
 }
 
 fn solver_failure(reason: &str) -> Failure {

@@ -15,7 +15,9 @@ use chacha20poly1305::{
     aead::{Aead, Payload},
 };
 use rand::Rng;
-use secrecy::{ExposeSecret, SecretString};
+/// What [`SecretStore::get`] hands back and how a caller reads it, for crates that keep no
+/// `secrecy` dependency of their own.
+pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -69,10 +71,29 @@ impl SecretStore {
 
     /// Encrypts a secret and returns an opaque reference suitable for SQLite metadata.
     pub async fn put(&self, secret: SecretString) -> Result<String> {
+        let reference = Self::new_reference();
+        self.put_at(&reference, secret).await?;
+        Ok(reference)
+    }
+
+    /// A fresh reference nothing is stored under yet (RD-190-04).
+    ///
+    /// For a caller that has to record the reference *before* the value exists — the archive
+    /// passwords reserve theirs in the database first, so a stop between the two writes leaves
+    /// a reservation the next start removes rather than a file nothing points at.
+    #[must_use]
+    pub fn new_reference() -> String {
+        format!("{REFERENCE_PREFIX}{}", Uuid::now_v7())
+    }
+
+    /// Encrypts a secret under a reference from [`SecretStore::new_reference`], replacing what
+    /// was stored under it. Writing the same value twice is harmless, which is what lets an
+    /// interrupted caller simply repeat the write.
+    pub async fn put_at(&self, reference: &str, secret: SecretString) -> Result<()> {
         if secret.expose_secret().is_empty() {
             bail!("refuse to store an empty secret");
         }
-        let id = Uuid::now_v7();
+        let id = parse_reference(reference)?;
         let mut nonce_bytes = [0_u8; 24];
         rand::rng().fill_bytes(&mut nonce_bytes);
         let cipher = XChaCha20Poly1305::new_from_slice(self.key.as_slice())
@@ -91,9 +112,7 @@ impl SecretStore {
             nonce: STANDARD.encode(nonce_bytes),
             ciphertext: STANDARD.encode(ciphertext),
         };
-        self.write_atomic(id, serde_json::to_vec(&envelope)?)
-            .await?;
-        Ok(format!("{REFERENCE_PREFIX}{id}"))
+        self.write_atomic(id, serde_json::to_vec(&envelope)?).await
     }
 
     /// Convenience boundary for callers that just received a request string.
@@ -102,13 +121,16 @@ impl SecretStore {
     }
 
     /// Removes an encrypted value after its owning metadata was rejected.
+    ///
+    /// A temporary a stopped [`SecretStore::put_at`] left under the same reference goes too.
     pub async fn remove(&self, reference: &str) -> Result<()> {
         let id = parse_reference(reference)?;
-        match tokio::fs::remove_file(self.secret_path(id)).await {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error).context("remove encrypted secret"),
-        }
+        remove_if_present(&self.temporary_path(id))
+            .await
+            .context("remove a temporary secret")?;
+        remove_if_present(&self.secret_path(id))
+            .await
+            .context("remove encrypted secret")
     }
 
     /// Resolves and decrypts one vault reference.
@@ -171,7 +193,12 @@ impl SecretStore {
 
     async fn write_atomic(&self, id: Uuid, content: Vec<u8>) -> Result<()> {
         let destination = self.secret_path(id);
-        let temporary = self.root.join(format!(".{id}.tmp"));
+        let temporary = self.temporary_path(id);
+        // A write of the same reference that stopped before its rename left this behind, and
+        // the temporary is created exclusively.
+        remove_if_present(&temporary)
+            .await
+            .context("remove a stale temporary secret")?;
         write_private(&temporary, &content).await?;
         tokio::fs::rename(&temporary, &destination)
             .await
@@ -181,6 +208,17 @@ impl SecretStore {
 
     fn secret_path(&self, id: Uuid) -> PathBuf {
         self.root.join(format!("{id}.secret"))
+    }
+
+    fn temporary_path(&self, id: Uuid) -> PathBuf {
+        self.root.join(format!(".{id}.tmp"))
+    }
+}
+
+async fn remove_if_present(path: &std::path::Path) -> std::io::Result<()> {
+    match tokio::fs::remove_file(path).await {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        other => other,
     }
 }
 
@@ -314,6 +352,50 @@ mod tests {
             store.get(&reference).await.expect("get").expose_secret(),
             "very-secret-value"
         );
+    }
+
+    /// A reference recorded before its value exists (RD-190-04): the value lands under exactly
+    /// that reference, a repeated write replaces it, and a temporary a stopped write left
+    /// behind neither blocks the repeat nor outlives the removal.
+    #[tokio::test]
+    async fn a_reserved_reference_is_written_repeated_and_removed_whole() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let store = SecretStore::open(directory.path().to_owned())
+            .await
+            .expect("store");
+        let reference = SecretStore::new_reference();
+        assert!(reference.starts_with("vault://"));
+        store
+            .get(&reference)
+            .await
+            .expect_err("nothing is stored under a fresh reference");
+        let id = reference.trim_start_matches("vault://");
+        let temporary = directory.path().join(format!(".{id}.tmp"));
+        std::fs::write(&temporary, b"left by a stopped write").expect("stale temporary");
+        store
+            .put_at(&reference, "first".to_owned().into())
+            .await
+            .expect("put");
+        store
+            .put_at(&reference, "second".to_owned().into())
+            .await
+            .expect("repeat");
+        assert_eq!(
+            store.get(&reference).await.expect("get").expose_secret(),
+            "second"
+        );
+        std::fs::write(&temporary, b"left by a stopped write").expect("stale temporary");
+        store.remove(&reference).await.expect("remove");
+        assert!(!temporary.exists());
+        assert!(!directory.path().join(format!("{id}.secret")).exists());
+        store
+            .remove(&reference)
+            .await
+            .expect("a second removal finds nothing");
+        store
+            .put_at("vault://not-a-uuid", "value".to_owned().into())
+            .await
+            .expect_err("a reference the vault did not mint");
     }
 
     /// Key material is bytes, and a byte that is not UTF-8 must survive the round trip

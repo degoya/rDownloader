@@ -99,3 +99,15 @@ describe('CollectorPackageGroup', () => {
     expect(paused.hasAttribute('disabled')).toBe(enqueue.hasAttribute('disabled'))
   })
 })
+
+/** "Copy links" (RD-190-21): the header hands the package to the view, which gathers every link. */
+describe('CollectorPackageGroup copy links', () => {
+  it('names the button and emits the package id', async () => {
+    const { container, emitted } = renderGroup([candidate('online')])
+    const button = [...container.querySelectorAll('button')].find(item => item.getAttribute('aria-label') === common.actions.copy_links)
+    expect(button?.getAttribute('title')).toBe(common.actions.copy_links)
+    button?.click()
+    await Promise.resolve()
+    expect(emitted().copyLinks).toEqual([['package-1']])
+  })
+})

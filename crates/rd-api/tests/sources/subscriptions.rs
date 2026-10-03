@@ -689,7 +689,22 @@ async fn two_auto_queued_subscription_hits_keep_distinct_passwords_to_download_p
     );
 
     harness.link_check.check_batch(batch.id).await;
-    let packages = await_package_count(&harness.router, 2).await;
+    await_package_count(&harness.router, 2).await;
+    // The second package can be listed a moment before its password reaches it (a Windows
+    // runner read `None` once, CI run 37079121688); wait for both, then compare.
+    let router = &harness.router;
+    let packages = common::eventually_ok(
+        common::WAIT,
+        "both packages carry a password",
+        || async move {
+            let (_, rows) = get_json(router, "/api/v1/packages").await;
+            let complete = rows.as_array().is_some_and(|list| {
+                list.len() >= 2 && list.iter().all(|package| package["password"].is_string())
+            });
+            if complete { Ok(rows) } else { Err(rows) }
+        },
+    )
+    .await;
     let packages = packages.as_array().expect("packages");
     let package_password = |name: &str| {
         packages

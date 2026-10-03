@@ -4,6 +4,7 @@
   "codes": {
     "sha256_postprocess.mismatch": "Un fichier ne correspondait pas à sa somme SHA-256 enregistrée.",
     "sha256_postprocess.missing": "Aucun des fichiers cités dans un fichier de sommes SHA-256 ne se trouve dans le paquet.",
-    "sha256_postprocess.empty": "Un fichier de sommes SHA-256 ne contient aucune somme lisible."
+    "sha256_postprocess.empty": "Un fichier de sommes SHA-256 ne contient aucune somme lisible.",
+    "sha256_postprocess.unchecked": "Les sommes SHA-256 correspondent, mais {count} fichier(s) listé(s) ne sont pas dans ce paquet et n'ont pas été vérifiés : {files}"
   }
 }

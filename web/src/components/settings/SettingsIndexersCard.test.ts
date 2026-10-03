@@ -66,7 +66,7 @@ describe('SettingsIndexersCard', () => {
     await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
 
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/indexers', {
-      body: { name: 'Omg', url: 'https://api.example.test/api', api_key: 'secret-key', categories: ['5040'], enabled: true }
+      body: { name: 'Omg', url: 'https://api.example.test/api', api_key: 'secret-key', categories: ['5040'], enabled: true, list_style: 'compact' }
     }))
     expect(await screen.findAllByTestId('indexer-row')).toHaveLength(1)
     // The form is empty again; the key is not kept anywhere in the page.
@@ -90,6 +90,47 @@ describe('SettingsIndexersCard', () => {
     expect(path).toBe('/api/v1/indexers/{id}')
     expect(request.params.path.id).toBe('idx-1')
     expect(request.body).toMatchObject({ name: 'Renamed', api_key: null, categories: ['5040'] })
+  })
+
+  it('offers the list style, compact for a new indexer, and sends the chosen one (RD-190-16)', async () => {
+    get.mockResolvedValue({ data: [] })
+    post.mockResolvedValue({ data: { ...STORED, list_style: 'detailed' } })
+    const { container } = mount()
+    await screen.findByText(usenet.indexers.empty)
+
+    const compact = screen.getByLabelText(usenet.indexers.list_styles.compact) as HTMLInputElement
+    const detailed = screen.getByLabelText(usenet.indexers.list_styles.detailed) as HTMLInputElement
+    expect(compact.checked).toBe(true)
+    expect(detailed.checked).toBe(false)
+
+    await fireEvent.update(screen.getByTestId('indexer-name'), 'Omg')
+    await fireEvent.update(screen.getByTestId('indexer-url'), 'https://api.example.test/api')
+    await fireEvent.update(screen.getByTestId('indexer-api-key'), 'secret-key')
+    await fireEvent.click(detailed)
+    await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/indexers', {
+      body: expect.objectContaining({ list_style: 'detailed' })
+    }))
+    // The row says which indexer draws its hits in detail.
+    expect((await screen.findByTestId('indexer-detailed')).textContent).toContain(usenet.indexers.list_styles.detailed)
+    // The form starts over compact.
+    expect((screen.getByLabelText(usenet.indexers.list_styles.compact) as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('edits an indexer with its stored list style and sends it back unchanged', async () => {
+    get.mockResolvedValue({ data: [{ ...STORED, list_style: 'detailed' }] })
+    put.mockResolvedValue({ data: { ...STORED, list_style: 'detailed' } })
+    const { container } = mount()
+    await screen.findAllByTestId('indexer-row')
+
+    await fireEvent.click(screen.getByRole('button', { name: usenet.indexers.edit }))
+    expect((screen.getByLabelText(usenet.indexers.list_styles.detailed) as HTMLInputElement).checked).toBe(true)
+    await fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    const [, request] = put.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(request.body.list_style).toBe('detailed')
   })
 
   it('tests a stored indexer with t=caps and says what it answered', async () => {

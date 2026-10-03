@@ -65,6 +65,20 @@ pub(crate) enum NotificationEventParam {
     CaptchaWaiting,
     /// A queue-completion action is counting down.
     PowerPending,
+    /// A scheduled full backup failed or missed a destination.
+    BackupFailed,
+    /// A scheduled backup verification failed.
+    BackupVerifyFailed,
+    /// A newer rDownloader is offered; once per version.
+    UpdateAvailable,
+    /// A newer version of an installed plugin waits to be installed; once per version.
+    PluginUpdateAvailable,
+    /// An automatic plugin update was not installed; once per plugin and version.
+    PluginUpdateFailed,
+    /// An account check found the premium ending within seven days, or ended.
+    AccountExpiring,
+    /// An account no longer signs in: a check refused it or a token renewal failed.
+    AccountInvalid,
 }
 
 impl From<NotificationEventParam> for rd_notify::NotificationEvent {
@@ -76,6 +90,13 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
             NotificationEventParam::BudgetExhausted => Self::BudgetExhausted,
             NotificationEventParam::CaptchaWaiting => Self::CaptchaWaiting,
             NotificationEventParam::PowerPending => Self::PowerPending,
+            NotificationEventParam::BackupFailed => Self::BackupFailed,
+            NotificationEventParam::BackupVerifyFailed => Self::BackupVerifyFailed,
+            NotificationEventParam::UpdateAvailable => Self::UpdateAvailable,
+            NotificationEventParam::PluginUpdateAvailable => Self::PluginUpdateAvailable,
+            NotificationEventParam::PluginUpdateFailed => Self::PluginUpdateFailed,
+            NotificationEventParam::AccountExpiring => Self::AccountExpiring,
+            NotificationEventParam::AccountInvalid => Self::AccountInvalid,
         }
     }
 }
@@ -108,7 +129,9 @@ pub(crate) struct CreateNotificationRuleParams {
     pub name: String,
     /// Destination this rule delivers to.
     pub target_id: String,
-    /// Events the rule reacts to; empty means every event.
+    /// Events the rule reacts to; empty means every event. The operational ones (backup,
+    /// verification, update, plugin update, account) belong to no category, so a rule restricted to one never
+    /// receives them.
     pub events: Option<Vec<NotificationEventParam>>,
     /// Restricts the rule to one category.
     pub category_id: Option<String>,

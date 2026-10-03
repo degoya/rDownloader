@@ -3,6 +3,8 @@ import type { Ref } from 'vue'
 import { api, responseError, resultMessage } from '@/api/client'
 import type { PostprocessStep } from '@/api/types'
 
+import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
+
 import { changeBody, type PackageChange } from './transfersShared'
 
 /** What the package actions write back into the transfers store. */
@@ -15,18 +17,15 @@ interface PackageActionContext {
 /**
  * The transfers store's actions on whole packages: change, rename, delete, order, extract.
  * They share the store's `error` and `notice` and refresh it, so the store stays one surface.
+ * The bulk routes take at most 500 ids, so a larger selection goes in batches (`inBatches`).
  */
 export function usePackageActions({ error, notice, refresh }: PackageActionContext) {
   async function extractPackages(ids: string[]): Promise<boolean> {
     if (!ids.length) return false
-    const response = await api.POST('/api/v1/packages/extract', { body: { ids } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    notice.value = resultMessage(response.data)
-    error.value = null
-    return true
+    const run = await inBatches(ids, batch => api.POST('/api/v1/packages/extract', { body: { ids: batch } }))
+    if (run.data.length) notice.value = combinedMessage(run.data)
+    error.value = batchError(run)
+    return !run.failure
   }
 
   /**
@@ -54,16 +53,20 @@ export function usePackageActions({ error, notice, refresh }: PackageActionConte
 
   async function updatePackages(ids: string[], change: PackageChange): Promise<boolean> {
     if (!ids.length) return false
-    const response = ids.length === 1 && ids[0]
-      ? await api.PATCH('/api/v1/packages/{id}', { params: { path: { id: ids[0] } }, body: changeBody(change) })
-      : await api.POST('/api/v1/packages/bulk', { body: { ids, ...changeBody(change) } })
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
+    if (ids.length === 1 && ids[0]) {
+      const response = await api.PATCH('/api/v1/packages/{id}', { params: { path: { id: ids[0] } }, body: changeBody(change) })
+      if (!response.data) {
+        error.value = responseError(response)
+        return false
+      }
+      error.value = null
+      await refresh()
+      return true
     }
-    error.value = null
-    await refresh()
-    return true
+    const run = await inBatches(ids, batch => api.POST('/api/v1/packages/bulk', { body: { ids: batch, ...changeBody(change) } }))
+    if (run.data.length) await refresh()
+    error.value = batchError(run)
+    return !run.failure
   }
 
   /**
@@ -93,16 +96,11 @@ export function usePackageActions({ error, notice, refresh }: PackageActionConte
    */
   async function deletePackages(ids: string[], force = false): Promise<boolean> {
     if (!ids.length) return false
-    const response = await api.POST('/api/v1/packages/delete', { body: { ids, force } })
-    if (!response.data) {
-      error.value = responseError(response)
-      await refresh()
-      return false
-    }
-    notice.value = resultMessage(response.data)
-    error.value = null
+    const run = await inBatches(ids, batch => api.POST('/api/v1/packages/delete', { body: { ids: batch, force } }))
+    if (run.data.length) notice.value = combinedMessage(run.data)
+    error.value = batchError(run)
     await refresh()
-    return true
+    return !run.failure
   }
 
   async function reorderPackages(ids: string[]): Promise<boolean> {

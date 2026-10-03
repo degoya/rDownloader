@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use unicode_normalization::UnicodeNormalization;
@@ -159,17 +160,49 @@ pub fn collision_free_path(directory: &Path, file_name: &str) -> PathBuf {
 /// so a rerun lands in the folder the first run chose.
 #[must_use]
 pub fn extraction_subfolder(directory: &Path, archive_base: &str) -> PathBuf {
+    free_subfolder(directory, archive_base, &HashSet::new())
+}
+
+/// The folders of all archive sets of one package, one per base and in the same order
+/// (RD-190-06).
+///
+/// Each is [`extraction_subfolder`], except that a name an earlier set already took counts as in
+/// the way: `Film.zip` and `Film.rar` unpack into `Film` and `Film (1)` rather than into one
+/// folder. Names compare without regard to case, as they do on Windows and macOS. The order of
+/// `archive_bases` decides who keeps the plain name, so a rerun over the same sets in the same
+/// order lands every set in the folder the first run chose.
+#[must_use]
+pub fn extraction_subfolders(directory: &Path, archive_bases: &[&str]) -> Vec<PathBuf> {
+    let mut taken = HashSet::new();
+    archive_bases
+        .iter()
+        .map(|base| {
+            let folder = free_subfolder(directory, base, &taken);
+            if let Some(name) = folder.file_name() {
+                taken.insert(name.to_string_lossy().to_lowercase());
+            }
+            folder
+        })
+        .collect()
+}
+
+/// The first of `<name>`, `<name> (1)`, `<name> (2)`, … that is a directory or free and not
+/// in `taken` (lower-case names).
+fn free_subfolder(directory: &Path, archive_base: &str, taken: &HashSet<String>) -> PathBuf {
     let name = sanitize_file_name_within(directory, archive_base, MIN_NAME_UTF16_UNITS * 2);
     // `symlink_metadata`: a link to a directory elsewhere is in the way, not a place to unpack.
-    let usable = |path: &Path| !std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_dir());
-    let direct = directory.join(&name);
-    if usable(&direct) {
-        return direct;
+    let usable = |candidate: &str| {
+        !taken.contains(&candidate.to_lowercase())
+            && !std::fs::symlink_metadata(directory.join(candidate))
+                .is_ok_and(|meta| !meta.is_dir())
+    };
+    if usable(&name) {
+        return directory.join(&name);
     }
     for index in 1..=10_000_u32 {
-        let candidate = directory.join(format!("{name} ({index})"));
+        let candidate = format!("{name} ({index})");
         if usable(&candidate) {
-            return candidate;
+            return directory.join(candidate);
         }
     }
     directory.join(format!("{name}-{}", uuid::Uuid::now_v7()))
@@ -220,8 +253,9 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        MAX_PATH_UTF16_UNITS, extraction_subfolder, package_directory, package_name_from_file_name,
-        renamed_package_directory, sanitize_file_name, sanitize_file_name_within,
+        MAX_PATH_UTF16_UNITS, extraction_subfolder, extraction_subfolders, package_directory,
+        package_name_from_file_name, renamed_package_directory, sanitize_file_name,
+        sanitize_file_name_within,
     };
 
     #[test]
@@ -358,5 +392,40 @@ mod tests {
         // Deterministic: once that folder exists, the same name leads to it again.
         std::fs::create_dir(&stepped).expect("folder");
         assert_eq!(extraction_subfolder(package.path(), "Extras"), stepped);
+    }
+
+    #[test]
+    fn two_sets_with_one_base_get_two_folders_and_keep_them() {
+        let package = tempfile::tempdir().expect("tempdir");
+        let directory = package.path();
+        // `Film.zip` and `Film.rar`, and a third whose name differs only in case and in what
+        // sanitising drops: one folder on Windows, so one folder each everywhere.
+        let bases = ["Film", "Film", "FILM ", "Extras"];
+        let folders = extraction_subfolders(directory, &bases);
+        assert_eq!(
+            folders,
+            vec![
+                directory.join("Film"),
+                directory.join("Film (1)"),
+                directory.join("FILM (2)"),
+                directory.join("Extras"),
+            ]
+        );
+        // A rerun finds the folders the first run created and hands them out the same way.
+        for folder in &folders {
+            std::fs::create_dir(folder).expect("folder");
+        }
+        assert_eq!(extraction_subfolders(directory, &bases), folders);
+    }
+
+    #[test]
+    fn a_file_in_the_way_and_a_taken_name_are_stepped_around_together() {
+        let package = tempfile::tempdir().expect("tempdir");
+        let directory = package.path();
+        std::fs::write(directory.join("Film (1)"), b"not a folder").expect("file");
+        assert_eq!(
+            extraction_subfolders(directory, &["Film", "Film"]),
+            vec![directory.join("Film"), directory.join("Film (2)")]
+        );
     }
 }

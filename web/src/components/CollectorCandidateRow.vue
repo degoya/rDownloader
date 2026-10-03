@@ -28,6 +28,7 @@ import type { MirrorGroup } from '@/utils/mirrorGroups'
 import { displayName, hosterOf } from '@/utils/collectorSort'
 import { formatBytes, formatDuration, formatMoment } from '@/utils/format'
 import { isEnqueueable } from '@/utils/candidateState'
+import { sourcePageUrl } from '@/utils/sourcePage'
 
 const { t } = useI18n()
 const props = defineProps<{
@@ -64,6 +65,8 @@ const emit = defineEmits<{
   'dissolve-mirror': [id: string]
   /** Hide every link of this hoster from the LinkGrabber (RD-130-21). */
   'hide-hoster': [hoster: string]
+  /** Addresses onto the clipboard; the view copies and says so (RD-190-21). */
+  'copy-links': [links: string[]]
 }>()
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
 const dragTitle = computed(() => `${t('linkgrabber.candidate.drag_hint')} — ${t('common.a11y.reorder_keys')}`)
@@ -172,6 +175,13 @@ const mediaMeta = computed(() => {
 
 /** Captured browser-download request; shown read-only so the user sees it before queueing. */
 const request = computed(() => props.candidate.request ?? null)
+/**
+ * The page the link came from: the referrer of a captured browser download, else the page a
+ * media link was extracted from. A link nobody saw on a page offers nothing (RD-190-21).
+ */
+const sourcePage = computed(() => sourcePageUrl(request.value?.referrer, media.value?.page_url))
+/** A group row stands for all its mirrors, so it copies all of them; any other row its own. */
+const rowLinks = computed(() => props.mirrorGroup ? props.mirrorGroup.members.map(member => member.url) : [props.candidate.url])
 const expanded = ref(false)
 
 /**
@@ -380,6 +390,14 @@ const actions = computed(() => [[
       }]
     : []),
   { label: t('common.actions.rename'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.candidate.id) },
+  {
+    label: rowLinks.value.length > 1 ? t('common.actions.copy_links') : t('common.actions.copy_link'),
+    icon: 'i-lucide-link',
+    onSelect: () => emit('copy-links', rowLinks.value)
+  },
+  ...(sourcePage.value
+    ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
+    : []),
   // JDownloader's "hide links of this hoster": the row is where somebody notices a hoster they
   // do not want, so the way to hide it is where the noticing happens (RD-130-21).
   ...(messageParams.value.host

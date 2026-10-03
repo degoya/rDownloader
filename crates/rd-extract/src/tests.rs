@@ -116,7 +116,7 @@ pub(crate) async fn run_extraction(
 }
 
 /// Runs the pipeline and returns whichever terminal state the package reached.
-async fn run_extraction_to_end(
+pub(crate) async fn run_extraction_to_end(
     database: &Database,
     temp: &std::path::Path,
     package_id: PackageId,
@@ -235,6 +235,11 @@ async fn manual_extraction_uses_package_password_list_and_deletes_originals() {
     let database = Database::open(temp.path().join("extract.sqlite"))
         .await
         .expect("database");
+    // The package password below lives in the vault (RD-190-04).
+    database
+        .install_file_vault(temp.path().join("secrets"))
+        .await
+        .expect("vault");
     let destination = temp.path().join("dl");
     std::fs::create_dir_all(&destination).expect("destination");
     write_zip(
@@ -317,10 +322,22 @@ async fn manual_extraction_uses_package_password_list_and_deletes_originals() {
         )
         .await
         .expect("password");
-    let stored = database.list_packages().await.expect("packages");
+    let stored = database
+        .list_packages_with_passwords()
+        .await
+        .expect("packages");
     assert!(stored[0].has_password);
     // RD-104-04: an archive password is readable, not just countable.
     assert_eq!(stored[0].password.as_deref(), Some("unused-package-pw"));
+    // The extraction reads it out of the vault (RD-190-04).
+    assert_eq!(
+        database
+            .package_password(package.id)
+            .await
+            .expect("package password")
+            .as_deref(),
+        Some("unused-package-pw")
+    );
 
     let service = ExtractionService::start(
         database.clone(),
@@ -574,6 +591,7 @@ async fn a_category_override_switches_the_sfv_check_off() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            malware_scan: None,
             sfv_verify: Some(false),
             safe_postproc: None,
             delete_par2: None,

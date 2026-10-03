@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api, NETWORK_UNREACHABLE, noticeLostSession, onSessionLost, responseError } from './client'
+import { GRACE_MS, resetServiceConnection, serviceConnection } from '@/composables/serviceConnection'
 
 describe('responseError', () => {
   it('shows the API error body returned by openapi-fetch', () => {
@@ -74,6 +75,20 @@ describe('a request that never reached the service', () => {
     expect(response.error).toMatchObject({ code: NETWORK_UNREACHABLE })
   })
 
+  // The re-check before 1.9.0: a page that kept polling a stopped service kept the dot green,
+  // because openapi-fetch runs onResponse on the stand-in 503 and that reported the service
+  // as reachable, cancelling the outage the moment it was noticed.
+  it('counts as an outage, not as an answer of the service', async () => {
+    vi.useFakeTimers()
+    resetServiceConnection()
+    await api.GET('/api/v1/settings', {
+      baseUrl: 'http://localhost',
+      fetch: () => Promise.reject(new TypeError('Failed to fetch'))
+    })
+    await vi.advanceTimersByTimeAsync(GRACE_MS + 100)
+    expect(serviceConnection.value).not.toBe('connected')
+  })
+
   it('leaves an abort to the caller that asked for it', async () => {
     const request = api.GET('/api/v1/settings', {
       baseUrl: 'http://localhost',
@@ -81,4 +96,9 @@ describe('a request that never reached the service', () => {
     })
     await expect(request).rejects.toMatchObject({ name: 'AbortError' })
   })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+  resetServiceConnection()
 })

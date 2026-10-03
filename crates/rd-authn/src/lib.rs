@@ -12,6 +12,10 @@
 pub mod cidr;
 pub mod client_ip;
 pub mod host;
+pub mod oidc;
+#[doc(hidden)]
+pub mod oidc_testing;
+pub mod oidc_token;
 pub mod proxy;
 pub mod recovery;
 pub mod throttle;

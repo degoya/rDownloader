@@ -41,6 +41,7 @@ pub mod settings_backup;
 pub mod settings_backup_auth;
 pub mod settings_backup_crypto;
 pub mod settings_backup_dto;
+pub mod settings_backup_indexers;
 pub mod settings_backup_secrets;
 pub mod settings_handlers;
 pub mod stats_handlers;

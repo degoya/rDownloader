@@ -16,7 +16,15 @@
     "all": "Todas",
     "active": "Activas",
     "queued": "En espera",
-    "completed": "Completadas"
+    "completed": "Completadas",
+    "paused": "En pausa",
+    "failed": "Con error",
+    "seeding": "Seeding",
+    "search_label": "Buscar descargas por nombre de paquete o archivo",
+    "search_placeholder": "Paquete o archivo",
+    "no_match_title": "Nada coincide con el filtro y la búsqueda",
+    "no_match_hint": "La cola no está vacía: restablece el filtro para verlo todo.",
+    "reset": "Restablecer filtro"
   },
   "toolbar": {
     "speed_limit_title": "Límite de velocidad global (vacío = sin límite)",
@@ -240,7 +248,8 @@
       "remux": "Remultiplexar",
       "plugin_step": "Paso de plugin",
       "script": "Script",
-      "upload": "Subida"
+      "upload": "Subida",
+      "malware_scan": "Análisis de malware"
     },
     "states": {
       "queued": "en espera",
@@ -264,7 +273,8 @@
       "extracting": "Extrayendo",
       "deleting_archives": "Eliminando archivos comprimidos",
       "cleaning": "Limpiando",
-      "script": "Ejecutando script"
+      "script": "Ejecutando script",
+      "scanning": "Buscando malware"
     },
     "queue": {
       "title": "Posprocesamiento",
@@ -392,5 +402,25 @@
     "delete_partial": "Eliminar también los archivos descargados parcialmente",
     "delete_partial_hint": "No se puede deshacer: datos de torrent sin terminar y fragmentos junto al archivo de destino. Los archivos incompletos de la carpeta temporal se eliminan siempre.",
     "confirm": "Vaciar lista"
+  },
+  "pause": {
+    "menu_aria": "Pausar un rato",
+    "for_30m": "Pausar 30 minutos",
+    "for_1h": "Pausar 1 hora",
+    "for_3h": "Pausar 3 horas",
+    "until": "Pausar hasta…",
+    "until_title": "Pausar hasta",
+    "until_hint": "Las descargas continúan solas a esta hora: hoy o, si ya ha pasado, mañana.",
+    "until_time": "Hora",
+    "confirm": "Pausar",
+    "paused_until": "En pausa hasta {time}",
+    "remaining_title": "La cola continúa en {duration}. Haz clic para reanudar ya.",
+    "resume_now": "Reanudar ahora",
+    "notice_paused": "Cola en pausa hasta {time}"
+  },
+  "kill_switch": {
+    "title": "Torrents pausados por el interruptor de corte",
+    "description": "La interfaz vinculada {name} ha desaparecido. Los torrents siguen en pausa hasta que vuelva; las demás descargas continúan.",
+    "open": "Estado de la red"
   }
 }

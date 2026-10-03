@@ -32,7 +32,10 @@ const MAX_RULE_NAME = 100
 
 const EVENTS: NotificationEvent[] = [
   'package_completed', 'package_failed', 'storage_blocked',
-  'budget_exhausted', 'captcha_waiting', 'power_pending'
+  'budget_exhausted', 'captcha_waiting', 'power_pending',
+  // Operational events (RD-190-19): from background checks and runs, never in a category.
+  'backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available',
+  'plugin_update_failed', 'account_expiring', 'account_invalid'
 ]
 
 function emptyForm(): NotificationRuleRequest {
@@ -168,20 +171,23 @@ async function remove(rule: NotificationRule): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="rule in rules" :key="rule.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
             <UIcon name="i-lucide-filter" class="text-primary" />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 shrink grow basis-[200px]">
               <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
               <p class="truncate text-[11px] text-muted">
                 {{ targetName(rule.target_id) }} ·
                 {{ rule.events.length ? rule.events.map(event => t(`notifications.event.${event}`)).join(', ') : t('notifications.rule.all_events') }}
               </p>
             </div>
+            <!-- The badges and actions wrap under the name as one group on a narrow screen. -->
+            <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
             <UBadge v-if="editingId === rule.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge v-if="!rule.enabled" color="neutral" variant="outline">{{ t('notifications.target.disabled') }}</UBadge>
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" :loading="duplicatingId === rule.id" @click="duplicate(rule)" />
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(rule)" />
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(rule)" />
+            </div>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!rules.length" variant="inline" class="p-5">
             <p class="text-center text-sm text-muted">{{ t('notifications.rule.empty') }}</p>

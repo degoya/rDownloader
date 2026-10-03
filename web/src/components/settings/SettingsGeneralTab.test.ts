@@ -12,7 +12,7 @@ vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { settings: settingsMessages } } })
 const components = {
   UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
-  UInput: { props: ['modelValue'], template: '<input :value="modelValue" />' },
+  UInput: { props: ['modelValue'], template: '<input v-bind="$attrs" :value="modelValue" />' },
   UIcon: { props: ['name'], template: '<span :data-icon="name" />' },
   USwitch: { template: '<input type="checkbox" />' },
   UButton: { template: '<button><slot /></button>' }
@@ -22,8 +22,8 @@ function server(maxConnections: number, enabled = true) {
   return { id: 'srv', name: 'srv', host: 'news.example', port: 563, tls: true, priority: 0, max_connections: maxConnections, enabled }
 }
 
-function mount(cap: number) {
-  const settings = { nntp_connections_per_file: cap, nntp_parallel_files: 0, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: '0' }
+function mount(cap: number, minimumFreeBytes = '0') {
+  const settings = { nntp_connections_per_file: cap, nntp_parallel_files: 0, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: minimumFreeBytes }
   return render(SettingsGeneralTab, {
     props: { modelValue: settings as never, speedMib: null },
     global: { plugins: [i18n], components }
@@ -122,5 +122,19 @@ describe('SettingsGeneralTab upload limit', () => {
 
     expect(screen.getByText('Upload limit')).toBeTruthy()
     expect((screen.getByTestId('upload-limit') as HTMLInputElement).value).toBe('3')
+  })
+})
+
+describe('SettingsGeneralTab number fields', () => {
+  it('accepts the fraction a stored byte value converts to, so the page loads valid', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+
+    // 0.25 GiB: with `step="1"` the field was `:invalid` on load and the save refused it.
+    const { container } = mount(0, String(1024 ** 3 / 4))
+
+    const fields = [...container.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+    const minimumFree = fields.find(field => field.value === '0.25')
+    expect(minimumFree).toBeTruthy()
+    expect(minimumFree?.validity.valid).toBe(true)
   })
 })

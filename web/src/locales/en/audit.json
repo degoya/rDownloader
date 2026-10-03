@@ -71,7 +71,12 @@
     "content_index_cleared": "Content index cleared",
     "setup_completed": "Initial setup completed",
     "mfa_enrolled": "Second factor added",
-    "mfa_removed": "Second factor removed"
+    "mfa_removed": "Second factor removed",
+    "malware_detected": "Malware detected",
+    "identity_linked": "Identity provider account linked",
+    "identity_unlinked": "Identity provider account unlinked",
+    "password_login_changed": "Password sign-in switched",
+    "password_reset_local": "Password reset on the host"
   },
   "list": {
     "title": "Records",

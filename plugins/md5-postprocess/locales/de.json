@@ -4,6 +4,7 @@
   "codes": {
     "md5_postprocess.mismatch": "Eine Datei stimmte nicht mit ihrer hinterlegten MD5-Summe überein.",
     "md5_postprocess.missing": "Keine der Dateien, die eine MD5-Prüfdatei nennt, ist im Paket.",
-    "md5_postprocess.empty": "Eine MD5-Prüfdatei enthält keine lesbare Prüfsumme."
+    "md5_postprocess.empty": "Eine MD5-Prüfdatei enthält keine lesbare Prüfsumme.",
+    "md5_postprocess.unchecked": "Die MD5-Summen stimmen, aber {count} aufgeführte Datei(en) fehlen in diesem Paket und wurden nicht geprüft: {files}"
   }
 }

@@ -16,7 +16,15 @@
     "all": "All",
     "active": "Active",
     "queued": "Waiting",
-    "completed": "Completed"
+    "completed": "Completed",
+    "paused": "Paused",
+    "failed": "Failed",
+    "seeding": "Seeding",
+    "search_label": "Search downloads by package or file name",
+    "search_placeholder": "Package or file",
+    "no_match_title": "Nothing matches the filter and search",
+    "no_match_hint": "The queue is not empty – reset the filter to see everything.",
+    "reset": "Reset filter"
   },
   "toolbar": {
     "speed_limit_title": "Global speed limit (empty = unlimited)",
@@ -240,7 +248,8 @@
       "remux": "Remux",
       "plugin_step": "Plugin step",
       "script": "Script",
-      "upload": "Upload"
+      "upload": "Upload",
+      "malware_scan": "Malware scan"
     },
     "states": {
       "queued": "waiting",
@@ -264,7 +273,8 @@
       "extracting": "Extracting",
       "deleting_archives": "Deleting archives",
       "cleaning": "Cleaning up",
-      "script": "Running script"
+      "script": "Running script",
+      "scanning": "Scanning for malware"
     },
     "queue": {
       "title": "Post-processing",
@@ -392,5 +402,25 @@
     "delete_partial": "Also delete partially downloaded files",
     "delete_partial_hint": "Cannot be undone: unfinished torrent data and fragments beside the target file. Incomplete files in the staging folder are always removed.",
     "confirm": "Clear list"
+  },
+  "pause": {
+    "menu_aria": "Pause for a while",
+    "for_30m": "Pause for 30 minutes",
+    "for_1h": "Pause for 1 hour",
+    "for_3h": "Pause for 3 hours",
+    "until": "Pause until…",
+    "until_title": "Pause until",
+    "until_hint": "Downloads continue by themselves at this time – today, or tomorrow if it has already passed.",
+    "until_time": "Time",
+    "confirm": "Pause",
+    "paused_until": "Paused until {time}",
+    "remaining_title": "The queue continues in {duration}. Click to resume now.",
+    "resume_now": "Resume now",
+    "notice_paused": "Queue paused until {time}"
+  },
+  "kill_switch": {
+    "title": "Torrents paused by the kill switch",
+    "description": "The bound interface {name} is gone. Torrents stay paused until it returns; other downloads carry on.",
+    "open": "Network status"
   }
 }

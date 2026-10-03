@@ -85,6 +85,10 @@ async fn paused_package(
     directory: &Path,
 ) -> (SchedulerHandle, rd_db::Database, DownloadFile, PathBuf) {
     let (scheduler, database) = scheduler_over(directory).await;
+    // The start resumes outstanding moves in the background; under load it ran after a case
+    // had set up its own move and finished it, so "the unfinished move was forgotten" (the
+    // 1.9.0 release run). Let it run first.
+    scheduler.storage_recovery_finished().await;
     let (spec, files) = one_paused_file(directory);
     let (_package, files) = scheduler
         .enqueue_package(spec, files)
@@ -433,11 +437,13 @@ async fn a_crash_before_the_original_is_removed_ends_with_one_verified_copy() {
 /// as coverage and is not.
 #[test]
 fn every_scheduler_crash_point_is_exercised_by_a_case() {
-    // Two sources, because one crash point sits on a `pub(crate)` path that no integration
-    // test can reach: its case is a unit test beside the code it interrupts.
+    // Three sources: one crash point sits on a `pub(crate)` path that no integration test can
+    // reach, so its case is a unit test beside the code it interrupts; the timed pause's case
+    // lives with the other timed-pause tests (RD-190-20).
     let source = concat!(
         include_str!("crash_restart.rs"),
         include_str!("../src/mirror_fallback_tests.rs"),
+        include_str!("queue_pause.rs"),
     );
     for point in rd_core::failpoint::CRASH_POINTS
         .iter()

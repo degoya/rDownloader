@@ -186,22 +186,22 @@ function summary(profile: BandwidthProfile): string {
             <UInput v-model.number="form.max_active_files" type="number" min="1" max="32" class="w-full" icon="i-lucide-files" :placeholder="t('bandwidth.profile.inherit')" />
           </UFormField>
           <UFormField :label="t('bandwidth.profile.download_label')">
-            <UInput v-model.number="downloadMiB" type="number" min="0" step="0.5" class="w-full" icon="i-lucide-arrow-down-to-line" :placeholder="t('bandwidth.status.unlimited')">
+            <UInput v-model.number="downloadMiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-arrow-down-to-line" :placeholder="t('bandwidth.status.unlimited')">
               <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
             </UInput>
           </UFormField>
           <UFormField :label="t('bandwidth.profile.upload_label')" :description="t('bandwidth.profile.upload_description')">
-            <UInput v-model.number="uploadMiB" type="number" min="0" step="0.5" class="w-full" icon="i-lucide-arrow-up-from-line" :placeholder="t('bandwidth.status.unlimited')">
+            <UInput v-model.number="uploadMiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-arrow-up-from-line" :placeholder="t('bandwidth.status.unlimited')">
               <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
             </UInput>
           </UFormField>
           <UFormField :label="t('bandwidth.profile.daily_label')">
-            <UInput v-model.number="dailyGiB" type="number" min="0" step="1" class="w-full" icon="i-lucide-calendar-days" :placeholder="t('bandwidth.profile.no_budget')">
+            <UInput v-model.number="dailyGiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-calendar-days" :placeholder="t('bandwidth.profile.no_budget')">
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>
           </UFormField>
           <UFormField data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
-            <UInput v-model.number="monthlyGiB" type="number" min="0" step="1" class="w-full" icon="i-lucide-calendar-range" :placeholder="t('bandwidth.profile.no_budget')">
+            <UInput v-model.number="monthlyGiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-calendar-range" :placeholder="t('bandwidth.profile.no_budget')">
               <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
             </UInput>
           </UFormField>
@@ -212,7 +212,7 @@ function summary(profile: BandwidthProfile): string {
             <div class="mt-2 flex flex-wrap items-end gap-2">
               <USelect v-model="scopeKind" :items="scopeKinds" value-key="value" class="w-40" :aria-label="t('bandwidth.scope.title')" />
               <UInput v-model="scopeValue" class="w-56" :placeholder="t(`bandwidth.scope.placeholder_${scopeKind}`)" />
-              <UInput v-model.number="scopeMiB" type="number" min="0" step="0.5" class="w-36" :aria-label="t('bandwidth.scope.limit')">
+              <UInput v-model.number="scopeMiB" type="number" min="0" step="any" class="w-36" :aria-label="t('bandwidth.scope.limit')">
                 <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
               </UInput>
               <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('bandwidth.scope.add')" @click="addScope" />

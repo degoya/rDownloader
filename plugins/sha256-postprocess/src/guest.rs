@@ -8,10 +8,10 @@ wit_bindgen::generate!({
 
 use std::collections::BTreeSet;
 
-use exports::rdownloader::plugin::postprocess::{Guest, StepEnd, StepInput};
+use exports::rdownloader::plugin::postprocess::{Guest, StepComplete, StepEnd, StepInput};
 use rdownloader::plugin::{
-    host, source,
-    types::{Failure, FailureKind},
+    source,
+    types::{Failure, FailureKind, LabelPart},
 };
 use sha2::{Digest, Sha256};
 
@@ -41,6 +41,8 @@ impl Guest for Component {
         // Everything the sidecars ask for, flattened and ordered, so a checkpoint is just
         // "how many of these are done" and resuming needs no bookkeeping of its own.
         let files: BTreeSet<&str> = input.files.iter().map(String::as_str).collect();
+        // What the pipeline removed before this step: a sidecar listing it is not wrong for it.
+        let removed: BTreeSet<&str> = input.removed.iter().map(String::as_str).collect();
         let mut wanted = Vec::new();
         let mut unchecked = Vec::new();
         for name in sidecars {
@@ -49,7 +51,7 @@ impl Guest for Component {
                 Err(failure) => return StepEnd::Failed(failure),
             };
             // Each entry is read from the sidecar's own folder (`Film/film.mkv`, RD-170-16).
-            match sidecar::wanted(&files, name, &text) {
+            match sidecar::wanted(&files, &removed, name, &text) {
                 Ok(plan) => {
                     wanted.extend(plan.entries);
                     unchecked.extend(
@@ -84,11 +86,15 @@ impl Guest for Component {
             }
             source::progress((index + 1) as u64, Some(total as u64));
         }
-        // A step can only pass or fail, so a pass with files left unchecked says so in the log.
-        if !unchecked.is_empty() {
-            host::log("warn", &unchecked_warning(&unchecked));
-        }
-        StepEnd::Complete(None)
+        // A pass with files left unchecked says so on the step (RD-190-06).
+        StepEnd::Complete(StepComplete {
+            checkpoint: None,
+            warnings: if unchecked.is_empty() {
+                Vec::new()
+            } else {
+                vec![unchecked_warning(&unchecked)]
+            },
+        })
     }
 }
 
@@ -167,24 +173,33 @@ fn unverifiable(name: &str, problem: sidecar::Unverifiable) -> Failure {
 }
 
 /// The warning for listed files the package lacks while others verified: a release split
-/// across packages, or a file a cleanup rule removed. Named, so a pass is never read as "all".
-fn unchecked_warning(files: &[String]) -> String {
-    /// Names spelt out; a longer list is counted, since a log line is no inventory.
+/// across packages, say. Named, so a pass is never read as "all".
+fn unchecked_warning(files: &[String]) -> LabelPart {
+    /// Names spelt out; a longer list is counted, since a step line is no inventory.
     const NAMED: usize = 20;
-    let mut warning = format!(
-        "SHA-256 checksums matched, but {} listed file(s) are not in this package and were not checked: {}",
-        files.len(),
-        files
-            .iter()
-            .take(NAMED)
-            .map(String::as_str)
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-    if files.len() > NAMED {
-        warning.push_str(&format!(", and {} more", files.len() - NAMED));
+    let named = files
+        .iter()
+        .take(NAMED)
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(", ");
+    // The count says how many there are; the English text also says how many went unnamed.
+    let more = files
+        .len()
+        .checked_sub(NAMED)
+        .filter(|more| *more > 0)
+        .map_or_else(String::new, |more| format!(", and {more} more"));
+    LabelPart {
+        code: "sha256_postprocess.unchecked".to_owned(),
+        message: format!(
+            "SHA-256 checksums matched, but {} listed file(s) are not in this package and were not checked: {named}{more}",
+            files.len()
+        ),
+        params: vec![
+            ("count".to_owned(), files.len().to_string()),
+            ("files".to_owned(), named),
+        ],
     }
-    warning
 }
 
 fn refuse(message: String) -> Failure {

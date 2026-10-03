@@ -112,7 +112,7 @@ pub(crate) fn validate_tree(root: &Path, limits: ArchiveLimits) -> Result<Extrac
             if metadata.is_dir() {
                 directories.push(entry.path());
             } else if metadata.is_file() {
-                if is_hard_linked(&metadata) {
+                if is_hard_linked(&entry.path(), &metadata)? {
                     bail!("archive created a hard link");
                 }
                 report.files = report.files.saturating_add(1);
@@ -136,17 +136,35 @@ pub(crate) fn validate_tree(root: &Path, limits: ArchiveLimits) -> Result<Extrac
 /// more than one is refused; that includes an archive that links two of its own members, which
 /// a download does not ship.
 ///
-/// Unix only: on Windows the link count is `MetadataExt::number_of_links`, which is not stable
-/// Rust, so a hard link there is not detected (a documented residual risk).
+/// Unix reads the count from the entry's own metadata. Windows has it only behind
+/// `GetFileInformationByHandle` (`MetadataExt::number_of_links` is not stable Rust), so there the
+/// file is opened once more, without access rights and without following a reparse point, and
+/// asked through `winapi-util` (RD-190-05). Either way a count that cannot be read fails the
+/// unpack instead of passing the file.
 #[cfg(unix)]
-fn is_hard_linked(metadata: &std::fs::Metadata) -> bool {
+fn is_hard_linked(_path: &Path, metadata: &std::fs::Metadata) -> Result<bool> {
     use std::os::unix::fs::MetadataExt;
-    metadata.nlink() > 1
+    Ok(metadata.nlink() > 1)
 }
 
-#[cfg(not(unix))]
-fn is_hard_linked(_metadata: &std::fs::Metadata) -> bool {
-    false
+#[cfg(windows)]
+fn is_hard_linked(path: &Path, _metadata: &std::fs::Metadata) -> Result<bool> {
+    use std::os::windows::fs::OpenOptionsExt as _;
+    // The handle names the entry itself: a link put in its place after `symlink_metadata` is
+    // opened as the link, not as the file it points to, and refused here as one.
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u64 = 0x0000_0400;
+    let file = std::fs::OpenOptions::new()
+        .access_mode(0)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(path)
+        .context("open an extracted file to read its link count")?;
+    let information =
+        winapi_util::file::information(&file).context("read an extracted file's link count")?;
+    if information.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        bail!("archive created a symbolic link");
+    }
+    Ok(information.number_of_links() > 1)
 }
 
 pub(crate) fn safe_relative(name: &str) -> Result<PathBuf> {
@@ -201,8 +219,8 @@ mod tests {
 
     /// Security review 2026-09-28, finding 5: a hard link inside staging to a file outside it
     /// has a canonical path inside staging, so only the link count gives it away. Without the
-    /// `nlink` check the tree validates and the foreign file would be promoted into the package.
-    #[cfg(unix)]
+    /// link-count check the tree validates and the foreign file would be promoted into the
+    /// package. It runs on Windows too (RD-190-05), where the count comes from the file handle.
     #[test]
     fn a_hard_link_to_a_file_outside_staging_is_refused() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -246,6 +264,33 @@ mod tests {
                 "{name}: {error}"
             );
         }
+    }
+
+    /// A junction is a reparse point like a symbolic link, and the standard library's file type
+    /// counts it as one (a name-surrogate tag), so the same refusal covers it (RD-190-05).
+    /// `mklink /J` needs no privilege, unlike a symbolic link on Windows.
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_out_of_staging_is_refused() {
+        use std::os::windows::process::CommandExt as _;
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outside_directory = directory.path().join("autostart");
+        std::fs::create_dir_all(&outside_directory).expect("directory outside staging");
+        let staging = directory.path().join("staging");
+        std::fs::create_dir_all(staging.join("nested")).expect("staging");
+        let link = staging.join("nested").join("link");
+        let status = std::process::Command::new("cmd")
+            .raw_arg(format!(
+                "/C mklink /J \"{}\" \"{}\"",
+                link.display(),
+                outside_directory.display()
+            ))
+            .status()
+            .expect("mklink");
+        assert!(status.success(), "mklink /J: {status}");
+        let error = validate_tree(&staging, ArchiveLimits::default())
+            .expect_err("a junction out of staging must not validate");
+        assert!(error.to_string().contains("symbolic link"), "{error}");
     }
 
     /// The limits hold for a tree an external tool wrote, where nothing counted while it was

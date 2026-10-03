@@ -17,6 +17,7 @@ rd-collector = { path = "../rd-collector" }
 rd-core = { path = "../rd-core" }
 rd-media = { path = "../rd-media" }
 serde.workspace = true
+serde_json.workspace = true
 sha2.workspace = true
 tracing.workspace = true
 url.workspace = true

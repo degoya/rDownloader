@@ -342,6 +342,12 @@ pub(crate) struct PostprocessOptionsParams {
     pub kind: PostprocessOptions,
 }
 
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct MalwareScannerTestParams {
+    /// `host:port` or `unix:/path`; omitted = the saved clamd address.
+    pub address: Option<String>,
+}
+
 #[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ManagedToolsView {

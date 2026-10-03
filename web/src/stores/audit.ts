@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { BASE_PATH } from '@/basePath'
 import type { AuditAction, AuditActorKind, AuditOutcome, AuditRecord, AuditRecordsPage } from '@/api/types'
 
@@ -54,6 +55,8 @@ export const useAuditStore = defineStore('audit', () => {
   const retention = ref<AuditRecordsPage['retention'] | null>(null)
   const actions = ref<AuditAction[]>([])
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const fetching = ref(false)
   const settled = ref(false)
   /** The first fetch alone shows the loading surface (`design.md`). */

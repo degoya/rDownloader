@@ -18,6 +18,7 @@ fn indexer(name: &str, secret_ref: Option<&str>) -> NewIndexer {
         secret_ref: secret_ref.map(ToOwned::to_owned),
         categories: vec!["2000".to_owned(), "5040".to_owned()],
         enabled: true,
+        list_style: rd_core::IndexerListStyle::Compact,
     }
 }
 
@@ -77,6 +78,34 @@ async fn an_edit_without_a_key_keeps_it_and_a_new_key_hands_the_old_one_back() {
     assert!(database.indexer(created.id).await.expect("get").is_none());
 }
 
+/// RD-190-16: a new indexer is compact unless it says otherwise, and an edit changes the style.
+#[tokio::test]
+async fn the_list_style_is_stored_and_changed_by_an_edit() {
+    let directory = TempDir::new().expect("tempdir");
+    let database = database(&directory).await;
+    let created = database
+        .create_indexer(indexer("Example", Some("vault://first")))
+        .await
+        .expect("create");
+    assert_eq!(created.list_style, rd_core::IndexerListStyle::Compact);
+    let json = serde_json::to_value(&created).expect("serialise");
+    assert_eq!(json["list_style"], "compact");
+
+    let mut edit = indexer("Example", None);
+    edit.list_style = rd_core::IndexerListStyle::Detailed;
+    let (updated, _) = database
+        .update_indexer(created.id, edit)
+        .await
+        .expect("update");
+    assert_eq!(updated.list_style, rd_core::IndexerListStyle::Detailed);
+    let stored = database
+        .indexer(created.id)
+        .await
+        .expect("get")
+        .expect("stored");
+    assert_eq!(stored.list_style, rd_core::IndexerListStyle::Detailed);
+}
+
 #[tokio::test]
 async fn a_second_indexer_of_the_same_name_is_a_duplicate_and_an_unknown_one_is_not_found() {
     let directory = TempDir::new().expect("tempdir");
@@ -133,6 +162,7 @@ async fn a_subscription_keeps_its_search_parameters() {
             schedule: None,
             script_arguments: Vec::new(),
             indexer_search: search.clone(),
+            git_release: rd_core::GitReleaseOptions::default(),
             secret_ref: None,
         })
         .await

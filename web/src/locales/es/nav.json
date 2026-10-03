@@ -62,7 +62,14 @@
       "signature": "firma, clave, editor, confianza",
       "managed_tools": "descargar herramientas, instalar automáticamente, actualizar",
       "updates": "actualización, nueva versión, beta, canal de versiones",
-      "indexers": "indexador, newznab, búsqueda nzb, clave api"
+      "indexers": "indexador, newznab, búsqueda nzb, clave api, estilo de lista, portada"
     }
+  },
+  "connection": {
+    "lost": "Se perdió la conexión con el servicio",
+    "lost_hint": "La vista se actualizará de nuevo en cuanto el servicio esté disponible.",
+    "view_failed": "No se pudo cargar esta vista",
+    "view_failed_hint": "Se cargará en cuanto el servicio vuelva a estar disponible.",
+    "reload": "Recargar"
   }
 }

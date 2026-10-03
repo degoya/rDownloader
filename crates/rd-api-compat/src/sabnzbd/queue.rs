@@ -23,6 +23,9 @@ async fn list(state: &AppState) -> Response {
     let Ok(downloads) = state.database.list_downloads().await else {
         return error("queue unavailable");
     };
+    let Ok(categories) = state.database.list_categories().await else {
+        return error("queue unavailable");
+    };
     let mut total = 0_u64;
     let mut left = 0_u64;
     let slots: Vec<serde_json::Value> = packages
@@ -33,7 +36,13 @@ async fn list(state: &AppState) -> Response {
             let (bytes, done) = totals(&downloads, package);
             total += bytes;
             left += bytes.saturating_sub(done);
-            slot(index, package, bytes, done)
+            slot(
+                index,
+                package,
+                map::category(package, &categories),
+                bytes,
+                done,
+            )
         })
         .collect();
     json(serde_json::json!({
@@ -68,7 +77,13 @@ async fn list(state: &AppState) -> Response {
     }))
 }
 
-fn slot(index: usize, package: &DownloadPackage, bytes: u64, done: u64) -> serde_json::Value {
+fn slot(
+    index: usize,
+    package: &DownloadPackage,
+    category: &str,
+    bytes: u64,
+    done: u64,
+) -> serde_json::Value {
     let left = bytes.saturating_sub(done);
     let percentage = if bytes == 0 {
         0
@@ -80,7 +95,7 @@ fn slot(index: usize, package: &DownloadPackage, bytes: u64, done: u64) -> serde
         "nzo_id": map::nzo_id(package),
         "filename": package.name,
         "nzbname": package.name,
-        "cat": "*",
+        "cat": category,
         "priority": "Normal",
         "script": package.script.clone().unwrap_or_else(|| "None".to_owned()),
         "unpackopts": "3",

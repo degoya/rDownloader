@@ -49,7 +49,7 @@ onMounted(load)
         level="page"
       />
     </header>
-    <BandwidthStatusCard ref="status" />
+    <BandwidthStatusCard ref="status" :profiles="profiles" />
     <BandwidthProfiles v-model="profiles" :loading="loading" :load-error="loadError" @changed="refresh" />
     <BandwidthScheduleEditor v-if="schedule" v-model="schedule" :profiles="profiles" @changed="refresh" />
   </div>

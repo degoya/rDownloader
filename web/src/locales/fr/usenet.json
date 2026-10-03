@@ -87,6 +87,14 @@
       "updated": "Indexeur enregistré",
       "deleted": "{name} supprimé",
       "tested": "{server} répond : {count} catégories"
+    },
+    "list_style": "Style de la liste de recherche",
+    "list_style_hint": "Comment les résultats de cet indexeur apparaissent dans la recherche du LinkGrabber.",
+    "list_styles": {
+      "compact": "Compact",
+      "compact_hint": "Une ligne par résultat : titre, taille, âge, catégorie.",
+      "detailed": "Détaillé",
+      "detailed_hint": "Ajoute une petite couverture et ce que l’indexeur fournit : année, genre, note IMDb, langue, résolution, une courte description."
     }
   }
 }

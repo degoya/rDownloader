@@ -158,9 +158,11 @@ async fn an_added_nzb_appears_in_the_queue_and_survives_a_restart() {
     assert_eq!(slots.len(), 1, "{queue}");
     assert_eq!(slots[0]["nzo_id"], nzo_id, "{queue}");
     assert_eq!(slots[0]["filename"], "Example.Release", "{queue}");
-    for field in ["mb", "mbleft", "percentage", "status", "cat", "priority"] {
+    for field in ["mb", "mbleft", "percentage", "status", "priority"] {
         assert!(!slots[0][field].is_null(), "slot.{field}: {queue}");
     }
+    // Added without a category, and none exists to route it into: SABnzbd's own `*`.
+    assert_eq!(slots[0]["cat"], "*", "{queue}");
 
     // A second router over the same database stands in for a restart. The job id is derived
     // from the package id, so a client that stored it keeps addressing the same download.

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { CaptchaAnswerers, PendingCaptcha } from '@/api/types'
 import { subscribeEvents } from '@/composables/useEventStream'
 
@@ -29,6 +30,8 @@ export const useCaptchasStore = defineStore('captchas', () => {
   const pending = ref<PendingCaptcha[]>([])
   const busy = ref(false)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   /**
    * Who is around to answer a widget captcha, as far as the server can tell: it knows when a
    * browser extension last polled, which this page cannot know on its own (RD-108-02).

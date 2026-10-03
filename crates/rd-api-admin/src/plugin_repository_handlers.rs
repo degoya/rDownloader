@@ -385,15 +385,31 @@ pub async fn prepare_plugin_repositories(state: &AppState) {
 /// every outcome is recorded on its repository's row.
 pub(crate) async fn refresh_and_update(state: &AppState, actor: Actor) {
     state.plugin_repositories.refresh_all().await;
-    // Automatic and asking for nothing new: an update that widens the permissions is listed
-    // with them and installed on a click, never granted unseen.
-    let updates = match state.plugin_repositories.automatic_updates().await {
+    let updates = match state.plugin_repositories.updates().await {
         Ok(updates) => updates,
         Err(error) => {
             tracing::warn!(%error, "could not compute plugin updates");
             return;
         }
     };
+    // Automatic and asking for nothing new: an update that widens the permissions is listed
+    // with them and installed on a click, never granted unseen. The ones that wait for that
+    // click are announced (RD-190-19), once per plugin and version however often this runs.
+    let (updates, waiting): (Vec<_>, Vec<_>) = updates
+        .into_iter()
+        .partition(rd_plugin_host::repository::Update::installs_itself);
+    for update in waiting {
+        rd_api_core::notify_notice::announce(
+            &state.database,
+            rd_api_core::notify_notice::Notice::plugin_update_available(
+                &update.offer.entry.id.to_string(),
+                &update.offer.entry.name,
+                &update.installed_version,
+                &update.offer.entry.version,
+            ),
+        )
+        .await;
+    }
     for update in updates {
         let offer = update.offer;
         let outcome = match state
@@ -421,6 +437,17 @@ pub(crate) async fn refresh_and_update(state: &AppState, actor: Actor) {
                 code = error.code(),
                 "automatic plugin update was not installed"
             );
+            // The next refresh tries the same version again; the notice goes out once.
+            rd_api_core::notify_notice::announce(
+                &state.database,
+                rd_api_core::notify_notice::Notice::plugin_update_failed(
+                    &offer.entry.id.to_string(),
+                    &offer.entry.name,
+                    &offer.entry.version,
+                    error.code(),
+                ),
+            )
+            .await;
         }
     }
 }

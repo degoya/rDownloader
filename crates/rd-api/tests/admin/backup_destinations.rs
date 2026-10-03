@@ -1,7 +1,7 @@
 //! The full backup's destinations through the REST surface (RD-160-02): every destination gets
 //! its own copy, one that fails costs only its own row, retention removes only this
 //! installation's recorded archives and can be previewed first, and a verification finds a
-//! changed archive.
+//! changed archive; a scheduled one that does is announced (RD-190-19).
 
 use std::time::Duration;
 
@@ -304,4 +304,92 @@ async fn a_verification_passes_an_intact_archive_and_fails_a_changed_one() {
     assert_eq!(history.as_array().map(Vec::len), Some(2));
     let (_, archives) = common::get_json(&harness.router, "/api/v1/backups/archives").await;
     assert_eq!(archives[0]["verify_state"], "failed");
+}
+
+/// A scheduled verification that finds a changed archive reaches a rule asking for
+/// `backup_verify_failed` (RD-190-19).
+#[tokio::test]
+async fn a_failed_scheduled_verification_is_announced() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let (status, target) = common::post_json(
+        &harness.router,
+        "/api/v1/notifications/targets",
+        json!({ "name": "hook", "kind": "webhook", "endpoint": "http://127.0.0.1:9/hook" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{target}");
+    let (status, rule) = common::post_json(
+        &harness.router,
+        "/api/v1/notifications/rules",
+        json!({ "name": "checks", "target_id": target["id"], "events": ["backup_verify_failed"] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{rule}");
+    ready(&harness).await;
+    let nas = directory.path().join("nas");
+    add_folder(&harness, &nas).await;
+    let written = run(&harness).await;
+    assert_eq!(
+        written.state,
+        rd_core::BackupRunState::Succeeded,
+        "{:?}",
+        written.error_detail
+    );
+    let stored = nas.join(written.archive_name.as_deref().expect("name"));
+    let mut bytes = std::fs::read(&stored).expect("archive");
+    let middle = bytes.len() / 2;
+    bytes[middle] ^= 0x20;
+    std::fs::write(&stored, &bytes).expect("tamper");
+
+    let (status, body) = common::put_json(
+        &harness.router,
+        "/api/v1/backups",
+        json!({
+            "enabled": false,
+            "schedule": "0 3 * * *",
+            "timezone": "Europe/Berlin",
+            "verify_schedule": "0 4 * * *",
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let due = harness
+        .database
+        .backup_config()
+        .await
+        .expect("config")
+        .verify_next_run_at
+        .expect("armed");
+    assert_eq!(
+        rd_api_admin::backup_verify_service::tick(
+            &harness.state,
+            due + chrono::Duration::minutes(1)
+        )
+        .await,
+        1
+    );
+
+    let database = &harness.database;
+    let deliveries = common::eventually(
+        Duration::from_secs(60),
+        "no backup_verify_failed delivery was queued",
+        || async move {
+            let deliveries = database
+                .list_notification_deliveries(100)
+                .await
+                .expect("deliveries");
+            (!deliveries.is_empty()).then_some(deliveries)
+        },
+    )
+    .await;
+    assert_eq!(deliveries.len(), 1, "{deliveries:?}");
+    assert_eq!(
+        deliveries[0].event,
+        rd_notify::NotificationEvent::BackupVerifyFailed
+    );
+    assert!(
+        deliveries[0].body.contains("backup.verify_digest_mismatch"),
+        "{deliveries:?}"
+    );
 }

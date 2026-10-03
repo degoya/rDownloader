@@ -48,10 +48,15 @@ defineExpose({ reset: () => { url.value = '' } })
 </script>
 
 <template>
-  <section class="border border-muted bg-elevated p-4">
+  <!--
+    The form measures its own width (`@container`): the one-line grid needs about 950 px, and
+    beside an open sidebar a window of 1024–1230 px is "lg" while the form is not, so the last
+    fields ran off the edge. Between, the address takes a line and the rest go two by two.
+  -->
+  <section class="@container border border-muted bg-elevated p-4">
     <p class="eyebrow mb-3">{{ t('downloads.add.eyebrow') }}</p>
-    <form class="grid gap-2 lg:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(130px,0.4fr))_auto]" @submit.prevent="submit">
-      <UInput v-model="url" type="url" required icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" size="lg" />
+    <form class="grid gap-2 @min-[40rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(130px,0.4fr))_auto]" @submit.prevent="submit">
+      <UInput v-model="url" type="url" required icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" size="lg" class="@min-[40rem]:col-span-2 @min-[60rem]:col-span-1" />
       <USelect v-model="categoryId" :items="categoryItems" size="lg" :aria-label="t('downloads.add.category_aria')" />
       <USelect v-model="accountId" :items="accountItems" size="lg" :aria-label="t('downloads.add.account_aria')" />
       <USelect v-model="proxyProfileId" :items="proxyItems" size="lg" :aria-label="t('downloads.add.proxy_aria')" />

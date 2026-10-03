@@ -47,6 +47,7 @@ function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
     available: null,
     install: null,
     download: null,
+    capture_agents: [],
     ...patch
   }
 }
@@ -150,5 +151,40 @@ describe('SettingsUpdateCard', () => {
     await screen.findByTestId('update-status')
     await fireEvent.click(screen.getByTestId('update-check-now'))
     expect((await screen.findByTestId('update-error')).textContent).toBe(server.codes['update.not_configured'])
+  })
+  it('names a running capture agent of the same version and says nothing more', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ capture_agents: [{ version: '1.8.0-beta.1', outdated: false }] })
+    })
+    mount()
+    expect((await screen.findByTestId('update-capture-agents')).textContent).toContain('Capture agent: 1.8.0-beta.1')
+    expect(screen.queryByTestId('update-capture-outdated')).toBeNull()
+  })
+
+  it('tells how to restart a capture agent older than the service, with both versions', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({
+        capture_agents: [
+          { version: null, outdated: true },
+          { version: '1.8.0-beta.1', outdated: false }
+        ]
+      })
+    })
+    mount()
+    expect((await screen.findByTestId('update-capture-agents')).textContent)
+      .toContain('Capture agent: before 1.9, 1.8.0-beta.1')
+    const hint = screen.getByTestId('update-capture-outdated')
+    expect(hint.textContent).toContain(system.updates.agents.outdated_title)
+    expect(hint.textContent).toContain('still runs version before 1.9, rDownloader already runs 1.8.0-beta.1')
+  })
+
+  it('has no word about capture agents when none runs', async () => {
+    fetchUpdateStatus.mockResolvedValue({ ok: true, data: status() })
+    mount()
+    await screen.findByTestId('update-status')
+    expect(screen.queryByTestId('update-capture-agents')).toBeNull()
+    expect(screen.queryByTestId('update-capture-outdated')).toBeNull()
   })
 })

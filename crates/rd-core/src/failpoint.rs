@@ -53,6 +53,16 @@ pub struct CrashPoint {
 /// Kept sorted by name so a diff shows an addition rather than a reshuffle.
 pub const CRASH_POINTS: &[CrashPoint] = &[
     CrashPoint {
+        name: "archive_password.after_secret_removed",
+        owner: "rd-db",
+        invariant: "a sweep stopped after it removed released archive passwords from the vault and before it recorded that keeps the record and never the entry; the next start removes the record, and no row points at an entry that is gone",
+    },
+    CrashPoint {
+        name: "archive_password.before_reference_adopted",
+        owner: "rd-db",
+        invariant: "archive passwords written to the vault before any row points at them lose nothing: a stopped takeover keeps every plain value, the next start removes the entries the first attempt reserved and moves the values again, and the vault ends with exactly one entry per password; a stopped write keeps the row's previous password",
+    },
+    CrashPoint {
         name: "automation.before_outcome_recorded",
         owner: "rd-api-core",
         invariant: "a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes",
@@ -128,6 +138,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte",
     },
     CrashPoint {
+        name: "postprocess.before_scan_recorded",
+        owner: "rd-extract",
+        invariant: "a package whose malware scan ran before its verdict was recorded is scanned again by the next start and never released on a verdict nobody recorded; a finding fails it then, with the steps after the scan skipped and not run",
+    },
+    CrashPoint {
         name: "postprocess.before_unpack_recorded",
         owner: "rd-extract",
         invariant: "an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives",
@@ -153,6 +168,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a package row written before any of its files is dropped by the next start, never left in the queue as an empty one",
     },
     CrashPoint {
+        name: "scheduler.after_queue_pause_recorded",
+        owner: "rd-scheduler",
+        invariant: "a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good",
+    },
+    CrashPoint {
         name: "scheduler.before_mirror_promoted",
         owner: "rd-scheduler",
         invariant: "a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming",
@@ -171,6 +191,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "scheduler.before_promote",
         owner: "rd-scheduler",
         invariant: "a payload already in its final place is adopted by the next pass, never fetched a second time",
+    },
+    CrashPoint {
+        name: "subscription.after_items_archived",
+        owner: "rd-api-core",
+        invariant: "release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them",
     },
     CrashPoint {
         name: "torrent.before_seed_completed",

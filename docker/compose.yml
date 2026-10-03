@@ -41,3 +41,13 @@ services:
     # no-new-privileges is deliberately absent: the entrypoint starts as root to adopt
     # PUID/PGID and then drops to that user with gosu. Pin `user: "1000:1000"` instead if you
     # would rather never run as root -- see docker/README.md, which explains what that costs.
+
+  # Optional: a virus scanner for finished packages (RD-190-14). Uncomment, then switch on
+  # Settings > Post-processing > Scan packages for malware with the address clamav:3310. The
+  # image brings a signature database and keeps it current with freshclam; the first start
+  # takes a minute or two before clamd answers. docker/README.md has the details.
+  # clamav:
+  #   image: clamav/clamav:1.5.4
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./clamav:/var/lib/clamav

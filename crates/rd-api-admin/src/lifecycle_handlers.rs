@@ -5,9 +5,10 @@
 //! not come straight from this machine — a loopback peer and no forwarding header, the same
 //! test a switched-off login trusts (`client::from_this_machine`). Besides a session or an
 //! `api:admin` token they accept the local control token (`local_control`), which opens these
-//! two routes and no other. Neither has an MCP tool: stopping the service would end the session
-//! that asked, and the backup before an update is the first step of a version switch no agent
-//! performs (`mcp_coverage`).
+//! two routes and, besides them, only the password sign-in's way back on
+//! (`rd_api_access::password_login_handlers`). Neither has an MCP tool: stopping the service
+//! would end the session that asked, and the backup before an update is the first step of a
+//! version switch no agent performs (`mcp_coverage`).
 
 use axum::{Json, extract::State, http::StatusCode};
 use rd_core::AuditAction;

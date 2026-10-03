@@ -22,7 +22,7 @@ fn resolver_manifest() -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-0000000160a1"
 name = "Bundle Fixture"
 version = "1.0.0"
@@ -50,7 +50,7 @@ fn auth_manifest() -> String {
     format!(
         r#"manifest_version = 3
 plugin_type = "auth"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-0000000160a2"
 name = "Bundle Fixture sign-in"
 version = "1.0.0"

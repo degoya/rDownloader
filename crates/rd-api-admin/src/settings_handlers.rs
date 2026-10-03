@@ -115,7 +115,7 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 /// endpoints that receive what the service holds -- the trace export, the DLC decryption
 /// service -- are the third kind: pointing one elsewhere hands somebody else the data.
 fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Option<&'static str> {
-    let fields: [(&'static str, bool); 18] = [
+    let fields: [(&'static str, bool); 19] = [
         (
             "admin_login_disabled",
             current.admin_login_disabled != next.admin_login_disabled,
@@ -190,6 +190,9 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
             "dlc_service_endpoint",
             current.dlc_service_endpoint != next.dlc_service_endpoint,
         ),
+        // Every byte of every finished package is streamed there once the malware scan is on
+        // (RD-190-14): the same kind of recipient as the DLC service.
+        ("clamd_address", current.clamd_address != next.clamd_address),
         (
             "media_ytdlp_executable",
             current.media_ytdlp_executable != next.media_ytdlp_executable

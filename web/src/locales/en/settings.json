@@ -180,7 +180,19 @@
     "username_description": "Only needed for proxies that require authentication.",
     "password_label": "Password",
     "password_description": "Stored encrypted and never returned by the API.",
-    "list_title": "Proxy profiles"
+    "list_title": "Proxy profiles",
+    "edit_title": "Edit proxy profile",
+    "save": "Save proxy profile",
+    "updated": "Proxy profile saved.",
+    "deleted": "Proxy profile deleted.",
+    "password_keep": "Leave empty to keep the stored password",
+    "password_copy": "The copy of {name} has no password: enter it again, the service takes the username only together with it.",
+    "delete": {
+      "title": "Delete proxy profile",
+      "description": "The proxy profile “{name}” and its encrypted password will be deleted permanently. While an account, a Usenet server, an unfinished download, the global connection route or the torrent peer proxy uses it, the service refuses.",
+      "in_use_here": "It is chosen here as the global connection route or the torrent peer proxy — choose another one first and save.",
+      "confirm": "Delete profile"
+    }
   },
   "global_proxy": {
     "eyebrow": "Network fallback",
@@ -289,6 +301,18 @@
     "unpack_to_subfolder": {
       "label": "Unpack into subfolders",
       "description": "Unpack each archive into a folder of its own inside the package folder, named after the archive (Film.part1.rar → Film/). The archives themselves are not moved."
+    },
+    "malware_scan": {
+      "label": "Scan packages for malware (ClamAV)",
+      "description": "Every finished package goes to your clamd after unpacking, before plugin steps, the script or the upload see it. A finding stops the package; if clamd cannot be reached, it carries on with a warning. Nothing leaves this machine except to this address.",
+      "address_label": "clamd address",
+      "address_description": "host:port for TCP or unix:/path for the local socket; empty = 127.0.0.1:3310.",
+      "max_label": "Largest scanned file",
+      "max_description": "Larger files are not scanned and are counted on the step. StreamMaxLength in clamd.conf has to be at least this large.",
+      "timeout_label": "Timeout per exchange",
+      "timeout_description": "How long the connection, one chunk or clamd’s verdict may take (5–3600 s).",
+      "test": "Test clamd",
+      "test_ok": "clamd at {address} answers: {version}"
     }
   },
   "appearance": {
@@ -622,6 +646,24 @@
     "announce_port": {
       "label": "Announced port",
       "description": "Port announced to trackers when the router maps the listen port to a different external one. Empty announces the listen port."
+    },
+    "network_status": {
+      "title": "Network status",
+      "description": "What the torrent engine is doing right now: the bound interface, the kill switch and the last session rebuild.",
+      "interface": "Bound interface",
+      "interface_present": "present",
+      "interface_missing": "missing",
+      "kill_switch": "Kill switch",
+      "kill_switch_off": "Off",
+      "kill_switch_armed": "Armed: pauses torrents within {seconds} s of the interface disappearing",
+      "kill_switch_engaged": "Engaged: every torrent is paused",
+      "engaged_title": "The kill switch has paused the torrents",
+      "engaged_description": "The interface {name} is gone. Once it returns, the torrents resume on their own.",
+      "peer_proxy": "Peer proxy",
+      "peer_proxy_on": "configured",
+      "peer_proxy_off": "none",
+      "rebuild_failed": "The last session rebuild failed; the previous session keeps running.",
+      "proxy_failed": "The peer proxy cannot be resolved; without it the session does not start."
     }
   },
   "auth_profiles": {

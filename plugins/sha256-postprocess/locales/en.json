@@ -4,6 +4,7 @@
   "codes": {
     "sha256_postprocess.mismatch": "A file did not match its recorded SHA-256.",
     "sha256_postprocess.missing": "None of the files a SHA-256 checksum file names is in the package.",
-    "sha256_postprocess.empty": "A SHA-256 checksum file lists no checksum that could be read."
+    "sha256_postprocess.empty": "A SHA-256 checksum file lists no checksum that could be read.",
+    "sha256_postprocess.unchecked": "SHA-256 checksums matched, but {count} listed file(s) are not in this package and were not checked: {files}"
   }
 }

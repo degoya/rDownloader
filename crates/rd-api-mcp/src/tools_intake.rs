@@ -54,7 +54,7 @@ pub(super) async fn refuse_script(
 #[tool_router(router = intake_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the subscriptions that poll feeds, channels, playlists, galleries, indexers and scripts. A script subscription shows its script as `script:<name>` and the arguments it hands it in script_arguments. Stored indexer keys are never included."
+        description = "List the subscriptions that poll feeds, channels, playlists, galleries, indexers, scripts and GitHub or GitLab releases. A script subscription shows its script as `script:<name>` and the arguments it hands it in script_arguments. Stored indexer keys and repository tokens are never included."
     )]
     pub async fn list_subscriptions(&self) -> McpToolResult {
         respond(
@@ -65,7 +65,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a subscription. `definition` is the REST body of POST /api/v1/subscriptions: name, url, kind (rss|newznab|youtube_channel|…), enabled, mode, category_id, priority, interval_seconds, filters, backlog, category_map, source_categories, every_release, view (list|cards: how the LinkGrabber draws the pending hits), autoplay (the card slider turns its pages on its own), card_ratio (1:1|3:2|16:9|4:3|2:1, default 2:1: the shape of a card's image area; anything else is refused with subscription.card_ratio_unknown), indexer_search (kind indexer only: query sent as q, empty or at least 3 characters, `!word` excludes; max_age_days as maxage; hide_passworded as pw=2; pretime 0-2 as pred; parameters already in the url win), indexer_id (an indexer from list_indexers to take over: its address when url is empty, its default categories and a copy of its key, made when saved). An indexer API key is entered in the web UI and is refused here, and so is kind script (subscription.script_via_mcp): it runs code on the machine."
+        description = "Create a subscription. `definition` is the REST body of POST /api/v1/subscriptions: name, url, kind (media|gallery|feed|indexer|site_rule|git_release), enabled, mode, category_id, priority, interval_seconds, filters, backlog, category_map, source_categories, every_release, view (list|cards: how the LinkGrabber draws the pending hits), autoplay (the card slider turns its pages on its own), card_ratio (1:1|3:2|16:9|4:3|2:1, default 2:1: the shape of a card's image area; anything else is refused with subscription.card_ratio_unknown), indexer_search (kind indexer only: query sent as q, empty or at least 3 characters, `!word` excludes; max_age_days as maxage; hide_passworded as pw=2; pretime 0-2 as pred; parameters already in the url win), indexer_id (an indexer from list_indexers to take over: its address when url is empty, its default categories and a copy of its key, made when saved), git_release (kind git_release only, url a GitHub or GitLab repository: forge github|gitlab for a self-hosted host, asset_patterns with * and ? wildcards, platforms linux|windows|macos, architectures x86_64|aarch64|x86|arm, prereleases, source_archives; drafts never; the interval is at least 900 seconds). An indexer API key or a repository token is entered in the web UI and is refused here, and so is kind script (subscription.script_via_mcp): it runs code on the machine."
     )]
     pub async fn create_subscription(
         &self,

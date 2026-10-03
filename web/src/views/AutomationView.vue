@@ -7,6 +7,7 @@
  * accepts. There is no JSON text area — an automation that has to be hand-written as JSON is
  * one nobody will edit twice.
  */
+import { useOverlay } from '@nuxt/ui/composables'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -25,6 +26,7 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import AutomationVersionsModal from '@/components/automation/AutomationVersionsModal.vue'
 import ConditionTree from '@/components/automation/ConditionTree.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
@@ -64,6 +66,7 @@ const { t } = useI18n()
 const store = useAutomationsStore()
 const postprocess = usePostprocessStore()
 const confirm = useConfirm()
+const versionsModal = useOverlay().create(AutomationVersionsModal)
 const categories = ref<Category[]>([])
 const packages = ref<DownloadPackage[]>([])
 const targets = ref<NotificationTarget[]>([])
@@ -247,6 +250,22 @@ async function removeAutomation(automation: Automation): Promise<void> {
   if (!confirmed) return
   await store.remove(automation.id)
   if (editing.value === automation.id) cancel()
+}
+
+/**
+ * Opens the version history (RD-190-22). A restore saves a new version; when the form is open on
+ * that automation it is filled again, so the next save does not write the old definition back.
+ */
+function openVersions(automation: Automation): void {
+  versionsModal.open({
+    automation,
+    categories: categories.value,
+    targets: targets.value,
+    onRestored: (id: string) => {
+      const fresh = store.automations.find(item => item.id === id)
+      if (fresh && editing.value === id) startEdit(fresh)
+    }
+  })
 }
 
 function runsOf(id: string) {
@@ -465,6 +484,15 @@ function runsOf(id: string) {
                   :title="t('automation.duplicate_hint')"
                   :loading="duplicatingId === automation.id"
                   @click="duplicate(automation)"
+                />
+                <UButton
+                  icon="i-lucide-history"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="t('automation.history.open')"
+                  :title="t('automation.history.open')"
+                  @click="openVersions(automation)"
                 />
                 <UButton
                   icon="i-lucide-pencil"

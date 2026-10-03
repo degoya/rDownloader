@@ -103,5 +103,19 @@
     "windows_title": "Time windows",
     "days_label": "Days",
     "duplicate_hint": "Adds a copy of the window right below it; it is stored with the schedule"
+  },
+  "manual": {
+    "profile": "Profile",
+    "ends": "Holds",
+    "switch": "Switch",
+    "no_limits": "No limits",
+    "until_next_switch": "Until the schedule's next change",
+    "for_1h": "For 1 hour",
+    "for_3h": "For 3 hours",
+    "until_back": "Until I switch back",
+    "source_schedule": "Chosen by the schedule",
+    "source_manual_until": "Switched by hand, until {time}",
+    "source_manual_open": "Switched by hand, until you switch back",
+    "back_to_schedule": "Back to the schedule"
   }
 }

@@ -40,13 +40,13 @@ installable Vue web interface, for Windows, macOS, Linux and Docker.
 - **Notifications** — signed webhooks, e-mail, ntfy, Apprise and notification plugins.
 - **Local-first** — binds to `127.0.0.1` by default, keeps credentials in an encrypted vault and scopes every API token.
 - **Integrations** — REST API with OpenAPI and Server-Sent Events, a built-in MCP server, SABnzbd- and qBittorrent-compatible adapters for the *arr tools, a remote CLI.
-- **Signed WebAssembly plugins** — sandboxed extensions built against the versioned contract `rdownloader:plugin@0.9.0`, with signed repositories and an SDK.
+- **Signed WebAssembly plugins** — sandboxed extensions built against the versioned contract `rdownloader:plugin@0.10.0`, with signed repositories and an SDK.
 - **Restart-safe** — transfers, post-processing and seeding resume after a restart; logs, audit log, statistics and Prometheus metrics stay local.
 - **Four languages** — English, German, French and Spanish, in the interface and the browser extension.
 
 ## Install
 
-Download the archive for your platform from [rdownloader.net/download](https://rdownloader.net/download/) or [GitHub Releases](https://github.com/degoya/rDownloader/releases), run `start-rdownloader`, and open <http://127.0.0.1:8710> for the setup wizard. Linux binaries need glibc 2.39 or newer; use Docker on older systems.
+Download the archive for your platform from [rdownloader.net/download](https://rdownloader.net/download/) or [GitHub Releases](https://github.com/degoya/rDownloader/releases), run `start-rdownloader`, and open <http://127.0.0.1:8710> for the setup wizard. Windows also has a per-user installer, `rdownloader-windows-x86_64.msi`, on the same release page; Linux has deb and rpm packages for x86-64 and arm64. Linux binaries need glibc 2.39 or newer; use Docker on older systems.
 
 ```bash
 # macOS and Linux (Homebrew)
@@ -55,6 +55,19 @@ brew install degoya/rdownloader/rdownloader && brew services start rdownloader
 # Windows (Scoop)
 scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader
 scoop install rdownloader
+
+# Debian and Ubuntu (signed apt repository)
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://degoya.github.io/rdownloader-packages/rdownloader.asc | sudo tee /etc/apt/keyrings/rdownloader.asc > /dev/null
+curl -fsSL https://degoya.github.io/rdownloader-packages/rdownloader.sources | sudo tee /etc/apt/sources.list.d/rdownloader.sources > /dev/null
+sudo apt update && sudo apt install rdownloader
+
+# Fedora (signed dnf repository)
+sudo curl -fsSL -o /etc/yum.repos.d/rdownloader.repo https://degoya.github.io/rdownloader-packages/rdownloader.repo
+sudo dnf install rdownloader
+
+# deb and rpm start per user, as a systemd user service
+systemctl --user daemon-reload && systemctl --user enable --now rdownloader
 
 # Docker (amd64/arm64); docker/README.md covers Compose, volumes and NAS setups
 docker run -d --name rdownloader -p 127.0.0.1:8710:8710 \

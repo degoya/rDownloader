@@ -86,12 +86,14 @@ function completedSegments(file: NzbFileStatus): number {
 
 <template>
   <section
-    class="border bg-elevated transition"
+    class="@container border bg-elevated transition"
     :class="[props.selected ? 'border-primary' : 'border-muted', props.dragging ? 'opacity-50' : '']"
     @dragover.prevent
     @drop.prevent="emit('drop', props.item.id)"
   >
-    <header class="flex items-center gap-2 px-2 py-1.5" :class="open ? 'border-b border-muted' : ''">
+    <!-- Wraps on its own width as the package row does; its controls are wider, so they share
+         the name's line from 70 rem and the size from 80 rem. -->
+    <header class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-2 py-1.5" :class="open ? 'border-b border-muted' : ''">
       <!--
         The grip replaces the file-archive icon that used to lead this row. Both kinds of entry
         share one manual order now, so both lead with the same cell; what the icon said is said
@@ -112,14 +114,15 @@ function completedSegments(file: NzbFileStatus): number {
       </button>
       <UCheckbox :model-value="props.selected" :aria-label="t('linkgrabber.nzb.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.item.id, value === true)" />
       <UButton :icon="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :loading="pending" :aria-label="open ? t('linkgrabber.nzb.hide_files') : t('linkgrabber.nzb.show_files')" @click="toggle" />
-      <div class="flex min-w-0 flex-1 items-center gap-3">
-        <p class="min-w-0 flex-1 truncate text-left text-sm font-semibold text-highlighted" :title="props.item.name">{{ props.item.name }}</p>
-        <span class="numeric hidden shrink-0 text-xs text-muted sm:block">
+      <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
+        <p class="min-w-50 flex-1 truncate text-left text-sm font-semibold text-highlighted" :title="props.item.name">{{ props.item.name }}</p>
+        <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">
           {{ t('common.units.file', { count: props.item.file_count }, props.item.file_count) }}
           · {{ t('linkgrabber.nzb.segments', { count: props.item.segment_count }, props.item.segment_count) }}
         </span>
-        <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted lg:block">{{ formatBytes(props.item.total_bytes) }}</span>
+        <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted @min-[40rem]:block @min-[70rem]:hidden @min-[80rem]:block">{{ formatBytes(props.item.total_bytes) }}</span>
       </div>
+      <div class="ms-auto flex w-full flex-wrap items-center justify-end gap-2 @min-[70rem]:w-auto">
       <span v-if="props.item.has_password" class="flex shrink-0 items-center gap-1 text-warning" :title="t('linkgrabber.nzb.password_detected')">
         <UIcon name="i-lucide-key-round" class="size-4" />
         <span v-if="props.item.password" class="max-w-32 truncate font-mono text-xs">{{ props.item.password }}</span>
@@ -131,6 +134,7 @@ function completedSegments(file: NzbFileStatus): number {
       <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
       <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_nzb')" :loading="props.deleting" @click="emit('remove', props.item.id)" />
+      </div>
     </header>
     <UAlert v-if="props.item.error" class="mx-2 my-2" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="props.item.error" />
     <div v-if="open" class="divide-y divide-muted">

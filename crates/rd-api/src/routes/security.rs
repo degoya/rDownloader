@@ -1,5 +1,5 @@
-//! Authentication profiles, API tokens, remote credentials, object storage profiles and request
-//! replay routes.
+//! Authentication profiles, API tokens, second factors and the identity provider, remote
+//! credentials, object storage profiles and request replay routes.
 
 use axum::{
     Router,
@@ -9,8 +9,9 @@ use utoipa::OpenApi;
 
 use crate::{
     AppState, api_tokens, auth_profile_handlers, mfa_handlers, object_storage_handlers,
-    passkey_handlers, password_handlers, remote_handlers, remote_listing_handlers, replay_handlers,
-    session_handlers,
+    oidc_handlers, oidc_settings_handlers, passkey_handlers, password_handlers,
+    password_login_handlers, password_reset_handlers, remote_handlers, remote_listing_handlers,
+    replay_handlers, session_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -54,6 +55,31 @@ pub(crate) fn routes() -> Router<AppState> {
             delete(mfa_handlers::delete_credential),
         )
         .route("/api/v1/mfa/disable", post(mfa_handlers::disable_mfa))
+        // The identity provider (RD-190-15): configuring it, binding the administrator's
+        // identity, and the password sign-in switch. Each takes a session and the password
+        // except `password-login/on`, which only the local control token opens.
+        .route(
+            "/api/v1/auth/oidc",
+            get(oidc_settings_handlers::get_oidc_settings)
+                .put(oidc_settings_handlers::put_oidc_settings)
+                .delete(oidc_settings_handlers::delete_oidc_settings),
+        )
+        .route(
+            "/api/v1/auth/oidc/link",
+            post(oidc_settings_handlers::link_oidc_identity),
+        )
+        .route(
+            "/api/v1/auth/oidc/identity",
+            delete(oidc_settings_handlers::unlink_oidc_identity),
+        )
+        .route(
+            "/api/v1/auth/password-login/off",
+            post(password_login_handlers::switch_password_login_off),
+        )
+        .route(
+            "/api/v1/auth/password-login/on",
+            post(password_login_handlers::switch_password_login_on),
+        )
         .route(
             "/api/v1/mfa/recovery-codes",
             post(mfa_handlers::regenerate_recovery_codes),
@@ -64,6 +90,12 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/auth/password",
             post(password_handlers::change_password),
+        )
+        // Without the current password, and therefore only for the local control token: the
+        // reset on the host (RD-190-24). The handler refuses every other credential.
+        .route(
+            "/api/v1/auth/password/reset",
+            post(password_reset_handlers::reset_password_locally),
         )
         .route("/api/v1/sessions", get(session_handlers::list_sessions))
         .route(
@@ -161,7 +193,17 @@ pub(crate) fn routes() -> Router<AppState> {
     passkey_handlers::confirm_passkey,
     passkey_handlers::passkey_challenge,
     passkey_handlers::passkey_login,
+    oidc_handlers::oidc_start,
+    oidc_handlers::oidc_callback,
+    oidc_settings_handlers::get_oidc_settings,
+    oidc_settings_handlers::put_oidc_settings,
+    oidc_settings_handlers::delete_oidc_settings,
+    oidc_settings_handlers::link_oidc_identity,
+    oidc_settings_handlers::unlink_oidc_identity,
+    password_login_handlers::switch_password_login_off,
+    password_login_handlers::switch_password_login_on,
     password_handlers::change_password,
+    password_reset_handlers::reset_password_locally,
     session_handlers::list_sessions,
     session_handlers::revoke_session,
     session_handlers::revoke_other_sessions,

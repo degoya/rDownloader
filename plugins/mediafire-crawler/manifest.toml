@@ -1,9 +1,9 @@
 manifest_version = 3
 plugin_type = "crawler"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000130"
 name = "MediaFire folders"
-version = "0.1.6"
+version = "0.1.7"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 

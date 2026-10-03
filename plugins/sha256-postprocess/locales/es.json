@@ -4,6 +4,7 @@
   "codes": {
     "sha256_postprocess.mismatch": "Un archivo no coincidía con su suma SHA-256 registrada.",
     "sha256_postprocess.missing": "Ninguno de los archivos que indica un archivo de sumas SHA-256 está en el paquete.",
-    "sha256_postprocess.empty": "Un archivo de sumas SHA-256 no contiene ninguna suma legible."
+    "sha256_postprocess.empty": "Un archivo de sumas SHA-256 no contiene ninguna suma legible.",
+    "sha256_postprocess.unchecked": "Las sumas SHA-256 coinciden, pero {count} archivo(s) de la lista no están en este paquete y no se comprobaron: {files}"
   }
 }

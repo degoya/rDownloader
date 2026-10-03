@@ -6,7 +6,7 @@ wit_bindgen::generate!({
     world: "postprocess-plugin",
 });
 
-use exports::rdownloader::plugin::postprocess::{Guest, StepEnd, StepInput};
+use exports::rdownloader::plugin::postprocess::{Guest, StepComplete, StepEnd, StepInput};
 use rdownloader::plugin::{host, source};
 
 use crate::{Crc32, Progress};
@@ -52,7 +52,14 @@ impl Guest for Component {
                 crc: Crc32::default(),
             };
         }
-        StepEnd::Complete(None)
+        // `warnings` are shown on the step although it passed: a `{{PLUGIN_SLUG}}.*` code from
+        // `locales/`, its parameters and an English fallback. A plain pass has none.
+        // `input.removed` names the files earlier steps removed, should yours read a list of
+        // files that may name one.
+        StepEnd::Complete(StepComplete {
+            checkpoint: None,
+            warnings: Vec::new(),
+        })
     }
 }
 

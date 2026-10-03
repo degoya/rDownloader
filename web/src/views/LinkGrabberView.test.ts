@@ -637,6 +637,30 @@ describe('LinkGrabberView adds only what a filter shows', () => {
     expect(store.packages.map(item => item.id)).toEqual(['cpkg-0'])
   })
 
+  // A phone shows only adding and enqueuing in the navbar (1.9.0 check, F2); whatever else the
+  // narrow navbar hides has to be one tap away in its menu, in the button's own state.
+  it('offers every navbar action a phone hides in the navbar menu, and runs it from there', async () => {
+    seedTwoHosters()
+    const navbar = { template: '<div><slot name="right" /></div>' }
+    const menu = {
+      props: ['items'],
+      template: '<div><slot /><div data-menu-items><button v-for="item in (items ?? []).flat()" :key="item.label" type="button" :disabled="item.disabled" @click="item.onSelect?.()">{{ item.label }}</button></div></div>'
+    }
+    const { container } = render(LinkGrabberView, { global: { plugins: [i18n], stubs: { ...stubs, UDashboardNavbar: navbar, UDropdownMenu: menu } } })
+    await settle()
+
+    const trigger = container.querySelector('[data-testid="linkgrabber-more"]')
+    const offered = [...(trigger?.parentElement?.querySelectorAll('[data-menu-items] button') ?? [])] as HTMLButtonElement[]
+    const hidden = [...container.querySelectorAll('button')].filter(button => button.className.includes('@min-[40rem]:inline-flex'))
+    expect(hidden.length).toBe(5)
+    expect(offered.map(item => item.textContent)).toEqual(hidden.map(button => button.getAttribute('aria-label')))
+    expect(offered.map(item => item.disabled)).toEqual(hidden.map(button => button.disabled))
+
+    await fireEvent.click(offered.find(item => item.textContent === linkgrabber.actions.enqueue_paused) as HTMLButtonElement)
+    await settle()
+    expect(enqueueBody()).toMatchObject({ ids: ['cpkg-0'], paused: true })
+  })
+
   it('sends only the visible links of the one package its own button adds', async () => {
     const store = seedTwoHosters()
     const { container } = mountWithToolbar()

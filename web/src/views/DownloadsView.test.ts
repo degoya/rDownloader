@@ -16,6 +16,7 @@ import { createI18n } from 'vue-i18n'
 
 import type { Download, DownloadPackage } from '@/api/types'
 import { SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
+import { SEARCH_DEBOUNCE_MS } from '@/composables/useQueueFilter'
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import torrent from '@/locales/en/torrent.json'
@@ -50,6 +51,21 @@ vi.mock('@nuxt/ui/composables', () => ({
   }),
   useToast: () => ({ add: vi.fn() })
 }))
+// The filter and the search live in the address (RD-190-21); `useQueueFilter.test.ts` holds that
+// half, here the address only has to exist.
+vi.mock('vue-router', async importOriginal => ({
+  ...await importOriginal<typeof import('vue-router')>(),
+  useRoute: () => ({ path: '/downloads', hash: '', query: {} }),
+  useRouter: () => ({ replace: vi.fn(async () => undefined), push: vi.fn() })
+}))
+/** What "Copy links" put on the clipboard; the copy itself is `useCopyLinks`'s. */
+const copied = vi.hoisted(() => ({ links: [] as string[][] }))
+vi.mock('@/composables/useCopyLinks', () => ({
+  useCopyLinks: () => async (links: string[]) => {
+    copied.links.push([...links])
+    return true
+  }
+}))
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, downloads, torrent } } })
 
@@ -72,6 +88,13 @@ const stubs = {
   UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
   UDropdownMenu: passthrough,
   UIcon: { template: '<span aria-hidden="true" />' },
+  UInput: {
+    inheritAttrs: false,
+    props: ['modelValue', 'ariaLabel', 'placeholder'],
+    emits: ['update:modelValue'],
+    template: '<div><input v-bind="$attrs" :aria-label="ariaLabel" :placeholder="placeholder" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="trailing" /></div>'
+  },
+  UKbd: { props: ['value'], template: '<kbd>{{ value }}</kbd>' },
   UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
   USelect: {
     props: ['modelValue', 'items'],
@@ -90,6 +113,7 @@ const stubs = {
   DirectAddForm: true,
   PowerCountdownAlert: true,
   StorageCapacityAlert: true,
+  TorrentKillSwitchAlert: true,
   CollisionPromptsAlert: true,
   PostprocessQueue: true,
   QueueSummary: true,
@@ -166,6 +190,7 @@ beforeEach(() => {
   localStorage.clear()
   dialogs.opened = []
   dialogs.answer = false
+  copied.links = []
 })
 
 describe('DownloadsView', () => {
@@ -536,5 +561,139 @@ describe('the clear menu', () => {
 
     expect(dialogs.opened).toEqual([expect.objectContaining({ description: downloads.confirm.clear_all, confirmKey: undefined })])
     expect(clear.mock.calls).toEqual([['all']])
+  })
+})
+
+/**
+ * The name search and the wider state filter (RD-190-21): what the list keeps, what it says when
+ * nothing is left, and the `f` key that puts the keyboard in the field.
+ */
+describe('DownloadsView search and filter', () => {
+  function seedMixed() {
+    const store = useTransfersStore()
+    store.packages = [makePackage(0), { ...makePackage(1), name: 'Holiday Photos' }]
+    store.downloads = [
+      makeDownload(0, 0, 'failed'),
+      makeDownload(0, 1, 'blocked'),
+      makeDownload(0, 2, 'seeding'),
+      makeDownload(1, 0, 'paused'),
+      makeDownload(1, 1, 'completed')
+    ]
+    localStorage.setItem('rdownloader-open-packages', JSON.stringify(store.packages.map(pkg => pkg.id)))
+    return store
+  }
+
+  const rowKeys = (container: Element) => [...container.querySelectorAll('[data-row-key]')].map(row => row.getAttribute('data-row-key'))
+
+  async function typeSearch(field: HTMLElement, text: string): Promise<void> {
+    await fireEvent.update(field, text)
+    await new Promise(resolve => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20))
+    await nextTick()
+  }
+
+  it('offers the failed, paused and seeding filters beside the old ones', () => {
+    seedMixed()
+    const { getByLabelText } = mountView()
+    const options = [...(getByLabelText(downloads.filters.aria) as HTMLSelectElement).options].map(option => option.textContent)
+    expect(options).toEqual(['All', 'Active', 'Waiting', 'Paused', 'Failed', 'Seeding', 'Completed'])
+  })
+
+  it('keeps the failed and the blocked files under Failed', async () => {
+    seedMixed()
+    const { container, getByLabelText } = mountView()
+    await fireEvent.update(getByLabelText(downloads.filters.aria), 'failed')
+    await nextTick()
+    expect(rowKeys(container)).toEqual(['package:pkg-0', 'file:dl-0-0', 'file:dl-0-1'])
+  })
+
+  it('finds a package by its name and a file by its own', async () => {
+    seedMixed()
+    const { container, getByLabelText } = mountView()
+    const field = getByLabelText(downloads.filters.search_label)
+
+    await typeSearch(field, 'holiday')
+    expect(rowKeys(container)).toEqual(['package:pkg-1', 'file:dl-1-0', 'file:dl-1-1'])
+
+    await typeSearch(field, 'FILE-0-2')
+    expect(rowKeys(container)).toEqual(['package:pkg-0', 'file:dl-0-2'])
+  })
+
+  it('says when the filter hides everything, and resets from there', async () => {
+    seedMixed()
+    const { container, getByLabelText, getByTestId, getByText } = mountView()
+    await typeSearch(getByLabelText(downloads.filters.search_label), 'nothing like this')
+
+    expect(rowKeys(container)).toEqual([])
+    expect(getByTestId('downloads-no-match').textContent).toContain(downloads.filters.no_match_title)
+    expect(container.textContent).not.toContain(downloads.empty.title)
+
+    await fireEvent.click(getByText(downloads.filters.reset))
+    await nextTick()
+    expect(rowKeys(container)).toHaveLength(2 + 5)
+  })
+
+  it('refuses a reorder while only the search narrows the list', async () => {
+    const store = seedMixed()
+    const { container, getByLabelText } = mountView()
+    await typeSearch(getByLabelText(downloads.filters.search_label), 'file-0')
+
+    await fireEvent.keyDown(handleOf(container, 'file:dl-0-1'), { key: 'ArrowDown' })
+    await settle()
+    expect(store.notice).toBe(downloads.notices.reorder_filter_active)
+  })
+
+  describe('the `f` key', () => {
+    const pressF = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'f')!.handler
+
+    it('puts the keyboard in the search and shows itself on the field', async () => {
+      seedMixed()
+      const { getByLabelText, getByTestId } = mountView()
+      await nextTick()
+      pressF()
+      expect(document.activeElement).toBe(getByLabelText(downloads.filters.search_label))
+      expect(getByTestId('downloads-search').parentElement?.querySelector('kbd')?.textContent).toBe('f')
+    })
+
+    it('does nothing once the page is left', async () => {
+      seedMixed()
+      const view = mountView()
+      await nextTick()
+      view.unmount()
+      pressF()
+      expect(document.activeElement).toBe(document.body)
+    })
+  })
+})
+
+/** "Copy links" of a package takes every file of it, whatever the filter hides (RD-190-21). */
+describe('DownloadsView copy links', () => {
+  interface MenuItem { label: string, onSelect?: () => void }
+  const menus: MenuItem[][][] = []
+  const UDropdownMenu = {
+    props: ['items'],
+    setup(props: Record<string, unknown>) {
+      menus.push(props.items as MenuItem[][])
+      return {}
+    },
+    template: '<div><slot /></div>'
+  }
+
+  it('copies the sources of all the package\'s files', async () => {
+    menus.length = 0
+    const store = seedQueue(1, 3)
+    store.downloads = store.downloads.map(download => ({ ...download, source: `https://files.example.com/${download.id}` }))
+    store.downloads[2]!.state = 'completed'
+    const { getByLabelText } = render(DownloadsView, { global: { plugins: [i18n], stubs: { ...stubs, UDropdownMenu } } })
+    await fireEvent.update(getByLabelText(downloads.filters.aria), 'queued')
+    await nextTick()
+
+    const item = menus.flat(2).find(entry => entry.label === common.actions.copy_links)
+    item?.onSelect?.()
+    await settle()
+    expect(copied.links).toEqual([[
+      'https://files.example.com/dl-0-0',
+      'https://files.example.com/dl-0-1',
+      'https://files.example.com/dl-0-2'
+    ]])
   })
 })

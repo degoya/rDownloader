@@ -58,6 +58,24 @@ describe('server failure codes', () => {
     expect(german).not.toContain('media_download')
   })
 
+  // A refused host name has to say which name and where it is allowed, in the setting's own
+  // label, and from which address — a reader behind a tunnel has no other way forward (RD-190-17).
+  it.each(['en', 'de', 'es', 'fr'])('%s names the refused host and where to allow it', (locale) => {
+    i18n.global.locale.value = locale as 'en'
+    const text = translateServerMessage({
+      code: 'request.host_not_allowed',
+      message: 'English fallback',
+      params: { host: 'rd.example.com' }
+    })
+    const label = i18n.global.t('system.proxy.allowed_hosts')
+    i18n.global.locale.value = 'en'
+
+    expect(text).not.toBe('English fallback')
+    expect(text).toContain('rd.example.com')
+    expect(text).toContain(label)
+    expect(text).toContain('http://127.0.0.1:8710')
+  })
+
   // A code whose text names a number has to carry both forms. `translateServerMessage` passes a
   // numeric `count` to vue-i18n as the plural choice, so a single-form message would read
   // "1 unfinished downloads" to the one person most likely to see it (RD-108-10).

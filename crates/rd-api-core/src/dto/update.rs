@@ -38,6 +38,20 @@ pub struct UpdateStatusResponse {
     /// The background download of the offered version (RD-180-02): running, ready to install,
     /// or failed; empty when none was asked for since the start, or it is of another version.
     pub download: Option<UpdateDownloadStatus>,
+    /// The capture agents connected right now, by the version each reported (RD-190-07); empty
+    /// when none runs. Labels are not part of it: this status is readable with `api:read`.
+    #[serde(default)]
+    pub capture_agents: Vec<CaptureAgentVersion>,
+}
+
+/// One connected capture agent's version, measured against the service's.
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, ToSchema)]
+pub struct CaptureAgentVersion {
+    /// The version the agent reported; empty for an agent from before 1.9, which reports none.
+    pub version: Option<String>,
+    /// Whether the agent is older than the service -- it reported an older version, or none --
+    /// and so still runs the program file from before the update.
+    pub outdated: bool,
 }
 
 /// The offered version's artifact, downloaded and verified in the background, which "Install and

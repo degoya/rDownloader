@@ -1,0 +1,4 @@
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  tool-1.2.0-linux-x86_64.tar.gz
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *./dist/tool-1.2.0-linux-aarch64.tar.gz
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc  tool-1.2.0-windows-x86_64.zip
+dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd  Tool-1.2.0-universal.dmg

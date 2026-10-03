@@ -88,8 +88,8 @@ export function changeBody(change: PackageChange): PackageUpdateRequest {
  * was done. The coded `refusals` are read loosely so an answer without them still shows the
  * English `errors`.
  */
-export function bulkRefusals(result: { errors: string[] }): string | null {
-  const coded = (result as { refusals?: unknown }).refusals
+export function bulkRefusals(result: { errors: string[], refusals?: unknown }): string | null {
+  const coded = result.refusals
   const messages = Array.isArray(coded) && coded.length
     ? coded.map(refusal => translateServerMessage(serverMessageFrom(refusal)))
     : result.errors

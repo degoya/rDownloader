@@ -1,5 +1,5 @@
-//! Scheduled bandwidth profiles, scoped limits and traffic budgets (RD-050-12), and the upload
-//! limit every upload keeps (RD-150-15).
+//! Scheduled bandwidth profiles, scoped limits and traffic budgets (RD-050-12), the upload
+//! limit every upload keeps (RD-150-15), and a profile switched on by hand (RD-190-20).
 //!
 //! The crate holds the policy only: which limit applies to what, which profile is active
 //! when, and how much a period has used. Persisting it and applying it to the transports is
@@ -8,6 +8,7 @@
 mod budget;
 mod capabilities;
 mod limiter;
+mod manual;
 mod profile;
 mod quiet;
 mod schedule;
@@ -18,6 +19,7 @@ pub use budget::{
 };
 pub use capabilities::{RunnerLimitSupport, limit_capabilities};
 pub use limiter::{BandwidthLimiter, BindingLimit, LimiterRegistry, ScopedLimiter};
+pub use manual::{ManualEnd, ManualProfile};
 pub use profile::{BandwidthProfile, ScopeLimit};
 pub use quiet::{QuietHours, QuietWindow};
 pub use schedule::{

@@ -88,6 +88,8 @@ pub enum PostprocessStage {
     Cleaning,
     /// Joining a livestream recording's segments into one container (RD-080-09).
     Remuxing,
+    /// The package's files are streamed to `clamd` (RD-190-14).
+    Scanning,
     /// A step contributed by a post-processing plugin (RD-090-16).
     PluginStep,
     Script,

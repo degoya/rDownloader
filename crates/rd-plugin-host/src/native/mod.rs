@@ -674,7 +674,7 @@ mod tests {
         let manifest: PluginManifest = toml::from_str(
             r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.9.0"
+api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-0000000000ff"
 name = "Outdated"
 version = "0.1.0"

@@ -99,6 +99,8 @@ pub struct ReplacementSubscription {
     pub script_arguments: Vec<String>,
     /// The search parameters an indexer subscription sends (RD-180-20).
     pub indexer_search: rd_core::IndexerSearch,
+    /// Which assets a git-release subscription downloads (RD-190-13).
+    pub git_release: rd_core::GitReleaseOptions,
     pub secret_ref: Option<String>,
 }
 
@@ -118,6 +120,20 @@ pub struct ReplacementAuthProfile {
     pub certificate_ref: Option<String>,
 }
 
+/// Newznab indexer as it travels in a settings bundle (RD-190-22); its API key stays behind a
+/// re-minted secret reference like every other credential.
+#[derive(Clone, Debug)]
+pub struct ReplacementIndexer {
+    pub id: rd_core::IndexerId,
+    pub name: String,
+    pub url: Url,
+    pub secret_ref: Option<String>,
+    pub categories: Vec<String>,
+    pub enabled: bool,
+    /// How its search hits are listed (RD-190-16).
+    pub list_style: rd_core::IndexerListStyle,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ConfigReplacement {
     pub storage_roots: Vec<StorageRootConfig>,
@@ -130,6 +146,7 @@ pub struct ConfigReplacement {
     pub stream_channels: Vec<ReplacementStreamChannel>,
     pub subscriptions: Vec<ReplacementSubscription>,
     pub auth_profiles: Vec<ReplacementAuthProfile>,
+    pub indexers: Vec<ReplacementIndexer>,
 }
 
 pub(crate) async fn replace_all(
@@ -152,6 +169,7 @@ pub(crate) async fn replace_all(
         .execute(&mut *tx)
         .await?;
     for table in [
+        "indexers",
         "auth_profiles",
         "accounts",
         "usenet_servers",
@@ -193,10 +211,10 @@ pub(crate) async fn replace_all(
         sqlx::query(
             "INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, \
              postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, \
-             sfv_verify, safe_postproc, delete_par2, \
+             malware_scan, sfv_verify, safe_postproc, delete_par2, \
              upload_enabled, upload_remote, seeding_json, plugin_steps_json, created_at, \
              updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -214,6 +232,7 @@ pub(crate) async fn replace_all(
         )
         .bind(value.recursive_unpack)
         .bind(value.unpack_to_subfolder)
+        .bind(value.malware_scan)
         .bind(value.sfv_verify)
         .bind(value.safe_postproc)
         .bind(value.delete_par2)
@@ -303,9 +322,9 @@ pub(crate) async fn replace_all(
             "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, \
              priority, interval_seconds, filters_json, backlog_json, category_map_json, \
              source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-             script_arguments_json, indexer_search_json, primed, consecutive_failures, \
-             secret_ref, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+             script_arguments_json, indexer_search_json, git_release_json, primed, \
+             consecutive_failures, secret_ref, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -316,6 +335,7 @@ pub(crate) async fn replace_all(
             rd_core::SubscriptionKind::Indexer => "indexer",
             rd_core::SubscriptionKind::SiteRule => "site_rule",
             rd_core::SubscriptionKind::Script => "script",
+            rd_core::SubscriptionKind::GitRelease => "git_release",
             rd_core::SubscriptionKind::Media => "media",
         })
         .bind(value.enabled)
@@ -337,6 +357,7 @@ pub(crate) async fn replace_all(
         .bind(value.schedule)
         .bind(serde_json::to_string(&value.script_arguments)?)
         .bind(serde_json::to_string(&value.indexer_search)?)
+        .bind(serde_json::to_string(&value.git_release)?)
         .bind(value.secret_ref)
         .bind(now)
         .bind(now)
@@ -361,6 +382,23 @@ pub(crate) async fn replace_all(
         .bind(value.username)
         .bind(value.secret_ref)
         .bind(value.certificate_ref)
+        .bind(now)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+    }
+    for value in replacement.indexers {
+        sqlx::query(
+            "INSERT INTO indexers (id, name, url, secret_ref, categories_json, enabled, \
+             list_style, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(value.id.to_string())
+        .bind(value.name)
+        .bind(value.url.as_str())
+        .bind(value.secret_ref)
+        .bind(serde_json::to_string(&value.categories)?)
+        .bind(value.enabled)
+        .bind(value.list_style.as_str())
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

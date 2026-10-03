@@ -13,7 +13,9 @@ import { nextTick } from 'vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { SHORTCUT_DEFINITIONS, setShortcutFeedback } from '@/composables/shortcutDefinitions'
 import linkgrabber from '@/locales/en/linkgrabber.json'
+import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
+import { setShowItemImages } from '@/utils/itemImages'
 
 const get = vi.fn()
 const post = vi.fn()
@@ -84,7 +86,7 @@ function answerIndexers(rows: unknown[]): void {
 }
 
 function mount() {
-  return mountComponent(IndexerSearchPanel, { messages: { linkgrabber }, stubs })
+  return mountComponent(IndexerSearchPanel, { messages: { linkgrabber, subscriptions }, stubs })
 }
 
 /** Until the list has answered the field is disabled, and a click on *Search* does nothing. */
@@ -105,6 +107,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setIndexerSearchFocusAction(null)
+  setShowItemImages(true)
 })
 
 describe('IndexerSearchPanel without an enabled indexer', () => {
@@ -343,5 +346,109 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     await waitFor(() => expect(first.getAttribute('aria-label')).toBe(linkgrabber.search.grab_one_failed.replace('{title}', 'Small.Release')))
     expect(first.disabled).toBe(false)
     expect(toasts).toHaveBeenCalledWith(expect.objectContaining({ color: 'warning' }))
+  })
+})
+
+/**
+ * RD-190-16: each indexer draws its hits in its own list style. Detailed rows carry a cover at the
+ * thumbnail size, or the subscription lists' placeholder, and a line of metadata; compact rows
+ * stay as they were; under "all indexers" every hit takes its own indexer's style.
+ */
+describe('IndexerSearchPanel list styles', () => {
+  const DETAILED = { ...ENABLED, id: 'idx-4', name: 'Rich', list_style: 'detailed' }
+  const COMPACT = { ...ENABLED, list_style: 'compact' }
+  const COVER = 'https://covers.example.test/abc.jpg'
+  const RICH_HIT = {
+    indexer_id: 'idx-4', indexer_name: 'Rich', title: 'Some.Film.2024.1080p', download: 'https://rich.example.test/getnzb/9?apikey=rdownloader-indexer-key', passworded: false,
+    cover_url: COVER,
+    metadata: { year: '2024', genre: 'Drama', imdbscore: '7.5', resolution: '1920x1080', description: 'Somebody does something.' }
+  }
+  const BARE_HIT = { ...RICH_HIT, title: 'Some.Other.Film', download: 'https://rich.example.test/getnzb/10?apikey=rdownloader-indexer-key', cover_url: undefined, metadata: undefined }
+  /** A compact indexer's hit that carries a cover anyway: compact never draws it. */
+  const PLAIN_HIT = { ...HITS[0], cover_url: COVER, metadata: { year: '2020' } }
+
+  async function searchWith(hits: unknown[]): Promise<void> {
+    post.mockResolvedValue({ data: { hits, indexers: [{ indexer_id: 'idx-4', indexer_name: 'Rich', returned: hits.length, more: false }] } })
+    mount()
+    await ready()
+    await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
+    await screen.findByTestId('indexer-search-results')
+  }
+
+  it('draws a detailed indexer\'s hit with its cover, lazily, and one line of metadata', async () => {
+    answerIndexers([DETAILED])
+    await searchWith([RICH_HIT])
+
+    const cover = screen.getByTestId('indexer-search-hit-cover') as HTMLImageElement
+    expect(cover.getAttribute('src')).toBe(COVER)
+    expect(cover.getAttribute('loading')).toBe('lazy')
+    expect(cover.getAttribute('alt')).toBe('')
+    expect(cover.className).toContain('size-12')
+    const line = screen.getByTestId('indexer-search-hit-metadata')
+    expect(line.className).toContain('overflow-hidden')
+    expect(line.textContent).toContain(subscriptions.items.attributes.year)
+    expect(line.textContent).toContain('2024')
+    expect(line.textContent).toContain('Drama')
+    expect(line.textContent).toContain('1920x1080')
+    expect(line.textContent).toContain('Somebody does something.')
+    expect(line.getAttribute('title')).toContain('Somebody does something.')
+    // The title is still the one cut cell, and the other columns stay where they were.
+    expect(screen.getByTestId('indexer-search-hit-title').className).toContain('truncate')
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6)
+    expect(screen.queryByTestId('cover-placeholder')).toBeNull()
+  })
+
+  it('stands the placeholder where a detailed hit has no cover, or its cover does not load', async () => {
+    answerIndexers([DETAILED])
+    await searchWith([RICH_HIT, BARE_HIT])
+
+    expect(screen.getAllByTestId('indexer-search-hit-detailed')).toHaveLength(2)
+    const placeholder = screen.getByTestId('cover-placeholder')
+    expect(placeholder.getAttribute('aria-hidden')).toBe('true')
+    expect(placeholder.className).toContain('size-12')
+    // A hit without metadata has no empty line under its title.
+    expect(screen.getAllByTestId('indexer-search-hit-metadata')).toHaveLength(1)
+
+    await fireEvent.error(screen.getByTestId('indexer-search-hit-cover'))
+    expect(screen.queryByTestId('indexer-search-hit-cover')).toBeNull()
+    expect(screen.getAllByTestId('cover-placeholder')).toHaveLength(2)
+  })
+
+  it('loads no cover while pictures from indexers are switched off, and keeps the metadata', async () => {
+    setShowItemImages(false)
+    answerIndexers([DETAILED])
+    await searchWith([RICH_HIT])
+
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.getByTestId('cover-placeholder')).toBeTruthy()
+    expect(screen.getByTestId('indexer-search-hit-metadata').textContent).toContain('Drama')
+  })
+
+  it('under all indexers draws each hit in its own indexer\'s style', async () => {
+    answerIndexers([COMPACT, DETAILED])
+    await searchWith([PLAIN_HIT, RICH_HIT])
+
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(2)
+    const [plain, rich] = rows as [HTMLElement, HTMLElement]
+    // The compact indexer's hit: one line, no cover and no placeholder, even though it sent one.
+    expect(within(plain).queryByTestId('indexer-search-hit-detailed')).toBeNull()
+    expect(within(plain).queryByRole('img')).toBeNull()
+    expect(plain.querySelector('img')).toBeNull()
+    expect(within(plain).queryByTestId('cover-placeholder')).toBeNull()
+    expect(within(plain).queryByTestId('indexer-search-hit-metadata')).toBeNull()
+    expect(within(plain).getByTestId('indexer-search-hit-title').textContent).toBe('Small.Release')
+    // The detailed indexer's hit: cover and metadata.
+    expect(within(rich).getByTestId('indexer-search-hit-detailed')).toBeTruthy()
+    expect(within(rich).getByTestId('indexer-search-hit-cover').getAttribute('src')).toBe(COVER)
+    expect(within(rich).getByTestId('indexer-search-hit-metadata')).toBeTruthy()
+  })
+
+  it('draws an indexer without a stored style compact', async () => {
+    answerIndexers([ENABLED])
+    await searchWith([PLAIN_HIT])
+
+    expect(screen.queryByTestId('indexer-search-hit-detailed')).toBeNull()
+    expect(document.querySelector('img')).toBeNull()
   })
 })

@@ -159,15 +159,41 @@ function busy(itemId: string): boolean {
           </SubscriptionItemRow>
         </ul>
       </template>
-      <div v-if="!cards && !props.loading && !props.error && props.total > props.pageSize" class="mt-2 flex justify-end">
-        <UPagination
-          :page="props.page"
-          :total="props.total"
-          :items-per-page="props.pageSize"
+    </div>
+    <!-- A long list scrolls the header's bulk actions away; they repeat here beside the pages. -->
+    <footer
+      v-if="open && !cards && !props.loading && !props.error && props.items.length > 0"
+      class="flex flex-wrap items-center gap-2 border-t border-muted p-2"
+      data-testid="subscription-group-footer"
+    >
+      <UPagination
+        v-if="props.total > props.pageSize"
+        :page="props.page"
+        :total="props.total"
+        :items-per-page="props.pageSize"
+        size="xs"
+        @update:page="emit('load', $event)"
+      />
+      <div class="ms-auto flex flex-wrap items-center gap-2">
+        <UButton
           size="xs"
-          @update:page="emit('load', $event)"
+          color="primary"
+          variant="soft"
+          icon="i-lucide-list-end"
+          :label="t('linkgrabber.indexers.queue_all')"
+          :loading="props.bulkBusy"
+          @click="emit('queueAll')"
+        />
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          :label="t('linkgrabber.indexers.dismiss_all')"
+          :disabled="props.bulkBusy"
+          @click="emit('dismissAll')"
         />
       </div>
-    </div>
+    </footer>
   </section>
 </template>

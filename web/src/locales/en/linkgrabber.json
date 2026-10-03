@@ -2,7 +2,7 @@
   "title": "LinkGrabber",
   "actions": {
     "add_links": "Add links",
-    "import_files": "Import NZB/torrent",
+    "import_files": "Import",
     "check_links": "Check links",
     "enqueue_all": "Enqueue all",
     "enqueue_paused": "Add paused",
@@ -16,7 +16,8 @@
     "delete_package": "Delete package",
     "delete_nzb": "Delete NZB import",
     "details": "Details",
-    "link_actions": "Link actions"
+    "link_actions": "Link actions",
+    "more": "More actions"
   },
   "sort": {
     "label": "Sort",
@@ -48,7 +49,8 @@
   "bulk": {
     "enqueued": "Enqueued {links} links and {nzbs} NZB imports",
     "free_download": "{count} link will download without an account (free/direct) | {count} links will download without an account (free/direct)",
-    "enqueue_failed": "{count} package could not be enqueued | {count} packages could not be enqueued"
+    "enqueue_failed": "{count} package could not be enqueued | {count} packages could not be enqueued",
+    "removing": "{done} of {total} deleted …"
   },
   "package": {
     "select": "Select package",
@@ -170,7 +172,7 @@
     "batch": "File import finished",
     "batch_description": "{created} imported, {duplicates} duplicates, {errors} errors.",
     "container_imported": "Container imported",
-    "container_imported_description": "“{name}” added {count} link(s) to the LinkGrabber.",
+    "container_imported_description": "“{name}” added {count} link to the LinkGrabber. | “{name}” added {count} links to the LinkGrabber.",
     "container_failed": "Container import failed"
   },
   "confirm": {

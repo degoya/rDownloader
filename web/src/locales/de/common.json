@@ -23,7 +23,10 @@
     "apply": "Anwenden",
     "reveal": "In der Liste zeigen",
     "cancel_edit": "Bearbeitung abbrechen",
-    "duplicate": "Duplizieren"
+    "duplicate": "Duplizieren",
+    "copy_link": "Link kopieren",
+    "copy_links": "Links kopieren",
+    "open_source_page": "Quellseite öffnen"
   },
   "states": {
     "queued": "Warteschlange",
@@ -60,7 +63,8 @@
     "no": "Nein"
   },
   "errors": {
-    "request_failed": "Die Anfrage konnte nicht verarbeitet werden."
+    "request_failed": "Die Anfrage konnte nicht verarbeitet werden.",
+    "batch_stopped": "{error} – abgebrochen nach Teil {done} von {total}; die Teile davor sind ausgeführt."
   },
   "data": {
     "loading": "Wird geladen",
@@ -105,7 +109,7 @@
     "go_remote_jobs": "Zu entfernten Aufträgen",
     "go_automation": "Zu Automation",
     "go_settings": "Zu Einstellungen wechseln",
-    "import_nzb": "NZB/Torrent importieren",
+    "import_nzb": "Dateien importieren",
     "toggle_transfers": "Alle Downloads starten oder pausieren",
     "show_help": "Tastenkürzel anzeigen",
     "toast": {
@@ -119,7 +123,7 @@
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
     "clear_completed": "Fertige Pakete entfernen (in Downloads)",
-    "focus_indexer_search": "Indexer-Suche fokussieren (im LinkGrabber)",
+    "focus_indexer_search": "Suche fokussieren: Indexer-Suche im LinkGrabber, Namenssuche in Downloads",
     "add_links": "Links hinzufügen (im LinkGrabber)",
     "enqueue_all": "Alle laden (im LinkGrabber)",
     "enqueue_paused": "Alle pausiert übernehmen (im LinkGrabber)",
@@ -163,7 +167,8 @@
   },
   "copy": {
     "failed_title": "Kopieren fehlgeschlagen",
-    "failed_description": "Der Browser hat die Zwischenablage nicht freigegeben. Markiere den Text und kopiere ihn von Hand."
+    "failed_description": "Der Browser hat die Zwischenablage nicht freigegeben. Markiere den Text und kopiere ihn von Hand.",
+    "links_copied": "Kein Link kopiert | {count} Link kopiert | {count} Links kopiert"
   },
   "unsaved": {
     "title": "Ungespeicherte Änderungen verwerfen?",

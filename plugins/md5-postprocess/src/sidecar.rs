@@ -86,21 +86,27 @@ pub enum Unverifiable {
 ///
 /// `files` is the package as the host offered it: relative to the package, with `/` between
 /// folders (`Film/film.mkv`, RD-170-16). `sidecar` is one of those names, so `film.mkv` in
-/// `Film/film.md5` is `Film/film.mkv`.
+/// `Film/film.md5` is `Film/film.mkv`. `removed` names, the same way, the files the
+/// pipeline removed before this step: unpacked volumes, PAR2 files, what the cleanup deleted.
 ///
 /// An entry whose file is not in the package, or that [`resolve`] refuses, is left
 /// [`Plan::unchecked`] while others of the sidecar are there to verify: a release split across
-/// packages, or a file a cleanup rule removed. The caller names those, never passes them over
-/// silently. A sidecar none of whose files is there fails, as does one without a single readable
-/// line: both promise a check and deliver none. A file post-processing removes itself once the
-/// unpack or repair that read it has succeeded counts as neither — this step only runs after
-/// that — so a sidecar listing only such files is left with nothing to do.
+/// packages, say. The caller names those, never passes them over silently. A sidecar none of
+/// whose files is there fails, as does one without a single readable line: both promise a check
+/// and deliver none. An entry the host says post-processing removed counts as neither — the
+/// unpack or repair that read it succeeded before this step ran — so a sidecar listing only such
+/// files is left with nothing to do (RD-190-06; before, the extension was guessed at).
 ///
 /// # Errors
 ///
 /// [`Unverifiable::Empty`] for a sidecar without a readable line, [`Unverifiable::Missing`] for
 /// one none of whose files is in the package.
-pub fn wanted(files: &BTreeSet<&str>, sidecar: &str, text: &str) -> Result<Plan, Unverifiable> {
+pub fn wanted(
+    files: &BTreeSet<&str>,
+    removed: &BTreeSet<&str>,
+    sidecar: &str,
+    text: &str,
+) -> Result<Plan, Unverifiable> {
     let entries = parse(text);
     if entries.is_empty() {
         return Err(Unverifiable::Empty);
@@ -112,7 +118,7 @@ pub fn wanted(files: &BTreeSet<&str>, sidecar: &str, text: &str) -> Result<Plan,
                 digest: entry.digest,
                 file,
             }),
-            _ if removed_by_postprocessing(&entry.file) => {}
+            Some(file) if removed.contains(file.as_str()) => {}
             _ => plan.unchecked.push(entry.file),
         }
     }
@@ -147,24 +153,6 @@ pub fn resolve(sidecar: &str, file: &str) -> Option<String> {
         }
     }
     Some(parts.join("/"))
-}
-
-/// Whether post-processing deletes a file of this name itself: an archive volume once it is
-/// unpacked (`.rar`, `.r00`, `.zip`, `.z01`, `.7z`, `.001`), a PAR2 file once the repair is
-/// through, or one of the default cleanup extensions. A sidecar listing it is not wrong
-/// for that, and the unpack already checked what the volume held.
-fn removed_by_postprocessing(file: &str) -> bool {
-    let name = file.to_ascii_lowercase();
-    let Some((_, extension)) = name.rsplit_once('.') else {
-        return false;
-    };
-    let digits = |text: &str| text.len() >= 2 && text.bytes().all(|byte| byte.is_ascii_digit());
-    matches!(
-        extension,
-        "rar" | "zip" | "7z" | "par2" | "nfo" | "sfv" | "srr" | "url" | "nzb"
-    ) || extension.strip_prefix('r').is_some_and(digits)
-        || extension.strip_prefix('z').is_some_and(digits)
-        || (extension.len() == 3 && digits(extension))
 }
 
 /// Lower-case hex of a digest, for comparing with what a sidecar recorded.
@@ -225,6 +213,11 @@ mod tests {
         files.iter().copied().collect()
     }
 
+    /// Nothing removed before the step.
+    fn none() -> BTreeSet<&'static str> {
+        BTreeSet::new()
+    }
+
     #[test]
     fn a_top_level_entry_keeps_its_name() {
         assert_eq!(
@@ -261,7 +254,12 @@ mod tests {
     #[test]
     fn a_sidecar_in_a_subfolder_checks_the_files_beside_it() {
         let files = package(&["Film/film.mkv", "Film/film.md5", "film.mkv"]);
-        let entries = wanted(&files, "Film/film.md5", &format!("{DIGEST}  film.mkv\n"));
+        let entries = wanted(
+            &files,
+            &none(),
+            "Film/film.md5",
+            &format!("{DIGEST}  film.mkv\n"),
+        );
         assert_eq!(
             entries,
             Ok(Plan {
@@ -277,7 +275,12 @@ mod tests {
     #[test]
     fn a_top_level_sidecar_reads_as_before() {
         let files = package(&["release.bin", "release.md5"]);
-        let entries = wanted(&files, "release.md5", &format!("{DIGEST}  release.bin\n"));
+        let entries = wanted(
+            &files,
+            &none(),
+            "release.md5",
+            &format!("{DIGEST}  release.bin\n"),
+        );
         assert_eq!(
             entries.map(|plan| plan.entries[0].file.clone()),
             Ok("release.bin".to_owned())
@@ -289,7 +292,7 @@ mod tests {
         // A release split across two packages: this one holds the first part only.
         let files = package(&["release.md5", "CD1/a.bin"]);
         let text = format!("{DIGEST}  CD1/a.bin\n{DIGEST}  CD2/b.bin\n{DIGEST}  ../c.bin\n");
-        let plan = wanted(&files, "release.md5", &text).expect("plan");
+        let plan = wanted(&files, &none(), "release.md5", &text).expect("plan");
         assert_eq!(plan.entries.len(), 1);
         assert_eq!(
             plan.unchecked,
@@ -303,26 +306,55 @@ mod tests {
         let files = package(&["Film/film.md5", "film.mkv"]);
         let text = format!("{DIGEST}  film.mkv\n{DIGEST}  ../film.mkv\n");
         assert_eq!(
-            wanted(&files, "Film/film.md5", &text),
+            wanted(&files, &none(), "Film/film.md5", &text),
             Err(Unverifiable::Missing("film.mkv".to_owned()))
         );
     }
 
     #[test]
-    fn volumes_the_unpack_removed_are_not_missing() {
+    fn files_the_host_says_were_removed_are_not_missing() {
         let files = package(&["release.md5", "release/film.mkv"]);
+        let removed = package(&[
+            "release.part1.rar",
+            "release.vol0+1.par2",
+            "release/film.nfo",
+        ]);
         let text = format!(
-            "{DIGEST}  release.part1.rar\n{DIGEST}  release.r00\n{DIGEST}  release.7z.001\n\
-             {DIGEST}  release.vol0+1.par2\n{DIGEST}  release.nfo\n"
+            "{DIGEST}  release.part1.rar\n{DIGEST}  release.vol0+1.par2\n\
+             {DIGEST}  release/film.nfo\n"
         );
-        assert_eq!(wanted(&files, "release.md5", &text), Ok(Plan::default()));
+        assert_eq!(
+            wanted(&files, &removed, "release.md5", &text),
+            Ok(Plan::default())
+        );
+    }
+
+    #[test]
+    fn a_removed_file_is_found_from_a_sidecar_in_a_subfolder() {
+        // The cleanup deleted `Film/film.nfo`; the sidecar beside it says `film.nfo`.
+        let files = package(&["Film/film.md5", "Film/film.mkv"]);
+        let removed = package(&["Film/film.nfo"]);
+        let text = format!("{DIGEST}  film.mkv\n{DIGEST}  film.nfo\n");
+        let plan = wanted(&files, &removed, "Film/film.md5", &text).expect("plan");
+        assert_eq!(plan.entries.len(), 1);
+        assert!(plan.unchecked.is_empty(), "{plan:?}");
+    }
+
+    #[test]
+    fn a_volume_nobody_removed_is_not_waved_through_by_its_extension() {
+        // Before RD-190-06 a `.rar` entry was skipped for its extension alone. A volume the
+        // package lacks without the pipeline having removed it is a gap like any other file.
+        let files = package(&["release.md5", "release.bin"]);
+        let text = format!("{DIGEST}  release.bin\n{DIGEST}  release.part2.rar\n");
+        let plan = wanted(&files, &none(), "release.md5", &text).expect("plan");
+        assert_eq!(plan.unchecked, vec!["release.part2.rar".to_owned()]);
     }
 
     #[test]
     fn a_sidecar_without_a_readable_line_is_not_a_pass() {
         let files = package(&["release.md5"]);
         assert_eq!(
-            wanted(&files, "release.md5", "# nothing here\n"),
+            wanted(&files, &none(), "release.md5", "# nothing here\n"),
             Err(Unverifiable::Empty)
         );
     }

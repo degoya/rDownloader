@@ -393,7 +393,7 @@ fi
 failpoints=0
 if [[ "$full" -eq 1 ]] \
     || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host|rd-extract|rd-api-core|rd-torrent|rd-plugin-transfer|rd-api-admin|rd-update'; then
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-db|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host|rd-extract|rd-api-core|rd-torrent|rd-plugin-transfer|rd-api-admin|rd-update'; then
     failpoints=1
 fi
 
@@ -617,8 +617,10 @@ if [[ "$run_rust" -eq 1 ]]; then
             # The plugin update's two points sit in rd-api-admin and are driven through the
             # admin suite, so only those cases of rd-api run here (RD-180-12).
             run_tests --features rd-api/failpoints -p rd-api --test admin stopped_updates
+            # The archive passwords' two points sit in rd-db; their binary alone (RD-190-04).
+            run_tests --features rd-db/failpoints -p rd-db --test archive_password_crash
         else
-            skip "crash and restart matrix" "none of rd-core, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, rd-extract, rd-api-core, rd-torrent, rd-plugin-transfer, rd-api-admin, rd-update, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of rd-core, rd-db, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, rd-extract, rd-api-core, rd-torrent, rd-plugin-transfer, rd-api-admin, rd-update, failpoint.rs or the recovery matrix changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then

@@ -64,6 +64,7 @@ impl SourceAdapter for MediaAdapter {
                     // is what a page without one has (RD-110-21).
                     release_key: None,
                     password: None,
+                    refused: None,
                 }
             })
             .collect();

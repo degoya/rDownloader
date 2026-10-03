@@ -6,7 +6,7 @@ wit_bindgen::generate!({
     world: "postprocess-plugin",
 });
 
-use exports::rdownloader::plugin::postprocess::{Guest, StepEnd, StepInput};
+use exports::rdownloader::plugin::postprocess::{Guest, StepComplete, StepEnd, StepInput};
 use rdownloader::plugin::source;
 
 use crate::rules::{Rules, rename_to};
@@ -52,7 +52,10 @@ impl Guest for Component {
             // Nothing to do is not a success worth reporting; most packages are already tidy.
             return StepEnd::Skipped;
         }
-        StepEnd::Complete(None)
+        StepEnd::Complete(StepComplete {
+            checkpoint: None,
+            warnings: Vec::new(),
+        })
     }
 }
 

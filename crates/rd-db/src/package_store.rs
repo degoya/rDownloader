@@ -86,14 +86,8 @@ pub(crate) async fn update_packages(
                 .execute(&mut *transaction)
                 .await?;
         }
-        if let Some(password) = &change.password {
-            sqlx::query("UPDATE packages SET password = ?, updated_at = ? WHERE id = ?")
-                .bind(password)
-                .bind(now)
-                .bind(id.to_string())
-                .execute(&mut *transaction)
-                .await?;
-        }
+        // `change.password` is not a column write: `Database::update_packages` stores it in
+        // the vault once this transaction is in (RD-190-04).
         if let Some(level) = change.postprocess_level {
             sqlx::query("UPDATE packages SET postprocess_level = ?, updated_at = ? WHERE id = ?")
                 .bind(level.map(crate::writer::level_string))
@@ -391,17 +385,6 @@ pub(crate) async fn clear_previous_destination(
         .execute(connection)
         .await?;
     Ok(())
-}
-
-/// Archive password of a package; only the extraction service may read it.
-pub(crate) async fn package_password(pool: &SqlitePool, id: PackageId) -> Result<Option<String>> {
-    Ok(
-        sqlx::query_scalar::<_, Option<String>>("SELECT password FROM packages WHERE id = ?")
-            .bind(id.to_string())
-            .fetch_optional(pool)
-            .await?
-            .flatten(),
-    )
 }
 
 /// Carries enricher fields from the link candidates onto the queue rows they became

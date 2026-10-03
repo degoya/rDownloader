@@ -30,6 +30,7 @@ import SettingsTorrentTab from '@/components/settings/SettingsTorrentTab.vue'
 import SettingsTransfersTab from '@/components/settings/SettingsTransfersTab.vue'
 import SettingsUnattendedTab from '@/components/settings/SettingsUnattendedTab.vue'
 import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
@@ -49,6 +50,7 @@ const speedMiB = ref<number | null>(null)
 const pending = ref(false)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
+clearWhenReconnected(error)
 const route = useRoute()
 /**
  * The page comes from the URL (`/settings/network`), so it is deep-linkable, survives a reload

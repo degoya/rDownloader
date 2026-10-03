@@ -10,7 +10,7 @@ const props = defineProps<{ steps: PostprocessStep[], loading?: boolean }>()
 const { t, te } = useI18n()
 // Mirrors `PostprocessKind`. A kind missing here falls back to the raw identifier, which is
 // how `remux` went untranslated since livestream remuxing arrived.
-const KINDS = ['par2', 'sfv', 'rar_test', 'extract_zip', 'extract_seven_zip', 'extract_rar', 'delete_archives', 'delete_par2', 'cleanup', 'remux', 'plugin_step', 'script', 'upload']
+const KINDS = ['par2', 'sfv', 'rar_test', 'extract_zip', 'extract_seven_zip', 'extract_rar', 'delete_archives', 'delete_par2', 'cleanup', 'remux', 'malware_scan', 'plugin_step', 'script', 'upload']
 const STATES = ['queued', 'running', 'completed', 'skipped', 'failed']
 const openOutput = ref<Set<string>>(new Set())
 

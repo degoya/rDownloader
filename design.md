@@ -390,6 +390,12 @@ prevent columns from shifting during live updates.
 ### Interaction Rules
 
 - Primary actions are state-dependent; mutually invalid actions are not offered together.
+- **A state with an end says when it ends, and one click ends it early** (RD-190-20). The timed
+  queue pause replaces the global toggle with *Paused until 14:30* — the clock alone within the next
+  day, the date as well beyond — the time left in the tooltip, and a click (or `P`) resumes. The
+  durations sit in a menu beside the toggle rather than replacing it, so a plain pause stays one
+  click. A bandwidth profile switched on by hand says the same way why it is active: *Chosen by the
+  schedule*, or *Switched by hand, until …*, with *Back to the schedule* beside it.
 - Destructive actions require explicit confirmation.
 - Server failures appear localized while retaining stable error codes as the contract.
 - Forms expose loading, success, and error states. Self-saving settings areas remain separate from
@@ -397,17 +403,18 @@ prevent columns from shifting during live updates.
 - Full-page refresh is not the normal update path; SSE or local store updates keep views current.
 - Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `2` LinkGrabber,
   `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics, `8` Logs,
-  `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause, and `?` help. A new navigation entry takes the
+  `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause (ending a timed pause while one holds), and `?` help. A new navigation entry takes the
   number of its place and renumbers what follows, so the keys keep reading top to bottom.
   A key that belongs to one page (`K` removes the completed packages, only on Downloads,
   RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
   the page hands its action in while it is mounted; the key runs that action with its
   confirmation and shows as a `UKbd` hint on the menu item that offers it. Pressed again, the
   same key answers that confirmation (`ConfirmModal`'s `confirmKey`, shown as a `UKbd` on its
-  button), so the action never needs the mouse or a Tab to the button. `F` focuses the
-  LinkGrabber's indexer search (RD-180-19) the same way: the panel hands its focus in while it is
-  mounted, and the field shows the key as a `UKbd` at its end; while the field is disabled the
-  key lands on the hint's link to the indexer settings, the one thing there is to do. The
+  button), so the action never needs the mouse or a Tab to the button. `F` focuses the search of
+  the page the same way — the LinkGrabber's indexer search (RD-180-19), the download list's name
+  search (RD-190-21): the panel or the list hands its focus in while it is mounted, and the field
+  shows the key as a `UKbd` at its end; while the indexer field is disabled the key lands on the
+  hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
   all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
   while that button is disabled.
@@ -420,6 +427,13 @@ prevent columns from shifting during live updates.
   guard that holds plain keys back counts a dialog open when `useOverlay()` tracks one or the page
   shows `[role="dialog"][data-state="open"]` — the second covers the dialogs bound with
   `v-model:open`.
+- **A list's filter and search live in the address** (RD-190-21). The download list keeps its
+  state filter and its name search as `?filter=` and `?q=`: a link opens the list narrowed, a
+  reload keeps it, and the default carries no query, so the plain address stays plain. A filter is
+  replaced in the address, not pushed — narrowing a list is not a place back should step through
+  key by key. A search over what the page already holds filters as you type, a moment after the
+  last key; a filter that hides every row says so, with *Reset filter*, instead of the empty
+  list's welcome text.
 - **A search that costs the other side something is asked, never typed into** (RD-180-19). The
   indexer search sits at the top of the LinkGrabber, because what it finds is reviewed there,
   and it is always there (owner, 2026-10-01) — the one exception to the absent-section rule
@@ -436,7 +450,12 @@ prevent columns from shifting during live updates.
   download button per row (`aria-label` and `title` name the hit; pending, done and failed are
   that row's own state). *Add selected* and the row button send through the upload's own
   import, so the hits arrive in the list below like a dropped `.nzb`, and an indexer that
-  refused is named in its own warning while the others' hits still show.
+  refused is named in its own warning while the others' hits still show. How a hit's row looks
+  is its indexer's list style, chosen where the indexer is defined and never in the result list
+  (RD-190-16): *compact*, one line, or *detailed*, which puts the `size-12` thumbnail (or the
+  placeholder below) before the title and one cut line of the indexer's metadata under it,
+  inside the title column — size, age, category and the button stay where they are in either
+  style, and under *all indexers* each row follows its own indexer.
 - **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
   — the command palette in a modal — on Ctrl/Cmd+K from anywhere, text fields included, on `/`
   outside them, and on the search button at the top of the sidebar (an icon with a tooltip on
@@ -496,7 +515,9 @@ prevent columns from shifting during live updates.
   *Webhook*, *Endpoint*, *Header* — a German "Stromtransformation" for a stream transform reads
   as electrical current. The owner's choices: German *Backup* (never *Sicherung*; *Voll-Backup*,
   *Backup-Ziel*), *Mirror* (never *Spiegel*), *Tresor* (never *Vault* or *Secret-Store*, as in
-  password managers) and *Konto/Konten* (never *Account*; *Providerkonto*, *Premium-Konto*);
+  password managers), *Konto/Konten* (never *Account*; *Providerkonto*, *Premium-Konto*),
+  *Passwort* (never *Kennwort*), *Speicherort* for a storage root (never *Storage-Root*;
+  *Standard-Speicherort*) and *Gratis/Direkt* for a download without an account (1.9.0);
   Spanish *seeding* and *Seeders*, *suma de verificación* (never *suma de comprobación*) and
   *stream de eventos* where an event stream is named (French keeps *flux d'événements*). Ordinary words
   are translated, and a native word that is genuinely the standard one stays (de
@@ -569,7 +590,12 @@ prevent columns from shifting during live updates.
   named for both, *Language and theme*, never for one of them. The footer takes the sidebar's
   width in both states — its separator and selects run where the navigation's separator runs —
   and on the rail the connection dot and the sign-out button stack, since side by side they need
-  56 of the 32 px between the paddings (RD-120-61). A newer version is announced in the same
+  56 of the 32 px between the paddings (RD-120-61). The dot says what is true: green and
+  pulsing beside the endpoint while the service answers, red with *Connection to the service
+  lost* in place of the endpoint once the event stream broke off or a request got no answer for
+  1.5 s, with one warning toast for the outage that goes when the service is back; the same
+  return clears a *service could not be reached* alert, and a view whose code could not be
+  fetched meanwhile says so in a toast and is loaded once the service answers (1.9.0). A newer version is announced in the same
   footer, above language and theme, and nowhere else: nothing while there is none, one soft
   button *Version X available* while there is (an icon with a tooltip on the rail), opening a
   dialog with the notes and the download or the package manager's command to copy — never a
@@ -1110,7 +1136,10 @@ recognised as drifting.
   long list read as restless. Where a thumbnail can appear, its absence is filled by a
   placeholder of the same `size-12` on `bg-elevated`, carrying the application's own mark
   (`favicon.svg`) as a background, `aria-hidden` and without an `alt`: it is decoration
-  standing in for decoration, and it must never look like a picture of the thing itself.
+  standing in for decoration, and it must never look like a picture of the thing itself. It is
+  one component, `CoverPlaceholder.vue`, wherever covers are drawn — the subscription hits and
+  the indexer search's detailed rows — and stands in as well for a cover the person's setting
+  does not load or whose address failed.
 - **A picture the row is a decision about is enlarged in the row, not in the detail below.**
   This reverses what this document said until 1.0.6 — *"a larger version belongs in the
   expanded detail, never in the row"* — and the reversal is deliberate rather than a drift.

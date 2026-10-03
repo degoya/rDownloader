@@ -103,6 +103,10 @@ const RESERVED_GAPS: &[i64] = &[66, 68, 88];
 /// Refilled a sixth time on 2026-09-27 with `0099` and `0100`, which `feat/1.5-dedupe`
 /// (RD-150-01) holds while the 1.5 wave-1 integration lands `0101` to `0104`. Emptied when that
 /// branch merges; emptied at the 1.5 wave-2 integration merge.
+///
+/// Refilled a seventh time on 2026-10-01 with `0112`, which `feat/1.8-indexer-search` held
+/// while RD-190-04 took `0113` (archive passwords in the vault), and emptied the same day when
+/// RD-190-04 was rebased onto the `development` that had landed `0112`.
 const PENDING_GAPS: &[i64] = &[];
 
 /// How many migrations a release that stopped at `version` actually shipped.

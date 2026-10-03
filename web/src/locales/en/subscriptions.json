@@ -6,7 +6,8 @@
     "feed": "Feed or podcast",
     "indexer": "Indexer",
     "site_rule": "Release page",
-    "script": "Own script"
+    "script": "Own script",
+    "git_release": "GitHub/GitLab releases"
   },
   "modes": {
     "review": "Review first",
@@ -30,7 +31,8 @@
     "too_old": "Published before the cutoff date",
     "language_not_wanted": "Language is not one of the wanted ones",
     "resolution_too_low": "Below the minimum resolution",
-    "backlog": "Already existed when the subscription was switched on"
+    "backlog": "Already existed when the subscription was switched on",
+    "asset_not_wanted": "File does not match the platforms, architectures or name patterns"
   },
   "form": {
     "add": "Add subscription",
@@ -96,7 +98,27 @@
     "search_pretime": "Pre-time filter (pred)",
     "search_pretime_description": "Sent to the indexer as pred; the indexer defines what 0, 1 and 2 mean",
     "pretime_none": "Not sent",
-    "search_hide_passworded": "Hide passworded releases (pw=2)"
+    "search_hide_passworded": "Hide passworded releases (pw=2)",
+    "git_url_description": "The repository's address, e.g. https://github.com/owner/name or https://gitlab.com/group/project.",
+    "git_forge": "Service",
+    "git_forge_description": "Recognised for github.com and gitlab.com; name it here for a self-hosted server.",
+    "git_forges": {
+      "auto": "From the address",
+      "github": "GitHub (Enterprise Server too)",
+      "gitlab": "GitLab"
+    },
+    "git_platforms": "Platforms",
+    "git_platforms_description": "Only files for these systems, recognised by name or extension (.exe, .dmg, .deb …). Empty means all.",
+    "git_architectures": "Architectures",
+    "git_architectures_description": "Files that name no architecture, universal macOS images for instance, always count. Empty means all.",
+    "git_all": "All",
+    "git_asset_patterns": "File name patterns",
+    "git_asset_patterns_description": "Comma-separated, * and ? as wildcards, e.g. *.AppImage. Empty means all.",
+    "git_prereleases": "Download pre-releases",
+    "git_source_archives": "Download source archives",
+    "git_token": "Token",
+    "git_token_hint": "Private repositories only, and the smallest right suffices: a GitHub fine-grained token with “Contents: read”, GitLab “read_api”. Stored encrypted and never shown again.",
+    "git_token_keep": "Leave empty to keep the stored token"
   },
   "list": {
     "title": "Subscriptions",

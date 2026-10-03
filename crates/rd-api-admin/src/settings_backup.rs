@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub use crate::settings_backup_dto::{
-    BundleAccount, BundleProxyProfile, BundleStreamChannel, BundleUsenetServer,
+    BundleAccount, BundleIndexer, BundleProxyProfile, BundleStreamChannel, BundleUsenetServer,
     ExportSettingsRequest, ImportSettingsRequest, ImportSummaryResponse, SettingsBundle,
 };
 
@@ -148,11 +148,14 @@ pub async fn build_settings_bundle(
             schedule: subscription.schedule,
             script_arguments: subscription.script_arguments,
             indexer_search: subscription.indexer_search,
+            git_release: subscription.git_release,
             secret_slot: slots.add(&state, secret_ref).await?,
         });
     }
     let bundled_auth_profiles =
         crate::settings_backup_auth::export(&state, &mut slots, include_secrets).await?;
+    let bundled_indexers =
+        crate::settings_backup_indexers::export(&state, &mut slots, include_secrets).await?;
     let mut bundled_servers = Vec::with_capacity(usenet_servers.len());
     for server in usenet_servers {
         let password_ref = if include_secrets {
@@ -177,6 +180,20 @@ pub async fn build_settings_bundle(
             enabled: server.enabled,
             password_slot: slots.add(&state, password_ref).await?,
         });
+    }
+    // Only the full backup carries the archive passwords (RD-190-04), sealed with the rest
+    // under its key: a settings export is about settings, and packages are not.
+    let mut archive_passwords = Vec::new();
+    if matches!(sealing, SecretSealing::BackupKey(_)) {
+        for (table, id, reference) in state.database.archive_password_references().await? {
+            if let Some(slot) = slots.add_readable(&state, reference).await {
+                archive_passwords.push(crate::settings_backup_dto::BundleArchivePassword {
+                    table: table.to_owned(),
+                    id,
+                    slot,
+                });
+            }
+        }
     }
     let encrypted = match sealing {
         SecretSealing::Passphrase(passphrase) => {
@@ -212,6 +229,8 @@ pub async fn build_settings_bundle(
         accounts: bundled_accounts,
         usenet_servers: bundled_servers,
         auth_profiles: bundled_auth_profiles,
+        archive_passwords,
+        indexers: bundled_indexers,
         secrets: encrypted,
     })
 }
@@ -343,6 +362,7 @@ fn validate_references(bundle: &SettingsBundle) -> Result<(), ApiError> {
     unique_set(bundle.accounts.iter().map(|value| value.id))?;
     unique_set(bundle.usenet_servers.iter().map(|value| value.id))?;
     unique_set(bundle.auth_profiles.iter().map(|value| value.id))?;
+    unique_set(bundle.indexers.iter().map(|value| value.id))?;
     let valid = bundle
         .categories
         .iter()
@@ -426,6 +446,7 @@ fn referenced_slots(bundle: &SettingsBundle) -> BTreeSet<String> {
                 .filter_map(|value| value.secret_slot.clone()),
         )
         .chain(crate::settings_backup_auth::referenced_slots(bundle))
+        .chain(crate::settings_backup_indexers::referenced_slots(bundle))
         .collect()
 }
 
@@ -435,6 +456,7 @@ fn into_replacement(
 ) -> rd_db::ConfigReplacement {
     rd_db::ConfigReplacement {
         auth_profiles: crate::settings_backup_auth::into_replacement(bundle.auth_profiles, minted),
+        indexers: crate::settings_backup_indexers::into_replacement(bundle.indexers, minted),
         storage_roots: bundle.storage_roots,
         categories: bundle.categories,
         category_rules: bundle.category_rules,
@@ -476,6 +498,7 @@ fn into_replacement(
                 schedule: value.schedule,
                 script_arguments: value.script_arguments,
                 indexer_search: value.indexer_search,
+                git_release: value.git_release,
                 secret_ref: slot_reference(minted, value.secret_slot),
             })
             .collect(),

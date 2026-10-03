@@ -6,7 +6,8 @@
     "feed": "Feed oder Podcast",
     "indexer": "Indexer",
     "site_rule": "Release-Seite",
-    "script": "Eigenes Skript"
+    "script": "Eigenes Skript",
+    "git_release": "GitHub-/GitLab-Releases"
   },
   "modes": {
     "review": "Erst prüfen",
@@ -30,7 +31,8 @@
     "too_old": "Vor dem Stichtag veröffentlicht",
     "language_not_wanted": "Sprache gehört nicht zu den gewünschten",
     "resolution_too_low": "Unter der Mindestauflösung",
-    "backlog": "Existierte schon beim Einschalten des Abonnements"
+    "backlog": "Existierte schon beim Einschalten des Abonnements",
+    "asset_not_wanted": "Datei passt nicht zu Plattform, Architektur oder Namensmuster"
   },
   "form": {
     "add": "Abonnement hinzufügen",
@@ -96,7 +98,27 @@
     "search_pretime": "Pre-Zeit-Filter (pred)",
     "search_pretime_description": "Geht als pred an den Indexer; was 0, 1 und 2 bedeuten, legt der Indexer fest",
     "pretime_none": "Nicht senden",
-    "search_hide_passworded": "Releases mit Passwort ausblenden (pw=2)"
+    "search_hide_passworded": "Releases mit Passwort ausblenden (pw=2)",
+    "git_url_description": "Die Adresse des Repositorys, etwa https://github.com/besitzer/name oder https://gitlab.com/gruppe/projekt.",
+    "git_forge": "Dienst",
+    "git_forge_description": "Bei github.com und gitlab.com erkannt; einen selbst betriebenen Server gibst du hier an.",
+    "git_forges": {
+      "auto": "Aus der Adresse",
+      "github": "GitHub (auch Enterprise Server)",
+      "gitlab": "GitLab"
+    },
+    "git_platforms": "Plattformen",
+    "git_platforms_description": "Nur Dateien für diese Systeme, erkannt am Namen oder an der Endung (.exe, .dmg, .deb …). Leer heißt: alle.",
+    "git_architectures": "Architekturen",
+    "git_architectures_description": "Dateien ohne Architektur im Namen, etwa universelle macOS-Abbilder, zählen immer dazu. Leer heißt: alle.",
+    "git_all": "Alle",
+    "git_asset_patterns": "Dateinamen-Muster",
+    "git_asset_patterns_description": "Durch Kommas getrennt, * und ? als Platzhalter, etwa *.AppImage. Leer heißt: alle.",
+    "git_prereleases": "Vorabversionen laden",
+    "git_source_archives": "Quellarchive laden",
+    "git_token": "Token",
+    "git_token_hint": "Nur für private Repositorys, und das kleinste Recht reicht: bei GitHub ein fine-grained Token mit „Contents: read“, bei GitLab „read_api“. Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+    "git_token_keep": "Leer lassen, um das gespeicherte Token zu behalten"
   },
   "list": {
     "title": "Abonnements",

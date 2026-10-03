@@ -11,18 +11,23 @@ import TransferCard from '@/components/TransferCard.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import DataState from '@/components/DataState.vue'
 import PostprocessQueue from '@/components/PostprocessQueue.vue'
+import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import QueueSummary from '@/components/QueueSummary.vue'
 import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
+import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
+import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useClearEverythingConfirm } from '@/composables/useClearEverythingConfirm'
 import { useConfirm } from '@/composables/useConfirm'
 import { copyText } from '@/composables/useCopy'
+import { useCopyLinks } from '@/composables/useCopyLinks'
 import { useOpenSections } from '@/composables/useOpenSections'
 import type { VirtualRow } from '@/composables/useVirtualRows'
 import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
 import { usePackageStorage } from '@/composables/usePackageStorage'
+import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
 import { packageRowKey, useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
 import { useRename } from '@/composables/useRename'
 import { useResetConfirm } from '@/composables/useResetConfirm'
@@ -41,9 +46,12 @@ const confirmReset = useResetConfirm()
 const confirmClearEverything = useClearEverythingConfirm()
 const editPackage = usePackageEdit()
 const openPackageStorage = usePackageStorage()
+const copyLinks = useCopyLinks()
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
-const filter = ref('all')
+/** The state filter and the name search, both in the address (RD-190-21). */
+const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
+const searchField = ref<HTMLElement | null>(null)
 const adding = ref(false)
 const bulkBusy = ref(false)
 const draggingId = ref<string | null>(null)
@@ -57,12 +65,7 @@ let summaryTimer: ReturnType<typeof setInterval> | null = null
 let postprocessTimer: ReturnType<typeof setInterval> | null = null
 const addForm = ref<{ reset: () => void } | null>(null)
 
-const filters = computed(() => [
-  { label: t('downloads.filters.all'), value: 'all' },
-  { label: t('downloads.filters.active'), value: 'active' },
-  { label: t('downloads.filters.queued'), value: 'queued' },
-  { label: t('downloads.filters.completed'), value: 'completed' }
-])
+const filters = computed(() => QUEUE_FILTERS.map(value => ({ label: t(`downloads.filters.${value}`), value })))
 // One red entry, apart from the rest: the only one that stops work in progress (RD-180-21).
 const clearItems = computed(() => [[
   { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', kbds: ['k'], onSelect: () => clearDownloads('completed') },
@@ -73,11 +76,7 @@ const clearItems = computed(() => [[
 ]])
 const ACTIVE = ['resolving', 'downloading', 'verifying', 'repairing', 'extracting']
 
-const visible = computed(() => {
-  if (filter.value === 'all') return transfers.downloads
-  if (filter.value === 'active') return transfers.downloads.filter((item) => ACTIVE.includes(item.state))
-  return transfers.downloads.filter((item) => item.state === filter.value)
-})
+const visible = computed(() => filterQueue(transfers.downloads, transfers.packages, filter.value, needle.value))
 // Bucketed in one pass rather than filtering the whole list once per package: that was
 // O(packages x downloads) and re-ran on every store refresh, several times a second under load.
 const groups = computed<QueueGroup[]>(() => {
@@ -165,6 +164,19 @@ const packageStateFingerprint = computed(() => transfers.packages.map(pkg => `${
 const canExtractSelection = computed(() => hasExtractable(selection.selectedDownloads.value))
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
 
+/** Every file's address of the package, whatever the filter hides: the package is what was asked for. */
+function copyPackageLinks(id: string): void {
+  void copyLinks(transfers.downloads.filter(download => download.package_id === id).map(download => download.source))
+}
+
+/**
+ * `f` puts the keyboard in the name search, as it does in the LinkGrabber's indexer search: one
+ * key for "the search of this page", handed in while the list is mounted (RD-190-21).
+ */
+function focusSearch(): void {
+  searchField.value?.querySelector('input')?.focus()
+}
+
 async function copyPath(path: string): Promise<void> {
   // No toast on failure: the notice names the path, which can be copied from there by hand.
   transfers.notice = await copyText(path)
@@ -223,6 +235,7 @@ async function bulkDeletePackages(): Promise<void> {
 onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
   setClearCompletedAction(() => void clearDownloads('completed'))
+  setIndexerSearchFocusAction(focusSearch)
   void loadSelections()
   void loadSummary()
   void postprocess.refresh()
@@ -238,6 +251,7 @@ onUnmounted(() => {
   if (summaryTimer) clearInterval(summaryTimer)
   if (postprocessTimer) clearInterval(postprocessTimer)
   setClearCompletedAction(null)
+  setIndexerSearchFocusAction(null)
 })
 // `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
 // both fingerprints change with it, which keeps the summary reactive without a manual button.
@@ -433,7 +447,7 @@ async function onDrop(targetId: string): Promise<void> {
  * so the filter case says why instead of dropping the gesture silently.
  */
 async function persistFileOrder(packageId: string, order: string[]): Promise<boolean> {
-  if (filter.value !== 'all') {
+  if (filterActive.value) {
     transfers.notice = t('downloads.notices.reorder_filter_active')
     return false
   }
@@ -535,36 +549,46 @@ async function removeDownload(id: string): Promise<void> {
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
           <div data-tour="downloads-controls" class="flex items-center gap-2">
-          <UBadge color="neutral" variant="outline" class="font-mono">{{ t('common.units.file', { count: transfers.downloads.length }, transfers.downloads.length).toLocaleUpperCase() }}</UBadge>
-          <UButton
-            v-if="transfers.globalControl"
-            :icon="transfers.globalControl === 'pause' ? 'i-lucide-pause' : 'i-lucide-play'"
-            :label="transfers.globalControl === 'pause' ? t('downloads.header.pause_all') : t('downloads.header.resume_all')"
-            :color="transfers.globalControl === 'pause' ? 'neutral' : 'primary'"
-            :variant="transfers.globalControl === 'pause' ? 'outline' : 'soft'"
-            :loading="transfers.controlsBusy"
-            @click="transfers.controlAll(transfers.globalControl)"
-          />
+          <!-- On a phone the count goes (the toolbar repeats it) and the buttons keep only their
+               icons, so the row fits beside the title and never covers the sidebar toggle. -->
+          <UBadge color="neutral" variant="outline" class="font-mono max-sm:hidden">{{ t('common.units.file', { count: transfers.downloads.length }, transfers.downloads.length).toLocaleUpperCase() }}</UBadge>
+          <QueuePauseControl placement="header" />
           <UDropdownMenu :items="clearItems">
-            <UButton icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" color="neutral" variant="outline" :loading="transfers.clearing" />
+            <UButton icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" :aria-label="t('downloads.header.clear_list')" :title="t('downloads.header.clear_list')" :ui="{ label: 'max-sm:hidden' }" color="neutral" variant="outline" :loading="transfers.clearing" />
           </UDropdownMenu>
           </div>
         </template>
       </UDashboardNavbar>
-      <UDashboardToolbar>
+      <!-- Wraps where the panel is narrow, as the LinkGrabber's toolbar does (RD-120-48). -->
+      <UDashboardToolbar :ui="{ root: 'flex-wrap gap-y-1.5 py-1.5', left: 'min-w-0 flex-auto flex-wrap', right: 'ms-auto flex-wrap' }">
         <template #left>
+          <div ref="searchField" class="w-full sm:w-56">
+            <UInput
+              v-model="search"
+              type="search"
+              icon="i-lucide-search"
+              class="w-full"
+              autocomplete="off"
+              :placeholder="t('downloads.filters.search_placeholder')"
+              :aria-label="t('downloads.filters.search_label')"
+              data-testid="downloads-search"
+            >
+              <template #trailing><UKbd value="f" /></template>
+            </UInput>
+          </div>
           <USelect v-model="filter" :items="filters" value-key="value" class="w-36" :aria-label="t('downloads.filters.aria')" />
           <UCheckbox
             :model-value="selection.state.value === 'all' ? true : selection.state.value === 'some' ? 'indeterminate' : false"
             :disabled="!groups.length"
             :label="selection.count.value ? t('downloads.header.selection_count', { count: selection.count.value }) : t('common.actions.select_all')"
             :aria-label="t('downloads.header.select_all_hint')"
+            :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
             @update:model-value="selection.toggleAll()"
           />
         </template>
         <template #right>
-          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" data-testid="show-metadata" />
-          <span class="numeric text-xs text-muted">{{ t('common.units.package', { count: groups.length }, groups.length) }} · {{ t('common.units.file', { count: visible.length }, visible.length) }}</span>
+          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
+          <span class="numeric whitespace-nowrap text-xs text-muted">{{ t('common.units.package', { count: groups.length }, groups.length) }} · {{ t('common.units.file', { count: visible.length }, visible.length) }}</span>
         </template>
       </UDashboardToolbar>
     </template>
@@ -578,6 +602,8 @@ async function removeDownload(id: string): Promise<void> {
         <PowerCountdownAlert />
 
         <StorageCapacityAlert />
+
+        <TorrentKillSwitchAlert />
 
         <CollisionPromptsAlert />
 
@@ -664,6 +690,7 @@ async function removeDownload(id: string): Promise<void> {
                 @resume-package="(id) => controlPackage(id, 'resume')"
                 @delete-package="deletePackage"
                 @copy-path="copyPath"
+                @copy-links="copyPackageLinks"
               />
               <TransferCard
                 v-else
@@ -683,12 +710,23 @@ async function removeDownload(id: string): Promise<void> {
                 @reset="(id) => resetDownloads([id])"
                 @rename="renameFile"
                 @copy-path="copyPath"
+                @copy-links="copyLinks"
                 @dragstart="(id) => draggingFileId = id"
                 @drop="onFileDrop"
                 @move="onFileMove"
               />
             </template>
           </VirtualRowList>
+        </section>
+
+        <!-- The queue has files, the filter or the search hides all of them: say so, and offer the way back. -->
+        <section v-else-if="filterActive && transfers.downloads.length" class="grid min-h-48 place-items-center border border-dashed border-muted p-8 text-center" data-testid="downloads-no-match">
+          <div>
+            <UIcon name="i-lucide-search-x" class="mx-auto mb-4 size-8 text-muted" />
+            <h2 class="font-medium text-highlighted">{{ t('downloads.filters.no_match_title') }}</h2>
+            <p class="mt-2 text-sm text-muted">{{ t('downloads.filters.no_match_hint') }}</p>
+            <UButton class="mt-4" icon="i-lucide-filter-x" color="neutral" variant="outline" :label="t('downloads.filters.reset')" @click="resetFilter" />
+          </div>
         </section>
 
         <!--

@@ -6,7 +6,9 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, bandwidth_handlers, notify_handlers, power_handlers};
+use crate::{
+    AppState, bandwidth_handlers, bandwidth_manual_handlers, notify_handlers, power_handlers,
+};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -26,6 +28,11 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/bandwidth/status",
             get(bandwidth_handlers::bandwidth_status),
+        )
+        .route(
+            "/api/v1/bandwidth/manual",
+            put(bandwidth_manual_handlers::switch_bandwidth_profile)
+                .delete(bandwidth_manual_handlers::return_to_bandwidth_schedule),
         )
         .route(
             "/api/v1/notifications/destinations",
@@ -89,6 +96,8 @@ pub(crate) fn routes() -> Router<AppState> {
     bandwidth_handlers::get_schedule,
     bandwidth_handlers::put_schedule,
     bandwidth_handlers::bandwidth_status,
+    bandwidth_manual_handlers::switch_bandwidth_profile,
+    bandwidth_manual_handlers::return_to_bandwidth_schedule,
     bandwidth_handlers::bandwidth_capabilities,
     notify_handlers::list_destinations,
     notify_handlers::list_targets,

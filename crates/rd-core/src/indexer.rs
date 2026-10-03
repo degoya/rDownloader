@@ -43,8 +43,48 @@ pub struct Indexer {
     pub categories: Vec<String>,
     /// A switched-off indexer is left out of "search every indexer".
     pub enabled: bool,
+    /// How the LinkGrabber's search draws this indexer's hits (RD-190-16).
+    #[serde(default)]
+    pub list_style: IndexerListStyle,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// How the LinkGrabber's search draws one indexer's hits (RD-190-16).
+///
+/// Chosen per indexer, where it is defined, rather than in the result list: some indexers send
+/// covers and film or series data with every hit, others nothing beyond the name, and only the
+/// first kind is worth the taller row. Compact is the default because it is what every indexer
+/// showed before the choice existed.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IndexerListStyle {
+    /// One line per hit: title, size, age, category, the password mark and the button.
+    #[default]
+    Compact,
+    /// The same, plus a small cover beside the title and a line of the metadata the indexer sent.
+    Detailed,
+}
+
+impl IndexerListStyle {
+    /// The stored and serialised spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Compact => "compact",
+            Self::Detailed => "detailed",
+        }
+    }
+
+    /// Reads the stored spelling; anything unknown is compact, which is what the column defaults
+    /// to and what a reader who knows no other style can always draw.
+    #[must_use]
+    pub fn from_stored(value: &str) -> Self {
+        match value {
+            "detailed" => Self::Detailed,
+            _ => Self::Compact,
+        }
+    }
 }
 
 /// The search parameters an indexer query sends besides the address, the key and the paging
@@ -81,7 +121,22 @@ impl IndexerSearch {
 
 #[cfg(test)]
 mod tests {
-    use super::IndexerSearch;
+    use super::{IndexerListStyle, IndexerSearch};
+
+    #[test]
+    fn a_list_style_round_trips_and_an_unknown_one_is_compact() {
+        for style in [IndexerListStyle::Compact, IndexerListStyle::Detailed] {
+            assert_eq!(IndexerListStyle::from_stored(style.as_str()), style);
+            assert_eq!(
+                serde_json::to_string(&style).expect("write"),
+                format!("\"{}\"", style.as_str())
+            );
+        }
+        assert_eq!(
+            IndexerListStyle::from_stored("cards"),
+            IndexerListStyle::Compact
+        );
+    }
 
     /// Every subscription row written before RD-180-20 carries `{}`.
     #[test]

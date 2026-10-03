@@ -1,5 +1,6 @@
 //! SQLite persistence and serialized writer operations.
 
+mod archive_password;
 mod auth_flow_store;
 mod auth_profile_store;
 mod automation_store;
@@ -20,8 +21,10 @@ mod config_store;
 mod download_sources_store;
 mod error;
 mod event_bus;
+mod facade_archive_password;
 mod facade_audit;
 mod facade_collector;
+mod facade_collector_mirrors;
 mod facade_ext;
 mod facade_full_backup;
 mod facade_indexers;
@@ -41,6 +44,7 @@ mod managed_tools_store;
 mod mfa_store;
 mod models;
 mod network_store;
+mod notice_store;
 mod notify_store;
 mod nzb_queue;
 mod nzb_store;
@@ -75,6 +79,8 @@ mod writer_jobs;
 mod writer_pins;
 
 #[cfg(test)]
+mod archive_password_tests;
+#[cfg(test)]
 mod pre_migration_tests;
 #[cfg(test)]
 mod stats_tests;
@@ -108,8 +114,9 @@ pub use backup_ledger_store::{
     BackupVerification, BackupVerificationOutcome, NewBackupArchive,
 };
 pub use backup_store::{
-    ConfigReplacement, ReplacementAccount, ReplacementAuthProfile, ReplacementProxyProfile,
-    ReplacementStreamChannel, ReplacementSubscription, ReplacementUsenetServer,
+    ConfigReplacement, ReplacementAccount, ReplacementAuthProfile, ReplacementIndexer,
+    ReplacementProxyProfile, ReplacementStreamChannel, ReplacementSubscription,
+    ReplacementUsenetServer,
 };
 pub use bandwidth_store::{NewBandwidthProfile, NewScheduleWindow};
 pub use collector_mirrors::{MIRROR_PREFERENCE_KEY, MirrorDissolve};
@@ -127,6 +134,7 @@ pub use config_store::{
 pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
 pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Replay};
+pub use facade_archive_password::NO_VAULT as ARCHIVE_PASSWORD_NO_VAULT;
 pub use full_backup_store::{
     BACKUP_INTERRUPTED, BACKUP_RUNS_KEPT, BackupConfig, BackupConfigUpdate,
     BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
@@ -233,6 +241,9 @@ impl Database {
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
+            // What a row lets go of is overwritten with zeros rather than left in a free page
+            // of the file, where a raw read of the database would still find it (RD-190-04).
+            .pragma("secure_delete", "ON")
             .busy_timeout(Duration::from_secs(5))
             .log_statements(LevelFilter::Trace);
 
@@ -276,6 +287,15 @@ impl Database {
         let _ = self.vault.set(vault);
     }
 
+    /// Installs a vault whose master key lives in a file beside it ([`rd_secrets::SecretStore::open`]),
+    /// for a test or a tool that writes archive passwords without the service's vault. Never
+    /// for `serve`: the service's master key is in the OS keyring, and a second key would not
+    /// open what the first one wrote.
+    pub async fn install_file_vault(&self, root: PathBuf) -> Result<()> {
+        self.install_secret_vault(rd_secrets::SecretStore::open(root).await?);
+        Ok(())
+    }
+
     /// The installed vault, if there is one.
     #[must_use]
     pub fn secret_vault(&self) -> Option<&rd_secrets::SecretStore> {
@@ -302,7 +322,10 @@ impl Database {
             replacement,
             reply,
         })
-        .await
+        .await?;
+        // The subscriptions' archives went, and their archive passwords with them (RD-190-04).
+        self.sweep_archive_passwords().await;
+        Ok(())
     }
 
     /// Subscribes to committed domain events.
@@ -408,6 +431,8 @@ impl Database {
                 .collect(),
         )
         .await;
+        // The package went with its last file, and its archive password with it (RD-190-04).
+        self.sweep_archive_passwords().await;
         Ok(())
     }
 
@@ -434,11 +459,15 @@ impl Database {
     /// exactly like a package that downloaded nothing. A package that still has files is not
     /// touched, so a rollback may call this unconditionally.
     pub async fn delete_empty_package(&self, id: rd_core::PackageId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteEmptyPackage {
+        let removed = writer::request(&self.writer, |reply| WriterCommand::DeleteEmptyPackage {
             id,
             reply,
         })
-        .await
+        .await?;
+        if removed {
+            self.sweep_archive_passwords().await;
+        }
+        Ok(removed)
     }
 
     /// Persists a post-sync checkpoint for a chunk.
@@ -916,9 +945,18 @@ impl Database {
         .await
     }
 
-    /// Returns packages in queue order.
+    /// Returns packages in queue order, without their archive passwords: the scheduler reads
+    /// this on every pass, and only `has_password` is in the row (RD-190-04).
     pub async fn list_packages(&self) -> Result<Vec<DownloadPackage>> {
         models::list_packages(&self.readers).await
+    }
+
+    /// [`Self::list_packages`] with each archive password read from the vault, for the list a
+    /// person sees (RD-104-04).
+    pub async fn list_packages_with_passwords(&self) -> Result<Vec<DownloadPackage>> {
+        let mut packages = models::list_packages(&self.readers).await?;
+        self.reveal_archive_passwords(&mut packages).await;
+        Ok(packages)
     }
 
     /// Returns files in creation order.

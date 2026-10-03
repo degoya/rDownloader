@@ -236,6 +236,24 @@ impl NotificationService {
         Ok(())
     }
 
+    /// What the malware scan found in a package, as one line, when a finding is what stopped it.
+    async fn malware_finding(&self, package_id: &str) -> Option<String> {
+        let steps = self
+            .inner
+            .database
+            .list_postprocess_steps(package_id)
+            .await
+            .ok()?;
+        let step = steps.into_iter().find(|step| {
+            step.kind == rd_core::PostprocessKind::MalwareScan
+                && step.state == rd_core::PostprocessState::Failed
+        })?;
+        Some(
+            step.message
+                .unwrap_or_else(|| "ClamAV found malware".to_owned()),
+        )
+    }
+
     /// Maps a bus event onto a notification event, its category and its text.
     #[allow(clippy::type_complexity)]
     async fn classify(
@@ -269,6 +287,19 @@ impl NotificationService {
                     PackageState::Failed => NotificationEvent::PackageFailed,
                     _ => return Ok(None),
                 };
+                // A package the malware scan stopped says so (RD-190-14): "failed" alone would
+                // read like a broken archive, and this is the one failure somebody must not
+                // retry without looking first.
+                if kind == NotificationEvent::PackageFailed
+                    && let Some(finding) = self.malware_finding(&package.id.to_string()).await
+                {
+                    return Ok(Some((
+                        kind,
+                        package.category_id,
+                        format!("Malware found: {}", package.name),
+                        format!("{} ({finding})", package.name),
+                    )));
+                }
                 let title = match kind {
                     NotificationEvent::PackageCompleted => {
                         format!("Package finished: {}", package.name)

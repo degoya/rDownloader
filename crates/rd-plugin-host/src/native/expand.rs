@@ -633,8 +633,9 @@ pub(super) fn http_failure(error: reqwest::Error) -> Failure {
     // string. Strip it before it reaches the persisted, redaction-safe failure message.
     let error = error.without_url();
     // `without_url` only drops the URL reqwest itself attached; a plugin that expanded a
-    // secret into a message of its own still needs redacting.
-    let message = rd_core::redact_text(&error.to_string());
+    // secret into a message of its own still needs redacting. The causes go along: the top
+    // line alone ("error sending request") hides a failed DNS lookup or a refused connection.
+    let message = rd_core::error_with_causes(&error);
     transient(
         "plugin.http_error",
         &format!("Resolver HTTP error: {message}"),

@@ -49,7 +49,10 @@ export interface IntakeOutcome {
 
 /** Outcome of a batch enqueue, including partial failures and account-less files. */
 export interface EnqueueBatchResult {
+  /** Download packages the queue made. */
   created: number
+  /** Links that went with them — what the reader selected, and what the notice counts. */
+  links: number
   failed: number
   firstError: string | null
   /** Files enqueued without a provider account (free/direct download attempt). */

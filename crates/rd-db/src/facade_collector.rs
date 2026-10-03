@@ -3,11 +3,12 @@
 use anyhow::Result;
 use rd_core::{
     BatchId, CandidateId, CollectorBatch, CollectorPackage, CollectorPackageId, GrabberEntryRef,
-    LinkCandidate, LinkCandidateState, LinkCheckResult, MirrorPreference,
+    LinkCandidate, LinkCandidateState, LinkCheckResult,
 };
 
 use crate::{
     Database,
+    archive_password::PasswordTable,
     collector_packages::{self, CollectorPackageChange, MoveTarget},
     collector_store::NewCollectorBatch,
     commands::WriterCommand,
@@ -23,17 +24,51 @@ impl Database {
     /// `rd_provider_registry::fragment_is_secret` answers from that table and from nothing
     /// else, so no service is a special case in the code. For every other address this is a
     /// pair of cheap lookups that change nothing.
+    ///
+    /// The archive password a package gets goes into the vault once the batch is in, one entry
+    /// per package (RD-190-04); the packages come back carrying it. A vault that refuses costs
+    /// the packages their password, logged, not the intake — the links are in by then.
     pub async fn add_collector_batch(
         &self,
         intake: NewCollectorBatch,
     ) -> Result<(CollectorBatch, Vec<CollectorPackage>, Vec<LinkCandidate>)> {
         let secret_fragment_refs = self.vault_fragments(&intake.urls).await;
-        writer::request(&self.writer, |reply| WriterCommand::AddCollectorBatch {
-            intake,
-            secret_fragment_refs,
-            reply,
-        })
-        .await
+        let (batch, mut packages, candidates, passwords) =
+            writer::request(&self.writer, |reply| WriterCommand::AddCollectorBatch {
+                intake,
+                secret_fragment_refs,
+                reply,
+            })
+            .await?;
+        if passwords.is_empty() {
+            return Ok((batch, packages, candidates));
+        }
+        let stored = self
+            .store_archive_passwords(
+                PasswordTable::CollectorPackages,
+                passwords
+                    .iter()
+                    .map(|(id, password)| (id.to_string(), Some(password.clone())))
+                    .collect(),
+            )
+            .await;
+        match stored {
+            Err(error) => {
+                tracing::warn!(%error, batch_id = %batch.id, "the archive passwords of a LinkGrabber batch could not be put in the vault");
+            }
+            Ok(()) => {
+                for package in &mut packages {
+                    if let Some((_, password)) = passwords
+                        .iter()
+                        .find(|(id, password)| *id == package.id && !password.is_empty())
+                    {
+                        package.has_password = true;
+                        package.password = Some(password.clone());
+                    }
+                }
+            }
+        }
+        Ok((batch, packages, candidates))
     }
 
     /// Puts each declared link's fragment away and returns the references, parallel to `urls`.
@@ -64,35 +99,62 @@ impl Database {
         references
     }
 
-    /// Lists LinkGrabber packages in display order (packages without open links are hidden).
+    /// Lists LinkGrabber packages in display order (packages without open links are hidden),
+    /// with their archive passwords (RD-104-04).
     pub async fn list_collector_packages(&self) -> Result<Vec<CollectorPackage>> {
-        collector_packages::list(&self.readers).await
+        let mut packages = collector_packages::list(&self.readers).await?;
+        self.reveal_archive_passwords(&mut packages).await;
+        Ok(packages)
     }
 
     pub async fn get_collector_package(
         &self,
         id: CollectorPackageId,
     ) -> Result<Option<CollectorPackage>> {
-        collector_packages::get(&self.readers, id).await
+        let mut package = collector_packages::get(&self.readers, id).await?;
+        if let Some(package) = &mut package {
+            self.reveal_archive_passwords(std::slice::from_mut(package))
+                .await;
+        }
+        Ok(package)
     }
 
-    /// Archive password of a LinkGrabber package (never serialized).
+    /// Archive password of a LinkGrabber package, read from the vault (RD-190-04).
     pub async fn collector_package_password(
         &self,
         id: CollectorPackageId,
     ) -> Result<Option<String>> {
-        collector_packages::password(&self.readers, id).await
+        self.archive_password(PasswordTable::CollectorPackages, id.to_string())
+            .await
     }
 
+    /// Applies a change to LinkGrabber packages; a password goes into the vault, one entry per
+    /// package, after the other fields are written (RD-190-04).
     pub async fn update_collector_packages(
         &self,
         ids: Vec<CollectorPackageId>,
-        change: CollectorPackageChange,
+        mut change: CollectorPackageChange,
     ) -> Result<Vec<CollectorPackage>> {
-        writer::request(&self.writer, |reply| {
+        let password = change.password.take();
+        let ids_for_password = password.as_ref().map(|_| ids.clone());
+        let mut updated = writer::request(&self.writer, |reply| {
             WriterCommand::UpdateCollectorPackages { ids, change, reply }
         })
-        .await
+        .await?;
+        if let (Some(password), Some(ids)) = (password, ids_for_password) {
+            let entries = ids
+                .iter()
+                .map(|id| (id.to_string(), password.clone()))
+                .collect();
+            self.store_archive_passwords(PasswordTable::CollectorPackages, entries)
+                .await?;
+            for package in &mut updated {
+                package.has_password = password.as_deref().is_some_and(|value| !value.is_empty());
+                package.password = None;
+            }
+        }
+        self.reveal_archive_passwords(&mut updated).await;
+        Ok(updated)
     }
 
     pub async fn reorder_collector_packages(&self, ids: Vec<CollectorPackageId>) -> Result<()> {
@@ -138,12 +200,17 @@ impl Database {
         ids: Vec<CandidateId>,
         target: MoveTarget,
     ) -> Result<CollectorPackage> {
-        writer::request(&self.writer, |reply| WriterCommand::MoveCandidates {
+        let mut package = writer::request(&self.writer, |reply| WriterCommand::MoveCandidates {
             ids,
             target,
             reply,
         })
-        .await
+        .await?;
+        // A package the move emptied is gone, and its password with it (RD-190-04).
+        self.sweep_archive_passwords().await;
+        self.reveal_archive_passwords(std::slice::from_mut(&mut package))
+            .await;
+        Ok(package)
     }
 
     pub async fn delete_collector_package(&self, id: CollectorPackageId) -> Result<()> {
@@ -157,6 +224,8 @@ impl Database {
         })
         .await?;
         self.forget_secrets(orphaned).await;
+        // Its archive password was released by the delete itself (RD-190-04).
+        self.sweep_archive_passwords().await;
         Ok(())
     }
 
@@ -166,50 +235,9 @@ impl Database {
             batch_ids,
             reply,
         })
-        .await
-    }
-
-    /// The standing mirror preference, or its defaults when none was ever stored (RD-110-19).
-    pub async fn mirror_preference(&self) -> Result<MirrorPreference> {
-        Ok(self
-            .get_setting(crate::MIRROR_PREFERENCE_KEY)
-            .await?
-            .and_then(|value| serde_json::from_value(value).ok())
-            .unwrap_or_default())
-    }
-
-    /// Stores the standing mirror preference and re-chooses every group under it.
-    pub async fn set_mirror_preference(&self, preference: MirrorPreference) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetMirrorPreference {
-            preference,
-            reply,
-        })
-        .await
-    }
-
-    /// Makes one candidate its group's chosen mirror, or releases that choice.
-    ///
-    /// `false` means the link belongs to no mirror group, so there was nothing to choose
-    /// between.
-    pub async fn set_mirror_pin(&self, id: CandidateId, pinned: bool) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::SetMirrorPin {
-            id,
-            pinned,
-            reply,
-        })
-        .await
-    }
-
-    /// Takes a proposed mirror group apart, so its links are single candidates again.
-    ///
-    /// The refusal is stored as pairs of links, not as an absent group, so it survives the
-    /// recompute at intake, after the online check and on a move between packages.
-    pub async fn dissolve_mirror_group(&self, id: CandidateId) -> Result<crate::MirrorDissolve> {
-        writer::request(&self.writer, |reply| WriterCommand::DissolveMirrorGroup {
-            id,
-            reply,
-        })
-        .await
+        .await?;
+        self.sweep_archive_passwords().await;
+        Ok(())
     }
 
     pub async fn claim_candidates_for_check(
@@ -446,6 +474,8 @@ impl Database {
             restore,
             reply,
         })
-        .await
+        .await?;
+        self.sweep_archive_passwords().await;
+        Ok(())
     }
 }

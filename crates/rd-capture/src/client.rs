@@ -74,11 +74,25 @@ pub fn build(purpose: Purpose) -> Result<Client> {
     build_with(deadlines(purpose))
 }
 
+/// What this agent calls itself on every request: its product name and its version. The
+/// service keeps the version of each connected agent and shows it beside its own in the update
+/// view, with a hint when the agent is older (RD-190-07) -- the case where the agent did not
+/// pick up its replaced program file by itself (`relaunch`).
+#[must_use]
+pub fn user_agent() -> String {
+    format!(
+        "{}/{}",
+        rd_core::CAPTURE_AGENT_PRODUCT,
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
 /// Applies one set of deadlines. Separate from [`build`] so a test can drive a short budget
 /// without waiting out the real one.
 fn build_with(deadlines: Deadlines) -> Result<Client> {
     let mut builder = Client::builder()
         .no_proxy()
+        .user_agent(user_agent())
         .connect_timeout(deadlines.connect);
     if let Some(total) = deadlines.total {
         builder = builder.timeout(total);
@@ -332,7 +346,9 @@ async fn ensure_success(response: reqwest::Response, operation: &str) -> Result<
 mod tests {
     use std::time::Duration;
 
-    use super::{Deadlines, Detail, Purpose, ServiceRefusal, build, build_with, deadlines};
+    use super::{
+        Deadlines, Detail, Purpose, ServiceRefusal, build, build_with, deadlines, user_agent,
+    };
     use reqwest::StatusCode;
 
     /// Every client this crate builds has a connection deadline, and only the one that is meant
@@ -366,6 +382,54 @@ mod tests {
         assert_eq!(
             deadlines(Purpose::Health).total,
             Some(Duration::from_secs(3))
+        );
+    }
+
+    /// Every request names the agent and its version, which is how the service learns which
+    /// version is connected (RD-190-07).
+    #[tokio::test]
+    async fn every_request_carries_the_agents_version() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind an ephemeral port");
+        let address = listener.local_addr().expect("the bound address");
+        let (sent, received) = tokio::sync::oneshot::channel::<String>();
+        tokio::spawn(async move {
+            let Ok((mut stream, _)) = listener.accept().await else {
+                return;
+            };
+            let mut head = Vec::new();
+            let mut chunk = [0_u8; 1024];
+            while !head.windows(4).any(|window| window == b"\r\n\r\n") {
+                match stream.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => head.extend_from_slice(&chunk[..read]),
+                }
+            }
+            let _ = stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await;
+            let _ = sent.send(String::from_utf8_lossy(&head).to_lowercase());
+        });
+
+        // The event stream's client is built the same way (`build_with`), so this one stands
+        // for all three purposes.
+        let client = build(Purpose::Request).expect("build a client");
+        client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect("the request is answered");
+        let head = received.await.expect("the request head");
+        assert_eq!(
+            user_agent(),
+            format!("rdownloader-capture/{}", env!("CARGO_PKG_VERSION"))
+        );
+        assert!(
+            head.contains(&format!("user-agent: {}\r\n", user_agent())),
+            "{head}"
         );
     }
 

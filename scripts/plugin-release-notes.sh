@@ -15,13 +15,65 @@
 # crates/rd-plugin-host/src/index.rs): whole entries while they fit, and a first entry longer
 # than that cut with an ellipsis. The release workflow writes it to
 # `dist/plugin-notes/<plugin>-<version>.txt`, which `rd-pack plugin index build --notes` reads.
+#
+#   scripts/plugin-release-notes.sh --missing <ref> [plugin...]
+#
+# Before a release: names every plugin whose manifest version differs from the one at <ref> (the
+# last release tag) and that no entry names yet, by default over the plugins the bundle ships
+# (`build-plugins.sh --list-packageable`). Each line is one version with its plugins in the
+# changelog's notation — "`a`, `b` and `c` 0.1.8" — ready to end an entry with; exit 1 while any
+# is left, 0 when none. v1.6.0 shipped two raised plugins without notes this way (RD-160-09).
 set -euo pipefail
 
-if [[ $# -lt 2 || $# -gt 3 ]]; then
+usage() {
     echo "usage: scripts/plugin-release-notes.sh <plugin> <version> [changelog]" >&2
+    echo "       scripts/plugin-release-notes.sh --missing <ref> [plugin...]" >&2
     exit 2
-fi
+}
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+manifest_version() { awk -F'"' '/^version = "/ { print $2; exit }'; }
+
+if [[ "${1:-}" == "--missing" ]]; then
+    [[ $# -ge 2 ]] || usage
+    ref="$2"
+    shift 2
+    if ! git -C "$ROOT" rev-parse --verify -q "$ref^{commit}" > /dev/null; then
+        echo "plugin-release-notes: no commit $ref" >&2
+        exit 2
+    fi
+    plugins=("$@")
+    [[ ${#plugins[@]} -gt 0 ]] || mapfile -t plugins < <("$ROOT/scripts/build-plugins.sh" --list-packageable)
+    missing=()
+    for plugin in "${plugins[@]}"; do
+        version="$(manifest_version < "$ROOT/plugins/$plugin/manifest.toml")"
+        # A plugin new since <ref> has no version there and counts as raised.
+        before="$(git -C "$ROOT" show "$ref:plugins/$plugin/manifest.toml" 2> /dev/null | manifest_version || true)"
+        [[ "$version" != "$before" ]] || continue
+        [[ -z "$("$0" "$plugin" "$version" "$ROOT/CHANGELOG.md")" ]] || continue
+        missing+=("$version $plugin")
+    done
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        echo "plugin-release-notes: every plugin version raised since $ref has its entry" >&2
+        exit 0
+    fi
+    echo "plugin-release-notes: ${#missing[@]} plugin versions raised since $ref have no entry; end one with:" >&2
+    printf '%s\n' "${missing[@]}" | sort -k1,1V -k2,2 | awk '
+        function flush() {
+            if (n == 0) return
+            line = "`" names[1] "`"
+            for (i = 2; i < n; i++) line = line ", `" names[i] "`"
+            if (n > 1) line = line " and `" names[n] "`"
+            print line " " current
+            n = 0
+        }
+        $1 != current { flush(); current = $1 }
+        { names[++n] = $2 }
+        END { flush() }'
+    exit 1
+fi
+
+[[ $# -ge 2 && $# -le 3 ]] || usage
 CHANGELOG="${3:-$ROOT/CHANGELOG.md}"
 if [[ ! -f "$CHANGELOG" ]]; then
     echo "plugin-release-notes: no changelog at $CHANGELOG" >&2

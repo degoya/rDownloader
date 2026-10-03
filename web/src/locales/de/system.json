@@ -679,6 +679,66 @@
       "progress": "{received} von {total}",
       "ready": "{version} ist heruntergeladen und geprüft; „Installieren und neu starten“ verwendet diese Datei.",
       "failed": "Das Herunterladen von {version} ist fehlgeschlagen."
+    },
+    "agents": {
+      "running": "Capture-Agent: {versions}",
+      "unknown": "vor 1.9",
+      "outdated_title": "Capture-Agent neu starten",
+      "outdated_description": "Ein Capture-Agent läuft noch in Version {agent}, rDownloader schon in {service}. Ab 1.8.1 startet er sich nach einem Update innerhalb einer Minute selbst neu. Tut er das nicht – etwa weil er älter ist oder ein anderer Nutzer ihn gestartet hat –, beende ihn über sein Tray-Symbol oder den Task-Manager und starte ihn wieder; unter Linux erledigt systemctl --user restart rdownloader-capture beides."
     }
+  },
+  "oidc": {
+    "eyebrow": "Identitätsanbieter",
+    "title": "Anmeldung über einen Identitätsanbieter",
+    "description": "Melde dich mit dem Konto an, das du schon bei Authentik, Authelia, Keycloak oder Pocket ID nutzt (OpenID Connect). Es bleibt ein Administrator: das eine Konto, das du hier verknüpfst.",
+    "redirect_uri": "Weiterleitungsadresse – beim Anbieter eintragen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copy_command": "Befehl kopieren",
+    "external_url_missing": "Ohne externe URL gibt es keine Weiterleitungsadresse. Trage sie unter Sicherheit → Reverse-Proxy ein.",
+    "linked": "Verknüpft: {label}",
+    "unnamed": "ein Konto ohne Namen",
+    "linked_at": "Verknüpft {moment}",
+    "not_linked": "Noch kein Konto verknüpft",
+    "link_hint": "Verknüpfen öffnet den Anbieter; das Konto, mit dem du dich dort anmeldest, wird der Administrator.",
+    "link": "Konto verknüpfen",
+    "linked_toast": "Konto verknüpft",
+    "saved_toast": "Identitätsanbieter gespeichert",
+    "unlink": {
+      "action": "Verknüpfung lösen",
+      "title": "Verknüpfung lösen?",
+      "description": "Danach meldet sich niemand mehr über den Anbieter an, bis du wieder ein Konto verknüpfst.",
+      "confirm": "Lösen"
+    },
+    "remove": {
+      "action": "Entfernen",
+      "title": "Identitätsanbieter entfernen?",
+      "description": "Die Konfiguration, das Client-Secret und die Verknüpfung werden gelöscht.",
+      "confirm": "Entfernen"
+    },
+    "password_is_off": "Die Anmeldung mit Passwort ist ausgeschaltet",
+    "password_is_off_hint": "Nur auf dem Rechner des Dienstes kommt sie zurück: {command}. Passkeys funktionieren weiter, und das Passwort bestätigt weiterhin Änderungen.",
+    "password_off": {
+      "action": "Passwort-Anmeldung ausschalten",
+      "ready": "Diese Sitzung kam vom Anbieter: Du kannst die Anmeldung mit Passwort ausschalten.",
+      "needs_provider_session": "Melde dich einmal über den Anbieter an; nur aus dieser Sitzung lässt sich die Anmeldung mit Passwort ausschalten.",
+      "title": "Passwort-Anmeldung ausschalten?",
+      "description": "Danach meldest du dich über den Anbieter oder mit einem Passkey an. Zurück geht es nur auf dem Rechner des Dienstes: {command}",
+      "confirm": "Ausschalten"
+    },
+    "issuer": "Issuer",
+    "issuer_hint": "Genau so, wie der Anbieter ihn nennt – mit oder ohne Schrägstrich am Ende.",
+    "client_id": "Client-ID",
+    "client_secret": "Client-Secret",
+    "client_secret_kept": "Leer lassen behält das gespeicherte.",
+    "display_name": "Name auf dem Anmeldeknopf",
+    "display_name_hint": "Zum Beispiel Authentik oder Pocket ID.",
+    "group_claim": "Gruppen-Claim",
+    "group_value": "Gruppe",
+    "group_hint": "Optional: Das verknüpfte Konto muss zusätzlich in dieser Gruppe sein.",
+    "provider_logout": "Beim Abmelden auch beim Anbieter abmelden",
+    "provider_logout_hint": "Aus: Abmelden beendet nur die Sitzung hier, deine anderen Dienste bleiben angemeldet.",
+    "step_up_hint": "Jede Änderung hier verlangt das Passwort noch einmal.",
+    "save": "Speichern"
   }
 }

@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono::{DateTime, Utc};
+use rd_api_core::notify_notice::Notice;
 use rd_backup::{BackupError, BackupKey, BackupSources, RetryPolicy, schedule::Due};
 use rd_core::{AuditAction, BackupOrigin};
 use rd_db::{BackupConfig, BackupRunOutcome, NewBackupRun};
@@ -245,6 +246,13 @@ async fn execute(
             .await;
         }
     }
+    // Nobody watches a scheduled run; a manual one shows its outcome to whoever started it.
+    let notice = match &result {
+        _ if origin != BackupOrigin::Scheduled => None,
+        Ok(written) if written.failed.is_empty() => None,
+        Ok(written) => Some(Notice::backup_partial(&run_id, &written.failed)),
+        Err(error) => Some(Notice::backup_failed(&run_id, error.code, &error.detail)),
+    };
     let (outcome, event) = match result {
         Ok(written) => {
             tracing::info!(
@@ -296,6 +304,9 @@ async fn execute(
         .await
     {
         tracing::warn!(%error, "the end of a backup run could not be recorded");
+    }
+    if let Some(notice) = notice {
+        rd_api_core::notify_notice::announce(&state.database, notice).await;
     }
     crate::audit::record(
         &state,

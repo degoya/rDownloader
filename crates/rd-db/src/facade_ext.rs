@@ -4,8 +4,9 @@ use anyhow::Result;
 
 use crate::{
     Database, NewCategory, NewCategoryRule, NewHotFolder, NewNzbImport, NewStorageRoot,
-    automation_store, bandwidth_store, capture_store, collector_store, commands::WriterCommand,
-    config_store, mfa_store, notify_store, nzb_store, session_store, writer,
+    archive_password::PasswordTable, automation_store, bandwidth_store, capture_store,
+    collector_store, commands::WriterCommand, config_store, mfa_store, notify_store, nzb_store,
+    session_store, writer,
 };
 
 impl Database {
@@ -28,17 +29,36 @@ impl Database {
     }
 
     /// Applies category (with destination) and/or priority to packages.
+    ///
+    /// A password goes into the vault, one entry per package, after the other fields are
+    /// written (RD-190-04); the packages come back with it.
     pub async fn update_packages(
         &self,
         ids: Vec<rd_core::PackageId>,
-        change: crate::package_store::PackageChange,
+        mut change: crate::package_store::PackageChange,
     ) -> Result<Vec<rd_core::DownloadPackage>> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdatePackages {
+        let password = change.password.take();
+        let ids_for_password = password.as_ref().map(|_| ids.clone());
+        let mut updated = writer::request(&self.writer, |reply| WriterCommand::UpdatePackages {
             ids,
             change,
             reply,
         })
-        .await
+        .await?;
+        if let (Some(password), Some(ids)) = (password, ids_for_password) {
+            let entries = ids
+                .iter()
+                .map(|id| (id.to_string(), password.clone()))
+                .collect();
+            self.store_archive_passwords(PasswordTable::Packages, entries)
+                .await?;
+            for package in &mut updated {
+                package.has_password = password.as_deref().is_some_and(|value| !value.is_empty());
+                package.password = None;
+            }
+        }
+        self.reveal_archive_passwords(&mut updated).await;
+        Ok(updated)
     }
 
     /// Renames a package and points it at a new folder beside its old one (RD-106-13).
@@ -52,7 +72,7 @@ impl Database {
         name: String,
         destination: String,
     ) -> Result<Option<rd_core::DownloadPackage>> {
-        writer::request(&self.writer, |reply| {
+        let mut renamed = writer::request(&self.writer, |reply| {
             WriterCommand::RenamePackageDirectory {
                 id,
                 name,
@@ -60,7 +80,12 @@ impl Database {
                 reply,
             }
         })
-        .await
+        .await?;
+        if let Some(package) = &mut renamed {
+            self.reveal_archive_passwords(std::slice::from_mut(package))
+                .await;
+        }
+        Ok(renamed)
     }
 
     /// Where the package's files lived before its last category change, while the sweep of
@@ -121,6 +146,8 @@ impl Database {
         })
         .await?;
         self.forget_secrets(orphaned).await;
+        // A package the candidate leaves empty goes, and its archive password (RD-190-04).
+        self.sweep_archive_passwords().await;
         Ok(())
     }
 
@@ -137,6 +164,7 @@ impl Database {
         })
         .await?;
         self.forget_secrets(orphaned).await;
+        self.sweep_archive_passwords().await;
         Ok(removed)
     }
 
@@ -262,12 +290,34 @@ impl Database {
     }
 
     /// Persists a parsed NZB and all segment references through the writer actor.
-    pub async fn add_nzb_import(&self, import: NewNzbImport) -> Result<rd_core::NzbImport> {
-        writer::request(&self.writer, |reply| WriterCommand::AddNzbImport {
+    ///
+    /// Its archive password goes into the vault once the row exists (RD-190-04). A file that
+    /// is already here keeps the password it arrived with the first time.
+    pub async fn add_nzb_import(&self, mut import: NewNzbImport) -> Result<rd_core::NzbImport> {
+        import.password = import.password.filter(|value| !value.is_empty());
+        let password = import.password.clone();
+        let mut added = writer::request(&self.writer, |reply| WriterCommand::AddNzbImport {
             import,
             reply,
         })
-        .await
+        .await?;
+        if added.duplicate {
+            self.reveal_archive_passwords(std::slice::from_mut(&mut added))
+                .await;
+        } else if password.is_some()
+            && let Err(error) = self
+                .store_archive_passwords(
+                    PasswordTable::NzbImports,
+                    vec![(added.id.to_string(), password)],
+                )
+                .await
+        {
+            // The import is in; a vault that refuses costs it the password, not the intake.
+            tracing::warn!(%error, import_id = %added.id, "the archive password of an NZB import could not be put in the vault");
+            added.has_password = false;
+            added.password = None;
+        }
+        Ok(added)
     }
 
     /// Records an NZB that could not be taken in, so the drop is findable with its reason.
@@ -290,12 +340,15 @@ impl Database {
         id: rd_core::NzbImportId,
         change: crate::NzbImportChange,
     ) -> Result<rd_core::NzbImport> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateNzbImport {
+        let mut updated = writer::request(&self.writer, |reply| WriterCommand::UpdateNzbImport {
             id,
             change,
             reply,
         })
-        .await
+        .await?;
+        self.reveal_archive_passwords(std::slice::from_mut(&mut updated))
+            .await;
+        Ok(updated)
     }
 
     /// Moves an imported NZB into the download queue as one package; returns the package.
@@ -309,6 +362,11 @@ impl Database {
         priority: rd_core::DownloadPriority,
         start_paused: bool,
     ) -> Result<rd_core::DownloadPackage> {
+        // The package gets a vault entry of its own with the same password, so forgetting the
+        // import's history can never take the package's password with it (RD-190-04).
+        let password = self
+            .archive_password(PasswordTable::NzbImports, id.to_string())
+            .await?;
         let package_id = writer::request(&self.writer, |reply| WriterCommand::EnqueueNzbImport {
             id,
             destination,
@@ -317,16 +375,33 @@ impl Database {
             reply,
         })
         .await?;
-        self.list_packages()
+        if password.is_some()
+            && let Err(error) = self
+                .store_archive_passwords(
+                    PasswordTable::Packages,
+                    vec![(package_id.to_string(), password)],
+                )
+                .await
+        {
+            // The package is queued; a vault that refuses costs it the password, not the queue.
+            tracing::warn!(%error, %package_id, "the archive password of a queued NZB could not be put in the vault");
+        }
+        let mut package = self
+            .list_packages()
             .await?
             .into_iter()
             .find(|package| package.id == package_id)
-            .ok_or_else(|| anyhow::anyhow!("queued package not found"))
+            .ok_or_else(|| anyhow::anyhow!("queued package not found"))?;
+        self.reveal_archive_passwords(std::slice::from_mut(&mut package))
+            .await;
+        Ok(package)
     }
 
-    /// Lists imported NZBs newest first.
+    /// Lists imported NZBs newest first, with their archive passwords (RD-104-04).
     pub async fn list_nzb_imports(&self) -> Result<Vec<rd_core::NzbImport>> {
-        nzb_store::list_imports(&self.readers).await
+        let mut imports = nzb_store::list_imports(&self.readers).await?;
+        self.reveal_archive_passwords(&mut imports).await;
+        Ok(imports)
     }
 
     /// Lists files and persistent article states for one NZB import.
@@ -342,16 +417,21 @@ impl Database {
         writer::request(&self.writer, |reply| {
             WriterCommand::ForgetNzbImportHistory { package_id, reply }
         })
-        .await
+        .await?;
+        self.sweep_archive_passwords().await;
+        Ok(())
     }
 
-    /// Removes an inactive NZB import and its cascading segment metadata.
+    /// Removes an inactive NZB import and its cascading segment metadata, and its archive
+    /// password from the vault.
     pub async fn delete_nzb_import(&self, id: rd_core::NzbImportId) -> Result<()> {
         writer::request(&self.writer, |reply| WriterCommand::DeleteNzbImport {
             id,
             reply,
         })
-        .await
+        .await?;
+        self.sweep_archive_passwords().await;
+        Ok(())
     }
 
     /// Persists one article state and optional verified CRC through the writer actor.
@@ -652,9 +732,10 @@ impl Database {
         crate::postprocess_store::list(&self.readers, owner_id).await
     }
 
-    /// Archive password of a package (never serialized; extraction only).
+    /// Archive password of a package, read from the vault (RD-190-04); for the extraction.
     pub async fn package_password(&self, id: rd_core::PackageId) -> Result<Option<String>> {
-        crate::package_store::package_password(&self.readers, id).await
+        self.archive_password(PasswordTable::Packages, id.to_string())
+            .await
     }
 
     /// Stores only the SHA-256 digest of a scoped bearer token.
@@ -1682,6 +1763,19 @@ impl Database {
         .await
     }
 
+    /// Queues an operational notice's deliveries (RD-190-19). A delivery whose idempotency key
+    /// a notice queued before is skipped, however long ago and whatever became of the delivery;
+    /// returns how many were queued.
+    pub async fn queue_notification_notice(
+        &self,
+        deliveries: Vec<notify_store::NewDelivery>,
+    ) -> Result<u64> {
+        writer::request(&self.writer, |reply| {
+            WriterCommand::QueueNotificationNotice { deliveries, reply }
+        })
+        .await
+    }
+
     pub async fn record_notification_attempt(
         &self,
         id: rd_core::NotificationDeliveryId,
@@ -1750,7 +1844,10 @@ impl Database {
         limit: i64,
         offset: i64,
     ) -> Result<rd_core::SubscriptionItemPage> {
-        crate::subscription_store::item_page(&self.readers, id, state, limit, offset).await
+        let mut page =
+            crate::subscription_store::item_page(&self.readers, id, state, limit, offset).await?;
+        self.reveal_archive_passwords(&mut page.items).await;
+        Ok(page)
     }
 
     pub async fn subscription_review_summary(&self) -> Result<rd_core::SubscriptionReviewSummary> {
@@ -1769,7 +1866,12 @@ impl Database {
         &self,
         id: rd_core::SubscriptionItemId,
     ) -> Result<Option<rd_core::SubscriptionItem>> {
-        crate::subscription_store::item(&self.readers, id).await
+        let mut item = crate::subscription_store::item(&self.readers, id).await?;
+        if let Some(item) = &mut item {
+            self.reveal_archive_passwords(std::slice::from_mut(item))
+                .await;
+        }
+        Ok(item)
     }
 
     pub async fn subscription_runs(
@@ -1823,10 +1925,13 @@ impl Database {
 
     /// Deletes a subscription and its archive, returning its secret reference if it had one.
     pub async fn delete_subscription(&self, id: rd_core::SubscriptionId) -> Result<Option<String>> {
-        crate::writer::request(&self.writer, |reply| {
+        let secret_ref = crate::writer::request(&self.writer, |reply| {
             crate::commands::WriterCommand::DeleteSubscription { id, reply }
         })
-        .await
+        .await?;
+        // The archive's passwords went with its rows (RD-190-04).
+        self.sweep_archive_passwords().await;
+        Ok(secret_ref)
     }
 
     /// Archives what a poll found and returns only the rows that were new.
@@ -1835,14 +1940,30 @@ impl Database {
         subscription_id: rd_core::SubscriptionId,
         items: Vec<crate::subscription_store::NewSubscriptionItem>,
     ) -> Result<Vec<rd_core::SubscriptionItem>> {
-        crate::writer::request(&self.writer, |reply| {
+        let (created, passwords) = crate::writer::request(&self.writer, |reply| {
             crate::commands::WriterCommand::RecordSubscriptionItems {
                 subscription_id,
                 items,
                 reply,
             }
         })
-        .await
+        .await?;
+        // An unchanged password is skipped, so a feed that lists the same release on every poll
+        // writes nothing to the vault after the first (RD-190-04). A failure costs the archived
+        // row its password, not the poll: the new items still carry theirs to the intake.
+        if let Err(error) = self
+            .store_archive_passwords(
+                PasswordTable::SubscriptionItems,
+                passwords
+                    .into_iter()
+                    .map(|(id, password)| (id, Some(password)))
+                    .collect(),
+            )
+            .await
+        {
+            tracing::warn!(%error, %subscription_id, "the archive passwords of a poll could not be put in the vault");
+        }
+        Ok(created)
     }
 
     pub async fn set_subscription_item_state(
@@ -1871,10 +1992,12 @@ impl Database {
         &self,
         id: rd_core::SubscriptionId,
     ) -> Result<rd_core::SubscriptionHistoryClearResponse> {
-        crate::writer::request(&self.writer, |reply| {
+        let cleared = crate::writer::request(&self.writer, |reply| {
             crate::commands::WriterCommand::ClearSubscriptionHistory { id, reply }
         })
-        .await
+        .await?;
+        self.sweep_archive_passwords().await;
+        Ok(cleared)
     }
 
     /// Gives a scheduled subscription that was never timed its first due time (RD-130-19).

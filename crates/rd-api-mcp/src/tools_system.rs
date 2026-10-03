@@ -24,8 +24,8 @@ use super::{
     RdMcpServer,
     error::{McpToolResult, parse_id, respond},
     params_handling::{
-        IdBodyParams, ManageAction, ManageToolParams, ManagedToolsParams, ManagedToolsView,
-        PostprocessOptions, PostprocessOptionsParams, StorageTargetParams, body,
+        IdBodyParams, MalwareScannerTestParams, ManageAction, ManageToolParams, ManagedToolsParams,
+        ManagedToolsView, PostprocessOptions, PostprocessOptionsParams, StorageTargetParams, body,
     },
 };
 use crate::{
@@ -77,7 +77,26 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote. Names come from list_postprocess_options."
+        description = "Try the ClamAV scanner the post-processing malware scan uses: PING and VERSION against `address` (host:port or unix:/path), else the saved clamd address. Nothing is scanned. The scan itself is switched with update_settings (malware_scan_enabled, clamd_address) and per category with update_category_postprocess (malware_scan)."
+    )]
+    pub async fn test_malware_scanner(
+        &self,
+        Parameters(params): Parameters<MalwareScannerTestParams>,
+    ) -> McpToolResult {
+        respond(
+            postprocess::test_malware_scanner(
+                State(self.state.clone()),
+                Json(postprocess::MalwareScannerTestRequest {
+                    address: params.address,
+                }),
+            )
+            .await
+            .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Change only the post-processing of one category (id from list_configuration section categories). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote. Names come from list_postprocess_options."
     )]
     pub async fn update_category_postprocess(
         &self,

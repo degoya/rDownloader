@@ -13,9 +13,11 @@
 //! the file as it was.
 //!
 //! The copy is not encrypted: it is the same file the service keeps unencrypted beside it.
-//! Credentials are references into the vault (`<data>/secrets`), sign-in sessions and capture
-//! tokens are stored as SHA-256 hashes; what the database itself holds in plain — archive
-//! passwords of packages among it — the copy holds too, no more.
+//! Credentials and archive passwords are references into the vault (`<data>/secrets`, the
+//! archive passwords since RD-190-04), sign-in sessions and capture tokens are stored as
+//! SHA-256 hashes; what the database itself holds in plain the copy holds too, no more. A copy
+//! written before the archive passwords moved still has them in their old columns;
+//! [`scrub_archive_passwords`] empties those once the start has moved the live ones.
 //!
 //! A fresh database gets no copy, and neither does one from a newer build, which sqlx refuses
 //! before it applies anything. The newest [`KEPT`] copies stay; older ones are removed whenever
@@ -28,7 +30,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use sqlx::{Connection, SqliteConnection, migrate::Migrator};
 
-use crate::restore_copy::{CopySchema, schema_on};
+use crate::{
+    archive_password::PasswordTable,
+    restore_copy::{CopySchema, schema_on},
+};
 
 /// The folder below the data directory the copies are written to.
 pub const DIRECTORY: &str = "pre-migration";
@@ -274,4 +279,72 @@ pub async fn rotate(directory: &Path, keep: usize) {
             tracing::warn!(%error, copy = %path.display(), "an old pre-migration copy could not be removed");
         }
     }
+}
+
+/// Empties the old plain archive password columns of every copy in `directory` (RD-190-04)
+/// and returns how many copies held one.
+///
+/// For the copies a start or an update wrote before the archive passwords moved into the vault:
+/// the live database has none in plain any more, and a copy beside it must not keep them. Each
+/// copy is rewritten without free pages, so the values are gone from the file and not only
+/// from its rows; a copy put back later simply has packages without a password. Files this
+/// module did not name are left alone, and a copy that cannot be scrubbed is a warning for the
+/// next start.
+pub async fn scrub_archive_passwords(directory: &Path) -> usize {
+    let Ok(mut entries) = tokio::fs::read_dir(directory).await else {
+        return 0;
+    };
+    let mut scrubbed = 0;
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let is_copy = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| snapshot_stamp(name).is_some());
+        if !is_copy {
+            continue;
+        }
+        match scrub_copy(&entry.path()).await {
+            Ok(true) => scrubbed += 1,
+            Ok(false) => {}
+            Err(error) => {
+                tracing::warn!(%error, copy = %entry.path().display(), "the archive passwords of a database copy could not be removed");
+            }
+        }
+    }
+    scrubbed
+}
+
+/// One copy: whether it held a plain archive password.
+async fn scrub_copy(path: &Path) -> Result<bool> {
+    let options = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(path)
+        .create_if_missing(false)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Delete)
+        .pragma("secure_delete", "ON");
+    let mut connection = SqliteConnection::connect_with(&options)
+        .await
+        .with_context(|| format!("open {}", path.display()))?;
+    let mut emptied = 0;
+    for table in PasswordTable::ALL {
+        let has_column: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = 'password'")
+                .bind(table.name())
+                .fetch_one(&mut connection)
+                .await?;
+        if has_column == 0 {
+            continue;
+        }
+        emptied += sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE {} SET password = NULL WHERE password IS NOT NULL",
+            table.name()
+        )))
+        .execute(&mut connection)
+        .await?
+        .rows_affected();
+    }
+    if emptied > 0 {
+        sqlx::query("VACUUM").execute(&mut connection).await?;
+    }
+    connection.close().await?;
+    Ok(emptied > 0)
 }

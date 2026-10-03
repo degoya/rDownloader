@@ -16,6 +16,7 @@ pub mod automation_input;
 pub mod automation_service;
 pub mod browser_session;
 pub mod build_info;
+pub mod capture_agents;
 pub mod capture_sanitize;
 pub mod client;
 pub mod collector_exclusions;
@@ -34,7 +35,10 @@ pub mod link_check_cache;
 pub mod link_check_probe;
 pub mod link_check_service;
 pub mod local_control;
+pub mod notify_notice;
 pub mod notify_service;
+pub mod oidc_client;
+pub mod password_reset;
 pub mod postprocess_handlers;
 pub mod power_service;
 pub mod qbittorrent_sessions;
@@ -141,6 +145,9 @@ pub struct AppState {
     /// Requests for a browser's session at a provider, opened in the web interface and
     /// answered by the extension (RD-120-45). In memory only.
     pub browser_sessions: browser_session::BrowserSessions,
+    /// The capture agents holding their event stream open and the version each reported
+    /// (RD-190-07), for the update status. In memory only.
+    pub capture_agents: capture_agents::CaptureAgents,
     /// Installed post-processing step plugins (RD-090-16), for the settings and category
     /// editors. The pipeline reaches them through the runner it was started with.
     pub plugin_steps: std::sync::Arc<rd_plugin_ext::PluginSteps>,
@@ -164,6 +171,10 @@ pub struct AppState {
     /// Passkey sign-ins waiting for the same. Reachable without a session, hence bounded.
     pub passkey_authentications:
         std::sync::Arc<rd_authn::CeremonyStore<webauthn_rs::prelude::PasskeyAuthentication>>,
+    /// Signing in through an identity provider (RD-190-15): the flows between start and
+    /// callback, in memory and bounded like the passkey ceremonies, and the provider's cached
+    /// discovery document and keys.
+    pub oidc: oidc_client::OidcClient,
     /// Live `SID` handles of the qBittorrent adapter.
     ///
     /// In memory, like the passkey ceremonies above and for a related reason: a handle that
@@ -274,7 +285,8 @@ impl AppState {
             stream_settings.clone(),
         );
         // The media adapter reuses the existing probe rather than talking to yt-dlp a second
-        // way; RD-080-10, RD-080-11, RD-110-21 and RD-130-19 add their adapters to this same list.
+        // way; RD-080-10, RD-080-11, RD-110-21, RD-130-19 and RD-190-13 add their adapters to
+        // this same list.
         let site_rule_claims = subscription_service::SharedSiteRules::default();
         let subscription_adapters: Vec<std::sync::Arc<dyn rd_subscription::SourceAdapter>> = vec![
             std::sync::Arc::new(rd_subscription::MediaAdapter::new(media_probe.clone())),
@@ -303,6 +315,14 @@ impl AppState {
             std::sync::Arc::new(rd_subscription::ScriptAdapter::new(std::sync::Arc::new(
                 subscription_service::SandboxScriptRunner::new(extraction.clone()),
             ))),
+            // The releases of a GitHub or GitLab repository (RD-190-13), read through the
+            // forge's API with the subscription's token from the vault, when it has one.
+            std::sync::Arc::new(rd_subscription::GitReleaseAdapter::new(
+                std::sync::Arc::new(subscription_service::HttpApiFetcher::new(scheduler.clone())),
+                std::sync::Arc::new(subscription_service::VaultSecretResolver::new(
+                    secrets.clone(),
+                )),
+            )),
         ];
         let subscriptions = subscription_service::SubscriptionService::start(
             database.clone(),
@@ -354,7 +374,8 @@ impl AppState {
                 .join("plugin-repositories"),
             plugins.clone(),
         );
-        let updates = update_service::UpdateService::new(database.clone());
+        let capture_agents = capture_agents::CaptureAgents::default();
+        let updates = update_service::UpdateService::new(database.clone(), capture_agents.clone());
         let power_supervisor = power_service::PowerSupervisor::start(
             database.clone(),
             scheduler.clone(),
@@ -369,6 +390,7 @@ impl AppState {
             proxy: std::sync::Arc::new(tokio::sync::RwLock::new(rd_authn::ProxyConfig::default())),
             passkey_registrations: std::sync::Arc::new(rd_authn::CeremonyStore::new()),
             passkey_authentications: std::sync::Arc::new(rd_authn::CeremonyStore::new()),
+            oidc: oidc_client::OidcClient::default(),
             qbittorrent_sessions: std::sync::Arc::default(),
             hotfolders,
             secrets,
@@ -393,6 +415,7 @@ impl AppState {
             remote_jobs,
             reconnect: reconnect_service::ReconnectService::default(),
             browser_sessions: browser_session::BrowserSessions::default(),
+            capture_agents,
             automations,
             ftp: remote.ftp,
             sftp: remote.sftp,

@@ -99,6 +99,8 @@ pub(crate) enum StateFilter {
     Paused,
     Blocked,
     Failed,
+    /// A finished torrent still uploading to peers; the web UI's Seeding filter (RD-190-21).
+    Seeding,
     Completed,
 }
 
@@ -114,6 +116,7 @@ impl StateFilter {
             Self::Paused => state == S::Paused,
             Self::Blocked => state == S::Blocked,
             Self::Failed => matches!(state, S::Failed | S::Cancelled),
+            Self::Seeding => state == S::Seeding,
             Self::Completed => state == S::Completed,
         }
     }
@@ -151,7 +154,8 @@ pub(crate) struct ListDownloadsParams {
     pub state: Option<StateFilter>,
     /// Only files belonging to this package id.
     pub package_id: Option<String>,
-    /// Case-insensitive substring match on the file name.
+    /// Case-insensitive substring match on the file name or on its package's name; a package
+    /// that matches keeps all its files, as the web UI's search does.
     pub name_contains: Option<String>,
     /// Page size (default 50, max 200).
     pub limit: Option<u32>,

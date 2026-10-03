@@ -21,11 +21,21 @@ async fn list(state: &AppState) -> Response {
     let Ok(downloads) = state.database.list_downloads().await else {
         return error("history unavailable");
     };
+    let Ok(categories) = state.database.list_categories().await else {
+        return error("history unavailable");
+    };
     let slots: Vec<serde_json::Value> = packages
         .iter()
         .filter(|package| map::is_history(package))
         .enumerate()
-        .map(|(index, package)| slot(index, package, &downloads))
+        .map(|(index, package)| {
+            slot(
+                index,
+                package,
+                map::category(package, &categories),
+                &downloads,
+            )
+        })
         .collect();
     let total: u64 = slots.iter().filter_map(|slot| slot["bytes"].as_u64()).sum();
     json(serde_json::json!({
@@ -43,7 +53,12 @@ async fn list(state: &AppState) -> Response {
     }))
 }
 
-fn slot(index: usize, package: &DownloadPackage, downloads: &[DownloadFile]) -> serde_json::Value {
+fn slot(
+    index: usize,
+    package: &DownloadPackage,
+    category: &str,
+    downloads: &[DownloadFile],
+) -> serde_json::Value {
     let bytes: u64 = downloads
         .iter()
         .filter(|file| file.package_id == package.id)
@@ -58,7 +73,7 @@ fn slot(index: usize, package: &DownloadPackage, downloads: &[DownloadFile]) -> 
         "nzo_id": map::nzo_id(package),
         "name": package.name,
         "nzb_name": format!("{}.nzb", package.name),
-        "category": "*",
+        "category": category,
         "pp": "D",
         "script": package.script.clone().unwrap_or_else(|| "None".to_owned()),
         "status": if failed { "Failed" } else { "Completed" },

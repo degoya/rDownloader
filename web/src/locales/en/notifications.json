@@ -11,7 +11,14 @@
     "storage_blocked": "Storage out of space",
     "budget_exhausted": "Traffic budget used up",
     "captcha_waiting": "Captcha waiting",
-    "power_pending": "Power action pending"
+    "power_pending": "Power action pending",
+    "backup_failed": "Scheduled backup failed",
+    "update_available": "rDownloader update available",
+    "plugin_update_available": "Plugin update available",
+    "account_expiring": "Account expiring",
+    "account_invalid": "Account no longer signs in",
+    "backup_verify_failed": "Backup verification failed",
+    "plugin_update_failed": "Automatic plugin update failed"
   },
   "severity": {
     "info": "Info and above",

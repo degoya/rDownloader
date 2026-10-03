@@ -135,7 +135,7 @@ fn a_tampered_package_is_not_previewed() {
 #[test]
 fn an_unsupported_contract_is_described_and_marked() {
     let manifest = fixture_manifest(&public_key_base64(&signing()))
-        .replace(r#"api_version = "0.9.0""#, r#"api_version = "0.5.0""#);
+        .replace(r#"api_version = "0.10.0""#, r#"api_version = "0.5.0""#);
     let bytes = raw_archive(&manifest, &signing());
     let preview = preview_package(&bytes, &PluginVerifier::new(false)).expect("preview");
     assert_eq!(preview.api_version, "0.5.0");

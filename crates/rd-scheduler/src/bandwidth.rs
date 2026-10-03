@@ -3,6 +3,9 @@
 //! The scheduler owns the loop: it loads profiles and windows, asks the schedule which
 //! profile is active, pushes the resulting limits into the shared registry and counts the
 //! traffic of the current period. Everything policy-shaped lives in `rd-limits`.
+//!
+//! A profile switched on by hand (RD-190-20) stands in front of the schedule until its end; it
+//! is stored beside the counters and read back on every reload, like the profiles themselves.
 
 use std::{collections::HashSet, sync::Arc};
 
@@ -11,7 +14,7 @@ use chrono::{DateTime, Utc};
 use rd_core::{BandwidthProfileId, BandwidthSettings};
 use rd_limits::{
     BandwidthProfile, BindingLimit, BudgetExceeded, BudgetKind, BudgetState, BudgetStates,
-    LimiterRegistry, TransferScope, WeeklySchedule, parse_timezone,
+    LimiterRegistry, ManualProfile, TransferScope, WeeklySchedule, parse_timezone,
 };
 use tokio::sync::RwLock;
 
@@ -29,6 +32,8 @@ pub struct BandwidthStatus {
     pub timezone: String,
     pub budget: Option<BudgetState>,
     pub exceeded: Option<BudgetExceeded>,
+    /// Set while a profile switched on by hand stands in front of the schedule.
+    pub manual: Option<ManualProfile>,
 }
 
 #[derive(Debug, Default)]
@@ -36,6 +41,8 @@ struct BandwidthState {
     schedule: WeeklySchedule,
     profiles: Vec<BandwidthProfile>,
     active: Option<BandwidthProfileId>,
+    /// The hand-made switch, while it holds; the schedule decides otherwise.
+    manual: Option<ManualProfile>,
     budgets: BudgetStates,
     /// Whether the *active* profile's budget is used up. New transfers wait while it is set, so
     /// it must never outlive the profile it was measured for (RD-120-64).
@@ -47,7 +54,15 @@ struct BandwidthState {
 }
 
 impl BandwidthState {
-    /// The profile the schedule currently points at.
+    /// The profile in force: the hand-made switch while it holds, the schedule otherwise.
+    fn active_at(&self, now: DateTime<Utc>) -> Option<BandwidthProfileId> {
+        match &self.manual {
+            Some(manual) if manual.in_force(now) => manual.profile_id,
+            _ => self.schedule.active_at(now),
+        }
+    }
+
+    /// The profile last applied.
     fn active_profile(&self) -> Option<&BandwidthProfile> {
         let id = self.active?;
         self.profiles.iter().find(|profile| profile.id == id)
@@ -149,8 +164,15 @@ impl BandwidthService {
     pub async fn status(&self) -> BandwidthStatus {
         let state = self.state.read().await;
         let active = state.active_profile().cloned();
+        let now = Utc::now();
+        let manual = state.manual.clone().filter(|manual| manual.in_force(now));
         BandwidthStatus {
-            next_switch_at: state.schedule.next_switch_after(Utc::now()),
+            // While a switch holds, the next change is its end, whatever the schedule says.
+            next_switch_at: match &manual {
+                Some(manual) => manual.until,
+                None => state.schedule.next_switch_after(now),
+            },
+            manual,
             timezone: state.schedule.timezone.to_string(),
             budget: active
                 .as_ref()
@@ -231,12 +253,14 @@ impl SchedulerHandle {
                 .filter(|id| profiles.iter().any(|profile| profile.id == *id)),
             windows,
         };
+        let manual = self.load_manual_profile(&profiles).await?;
         let service = self.bandwidth();
         {
             let mut state = service.state.write().await;
             state.schedule = schedule;
             state.profiles = profiles;
             state.budgets = budgets;
+            state.manual = manual;
         }
         self.apply_active_profile().await
     }
@@ -246,7 +270,7 @@ impl SchedulerHandle {
         let service = self.bandwidth();
         let (active, profile) = {
             let state = service.state.read().await;
-            let active = state.schedule.active_at(Utc::now());
+            let active = state.active_at(Utc::now());
             let profile = active
                 .and_then(|id| state.profiles.iter().find(|profile| profile.id == id))
                 .cloned();
@@ -438,6 +462,9 @@ impl SchedulerHandle {
         self.record_bandwidth_budget().await
     }
 }
+
+#[path = "bandwidth_manual.rs"]
+mod manual;
 
 #[cfg(test)]
 #[path = "bandwidth_tests.rs"]

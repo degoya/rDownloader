@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
 };
 use rd_core::{CategoryId, PackageState, PostprocessLevel};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
@@ -187,6 +187,83 @@ pub async fn list_upload_destinations(
     )
 }
 
+/// Which `clamd` to try (RD-190-14).
+#[derive(Debug, Default, Deserialize, ToSchema)]
+pub struct MalwareScannerTestRequest {
+    /// `host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved
+    /// address, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before
+    /// it is saved.
+    #[serde(default)]
+    pub address: Option<String>,
+}
+
+/// What `clamd` said when it was tried.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct MalwareScannerTestResponse {
+    /// The address that answered, normalised (`host:port` or `unix:/path`).
+    pub address: String,
+    /// clamd's `VERSION` line: the engine, the signature database's version and its date.
+    pub version: String,
+}
+
+/// Asks `clamd` for `PING` and `VERSION` (RD-190-14).
+///
+/// Nothing is scanned and nothing but the two commands is sent. The address is the one given,
+/// else the saved one; it is read by the same parser the settings use, so what passes here is
+/// what the scan step will use.
+#[utoipa::path(post, path = "/api/v1/postprocess/malware-scanner/test", tag = "configuration", request_body = MalwareScannerTestRequest, responses((status = 200, body = MalwareScannerTestResponse), (status = 400), (status = 502)))]
+pub async fn test_malware_scanner(
+    State(state): State<AppState>,
+    Json(request): Json<MalwareScannerTestRequest>,
+) -> Result<Json<MalwareScannerTestResponse>, ApiError> {
+    let settings = rd_extract::load_postprocess_settings(&state.database).await?;
+    let text = request
+        .address
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| settings.effective_clamd_address().to_owned());
+    let address = rd_extract::clamd::ClamdAddress::parse(&text).map_err(|error| {
+        ApiError::bad_request(
+            "settings.clamd_address_invalid",
+            format!("The clamd address must be host:port or unix:/path ({error})"),
+        )
+        .with_param("value", text.as_str())
+    })?;
+    let clamd = rd_extract::clamd::Clamd::new(
+        address,
+        std::time::Duration::from_secs(u64::from(
+            settings.malware_scan_timeout_seconds.clamp(1, 30),
+        )),
+    );
+    let failed = |error: rd_extract::clamd::ClamdError| {
+        // The translated sentence says what failed; only the system's own reason travels as
+        // the detail, so a German message is not followed by the English one again.
+        if matches!(error, rd_extract::clamd::ClamdError::Timeout) {
+            return ApiError::bad_gateway(
+                "postprocess.malware_scanner_timeout",
+                format!("clamd at {} did not answer in time", clamd.address()),
+            )
+            .with_param("address", clamd.address());
+        }
+        let detail = match &error {
+            rd_extract::clamd::ClamdError::Unavailable(reason) => reason.clone(),
+            other => other.to_string(),
+        };
+        ApiError::bad_gateway(
+            "postprocess.malware_scanner_unreachable",
+            format!("clamd at {} did not answer: {detail}", clamd.address()),
+        )
+        .with_param("address", clamd.address())
+        .with_param("detail", detail)
+    };
+    clamd.ping().await.map_err(failed)?;
+    let version = clamd.version().await.map_err(failed)?;
+    Ok(Json(MalwareScannerTestResponse {
+        address: clamd.address().to_string(),
+        version,
+    }))
+}
+
 #[utoipa::path(patch, path = "/api/v1/categories/{id}/postprocess", tag = "configuration", params(("id" = rd_core::CategoryId, Path)), request_body = CategoryPostprocessRequest, responses((status = 200, body = rd_core::Category), (status = 404)))]
 pub async fn update_category_postprocess(
     State(state): State<AppState>,
@@ -209,6 +286,7 @@ pub async fn update_category_postprocess(
                 cleanup_extensions,
                 recursive_unpack: request.recursive_unpack,
                 unpack_to_subfolder: request.unpack_to_subfolder,
+                malware_scan: request.malware_scan,
                 sfv_verify: request.sfv_verify,
                 safe_postproc: request.safe_postproc,
                 delete_par2: request.delete_par2,

@@ -249,6 +249,7 @@ async fn refuse_local_targets(host: &str, port: u16) -> Result<(), Failure> {
             "plugin.net_resolve_failed",
             format!("Could not resolve the server name: {error}"),
         )
+        .with_param("error", &error)
     })?;
     for address in addresses {
         if connection::is_local_only(address.ip()) {

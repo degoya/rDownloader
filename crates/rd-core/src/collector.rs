@@ -520,6 +520,10 @@ pub struct Category {
     /// `None` = global default (RD-170-16).
     #[serde(default)]
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether packages in this category are scanned by ClamAV before they count as finished;
+    /// `None` = global default (RD-190-14).
+    #[serde(default)]
+    pub malware_scan: Option<bool>,
     /// Whether packages in this category verify `.sfv` checksums; `None` = global default.
     #[serde(default)]
     pub sfv_verify: Option<bool>,

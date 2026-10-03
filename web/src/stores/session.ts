@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { api, responseError } from '@/api/client'
 import { currentLocale } from '@/i18n'
 import { loadPluginMessages, setPluginMessagesAvailable } from '@/i18n/plugins'
+import { leaveFor, startUrl } from '@/utils/identityProvider'
 import { PasskeyAbort, getAssertion, passkeysSupported } from '@/webauthn'
 
 export const useSessionStore = defineStore('session', () => {
@@ -15,6 +16,13 @@ export const useSessionStore = defineStore('session', () => {
   const loginDisabled = ref(false)
   /** A passkey is enrolled and this browser can use one, so the sign-in screen offers it. */
   const passkeyOffered = ref(false)
+  /**
+   * What the sign-in button calls the identity provider, when signing in there is possible
+   * (RD-190-15): a provider configured, an identity linked and an external URL to come back to.
+   */
+  const providerName = ref<string | null>(null)
+  /** The password form is offered; off only after a proven sign-in through the provider (D3). */
+  const passwordLogin = ref(true)
   const pending = ref(false)
   const error = ref<string | null>(null)
   /**
@@ -43,6 +51,10 @@ export const useSessionStore = defineStore('session', () => {
       authenticated.value = response.data.authenticated
       loginDisabled.value = response.data.login_disabled ?? false
       passkeyOffered.value = (response.data.passkeys_available ?? false) && passkeysSupported()
+      providerName.value = response.data.oidc_available
+        ? (response.data.oidc_display_name ?? null)
+        : null
+      passwordLogin.value = response.data.password_login ?? true
       error.value = null
       if (setupRequired.value) {
         wizardCompleted.value = false
@@ -148,6 +160,15 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   /**
+   * Signs in through the identity provider: the page goes there and comes back signed in, to the
+   * page the sign-in screen covered. Nothing is checked here — the service does all of it.
+   */
+  function signInWithProvider(returnTo: string): void {
+    pending.value = true
+    leaveFor(startUrl(returnTo))
+  }
+
+  /**
    * Ends the session on the server and returns to the sign-in screen (RD-101-19).
    *
    * The local state is cleared whatever the server answered. A logout that failed to reach
@@ -165,6 +186,11 @@ export const useSessionStore = defineStore('session', () => {
     tourPending.value = false
     expired.value = false
     error.value = response.error ? responseError(response) : null
+    // Signing out at the provider too, when that is switched on (D5). The session here is
+    // already over; the provider may ask before it ends its own.
+    const providerLogout = (response.data as { provider_logout_url?: string | null } | undefined)
+      ?.provider_logout_url
+    if (providerLogout) leaveFor(providerLogout)
   }
 
   /**
@@ -229,9 +255,12 @@ export const useSessionStore = defineStore('session', () => {
     mfaRequired,
     openWizard,
     passkeyOffered,
+    passwordLogin,
     pending,
+    providerName,
     ready,
     setupRequired,
+    signInWithProvider,
     submitPasskey,
     submitPassword,
     tourPending,

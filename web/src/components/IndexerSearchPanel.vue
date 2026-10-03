@@ -18,6 +18,12 @@
  * `f` puts the keyboard in the search field (`indexerSearchFocus.ts`), or, while the field is
  * disabled, on the hint's link — a disabled field cannot take the focus, and the link is the one
  * thing to do there. The panel hands that in while it is mounted.
+ *
+ * Each indexer draws its hits in the list style it was given in the settings (RD-190-16): compact,
+ * one line, or detailed, with a small cover and a line of the metadata the indexer sent. Under
+ * "all indexers" every hit takes its own indexer's style. A detailed row without a cover — none
+ * sent, pictures switched off, or one that did not load — carries the subscription lists'
+ * placeholder, so the titles of all detailed rows start in one place.
  */
 import { useToast } from '@nuxt/ui/composables'
 import type { TableColumn } from '@nuxt/ui'
@@ -26,15 +32,17 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { IndexerSearchHit, IndexerSearchResponse } from '@/api/types'
+import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { translateServerMessage } from '@/i18n/server'
 import { useIndexersStore } from '@/stores/indexers'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { formatBytes } from '@/utils/format'
 import {
-  DEFAULT_LIMIT, LIMITS, MAX_AGE_DAYS, MAX_QUERY_CHARS, MIN_QUERY_CHARS, ageInDays, hitKey,
-  maxAgeDays, queryProblem, sortHits, type HitSortKey
+  DEFAULT_LIMIT, LIMITS, MAX_AGE_DAYS, MAX_QUERY_CHARS, MIN_QUERY_CHARS, ageInDays, hitCoverUrl,
+  hitDescription, hitFacts, hitKey, maxAgeDays, queryProblem, sortHits, type HitSortKey
 } from '@/utils/indexerSearch'
+import { showItemImages } from '@/utils/itemImages'
 
 /** `MAX_GRAB_ITEMS` in `crates/rd-api-intake/src/indexer_search.rs`. */
 const MAX_GRAB = 50
@@ -71,8 +79,13 @@ const hintId = useId()
 /** Where one hit's own button stands; the busy state is the row's, never the table's. */
 type RowState = 'pending' | 'done' | 'error'
 const rowStates = ref<Map<string, RowState>>(new Map())
+/** Hits whose cover did not load; their row shows the placeholder instead of a broken picture. */
+const brokenCovers = ref<Set<string>>(new Set())
 
 const available = computed(() => indexers.enabled.length > 0)
+/** The indexers whose hits are drawn detailed; every other hit is compact, as before RD-190-16. */
+const detailedIndexers = computed(() =>
+  new Set(indexers.indexers.filter(indexer => indexer.list_style === 'detailed').map(indexer => indexer.id)))
 /** The hint waits for the first answer, so it does not flash up while the list is loading. */
 const unavailable = computed(() => indexers.loaded && !available.value)
 
@@ -182,6 +195,7 @@ async function search(start: number): Promise<void> {
   result.value = response.data
   offset.value = start
   selected.value = new Set()
+  brokenCovers.value = new Set()
 }
 
 function close(): void {
@@ -190,6 +204,7 @@ function close(): void {
   selected.value = new Set()
   offset.value = 0
   rowStates.value = new Map()
+  brokenCovers.value = new Set()
 }
 
 function markRows(chosen: readonly IndexerSearchHit[], state: (hit: IndexerSearchHit) => RowState): void {
@@ -251,6 +266,26 @@ function rowLabel(hit: IndexerSearchHit): string {
   const state = rowState(hit)
   const key = state === 'done' ? 'grab_one_done' : state === 'error' ? 'grab_one_failed' : 'grab_one'
   return t(`linkgrabber.search.${key}`, { title: hit.title })
+}
+
+function detailed(hit: IndexerSearchHit): boolean {
+  return detailedIndexers.value.has(hit.indexer_id)
+}
+
+/** The cover a detailed row loads: only with pictures allowed, and never one that failed. */
+function coverOf(hit: IndexerSearchHit): string | null {
+  return brokenCovers.value.has(hitKey(hit)) ? null : hitCoverUrl(hit, showItemImages.value)
+}
+
+function dropCover(hit: IndexerSearchHit): void {
+  brokenCovers.value = new Set(brokenCovers.value).add(hitKey(hit))
+}
+
+/** The whole metadata line as one sentence, for the tooltip of the line that is drawn cut. */
+function metadataTitle(hit: IndexerSearchHit): string {
+  const facts = hitFacts(hit, t).map(fact => `${fact.label} ${fact.value}`)
+  const description = hitDescription(hit)
+  return [...facts, ...(description ? [description] : [])].join(' · ')
 }
 
 function ageLabel(hit: IndexerSearchHit): string {
@@ -380,9 +415,46 @@ function ageLabel(hit: IndexerSearchHit): string {
           />
         </template>
         <template #title-cell="{ row }">
+          <!-- Detailed (RD-190-16): the cover at the thumbnail size every list uses, then the title
+               over one line of metadata. The cell stays in the title column, so size, age,
+               category and the button keep their place in either style. -->
+          <div v-if="detailed(row.original)" class="flex min-w-0 items-center gap-2" data-testid="indexer-search-hit-detailed">
+            <img
+              v-if="coverOf(row.original)"
+              :src="coverOf(row.original) ?? undefined"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="size-12 shrink-0 bg-elevated object-cover"
+              data-testid="indexer-search-hit-cover"
+              @error="dropCover(row.original)"
+            >
+            <CoverPlaceholder v-else class="size-12" />
+            <div class="min-w-0 flex-1">
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="min-w-0 truncate font-mono text-xs" :title="row.original.title" data-testid="indexer-search-hit-title">{{ row.original.title }}</span>
+                <UBadge v-if="row.original.passworded" class="shrink-0" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
+              </span>
+              <!-- One line, cut at the cell's edge; the tooltip holds all of it. -->
+              <div
+                v-if="metadataTitle(row.original)"
+                class="mt-0.5 flex min-w-0 items-baseline gap-x-3 overflow-hidden whitespace-nowrap text-[11px]"
+                :title="metadataTitle(row.original)"
+                data-testid="indexer-search-hit-metadata"
+              >
+                <dl v-if="hitFacts(row.original, t).length" class="flex shrink-0 items-baseline gap-x-3">
+                  <div v-for="fact in hitFacts(row.original, t)" :key="fact.key" class="flex items-baseline gap-1">
+                    <dt class="text-muted">{{ fact.label }}</dt>
+                    <dd class="numeric text-highlighted">{{ fact.value }}</dd>
+                  </div>
+                </dl>
+                <span v-if="hitDescription(row.original)" class="min-w-0 truncate text-muted">{{ hitDescription(row.original) }}</span>
+              </div>
+            </div>
+          </div>
           <!-- The whole name stays in the DOM, only drawn cut: a screen reader reads all of it, and
                the tooltip shows it. The badge never shrinks, so the ellipsis cannot take it. -->
-          <span class="flex min-w-0 items-center gap-2">
+          <span v-else class="flex min-w-0 items-center gap-2">
             <span class="min-w-0 truncate font-mono text-xs" :title="row.original.title" data-testid="indexer-search-hit-title">{{ row.original.title }}</span>
             <UBadge v-if="row.original.passworded" class="shrink-0" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
           </span>

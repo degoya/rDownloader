@@ -11,7 +11,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use rd_core::{Indexer, IndexerId, IndexerSearch};
+use rd_core::{Indexer, IndexerId, IndexerListStyle, IndexerSearch};
 use rd_db::{NewIndexer, StoreErrorKind};
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -39,6 +39,10 @@ pub struct IndexerRequest {
     pub categories: Vec<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// How the LinkGrabber's search draws this indexer's hits (RD-190-16); `compact` when
+    /// absent. Like every field here an edit replaces it, so a form sends the stored one back.
+    #[serde(default)]
+    pub list_style: IndexerListStyle,
 }
 
 const fn default_true() -> bool {
@@ -63,6 +67,7 @@ fn indexer_input(
         secret_ref,
         categories: crate::subscription_handlers::sanitize_source_categories(&request.categories)?,
         enabled: request.enabled,
+        list_style: request.list_style,
     })
 }
 

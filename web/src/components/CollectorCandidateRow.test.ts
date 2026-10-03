@@ -543,3 +543,60 @@ describe('CollectorCandidateRow and hidden hosters (RD-130-21)', () => {
     expect(emitted()['hide-hoster']).toEqual([['files.example.com']])
   })
 })
+
+/** "Copy link(s)" and "Open source page" (RD-190-21), offered for what the link's data has. */
+describe('CollectorCandidateRow link actions', () => {
+  interface LinkItem { label: string, to?: string, target?: string }
+
+  function itemsFor(value: LinkCandidate, props: Record<string, unknown> = {}): LinkItem[] {
+    const items: LinkItem[] = []
+    render(CollectorCandidateRow, {
+      props: { candidate: value, selected: false, busy: false, ...props },
+      global: {
+        plugins: [i18n],
+        components: {
+          ...components,
+          UDropdownMenu: {
+            props: ['items'],
+            setup(menu: { items: LinkItem[][] }) {
+              items.push(...menu.items.flat())
+              return () => null
+            }
+          }
+        }
+      }
+    })
+    return items
+  }
+
+  it('copies the link of a lone row', async () => {
+    const { emitted } = renderRow(candidate())
+    await fireEvent.click(screen.getByText(common.actions.copy_link))
+    expect(emitted()['copy-links']).toEqual([[['https://files.example.com/report.pdf']]])
+  })
+
+  it('copies every mirror of the group a row stands for', async () => {
+    const members = [candidate(), { ...candidate(), id: 'candidate-2', url: 'https://other.example.net/report.pdf' }] as LinkCandidate[]
+    const group = { key: 'release', source: 'declared', chosen: members[0], members, pinned: false, onlineCount: 2 }
+    const { emitted } = renderMirrorRow({ mirrorGroup: group })
+    await fireEvent.click(screen.getByText(common.actions.copy_links))
+    expect(emitted()['copy-links']).toEqual([[['https://files.example.com/report.pdf', 'https://other.example.net/report.pdf']]])
+  })
+
+  it('opens the page a captured download came from in a new tab', () => {
+    const captured = candidate({ ...capturedPost, referrer: 'https://forum.example.com/thread/9' } as LinkCandidate['request'])
+    expect(itemsFor(captured).find(item => item.label === common.actions.open_source_page))
+      .toMatchObject({ to: 'https://forum.example.com/thread/9', target: '_blank' })
+  })
+
+  it('opens the page a media link was extracted from', () => {
+    const base = mediaCandidate()
+    const value = { ...base, media: { ...base.media, page_url: 'https://video.example.com/watch?v=abc' } } as LinkCandidate
+    expect(itemsFor(value).find(item => item.label === common.actions.open_source_page))
+      .toMatchObject({ to: 'https://video.example.com/watch?v=abc', target: '_blank' })
+  })
+
+  it('offers no page for a link nobody saw on one', () => {
+    expect(itemsFor(candidate()).map(item => item.label)).not.toContain(common.actions.open_source_page)
+  })
+})

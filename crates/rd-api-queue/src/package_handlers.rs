@@ -434,7 +434,7 @@ pub async fn reorder_packages(
     State(state): State<AppState>,
     Json(request): Json<PackageReorderRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    validate_bulk(request.ids.len())?;
+    crate::error_codes::validate_reorder_size(request.ids.len())?;
     state.database.reorder_packages(request.ids).await?;
     Ok(Json(MessageResponse::new(
         "package.order_saved",
@@ -453,7 +453,7 @@ pub async fn reorder_downloads(
     State(state): State<AppState>,
     Json(request): Json<DownloadReorderRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    validate_bulk(request.ids.len())?;
+    crate::error_codes::validate_reorder_size(request.ids.len())?;
     let members: Vec<rd_core::DownloadId> = state
         .database
         .list_downloads()
@@ -581,5 +581,5 @@ fn validate_bulk(count: usize) -> Result<(), ApiError> {
 pub async fn list_packages(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<rd_core::DownloadPackage>>, ApiError> {
-    Ok(Json(state.database.list_packages().await?))
+    Ok(Json(state.database.list_packages_with_passwords().await?))
 }

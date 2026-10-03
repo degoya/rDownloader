@@ -103,5 +103,19 @@
     "windows_title": "Ventanas horarias",
     "days_label": "Días",
     "duplicate_hint": "Añade una copia de la ventana justo debajo; se guarda con la programación"
+  },
+  "manual": {
+    "profile": "Perfil",
+    "ends": "Vigente",
+    "switch": "Cambiar",
+    "no_limits": "Sin límites",
+    "until_next_switch": "Hasta el próximo cambio del horario",
+    "for_1h": "Durante 1 hora",
+    "for_3h": "Durante 3 horas",
+    "until_back": "Hasta que vuelva a cambiar",
+    "source_schedule": "Elegido por el horario",
+    "source_manual_until": "Elegido a mano, hasta {time}",
+    "source_manual_open": "Elegido a mano, hasta que vuelvas a cambiar",
+    "back_to_schedule": "Volver al horario"
   }
 }

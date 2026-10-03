@@ -142,11 +142,23 @@ pub async fn test_account(
             "Provider account is disabled",
         ));
     }
-    let status = state
-        .scheduler
-        .check_account(id)
-        .await
-        .map_err(account_check_failed)?;
+    // What the check found about the account's sign-in or its premium end is announced as
+    // well (RD-190-19); the notices are keyed, so checking again does not repeat them.
+    let today = chrono::Utc::now().date_naive();
+    let status = match state.scheduler.check_account(id).await {
+        Ok(status) => status,
+        Err(failure) => {
+            if let Some(notice) =
+                rd_api_core::notify_notice::account_failure_notice(&account, &failure, today)
+            {
+                rd_api_core::notify_notice::announce(&state.database, notice).await;
+            }
+            return Err(account_check_failed(failure));
+        }
+    };
+    for notice in rd_api_core::notify_notice::account_check_notices(&account, &status, today) {
+        rd_api_core::notify_notice::announce(&state.database, notice).await;
+    }
     Ok(Json(AccountTestResponse {
         valid: status.valid,
         premium: status.premium,
@@ -418,16 +430,15 @@ pub async fn delete_proxy_profile(
     AxumPath(id): AxumPath<rd_core::ProxyProfileId>,
 ) -> Result<Json<crate::dto::MessageResponse>, ApiError> {
     // The store refuses a profile an account, a Usenet server or an unfinished download still
-    // points at. The global selection lives in the settings document instead, so it is checked
-    // here rather than there.
-    if crate::settings_store::read_settings(&state)
-        .await?
-        .global_proxy_profile_id
-        == Some(id)
+    // points at. The global selection and the torrent engine's peer proxy live in the settings
+    // document instead, so they are checked here rather than there; a deleted peer proxy would
+    // leave the torrent session unable to start (RD-190-22).
+    let settings = crate::settings_store::read_settings(&state).await?;
+    if settings.global_proxy_profile_id == Some(id) || settings.torrent_proxy_profile_id == Some(id)
     {
         return Err(ApiError::conflict(
             "proxy.in_use",
-            "The proxy profile is still selected as the global proxy",
+            "The proxy profile is still selected as the global or the torrent proxy",
         ));
     }
     let secret_ref = state.database.delete_proxy_profile(id).await.map_err(|error| {
@@ -649,6 +660,7 @@ pub(crate) async fn validated_category(
             .transpose()?,
         recursive_unpack: request.recursive_unpack,
         unpack_to_subfolder: request.unpack_to_subfolder,
+        malware_scan: request.malware_scan,
         sfv_verify: request.sfv_verify,
         safe_postproc: request.safe_postproc,
         delete_par2: request.delete_par2,

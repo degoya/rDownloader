@@ -108,12 +108,12 @@ const uiPort = computed<number | null>({
         <UInput v-model.number="settings.nntp_parallel_files" type="number" min="0" max="8" icon="i-lucide-layers" class="mt-2 w-full" data-testid="nntp-parallel-files" />
       </UFormField>
       <UFormField data-settings-anchor="general.speed_limit" :label="t('settings.speed_limit.label')" :description="t('settings.speed_limit.description')">
-        <UInput v-model.number="speedMiB" type="number" min="0" step="0.5" icon="i-lucide-gauge" class="mt-2 w-full">
+        <UInput v-model.number="speedMiB" type="number" min="0" step="any" icon="i-lucide-gauge" class="mt-2 w-full">
           <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
         </UInput>
       </UFormField>
       <UFormField :label="t('settings.upload_limit.label')" :description="t('settings.upload_limit.description')">
-        <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="0.5" icon="i-lucide-upload" class="mt-2 w-full" data-testid="upload-limit">
+        <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="any" icon="i-lucide-upload" class="mt-2 w-full" data-testid="upload-limit">
           <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
         </UInput>
       </UFormField>
@@ -158,7 +158,7 @@ const uiPort = computed<number | null>({
         <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.storage.description') }}</p>
       </div>
       <UFormField data-settings-anchor="general.minimum_free" :label="t('settings.storage.minimum_free.label')" :description="t('settings.storage.minimum_free.description')">
-        <UInput v-model.number="minimumFreeGiB" type="number" min="0" step="1" icon="i-lucide-shield-check" class="mt-2 w-full">
+        <UInput v-model.number="minimumFreeGiB" type="number" min="0" step="any" icon="i-lucide-shield-check" class="mt-2 w-full">
           <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
         </UInput>
       </UFormField>

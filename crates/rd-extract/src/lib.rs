@@ -1,9 +1,15 @@
-//! Package post-processing service: PAR2 repair, archive extraction, cleanup and user
-//! scripts for finished downloads (SABnzbd-style levels per package/category).
+//! Package post-processing service: PAR2 repair, archive extraction, cleanup, the ClamAV scan
+//! and user scripts for finished downloads (SABnzbd-style levels per package/category).
 
+pub mod clamd;
 mod cleanup_job;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_tests;
+#[cfg(test)]
+mod fake_clamd;
+mod malware_scan;
+#[cfg(test)]
+mod malware_scan_tests;
 #[cfg(test)]
 mod nested_upload_tests;
 mod object_upload;
@@ -12,10 +18,14 @@ mod par2_job;
 mod par2_refill;
 mod pipeline;
 mod plugin_step;
+#[cfg(test)]
+mod plugin_step_tests;
 mod rar_test_job;
 mod rclone_job;
 mod rclone_remote;
 mod remux_job;
+#[cfg(all(test, feature = "failpoints"))]
+mod scan_crash_tests;
 #[cfg(all(test, unix))]
 mod script_env_tests;
 mod script_job;
@@ -43,7 +53,7 @@ use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
 pub use object_upload::{ObjectUpload, ObjectUploader};
-pub use plugin_step::{PluginStepJob, PluginStepOutcome, PluginStepRunner};
+pub use plugin_step::{PluginStepJob, PluginStepOutcome, PluginStepRunner, PluginStepWarning};
 pub use rclone_remote::{RcloneEntry, RcloneFailure, RcloneRemote};
 pub use script_job::BATCH_ARGUMENTS_REFUSED;
 pub use settings::load_postprocess_settings;

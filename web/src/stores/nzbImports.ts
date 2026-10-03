@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { DownloadPriority, NzbImport, NzbImportUpdateRequest } from '@/api/types'
 import type { FileImportEntry } from '@/composables/useNzbImportModal'
 import { i18n } from '@/i18n'
@@ -43,6 +44,8 @@ export const useNzbImportsStore = defineStore('nzbImports', () => {
   const imports = ref<NzbImport[]>([])
   const pending = ref(false)
   const error = ref<string | null>(null)
+  // A "service could not be reached" alert ends with the outage.
+  clearWhenReconnected(error)
   const deletingIds = ref<Set<string>>(new Set())
   const enqueuingIds = ref<Set<string>>(new Set())
 

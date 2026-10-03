@@ -16,6 +16,7 @@ import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
 import { formatByteProgress, formatDuration, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
+import { sourcePageUrl } from '@/utils/sourcePage'
 
 const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean }>()
 const emit = defineEmits<{
@@ -28,6 +29,8 @@ const emit = defineEmits<{
   rename: [id: string]
   select: [id: string, selected: boolean]
   copyPath: [path: string]
+  /** The row's address onto the clipboard; the view copies and says so (RD-190-21). */
+  copyLinks: [links: string[]]
   dragstart: [id: string]
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the file up, 1 moves it down. */
@@ -73,6 +76,8 @@ const cancelled = computed(() => props.download.state === 'cancelled')
 /** All row actions live in one menu so the file name keeps the width. */
 const recording = computed(() => props.download.kind === 'record')
 const resettable = computed(() => RESETTABLE_STATES.includes(props.download.state))
+/** The page a media file was extracted from — the only source page a queued file knows. */
+const sourcePage = computed(() => sourcePageUrl(props.download.media?.page_url))
 
 /** Torrent detail: the file tree and the tracker list, both loaded when first opened. */
 const torrents = useTorrentsStore()
@@ -179,6 +184,11 @@ const actions = computed(() => [[
     : []),
   ...(renamable.value
     ? [{ label: t('common.actions.rename'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.download.id) }]
+    : [])
+], [
+  { label: t('common.actions.copy_link'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', [props.download.source]) },
+  ...(sourcePage.value
+    ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : [])
 ], [
   ...(!['completed', 'cancelled', 'seeding'].includes(props.download.state)

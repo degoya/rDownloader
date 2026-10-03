@@ -39,6 +39,7 @@ fn subscription() -> NewSubscription {
         schedule: None,
         script_arguments: Vec::new(),
         indexer_search: rd_core::IndexerSearch::default(),
+        git_release: rd_core::GitReleaseOptions::default(),
         secret_ref: None,
     }
 }

@@ -44,9 +44,9 @@ END = "<!-- END wit-reference -->"
 
 # `(RD-150-03)`, `(RD-103-00, RD-106-01)`, `(RD-110-33, ADR 0011)`, with the space before it,
 # also when the WIT broke the line right before the parenthesis.
-TRACE_ID = r"(?:RD-\d{3}-\d{2}|ADR \d{4})"
+TRACE_ID = r"(?:RD-\d{3,4}-\d{2}|ADR \d{4})"
 TRACE = re.compile(rf"[ \t]*(?:\n[ \t]*)?\({TRACE_ID}(?:,\s*{TRACE_ID})*\)")
-JOB_ID = re.compile(r"\bRD-\d{3}-\d{2}\b")
+JOB_ID = re.compile(r"\bRD-\d{3,4}-\d{2}\b")
 
 
 class Refusal(Exception):

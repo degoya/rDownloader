@@ -734,12 +734,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
          queue is going in one number, and get_transfer_stats answers it over time.",
     ),
     omitted(
-        "Bandwidth budgets and quiet hours",
+        "Editing bandwidth profiles and the weekly schedule",
         "Settings > Bandwidth",
         &[any("/api/v1/bandwidth/")],
         "The limit in force is in the settings document, which update_settings writes. \
          Profiles and the weekly schedule are a calendar grid, and a schedule edited by \
-         something that cannot see it is how a quiet hour lands on the wrong day.",
+         something that cannot see it is how a quiet hour lands on the wrong day. Reading the \
+         status, listing the profiles and switching one on for a while are tools (RD-190-20).",
     ),
     omitted(
         "The health probe",
@@ -762,6 +763,15 @@ pub(crate) static COVERAGE: &[Capability] = &[
          launchers and the updater there. A tool that stops the service ends the MCP session \
          that called it, and the backup before an update is the first step of a version \
          switch that no agent performs.",
+    ),
+    omitted(
+        "Setting a new administrator password without the current one",
+        "-",
+        &[only("/api/v1/auth/password/reset", "POST")],
+        "rdownloader auth reset-password on the machine the service runs on, and nothing else \
+         (RD-190-24): only the local control token opens the route, from this machine. \
+         Whoever holds the data directory may recover the installation; an agent that merely \
+         reaches the service must not be able to replace the password and end every session.",
     ),
     omitted(
         "Installing an update",
@@ -885,6 +895,21 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Trying a routing regular expression",
         "Settings > Routing",
         &[any("/api/v1/category-rules/test-regex")],
+    ),
+    // ---- RD-190-20 ----
+    covered(
+        "Pausing the whole queue for a while",
+        "Downloads, transfer rail",
+        &[any("/api/v1/queue/pause")],
+    ),
+    covered(
+        "Switching a bandwidth profile by hand, and the bandwidth status",
+        "Settings > Bandwidth",
+        &[
+            any("/api/v1/bandwidth/manual"),
+            any("/api/v1/bandwidth/status"),
+            only("/api/v1/bandwidth/profiles", "GET"),
+        ],
     ),
 ];
 

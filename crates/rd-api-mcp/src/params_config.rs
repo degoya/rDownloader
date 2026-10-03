@@ -189,6 +189,8 @@ pub(crate) struct CreateCategoryParams {
     pub recursive_unpack: Option<bool>,
     /// Whether every archive set is unpacked into a folder of its own, named after it.
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether packages are scanned by ClamAV before they count as finished.
+    pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     /// Whether a failed verification blocks the unpack and everything after it.
     pub safe_postproc: Option<bool>,
@@ -212,6 +214,8 @@ pub(crate) struct UpdateCategoryParams {
     pub recursive_unpack: Option<bool>,
     /// Whether every archive set is unpacked into a folder of its own, named after it.
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether packages are scanned by ClamAV before they count as finished.
+    pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     /// Whether a failed verification blocks the unpack and everything after it.
     pub safe_postproc: Option<bool>,
@@ -219,8 +223,8 @@ pub(crate) struct UpdateCategoryParams {
     pub upload_enabled: Option<bool>,
     pub upload_remote: Option<String>,
     /// Fields to reset to the global default: postprocess_level, script, cleanup_extensions,
-    /// recursive_unpack, unpack_to_subfolder, sfv_verify, safe_postproc, delete_par2,
-    /// upload_enabled, upload_remote.
+    /// recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc,
+    /// delete_par2, upload_enabled, upload_remote.
     pub clear: Option<Vec<String>>,
 }
 

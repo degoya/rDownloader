@@ -62,7 +62,14 @@
       "signature": "signature, key, publisher, trust",
       "managed_tools": "download tools, install automatically, update",
       "updates": "update, upgrade, new version, beta, release channel",
-      "indexers": "indexer, newznab, nzb search, api key"
+      "indexers": "indexer, newznab, nzb search, api key, list style, cover"
     }
+  },
+  "connection": {
+    "lost": "Connection to the service lost",
+    "lost_hint": "The view updates again as soon as the service is reachable.",
+    "view_failed": "This view could not be loaded",
+    "view_failed_hint": "It loads as soon as the service is reachable again.",
+    "reload": "Reload"
   }
 }

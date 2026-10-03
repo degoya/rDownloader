@@ -46,6 +46,7 @@ impl HostConnection {
                     "plugin.net_connect_failed",
                     format!("Could not connect to the server: {error}"),
                 )
+                .with_param("error", &error)
             })?;
         // Nagle would batch the small command lines these protocols exchange behind a delay.
         let _ = stream.set_nodelay(true);
@@ -125,6 +126,7 @@ where
                 "plugin.net_io_failed",
                 format!("The connection failed: {error}"),
             )
+            .with_param("error", &error)
         })
 }
 

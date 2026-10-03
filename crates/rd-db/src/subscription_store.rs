@@ -57,6 +57,8 @@ pub struct NewSubscription {
     pub script_arguments: Vec<String>,
     /// The search parameters an indexer subscription sends (RD-180-20), already validated.
     pub indexer_search: rd_core::IndexerSearch,
+    /// Which assets a git-release subscription downloads (RD-190-13), already validated.
+    pub git_release: rd_core::GitReleaseOptions,
     pub secret_ref: Option<String>,
 }
 
@@ -76,7 +78,8 @@ pub struct NewSubscriptionItem {
     /// What the source said about the release, already filtered (RD-101-17).
     pub attributes: BTreeMap<String, String>,
     /// The archive password the source announced. Stored apart from `attributes` because it
-    /// is a secret, and read back only by the intake that hands it to the package.
+    /// is a secret: in the vault, never in the row (RD-190-04), and read back only by the
+    /// intake that hands it to the package and the review list that shows it.
     pub password: Option<String>,
 }
 
@@ -96,12 +99,12 @@ pub struct PollResult {
 const COLUMNS: &str = "id, name, url, kind, enabled, mode, category_id, priority, \
      interval_seconds, filters_json, backlog_json, category_map_json, \
      source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-     script_arguments_json, indexer_search_json, primed, last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
+     script_arguments_json, indexer_search_json, git_release_json, primed, last_run_at, next_run_at, consecutive_failures, last_error, etag, last_modified, \
      secret_ref, created_at, updated_at";
 
 const ITEM_COLUMNS: &str = "id, subscription_id, item_key, title, url, published_at, \
      duration_seconds, state, reason, source_category, media_type, attributes_json, \
-     password, discovered_at";
+     discovered_at";
 
 /// Serializes the attribute map, or `None` when there is nothing to say.
 ///
@@ -360,6 +363,7 @@ pub(crate) async fn create(
         schedule: input.schedule,
         script_arguments: input.script_arguments,
         indexer_search: input.indexer_search,
+        git_release: input.git_release,
         created_at: now,
         updated_at: now,
     };
@@ -369,9 +373,9 @@ pub(crate) async fn create(
         "INSERT INTO subscriptions (id, name, url, kind, enabled, mode, category_id, priority, \
          interval_seconds, filters_json, backlog_json, category_map_json, \
          source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
-         script_arguments_json, indexer_search_json, primed, consecutive_failures, secret_ref, \
-         created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+         script_arguments_json, indexer_search_json, git_release_json, primed, \
+         consecutive_failures, secret_ref, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
     )
     .bind(value.id.to_string())
     .bind(&value.name)
@@ -393,6 +397,7 @@ pub(crate) async fn create(
     .bind(value.schedule.as_deref())
     .bind(serde_json::to_string(&value.script_arguments)?)
     .bind(serde_json::to_string(&value.indexer_search)?)
+    .bind(serde_json::to_string(&value.git_release)?)
     .bind(value.secret_ref.as_deref())
     .bind(value.created_at)
     .bind(value.updated_at)
@@ -409,6 +414,10 @@ pub(crate) async fn create(
 /// A changed schedule clears the next run (RD-130-19): the time the old expression computed
 /// means nothing under the new one, and the poller arms a cleared scheduled row with the new
 /// expression's next occurrence rather than running it.
+///
+/// A changed address or changed git-release options clear the stored validators
+/// (RD-190-13): an unchanged release list answers `304`, and the assets the new options
+/// select would otherwise be looked at only once the repository publishes something else.
 pub(crate) async fn update(
     connection: &mut SqliteConnection,
     id: SubscriptionId,
@@ -429,6 +438,7 @@ pub(crate) async fn update(
         _ => None,
     };
     let secret_ref = input.secret_ref.or(existing.secret_ref);
+    let git_release = serde_json::to_string(&input.git_release)?;
     let event = changed_event();
     let mut tx = connection.begin().await?;
     sqlx::query(
@@ -436,7 +446,10 @@ pub(crate) async fn update(
          category_id = ?, priority = ?, interval_seconds = ?, filters_json = ?, \
          backlog_json = ?, category_map_json = ?, source_categories_json = ?, \
          every_release = ?, view = ?, autoplay = ?, card_ratio = ?, secret_ref = ?, \
-         script_arguments_json = ?, indexer_search_json = ?, \
+         script_arguments_json = ?, indexer_search_json = ?, git_release_json = ?, \
+         etag = CASE WHEN url IS ? AND git_release_json IS ? THEN etag ELSE NULL END, \
+         last_modified = CASE WHEN url IS ? AND git_release_json IS ? THEN last_modified \
+           ELSE NULL END, \
          next_run_at = CASE WHEN schedule IS ? THEN next_run_at ELSE NULL END, schedule = ?, \
          updated_at = ? \
          WHERE id = ?",
@@ -460,6 +473,11 @@ pub(crate) async fn update(
     .bind(secret_ref.as_deref())
     .bind(serde_json::to_string(&input.script_arguments)?)
     .bind(serde_json::to_string(&input.indexer_search)?)
+    .bind(git_release.as_str())
+    .bind(input.url.as_str())
+    .bind(git_release.as_str())
+    .bind(input.url.as_str())
+    .bind(git_release.as_str())
     .bind(input.schedule.as_deref())
     .bind(input.schedule.as_deref())
     .bind(Utc::now())
@@ -560,7 +578,11 @@ pub(crate) async fn delete(
     Ok((secret_ref, event))
 }
 
-/// Archives the items of one poll and returns the ones that were genuinely new.
+/// The archive password each recorded row is to get, by row id.
+pub(crate) type ItemPasswords = Vec<(String, String)>;
+
+/// Archives the items of one poll and returns the ones that were genuinely new, with the
+/// archive password each recorded row is to get.
 ///
 /// `INSERT … ON CONFLICT DO NOTHING` against the UNIQUE index is what makes this safe to
 /// repeat: an interrupted poll, an overlapping one, or a feed that re-lists the same entry
@@ -570,9 +592,10 @@ pub(crate) async fn record_items(
     connection: &mut SqliteConnection,
     subscription_id: SubscriptionId,
     items: Vec<NewSubscriptionItem>,
-) -> Result<(Vec<SubscriptionItem>, EventEnvelope)> {
+) -> Result<((Vec<SubscriptionItem>, ItemPasswords), EventEnvelope)> {
     let now = Utc::now();
     let mut created = Vec::new();
+    let mut passwords = ItemPasswords::new();
     let event = changed_event();
     let mut tx = connection.begin().await?;
     for item in items {
@@ -580,14 +603,13 @@ pub(crate) async fn record_items(
         let result = sqlx::query(
             "INSERT INTO subscription_items (id, subscription_id, item_key, title, url, \
              published_at, duration_seconds, state, reason, source_category, media_type, \
-             attributes_json, password, discovered_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             attributes_json, discovered_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(subscription_id, item_key) DO UPDATE SET \
                url = excluded.url, \
                media_type = COALESCE(excluded.media_type, subscription_items.media_type), \
                attributes_json = \
-                 COALESCE(excluded.attributes_json, subscription_items.attributes_json), \
-               password = COALESCE(excluded.password, subscription_items.password) \
+                 COALESCE(excluded.attributes_json, subscription_items.attributes_json) \
              WHERE subscription_items.state = 'pending' \
              RETURNING id",
         )
@@ -605,7 +627,6 @@ pub(crate) async fn record_items(
         // `None` rather than an empty object, so the COALESCE above cannot blank a refreshed
         // row's attributes when a later poll answers without the extended block.
         .bind(attributes_json(&item.attributes))
-        .bind(item.password.as_deref())
         .bind(now)
         // The returned id tells an insert from a refresh: an update keeps the row's own id,
         // so only a match on the one just generated is a genuinely new item. `rows_affected`
@@ -613,6 +634,11 @@ pub(crate) async fn record_items(
         .fetch_optional(&mut *tx)
         .await?
         .map(|row| sqlx::Row::get::<String, _>(&row, "id"));
+        // A new row and a refreshed pending one both take the announced password; the vault
+        // holds it, `Database::record_subscription_items` puts it there (RD-190-04).
+        if let (Some(row), Some(password)) = (&result, &item.password) {
+            passwords.push((row.clone(), password.clone()));
+        }
         if result.as_deref() == Some(id.to_string().as_str()) {
             created.push(SubscriptionItem {
                 id,
@@ -634,7 +660,7 @@ pub(crate) async fn record_items(
     }
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok((created, event))
+    Ok(((created, passwords), event))
 }
 
 pub(crate) async fn set_item_state(
@@ -725,6 +751,9 @@ pub(crate) async fn clear_history(
 ///
 /// `primed` is set here and never cleared: after one completed poll the backlog decision has
 /// been made, and re-applying it later would silently discard everything published since.
+/// A failed poll does not prime (RD-190-13): it decided nothing, and a first poll that a rate
+/// limit or a network error stopped must leave the backlog decision to the next one, or that
+/// one takes the whole history as new.
 pub(crate) async fn finish_run(
     connection: &mut SqliteConnection,
     subscription_id: SubscriptionId,
@@ -751,7 +780,7 @@ pub(crate) async fn finish_run(
     sqlx::query(
         "UPDATE subscriptions SET last_run_at = ?, next_run_at = ?, consecutive_failures = ?, \
          last_error = ?, etag = COALESCE(?, etag), last_modified = COALESCE(?, last_modified), \
-         primed = 1, updated_at = ? WHERE id = ?",
+         primed = CASE WHEN ? IS NULL THEN 1 ELSE primed END, updated_at = ? WHERE id = ?",
     )
     .bind(now)
     .bind(result.next_run_at)
@@ -759,6 +788,7 @@ pub(crate) async fn finish_run(
     .bind(result.error.as_deref())
     .bind(result.etag.as_deref())
     .bind(result.last_modified.as_deref())
+    .bind(result.error.as_deref())
     .bind(now)
     .bind(subscription_id.to_string())
     .execute(&mut *tx)
@@ -776,6 +806,7 @@ const fn kind_string(kind: SubscriptionKind) -> &'static str {
         SubscriptionKind::Indexer => "indexer",
         SubscriptionKind::SiteRule => "site_rule",
         SubscriptionKind::Script => "script",
+        SubscriptionKind::GitRelease => "git_release",
     }
 }
 
@@ -805,6 +836,7 @@ const fn reason_string(reason: FilterReason) -> &'static str {
         FilterReason::LanguageNotWanted => "language_not_wanted",
         FilterReason::ResolutionTooLow => "resolution_too_low",
         FilterReason::Backlog => "backlog",
+        FilterReason::AssetNotWanted => "asset_not_wanted",
     }
 }
 
@@ -830,6 +862,7 @@ struct SubscriptionRow {
     schedule: Option<String>,
     script_arguments_json: String,
     indexer_search_json: String,
+    git_release_json: String,
     primed: i64,
     last_run_at: Option<DateTime<Utc>>,
     next_run_at: Option<DateTime<Utc>>,
@@ -856,6 +889,7 @@ impl TryFrom<SubscriptionRow> for Subscription {
                 "indexer" => SubscriptionKind::Indexer,
                 "site_rule" => SubscriptionKind::SiteRule,
                 "script" => SubscriptionKind::Script,
+                "git_release" => SubscriptionKind::GitRelease,
                 _ => SubscriptionKind::Media,
             },
             enabled: row.enabled != 0,
@@ -929,6 +963,10 @@ impl TryFrom<SubscriptionRow> for Subscription {
             // something else than the person configured (RD-180-20).
             indexer_search: serde_json::from_str(&row.indexer_search_json)
                 .context("subscription search parameters are unreadable")?,
+            // Refused as well: a subscription that lost its platform filter would download
+            // every file of every release (RD-190-13).
+            git_release: serde_json::from_str(&row.git_release_json)
+                .context("subscription git-release options are unreadable")?,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -949,7 +987,6 @@ struct ItemRow {
     source_category: Option<String>,
     media_type: Option<String>,
     attributes_json: Option<String>,
-    password: Option<String>,
     discovered_at: DateTime<Utc>,
 }
 
@@ -1018,6 +1055,7 @@ impl TryFrom<ItemRow> for SubscriptionItem {
                 "language_not_wanted" => Some(FilterReason::LanguageNotWanted),
                 "resolution_too_low" => Some(FilterReason::ResolutionTooLow),
                 "backlog" => Some(FilterReason::Backlog),
+                "asset_not_wanted" => Some(FilterReason::AssetNotWanted),
                 _ => None,
             }),
             source_category: row.source_category,
@@ -1029,7 +1067,8 @@ impl TryFrom<ItemRow> for SubscriptionItem {
                 .as_deref()
                 .and_then(|value| serde_json::from_str(value).ok())
                 .unwrap_or_default(),
-            password: row.password,
+            // In the vault (RD-190-04); revealed for the answers that show it.
+            password: None,
             discovered_at: row.discovered_at,
         })
     }

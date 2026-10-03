@@ -144,7 +144,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.8.1"
+version = "1.9.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.98"
@@ -157,6 +157,9 @@ anyhow = "1"
 arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
 argon2 = "0.6"
 async-trait = "0.1"
+# The stand-in identity provider's signing keys in the tests (`rd_authn::oidc_testing`, RD-190-15):
+# the crypto provider rustls, russh and the object store already link.
+aws-lc-rs = "1.18"
 axum = { version = "0.8", features = ["http1", "json", "macros", "multipart", "tokio"] }
 base64 = "0.23"
 boa_engine = { version = "0.22", default-features = false, features = ["fuzz"] }
@@ -207,6 +210,10 @@ notify-rust = { version = "4", default-features = false, features = ["z"] }
 # S3-compatible object storage (RD-150-04): signing, multipart and the credential providers of
 # the Apache Arrow project, on the reqwest, rustls and aws-lc-rs this workspace already links.
 # Azure and GCS are features of the same crate, which RD-150-05 switches on.
+# OpenID Connect sign-in (RD-190-15, ADR 0021): discovery, key set, ID-token verification, PKCE
+# and the code exchange. Without its own HTTP stack — `rd_api_core::oidc_client` hands it the
+# workspace's reqwest.
+openidconnect = { version = "4", default-features = false }
 object_store = { version = "0.14", default-features = false, features = ["aws"] }
 open = "5.4.2"
 percent-encoding = "2.3"
@@ -222,6 +229,9 @@ regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["cookies", "gzip", "http2", "json", "multipart", "rustls", "socks", "stream"] }
 rmcp = { version = "3.2", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
 rust-embed = { version = "8", features = ["axum"] }
+# The terminal's echo switched off for `rdownloader auth reset-password --prompt` (RD-190-24):
+# already in the tree beneath tempfile and others, so only its `termios` feature is new.
+rustix = { version = "1.1", default-features = false, features = ["std", "termios"] }
 rcgen = { version = "0.14", default-features = false, features = ["aws_lc_rs", "crypto", "pem"] }
 rustls = "0.23"
 rustls-platform-verifier = "0.7"
@@ -271,6 +281,9 @@ webauthn-rs = "0.6.1-dev"
 # protocol types; a version skew here would compare structurally identical types that the
 # compiler considers unrelated.
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
+# Windows only: the link count of an unpacked file (RD-190-05), through `GetFileInformationByHandle`
+# behind a safe call. Already in the tree through `walkdir`/`same-file`, so it adds no crate.
+winapi-util = "0.1.11"
 wit-bindgen = "0.62"
 zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 

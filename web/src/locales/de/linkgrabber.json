@@ -2,7 +2,7 @@
   "title": "LinkGrabber",
   "actions": {
     "add_links": "Links hinzufügen",
-    "import_files": "NZB/Torrent importieren",
+    "import_files": "Importieren",
     "check_links": "Links prüfen",
     "enqueue_all": "Alle laden",
     "enqueue_paused": "Pausiert übernehmen",
@@ -16,7 +16,8 @@
     "delete_package": "Paket löschen",
     "delete_nzb": "NZB-Import löschen",
     "details": "Details",
-    "link_actions": "Aktionen für den Link"
+    "link_actions": "Aktionen für den Link",
+    "more": "Weitere Aktionen"
   },
   "sort": {
     "label": "Sortierung",
@@ -47,8 +48,9 @@
   "select_all_hint": "Alle Einträge auswählen",
   "bulk": {
     "enqueued": "{links} Links und {nzbs} NZB-Importe übernommen",
-    "free_download": "{count} Link wird ohne Konto geladen (Free/Direkt) | {count} Links werden ohne Konto geladen (Free/Direkt)",
-    "enqueue_failed": "{count} Paket konnte nicht übernommen werden | {count} Pakete konnten nicht übernommen werden"
+    "free_download": "{count} Link wird ohne Konto geladen (Gratis/Direkt) | {count} Links werden ohne Konto geladen (Gratis/Direkt)",
+    "enqueue_failed": "{count} Paket konnte nicht übernommen werden | {count} Pakete konnten nicht übernommen werden",
+    "removing": "{done} von {total} gelöscht …"
   },
   "package": {
     "select": "Paket auswählen",
@@ -78,7 +80,7 @@
       "enqueued": "übernommen",
       "unresolvable": "nicht auflösbar"
     },
-    "no_account": "Kein Konto – es wird ein Free-/Direktdownload versucht",
+    "no_account": "Kein Konto – es wird ein Gratis-/Direktdownload versucht",
     "request": {
       "title": "Browser-Anfrage",
       "effective_url": "Effektive URL",
@@ -170,7 +172,7 @@
     "batch": "Dateiimport abgeschlossen",
     "batch_description": "{created} importiert, {duplicates} Duplikate, {errors} Fehler.",
     "container_imported": "Container importiert",
-    "container_imported_description": "„{name}“ hat {count} Link(s) in den LinkGrabber gelegt.",
+    "container_imported_description": "„{name}“ hat {count} Link in den LinkGrabber gelegt. | „{name}“ hat {count} Links in den LinkGrabber gelegt.",
     "container_failed": "Container-Import fehlgeschlagen"
   },
   "confirm": {

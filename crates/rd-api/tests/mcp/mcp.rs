@@ -869,6 +869,7 @@ async fn no_tool_answers_with_a_stored_credential() {
             secret_ref: Some(reference.clone()),
             categories: Vec::new(),
             enabled: false,
+            list_style: rd_core::IndexerListStyle::Compact,
         })
         .await
         .expect("indexer");
@@ -1023,6 +1024,47 @@ async fn the_plugin_section_answers_with_the_route_s_inventory() {
             .is_some_and(serde_json::Value::is_array),
         "the plugins section dropped the incompatible half: {answer}"
     );
+}
+
+/// RD-190-16: an agent reading the indexers sees each one's list style.
+///
+/// Defining an indexer stays out of MCP (it takes a key in), so the style is set where a person
+/// sets it -- here, the store -- and only read back over the tool.
+#[tokio::test]
+async fn an_indexer_s_list_style_is_read_over_mcp() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (router, database, _) = test_parts(directory.path()).await;
+    for (name, list_style) in [
+        ("Compact", rd_core::IndexerListStyle::Compact),
+        ("Detailed", rd_core::IndexerListStyle::Detailed),
+    ] {
+        database
+            .create_indexer(rd_db::NewIndexer {
+                name: name.to_owned(),
+                url: "https://indexer.invalid/api".parse().expect("url"),
+                secret_ref: None,
+                categories: Vec::new(),
+                enabled: true,
+                list_style,
+            })
+            .await
+            .expect("indexer");
+    }
+    let session = handshake(&router, API_BEARER).await;
+
+    let listed = tool_result(&router, &session, 2, "list_indexers", serde_json::json!({})).await;
+    let styles: Vec<(&str, &str)> = listed
+        .as_array()
+        .expect("indexers")
+        .iter()
+        .map(|row| {
+            (
+                row["name"].as_str().unwrap_or_default(),
+                row["list_style"].as_str().unwrap_or_default(),
+            )
+        })
+        .collect();
+    assert_eq!(styles, [("Compact", "compact"), ("Detailed", "detailed")]);
 }
 
 /// RD-120-37: the view and autoplay settings travel through the MCP definition passthrough.

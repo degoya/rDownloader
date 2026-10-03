@@ -569,11 +569,11 @@ jobs:
   # pushed when the tap failed. Only the newest plain vX.Y.Z tag is pushed, as with the image's
   # `:latest`, so a re-run of an old tag or a pre-release cannot move the channels back.
   # The same job submits the winget manifests (RD-180-07) as a pull request to
-  # microsoft/winget-pkgs with komac, from the fork under the account of the classic token in
+  # microsoft/winget-pkgs with komac, from the fork <account>/winget-pkgs of the classic token in
   # WINGET_TOKEN (scope public_repo), and pushes the AUR package rdownloader-bin (RD-180-08) to
   # ssh://aur@aur.archlinux.org/rdownloader-bin.git with the key in AUR_SSH_KEY, against the AUR's
   # published host key; the AUR push also needs the repository variable AUR_ENABLED set to true,
-  # which stays off until the AUR account exists.
+  # which stays off until the AUR account exists, and a PKGBUILD that names its maintainer.
   package-managers:
     needs: publish
     runs-on: ubuntu-24.04
@@ -684,13 +684,19 @@ jobs:
           README: rendered/scoop-README.md
           REF_NAME: ${{ github.ref_name }}
         run: *push-channel
-      # komac forks microsoft/winget-pkgs under the token's account if needed and opens the pull
-      # request from there; the token reaches it as GITHUB_TOKEN, never on a command line.
+      # komac opens the pull request from the fork <account>/winget-pkgs of the token's account,
+      # which must exist (komac 2.16 creates none); the token reaches komac as GITHUB_TOKEN and gh
+      # as GH_TOKEN, never on a command line. komac starts its branch in the fork at
+      # microsoft/winget-pkgs' newest commit, and GitHub refused that ref in 1.8.1 ("Ref cannot be
+      # created", the fork ~1500 commits behind; RD-190-10). So the fork is synced first with
+      # GitHub's own merge-upstream, and a refused branch — nothing is created then — is tried
+      # again after a pause, synced again; any other failure is not, so no pull request doubles.
       - name: Submit the manifests to winget-pkgs
         if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.winget == 'true' }}
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
           KOMAC_VERSION: 2.16.0
           KOMAC_SHA256: 7d2707fa6210f2789a3702de49fbd150b736dbf426ee0b9bc8e098736f9fd82d
           KOMAC_CREATED_WITH: rDownloader release workflow
@@ -702,7 +708,20 @@ jobs:
             "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/${archive}"
           echo "${KOMAC_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check --quiet
           tar --extract --gzip --file "${RUNNER_TEMP}/${archive}" --directory "${RUNNER_TEMP}" komac
-          "${RUNNER_TEMP}/komac" submit rendered/winget --yes
+          fork="$(gh api user --jq .login)/winget-pkgs"
+          for attempt in 1 2 3; do
+            if ! gh api --method POST "repos/${fork}/merge-upstream" -f branch=master > /dev/null; then
+              echo "::warning::${fork} could not be synced with microsoft/winget-pkgs"
+            fi
+            if "${RUNNER_TEMP}/komac" submit rendered/winget --yes 2>&1 | tee "${RUNNER_TEMP}/komac.log"; then
+              exit 0
+            fi
+            if [[ "${attempt}" -eq 3 ]] || ! grep -q 'failed to create branch' "${RUNNER_TEMP}/komac.log"; then
+              exit 1
+            fi
+            echo "::warning::GitHub refused komac's branch in ${fork} (attempt ${attempt}); trying again in 60 s"
+            sleep 60
+          done
       # The AUR accepts only its own host key; the fingerprint is the one aur.archlinux.org
       # publishes. The key file lives in the runner's temporary folder and is never printed.
       - name: Push the package to the AUR
@@ -714,6 +733,10 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          if ! scripts/package-managers.sh --check-aur rendered; then
+            echo "::error::AUR_ENABLED is true, but the PKGBUILD names no AUR maintainer; put the account into packaging/aur/PKGBUILD.in — nothing is pushed to the AUR"
+            exit 1
+          fi
           ssh_dir="${RUNNER_TEMP}/aur-ssh"
           install -d -m 700 "${ssh_dir}"
           ( umask 077; printf '%s\n' "${AUR_SSH_KEY}" > "${ssh_dir}/key" )
@@ -873,11 +896,13 @@ jobs:
           git push --quiet --force origin HEAD:refs/heads/main
           echo "the apt and dnf repositories: rdownloader ${REF_NAME#v} (${size_mb} MB)"
 
-  # RD-170-10: the extension follows the release into the two stores — the Chrome ZIP is uploaded
+  # RD-170-10: the extension follows the release into the stores — the Chrome ZIP is uploaded
   # to the Chrome Web Store and submitted for review (scripts/chrome-webstore.sh, API v2, secrets
   # CWS_CLIENT_ID/CWS_CLIENT_SECRET/CWS_REFRESH_TOKEN, repository variable CWS_PUBLISHER_ID), the
   # Firefox build to the AMO listing (scripts/firefox-amo.sh submit, secrets AMO_JWT_ISSUER/
-  # AMO_JWT_SECRET). Both publish after the stores' own review; neither returns a file for the
+  # AMO_JWT_SECRET), and the same Chrome ZIP to Microsoft Edge Add-ons for certification
+  # (RD-190-11: scripts/edge-addons.sh, API v1.1, secrets EDGE_CLIENT_ID/EDGE_API_KEY, repository
+  # variable EDGE_PRODUCT_ID). All publish after the stores' own review; none returns a file for the
   # release. Each script warns and succeeds when its credentials are missing or its store refuses,
   # and the job continues on error on top of that: the release is out by then. Only the newest
   # plain vX.Y.Z tag is submitted, as with the tap and the bucket, so a re-run of an old tag or a
@@ -933,16 +958,63 @@ jobs:
         run: |
           unzip -q browser-extensions/rdownloader-firefox.zip -d firefox
           scripts/firefox-amo.sh submit firefox
+      - name: Submit the Chrome extension to Microsoft Edge Add-ons
+        if: ${{ !cancelled() && steps.gate.outputs.submit == 'true' }}
+        env:
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+        run: scripts/edge-addons.sh publish browser-extensions/rdownloader-chrome.zip
+
+  # The arm64 image as `container` builds it, but natively on an arm runner and loaded instead of
+  # pushed, through the same smoke test (RD-190-12): before it, the arm64 half of the published
+  # image was built under QEMU and never started. The pushed image is built again by `container`
+  # from the same Dockerfile, binary and plugins; what this proves is that they run on arm64.
+  container-arm64:
+    needs: [plugins, linux-binaries]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: plugins
+          path: dist/plugins
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unpacked-rdownloader-linux-aarch64
+          path: release-binaries
+      - name: Lay out the arm64 binary for the build context
+        shell: bash
+        run: |
+          mkdir -p dist/docker/linux-arm64
+          tar --extract --file release-binaries/rdownloader-linux-aarch64.unpacked.tar \
+            --directory dist/docker/linux-arm64 ./rdownloader
+          file dist/docker/linux-arm64/rdownloader
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the arm64 image for the smoke test
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: prebuilt
+          platforms: linux/arm64
+          load: true
+          tags: rdownloader:smoke
+      - name: Smoke-test the arm64 image before anything is pushed
+        run: scripts/docker-smoke.sh rdownloader:smoke
 
   # The image is built from the binaries above, not compiled again (owner, 2026-09-26): the arm64
   # half runs only apt, pip and the `--version` guard under QEMU. Nothing is pushed before the
-  # amd64 image has passed the same smoke test as CI.
+  # amd64 image here and the arm64 image in `container-arm64` have passed the same smoke test as CI.
   #
   # It waits for `plugins` and the two Linux legs alone (RD-150-10), not for Windows and macOS: the
   # executable it copies is the one in the Linux archives, taken from them before `packages` adds
   # the plugins, which changes no other entry.
   container:
-    needs: [plugins, linux-binaries]
+    needs: [plugins, linux-binaries, container-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:

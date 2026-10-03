@@ -138,6 +138,47 @@ async fn an_older_release_is_not_offered() {
     assert!(body["error_code"].is_null(), "{body}");
 }
 
+/// A newer version reaches a rule that asks for `update_available`, once however often the
+/// check finds it again (RD-190-19).
+#[tokio::test]
+async fn an_available_version_is_announced_once_however_often_it_is_found() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, fetcher) = served(directory.path()).await;
+    fetcher.serve(STABLE, signed(&manifest("99.0.0", 10), &key()));
+    let (status, target) = post_json(
+        &harness.router,
+        "/api/v1/notifications/targets",
+        json!({ "name": "hook", "kind": "webhook", "endpoint": "http://127.0.0.1:9/hook" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{target}");
+    let (status, rule) = post_json(
+        &harness.router,
+        "/api/v1/notifications/rules",
+        json!({ "name": "updates", "target_id": target["id"], "events": ["update_available"] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{rule}");
+
+    for _ in 0..3 {
+        let (status, body) =
+            post_json(&harness.router, "/api/v1/system/update/check", json!({})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["available"]["version"], "99.0.0", "{body}");
+    }
+    let deliveries = harness
+        .database
+        .list_notification_deliveries(100)
+        .await
+        .expect("deliveries");
+    assert_eq!(deliveries.len(), 1, "{deliveries:?}");
+    assert_eq!(
+        deliveries[0].event,
+        rd_notify::NotificationEvent::UpdateAvailable
+    );
+    assert!(deliveries[0].title.contains("99.0.0"), "{deliveries:?}");
+}
+
 /// A forged manifest is reported and offers nothing.
 #[tokio::test]
 async fn a_forged_manifest_is_reported_and_offers_nothing() {
@@ -569,4 +610,82 @@ async fn a_package_manager_installation_does_not_download_in_the_background() {
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["code"], "update.install_unsupported", "{body}");
     assert_eq!(artifact_fetches(&fetcher), 0);
+}
+
+/// Opens the capture event stream as an agent that names itself with `user_agent`, or with
+/// nothing at all, like an agent from before 1.9. The response is returned unread: the stream
+/// stays open for as long as it is held.
+async fn capture_stream(
+    router: &axum::Router,
+    user_agent: Option<&str>,
+) -> axum::response::Response {
+    use tower::ServiceExt;
+
+    let mut request = axum::http::Request::builder()
+        .uri("/api/v1/capture/events")
+        .header(axum::http::header::HOST, "127.0.0.1:8710")
+        .header(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", common::CAPTURE_BEARER),
+        );
+    if let Some(user_agent) = user_agent {
+        request = request.header(axum::http::header::USER_AGENT, user_agent);
+    }
+    let response = router
+        .clone()
+        .oneshot(request.body(axum::body::Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    response
+}
+
+/// The update view shows the version of each running capture agent beside the service's, and
+/// says when the agent is older (RD-190-07). Without a running agent there is nothing to say.
+#[tokio::test]
+async fn the_status_names_the_running_capture_agents_version() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert_eq!(body["capture_agents"], json!([]), "{body}");
+
+    let current = capture_stream(
+        &harness.router,
+        Some(&format!(
+            "rdownloader-capture/{}",
+            env!("CARGO_PKG_VERSION")
+        )),
+    )
+    .await;
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert_eq!(
+        body["capture_agents"],
+        json!([{ "version": env!("CARGO_PKG_VERSION"), "outdated": false }]),
+        "{body}"
+    );
+    drop(current);
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert_eq!(
+        body["capture_agents"],
+        json!([]),
+        "a closed stream is an agent that no longer runs: {body}"
+    );
+
+    let older = capture_stream(&harness.router, Some("rdownloader-capture/0.1.0")).await;
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert_eq!(
+        body["capture_agents"],
+        json!([{ "version": "0.1.0", "outdated": true }]),
+        "{body}"
+    );
+    drop(older);
+
+    // An agent from before 1.9 names no version and is older by that alone.
+    let _silent = capture_stream(&harness.router, None).await;
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert_eq!(
+        body["capture_agents"],
+        json!([{ "version": null, "outdated": true }]),
+        "{body}"
+    );
 }

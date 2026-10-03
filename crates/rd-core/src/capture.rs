@@ -291,6 +291,12 @@ where
 /// still deserializes unchanged.
 pub const CAPTURE_CONTRACT_VERSION: u32 = 2;
 
+/// The product name the desktop capture agent sends in its `User-Agent`, followed by `/` and its
+/// version (`rdownloader-capture/1.9.0`). The service reads the version from it to tell the
+/// update view which version each connected agent runs (RD-190-07); an agent from before 1.9
+/// sends no `User-Agent` at all.
+pub const CAPTURE_AGENT_PRODUCT: &str = "rdownloader-capture";
+
 /// Request headers a capture client may forward with an intercepted download.
 /// Everything else is dropped: `referer` and `user-agent` have dedicated fields,
 /// transport headers are owned by the download engine, and credentials are

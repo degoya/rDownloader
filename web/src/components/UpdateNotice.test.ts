@@ -42,7 +42,8 @@ function status(available: UpdateStatus['available']): UpdateStatus {
     error_code: null,
     available,
     install: null,
-    download: null
+    download: null,
+    capture_agents: []
   }
 }
 
