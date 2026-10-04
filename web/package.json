@@ -18,7 +18,7 @@
     "@fontsource-variable/ibm-plex-sans": "^5.2.7",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@iconify/vue": "^5.0.3",
-    "@nuxt/ui": "^4.11.2",
+    "@nuxt/ui": "^4.11.3",
     "@vueuse/core": "^14.4.0",
     "driver.js": "^1.8.0",
     "openapi-fetch": "^0.17.0",
@@ -29,7 +29,7 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.137",
+    "@iconify-json/lucide": "^1.2.138",
     "@nuxt/icon": "^2.5.1",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^24.19.0",
@@ -40,8 +40,8 @@
     "playwright": "^1.63.0",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
     "vue-tsc": "^3.1.5"
   }
 }
