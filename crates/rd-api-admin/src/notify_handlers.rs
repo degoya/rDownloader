@@ -5,6 +5,7 @@ use axum::{
     extract::{Path as AxumPath, Query, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_notify::{NotificationEvent, Severity, TargetKind};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -263,20 +264,18 @@ async fn save_target(
     id: Option<rd_core::NotificationTargetId>,
     request: NotificationTargetRequest,
 ) -> Result<rd_notify::NotificationTarget, ApiError> {
-    let name = request.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 100 {
-        return Err(ApiError::bad_request(
-            "notification.name_invalid",
-            "A target name must be between 1 and 100 characters",
-        ));
-    }
-    let endpoint = request.endpoint.trim().to_owned();
-    if endpoint.is_empty() {
-        return Err(ApiError::bad_request(
-            "notification.endpoint_invalid",
-            "A target needs an endpoint",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(100),
+        "notification.name_invalid",
+        "A target name must be between 1 and 100 characters",
+    )?;
+    let endpoint = required_text(
+        &request.endpoint,
+        TextLimit::Unbounded,
+        "notification.endpoint_invalid",
+        "A target needs an endpoint",
+    )?;
     if request.kind == TargetKind::Plugin {
         // Refused now rather than at delivery time: a target naming a plugin nobody installed,
         // or a destination the host would refuse to send to (RD-130-15), would sit in the list
@@ -384,13 +383,12 @@ async fn save_rule(
     id: Option<rd_core::NotificationRuleId>,
     request: NotificationRuleRequest,
 ) -> Result<rd_notify::NotificationRule, ApiError> {
-    let name = request.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 100 {
-        return Err(ApiError::bad_request(
-            "notification.name_invalid",
-            "A rule name must be between 1 and 100 characters",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(100),
+        "notification.name_invalid",
+        "A rule name must be between 1 and 100 characters",
+    )?;
     let targets = state.database.list_notification_targets().await?;
     if !targets.iter().any(|target| target.id == request.target_id) {
         return Err(ApiError::bad_request(

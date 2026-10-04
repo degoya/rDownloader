@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Arc, Mutex, PoisonError},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use rd_core::{AccountId, AuthProfileId, ProxyProfile, ProxyProfileId};
@@ -13,6 +17,12 @@ use url::Url;
 
 /// Redirect budget shared by the default and the scope-bounded policy.
 const MAX_REDIRECTS: usize = 10;
+
+/// Clients built for one consented replay or one stranger's mirror that the pool keeps at
+/// most; the oldest goes first. Each such key is new with every replay scope and every
+/// address rule, so without a bound they stayed until process exit (audit 1.9.1, TR-16). A
+/// transfer that still holds an evicted client keeps it; only the pool forgets it.
+const MAX_SCOPED_CLIENTS: usize = 32;
 
 /// Global fallback proxy and TLS roots shared by resolver and transfer clients.
 #[derive(Clone, Debug, Default)]
@@ -82,6 +92,34 @@ pub struct ClientContext {
 #[derive(Clone, Default)]
 pub struct ClientPool {
     clients: Arc<RwLock<HashMap<ClientKey, Client>>>,
+    /// The keys of [`MAX_SCOPED_CLIENTS`] in the order they were added. Only touched while
+    /// `clients` is held for writing.
+    scoped: Arc<Mutex<VecDeque<ClientKey>>>,
+    /// The cookie jar each client is built with, keyed by [`ClientKey::jar_key`].
+    ///
+    /// A plugin's requests carry an address rule and a download's do not, so the two get
+    /// different clients — but a hoster sets its session cookies while the plugin resolves and
+    /// wants them back on the download, which until the rule existed was the same client. The
+    /// jar is therefore shared by every client that differs only in its address rule. Only
+    /// touched while `clients` is held for writing, or before a client is built.
+    jars: Arc<Mutex<HashMap<ClientKey, Arc<Jar>>>>,
+}
+
+impl ClientKey {
+    /// Whether the client belongs to one replay or one stranger's address rule rather than to
+    /// an account, a proxy or a profile that comes back.
+    fn is_scoped(&self) -> bool {
+        self.replay_scope.is_some() || self.address_policy.is_some()
+    }
+
+    /// The key whose cookie jar this client shares: itself without the address rule. The rule
+    /// decides which addresses a request may reach, never which session it belongs to.
+    fn jar_key(&self) -> Self {
+        Self {
+            address_policy: None,
+            ..self.clone()
+        }
+    }
 }
 
 impl ClientPool {
@@ -91,7 +129,18 @@ impl ClientPool {
             return Ok(client);
         }
 
-        let client = build_client(&context)?;
+        // The jar a client of the same session already has, or this context's own, which then
+        // becomes that session's jar. Cookies imported into the context's jar (the vault's,
+        // a profile's) are the same for every key with the same `jar_key`, since the key names
+        // where they came from.
+        let jar = Arc::clone(
+            self.jars
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .entry(context.key.jar_key())
+                .or_insert_with(|| Arc::clone(&context.cookie_jar)),
+        );
+        let client = build_client(&context, jar)?;
         let mut clients = self.clients.write().await;
         // Drop the account's previous client (stale cookies) instead of keeping it around.
         clients.retain(|key, _| {
@@ -107,22 +156,50 @@ impl ClientPool {
                     || key.auth_revision == context.key.auth_revision
             });
         }
-        Ok(clients
+        if context.key.is_scoped() {
+            let mut scoped = self.scoped.lock().unwrap_or_else(PoisonError::into_inner);
+            scoped.retain(|key| clients.contains_key(key));
+            if !clients.contains_key(&context.key) {
+                scoped.push_back(context.key.clone());
+            }
+            while scoped.len() > MAX_SCOPED_CLIENTS {
+                if let Some(oldest) = scoped.pop_front() {
+                    clients.remove(&oldest);
+                }
+            }
+        }
+        let client = clients
             .entry(context.key)
             .or_insert_with(|| client.clone())
-            .clone())
+            .clone();
+        // A jar outlives its last client by nothing: a changed cookie reference or an evicted
+        // scope starts a session of its own, as a new client always did.
+        self.jars
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|jar_key, _| clients.keys().any(|key| key.jar_key() == *jar_key));
+        Ok(client)
     }
 
     /// Drops every cached connection, for example after global TLS changes.
     pub async fn clear(&self) {
-        self.clients.write().await.clear();
+        let mut clients = self.clients.write().await;
+        clients.clear();
+        self.jars
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
+        self.scoped
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
     }
 }
 
-fn build_client(context: &ClientContext) -> Result<Client> {
+fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client> {
     let mut builder = Client::builder()
         .no_proxy()
-        .cookie_provider(Arc::clone(&context.cookie_jar))
+        .cookie_provider(cookie_jar)
         .connect_timeout(Duration::from_secs(20))
         .pool_idle_timeout(Duration::from_secs(90))
         .redirect(redirect_policy(
@@ -347,6 +424,123 @@ mod tests {
         );
     }
 
+    /// TR-16: one client per replay scope or address rule, and no more of them than the bound.
+    #[tokio::test]
+    async fn scoped_clients_are_bounded_and_the_oldest_goes_first() {
+        let pool = ClientPool::default();
+        let scoped = |scope: u64| ClientKey {
+            replay_scope: Some(scope),
+            ..key(None, 0)
+        };
+        pool.get_or_create(context(key(None, 0)))
+            .await
+            .expect("ordinary client");
+        for scope in 0..(super::MAX_SCOPED_CLIENTS as u64 + 5) {
+            pool.get_or_create(context(scoped(scope)))
+                .await
+                .expect("scoped client");
+        }
+
+        let clients = pool.clients.read().await;
+        assert_eq!(clients.len(), super::MAX_SCOPED_CLIENTS + 1);
+        assert!(
+            clients.contains_key(&key(None, 0)),
+            "an ordinary client stays"
+        );
+        assert!(
+            !clients.contains_key(&scoped(0)),
+            "the oldest scoped client went"
+        );
+        assert!(clients.contains_key(&scoped(super::MAX_SCOPED_CLIENTS as u64 + 4)));
+    }
+
+    /// A hoster sets its session cookie while the plugin resolves, and the download wants it
+    /// back. The plugin's client carries an address rule and the download's does not, so they
+    /// are two clients; they share one jar, and another account's client does not.
+    #[tokio::test]
+    async fn a_cookie_the_plugin_client_received_is_sent_by_the_download_client() {
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::TcpListener,
+        };
+
+        let server = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let port = server.local_addr().expect("address").port();
+        let seen = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let log = Arc::clone(&seen);
+        tokio::spawn(async move {
+            while let Ok((mut stream, _)) = server.accept().await {
+                let mut buffer = [0_u8; 4096];
+                let read = stream.read(&mut buffer).await.unwrap_or(0);
+                let request = String::from_utf8_lossy(&buffer[..read]).to_ascii_lowercase();
+                let cookie = request
+                    .lines()
+                    .find_map(|line| line.strip_prefix("cookie:"))
+                    .map(|value| value.trim().to_owned())
+                    .unwrap_or_default();
+                log.lock().expect("log").push(cookie);
+                let _ = stream
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nset-cookie: xfss=resolved; Path=/\r\n\
+                          content-length: 0\r\nconnection: close\r\n\r\n",
+                    )
+                    .await;
+            }
+        });
+        let pool = ClientPool::default();
+        let account = |id: rd_core::AccountId, policy: Option<crate::AddressPolicy>| ClientKey {
+            account_id: Some(id),
+            address_policy: policy,
+            ..key(None, 0)
+        };
+        let own = rd_core::AccountId::new();
+        let plugin = pool
+            .get_or_create(context(account(
+                own,
+                Some(crate::AddressPolicy::new(false)),
+            )))
+            .await
+            .expect("plugin client");
+        let download = pool
+            .get_or_create(context(account(own, None)))
+            .await
+            .expect("download client");
+        let stranger = pool
+            .get_or_create(context(account(rd_core::AccountId::new(), None)))
+            .await
+            .expect("another account's client");
+
+        // A literal address never reaches the guarded resolver, so the plugin client may call
+        // the loopback listener here; the host judges literals before the request.
+        let base = format!("http://127.0.0.1:{port}");
+        plugin
+            .get(format!("{base}/resolve"))
+            .send()
+            .await
+            .expect("resolve");
+        download
+            .get(format!("{base}/file"))
+            .send()
+            .await
+            .expect("download");
+        stranger
+            .get(format!("{base}/file"))
+            .send()
+            .await
+            .expect("stranger");
+
+        let seen = seen.lock().expect("log").clone();
+        assert_eq!(seen.len(), 3);
+        assert_eq!(seen[0], "", "nothing was set before the resolve");
+        assert_eq!(
+            seen[1], "xfss=resolved",
+            "the download sends the resolve's cookie"
+        );
+        assert_eq!(seen[2], "", "another account has a jar of its own");
+        assert_eq!(pool.clients.read().await.len(), 3);
+        assert_eq!(pool.jars.lock().expect("jars").len(), 2);
+    }
+
     #[tokio::test]
     async fn clients_of_different_profiles_coexist() {
         let pool = ClientPool::default();
@@ -436,6 +630,7 @@ mod tests {
             }),
             ..context(key(Some(AuthProfileId::new()), 1))
         };
-        assert!(super::build_client(&context).is_err());
+        let jar = Arc::clone(&context.cookie_jar);
+        assert!(super::build_client(&context, jar).is_err());
     }
 }

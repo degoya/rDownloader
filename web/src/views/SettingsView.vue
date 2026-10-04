@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { api, responseError } from '@/api/client'
 import type { ProxyProfile, Settings } from '@/api/types'
+import DataState from '@/components/DataState.vue'
 import SettingsAboutTab from '@/components/settings/SettingsAboutTab.vue'
 import SettingsAccountsTab from '@/components/settings/SettingsAccountsTab.vue'
 import SettingsBandwidthTab from '@/components/settings/SettingsBandwidthTab.vue'
@@ -30,7 +31,7 @@ import SettingsTorrentTab from '@/components/settings/SettingsTorrentTab.vue'
 import SettingsTransfersTab from '@/components/settings/SettingsTransfersTab.vue'
 import SettingsUnattendedTab from '@/components/settings/SettingsUnattendedTab.vue'
 import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
-import { clearWhenReconnected } from '@/composables/serviceConnection'
+import { clearWhenReconnected, onServiceReconnected } from '@/composables/serviceConnection'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
@@ -39,6 +40,7 @@ import { defaultSettings } from '@/settingsDefaults'
 import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
+import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 import { setTitleStatus } from '@/utils/titleStatus'
 import { MIB } from '@/utils/format'
 
@@ -48,6 +50,16 @@ const settings = reactive<Settings>(defaultSettings())
 const proxies = ref<ProxyProfile[]>([])
 const speedMiB = ref<number | null>(null)
 const pending = ref(false)
+/**
+ * Whether the document on screen is the stored one. Until it is, `settings` holds the
+ * placeholders of `defaultSettings()`, and the PUT replaces the whole document: a save before a
+ * successful load — the service restarting while the page was open — wrote those placeholders
+ * over the real configuration (WEB-01). The pages bound to the document, the save bar and the
+ * reset wait for it.
+ */
+const loaded = ref(false)
+/** Why the document could not be loaded, shown in place of the pages bound to it. */
+const loadError = ref<string | null>(null)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
 clearWhenReconnected(error)
@@ -90,9 +102,29 @@ const DOCUMENT_TABS = [
  * in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its update and retention fields were
  * saved only by the button of another page.
  */
-const showSaveBar = computed(() => subTabs.value.length
+const showSaveBar = computed(() => loaded.value && (subTabs.value.length
   ? subTabs.value.some(tab => tab.value === subTab.value && tab.saveBar)
-  : DOCUMENT_TABS.includes(activeSection.value))
+  : DOCUMENT_TABS.includes(activeSection.value)))
+
+/**
+ * Pages without sub-tabs that render fields of the document, the save bar's pages among them.
+ * Until the document is loaded they show its state instead of a form of placeholders; the
+ * self-saving pages do not wait for it.
+ */
+const BOUND_TABS = new Set([...DOCUMENT_TABS, 'hotfolders', 'bandwidth'])
+/**
+ * On a page with sub-tabs the sub-tab decides, not the page (RA-WEB-05): categories, rules,
+ * sign-in or the authentication profiles save themselves and stay usable when the document
+ * cannot be loaded; only a tab with its fields (`saveBar`) or its values (`showsDocument`) waits.
+ */
+const waitingForDocument = computed(() => {
+  if (loaded.value) return false
+  if (!subTabs.value.length) return BOUND_TABS.has(activeSection.value)
+  const tab = subTabs.value.find(entry => entry.value === subTab.value)
+  return Boolean(tab?.saveBar || tab?.showsDocument)
+})
+/** The sub-tabs above the document's state, so a waiting tab is not a dead end on its page. */
+const waitingTabItems = computed(() => subTabs.value.map(tab => ({ value: tab.value, label: t(tab.labelKey), icon: tab.icon })))
 
 /**
  * What leaving would lose (RD-180-16): the document as last loaded or saved against the one on
@@ -125,14 +157,24 @@ useUnsavedGuard(
 const { loading: proxiesLoading, loadError: proxiesError, load: trackProxies } = useFetchState()
 
 onMounted(() => void Promise.all([load(), loadProxies()]))
+// A document that never arrived is fetched again once the service is back.
+onUnmounted(onServiceReconnected(() => {
+  if (!loaded.value) void load()
+}))
 
 async function load(): Promise<void> {
+  if (!loaded.value) loadError.value = null
   const response = await api.GET('/api/v1/settings')
   if (!response.data) {
-    error.value = responseError(response)
+    // Before the first successful load the failure stands in place of the pages; afterwards the
+    // form holds the stored document and the failure is one more message beside it.
+    if (loaded.value) error.value = responseError(response)
+    else loadError.value = responseError(response)
     return
   }
   applyLoadedSettings(response.data)
+  loaded.value = true
+  loadError.value = null
 }
 
 function applyLoadedSettings(value: Settings): void {
@@ -142,6 +184,7 @@ function applyLoadedSettings(value: Settings): void {
   setByteDisplay(value.byte_display)
   setByteUnit(value.byte_unit)
   setShowItemImages(value.subscription_item_images_enabled)
+  setShowNzbHandOver(value)
   setTitleStatus(value.title_status_enabled)
   speedMiB.value = value.speed_limit_bytes_per_second
     ? Number(value.speed_limit_bytes_per_second) / MIB
@@ -168,6 +211,7 @@ async function handleSettingsImported(): Promise<void> {
 }
 
 async function save(): Promise<void> {
+  if (!loaded.value) return
   pending.value = true
   message.value = null
   error.value = null
@@ -218,6 +262,7 @@ async function save(): Promise<void> {
 }
 
 async function resetSettings(): Promise<void> {
+  if (!loaded.value) return
   const confirmed = await confirm({
     title: t('settings.reset.title'),
     description: t('settings.reset.description'),
@@ -251,7 +296,14 @@ async function resetSettings(): Promise<void> {
       <!-- Not a <form>: the self-saving tabs (usenet, accounts, plugins) contain their own forms
            and nesting forms is invalid HTML. The save button calls save() directly instead. -->
       <div class="w-full space-y-6">
-        <div class="w-full" data-tour="settings-tabs">
+        <div v-if="waitingForDocument" class="space-y-3 pt-4" data-testid="settings-document-state">
+          <UTabs v-if="waitingTabItems.length" v-model="subTab" :items="waitingTabItems" :content="false" variant="pill" class="w-full" />
+          <DataState :loading="!loadError" :error="loadError" :rows="6" />
+          <div v-if="loadError" class="flex justify-end">
+            <UButton type="button" icon="i-lucide-refresh-cw" :label="t('common.actions.retry')" color="neutral" variant="outline" @click="load" />
+          </div>
+        </div>
+        <div v-else class="w-full" data-tour="settings-tabs">
           <div v-if="activeSection === 'general'" class="pt-4">
             <SettingsGeneralTab :model-value="settings" v-model:speed-mib="speedMiB" />
           </div>

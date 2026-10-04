@@ -148,7 +148,10 @@
     "malware_scan_description": "Have ClamAV scan this category’s packages (inherit = global setting).",
     "malware_scan_inherit": "Inherit",
     "malware_scan_on": "On",
-    "malware_scan_off": "Off"
+    "malware_scan_off": "Off",
+    "color_pick": "Pick a colour, currently {color}",
+    "color_hex": "Colour as a hex value",
+    "color_format": "Six-digit hex value such as #38BDF8"
   },
   "rule": {
     "eyebrow": "Classifier",
@@ -231,8 +234,7 @@
     "created": "Rule created",
     "duplicated": "Rule copy created",
     "updated": "Rule updated",
-    "form_new": "New rule",
-    "duplicate": "Duplicate rule"
+    "form_new": "New rule"
   },
   "hotfolder": {
     "eyebrow": "Reconciled intake",

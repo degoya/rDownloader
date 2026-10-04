@@ -83,6 +83,7 @@
 //!   consequence of using a query parameter for a JSON payload and cannot be worked around from
 //!   this module.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 use serde_json::Value;
 use url::Url;
@@ -408,27 +409,33 @@ pub(crate) fn error_from_envelope(
 }
 
 /// Maps a bare HTTP status whose body did not parse as an [`Envelope`]/[`GenLinksResponse`].
-/// `429`/`5xx` mirror plugin-common's stated HTTP conventions; `425` reuses JD's
-/// `handleDownloadErrors` "still caching, retry" semantics defensively for the JSON API (see the
-/// module doc's IMPL-VERIFY note on `SERVER_ERROR`).
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS)),
-        404 | 410 | 451 => Err(coded(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        425 => Err(coded(
+///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07); a `429` or a `5xx` carries the response's `Retry-After`. Checked before it:
+/// `425` reuses JD's `handleDownloadErrors` "still caching, retry" semantics defensively for the
+/// JSON API (see the module doc's IMPL-VERIFY note on `SERVER_ERROR`).
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    if status == 425 {
+        return Err(coded(
             ErrorKind::Transient(Some(60)),
             messages::SERVER_ERROR,
-        )),
-        429 => Err(coded(ErrorKind::RateLimited(None), messages::RATE_LIMITED)),
-        500..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+        ));
+    }
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => {
+            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
+        }
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]

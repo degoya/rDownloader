@@ -276,21 +276,26 @@ pub(crate) fn error_from_envelope(code: Option<i64>, message: Option<&str>) -> O
     ))
 }
 
-/// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS)),
-        404 | 410 | 451 => Err(coded(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        429 => Err(coded(ErrorKind::RateLimited(None), messages::RATE_LIMITED)),
-        500..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+/// Maps an HTTP status the JSON envelope doesn't otherwise explain, with the mapping every
+/// plugin shares (`plugin_common::http_status`, RD-191-07); a 429 or 5xx carries the
+/// `Retry-After` the answer stated.
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    use plugin_common::HttpRefusal;
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => {
+            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
+        }
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]

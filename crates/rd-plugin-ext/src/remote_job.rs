@@ -486,6 +486,30 @@ impl RemoteJobRunners {
             .collect()
     }
 
+    /// The provider slugs whose remote-job plugin declares it takes `format` as a container
+    /// (`[extension] containers`, RD-191-13), read from the manifests alone like
+    /// [`claimed_providers`]. A subset of that set: a plugin that declares nothing offers
+    /// nothing here, and `identify` still decides when a source actually arrives.
+    ///
+    /// [`claimed_providers`]: RemoteJobRunners::claimed_providers
+    #[must_use]
+    pub fn providers_accepting<'a>(
+        manifests: impl IntoIterator<Item = &'a PluginManifest>,
+        format: &str,
+    ) -> BTreeSet<String> {
+        manifests
+            .into_iter()
+            .filter(|manifest| manifest.plugin_type == PluginType::RemoteJob)
+            .filter(|manifest| {
+                manifest
+                    .extension
+                    .as_ref()
+                    .is_some_and(|extension| extension.containers.iter().any(|kind| kind == format))
+            })
+            .flat_map(claims_of)
+            .collect()
+    }
+
     /// The name of the plugin a row names, for a log line or a batch label.
     #[must_use]
     pub fn plugin_name(&self, plugin_id: &str) -> Option<&str> {

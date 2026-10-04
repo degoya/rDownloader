@@ -798,6 +798,53 @@ fn a_code_or_api_key_provider_describes_each_mode_completely() {
     );
 }
 
+/// A remote-job plugin states which container formats its provider takes (RD-191-13); no other
+/// type may, and a format has to be one the host knows, once.
+#[test]
+fn only_a_remote_job_declares_containers_and_each_is_a_known_format() {
+    let manifest: PluginManifest = toml::from_str(&extension_toml(
+        "remote-job",
+        "claims = [\"torbox\"]\ncontainers = [\"torrent\", \"nzb\"]",
+    ))
+    .expect("parses");
+    validate_manifest(&manifest).expect("a remote job names its formats");
+    let extension = manifest.extension.as_ref().expect("extension");
+    assert_eq!(extension.containers, vec!["torrent", "nzb"]);
+
+    let silent: PluginManifest =
+        toml::from_str(&extension_toml("remote-job", "claims = [\"seedr\"]")).expect("parses");
+    validate_manifest(&silent).expect("saying nothing is allowed");
+    assert!(
+        silent
+            .extension
+            .as_ref()
+            .expect("extension")
+            .containers
+            .is_empty()
+    );
+
+    let manifest: PluginManifest =
+        toml::from_str(&extension_toml("intake", "containers = [\"nzb\"]")).expect("parses");
+    let error = validate_manifest(&manifest).expect_err("an intake parser is handed no container");
+    assert!(
+        error.to_string().contains("extension.containers"),
+        "{error}"
+    );
+
+    for formats in ["[\"rar\"]", "[\"NZB\"]", "[\"nzb\", \"nzb\"]"] {
+        let manifest: PluginManifest = toml::from_str(&extension_toml(
+            "remote-job",
+            &format!("containers = {formats}"),
+        ))
+        .expect("parses");
+        let error = validate_manifest(&manifest).expect_err(formats);
+        assert!(
+            error.to_string().contains("extension.containers"),
+            "{formats}: {error}"
+        );
+    }
+}
+
 /// A notification destination may offer settings (RD-170-09); nothing else may, and a setting
 /// has to be something a person can pick and a plugin can be told.
 #[test]
@@ -841,5 +888,69 @@ fn only_a_notifier_declares_settings_and_each_is_a_real_choice() {
         let manifest: PluginManifest =
             toml::from_str(&extension_toml("notifier", &setting(&body))).expect("parses");
         validate_manifest(&manifest).expect_err(why);
+    }
+}
+
+/// RA-HOST-06: `*` only as a leading `*.` before at least two labels, as a site rule reads a
+/// host pattern. `*foo.com` and `cdn.*.com` matched nothing at request time; `*.com` covered a
+/// whole top-level domain.
+#[test]
+fn a_wildcard_stands_only_in_front_of_a_name_of_two_labels() {
+    for valid in ["example.test", "*.example.test", "*.cdn.example.co.uk", "*"] {
+        validate_domain_pattern(valid, true).unwrap_or_else(|error| panic!("{valid}: {error}"));
+    }
+    for invalid in [
+        "*.com",
+        "*foo.com",
+        "cdn.*.com",
+        "*.*.example.test",
+        "example.*",
+        "**.example.test",
+        "example",
+        "*.",
+        "example..test",
+    ] {
+        assert!(
+            validate_domain_pattern(invalid, true).is_err(),
+            "{invalid} must be refused"
+        );
+    }
+}
+
+/// RA-HOST-01: an address or this machine's own name is no domain a plugin may list. The guard
+/// at request time refuses them too; the manifest says so to the author at packaging time.
+#[test]
+fn a_domain_list_names_no_address_and_not_this_machine() {
+    for refused in [
+        "127.0.0.1",
+        "169.254.169.254",
+        "10.0.0.1",
+        "*.0.0.1",
+        "0x7f.1",
+        "localhost",
+        "*.localhost",
+        "api.localhost",
+    ] {
+        assert!(
+            validate_domain_pattern(refused, false).is_err(),
+            "{refused} must be refused"
+        );
+        let manifest: PluginManifest = toml::from_str(&extension_toml("enricher", "").replace(
+            r#"domains = ["example.test"]"#,
+            &format!(r#"domains = ["{refused}"]"#),
+        ))
+        .expect("parses");
+        assert!(
+            validate_manifest(&manifest).is_err(),
+            "{refused} in net_http"
+        );
+    }
+    // A name that merely contains digits or the word is a name.
+    for name in [
+        "s3.eu-1.example.test",
+        "localhost.example.test",
+        "1fichier.com",
+    ] {
+        validate_domain_pattern(name, false).unwrap_or_else(|error| panic!("{name}: {error}"));
     }
 }

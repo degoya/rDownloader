@@ -13,7 +13,9 @@ use anyhow::Result;
 
 use crate::{
     Inner,
-    steps::{checkpoint, checkpoint_coded, extraction_outcome, find_step, path_string},
+    steps::{
+        Outcome, checkpoint, checkpoint_coded, codes, extraction_outcome, find_step, path_string,
+    },
 };
 
 /// The RAR sets of a package, in plan order.
@@ -23,12 +25,14 @@ pub(crate) fn rar_sets(sets: &[ArchiveSet]) -> Vec<&ArchiveSet> {
         .collect()
 }
 
-/// Records every planned RAR test as skipped, with the reason it was not needed.
+/// Records every planned RAR test as skipped, with the reason it was not needed: its stable
+/// code (one of the `RAR_TEST_SKIPPED_*` in [`crate::steps::codes`]) and the English text.
 pub(crate) async fn skip(
     inner: &Inner,
     owner: &str,
     steps: &[PostprocessStep],
     sets: &[ArchiveSet],
+    code: &str,
     reason: &str,
 ) -> Result<()> {
     for set in rar_sets(sets) {
@@ -38,14 +42,14 @@ pub(crate) async fn skip(
         {
             continue;
         }
-        checkpoint(
+        checkpoint_coded(
             inner,
             owner,
             PostprocessKind::RarTest,
             &source,
             PostprocessState::Skipped,
             None,
-            Some(reason.to_owned()),
+            Outcome::new(code, &[], reason),
         )
         .await?;
     }
@@ -65,7 +69,15 @@ pub(crate) async fn run(
     candidates: &[Option<String>],
 ) -> Result<bool> {
     let Some(tool) = tool else {
-        skip(inner, owner, steps, sets, "no RAR tool available").await?;
+        skip(
+            inner,
+            owner,
+            steps,
+            sets,
+            crate::steps::codes::RAR_TEST_SKIPPED_NO_TOOL,
+            "no RAR tool available",
+        )
+        .await?;
         return Ok(true);
     };
     let mut ok = true;
@@ -97,14 +109,18 @@ pub(crate) async fn run(
         .await?;
         match test_set(tool, set, candidates).await {
             Ok(()) => {
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::RarTest,
                     &source,
                     PostprocessState::Completed,
                     None,
-                    Some(format!("volumes={}", set.volumes.len())),
+                    Outcome::new(
+                        codes::RAR_TEST_PASSED,
+                        &[("count", set.volumes.len().to_string())],
+                        format!("volumes={}", set.volumes.len()),
+                    ),
                 )
                 .await?;
             }

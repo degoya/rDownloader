@@ -132,7 +132,7 @@
   },
   "retries": {
     "label": "Wiederholungen pro Datei",
-    "description": "Erneute Versuche bei vorübergehenden Fehlern, bevor ein Download als fehlgeschlagen gilt (0–100)"
+    "description": "Erneute Versuche bei vorübergehenden Fehlern, bevor ein Download als fehlgeschlagen gilt (0–100). Das Warten auf ein Limit oder eine IP-Sperre des Hosters zählt nicht mit."
   },
   "import_history": {
     "label": "Import-Verlauf behalten",
@@ -489,6 +489,19 @@
       "enabled": {
         "label": "Titelbilder anzeigen",
         "description": "Standardmäßig an. Ist es aus, bleiben die Angaben zu einem Treffer sichtbar und nur die Bilder werden nicht geladen, sodass der Indexer nicht erfährt, welche Treffer auf dem Schirm sind."
+      }
+    },
+    "nzb_hand_over": {
+      "eyebrow": "NZB",
+      "title": "An Anbieter übergeben",
+      "description": "Eine NZB lässt sich an ein Konto eines Anbieters übergeben, der NZB-Dateien annimmt (etwa TorBox oder Premiumize): aus dem LinkGrabber vor dem Einreihen oder aus den Downloads, etwa wenn ein Paket fehlgeschlagen ist. Der Anbieter lädt die NZB selbst aus dem Usenet; die fertigen Dateien kommen als Links in den LinkGrabber zurück.",
+      "linkgrabber": {
+        "label": "Übergabe an Anbieter im LinkGrabber anzeigen",
+        "description": "Standardmäßig an. Das Menü in jeder NZB-Zeile und der Eintrag in der Auswahlleiste erscheinen nur, wenn du ein Konto bei einem Anbieter hast, der NZB-Dateien annimmt (TorBox, Premiumize). Ein bereits übergebener Import behält seine Markierung."
+      },
+      "downloads": {
+        "label": "Übergabe an Anbieter in den Downloads anzeigen",
+        "description": "Standardmäßig an. Der Eintrag im Menü eines Pakets, das aus einer NZB stammt, erscheint in jedem Zustand des Pakets – auch fehlgeschlagen –, aber nur, wenn du ein Konto bei einem Anbieter hast, der NZB-Dateien annimmt (TorBox, Premiumize). Ein bereits übergebenes Paket behält seine Markierung."
       }
     }
   },
@@ -945,5 +958,13 @@
       "updates": "Updates",
       "retention": "Aufbewahrung"
     }
+  },
+  "auto_retry": {
+    "label": "Fehlgeschlagene Downloads automatisch erneut versuchen",
+    "description": "Ein Download, der an einem Limit, einer IP-Sperre, einem nicht erreichbaren Server oder einer offline gemeldeten Datei gescheitert ist, kommt nach einer Weile wieder in die Warteschlange. Ein gelöschter Link, ein abgelehnter Account oder eine falsche Prüfsumme nicht.",
+    "interval_label": "Abstand",
+    "interval_description": "Stunden zwischen dem Fehlschlag und dem nächsten Versuch (1–24).",
+    "rounds_label": "Runden je Download",
+    "rounds_description": "So oft kommt ein Download höchstens wieder in die Warteschlange; 0 heißt ohne Grenze (0–100)."
   }
 }

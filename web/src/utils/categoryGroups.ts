@@ -1,6 +1,6 @@
 import type { Category, StorageRoot } from '@/api/types'
 
-export interface CategoryGroup {
+interface CategoryGroup {
   rootId: string
   /** The storage root, or `undefined` for categories whose root the list does not know. */
   root: StorageRoot | undefined

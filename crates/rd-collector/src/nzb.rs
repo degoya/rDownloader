@@ -258,6 +258,63 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
     Ok(document)
 }
 
+/// Writes an NZB document back out (RD-191-13).
+///
+/// An import keeps its files, groups and articles, not the file it came from, so this is the
+/// document a provider is handed when an import goes to a remote job instead of the queue. The
+/// output is the same for the same input: a second hand-over of one import derives the same
+/// content key at the provider and meets the duplicate guard instead of a second job. `name`
+/// goes into `<meta type="name">`, where providers read a release name from, and `date` is the
+/// per-file attribute the DTD requires, in Unix seconds.
+#[must_use]
+pub fn render_nzb(document: &NzbDocument, name: Option<&str>, date: i64) -> Vec<u8> {
+    use std::fmt::Write as _;
+
+    use quick_xml::escape::escape;
+
+    let mut out = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\">\n\
+         <nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\">\n",
+    );
+    let name = name.map(str::trim).filter(|name| !name.is_empty());
+    if name.is_some() || document.password.is_some() {
+        out.push_str(" <head>\n");
+        if let Some(name) = name {
+            let _ = writeln!(out, "  <meta type=\"name\">{}</meta>", escape(name));
+        }
+        if let Some(password) = &document.password {
+            let _ = writeln!(out, "  <meta type=\"password\">{}</meta>", escape(password));
+        }
+        out.push_str(" </head>\n");
+    }
+    for file in &document.files {
+        let _ = writeln!(
+            out,
+            " <file poster=\"{}\" date=\"{date}\" subject=\"{}\">",
+            escape(&file.poster),
+            escape(&file.subject)
+        );
+        out.push_str("  <groups>\n");
+        for group in &file.groups {
+            let _ = writeln!(out, "   <group>{}</group>", escape(group));
+        }
+        out.push_str("  </groups>\n  <segments>\n");
+        for segment in &file.segments {
+            let _ = writeln!(
+                out,
+                "   <segment bytes=\"{}\" number=\"{}\">{}</segment>",
+                segment.bytes,
+                segment.number,
+                escape(&segment.message_id)
+            );
+        }
+        out.push_str("  </segments>\n </file>\n");
+    }
+    out.push_str("</nzb>\n");
+    out.into_bytes()
+}
+
 /// Keeps the first usable password, matching the first-announced-wins rule of other intake
 /// formats. The same bounds as the package editor keep untrusted NZB metadata out of command-line
 /// arguments with line breaks and prevent an indexer response from creating an unbounded field.
@@ -290,7 +347,7 @@ fn validate_doctype(value: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_nzb;
+    use super::{NzbDocument, NzbFile, NzbSegment, parse_nzb, render_nzb};
 
     const BODY: &str = r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
       <file poster="tester" subject="example.bin">
@@ -422,5 +479,76 @@ mod tests {
         );
         let error = parse_nzb(input.as_bytes()).expect_err("internal subset must be rejected");
         assert!(error.to_string().contains("external NZB doctype"));
+    }
+
+    /// What an import hands a provider reads back as the import it came from: every file,
+    /// group, article and the password, with markup in the values escaped rather than
+    /// interpreted (RD-191-13).
+    #[test]
+    fn a_rendered_document_parses_back_to_what_it_was_made_from() {
+        let document = NzbDocument {
+            password: Some("p<&>\"ss".to_owned()),
+            files: vec![
+                NzbFile {
+                    subject: "[1/2] - \"Show.S01E01.part1.rar\" yEnc (1/2)".to_owned(),
+                    poster: "Poster <poster@example.test>".to_owned(),
+                    groups: vec!["alt.binaries.test".to_owned(), "a.b.other".to_owned()],
+                    segments: vec![
+                        NzbSegment {
+                            number: 1,
+                            bytes: 739_000,
+                            message_id: "part1of2@example.test".to_owned(),
+                        },
+                        NzbSegment {
+                            number: 2,
+                            bytes: 12,
+                            message_id: "part2of2@example.test".to_owned(),
+                        },
+                    ],
+                },
+                NzbFile {
+                    subject: "Show.S01E01.par2".to_owned(),
+                    poster: "poster".to_owned(),
+                    groups: vec!["alt.binaries.test".to_owned()],
+                    segments: vec![NzbSegment {
+                        number: 1,
+                        bytes: 42,
+                        message_id: "par@example.test".to_owned(),
+                    }],
+                },
+            ],
+        };
+        let rendered = render_nzb(&document, Some("Show.S01E01"), 1_700_000_000);
+        assert_eq!(
+            rendered,
+            render_nzb(&document, Some("Show.S01E01"), 1_700_000_000),
+            "the same import renders the same bytes"
+        );
+        let text = String::from_utf8(rendered.clone()).expect("UTF-8");
+        assert!(
+            text.contains("<meta type=\"name\">Show.S01E01</meta>"),
+            "{text}"
+        );
+        assert!(text.contains("date=\"1700000000\""), "{text}");
+        let parsed = parse_nzb(&rendered).expect("the rendered document parses");
+        assert_eq!(parsed.password, document.password);
+        assert_eq!(parsed.files.len(), 2);
+        for (parsed, original) in parsed.files.iter().zip(&document.files) {
+            assert_eq!(parsed.subject, original.subject);
+            assert_eq!(parsed.poster, original.poster);
+            assert_eq!(parsed.groups, original.groups);
+            assert_eq!(parsed.segments, original.segments);
+        }
+    }
+
+    #[test]
+    fn a_document_without_name_or_password_has_no_head() {
+        let document = parse_nzb(BODY.as_bytes()).expect("fixture");
+        let text = String::from_utf8(render_nzb(&document, Some("  "), 0)).expect("UTF-8");
+        assert!(!text.contains("<head>"), "{text}");
+        assert!(
+            text.contains("<nzb"),
+            "a provider sniffs this element: {text}"
+        );
     }
 }

@@ -29,6 +29,8 @@ mod rule_listing;
 mod schedule;
 mod script_adapter;
 mod search;
+#[cfg(test)]
+mod test_support;
 
 pub use adapter::{DiscoveredItem, PollOutcome, RateLimited, SourceAdapter, adapter_for};
 pub use attributes::{
@@ -40,7 +42,7 @@ pub use feed::{
     Feed, FeedItem, MAX_FEED_BYTES, MAX_FEED_ITEMS, parse_date, parse_duration, parse_feed,
 };
 pub use feed_adapter::{FeedAdapter, FeedFetcher, FetchedFeed};
-pub use filter::{CandidateItem, Decision, evaluate};
+pub use filter::{CandidateItem, Decision, PreparedFilters, evaluate};
 pub use git_release::{
     ChecksumFile, Repository as GitRepository, architecture_of, checksum_file, glob_matches,
     looks_like_prerelease, parse_checksums, platform_of, selects as git_release_selects,

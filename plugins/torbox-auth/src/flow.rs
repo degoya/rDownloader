@@ -94,13 +94,6 @@ pub fn read(status: u16, retry_after: Option<u64>, body: &[u8]) -> Outcome {
     }
 }
 
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
-}
-
 #[cfg(test)]
 #[path = "flow/tests.rs"]
 mod tests;

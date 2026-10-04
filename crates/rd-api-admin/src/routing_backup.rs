@@ -5,6 +5,8 @@
 //! The import loops over the regular facade creates (which emit `CategoryChanged` events
 //! themselves), so it is not atomic — but a re-import of the same bundle is idempotent.
 
+use std::collections::{HashMap, HashSet};
+
 use axum::{
     Json,
     extract::{Query, State},
@@ -213,16 +215,26 @@ pub async fn import_routing(
     Json(bundle): Json<RoutingBundle>,
 ) -> Result<Json<ImportRoutingSummary>, ApiError> {
     validate_header(&bundle)?;
+    // Checked before the first write, as for an area bundle: an oversized bundle is refused
+    // rather than half-applied.
+    crate::error_codes::validate_bundle_section(bundle.categories.len())?;
+    crate::error_codes::validate_bundle_section(bundle.rules.len())?;
     let roots = state.database.list_storage_roots().await?;
-    let mut categories = state.database.list_categories().await?;
+    let categories = state.database.list_categories().await?;
     let existing_rules = state.database.list_category_rules().await?;
     let mut summary = ImportRoutingSummary::default();
     let mut has_default = categories.iter().any(|category| category.is_default);
+    // Name to id of the target's categories, kept current as the import creates more. The
+    // first category of a name wins, as a lookup in list order did.
+    let mut category_ids: HashMap<String, rd_core::CategoryId> = HashMap::new();
+    for category in categories {
+        category_ids.entry(category.name).or_insert(category.id);
+    }
+    // Kept current too, so a bundle naming one rule twice creates it once.
+    let mut rule_names: HashSet<String> =
+        existing_rules.into_iter().map(|rule| rule.name).collect();
     for entry in bundle.categories {
-        if categories
-            .iter()
-            .any(|category| category.name == entry.name)
-        {
+        if category_ids.contains_key(&entry.name) {
             summary.categories_skipped += 1;
             continue;
         }
@@ -259,23 +271,21 @@ pub async fn import_routing(
         };
         has_default = has_default || input.is_default;
         let created = state.database.create_category(input).await?;
-        categories.push(created);
+        category_ids.entry(created.name).or_insert(created.id);
         summary.categories_created += 1;
     }
     for entry in bundle.rules {
-        if existing_rules.iter().any(|rule| rule.name == entry.name) {
+        if rule_names.contains(&entry.name) {
             summary.rules_skipped += 1;
             continue;
         }
         // Resolve against current + just-created categories, so a rule may attach to a
         // pre-existing category of the same name even when its bundle category was skipped.
-        let Some(category) = categories
-            .iter()
-            .find(|category| category.name == entry.category_name)
-        else {
+        let Some(&category_id) = category_ids.get(&entry.category_name) else {
             summary.rules_skipped += 1;
             continue;
         };
+        let name = entry.name.clone();
         let request = CreateCategoryRuleRequest {
             name: entry.name,
             priority: entry.priority,
@@ -285,7 +295,7 @@ pub async fn import_routing(
             extension: entry.extension,
             mime_type: entry.mime_type,
             name_regex: entry.name_regex,
-            category_id: category.id,
+            category_id,
             enabled: entry.enabled,
         };
         let Ok(input) = crate::config_handlers::validated_category_rule(&state, request).await
@@ -294,23 +304,25 @@ pub async fn import_routing(
             continue;
         };
         state.database.create_category_rule(input).await?;
+        rule_names.insert(name);
         summary.rules_created += 1;
     }
     Ok(Json(summary))
 }
 
+/// What a routing bundle says about itself; only the current version is read. The refused
+/// version travels as a parameter rather than inside the text (audit 1.9.1, API-11).
+const BUNDLE_HEADER: rd_api_core::input_checks::BundleHeader =
+    rd_api_core::input_checks::BundleHeader {
+        format: BUNDLE_FORMAT,
+        version: BUNDLE_VERSION,
+        reads_older: false,
+        format_code: "routing.backup_invalid",
+        format_message: "The selected file is not an rDownloader routing bundle",
+        version_code: "routing.backup_version_unsupported",
+        version_message: "This routing bundle version is not supported",
+    };
+
 fn validate_header(bundle: &RoutingBundle) -> Result<(), ApiError> {
-    if bundle.format != BUNDLE_FORMAT {
-        return Err(ApiError::bad_request(
-            "routing.backup_invalid",
-            "The selected file is not an rDownloader routing bundle",
-        ));
-    }
-    if bundle.version != BUNDLE_VERSION {
-        return Err(ApiError::bad_request(
-            "routing.backup_version_unsupported",
-            format!("Routing bundle version {} is not supported", bundle.version),
-        ));
-    }
-    Ok(())
+    BUNDLE_HEADER.check(&bundle.format, bundle.version)
 }

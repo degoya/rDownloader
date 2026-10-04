@@ -8,20 +8,23 @@
  */
 import { appendFileSync } from 'node:fs'
 
-import { fireEvent, render } from '@testing-library/vue'
+import { fireEvent, render, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-import type { Download, DownloadPackage } from '@/api/types'
+import { api } from '@/api/client'
+import type { Download, DownloadPackage, NzbImport } from '@/api/types'
 import { SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
 import { SEARCH_DEBOUNCE_MS } from '@/composables/useQueueFilter'
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import torrent from '@/locales/en/torrent.json'
+import { useNzbImportsStore } from '@/stores/nzbImports'
 import { useTransfersStore } from '@/stores/transfers'
 import { axeViolations } from '@/test/axe'
+import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 
 import DownloadsView from './DownloadsView.vue'
 
@@ -64,6 +67,16 @@ vi.mock('@/composables/useCopyLinks', () => ({
   useCopyLinks: () => async (links: string[]) => {
     copied.links.push([...links])
     return true
+  }
+}))
+
+// jsdom has no `EventSource`; the handlers are kept so the hand-over cases can announce an
+// account (RD-191-13).
+const stream = vi.hoisted(() => ({ handlers: {} as Record<string, ((event: MessageEvent) => void)[]> }))
+vi.mock('@/composables/useEventStream', () => ({
+  subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
+    for (const [name, handler] of Object.entries(registered)) (stream.handlers[name] ??= []).push(handler)
+    return () => {}
   }
 }))
 
@@ -695,5 +708,96 @@ describe('DownloadsView copy links', () => {
       'https://files.example.com/dl-0-1',
       'https://files.example.com/dl-0-2'
     ]])
+  })
+})
+
+/**
+ * RD-191-13, the owner's extension: the NZB behind a package goes to a provider from the
+ * package's menu, in any state of the package. The entry shows only while the Downloads switch
+ * is on and an account takes NZB files; the badge of a package already handed over stays.
+ */
+describe('DownloadsView NZB hand-over', () => {
+  /** The menu rendered open, its items as buttons, so the entries can be found and picked. */
+  const menuStubs = {
+    ...stubs,
+    UDropdownMenu: {
+      props: ['items'],
+      template: '<div><slot /><div data-menu-items><button v-for="item in (items ?? []).flat()" :key="item.label" type="button" @click="item.onSelect?.()">{{ item.label }}</button></div></div>'
+    }
+  }
+
+  async function announceAccounts(accounts: unknown[]): Promise<void> {
+    vi.mocked(api.GET).mockImplementation((async (path: string) => {
+      if (path === '/api/v1/accounts') return { data: accounts }
+      if (path === '/api/v1/remote-jobs/providers') return { data: ['torbox'] }
+      if (path === '/api/v1/providers') return { data: [{ slug: 'torbox', display_name: 'TorBox', credentials: 'api_key', kind: 'remote' }] }
+      return { data: [] }
+    }) as unknown as typeof api.GET)
+    for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
+    await new Promise(resolve => setTimeout(resolve, 400))
+  }
+
+  /** One failed NZB package, its import handed to TorBox, beside a package of plain links. */
+  function seedNzbPackage(): void {
+    const store = seedQueue(2, 1, 'failed')
+    store.packages = store.packages.map((pkg, index) => index === 0
+      ? { ...pkg, kind: 'usenet', state: 'failed', nzb_import_id: 'nzb-1' } as DownloadPackage
+      : pkg)
+    useNzbImportsStore().imports = [{
+      id: 'nzb-1',
+      name: 'Package 0',
+      state: 'enqueued',
+      handed_over: { remote_job_id: 'job-1', account_id: 'acc-torbox' }
+    } as unknown as NzbImport]
+  }
+
+  function mountWithMenus() {
+    return render(DownloadsView, { global: { plugins: [i18n], stubs: menuStubs } })
+  }
+
+  const torbox = { id: 'acc-torbox', label: 'Main', provider: 'torbox', enabled: true }
+
+  afterEach(() => {
+    setShowNzbHandOver({})
+    vi.mocked(api.GET).mockImplementation((async () => ({ data: [] })) as unknown as typeof api.GET)
+    vi.mocked(api.POST).mockClear()
+  })
+
+  it('offers the account in the menu of the failed NZB package and hands that package over', async () => {
+    seedNzbPackage()
+    const { getAllByRole, getByTestId } = mountWithMenus()
+    await announceAccounts([torbox])
+
+    await waitFor(() => expect(getAllByRole('button', { name: 'Main · TorBox' })).toHaveLength(1))
+    expect(getByTestId('package-handed-over').textContent).toBe('Handed to TorBox')
+
+    vi.mocked(api.POST).mockResolvedValueOnce({ data: undefined, error: { code: 'remote_job.not_claimed' } } as never)
+    await fireEvent.click(getAllByRole('button', { name: 'Main · TorBox' })[0]!)
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/packages/{id}/remote-job', {
+      params: { path: { id: 'pkg-0' } },
+      body: { account_id: 'acc-torbox' }
+    })
+  })
+
+  it('drops the entry when the Downloads switch is off and keeps the badge', async () => {
+    seedNzbPackage()
+    const { getAllByRole, getByTestId, queryByRole } = mountWithMenus()
+    await announceAccounts([torbox])
+    await waitFor(() => expect(getAllByRole('button', { name: 'Main · TorBox' })).toHaveLength(1))
+
+    setShowNzbHandOver({ nzb_hand_over_downloads_enabled: false })
+    await nextTick()
+
+    expect(queryByRole('button', { name: 'Main · TorBox' })).toBeNull()
+    expect(getByTestId('package-handed-over').textContent).toBe('Handed to TorBox')
+  })
+
+  it('offers nothing while no account takes NZBs', async () => {
+    seedNzbPackage()
+    const { getByTestId, queryByRole } = mountWithMenus()
+    await announceAccounts([{ id: 'acc-other', label: 'Other', provider: 'realdebrid', enabled: true }])
+
+    expect(queryByRole('button', { name: downloads.package.hand_over })).toBeNull()
+    expect(getByTestId('package-handed-over')).toBeTruthy()
   })
 })

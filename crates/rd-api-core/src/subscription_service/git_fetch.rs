@@ -54,7 +54,7 @@ impl rd_subscription::ApiFetcher for HttpApiFetcher {
         headers: &[(String, String)],
         limit: usize,
     ) -> anyhow::Result<rd_subscription::ApiResponse> {
-        let mut response = self.request(url, headers).await?;
+        let response = self.request(url, headers).await?;
         let status = response.status().as_u16();
         let headers = response
             .headers()
@@ -70,14 +70,7 @@ impl rd_subscription::ApiFetcher for HttpApiFetcher {
                 body: None,
             });
         }
-        let mut collected = Vec::new();
-        while let Some(chunk) = response.chunk().await? {
-            collected.extend_from_slice(&chunk);
-            if collected.len() >= limit {
-                collected.truncate(limit);
-                break;
-            }
-        }
+        let collected = crate::input_checks::read_body_prefix(response, limit).await?;
         Ok(rd_subscription::ApiResponse {
             status,
             headers,

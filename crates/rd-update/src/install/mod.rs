@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+pub(crate) use rd_files::durable::{exists, remove_any, sync_directory};
 use serde::{Deserialize, Serialize};
 
 use crate::InstallKind;
@@ -458,65 +459,17 @@ pub fn preflight(install_dir: &Path, artifact_size: u64) -> Result<(), InstallEr
     }
 }
 
-pub(crate) fn exists(path: &Path) -> bool {
-    fs::symlink_metadata(path).is_ok()
-}
-
-pub(crate) fn remove_any(path: &Path) -> Result<()> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(path),
-        Ok(_) => fs::remove_file(path),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error),
-    }
-    .with_context(|| format!("remove {}", path.display()))
-}
-
-/// How long a rename waits for a handle that is still being closed (Windows only).
+/// How long a rename waits for a handle that is still being closed (Windows only): a process
+/// that just ended, or a virus scanner looking at a new executable, holds its files a moment
+/// longer.
 const RELEASE_WAIT: std::time::Duration = std::time::Duration::from_secs(20);
 
-/// Renames `from` to `to`, retrying a sharing or access violation on Windows: a process that
-/// just ended, or a virus scanner looking at a new executable, holds its files a moment longer.
 pub(crate) fn rename(from: &Path, to: &Path) -> Result<()> {
-    let started = std::time::Instant::now();
-    loop {
-        match fs::rename(from, to) {
-            Err(error)
-                if cfg!(windows)
-                    && matches!(error.raw_os_error(), Some(5 | 32))
-                    && started.elapsed() < RELEASE_WAIT =>
-            {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-            result => {
-                return result
-                    .with_context(|| format!("move {} to {}", from.display(), to.display()));
-            }
-        }
-    }
-}
-
-/// Makes a rename in `directory` durable. On Windows a directory cannot be opened this way.
-pub(crate) fn sync_directory(directory: &Path) {
-    #[cfg(unix)]
-    let _ = fs::File::open(directory).and_then(|handle| handle.sync_all());
-    #[cfg(not(unix))]
-    let _ = directory;
+    rd_files::durable::rename(from, to, RELEASE_WAIT)
 }
 
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<()> {
-    let temporary = path.with_extension("json.tmp");
-    {
-        let mut file = fs::File::create(&temporary)
-            .with_context(|| format!("create {}", temporary.display()))?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-    }
-    rename(&temporary, path)?;
-    if let Some(parent) = path.parent() {
-        sync_directory(parent);
-    }
-    Ok(())
+    rd_files::durable::write_atomically(path, bytes, RELEASE_WAIT)
 }
 
 #[cfg(test)]

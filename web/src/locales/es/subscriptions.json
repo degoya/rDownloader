@@ -35,7 +35,6 @@
     "asset_not_wanted": "El archivo no coincide con las plataformas, arquitecturas o patrones de nombre"
   },
   "form": {
-    "add": "Añadir suscripción",
     "edit": "Editar suscripción",
     "name": "Nombre",
     "url": "Dirección",

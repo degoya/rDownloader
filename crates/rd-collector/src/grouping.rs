@@ -120,7 +120,7 @@ pub fn group_links(
     if !loose.is_empty() {
         let names: Vec<&str> = loose.iter().filter_map(|input| input.file_name).collect();
         let name = common_stem(&names)
-            .unwrap_or_else(|| loose[0].host.trim_start_matches("www.").to_owned())
+            .unwrap_or_else(|| rd_core::host_key(loose[0].host))
             .trim()
             .to_owned();
         let name = if name.is_empty() {
@@ -404,6 +404,9 @@ mod tests {
     #[test]
     fn single_loose_link_uses_the_host() {
         let groups = group_links(&[input(0, None, "www.1fichier.com")], None, "links");
+        assert_eq!(groups[0].name, "1fichier.com");
+        // `rd_core::host_key` (RA-IN-06): one `www.` goes, a trailing dot too.
+        let groups = group_links(&[input(0, None, "www.1fichier.com.")], None, "links");
         assert_eq!(groups[0].name, "1fichier.com");
         assert!(common_stem(&["only.one"]).is_none());
         assert_eq!(

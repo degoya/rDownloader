@@ -47,6 +47,13 @@ const MIB: usize = 1024 * 1024;
 /// Leaves room for multipart framing around the NZB handler's exact 64 MiB file limit.
 pub const BODY_LIMIT_BYTES: usize = 65 * MIB;
 
+/// The body limit of the routes reachable without a credential: sign-in, setup, passkeys, and
+/// the qBittorrent adapter's login (audit 1.9.1, API-05).
+///
+/// Here rather than in `rd-api` so the compatibility adapters, which cannot depend on the
+/// assembly, bound their public route by the same number.
+pub const PUBLIC_BODY_LIMIT_BYTES: usize = 64 * 1024;
+
 /// The largest file a JSON body may carry. Its base64 is exactly 64 MiB; see the module text.
 pub const MAX_JSON_CONTAINER_BYTES: usize = 48 * MIB;
 

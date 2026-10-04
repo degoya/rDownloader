@@ -20,7 +20,7 @@ export function startUrl(returnTo: string): string {
 }
 
 /** What the provider's redirect back left in the address, if anything. */
-export interface ProviderReturn {
+interface ProviderReturn {
   /** The stable code of a refused sign-in or link. */
   error: string | null
   /** The name the provider reported for an account that is not the administrator. */

@@ -61,7 +61,11 @@ pub(crate) async fn resolve<H: PluginHost>(
     let parsed: api::GenLinksResponse = match serde_json::from_slice(&response.body) {
         Ok(parsed) => parsed,
         Err(_) => {
-            api::ensure_http_status(response.status).map_err(convert_failure)?;
+            api::ensure_http_status(
+                response.status,
+                plugin_common::retry_after(&response.headers),
+            )
+            .map_err(convert_failure)?;
             return Err(invalid_response());
         }
     };
@@ -110,7 +114,11 @@ pub(crate) async fn hosters<H: PluginHost>(
         match serde_json::from_slice(&response.body) {
             Ok(envelope) => envelope,
             Err(_) => {
-                api::ensure_http_status(response.status).map_err(convert_failure)?;
+                api::ensure_http_status(
+                    response.status,
+                    plugin_common::retry_after(&response.headers),
+                )
+                .map_err(convert_failure)?;
                 return Err(invalid_response());
             }
         };
@@ -154,7 +162,11 @@ async fn api_call<H: PluginHost, T: DeserializeOwned>(
     let envelope: api::Envelope<T> = match serde_json::from_slice(&response.body) {
         Ok(envelope) => envelope,
         Err(_) => {
-            api::ensure_http_status(response.status).map_err(convert_failure)?;
+            api::ensure_http_status(
+                response.status,
+                plugin_common::retry_after(&response.headers),
+            )
+            .map_err(convert_failure)?;
             return Err(invalid_response());
         }
     };

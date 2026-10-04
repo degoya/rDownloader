@@ -161,7 +161,21 @@
       "hint": "Suelta archivos NZB, torrent y DLC en cualquier parte para añadirlos al LinkGrabber.",
       "none_matched": "No se encontraron archivos .nzb, .torrent o .dlc entre los elementos soltados."
     },
-    "drag_hint": "Arrastra para cambiar el orden de la lista"
+    "drag_hint": "Arrastra para cambiar el orden de la lista",
+    "failed_no_reason": "La importación falló sin indicar un motivo. Elimínala e importa el archivo de nuevo.",
+    "hand_over": {
+      "action": "Entregar a un proveedor",
+      "hint": "El proveedor descarga el NZB de Usenet por su cuenta; los archivos terminados vuelven al LinkGrabber como enlaces.",
+      "badge": "Entregado a {provider}",
+      "badge_hint": "Abrir trabajos remotos",
+      "enqueue_hint": "Ya entregado a {provider}: añadirlo a la cola también descarga el NZB aquí.",
+      "started": "«{name}» entregado a {provider}",
+      "already_running": "{provider} ya está descargando «{name}»",
+      "summary": "{done} de {total} NZB entregados a {provider}",
+      "summary_failed": "{failed} de {total} NZB no se pudieron entregar a {provider}: {reason}",
+      "failed": "«{name}» no se pudo entregar",
+      "provider_fallback": "un proveedor"
+    }
   },
   "files": {
     "torrent_imported": "Torrent importado",

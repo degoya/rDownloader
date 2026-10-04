@@ -45,7 +45,7 @@ export interface ObjectStorageForm {
 export const PROVIDERS: readonly ObjectStorageProvider[] = ['s3', 'azure', 'gcs']
 
 /** The link scheme of each provider, as `aws`, `az` and `gsutil` print it. */
-export const SCHEMES: Readonly<Record<ObjectStorageProvider, string>> = { s3: 's3', azure: 'az', gcs: 'gs' }
+const SCHEMES: Readonly<Record<ObjectStorageProvider, string>> = { s3: 's3', azure: 'az', gcs: 'gs' }
 
 /** The credential sources a provider can sign with, the one a new profile starts with first. */
 export function credentialSources(provider: ObjectStorageProvider): readonly ObjectStorageCredentialSource[] {
@@ -188,7 +188,7 @@ export function uploadRemoteFor(profileId: string, prefix = ''): string {
 }
 
 /** The outcome of a test, reduced to what the card shows. */
-export type TestOutcome =
+type TestOutcome =
   | { ok: true }
   | { ok: false, code: string, params: Record<string, string> }
 

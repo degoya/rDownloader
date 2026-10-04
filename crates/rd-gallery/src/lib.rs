@@ -18,11 +18,11 @@ pub type SharedGallerySettings = Arc<RwLock<GallerySettings>>;
 
 /// Reads the gallery settings from the `service.settings` blob.
 ///
-/// Refuses a malformed blob rather than running on defaults: this is read once at start-up,
-/// so an unusable configuration must stop the service instead of silently disabling the
-/// tool options the person configured.
+/// Read once at start-up, field by field (owner, 2026-10-04, RA-DB-02): a value that does not
+/// parse reads as its default with a warning naming it, instead of refusing the start; only
+/// the scheduler's runtime values refuse one.
 pub async fn load_gallery_settings(database: &Database) -> Result<GallerySettings> {
-    database.service_settings().await
+    database.service_settings_per_field().await
 }
 
 /// Creates the shared settings handle from the database.

@@ -160,26 +160,12 @@ pub fn is_safe_id(id: &str) -> bool {
 
 /// `application/x-www-form-urlencoded` body for one named field.
 ///
-/// Percent-encodes by hand rather than pulling a URL crate into a component for one field: a
-/// magnet is full of `&`, `=` and `:`, and a body that did not encode them would submit a
-/// truncated address.
+/// Percent-encoded with the encoder every plugin shares rather than a URL crate: a magnet is
+/// full of `&`, `=` and `:`, and a body that did not encode them would submit a truncated
+/// address.
 #[must_use]
 pub fn form_body(name: &str, value: &str) -> Vec<u8> {
-    let mut body = String::with_capacity(name.len() + value.len() * 3 + 1);
-    body.push_str(name);
-    body.push('=');
-    for byte in value.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                body.push(char::from(*byte));
-            }
-            _ => {
-                use std::fmt::Write;
-                let _ = write!(body, "%{byte:02X}");
-            }
-        }
-    }
-    body.into_bytes()
+    format!("{name}={}", plugin_common::percent_encode(value)).into_bytes()
 }
 
 /// The boundary a multipart upload is delimited by, derived from the payload.

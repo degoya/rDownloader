@@ -5,7 +5,7 @@
 // permission for that one origin, and the browser itself renders that prompt. The profile the
 // server creates from the result arrives disabled and has to be approved in the web UI.
 
-import { normalizeServer } from './api.js'
+import { request } from './api.js'
 import { holdsCookieConsent, loadSites } from './files.js'
 
 /**
@@ -73,32 +73,12 @@ export function toNetscape(cookies, host) {
 
 /** Posts a cookie set to the capture endpoint. Result shape: { ok, status, code, message }. */
 export async function submitCookies(config, { host, includeSubdomains, cookies, name }, fetchImpl = fetch) {
-  const server = normalizeServer(config.server)
-  let response
-  try {
-    response = await fetchImpl(`${server}/api/v1/capture/cookies`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${config.token ?? ''}` },
-      body: JSON.stringify({ name: name ?? null, scope: host, include_subdomains: includeSubdomains !== false, cookies })
-    })
-  } catch (error) {
-    return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error) }
-  }
-  let payload = null
-  try {
-    payload = await response.json()
-  } catch {
-    payload = null
-  }
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      code: payload?.code ?? (response.status === 401 ? 'auth.unauthorized' : 'http'),
-      message: payload?.error ?? `HTTP ${response.status}`
-    }
-  }
-  return { ok: true, status: response.status, code: null, message: null, profile: payload }
+  const result = await request(config, '/api/v1/capture/cookies', {
+    method: 'POST',
+    body: JSON.stringify({ name: name ?? null, scope: host, include_subdomains: includeSubdomains !== false, cookies })
+  }, fetchImpl)
+  if (!result.ok) return { ok: false, status: result.status, code: result.code, message: result.message }
+  return { ok: true, status: result.status, code: null, message: null, profile: result.payload }
 }
 
 /**

@@ -9,6 +9,20 @@ use crate::Inner;
 
 pub(crate) const MESSAGE_LIMIT: usize = 2_000;
 
+/// How a step that a service stop can interrupt ended.
+///
+/// Three states, not a `bool`: a stop is neither a success nor a failure. Reported as success
+/// it let the package be marked completed with its upload still queued, and the restart then
+/// ran the whole pipeline — the user script included — a second time (audit 1.9.1, RA-IN-01).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StepEnd {
+    Done,
+    Failed,
+    /// The service is stopping; the step is queued again and the package stays in
+    /// post-processing for `recover()` to resume.
+    Stopped,
+}
+
 pub(crate) async fn checkpoint(
     inner: &Inner,
     owner: &str,
@@ -43,6 +57,54 @@ pub(crate) struct Outcome<'a> {
     pub(crate) message: Option<String>,
 }
 
+impl<'a> Outcome<'a> {
+    /// An outcome from its code, its parameters as pairs and the English text.
+    pub(crate) fn new(code: &'a str, params: &[(&str, String)], message: impl AsRef<str>) -> Self {
+        Self {
+            code,
+            params: params
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), value.clone()))
+                .collect(),
+            message: Some(truncate(message)),
+        }
+    }
+
+    /// An outcome whose `detail` parameter carries the tool's, the script's or the
+    /// destination's own words — the part a code cannot know in advance.
+    pub(crate) fn detailed(code: &'a str, detail: impl AsRef<str>) -> Self {
+        let detail = truncate(detail);
+        Self::new(code, &[("detail", detail.clone())], detail)
+    }
+}
+
+/// The stable codes of the steps' own outcomes, looked up in `web/src/locales/*/server.json`
+/// under `codes` like the extraction codes (audit 1.9.1, INTAKE-09: eight step kinds stored
+/// English text only, which the interface could not translate).
+pub(crate) mod codes {
+    pub(crate) const UNPACK_COMPLETED: &str = "postprocess.unpack_completed";
+    pub(crate) const ARCHIVES_REMOVED: &str = "postprocess.archives_removed";
+    pub(crate) const PAR2_REPAIRED: &str = "postprocess.par2_repaired";
+    pub(crate) const PAR2_FAILED: &str = "postprocess.par2_failed";
+    pub(crate) const PAR2_REMOVED: &str = "postprocess.par2_removed";
+    pub(crate) const DELETE_FAILED: &str = "postprocess.delete_failed";
+    pub(crate) const SFV_VERIFIED: &str = "postprocess.sfv_verified";
+    pub(crate) const SFV_MISMATCH: &str = "postprocess.sfv_mismatch";
+    pub(crate) const SFV_FAILED: &str = "postprocess.sfv_failed";
+    pub(crate) const RAR_TEST_PASSED: &str = "postprocess.rar_test_passed";
+    pub(crate) const RAR_TEST_SKIPPED_PAR2: &str = "postprocess.rar_test_skipped_par2";
+    pub(crate) const RAR_TEST_SKIPPED_SFV: &str = "postprocess.rar_test_skipped_sfv";
+    pub(crate) const RAR_TEST_SKIPPED_OUTDATED: &str = "postprocess.rar_test_skipped_outdated";
+    pub(crate) const RAR_TEST_SKIPPED_NO_TOOL: &str = "postprocess.rar_test_skipped_no_tool";
+    pub(crate) const CLEANUP_DONE: &str = "postprocess.cleanup_done";
+    pub(crate) const CLEANUP_FAILED: &str = "postprocess.cleanup_failed";
+    pub(crate) const REMUX_FAILED: &str = "postprocess.remux_failed";
+    pub(crate) const SCRIPT_SUCCEEDED: &str = "postprocess.script_succeeded";
+    pub(crate) const SCRIPT_FAILED: &str = "postprocess.script_failed";
+    pub(crate) const PLUGIN_STEP_FAILED: &str = "postprocess.plugin_step_failed";
+    pub(crate) const UPLOAD_STALLED: &str = "postprocess.upload_stalled";
+}
+
 /// The same as `checkpoint`, with a translatable outcome instead of a bare message.
 ///
 /// `output` is the same field `checkpoint` writes — the folder an unpack produced. It exists
@@ -72,6 +134,23 @@ pub(crate) async fn checkpoint_coded(
             outcome.params,
         )
         .await
+}
+
+/// `checkpoint_coded` when the step has something to say, `checkpoint` without a message when
+/// it has not (a stop that leaves the step queued, a success that needs no words).
+pub(crate) async fn checkpoint_outcome(
+    inner: &Inner,
+    owner: &str,
+    kind: PostprocessKind,
+    source: &str,
+    state: PostprocessState,
+    output: Option<String>,
+    outcome: Option<Outcome<'_>>,
+) -> Result<()> {
+    match outcome {
+        Some(outcome) => checkpoint_coded(inner, owner, kind, source, state, output, outcome).await,
+        None => checkpoint(inner, owner, kind, source, state, output, None).await,
+    }
 }
 
 /// What an extraction failure has to say: its stable code, the tool's own words as the

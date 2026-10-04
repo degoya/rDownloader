@@ -14,7 +14,8 @@ pub const UNSUPPORTED_LINK: (&str, &str) = (
 /// The address did not parse at all.
 pub const INVALID_LINK: (&str, &str) = ("pixeldrain.invalid_link", "Invalid Pixeldrain address");
 
-/// `not_found`, a 404, or a 410. The file was deleted or never existed.
+/// `not_found` (`Offline`), a 404 or a 410 (`Permanent`, owner 2026-10-04), or a 451
+/// (`Offline`). The file was deleted, withheld, or never existed.
 pub const FILE_NOT_FOUND: (&str, &str) = (
     "pixeldrain.file_not_found",
     "This file does not exist on Pixeldrain any more",

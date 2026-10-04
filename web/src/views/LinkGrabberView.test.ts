@@ -8,9 +8,9 @@
  */
 import { appendFileSync } from 'node:fs'
 
-import { fireEvent, render } from '@testing-library/vue'
+import { fireEvent, render, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -25,6 +25,7 @@ import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { axeViolations } from '@/test/axe'
+import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 
 import LinkGrabberView from './LinkGrabberView.vue'
 
@@ -54,8 +55,15 @@ vi.mock('vue-router', () => ({
 }))
 // A candidate row asks which providers have an account, and that lookup subscribes to
 // `plugin_catalog.changed`; jsdom has no `EventSource`. What it does with the event is pinned in
-// `useAccountProviders.test.ts` — here the view only must not open a stream.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+// `useAccountProviders.test.ts` — here the view only must not open a stream. The handlers are
+// kept, so the hand-over cases can announce an account (RD-191-13).
+const stream = vi.hoisted(() => ({ handlers: {} as Record<string, ((event: MessageEvent) => void)[]> }))
+vi.mock('@/composables/useEventStream', () => ({
+  subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
+    for (const [name, handler] of Object.entries(registered)) (stream.handlers[name] ??= []).push(handler)
+    return () => {}
+  }
+}))
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, linkgrabber, torrent } } })
 
@@ -1007,5 +1015,80 @@ describe('LinkGrabberView keys', () => {
     view.unmount()
     runLinkGrabberAction('addLinks')
     expect(overlayOpen).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * RD-191-13: the hand-over — the menu in an NZB row and the entry in the selection bar — shows
+ * only while the LinkGrabber switch is on and an account takes NZB files; the badge of an
+ * import already handed over stays either way.
+ */
+describe('LinkGrabberView NZB hand-over', () => {
+  /** Answers the account and provider reads, then says an account changed. */
+  async function announceAccounts(accounts: unknown[]): Promise<void> {
+    vi.mocked(api.GET).mockImplementation((async (path: string) => {
+      if (path === '/api/v1/accounts') return { data: accounts }
+      if (path === '/api/v1/remote-jobs/providers') return { data: ['torbox'] }
+      if (path === '/api/v1/providers') return { data: [{ slug: 'torbox', display_name: 'TorBox', credentials: 'api_key', kind: 'remote' }] }
+      return { data: [] }
+    }) as unknown as typeof api.GET)
+    for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
+    // The debounce, and the reads behind it.
+    await new Promise(resolve => setTimeout(resolve, 400))
+  }
+
+  function seedHandedOver() {
+    seedNzbImport()
+    const store = useNzbImportsStore()
+    store.imports = store.imports.map(item => ({ ...item, handed_over: { remote_job_id: 'job-1', account_id: 'acc-torbox' } }))
+  }
+
+  async function selectNzb(container: Element): Promise<void> {
+    const box = container.querySelector<HTMLInputElement>(`input[aria-label="${linkgrabber.nzb.select}"]`)
+    if (!box) throw new Error('no NZB checkbox')
+    await fireEvent.click(box)
+    await settle()
+  }
+
+  afterEach(() => {
+    setShowNzbHandOver({})
+    vi.mocked(api.GET).mockImplementation((async () => ({ data: [] })) as unknown as typeof api.GET)
+  })
+
+  it('offers both while the switch is on and an account takes NZBs', async () => {
+    seedHandedOver()
+    const { container, getByTestId } = mountView()
+    await announceAccounts([{ id: 'acc-torbox', label: 'Main', provider: 'torbox', enabled: true }])
+    await selectNzb(container)
+
+    await waitFor(() => expect(getByTestId('nzb-hand-over')).toBeTruthy())
+    expect(getByTestId('grabber-hand-over')).toBeTruthy()
+    expect(getByTestId('nzb-handed-over').textContent).toBe('Handed to TorBox')
+  })
+
+  it('hides both when the switch is off and keeps the badge', async () => {
+    seedHandedOver()
+    const { container, getByTestId, queryByTestId } = mountView()
+    await announceAccounts([{ id: 'acc-torbox', label: 'Main', provider: 'torbox', enabled: true }])
+    await selectNzb(container)
+    await waitFor(() => expect(getByTestId('grabber-hand-over')).toBeTruthy())
+
+    setShowNzbHandOver({ nzb_hand_over_linkgrabber_enabled: false })
+    await nextTick()
+
+    expect(queryByTestId('nzb-hand-over')).toBeNull()
+    expect(queryByTestId('grabber-hand-over')).toBeNull()
+    expect(getByTestId('nzb-handed-over').textContent).toBe('Handed to TorBox')
+  })
+
+  it('hides both while no account takes NZBs, whatever the switch says', async () => {
+    seedHandedOver()
+    const { container, getByTestId, queryByTestId } = mountView()
+    await announceAccounts([{ id: 'acc-other', label: 'Other', provider: 'realdebrid', enabled: true }])
+    await selectNzb(container)
+
+    expect(queryByTestId('nzb-hand-over')).toBeNull()
+    expect(queryByTestId('grabber-hand-over')).toBeNull()
+    expect(getByTestId('nzb-handed-over')).toBeTruthy()
   })
 })

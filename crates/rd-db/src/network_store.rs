@@ -146,10 +146,15 @@ pub(crate) async fn update_account(
     Ok((value, event))
 }
 
+/// Deletes an unused account; answers its own two references and, apart, the ones its sign-in
+/// held, whose rows the delete cascades away (DB-02).
 pub(crate) async fn delete_account(
     connection: &mut SqliteConnection,
     id: AccountId,
-) -> Result<((Option<String>, Option<String>), EventEnvelope)> {
+) -> Result<(
+    ((Option<String>, Option<String>), Vec<String>),
+    EventEnvelope,
+)> {
     let event = network_event(EventKind::AccountChanged, "account", id);
     let mut tx = connection.begin().await?;
     let row = sqlx::query("SELECT secret_ref, cookie_ref FROM accounts WHERE id = ?")
@@ -168,6 +173,7 @@ pub(crate) async fn delete_account(
         jobs == 0,
         StoreError::in_use("account is still used by download jobs")
     );
+    let sign_in = crate::auth_flow_store::sign_in_references(&mut tx, id).await?;
     sqlx::query("UPDATE downloads SET account_id = NULL WHERE account_id = ?")
         .bind(id.to_string())
         .execute(&mut *tx)
@@ -178,7 +184,10 @@ pub(crate) async fn delete_account(
         .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok(((row.get("secret_ref"), row.get("cookie_ref")), event))
+    Ok((
+        ((row.get("secret_ref"), row.get("cookie_ref")), sign_in),
+        event,
+    ))
 }
 
 pub(crate) async fn create_proxy_profile(
@@ -307,6 +316,20 @@ pub(crate) async fn list_accounts(pool: &SqlitePool) -> Result<Vec<Account>> {
     .into_iter()
     .map(TryInto::try_into)
     .collect()
+}
+
+/// One account's public metadata by id, read like [`list_accounts`].
+pub(crate) async fn get_account(pool: &SqlitePool, id: AccountId) -> Result<Option<Account>> {
+    sqlx::query_as::<_, AccountRow>(
+        "SELECT id, provider, label, username, credential_mode, proxy_profile_id, enabled, \
+         secret_ref IS NOT NULL AS has_secret, cookie_ref IS NOT NULL AS has_cookies \
+         FROM accounts WHERE id = ?",
+    )
+    .bind(id.to_string())
+    .fetch_optional(pool)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
 }
 
 pub(crate) async fn account_secret_refs(

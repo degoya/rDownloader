@@ -79,17 +79,32 @@ impl SourceIdentity {
     }
 }
 
+/// The form of a host name every comparison uses; it lives in `rd-provider-registry`, the lowest
+/// crate that needs it (audit 1.9.1, INTAKE-11).
+pub use rd_provider_registry::host_key;
+
 /// An address without the parts that do not change what it points at: the fragment, the case
 /// of the host, a leading `www.`, the default port, `http` against `https`, and a trailing
 /// slash on the path.
+///
+/// The rules, decided once (audit 1.9.1, INTAKE-11):
+///
+/// * the scheme `http` becomes `https`, and `:443` is dropped with it;
+/// * the host is [`host_key`]: lower case, no trailing dot, no leading `www.`;
+/// * the fragment goes, the query stays whole — on plenty of hosts it is the address of the
+///   file — and a trailing `/` on the path goes.
+///
+/// A subscription's item key (`rd_subscription::normalize_url`) differs on purpose: it also
+/// drops tracking parameters, and it keeps the host as the feed spells it, because the key is
+/// stored and folding `www.` there would re-key every stored item and import it again.
 #[must_use]
 pub fn normalized_url(url: &Url) -> String {
     let scheme = match url.scheme() {
         "http" => "https",
         other => other,
     };
-    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
-    let host = host.strip_prefix("www.").unwrap_or(&host);
+    let host = host_key(url.host_str().unwrap_or_default());
+    let host = host.as_str();
     // `port()` is already `None` for the scheme's default port.
     let port = url
         .port()
@@ -165,6 +180,13 @@ fn decode_base32(value: &str) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_host_key_ignores_case_a_trailing_dot_and_www() {
+        assert_eq!(super::host_key("WWW.Example.COM."), "example.com");
+        assert_eq!(super::host_key("cdn.example.com"), "cdn.example.com");
+        assert_eq!(super::host_key("www."), "www", "a bare www is not emptied");
+    }
+
     use url::Url;
 
     use super::{SourceIdentity, SourceIdentityKind, magnet_info_hash, normalized_url};
@@ -179,6 +201,7 @@ mod tests {
         for spelling in [
             "http://example.com/file.bin?id=7",
             "https://WWW.Example.com/file.bin?id=7",
+            "https://Example.com./file.bin?id=7",
             "https://example.com:443/file.bin?id=7",
             "https://example.com/file.bin/?id=7",
             "https://example.com/file.bin?id=7#part",

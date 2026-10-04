@@ -8,9 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use rd_core::{
-    DownloadId, TorrentTracker, TrackerOrigin, TrackerScrape, redact_tracker_url, tracker_id,
-};
+use rd_core::{DownloadId, TorrentTracker, TrackerOrigin, TrackerScrape, redact_tracker_url};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -301,8 +299,6 @@ fn validate_tracker_url(url: &str) -> Result<String, ApiError> {
     if !matches!(parsed.scheme(), "http" | "https" | "udp") || parsed.host_str().is_none() {
         return Err(invalid());
     }
-    // Derived here so a caller cannot smuggle in a mismatched id.
-    let _ = tracker_id(url);
     Ok(url.to_owned())
 }
 

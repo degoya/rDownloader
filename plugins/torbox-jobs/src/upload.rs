@@ -91,20 +91,7 @@ fn source_stem(name: &str) -> Option<String> {
 /// The `name` a torrent's `info` dictionary states, made header-safe.
 #[must_use]
 pub fn torrent_name(bytes: &[u8]) -> Option<String> {
-    let info = source::info_slice(bytes)?;
-    if info.first() != Some(&b'd') {
-        return None;
-    }
-    let mut at = 1;
-    while at < info.len() && info[at] != b'e' {
-        let (key, after_key) = source::read_byte_string(info, at)?;
-        if key == b"name" {
-            let (value, _) = source::read_byte_string(info, after_key)?;
-            return named(&String::from_utf8_lossy(value));
-        }
-        at = source::skip_value(info, after_key, 1)?;
-    }
-    None
+    named(&torrent_common::container_name(bytes)?)
 }
 
 /// The release name an NZB states in its head: `<meta type="name">Show.S01E01</meta>`.

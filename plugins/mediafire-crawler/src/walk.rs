@@ -1,183 +1,80 @@
-//! Walking a folder tree under limits it cannot talk its way out of.
+//! Walking a MediaFire folder tree under the shared crawler limits.
 //!
-//! The four limits are the ones `plugins/premiumize-crawler/src/walk.rs` established and the
-//! Google Drive, OneDrive and Dropbox crawlers kept, deliberately unchanged: what a person
-//! gets back from pasting a folder should not depend on which cloud it was in. Depth, count,
-//! folders, and a set of visited keys against a folder that contains itself. Plus the one a
-//! chunked API needs: **chunks** — `folder/get_content` answers a hundred entries at a time
-//! and says `more_chunks`, so a folder wide enough produces chunks for as long as anybody
-//! asks. The guest reads a folder's chunks and hands the walk the whole folder at once,
-//! saying whether it stopped short; the walk records that as its own limit.
+//! The limits, the breadth-first order and the cycle guard are `plugin_common::walk`'s, shared
+//! by every folder crawler (RD-191-07): what a person gets back from pasting a folder should not
+//! depend on which cloud it was in. What is MediaFire's own is here: a folder and a file are
+//! named by their keys, and `folder/get_content` answers a hundred entries at a time and says
+//! `more_chunks`, so a folder wide enough produces chunks for as long as anybody asks. The guest
+//! reads a folder's chunks up to [`MAX_CHUNKS`] — the shared page cap — and hands the walk the
+//! whole folder at once, saying whether it stopped short; the walk records that as
+//! [`Limit::Pages`].
 //!
-//! Breadth first: the files nearest the address a person pasted are the ones they meant, so
-//! if a limit does cut the walk short it cuts the far end off. The fuel and time budget in
-//! `manifest.toml` sit underneath as the last resort; they stop a runaway, they do not bound
-//! a correct crawl.
+//! A folder's name passes through the shared `join`, which drops a separator in it rather than
+//! replacing it with `_` as this crawler once did alone.
 
 use crate::listing::Entry;
 
-/// How many levels below the crawled address are walked.
-pub const MAX_DEPTH: u32 = 4;
-/// Most files one crawl hands back.
-pub const MAX_FILES: usize = 500;
-/// Most folders one crawl reads, including the one it was given.
-pub const MAX_FOLDERS: usize = 100;
-/// Most chunks of one folder's listing (per content type) that are followed.
-pub const MAX_CHUNKS: u32 = 10;
+pub use plugin_common::walk::{Limit, join};
 
-/// A folder still to be read.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Pending {
-    pub key: String,
-    /// Path relative to the crawled address, the crawled folder's own name first, for the
-    /// package suggestion.
-    pub path: String,
-    pub depth: u32,
-}
+/// Most chunks of one folder's listing that are read, per content type: the shared page cap.
+pub const MAX_CHUNKS: usize = plugin_common::walk::MAX_PAGES;
+
+/// A folder still to be read, by its folder key.
+pub type Pending = plugin_common::walk::Pending<String>;
+
+/// The state of one crawl.
+pub type Walk = plugin_common::walk::Walk<String, Found>;
 
 /// One file the walk found.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Found {
     pub key: String,
     pub name: String,
-    /// The folder path this file sat in, relative to the crawled address.
+    /// The folder path this file sat in, starting at the crawled folder's name.
     pub path: String,
     pub size: Option<u64>,
 }
 
-/// Which limit stopped the walk short, when one did.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Limit {
-    Depth,
-    Files,
-    Folders,
-    Chunks,
+/// Starts at the crawled folder, under its own name.
+#[must_use]
+pub fn start(key: &str, name: &str) -> Walk {
+    Walk::start_at(key.to_owned(), join("", name))
 }
 
-/// The state of one crawl: the folders still to read, and what was found so far.
-pub struct Walk {
-    queue: Vec<Pending>,
-    /// Every folder ever enqueued, by key. A folder reached twice is read once; this is the
-    /// cycle guard.
-    seen: Vec<String>,
-    files: Vec<Found>,
-    read: usize,
-    limit: Option<Limit>,
+/// Takes what one whole folder held; `truncated` says its chunks ran past the cap.
+pub trait Absorb {
+    fn absorb(&mut self, folder: &Pending, entries: Vec<Entry>, truncated: bool);
 }
 
-impl Walk {
-    /// Starts at the folder the crawled address named, under its own name.
-    #[must_use]
-    pub fn start(key: &str, name: &str) -> Self {
-        Self {
-            queue: vec![Pending {
-                key: key.to_owned(),
-                path: join("", name),
-                depth: 0,
-            }],
-            seen: vec![key.to_owned()],
-            files: Vec::new(),
-            read: 0,
-            limit: None,
-        }
-    }
-
-    /// The next folder to fetch, or `None` when the walk is over.
-    pub fn next_folder(&mut self) -> Option<Pending> {
-        if self.files.len() >= MAX_FILES {
-            self.limit.get_or_insert(Limit::Files);
-            return None;
-        }
-        if self.queue.is_empty() {
-            return None;
-        }
-        if self.read >= MAX_FOLDERS {
-            self.limit.get_or_insert(Limit::Folders);
-            return None;
-        }
-        self.read += 1;
-        Some(self.queue.remove(0))
-    }
-
-    /// Takes in one folder's content: its files are kept up to the limit, its subfolders are
-    /// queued up to the depth limit, and `truncated` says the guest stopped reading chunks.
-    pub fn absorb(&mut self, folder: &Pending, entries: Vec<Entry>, truncated: bool) {
+impl Absorb for Walk {
+    fn absorb(&mut self, folder: &Pending, entries: Vec<Entry>, truncated: bool) {
         if truncated {
-            self.limit.get_or_insert(Limit::Chunks);
+            self.note(Limit::Pages);
         }
         for entry in entries {
             match entry {
                 Entry::File { key, name, size } => {
-                    if self.files.len() >= MAX_FILES {
-                        self.limit.get_or_insert(Limit::Files);
-                        break;
-                    }
-                    self.files.push(Found {
+                    let found = Found {
                         key,
                         name,
                         path: folder.path.clone(),
                         size,
-                    });
+                    };
+                    if !self.add_file(found) {
+                        break;
+                    }
                 }
                 Entry::Folder { key, name } => {
-                    if folder.depth >= MAX_DEPTH {
-                        self.limit.get_or_insert(Limit::Depth);
-                        continue;
-                    }
-                    if self.seen.contains(&key) {
-                        continue;
-                    }
-                    self.seen.push(key.clone());
-                    self.queue.push(Pending {
-                        key,
-                        path: join(&folder.path, &name),
-                        depth: folder.depth + 1,
-                    });
+                    self.enter(folder, key, &name);
                 }
             }
         }
-    }
-
-    /// Which limit cut the walk short, if one did.
-    #[must_use]
-    pub fn limit(&self) -> Option<Limit> {
-        self.limit
-    }
-
-    /// Everything found, in the order it was found.
-    #[must_use]
-    pub fn into_files(self) -> Vec<Found> {
-        self.files
-    }
-}
-
-/// `path/name`, with the separators a stranger's name may carry replaced, so a name can
-/// never leave the folder it belongs to.
-#[must_use]
-pub fn join(path: &str, name: &str) -> String {
-    let name: String = name
-        .chars()
-        .map(|character| {
-            if matches!(character, '/' | '\\') {
-                '_'
-            } else {
-                character
-            }
-        })
-        .collect();
-    let name = name.trim();
-    if path.is_empty() {
-        name.to_owned()
-    } else if name.is_empty() {
-        path.to_owned()
-    } else {
-        format!("{path}/{name}")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Limit, MAX_DEPTH, MAX_FILES, MAX_FOLDERS, Walk, join};
+    use super::{Absorb, Limit, start};
     use crate::listing::Entry;
 
     fn file(name: &str) -> Entry {
@@ -197,7 +94,7 @@ mod tests {
 
     #[test]
     fn a_tree_is_walked_breadth_first_with_paths_from_the_root_name() {
-        let mut walk = Walk::start("root", "Walls");
+        let mut walk = start("root", "Walls");
         let root = walk.next_folder().expect("root");
         assert_eq!((root.path.as_str(), root.depth), ("Walls", 0));
         walk.absorb(
@@ -206,18 +103,19 @@ mod tests {
             false,
         );
         let sub = walk.next_folder().expect("subfolder");
-        assert_eq!((sub.path.as_str(), sub.depth), ("Walls/Test_Folder", 1));
+        assert_eq!((sub.path.as_str(), sub.depth), ("Walls/TestFolder", 1));
         walk.absorb(&sub, vec![file("b.png")], false);
         assert!(walk.next_folder().is_none());
         assert_eq!(walk.limit(), None);
         let files = walk.into_files();
         assert_eq!(files.len(), 2);
-        assert_eq!(files[1].path, "Walls/Test_Folder");
+        assert_eq!(files[0].key, "ka.png");
+        assert_eq!(files[1].path, "Walls/TestFolder");
     }
 
     #[test]
     fn a_folder_that_contains_itself_is_read_once() {
-        let mut walk = Walk::start("root", "Loop");
+        let mut walk = start("root", "Loop");
         let root = walk.next_folder().expect("root");
         walk.absorb(&root, vec![folder("root", "Loop"), folder("x", "X")], false);
         let x = walk.next_folder().expect("x");
@@ -226,50 +124,13 @@ mod tests {
         assert_eq!(walk.limit(), None);
     }
 
+    /// A folder whose chunks ran past the cap is recorded as cut short.
     #[test]
-    fn every_limit_is_named() {
-        let mut walk = Walk::start("root", "Deep");
-        let mut pending = walk.next_folder().expect("root");
-        for level in 0..=MAX_DEPTH {
-            walk.absorb(&pending, vec![folder(&format!("d{level}"), "d")], false);
-            match walk.next_folder() {
-                Some(next) => pending = next,
-                None => break,
-            }
-        }
-        assert_eq!(walk.limit(), Some(Limit::Depth));
-
-        let mut walk = Walk::start("root", "Wide");
-        let root = walk.next_folder().expect("root");
-        let files = (0..=MAX_FILES)
-            .map(|index| file(&index.to_string()))
-            .collect();
-        walk.absorb(&root, files, false);
-        assert_eq!(walk.limit(), Some(Limit::Files));
-        assert_eq!(walk.into_files().len(), MAX_FILES);
-
-        let mut walk = Walk::start("root", "Many");
-        let root = walk.next_folder().expect("root");
-        let folders = (0..MAX_FOLDERS)
-            .map(|index| folder(&index.to_string(), "f"))
-            .collect();
-        walk.absorb(&root, folders, false);
-        while let Some(pending) = walk.next_folder() {
-            walk.absorb(&pending, Vec::new(), false);
-        }
-        assert_eq!(walk.limit(), Some(Limit::Folders));
-
-        let mut walk = Walk::start("root", "Chunked");
+    fn a_truncated_folder_is_named_as_the_page_limit() {
+        let mut walk = start("root", "Chunked");
         let root = walk.next_folder().expect("root");
         walk.absorb(&root, vec![file("a")], true);
-        assert_eq!(walk.limit(), Some(Limit::Chunks));
-    }
-
-    #[test]
-    fn join_keeps_a_name_inside_its_folder() {
-        assert_eq!(join("", "Walls"), "Walls");
-        assert_eq!(join("Walls", "Season 1"), "Walls/Season 1");
-        assert_eq!(join("Walls", "../../etc"), "Walls/.._.._etc");
-        assert_eq!(join("Walls", "  "), "Walls");
+        assert_eq!(walk.limit(), Some(Limit::Pages));
+        assert_eq!(walk.into_files().len(), 1);
     }
 }

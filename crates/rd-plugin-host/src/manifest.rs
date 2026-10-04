@@ -257,7 +257,7 @@ const MAX_WAIT_BUDGET_MILLISECONDS: u64 = 30 * 60 * 1000;
 const MAX_MEMORY_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_FUEL: u64 = 20 * DEFAULT_FUEL;
 const MAX_TIMEOUT_MILLISECONDS: u64 = MAX_WAIT_BUDGET_MILLISECONDS;
-const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
+pub(crate) const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
 const MIN_SLUG_CHARS: usize = 2;
 
 /// Signed metadata included in a `.rdplug` archive.
@@ -395,7 +395,17 @@ pub struct ExtensionManifest {
     /// `destination-settings.setting` from it at delivery.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub settings: Vec<SettingManifest>,
+    /// The container formats a `remote-job` plugin's provider takes as `job-source::container`
+    /// (RD-191-13): any of [`REMOTE_JOB_CONTAINERS`]. Declared rather than probed, so the
+    /// LinkGrabber can offer an NZB only to the accounts whose provider takes one without
+    /// compiling a component to ask. Empty: the plugin takes no container, or says nothing --
+    /// either way nothing is offered on its behalf, and `identify` still has the last word.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub containers: Vec<String>,
 }
+
+/// What `[extension] containers` may name.
+pub const REMOTE_JOB_CONTAINERS: &[&str] = &["torrent", "nzb", "dlc", "rsdf"];
 
 /// One setting a notification destination offers (`[[extension.settings]]`, RD-170-09).
 ///
@@ -951,6 +961,24 @@ fn validate_shape(manifest: &PluginManifest) -> Result<()> {
                 );
             }
             validate_settings(&extension.settings)?;
+            // Only a remote job is ever handed a container, and a format nothing offers would be
+            // a promise nobody reads (RD-191-13).
+            if !extension.containers.is_empty() && manifest.plugin_type != PluginType::RemoteJob {
+                bail!(
+                    "a {} manifest must not declare extension.containers",
+                    manifest.plugin_type.as_str()
+                );
+            }
+            for (index, format) in extension.containers.iter().enumerate() {
+                if !REMOTE_JOB_CONTAINERS.contains(&format.as_str())
+                    || extension.containers[..index].contains(format)
+                {
+                    bail!(
+                        "extension.containers names `{format}` badly or twice; one of {}",
+                        REMOTE_JOB_CONTAINERS.join(", ")
+                    );
+                }
+            }
             // Only a crawler is ever asked in an order, so on any other type the flag would
             // be a claim about behaviour that does not exist.
             if extension.generic && manifest.plugin_type != PluginType::Crawler {
@@ -1412,12 +1440,9 @@ fn bounded_text(field: &str, value: &str, limit: usize) -> Result<()> {
 /// [`crate::domain_allowed`] applies at request time. Two wildcard semantics for one
 /// allowlist is how a manifest ends up promising less than the runtime permits.
 fn host_covered(host: &str, domains: &[String]) -> bool {
-    domains.iter().any(|domain| {
-        domain == host
-            || domain
-                .strip_prefix("*.")
-                .is_some_and(|suffix| host.ends_with(&format!(".{suffix}")))
-    })
+    domains
+        .iter()
+        .any(|domain| rd_core::host_pattern_matches(domain, host, rd_core::WildcardApex::Excluded))
 }
 
 pub(crate) fn validate_domain_pattern(domain: &str, allow_all: bool) -> Result<()> {
@@ -1437,6 +1462,33 @@ pub(crate) fn validate_domain_pattern(domain: &str, allow_all: bool) -> Result<(
         || domain.trim_matches('.').is_empty()
     {
         bail!("invalid plugin domain {domain}");
+    }
+    // `*` only as a leading `*.` before at least two labels, as a site rule's `match.hosts`
+    // reads it (`rd-siterules`, `text::is_host_pattern`; RA-HOST-06): `*foo.com` and
+    // `cdn.*.com` matched nothing at request time, and `*.com` covered a whole top-level domain.
+    let host = domain.strip_prefix("*.").unwrap_or(domain);
+    let labels = host.split('.').collect::<Vec<_>>();
+    if host.contains('*') {
+        bail!("plugin domain {domain} may carry `*` only as a leading `*.`");
+    }
+    if labels.len() < 2 || labels.iter().any(|label| label.is_empty()) {
+        bail!("plugin domain {domain} needs at least two labels after any `*.`");
+    }
+    // A plugin's reach is the public internet, and an address names no service a plugin author
+    // could stand behind (RA-HOST-01): `127.0.0.1`, `169.254.169.254` and `localhost` reached
+    // this machine, and the service's API trusts a request from there. The guard at request
+    // time refuses them anyway; refusing them here tells the author at packaging time.
+    if matches!(
+        url::Host::parse(host),
+        Ok(url::Host::Ipv4(_) | url::Host::Ipv6(_))
+    ) || labels
+        .last()
+        .is_some_and(|last| last.bytes().all(|byte| byte.is_ascii_digit()))
+    {
+        bail!("plugin domain {domain} is an address, not a name");
+    }
+    if host == "localhost" || host.ends_with(".localhost") {
+        bail!("plugin domain {domain} names this machine");
     }
     Ok(())
 }

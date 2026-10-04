@@ -5,7 +5,7 @@
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UpdateStatus } from '@/api/updates'
+import type { UpdateOffer, UpdateStatus } from '@/api/updates'
 import system from '@/locales/en/system.json'
 import { mountComponent } from '@/test/mount'
 
@@ -27,7 +27,7 @@ const modal = {
   template: '<div v-if="open" data-testid="modal"><h2>{{ title }}</h2><slot name="body" /><slot name="footer" /></div>'
 }
 
-function status(available: UpdateStatus['available']): UpdateStatus {
+function status(available: UpdateOffer | null): UpdateStatus {
   return {
     current_version: '1.7.0',
     configured: true,

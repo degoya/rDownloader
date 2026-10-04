@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useLatestFetch } from '@/composables/useLatestFetch'
 import type { StatsRange, TransferStats } from '@/api/types'
 
 /** A finished transfer changes the figures; a burst of them should cost one read, not one each. */
@@ -23,31 +24,22 @@ export const useStatsStore = defineStore('stats', () => {
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
-  const fetching = ref(false)
-  /** True once the first fetch has settled, so "nothing here" is only said when it is true. */
-  const settled = ref(false)
-  const loading = computed(() => !settled.value)
+  /** `settled` says "nothing here" only once it is true; only the newest read lands (WEB-06). */
+  const { fetching, settled, loading, run } = useLatestFetch()
 
-  let releaseEvents: (() => void) | null = null
   let pollTimer: number | null = null
-  let debounceTimer: number | null = null
 
   async function refresh(): Promise<void> {
-    fetching.value = true
-    const requested = range.value
-    const response = await api.GET('/api/v1/stats/transfers', { params: { query: { range: requested } } })
-    // A slower answer for a range the reader has already left must not overwrite the one
-    // they are looking at.
-    if (requested === range.value) {
+    // The ticket in `run` keeps a slower answer — for a range the reader has already left, or an
+    // older read of the same one from the poll — from overwriting the one they are looking at.
+    await run(() => api.GET('/api/v1/stats/transfers', { params: { query: { range: range.value } } }), (response) => {
       if (response.data) {
         stats.value = response.data
         error.value = null
       } else {
         error.value = responseError(response)
       }
-    }
-    fetching.value = false
-    settled.value = true
+    })
   }
 
   async function setRange(next: StatsRange): Promise<void> {
@@ -56,27 +48,18 @@ export const useStatsStore = defineStore('stats', () => {
     await refresh()
   }
 
-  function scheduleRefresh(): void {
-    if (debounceTimer !== null) return
-    debounceTimer = window.setTimeout(() => {
-      debounceTimer = null
-      void refresh()
-    }, EVENT_DEBOUNCE_MS)
-  }
+  const events = debouncedEventRefresh(['download.state'], refresh, { delayMs: EVENT_DEBOUNCE_MS })
 
   function start(): void {
     void refresh()
-    releaseEvents ??= subscribeEvents({ 'download.state': scheduleRefresh })
+    events.connect()
     pollTimer ??= window.setInterval(() => void refresh(), POLL_MS)
   }
 
   function stop(): void {
-    releaseEvents?.()
-    releaseEvents = null
+    events.disconnect()
     if (pollTimer !== null) window.clearInterval(pollTimer)
     pollTimer = null
-    if (debounceTimer !== null) window.clearTimeout(debounceTimer)
-    debounceTimer = null
   }
 
   return { range, stats, error, fetching, settled, loading, refresh, setRange, start, stop }

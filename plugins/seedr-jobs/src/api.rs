@@ -24,6 +24,7 @@
 //! measured on 2026-09-22; `docs/roadmap/jobs/120-04-seedr-feasibility.md` records the run
 //! against a real, premium account as open.
 
+use plugin_common::HttpRefusal;
 use seedr_common::folder::{Listing, Torrent};
 
 use crate::messages;
@@ -55,10 +56,6 @@ const BUSY_SECONDS: u64 = 300;
 
 /// The wait a 429 gets when Seedr states no usable `Retry-After`.
 const RATE_LIMIT_SECONDS: u64 = 60;
-
-/// The longest `Retry-After` that is believed, so a header from a proxy cannot park a job for
-/// days.
-const MAX_RETRY_AFTER_SECONDS: u64 = 3600;
 
 /// Longest transfer name kept on the handle. It is Seedr's own text and it comes back as a
 /// folder name to match on, so it is bounded rather than trusted.
@@ -220,23 +217,7 @@ pub fn magnet_display_name(magnet: &str) -> Option<String> {
 }
 
 fn percent_decode(value: &str) -> String {
-    let bytes = value.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut at = 0;
-    while at < bytes.len() {
-        if bytes[at] == b'%'
-            && let Some(hex) = bytes.get(at + 1..at + 3)
-            && let Ok(text) = std::str::from_utf8(hex)
-            && let Ok(byte) = u8::from_str_radix(text, 16)
-        {
-            out.push(byte);
-            at += 3;
-            continue;
-        }
-        out.push(bytes[at]);
-        at += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
+    String::from_utf8_lossy(&plugin_common::encode::percent_decode(value)).into_owned()
 }
 
 /// Where one finished file belongs: its bare name, and the folder path it sat on.
@@ -344,19 +325,7 @@ fn classify(
         .as_deref()
         .is_some_and(|word| word.starts_with("not_enough_space"));
     match status {
-        401 | 403 => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
         402 => plain(ErrorKind::Unsupported, messages::PLAN_REQUIRED),
-        404 | 410 => plain(ErrorKind::Offline, messages::TRANSFER_GONE),
-        429 => ApiFailure {
-            kind: ErrorKind::RateLimited(Some(retry_after_seconds.unwrap_or(RATE_LIMIT_SECONDS))),
-            code: messages::RATE_LIMITED.0,
-            message: messages::RATE_LIMITED.1.to_owned(),
-            params: Vec::new(),
-        },
-        500..=599 => plain(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
-            messages::SERVER_ERROR,
-        ),
         status if (200..=299).contains(&status) && plan_refused => {
             plain(ErrorKind::Unsupported, messages::PLAN_REQUIRED)
         }
@@ -365,21 +334,31 @@ fn classify(
             messages::OUT_OF_SPACE,
         ),
         status if (200..=299).contains(&status) => plain(ErrorKind::Permanent, messages::API_ERROR),
-        other => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
+        // Everything else is the mapping every plugin shares (RD-191-07), with this provider's
+        // words and defaults.
+        _ => match plugin_common::http_status(status, retry_after_seconds) {
+            Ok(()) => plain(ErrorKind::Permanent, messages::API_ERROR),
+            Err(HttpRefusal::Unauthorized) => {
+                plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)
+            }
+            Err(HttpRefusal::Gone) => plain(ErrorKind::Permanent, messages::TRANSFER_GONE),
+            Err(HttpRefusal::Unavailable) => plain(ErrorKind::Offline, messages::TRANSFER_GONE),
+            Err(HttpRefusal::RateLimited(wait)) => plain(
+                ErrorKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
+                messages::RATE_LIMITED,
+            ),
+            Err(HttpRefusal::ServerError(wait)) => plain(
+                ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
+                messages::SERVER_ERROR,
+            ),
+            Err(HttpRefusal::Other(other)) => ApiFailure {
+                kind: ErrorKind::Permanent,
+                code: messages::HTTP_ERROR.0,
+                message: messages::http_error(other),
+                params: vec![("status", other.to_string())],
+            },
         },
     }
-}
-
-/// Reads a `Retry-After` stated in seconds; a date-shaped or absurd one is ignored rather than
-/// guessed at, because a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(header: Option<&str>) -> Option<u64> {
-    let seconds: u64 = header?.trim().parse().ok()?;
-    (seconds > 0 && seconds <= MAX_RETRY_AFTER_SECONDS).then_some(seconds)
 }
 
 #[cfg(test)]

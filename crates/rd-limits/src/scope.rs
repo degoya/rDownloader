@@ -87,14 +87,12 @@ impl TransferScope {
     }
 }
 
-/// Lower-cases a host and drops a leading `www.`, matching how category rules and the
-/// provider registry treat hosts.
+/// Lower-cases a host and drops a trailing dot and a leading `www.`: the shared
+/// [`rd_core::host_key`], so a limit scope, a host block and a hoster match agree on the host
+/// (audit 1.9.1, INTAKE-11).
 #[must_use]
 pub fn normalize_host(value: &str) -> String {
-    let trimmed = value.trim().to_ascii_lowercase();
-    trimmed
-        .strip_prefix("www.")
-        .map_or(trimmed.clone(), str::to_owned)
+    rd_core::host_key(value)
 }
 
 #[cfg(test)]
@@ -106,6 +104,8 @@ mod tests {
     #[test]
     fn hosts_are_normalised_into_one_bucket() {
         assert_eq!(normalize_host(" WWW.Example.COM "), "example.com");
+        // The shared host form drops a trailing dot too (INTAKE-11), as a host block does.
+        assert_eq!(normalize_host("example.com."), "example.com");
         assert_eq!(
             LimitScope::host("www.example.com"),
             LimitScope::Host("example.com".to_owned())

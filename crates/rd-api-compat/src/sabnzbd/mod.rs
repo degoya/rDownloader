@@ -22,7 +22,6 @@ use axum::{
     routing::get,
 };
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 
 use crate::AppState;
 
@@ -73,8 +72,14 @@ async fn handle(
     Query(query): Query<SabQuery>,
     multipart: Option<Multipart>,
 ) -> Response {
-    if !authorized(&state, &headers, query.apikey.as_deref()).await {
-        return error("API Key Incorrect");
+    match authorized(&state, &headers, query.apikey.as_deref()).await {
+        rd_api_core::auth::CompatAccess::Granted => {}
+        rd_api_core::auth::CompatAccess::Refused => return error("API Key Incorrect"),
+        // Not "incorrect": a client told its key is wrong asks its user for a new one, for a
+        // fault that is this service's (audit 1.9.1, API-13).
+        rd_api_core::auth::CompatAccess::Unavailable => {
+            return error("Service temporarily unavailable, try again later");
+        }
     }
     match query.mode.as_str() {
         "version" => config::version(),
@@ -92,18 +97,25 @@ async fn handle(
     }
 }
 
-/// Checks the API key against the revocable `api:*` tokens.
+/// Checks the API key against the revocable API tokens: one holding `api:intake`, `api:queue`
+/// and `api:read` -- or `api:*`, which holds them -- passes (`auth::compat_access`, audit
+/// 1.9.1, API-04).
 ///
-/// The same credential a machine client already uses, rather than a second secret: adding a
-/// download client in Sonarr and adding an MCP client are the same act of handing out full
-/// API access. A read-only token is refused here — this surface adds and deletes.
+/// The same credential a machine client already uses, rather than a second secret, but no more
+/// of it than this surface needs: it adds, controls and reads the queue, and a key handed to
+/// Sonarr no longer opens settings, stored credentials or administration. A read-only token is
+/// still refused — this surface adds and deletes.
 ///
 /// Send it as the `X-Api-Key` header wherever the client allows it. The `apikey=` query
 /// parameter is accepted because that is what the SABnzbd clients in the field send and
 /// dropping it would break every one of them, but a query string is written into reverse-proxy
 /// access logs and browser history, which a header is not. This service redacts the parameter
 /// from its own request spans (`rd_api::redact_uri`); nothing it does reaches a proxy's log.
-async fn authorized(state: &AppState, headers: &HeaderMap, apikey: Option<&str>) -> bool {
+async fn authorized(
+    state: &AppState,
+    headers: &HeaderMap,
+    apikey: Option<&str>,
+) -> rd_api_core::auth::CompatAccess {
     let key = apikey
         .map(str::to_owned)
         .or_else(|| {
@@ -113,15 +125,7 @@ async fn authorized(state: &AppState, headers: &HeaderMap, apikey: Option<&str>)
                 .map(str::to_owned)
         })
         .unwrap_or_default();
-    if key.is_empty() {
-        return false;
-    }
-    let digest = hex::encode(Sha256::digest(key.as_bytes()));
-    state
-        .database
-        .capture_token_valid(&digest, rd_core::API_SCOPE)
-        .await
-        .unwrap_or(false)
+    rd_api_core::auth::compat_access(state, &key).await
 }
 
 /// A SABnzbd failure: `HTTP 200` with `status: false`.

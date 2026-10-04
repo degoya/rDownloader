@@ -130,7 +130,7 @@ fn a_status_decides_when_no_document_explains_itself() {
     );
     assert_eq!(
         ensure_http_status(404, None).expect_err("refused").kind,
-        ErrorKind::Offline
+        ErrorKind::Permanent
     );
     assert_eq!(
         ensure_http_status(429, Some(120))
@@ -144,8 +144,16 @@ fn a_status_decides_when_no_document_explains_itself() {
         ErrorKind::RateLimited(Some(3600))
     );
     assert_eq!(
+        ensure_http_status(451, None).expect_err("refused").kind,
+        ErrorKind::Offline
+    );
+    assert_eq!(
         ensure_http_status(503, None).expect_err("refused").kind,
         ErrorKind::Transient(Some(300))
+    );
+    assert_eq!(
+        ensure_http_status(503, Some(30)).expect_err("refused").kind,
+        ErrorKind::Transient(Some(30))
     );
     let failure = ensure_http_status(418, None).expect_err("refused");
     assert_eq!(failure.code, messages::HTTP_ERROR.0);
@@ -160,6 +168,9 @@ fn a_retry_after_is_read_in_seconds_and_a_date_is_ignored() {
         None
     );
     assert_eq!(retry_after_seconds(None), None);
+    // The shared reader: `0` is no wait at all, a year is a day.
+    assert_eq!(retry_after_seconds(Some("0")), None);
+    assert_eq!(retry_after_seconds(Some("31536000")), Some(86_400));
 }
 
 #[test]

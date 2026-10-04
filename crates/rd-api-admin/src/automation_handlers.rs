@@ -65,19 +65,15 @@ pub async fn list_automations(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<AutomationResponse>>, ApiError> {
     let automations = state.database.list_automations().await?;
-    let mut response = Vec::with_capacity(automations.len());
-    for automation in automations {
-        let definition = state
-            .database
-            .automation_versions(automation.id)
-            .await?
-            .into_iter()
-            .find(|version| version.version == automation.version);
-        response.push(AutomationResponse {
+    let mut definitions =
+        crate::automation_service::current_definitions(&state.database, &automations).await?;
+    let response: Vec<AutomationResponse> = automations
+        .into_iter()
+        .map(|automation| AutomationResponse {
+            definition: definitions.remove(&automation.id),
             automation,
-            definition,
-        });
-    }
+        })
+        .collect();
     Ok(Json(response))
 }
 
@@ -177,6 +173,7 @@ pub async fn dry_run_automations(
         .map(Json)
         .map_err(|error| {
             ApiError::not_found("automation.dry_run_target_missing", error.to_string())
+                .with_param("reason", error)
         })
 }
 

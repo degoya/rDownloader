@@ -30,6 +30,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/public-ci.sh
 source "$ROOT/scripts/lib/public-ci.sh"
+# shellcheck source=lib/workspace-version.sh
+source "$ROOT/scripts/lib/workspace-version.sh"
 cd "$ROOT"
 
 usage() { echo "usage: scripts/public-ci.sh <branch> [--platforms linux,windows,macos]" >&2; exit 2; }
@@ -56,8 +58,8 @@ tree="$(git rev-parse "$commit^{tree}")"
 public_branch="ci/${branch//\//-}"
 # export-public.sh names the version in its commit message only; the branch's own workspace
 # version is the honest one, without a pre-release suffix it does not accept.
-version="$(git show "$commit:Cargo.toml" | sed -n '/^\[workspace\.package\]/,/^\[/p' \
-    | sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\).*"/\1/p' | head -1)"
+version="$(git show "$commit:Cargo.toml" | rd_workspace_version)"
+version="${version%%[-+]*}"
 [[ -n "$version" ]] || { echo "no workspace version in $branch:Cargo.toml" >&2; exit 1; }
 
 echo "==> $branch (${commit:0:12}, tree ${tree:0:12}) on GitHub"

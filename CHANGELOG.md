@@ -5,6 +5,292 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-04
+
+### Added
+
+- **One switch installs updates of all plugins automatically (RD-191-10).** *Settings → Plugins →
+  Updates* has *Install updates of all plugins automatically*: every installed plugin, and every
+  one installed later, then installs its updates by itself, and each card shows its own switch on
+  and locked. A plugin's own choice stays stored and applies again once the switch is off. An
+  update that asks for new permissions still waits for a click, and an update becomes active only
+  after a restart. REST `GET`/`PUT /api/v1/plugins/updates/settings`, MCP
+  `get_plugin_update_settings` and `set_plugin_update_settings`.
+- **Adjustable column widths in the download list and the LinkGrabber (RD-191-11).** A column
+  header above each list names the columns; the start edge of state, progress, size and metadata
+  drags wider or narrower, or moves with the arrow keys (Shift for larger steps), and Enter or a
+  double click puts a column back. The widths apply to every row, are kept per list in the
+  browser, and the header's menu resets them all. The name keeps its 200 px: a widened column
+  gives way before it does.
+- **A failed unpack says why with one click (RD-191-11).** The *Extraction failed* /
+  *Post-processing failed* badge on a package header is a button that opens the package's
+  post-processing steps, and a failed step's reason is shown whole and wrapped instead of cut off.
+  A failed NZB import in the LinkGrabber opens the same way on its *failed* badge, with its error,
+  its files and its steps — and says so when the service reported no reason at all.
+- **Failed downloads can be retried automatically (RD-191-12).** *Settings → General* has *Retry
+  failed downloads automatically*, with an interval of 1–24 hours (default 6) and a number of
+  rounds per download (default 3, 0 for no limit): a download that failed on a limit, an IP block,
+  an unreachable server or a file reported offline goes back into the queue with a fresh retry
+  budget; a deleted link, a refused account, a wrong checksum or a rejected captcha does not. The
+  transfer card says *Next attempt at HH:MM* for a waiting retry and for a failed download whose
+  round is due. Settings `auto_retry_failed`, `auto_retry_interval_hours`,
+  `auto_retry_max_rounds`, through `get_settings`/`update_settings` over MCP; migration `0119`.
+- **NZBs go to a remote-job provider, from the LinkGrabber and from the downloads (RD-191-13).**
+  An NZB import's *Hand to provider* menu in the LinkGrabber, and the same in the selection bar,
+  lists the accounts whose provider takes NZB files (TorBox, Premiumize); the provider fetches the
+  NZB from Usenet itself and the finished files come back into the LinkGrabber as links. The
+  Downloads view hands over the NZB behind a package the same way, from the package's menu in any
+  state of the package, a failed one included. The import or package stays, with a *Handed to
+  <provider>* badge that leads to the remote jobs and clears live when its remote job is forgotten
+  or discarded; enqueueing the import stays possible. The server writes the NZB back out from the
+  stored import, so the browser sends nothing but the account. Both offers appear only while an
+  account takes NZB files, and each has a switch on the settings' *Collector* tab
+  (`nzb_hand_over_linkgrabber_enabled`, `nzb_hand_over_downloads_enabled`, both on; a badge already
+  shown stays). REST `POST /api/v1/nzb/imports/{id}/remote-job`,
+  `POST /api/v1/packages/{id}/remote-job` and `GET /api/v1/remote-jobs/providers?container=nzb`;
+  MCP `submit_nzb_import_remote_job`, `submit_package_remote_job` and a `container` filter on
+  `list_remote_job_providers`; migration `0120`. A remote-job plugin now declares the container
+  formats its provider takes in its manifest (`[extension] containers`): `torbox-jobs` 0.2.6,
+  `premiumize-transfers` 0.2.6, `realdebrid-torrents` 0.2.5, `putio-transfers` 0.1.9,
+  `seedr-jobs` 0.1.8.
+- **Downloads can be added paused, and the growing lists can be paged (RD-191-05).** `paused` on
+  the REST create and in MCP `add_downloads` creates the rows paused. Downloads, packages,
+  LinkGrabber candidates and batches, collector packages and NZB imports take optional
+  `limit`/`offset`: without them the answer is unchanged, with them it carries `X-Total-Count`
+  (declared in the OpenAPI document; `request.page_limit` outside 1–1000), and the MCP list tools
+  page alike.
+
+### Changed
+
+- **Plugins without a change of their own are rebuilt with Rust 1.98.1.** The compiler moved from
+  1.98.0 to 1.98.1 for its fix of a miscompilation in generated vtables, so their components come
+  out different by a few bytes and each carries a new version: `discord-notifier` 0.9.8;
+  `md5-postprocess` 0.9.9; `ntfy-notifier` 0.10.2; `peeplink-crawler` 0.1.9; `pixeldrain-crawler`
+  0.1.8; `sha256-postprocess` 0.9.8; `sponsorblock-enricher` 0.9.7; `telegram-notifier` 0.9.9;
+  `webdav-storage` 0.9.8.
+
+- **A hoster's limit no longer uses up the retries (RD-191-12).** Waiting out a rate or daily limit
+  or an IP block spends none of the retries per file; at most 48 such waits in a row, then the
+  download fails with `download.limit_waits_exhausted`. A rate limit without a stated reset waits
+  an hour instead of five minutes, so a daily limit no longer ends a download within half an hour.
+  A failed download started again by hand now gets its retries again; before, it kept the spent
+  attempts and its next transient failure ended it at once.
+- **The plugins have a GitHub release of their own.** v1.9.0 listed its 69 signed `.rdplug`
+  files before the installers. A tag now publishes `vX.Y.Z` with the archives, installers,
+  extensions, site-rule pack, SBOM, update manifest and plugin index, and `plugins-vX.Y.Z`
+  ("rDownloader plugins X.Y.Z", never marked latest) with the plugins, each with its own
+  `SHA256SUMS`; the index stays at `releases/latest/download/rdownloader-plugin-index.json` and
+  points into the plugin release. The beta update channel reads sixty releases, so the plugin
+  releases no longer halve the versions it sees. The docker build record no longer lands among
+  the assets.
+- **CI and the scripts check more and repeat less (RD-191-09).** A push to `main` runs only the
+  runner images no successful run of the same tree covers (`gate`, `scripts/ci-tree-greens.sh`),
+  `docker`, `s3-live`, `clamav-live`, `supply-chain` and `scripts` only without a green for the
+  tree, `components` always; `installers.yml` and `self-update.yml` run on branches, never on a
+  tag; shellcheck and actionlint run pinned in a `scripts` job, shellcheck over every tracked shell
+  script but the test fixtures (`packaging/`, `docker/`, `resources/` included); a test that passes
+  only on its retry becomes a warning with test, platform and run; the CI image check builds
+  `release-test`; `release.yml` installs `cargo-component` prebuilt; the copied setup blocks are
+  the composite actions `setup-rust`, `setup-web` and `install-wix`. `scripts/check.sh` runs the
+  Rust tests that read a changed file outside `crates/` (`scripts/lib/rust-test-inputs.map`) and
+  checks the job status words in `archive-jobs.sh --check`; the crash matrix is one list
+  (`scripts/lib/crash-matrix.list`); `e2e.sh --build` builds at `JOBS` under the build lock. The
+  container image pins its base images by digest and its Python tools by hash
+  (`scripts/docker-tools.sh`), with `docker` in Dependabot. `scripts/release.sh` stays as the
+  manual variant beside `release-pipeline.sh`.
+- **Code the bundled plugins used to copy lives once (RD-191-07).** The magnet, base32 and bencode
+  readers of the remote-job plugins are the new shared library `torrent-common`; `plugin-common`
+  holds one HTTP status mapping and `Retry-After` reader, `percent_encode`, the
+  `Content-Disposition` and JSON field readers, the OAuth device flow, the bounded folder walk of
+  nine crawlers and a macro for every resolver's native adapter; `xfs-common` the glue of the XFS
+  plugins. `mega-auth` reads MEGA's answers with a JSON parser and `mega-common`'s base64, unused
+  dependencies are gone, and every crawler cleans a folder name for a package hint alike (control
+  characters, `/` and `\` dropped, 120 characters at most). These plugins change in nothing else;
+  the ones with a fix are named under *Fixed*: `metadata-enricher` 0.1.7;
+  `directory-index-crawler`, `mediafire-crawler` and `premiumize-crawler` 0.1.8;
+  `nextcloud-crawler` 0.1.9; `mega-auth` 0.1.10; `example-transfer` 0.7.6.
+
+### Security
+
+- **A page of another site can no longer act through a browser on this machine (RD-191-05).**
+  State-changing requests whose `Origin` or `Sec-Fetch-Site` names another site are refused
+  (`request.cross_site_refused`) — also with the login switched off, where a foreign page could
+  install a self-signed plugin — and the raw-body routes take only their declared media type.
+  qBittorrent's `SID` cookie is refused from another site or another port on every method, `GET`
+  included, and a request without `Host` is compared by its URI authority. SABnzbd and
+  qBittorrent keys need `api:intake`, `api:queue` and `api:read` instead of `api:*` (an `api:*`
+  token still works) and record their last use and an audit entry; the qBittorrent login body is
+  bounded at 64 KiB. A category whose storage root is gone or whose folder leaves it answers `400
+  category.destination_unresolved` without a path, a store or disk failure a logged `500`
+  (SABnzbd and watched folders alike).
+- **A plugin's web requests keep away from this machine (RD-191-06).** Plugin HTTP now has the
+  address rule the raw `net` sockets got: names are resolved once and only the checked addresses
+  are dialled — a transfer plugin's connection included, so a name that answers `127.0.0.1` (or
+  `::ffff:127.0.0.1`) the second time no longer reaches the service itself. The local network and
+  this machine's loopback are reached only through an address you entered yourself — a storage
+  destination, a crawled address, a notification target (`plugin.http_local_target` otherwise).
+  rDownloader's own services — the web interface and API, Click'n'Load — are never reached, not
+  even through an entered address or a redirect (`plugin.http_own_service`), and link-local with a
+  cloud's metadata endpoint never is. The session cookies a hoster sets while its plugin resolves
+  still reach the download. A manifest may list neither an IP address nor `localhost`, and `*`
+  only as a leading `*.` before two labels, so `*foo.com` no longer matches `evilfoo.com`. A
+  plugin's log line is cut where the plugin wrote it and masked first, so no secret's prefix slips
+  past the mask.
+
+### Fixed
+
+- **The settings can no longer overwrite the configuration with placeholders (RD-191-02).** A
+  save while the settings were still loading or had failed to load — the service restarting with
+  the page open — sent the placeholder document and replaced the real one; the pages bound to the
+  document, *Save* and *Reset* now wait for a successful load and show the failure with *Retry*
+  instead, while categories, rules, sign-in and the other tabs that do not edit the document stay
+  usable and the tab bar stays in reach. Every request of the web interface goes through the API
+  client, so a lost session, the connection dot and an unreachable service are noticed
+  everywhere; clearing the list no longer stays blocked after a network error, a batch of torrents
+  and containers reports every file even when one upload fails, an older answer can no longer
+  overwrite a newer one in the automations, subscriptions, statistics, audit and log lists, and
+  refreshing the audit or log filter drops an older page still on its way. The browser extension
+  has one request helper that keeps the caller's headers. Plugin packages are picked or dropped
+  with Nuxt UI's file upload — a dropped `.rdplug`, which the browser gives no type, is accepted —
+  and a category colour is chosen with its colour picker or typed as an exact `#rrggbb`, the
+  picker's button naming it. The switch for all plugin updates waits for its stored value and
+  shows a read error instead of a guessed "off".
+- **An indexer subscription in the cards view has its bulk actions at the end too.** The footer
+  with *Queue all* and *Dismiss all* under an open group was only drawn in the list view, so a
+  subscription shown as cards still meant scrolling back to the header; it now repeats there as
+  well, without pages, because the slider loads more by itself.
+- **Scheduler and transfers no longer hold a download slot until the restart, and an idle queue
+  stops reading every download twice a second (RD-191-03).** A server's or plugin's
+  `Retry-After` is capped at a day, and a panicking worker or runner now gives its slot back and
+  records a failed attempt; a runner that cannot start its tool (a missing yt-dlp) hands a mirror
+  group's turn on like any other failure. A pass that was already running when the service shut
+  down starts nothing. A reset holds the row until it has been written back, so a due retry can
+  no longer start in between and resume into an empty part file, and a resume, pause or second
+  reset in the middle of it no longer lets the dispatcher at the row (a resume there is refused).
+  Resetting a Usenet file whose NZB was dropped is refused before anything is deleted, with its
+  own reason (`download.nzb_dropped`) instead of "pause it first". FTP, SFTP, bucket and plugin
+  members of a mirror group now hand the turn over and respect IP limits like HTTP ones. yt-dlp
+  failures are classified by the `ERROR:` line and whole words, so "Unable to download webpage" is
+  retried and no longer taken for a login wall, and a tool run past its time limit is a retried
+  failure, not a stop. A torrent joins the queue after its reviewed selection without a state
+  change of its own and no longer overwrites a pause that came in between. Media, gallery and
+  recording parallelism changes apply without a restart, and the remote parallelism and timeout
+  keep the value read last while the settings are being written. A paused chunk lets its sibling
+  chunks write their checkpoint, a paused FTP, SFTP or bucket transfer records what is on disk,
+  and FTP/SFTP/bucket transfers sync before recording progress (new crash point
+  `transfer_file.before_progress_recorded`). A failed torrent leaves the registry, remote listings
+  are breadth first, and error messages keep their causes. The retry backoff and spread, the
+  GitHub release pause cap and the per-host connection budget use the shared helpers; `www.` and
+  the bare host now share one connection budget.
+- **A settings import keeps sign-ins, remote jobs, recording schedules and subscriptions; the
+  vault keeps no orphans (RD-191-04).** Importing settings deleted every account and stream
+  channel and inserted them again, and the cascade took the OAuth sign-ins, remote jobs, stream
+  schedules and their runs with it even when the ids stayed the same; now named accounts and
+  channels are updated in place and only dropped ones lose their children, with their vaulted
+  tokens. Subscriptions the import names again keep their archive, runs and priming instead of
+  being re-created empty, so they no longer take their whole feed for new. Deleting, restarting
+  or replacing a sign-in, deleting its account and renewing a token remove the vault entries they
+  let go of, and every start removes entries nothing in the database names any more (crash point
+  `vault.after_orphan_removed`), reading blob cells as well as text; the vault accepts a reference
+  only in the spelling it hands out, so no stored value can look orphaned, and syncs its folder
+  after each write. Also: six missing indexes (migration `0118`), a content-revocation list for
+  signed documents compiled in beside the trust roots, the automation engine reading one download
+  instead of the whole table per event and catching up from the bus buffer after a burst, the
+  event log purged in bounded batches every minute, and the duplicated file helpers of the restore
+  and the self-update moved to `rd-files`.
+- **A stored setting that no longer reads costs only itself at a start (RD-191-04, RD-191-08).**
+  The start parsed the whole settings document strictly, so a hand edit or an enum value a release
+  removed in any of its fields stopped the service, with no way to repair it from the settings
+  view. Now the start maps the settings the way saving does, and only an invalid value the
+  scheduler runs with (`max_retries`, the connection and NZB limits, the custom CA and the rest of
+  `RUNTIME_FIELDS`) refuses it, naming the field and the `json_remove` that resets it;
+  `rdownloader doctor` says the same. Any other field reads as its default with a warning naming
+  it.
+- **An NZB enqueue stops at the free-space threshold, and a reviewed torrent selection holds
+  (RD-191-05).** The NZB enqueue over REST, MCP and SABnzbd stops at the free-space threshold like
+  every other intake, and a reviewed torrent selection is stored before the row can start. The
+  SABnzbd and qBittorrent adapters answer `503` instead of an empty list when the store cannot be
+  read. Every 500 logs its cause chain, and 72 server codes are translated. Smaller fixes: a
+  routing import is capped and creates a rule named twice once, swallowed errors are logged, an
+  MCP call resolves its token once, and about sixty duplicated helpers are one each.
+- **A service stop during an upload no longer completes the package (RD-191-08).** A stopped
+  rclone, plugin or object storage upload, or a stopped post-processing plugin step, used to count
+  as success: the package was marked completed with its upload still queued, and the next start
+  ran the whole pipeline again, user script included. Now the package stays in post-processing,
+  the restart resumes it, and a script or upload that already finished is not run again. An upload
+  to a plugin destination closes the step it was planned under instead of staying queued beside a
+  second row, object storage and plugin uploads share one step runner, and the upload shows its
+  destination instead of `plugin:<id>/…` as the current item. A lagged event bus no longer loses a
+  package's completion, and the sweep after it goes on past a package it cannot request. apprise
+  and rclone get time limits and are stopped with the service, and rclone's log is read even when
+  a line is not UTF-8. Every post-processing step outcome carries a translatable code.
+- **`doctor` leaves a running service alone, and a data directory has one service (RD-191-08).**
+  `rdownloader doctor` decides by `serve.lock` whether a service runs (one still starting
+  included), leaves its queue alone, holds the lock while it works and no longer lists developer
+  build tools. A second `rdownloader serve` on the same data directory is refused; a data
+  directory on a file system without locking (`ENOLCK`/`EOPNOTSUPP` on CIFS/NFS) starts with a
+  warning.
+- **Feeds and hot folders lose nothing (RD-191-08).** A feed item whose GUID is long and not ASCII
+  no longer crashes the poll, and a poll that fails that way is recorded as failed. A hot-folder
+  file dropped again after its import is imported again instead of being moved aside without a
+  word, and a duplicate whose import was removed meanwhile gets a failed row in the NZB history.
+  Also: compiled filter and rule patterns, one host form (`rd_core::host_key`) and URL
+  normalisation, one backoff and jitter, and the shell and registry helpers shared between the
+  autostart and the capture agent.
+- **Checksum steps verify files of any size, and plugin requests keep their limits
+  (RD-191-06).** `sha256-postprocess` ran out of its compute budget at 16 MiB and
+  `md5-postprocess` at 64 MiB; the host now credits a step its disk reads, up to one read of the
+  package per offered file (two to eight), so a looping plugin still stops. Plugin HTTP has a time
+  limit over the whole answer — 15 s for the headers, 60 s in all, plus the time the request body
+  needs to go up — and reads up to what the manifest allows (MEGA's 16 MiB folder listings). A
+  plugin's retry wait is held to a day; its token lifetime, sign-in window and poll interval can
+  no longer overflow a date, and a failed read of a sign-in no longer drops its stored tokens.
+  Progress writes of a plugin transfer no longer land after its final one, and a step after a
+  rename is offered the new file names: `rename-postprocess` 0.9.10 (resumes at the name it
+  stopped at, so a restart skips no file).
+- **A magnet with an empty pair names its torrent at every provider (RD-191-07).** Put.io, Seedr,
+  Real-Debrid and Premiumize stopped reading a magnet at the first pair without a `=` — an `&&` is
+  one — and refused it as not a torrent, while TorBox and Offcloud read on; all six now skip such a
+  pair, accept the scheme in any case and read a `.torrent` up to 8 MiB (three of them stopped
+  at 4 MiB; Premiumize, which also hashes and re-packs every container it uploads, stays at
+  4 MiB until that is measured): `seedr-jobs` 0.1.8; `putio-transfers` 0.1.9;
+  `realdebrid-torrents` 0.2.5; `premiumize-transfers` 0.2.6.
+- **A file name from `Content-Disposition` keeps a `;` inside quotes and reads `filename*=`
+  (RD-191-07).** The XFS hosters, Krakenfiles, Nitroflare, 1fichier and Rapidgator cut
+  `"Part 1; Part 2.rar"` at the `;` and ignored the RFC 6266 parameter that carries a non-ASCII
+  name: `krakenfiles` and `xfs-generic` 0.1.9; `nitroflare` and `rapidgator` 0.7.10; `onefichier`
+  0.7.11; `filejoker` 0.7.13; `katfile` 0.9.12; `ddownload` 0.10.17.
+- **Every plugin reads an HTTP status nothing else explains the same way, and waits as long as the
+  provider asked (RD-191-07).** `401`/`403` is a refused account — a plain HTTP error where no
+  account was sent (Krakenfiles, MediaFire, the free flows of Rapidgator and 1fichier), so a bot
+  wall no longer sends anybody to fix credentials they never gave; `404`/`410` is a file that is
+  gone for good and is not retried; `451` is an offline file that is retried (it was a plugin
+  error at some providers), still worded as a refusal at Real-Debrid and TorBox. A link check
+  still reports a deleted file offline. `429` and `5xx` carry the provider's `Retry-After` —
+  which most plugins ignored — clamped to one day like every other wait, and a `Retry-After: 0`
+  means the plugin's own default instead of an immediate retry: `box-crawler`, `box-oauth`,
+  `dropbox-crawler`, `dropbox-oauth`, `google-drive-crawler`, `google-drive-oauth`, `hitfile`,
+  `mediafire`, `offcloud-cloud`, `onedrive-crawler`, `onedrive-oauth`, `pcloud-crawler`,
+  `putio-oauth`, `seedr-jobs`, `torbox-auth` and `turbobit` 0.1.8; `box`, `dropbox`,
+  `google-drive`, `krakenfiles`, `mega`, `mega-crawler`, `offcloud`, `onedrive`, `pcloud`,
+  `pcloud-oauth`, `putio`, `putio-transfers`, `seedr`, `torbox` and `xfs-generic` 0.1.9;
+  `pixeldrain` 0.1.10; `realdebrid-auth` and `realdebrid-torrents` 0.2.5; `premiumize-transfers`,
+  `realdebrid` and `torbox-jobs` 0.2.6; `example-oauth` 0.2.7; `alldebrid`, `debridlink`,
+  `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.10; `onefichier` 0.7.11;
+  `premiumize` 0.7.12; `filejoker` 0.7.13; `katfile` 0.9.12; `ddownload` 0.10.17.
+- **A device sign-in waits as long as the provider asks, and survives its outage (RD-191-07).**
+  Debrid-Link and Premiumize answered a `slow_down` with a fixed ten seconds and ignored the
+  interval the provider named at the start; a `slow_down` now adds five seconds to that interval
+  (RFC 8628), and an error page from the provider keeps the sign-in waiting instead of ending it
+  as an unreadable answer. Every sign-in plugin reads an emoji in an answer as the character it
+  is: `box-oauth`, `dropbox-oauth`, `google-drive-oauth`, `onedrive-oauth` and
+  `putio-oauth` 0.1.8; `pcloud-oauth` 0.1.9; `realdebrid-auth` 0.2.5; `example-oauth` 0.2.7;
+  `alldebrid-auth`, `debridlink-auth` and `premiumize-auth` 0.9.8.
+- **The Crawljob and Metalink readers say when a file they claim yields no link (RD-191-07).** They
+  answered an empty list; they now report `crawljob_intake.unreadable` and
+  `metalink_intake.unreadable`, which their catalogues carried unused: `crawljob-intake` 0.9.7;
+  `metalink-intake` 0.10.4.
+
 ## [1.9.0] - 2026-10-02
 
 ### Added

@@ -107,13 +107,8 @@ fn call(
 ) -> Result<Vec<u8>, Failure> {
     let headers = headers(token_reference(account_id), content_type);
     let response = http::http_request(method, url, query, &headers, body)?;
-    let retry_after = api::retry_after_seconds(
-        response
-            .headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-            .map(|(_, value)| value.as_str()),
-    );
+    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
+    let retry_after = plugin_common::retry_after(&response.headers);
     // An `error_code` decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Real-Debrid answers refusals with 2xx.
     let envelope: api::ErrorEnvelope = serde_json::from_slice(&response.body).unwrap_or_default();

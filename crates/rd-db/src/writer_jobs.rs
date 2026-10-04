@@ -20,7 +20,7 @@ async fn record_transfer_outcome(
 ) -> Result<()> {
     let account_id = download.account_id.map(|id| id.to_string());
     let provider = crate::stats_store::provider_of(transaction, account_id.as_deref()).await?;
-    let kind = crate::writer::kind_string(download.kind);
+    let kind = crate::enum_string(download.kind)?;
     crate::stats_store::record(transaction, &kind, &provider, outcome, now).await
 }
 
@@ -92,6 +92,14 @@ impl Writer {
                 "active download must be paused or cancelled before it can be reset"
             ));
         }
+        // A Usenet file whose package let go of its NZB after it completed
+        // (`nzb_store::forget_import_for_package`; the cascade sets `nzb_file_id` to NULL) has
+        // no articles left to fetch: queued again it could only fail (DB-15).
+        if current.kind == rd_core::DownloadKind::Usenet && current.nzb_file_id.is_none() {
+            bail!(StoreError::wrong_state(
+                "a usenet download whose NZB was dropped cannot be fetched again"
+            ));
+        }
         let event = EventEnvelope::new(
             EventKind::DownloadState,
             serde_json::json!({
@@ -113,7 +121,7 @@ impl Writer {
              etag = NULL, last_modified = NULL, computed_checksum_algorithm = NULL, \
              computed_checksum_value = NULL, retry_count = 0, next_retry_at = NULL, \
              last_error_json = NULL, resolver_refresh_count = 0, replay_refresh_count = 0, \
-             updated_at = ? WHERE id = ?",
+             limit_waits = 0, auto_retry_rounds = 0, updated_at = ? WHERE id = ?",
         )
         .bind(event.occurred_at)
         .bind(id.to_string())
@@ -276,12 +284,19 @@ impl Writer {
             EventKind::DownloadState,
             serde_json::json!({ "download_id": id, "state": next, "failure": failure }),
         );
+        // Waiting out a limit the hoster imposed is no attempt (RD-191-12): it leaves the retry
+        // budget alone and is counted on its own, consecutively — any other outcome starts
+        // that count again.
+        let limit_wait = retry_at.is_some() && failure.category.is_limit();
         let mut transaction = self.connection.begin().await?;
         sqlx::query(
-            "UPDATE downloads SET state = ?, retry_count = retry_count + 1, next_retry_at = ?, \
+            "UPDATE downloads SET state = ?, retry_count = retry_count + ?, \
+             limit_waits = CASE WHEN ? THEN limit_waits + 1 ELSE 0 END, next_retry_at = ?, \
              last_error_json = ?, updated_at = ? WHERE id = ?",
         )
         .bind(next.to_string())
+        .bind(if limit_wait { 0_i64 } else { 1_i64 })
+        .bind(limit_wait)
         .bind(retry_at)
         .bind(serde_json::to_string(&failure)?)
         .bind(event.occurred_at)

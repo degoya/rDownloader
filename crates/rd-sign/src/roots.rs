@@ -165,13 +165,64 @@ pub fn keys_for_now(role: Role) -> Vec<&'static EmbeddedKey> {
     keys_for(role, Utc::now())
 }
 
-/// A trust store holding every configured root for `role`.
+/// One signed document its publisher withdrew (DB-06), refused whoever signed it.
+#[derive(Clone, Copy, Debug)]
+pub struct RevokedDocument {
+    /// Whose documents it was among.
+    pub role: Role,
+    /// [`SignedDocument::digest`](crate::SignedDocument::digest) of the withdrawn document,
+    /// 64 lowercase hex characters.
+    pub digest: &'static str,
+}
+
+/// Every signed document this build refuses by its content.
+///
+/// Compiled in, like the roots, because a withdrawal has to come from the publisher and has to
+/// reach an installation the same way its keys do: a list fetched next to the documents could
+/// be withheld by whoever serves them. An update manifest, tool manifest, site-rule pack or
+/// repository index that turns out to be wrong after it was signed goes here with the next
+/// release, while its key keeps vouching for everything else. Withdrawing a plugin *package* is
+/// the operator's reversible decision and lives elsewhere (`rd_plugin_host::RevokedDigests`,
+/// stored by `rd-db`).
+pub const REVOKED_DOCUMENTS: &[RevokedDocument] = &[];
+
+/// A trust store holding every configured root for `role`, with that role's withdrawn
+/// documents revoked.
 pub fn trust_store_for(role: Role, now: DateTime<Utc>) -> anyhow::Result<TrustStore> {
+    trust_store_in(EMBEDDED_KEYS, REVOKED_DOCUMENTS, role, now)
+}
+
+/// [`trust_store_for`] against arbitrary tables, so the revocation is testable without editing
+/// the shipped ones.
+fn trust_store_in(
+    keys: &[EmbeddedKey],
+    revoked: &[RevokedDocument],
+    role: Role,
+    now: DateTime<Utc>,
+) -> anyhow::Result<TrustStore> {
     let store = TrustStore::new();
-    for entry in keys_for(role, now) {
+    for entry in keys_in(keys, role, now) {
         store.trust_base64(entry.key_id.to_owned(), entry.public_key)?;
     }
+    for entry in revoked.iter().filter(|entry| entry.role == role) {
+        store.revoke_digest(decode_digest(entry.digest)?)?;
+    }
     Ok(store)
+}
+
+/// A digest from [`REVOKED_DOCUMENTS`]; a malformed one fails the store rather than being
+/// skipped, since skipping it would quietly accept the document it withdraws.
+fn decode_digest(text: &str) -> anyhow::Result<[u8; 32]> {
+    let mut digest = [0_u8; 32];
+    anyhow::ensure!(
+        text.len() == 64 && text.is_ascii(),
+        "a revoked digest is 64 hex characters"
+    );
+    for (index, byte) in digest.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&text[index * 2..index * 2 + 2], 16)
+            .map_err(|_| anyhow::anyhow!("a revoked digest is 64 hex characters"))?;
+    }
+    Ok(digest)
 }
 
 #[cfg(test)]
@@ -314,6 +365,72 @@ mod tests {
         let keys = keys_in(&table, Role::Release, instant("2021-01-01T00:00:00Z"));
         assert_eq!(keys.len(), 1);
         assert_eq!(keys[0].key_id, "new");
+    }
+
+    /// A document in the revocation table is refused by a store built from the roots, while
+    /// its key keeps vouching for everything else (DB-06).
+    #[test]
+    fn a_compiled_in_revocation_refuses_its_document_and_nothing_else() {
+        let signing = ed25519_dalek::SigningKey::from_bytes(&[5; 32]);
+        let public = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            signing.verifying_key().as_bytes(),
+        );
+        let public: &'static str = Box::leak(public.into_boxed_str());
+        let keys = [EmbeddedKey {
+            role: Role::SiteRules,
+            key_id: "rules",
+            public_key: public,
+            not_after: None,
+        }];
+        let sign = |version: &str| {
+            crate::sign_document(
+                "rdownloader.site-rules.v1",
+                "rules",
+                &signing,
+                &serde_json::json!({ "version": version }),
+            )
+            .expect("sign")
+        };
+        let withdrawn = sign("1");
+        let current = sign("2");
+        let digest: String = withdrawn
+            .digest("rdownloader.site-rules.v1")
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let digest: &'static str = Box::leak(digest.into_boxed_str());
+        let revoked = [RevokedDocument {
+            role: Role::SiteRules,
+            digest,
+        }];
+        let store = trust_store_in(&keys, &revoked, Role::SiteRules, now()).expect("store");
+        let refused: Result<serde_json::Value, _> =
+            withdrawn.verify("rdownloader.site-rules.v1", &store);
+        assert!(matches!(refused, Err(crate::VerifyError::Revoked)));
+        let accepted: Result<serde_json::Value, _> =
+            current.verify("rdownloader.site-rules.v1", &store);
+        assert!(accepted.is_ok());
+        // Another role's store does not carry the revocation.
+        let other = trust_store_in(&keys, &revoked, Role::Release, now()).expect("store");
+        assert!(
+            !other
+                .is_revoked_digest(&withdrawn.digest("rdownloader.site-rules.v1"))
+                .expect("read")
+        );
+    }
+
+    /// A malformed entry fails the store instead of being skipped.
+    #[test]
+    fn a_malformed_revocation_fails_the_store() {
+        let revoked = [RevokedDocument {
+            role: Role::Release,
+            digest: "not hex",
+        }];
+        assert!(trust_store_in(EMBEDDED_KEYS, &revoked, Role::Release, now()).is_err());
+        for entry in REVOKED_DOCUMENTS {
+            decode_digest(entry.digest).unwrap_or_else(|error| panic!("{}: {error}", entry.digest));
+        }
     }
 
     /// A table entry whose expiry cannot be read is a broken table, and a root that cannot

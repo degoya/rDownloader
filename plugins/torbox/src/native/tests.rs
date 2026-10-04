@@ -290,12 +290,16 @@ async fn a_check_tells_a_missing_file_apart_from_a_job_still_running() {
             answer(200, present, Vec::new()),
             answer(200, running, Vec::new()),
             answer(200, gone, Vec::new()),
+            // A bare 404 is final for a resolve (owner, 2026-10-04) and still a missing file
+            // for the check, which reads the code rather than the class.
+            answer(404, "", Vec::new()),
         ],
         true,
     );
     let results = resolver(&host)
         .check(CheckRequest {
             urls: vec![
+                TORRENT.parse().expect("URL"),
                 TORRENT.parse().expect("URL"),
                 TORRENT.parse().expect("URL"),
                 TORRENT.parse().expect("URL"),
@@ -313,6 +317,7 @@ async fn a_check_tells_a_missing_file_apart_from_a_job_still_running() {
     assert_eq!(results[0].size.map(rd_core::ByteCount::get), Some(10));
     assert_eq!(results[1].status, LinkStatus::Unknown);
     assert_eq!(results[2].status, LinkStatus::Offline);
+    assert_eq!(results[3].status, LinkStatus::Offline);
 }
 
 /// TorBox will fetch a hoster link, but only as a job. Answering with a catalogue here would

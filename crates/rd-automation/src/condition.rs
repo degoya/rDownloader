@@ -1,11 +1,14 @@
 //! The condition tree and the normalised event it is evaluated against.
 //!
 //! The matching rules are the ones the routing rules already use — case-insensitive, a
-//! criterion that is not set does not narrow anything, regexes compiled per evaluation — so
+//! criterion that is not set does not narrow anything, an invalid regex matches nothing — so
 //! a person who has written a category rule already knows how an automation condition
 //! behaves. What is added here is composition: `all`, `any` and `not`.
 
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::{LazyLock, Mutex, PoisonError},
+};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -211,13 +214,41 @@ impl Predicate {
             Operator::Contains => actual.contains(&expected),
             Operator::StartsWith => actual.starts_with(&expected),
             Operator::EndsWith => actual.ends_with(&expected),
-            // Compiled per evaluation, as the routing rules do. An invalid pattern cannot
-            // get here: it is refused at save time.
-            Operator::Matches => regex::Regex::new(&self.value)
-                .is_ok_and(|pattern| pattern.is_match(actual.as_str())),
+            // An invalid pattern cannot get here: it is refused at save time.
+            Operator::Matches => pattern_matches(&self.value, &actual),
             Operator::GreaterThan | Operator::LessThan => false,
         }
     }
+}
+
+/// Compiled `matches` patterns, keyed by their text (audit 1.9.1, INTAKE-10).
+///
+/// The automations are read afresh for every event, so without this a pattern was compiled
+/// once per event and automation. Emptied when full: the patterns in use are the handful the
+/// stored automations carry, and an edited one simply stops being asked for.
+static PATTERNS: LazyLock<Mutex<HashMap<String, regex::Regex>>> = LazyLock::new(Mutex::default);
+const MAX_CACHED_PATTERNS: usize = 64;
+
+/// Whether `pattern` matches `text`; a pattern that does not compile matches nothing.
+fn pattern_matches(pattern: &str, text: &str) -> bool {
+    let cached = PATTERNS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(pattern)
+        .cloned();
+    if let Some(regex) = cached {
+        return regex.is_match(text);
+    }
+    let Ok(regex) = regex::Regex::new(pattern) else {
+        return false;
+    };
+    let matched = regex.is_match(text);
+    let mut cache = PATTERNS.lock().unwrap_or_else(PoisonError::into_inner);
+    if cache.len() >= MAX_CACHED_PATTERNS {
+        cache.clear();
+    }
+    cache.insert(pattern.to_owned(), regex);
+    matched
 }
 
 /// The normalised view of an event that conditions are evaluated against.
@@ -242,5 +273,19 @@ impl EventContext {
     /// Records a numeric field.
     pub fn set_number(&mut self, field: Field, value: u64) {
         self.numbers.insert(field, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pattern_matches;
+
+    #[test]
+    fn a_cached_pattern_matches_as_a_fresh_one_and_an_invalid_one_never() {
+        for _ in 0..2 {
+            assert!(pattern_matches(r"s\d\de\d\d", "show s01e02.mkv"));
+            assert!(!pattern_matches(r"s\d\de\d\d", "show 2026.mkv"));
+            assert!(!pattern_matches("(unclosed", "(unclosed"));
+        }
     }
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# The whole release chain in the order it has to happen.
+# The manual variant of the release chain, in the order it has to happen: version, checks,
+# packages — no commit, no tag. A release is cut with scripts/release-pipeline.sh; this one stays
+# for building a package set by hand (RD-191-09).
 #
 # Each step is its own script and can be run alone; this exists so the order and the "did the
 # checks pass first" part are not reconstructed from memory each time.

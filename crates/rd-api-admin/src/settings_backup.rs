@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 use axum::{Json, extract::State};
 use chrono::Utc;
+use rd_api_core::input_checks::BundleHeader;
 
 use crate::{
     ApiError, AppState,
@@ -334,22 +335,19 @@ pub async fn import_settings(
     Ok(Json(summary))
 }
 
+/// What a settings bundle says about itself; only the current version is read.
+const BUNDLE_HEADER: BundleHeader = BundleHeader {
+    format: BUNDLE_FORMAT,
+    version: BUNDLE_VERSION,
+    reads_older: false,
+    format_code: "settings.backup_invalid",
+    format_message: "The selected file is not an rDownloader settings bundle",
+    version_code: "settings.backup_version_unsupported",
+    version_message: "This settings bundle version is not supported",
+};
+
 pub(crate) fn validate_header(bundle: &SettingsBundle) -> Result<(), ApiError> {
-    if bundle.format != BUNDLE_FORMAT {
-        return Err(invalid_bundle(
-            "The selected file is not an rDownloader settings bundle",
-        ));
-    }
-    if bundle.version != BUNDLE_VERSION {
-        return Err(ApiError::bad_request(
-            "settings.backup_version_unsupported",
-            format!(
-                "Settings bundle version {} is not supported",
-                bundle.version
-            ),
-        ));
-    }
-    Ok(())
+    BUNDLE_HEADER.check(&bundle.format, bundle.version)
 }
 
 fn validate_references(bundle: &SettingsBundle) -> Result<(), ApiError> {

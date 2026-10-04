@@ -231,7 +231,10 @@ pub(crate) async fn api_call_raw<H: PluginHost, T: DeserializeOwned>(
     let probe: api::ErrorProbe = match serde_json::from_slice(&response.body) {
         Ok(probe) => probe,
         Err(_) => {
-            api::ensure_http_status(response.status)?;
+            api::ensure_http_status(
+                response.status,
+                plugin_common::retry_after(&response.headers),
+            )?;
             return Err(api::invalid_response().into());
         }
     };

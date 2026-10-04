@@ -6,7 +6,7 @@ api_version = "0.10.0"
 # highest version per id and says nothing about the one it dropped (RD-098-03).
 id = "019d0000-0000-7000-8000-00000000011a"
 name = "Film and series metadata"
-version = "0.1.6"
+version = "0.1.7"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 

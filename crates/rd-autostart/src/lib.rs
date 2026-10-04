@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 
 mod installed;
+pub mod shell;
 mod stable_path;
 
 pub use installed::{INSTALL_KIND_FILE, install_kind, installed_home};
@@ -181,10 +182,11 @@ mod tests {
 mod platform {
     use std::{path::Path, process::Command};
 
-    use anyhow::{Context, Result, bail};
+    use anyhow::{Context, Result};
     use directories::ProjectDirs;
     use rd_files::NoConsoleWindow as _;
 
+    use super::shell::{reg_add, reg_delete_value_if_present, remove_file_if_present};
     use super::{Registration, Target, windows_wrapper_path};
 
     const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
@@ -250,18 +252,6 @@ mod platform {
         path.to_string_lossy().replace('%', "%%")
     }
 
-    fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
-        let mut command = Command::new("reg.exe");
-        command.no_console_window().args(["add", key]);
-        if let Some(name) = name {
-            command.args(["/v", name]);
-        } else {
-            command.arg("/ve");
-        }
-        command.args(["/t", "REG_SZ", "/d", value, "/f"]);
-        run(&mut command, "write Windows registry")
-    }
-
     pub(super) fn is_registered(target: Target) -> bool {
         Command::new("reg.exe")
             .no_console_window()
@@ -270,40 +260,6 @@ mod platform {
             .stderr(std::process::Stdio::null())
             .status()
             .is_ok_and(|status| status.success())
-    }
-
-    fn reg_delete_value_if_present(key: &str, name: &str) -> Result<()> {
-        let status = Command::new("reg.exe")
-            .no_console_window()
-            .args(["query", key, "/v", name])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .context("query Windows registry")?;
-        if !status.success() {
-            return Ok(());
-        }
-        run(
-            Command::new("reg.exe")
-                .no_console_window()
-                .args(["delete", key, "/v", name, "/f"]),
-            "remove Windows registry value",
-        )
-    }
-
-    fn remove_file_if_present(path: &Path) -> Result<()> {
-        if path.exists() {
-            std::fs::remove_file(path).with_context(|| format!("remove {}", path.display()))?;
-        }
-        Ok(())
-    }
-
-    fn run(command: &mut Command, operation: &str) -> Result<()> {
-        let status = command.status().with_context(|| operation.to_owned())?;
-        if !status.success() {
-            bail!("{operation} failed with {status}");
-        }
-        Ok(())
     }
 
     #[cfg(test)]
@@ -344,6 +300,7 @@ mod platform {
     use anyhow::{Context, Result, bail};
     use directories::BaseDirs;
 
+    use super::shell::remove_file_if_present;
     use super::{Registration, Target};
 
     pub(super) fn install(registration: &Registration) -> Result<()> {
@@ -393,14 +350,6 @@ mod platform {
         match target {
             Target::Server => "rdownloader.service",
             Target::Capture => "rdownloader-capture.service",
-        }
-    }
-
-    fn remove_file_if_present(path: &Path) -> Result<()> {
-        match std::fs::remove_file(path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error).with_context(|| format!("remove {}", path.display())),
         }
     }
 

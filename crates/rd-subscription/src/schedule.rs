@@ -18,7 +18,7 @@
 //! run is never jittered.
 
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use rd_core::{MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS};
+use rd_core::{MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS, exponential_backoff};
 
 /// Longest cron expression accepted, in bytes. Five fields with lists fit many times over.
 pub const MAX_SCHEDULE_LEN: usize = 120;
@@ -29,8 +29,9 @@ pub const MAX_SCHEDULE_LEN: usize = 120;
 /// that a source which comes back is noticed the same day.
 pub const MAX_BACKOFF_SECONDS: i64 = 6 * 60 * 60;
 
-/// Fraction of the interval used as jitter, in percent.
-pub const JITTER_PERCENT: u32 = 10;
+/// Fraction of the interval used as jitter, in percent: the shared figure of
+/// [`rd_core::RETRY_JITTER_PERCENT`] (audit 1.9.1, INTAKE-12).
+pub const JITTER_PERCENT: u32 = rd_core::RETRY_JITTER_PERCENT;
 
 /// When to poll next after a successful poll.
 ///
@@ -55,30 +56,23 @@ pub fn next_failure(
     consecutive_failures: u32,
     seed: u64,
 ) -> DateTime<Utc> {
-    let interval = i64::from(clamp_interval(interval_seconds));
-    // `saturating_sub(1)` so the first failure waits one plain interval; `min(16)` keeps the
-    // shift far away from overflowing before the cap does its work.
-    let shift = consecutive_failures.saturating_sub(1).min(16);
-    let delay = interval
-        .saturating_mul(1_i64 << shift)
-        .min(MAX_BACKOFF_SECONDS);
+    let interval = u64::from(clamp_interval(interval_seconds));
+    // `saturating_sub(1)` so the first failure waits one plain interval. The shared backoff
+    // (audit 1.9.1, INTAKE-12) gives the same figures the local formula did: any shift past
+    // the old `min(16)` was already far beyond the cap.
+    let delay = exponential_backoff(
+        consecutive_failures.saturating_sub(1),
+        interval,
+        MAX_BACKOFF_SECONDS.unsigned_abs(),
+    );
+    let delay = i64::try_from(delay).unwrap_or(MAX_BACKOFF_SECONDS);
     now + Duration::seconds(delay + jitter(delay, seed))
 }
 
-/// Deterministic spread of ±[`JITTER_PERCENT`] around a delay.
+/// Deterministic spread of ±[`JITTER_PERCENT`] around a delay, the shared hash of
+/// [`rd_core::jitter`].
 fn jitter(delay_seconds: i64, seed: u64) -> i64 {
-    let span = delay_seconds * i64::from(JITTER_PERCENT) / 100;
-    if span == 0 {
-        return 0;
-    }
-    // A cheap integer hash: the seed is an id, and consecutive ids must not produce
-    // consecutive offsets or the spreading does nothing.
-    let mixed = seed
-        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-        .rotate_left(31)
-        .wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let magnitude = i64::try_from(mixed % u64::try_from(span * 2 + 1).unwrap_or(1)).unwrap_or(0);
-    magnitude - span
+    rd_core::jitter(delay_seconds, JITTER_PERCENT, seed)
 }
 
 fn clamp_interval(interval_seconds: u32) -> u32 {

@@ -71,7 +71,7 @@ pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> 
     // Waiting is not refusal, so it is read before the refusal is. Reading a rate limit as a
     // failure would end a sign-in that was going perfectly well.
     if Category::of(result) == Category::RateLimited {
-        return TokenAnswer::Busy(retry_after.and_then(|value| value.trim().parse::<u64>().ok()));
+        return TokenAnswer::Busy(plugin_common::retry_after_seconds(retry_after));
     }
     if result != OK {
         return TokenAnswer::Refused(result);

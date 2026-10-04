@@ -29,7 +29,10 @@ use rd_authn::oidc::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{ApiError, AppState};
+use crate::{
+    ApiError, AppState,
+    input_checks::{BodyError, read_bounded_body},
+};
 
 /// The provider's configuration (`ProviderConfig`), JSON.
 pub const CONFIG_SETTING: &str = "auth.oidc.config";
@@ -505,29 +508,21 @@ pub async fn send(
     if !oidc::endpoint_allowed(&url) {
         return Err(SendError::Refused);
     }
-    let mut response = client
+    let response = client
         .request(parts.method, url)
         .headers(parts.headers)
         .body(body)
         .send()
         .await
         .map_err(|_| SendError::Unreachable)?;
-    let limit = oidc::RESPONSE_LIMIT_BYTES;
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(SendError::TooLarge);
-    }
     let status = response.status();
     let headers = response.headers().clone();
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| SendError::Unreachable)? {
-        if body.len() + chunk.len() > limit {
-            return Err(SendError::TooLarge);
-        }
-        body.extend_from_slice(&chunk);
-    }
+    let body = read_bounded_body(response, oidc::RESPONSE_LIMIT_BYTES)
+        .await
+        .map_err(|error| match error {
+            BodyError::TooLarge => SendError::TooLarge,
+            BodyError::Interrupted(_) => SendError::Unreachable,
+        })?;
     if !status.is_success() {
         tracing::warn!(%status, "the identity provider answered with a failure");
     }

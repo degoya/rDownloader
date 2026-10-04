@@ -13,8 +13,8 @@ use crate::{
     ExtractionTrigger, Inner,
     pipeline::archive_kind,
     steps::{
-        Outcome, checkpoint, checkpoint_coded, drain_progress, extraction_outcome, find_step,
-        path_string,
+        Outcome, checkpoint, checkpoint_coded, codes, drain_progress, extraction_outcome,
+        find_step, path_string,
     },
 };
 
@@ -246,17 +246,21 @@ pub(crate) async fn run(
                 rd_core::failpoint!("postprocess.before_unpack_recorded", || anyhow::anyhow!(
                     "crash point"
                 ));
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     context.owner,
                     kind,
                     &source,
                     PostprocessState::Completed,
                     Some(destination_text),
-                    Some(format!(
-                        "files={} bytes={}",
-                        report.files, report.uncompressed_bytes
-                    )),
+                    Outcome::new(
+                        codes::UNPACK_COMPLETED,
+                        &[
+                            ("count", report.files.to_string()),
+                            ("bytes", report.uncompressed_bytes.to_string()),
+                        ],
+                        format!("files={} bytes={}", report.files, report.uncompressed_bytes),
+                    ),
                 )
                 .await?;
                 if context.delete_volumes {
@@ -352,27 +356,34 @@ async fn delete_volumes(inner: &Inner, owner: &str, set: &ArchiveSet) -> Result<
         if let Err(error) = tokio::fs::remove_file(volume).await
             && error.kind() != std::io::ErrorKind::NotFound
         {
-            checkpoint(
+            checkpoint_coded(
                 inner,
                 owner,
                 PostprocessKind::DeleteArchives,
                 &source,
                 PostprocessState::Failed,
                 None,
-                Some(format!("{}: {error}", volume.display())),
+                Outcome::detailed(
+                    codes::DELETE_FAILED,
+                    format!("{}: {error}", volume.display()),
+                ),
             )
             .await?;
             return Ok(());
         }
     }
-    checkpoint(
+    checkpoint_coded(
         inner,
         owner,
         PostprocessKind::DeleteArchives,
         &source,
         PostprocessState::Completed,
         None,
-        Some(format!("removed={}", set.volumes.len())),
+        Outcome::new(
+            codes::ARCHIVES_REMOVED,
+            &[("count", set.volumes.len().to_string())],
+            format!("removed={}", set.volumes.len()),
+        ),
     )
     .await
 }

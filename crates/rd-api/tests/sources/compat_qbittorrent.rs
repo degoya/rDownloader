@@ -886,3 +886,131 @@ async fn a_deleted_torrent_leaves_the_engine_session() {
     );
     assert!(common::persisted_torrents(directory.path()).is_empty());
 }
+
+/// The qBittorrent half takes the same narrow key as SABnzbd (audit 1.9.1, API-04).
+#[tokio::test]
+async fn a_key_with_the_three_working_scopes_logs_in_and_lists() {
+    use sha2::Digest;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = "test-qbittorrent-working-key";
+    harness
+        .database
+        .create_capture_token(
+            rd_core::CaptureTokenId::new(),
+            "radarr".to_owned(),
+            hex::encode(sha2::Sha256::digest(bearer.as_bytes())),
+            vec![
+                rd_core::API_INTAKE_SCOPE.to_owned(),
+                rd_core::API_QUEUE_SCOPE.to_owned(),
+                rd_core::API_READ_SCOPE.to_owned(),
+            ],
+        )
+        .await
+        .expect("token");
+
+    let (status, body) = login(&harness.router, bearer).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "Ok.");
+    let (status, body) = call(
+        &harness.router,
+        "GET",
+        "/api/v2/torrents/info",
+        Some(bearer),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, "[]");
+}
+
+/// The login reads its body before the limiter says anything, so it is bounded like the native
+/// public routes rather than by the 65 MiB the uploads need (audit 1.9.1, API-05).
+#[tokio::test]
+async fn the_login_body_is_bounded_like_the_native_public_routes() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let oversized = format!(
+        "username=admin&password={}",
+        "x".repeat(rd_api::PUBLIC_BODY_LIMIT_BYTES)
+    );
+    let (status, _) = call(
+        &harness.router,
+        "POST",
+        "/api/v2/auth/login",
+        None,
+        Some(("application/x-www-form-urlencoded".to_owned(), oversized)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// The `SID` cookie is the browser's ambient credential, and the adapter changes state on
+/// `GET` as qBittorrent does: a page of another site -- or of another port of the same name,
+/// which `SameSite=Strict` lets through -- cannot use it, while an *arr, which sends no
+/// browser headers, and the bearer keep working (audit 1.9.1, RA-API-02).
+#[tokio::test]
+async fn a_foreign_page_cannot_ride_on_the_session_cookie() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let pause = "/api/v2/torrents/pause?hashes=all";
+    let send = |method: &'static str,
+                credential: &'static str,
+                origin: Option<&'static str>,
+                site: Option<&'static str>| {
+        let mut builder = Request::builder()
+            .method(method)
+            .uri(pause)
+            .header(header::HOST, "127.0.0.1:8710");
+        builder = if credential == "cookie" {
+            builder.header(header::COOKIE, format!("SID={API_BEARER}"))
+        } else {
+            builder.header(header::AUTHORIZATION, format!("Bearer {API_BEARER}"))
+        };
+        if let Some(origin) = origin {
+            builder = builder.header(header::ORIGIN, origin);
+        }
+        if let Some(site) = site {
+            builder = builder.header("sec-fetch-site", site);
+        }
+        let request = builder.body(Body::empty()).expect("request");
+        let router = harness.router.clone();
+        async move { router.oneshot(request).await.expect("response").status() }
+    };
+
+    for (method, origin, site) in [
+        ("GET", None, Some("cross-site")),
+        // An image on another port of the same name: same-site, and a GET sends no Origin.
+        ("GET", None, Some("same-site")),
+        ("POST", Some("http://127.0.0.1:3000"), Some("same-site")),
+        ("POST", Some("https://attacker.example"), None),
+    ] {
+        assert_eq!(
+            send(method, "cookie", origin, site).await,
+            StatusCode::FORBIDDEN,
+            "{method} with the cookie from {origin:?}/{site:?}"
+        );
+    }
+    for (method, credential, origin, site) in [
+        // An *arr: no browser headers at all.
+        ("GET", "cookie", None, None),
+        ("POST", "cookie", None, None),
+        // qBittorrent's own page served here, and an address typed into the bar.
+        (
+            "POST",
+            "cookie",
+            Some("http://127.0.0.1:8710"),
+            Some("same-origin"),
+        ),
+        ("GET", "cookie", None, Some("none")),
+        // A bearer is never added by the browser on its own.
+        ("GET", "bearer", None, Some("cross-site")),
+    ] {
+        assert_eq!(
+            send(method, credential, origin, site).await,
+            StatusCode::OK,
+            "{method} with the {credential} from {origin:?}/{site:?}"
+        );
+    }
+}

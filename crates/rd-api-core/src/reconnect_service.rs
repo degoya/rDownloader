@@ -239,7 +239,13 @@ impl ReconnectService {
                 DownloadState::Downloading | DownloadState::Resolving
             ) {
                 // Paused rather than cancelled: a resumable transfer picks up where it left off.
-                let _ = app.scheduler.pause(file.id).await;
+                if let Err(error) = app.scheduler.pause(file.id).await {
+                    tracing::warn!(
+                        download = %file.id,
+                        error = %format!("{error:#}"),
+                        "a transfer could not be paused for the reconnect"
+                    );
+                }
             }
         }
         Ok(())

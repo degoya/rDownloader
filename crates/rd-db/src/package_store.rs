@@ -90,7 +90,7 @@ pub(crate) async fn update_packages(
         // the vault once this transaction is in (RD-190-04).
         if let Some(level) = change.postprocess_level {
             sqlx::query("UPDATE packages SET postprocess_level = ?, updated_at = ? WHERE id = ?")
-                .bind(level.map(crate::writer::level_string))
+                .bind(level.map(crate::enum_string).transpose()?)
                 .bind(now)
                 .bind(id.to_string())
                 .execute(&mut *transaction)

@@ -49,6 +49,26 @@ pub struct FailedIntake {
     pub reason: String,
 }
 
+/// The stable code a drop whose content was already taken in is logged under.
+pub const DUPLICATE_CODE: &str = "hotfolder.duplicate";
+
+/// A drop whose content this watcher handed over and has not moved away yet, moved to
+/// `processed` without a second import.
+///
+/// A digest is remembered only while its file is in flight — from the import until the file
+/// has been moved — so a file whose move failed after its import is not imported again on the
+/// next pass. It used to be remembered for as long as the watcher ran, which sent a file
+/// somebody dropped again on purpose, after deleting the package, to `processed` without a
+/// word; that drop is imported again now, and the NZB history decides whether it is a real
+/// duplicate (audit 1.9.1, INTAKE-16).
+#[derive(Clone, Debug)]
+pub struct DuplicateIntake {
+    pub source_path: PathBuf,
+    pub sha256: String,
+    /// Where the file is moved to.
+    pub processed_path: PathBuf,
+}
+
 /// Service boundary used by daemon and capture-agent watchers.
 #[async_trait]
 pub trait IntakeSink: Send + Sync + 'static {
@@ -59,6 +79,11 @@ pub trait IntakeSink: Send + Sync + 'static {
     /// The default does nothing, for a sink with nowhere to record it; the scanner has already
     /// logged the failure and moved the file aside by the time this is called.
     async fn record_failure(&self, _failure: FailedIntake) {}
+
+    /// Records a drop that was not submitted because its content already was.
+    ///
+    /// The default does nothing; the scanner has already logged it under [`DUPLICATE_CODE`].
+    async fn record_duplicate(&self, _duplicate: DuplicateIntake) {}
 }
 
 /// Runtime controls for mandatory polling and stable-file detection.
@@ -331,7 +356,23 @@ impl Scanner<'_> {
         let content = tokio::fs::read(&path).await?;
         let sha256 = hex::encode(Sha256::digest(&content));
         if self.imported.contains(&sha256) {
-            return move_aside(&path, &unique_destination(&self.processed, &path)).await;
+            let processed_path = unique_destination(&self.processed, &path);
+            tracing::warn!(
+                code = DUPLICATE_CODE,
+                path = %path.display(),
+                processed_path = %processed_path.display(),
+                "hotfolder file repeats one already imported; moved without a second import"
+            );
+            self.sink
+                .record_duplicate(DuplicateIntake {
+                    source_path: path.clone(),
+                    sha256: sha256.clone(),
+                    processed_path: processed_path.clone(),
+                })
+                .await;
+            move_aside(&path, &processed_path).await?;
+            self.imported.remove(&sha256);
+            return Ok(());
         }
         let intake = HotFolderIntake {
             source_path: path.clone(),
@@ -370,7 +411,11 @@ impl Scanner<'_> {
         if let Some(failure) = failure {
             self.sink.record_failure(failure).await;
         }
-        move_aside(&path, &destination).await
+        move_aside(&path, &destination).await?;
+        // Out of flight: the file is gone from the folder, so the same content dropped again
+        // is a deliberate second drop and is imported (INTAKE-16).
+        self.imported.remove(&sha256);
+        Ok(())
     }
 }
 
@@ -515,10 +560,29 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use super::{
-        FailedIntake, HotFolderIntake, IntakeSink, PollInterval, WatchOptions, is_candidate, spawn,
+        DuplicateIntake, FailedIntake, HotFolderIntake, IntakeSink, PollInterval, WatchOptions,
+        is_candidate, spawn,
     };
 
     struct ChannelSink(mpsc::Sender<HotFolderIntake>);
+
+    /// A sink that takes everything and reports what it was told about duplicates.
+    struct DuplicateSink {
+        submitted: mpsc::Sender<HotFolderIntake>,
+        duplicates: mpsc::Sender<DuplicateIntake>,
+    }
+
+    #[async_trait]
+    impl IntakeSink for DuplicateSink {
+        async fn submit(&self, intake: HotFolderIntake) -> Result<()> {
+            self.submitted.send(intake).await?;
+            Ok(())
+        }
+
+        async fn record_duplicate(&self, duplicate: DuplicateIntake) {
+            let _ = self.duplicates.send(duplicate).await;
+        }
+    }
 
     /// A sink that refuses everything, the way the real one refuses an NZB that will not parse.
     struct RefusingSink(mpsc::Sender<FailedIntake>);
@@ -708,6 +772,50 @@ mod tests {
         .await
         .expect("processed move");
         assert!(processed.exists());
+        cancellation.cancel();
+        handle.await.expect("watcher task").expect("watcher result");
+    }
+
+    /// Audit 1.9.1, INTAKE-16: the same content dropped again after the first file was
+    /// imported and moved away is a deliberate second drop and is imported again; only a file
+    /// still in flight counts as a duplicate here.
+    #[tokio::test]
+    async fn a_file_dropped_again_after_its_import_finished_is_imported_again() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let (submitted, mut submissions) = mpsc::channel(4);
+        let (duplicates, mut reported) = mpsc::channel(4);
+        let cancellation = CancellationToken::new();
+        let handle = spawn(
+            config(directory.path()),
+            Arc::new(DuplicateSink {
+                submitted,
+                duplicates,
+            }),
+            cancellation.clone(),
+            options(),
+        );
+        tokio::fs::write(directory.path().join("sample.nzb"), b"<nzb/>")
+            .await
+            .expect("write NZB");
+        tokio::time::timeout(Duration::from_secs(2), submissions.recv())
+            .await
+            .expect("first import before timeout")
+            .expect("intake");
+        wait_for(&directory.path().join("processed/sample.nzb")).await;
+
+        tokio::fs::write(directory.path().join("again.nzb"), b"<nzb/>")
+            .await
+            .expect("write the NZB again");
+        let second = tokio::time::timeout(Duration::from_secs(2), submissions.recv())
+            .await
+            .expect("second import before timeout")
+            .expect("intake");
+        assert_eq!(second.sha256, hex::encode(Sha256::digest(b"<nzb/>")));
+        wait_for(&directory.path().join("processed/again.nzb")).await;
+        assert!(
+            reported.try_recv().is_err(),
+            "a finished import is no duplicate in flight"
+        );
         cancellation.cancel();
         handle.await.expect("watcher task").expect("watcher result");
     }

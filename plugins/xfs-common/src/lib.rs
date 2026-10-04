@@ -6,14 +6,14 @@
 //! can reuse the exact same request shapes, error classification and HTML parsing instead of
 //! duplicating them.
 //!
-//! `rlib` only, no `rd-core`/`rd-plugin-api`/host dependency: both the native (`async`, `rd-core`
-//! `Failure`) and WebAssembly guest (`wit_bindgen`-generated `Failure`) adapters of a consuming
-//! plugin call into this crate and convert its cfg-free outcomes into their own `Failure`
-//! representation — mirroring how `plugins/keep2share`'s `api.rs` already separates target-neutral
-//! logic from the two target-specific adapters.
+//! `rlib` only, no `rd-core`/`rd-plugin-api`/host dependency. It builds on `plugin-common`, the
+//! neutral vocabulary every plugin's protocol logic is written in, so the glue the XFS plugins
+//! used to copy — status classification, envelope conversion, the range probe — lives in
+//! [`glue`] once (RD-191-07); `plugin-common` adds no import to a guest.
 
 pub mod api;
 pub mod free;
+pub mod glue;
 pub mod login;
 pub mod page;
 pub mod session_trace;

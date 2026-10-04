@@ -132,7 +132,7 @@
   },
   "retries": {
     "label": "Nouvelles tentatives par fichier",
-    "description": "Tentatives après des erreurs temporaires avant qu'un téléchargement soit considéré comme échoué (0–100)"
+    "description": "Tentatives après des erreurs temporaires avant qu'un téléchargement soit considéré comme échoué (0–100). L’attente d’une limite ou d’un blocage d’IP de l’hébergeur ne compte pas."
   },
   "import_history": {
     "label": "Conserver l'historique d'importation",
@@ -489,6 +489,19 @@
       "enabled": {
         "label": "Afficher les images de couverture",
         "description": "Activé par défaut. Lorsqu'il est désactivé, les détails d'un résultat restent visibles et seules les images ne sont pas chargées, de sorte que l'indexeur ne sait pas quels résultats sont à l'écran."
+      }
+    },
+    "nzb_hand_over": {
+      "eyebrow": "NZB",
+      "title": "Confier à un fournisseur",
+      "description": "Un NZB peut être confié à un compte dont le fournisseur accepte les fichiers NZB (comme TorBox ou Premiumize) : depuis le LinkGrabber avant sa mise en file, ou depuis les téléchargements, par exemple quand un paquet a échoué. Le fournisseur récupère le NZB sur Usenet lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
+      "linkgrabber": {
+        "label": "Afficher la remise dans le LinkGrabber",
+        "description": "Activé par défaut. Le menu de chaque ligne NZB et l'entrée de la barre de sélection n'apparaissent que si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un import déjà confié garde son badge."
+      },
+      "downloads": {
+        "label": "Afficher la remise dans les téléchargements",
+        "description": "Activé par défaut. L'entrée du menu d'un paquet issu d'un NZB apparaît quel que soit l'état du paquet, échec compris, mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un paquet déjà confié garde son badge."
       }
     }
   },
@@ -945,5 +958,13 @@
       "updates": "Mises à jour",
       "retention": "Rétention"
     }
+  },
+  "auto_retry": {
+    "label": "Relancer automatiquement les téléchargements échoués",
+    "description": "Un téléchargement qui a échoué sur une limite, un blocage d’IP, un serveur injoignable ou un fichier signalé hors ligne revient dans la file après un moment. Un lien supprimé, un compte refusé ou une somme de contrôle erronée, non.",
+    "interval_label": "Intervalle",
+    "interval_description": "Heures entre l’échec et la tentative suivante (1–24).",
+    "rounds_label": "Tours par téléchargement",
+    "rounds_description": "Nombre maximal de retours d’un téléchargement dans la file ; 0 signifie sans limite (0–100)."
   }
 }

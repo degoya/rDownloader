@@ -12,7 +12,7 @@ import { ref, type Ref } from 'vue'
  * `loading` starts `true` on purpose: a component that mounts and immediately fetches is
  * loading from its very first render, not from the moment its `onMounted` handler runs.
  */
-export interface FetchState {
+interface FetchState {
   /** True until the first fetch has settled, one way or the other. */
   loading: Ref<boolean>
   /** The failure of the last fetch, in the reader's language, or `null` when it succeeded. */

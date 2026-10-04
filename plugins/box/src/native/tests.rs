@@ -59,6 +59,8 @@ struct MockBox {
     requests: Mutex<Vec<Sent>>,
     authorizations: Mutex<Vec<String>>,
     has_token: bool,
+    /// The `Retry-After` every answer carries.
+    retry_after: Mutex<&'static str>,
 }
 
 impl MockBox {
@@ -74,6 +76,7 @@ impl MockBox {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: true,
+            retry_after: Mutex::new("90"),
         })
     }
 
@@ -85,6 +88,7 @@ impl MockBox {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: false,
+            retry_after: Mutex::new("90"),
         })
     }
 
@@ -130,7 +134,7 @@ impl ResolverHost for MockBox {
             final_url: request.url.clone(),
             headers: vec![rd_plugin_api::ResolvedHeader {
                 name: "Retry-After".to_owned(),
-                value: "90".to_owned(),
+                value: (*self.retry_after.lock().expect("retry-after")).to_owned(),
             }],
             body: if account {
                 br#"{"type":"user","id":"7","name":"Someone","login":"someone@example.invalid"}"#
@@ -393,6 +397,27 @@ async fn a_rate_limit_blocks_only_this_provider_for_the_time_box_asked() {
             retry_after_seconds: Some(90)
         }
     );
+}
+
+/// Box's `Retry-After` is read the way every plugin reads it (RA-PLG-03): a `0` is no stated
+/// wait rather than an immediate retry, and a year is clamped to a day.
+#[tokio::test]
+async fn a_stated_wait_is_read_the_shared_way() {
+    for (stated, expected) in [("0", None), ("31536000", Some(86_400))] {
+        let host = MockBox::answering(
+            429,
+            r#"{"type":"error","status":429,"code":"rate_limit_exceeded"}"#,
+        );
+        *host.retry_after.lock().expect("retry-after") = stated;
+        let failure = resolve(host, OWN_FILE).await.expect_err("a rate limit");
+        assert_eq!(
+            failure.category,
+            FailureKind::IpBlocked {
+                retry_after_seconds: expected
+            },
+            "{stated}"
+        );
+    }
 }
 
 /// A folder pasted at the resolver says it is a folder, rather than "this file has no bytes".

@@ -26,6 +26,10 @@ slug = "{{PLUGIN_SLUG}}"
 # The provider slug whose account these jobs run on. The host looks the account up and expands
 # the secret for it; this plugin never learns which account it is and never sees a credential.
 claims = ["example"]
+# The container formats the provider takes as `job-source::container`: any of "torrent", "nzb",
+# "dlc", "rsdf". The LinkGrabber offers an NZB to an account only when its plugin names `nzb`
+# here. Leave it out for a provider that takes no file.
+# containers = ["torrent", "nzb"]
 
 [metadata]
 description = "Runs magnets and torrent files as jobs on a {{PLUGIN_NAME}} account."

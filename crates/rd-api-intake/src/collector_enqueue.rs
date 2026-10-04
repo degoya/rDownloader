@@ -170,11 +170,12 @@ async fn build_and_enqueue(
     start_paused: bool,
 ) -> Result<EnqueueOutcome, ApiError> {
     ensure_media_selections(&candidates)?;
-    let destination = crate::destination::download_destination(state, package.category_id)
-        .await?
-        .unwrap_or_else(|| state.scheduler.downloads_directory().to_path_buf());
-    crate::storage_capacity::ensure_intake_allowed(&state.scheduler.capacity(), &destination)
-        .await?;
+    let destination = crate::destination::intake_destination(
+        &state.database,
+        &state.scheduler,
+        package.category_id,
+    )
+    .await?;
     let mirror_detection = crate::settings_store::stored_settings(&state.database)
         .await
         .map_or(true, |settings| settings.mirror_detection);
@@ -370,9 +371,15 @@ async fn build_and_enqueue(
             free_download_files,
         });
     }
-    let (created, created_files) = state
+    // The reviewed file tree and selection travel with the rows they belong to, written before
+    // a row can start (audit 1.9.1, API-07).
+    let torrent_states = torrent_states
+        .into_iter()
+        .map(|(source, stored)| (source, rd_core::TorrentJobState::from_candidate(stored)))
+        .collect();
+    let (created, _) = state
         .scheduler
-        .enqueue_package(
+        .enqueue_package_with_torrents(
             PackageSpec {
                 name: package.name.clone(),
                 destination,
@@ -388,21 +395,10 @@ async fn build_and_enqueue(
                 enrichment: union_enrichment(&enrichment_by_url),
             },
             files,
+            torrent_states,
         )
         .await?;
     carry_imported_enrichment(state, &imported_enrichment).await?;
-    // Carry the reviewed file tree and selection from the candidate to its queue row.
-    for (source, stored) in torrent_states {
-        if let Some(file) = created_files.iter().find(|file| file.source == source) {
-            state
-                .database
-                .set_download_torrent_state(
-                    file.id,
-                    rd_core::TorrentJobState::from_candidate(stored),
-                )
-                .await?;
-        }
-    }
     Ok(EnqueueOutcome {
         package: created,
         free_download_files,
@@ -762,7 +758,10 @@ async fn import_nzb_candidate(
         }
         None => state.scheduler.direct_client(&candidate.url).await,
     }
-    .map_err(|error| ApiError::bad_gateway("collector.nzb_client_unavailable", error.to_string()))?;
+    .map_err(|error| {
+        ApiError::bad_gateway("collector.nzb_client_unavailable", error.to_string())
+            .with_param("reason", error)
+    })?;
     let fetched = rd_http::fetch_document(
         &network.client,
         candidate.url.clone(),
@@ -772,19 +771,23 @@ async fn import_nzb_candidate(
     .await
     .map_err(|error| {
         // The address can carry an indexer API key, so it never reaches the message.
-        ApiError::bad_gateway(
-            "collector.nzb_fetch_failed",
-            format!("{error} ({})", rd_core::redact_url(&candidate.url)),
-        )
+        let reason = format!("{error} ({})", rd_core::redact_url(&candidate.url));
+        ApiError::bad_gateway("collector.nzb_fetch_failed", reason.clone())
+            .with_param("reason", reason)
     })?;
     // An indexer refuses inside a `200 OK`: the API limit is reached, the key is wrong, the
     // release is gone. Without this the body fails to parse and the user is told the NZB is
     // invalid, which sends them looking in the wrong place.
     if let Some(refusal) = indexer_refusal(&fetched) {
-        return Err(ApiError::bad_gateway("collector.nzb_rejected", refusal));
+        return Err(
+            ApiError::bad_gateway("collector.nzb_rejected", refusal.clone())
+                .with_param("reason", refusal),
+        );
     }
-    let document = rd_collector::parse_nzb(&fetched.bytes)
-        .map_err(|error| ApiError::unprocessable("collector.nzb_invalid", error.to_string()))?;
+    let document = rd_collector::parse_nzb(&fetched.bytes).map_err(|error| {
+        ApiError::unprocessable("collector.nzb_invalid", error.to_string())
+            .with_param("reason", error)
+    })?;
     let name = declared_nzb_name(candidate, &fetched).unwrap_or_else(|| package.name.clone());
     let (name, marker_password) = rd_files::strip_password_marker(name.trim_end_matches(".nzb"));
     // This branch used to read the file-name marker and nothing else, so a password the
@@ -827,7 +830,7 @@ async fn import_nzb_candidate(
         .database
         .add_nzb_import(rd_db::NewNzbImport {
             name: rd_files::sanitize_file_name(&name),
-            sha256: hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&fetched.bytes)),
+            sha256: rd_api_core::input_checks::sha256_hex(&fetched.bytes),
             category_id: package.category_id,
             // The package's category was already decided when the link entered the
             // LinkGrabber; this only labels the intake for the rare package without one.

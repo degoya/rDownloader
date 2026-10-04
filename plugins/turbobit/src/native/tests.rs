@@ -263,7 +263,7 @@ async fn a_guest_download_resolves_to_the_one_shot_link_without_fetching_it() {
 }
 
 #[tokio::test]
-async fn a_deleted_file_is_offline_with_its_code() {
+async fn a_deleted_file_is_final_with_its_code() {
     let host = MockHost::new(
         vec![json(
             404,
@@ -275,7 +275,8 @@ async fn a_deleted_file_is_offline_with_its_code() {
         .resolve(guest("https://turbobit.net/abcdefghijkl.html"))
         .await
         .expect_err("deleted");
-    assert_eq!(failure.category, FailureKind::Offline);
+    // Final under a 404 (owner, 2026-10-04).
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("turbobit.file_unavailable"));
 }
 

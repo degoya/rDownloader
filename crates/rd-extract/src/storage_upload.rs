@@ -77,6 +77,7 @@ pub(crate) fn reporter(
     inner: &crate::Inner,
     owner: &str,
     destination: &str,
+    shown: &str,
 ) -> (UploadProgress, tokio::task::JoinHandle<()>) {
     use rd_core::{PostprocessKind, PostprocessStage};
 
@@ -84,6 +85,7 @@ pub(crate) fn reporter(
     let database = inner.database.clone();
     let owner = owner.to_owned();
     let destination = destination.to_owned();
+    let shown = shown.to_owned();
     let written = tokio::spawn(async move {
         let mut last = std::time::Instant::now() - crate::rclone_job::PROGRESS_INTERVAL;
         while let Some((done, total)) = numbers.recv().await {
@@ -100,7 +102,7 @@ pub(crate) fn reporter(
                     destination.clone(),
                     PostprocessStage::Uploading,
                     crate::rclone_job::percent(done, total),
-                    Some(destination.clone()),
+                    Some(shown.clone()),
                 )
                 .await;
         }
@@ -117,109 +119,61 @@ pub(crate) fn reporter(
 
 /// Runs the upload step through a plugin destination.
 ///
-/// Returns `false` on failure, exactly as the rclone path does, so the caller does not have to
-/// know which one ran.
+/// Says how the step ended, exactly as the rclone path does, so the caller does not have to
+/// know which one ran. `configured` is the remote as the step was planned
+/// (`plugin:<id>/<destination>`): every checkpoint names it, or the planned row would stay
+/// queued beside a second one and the pipeline would run again at every start (INTAKE-01).
 pub(crate) async fn run(
     inner: &crate::Inner,
     owner: &str,
+    configured: &str,
     remote: PluginRemote<'_>,
-    package_name: &str,
     directory: &Path,
     files: &[String],
     mode: crate::rclone_job::UploadMode,
-) -> Result<bool> {
-    use rd_core::{PostprocessKind, PostprocessStage, PostprocessState};
-
-    let Some(uploader) = inner.storage.as_ref() else {
-        // Planned but not runnable: the destination was installed when the package was
-        // planned and is gone now. Saying so beats an upload that silently did not happen.
-        crate::steps::checkpoint(
-            inner,
-            owner,
-            PostprocessKind::Upload,
-            remote.destination,
-            PostprocessState::Failed,
-            None,
-            Some("no upload destination plugins are loaded".to_owned()),
-        )
-        .await?;
-        return Ok(false);
-    };
-    crate::steps::stage(
-        inner,
-        owner,
-        PostprocessStage::Uploading,
-        Some(remote.destination.to_owned()),
-    )
-    .await?;
-    crate::steps::checkpoint(
-        inner,
-        owner,
-        PostprocessKind::Upload,
-        remote.destination,
-        PostprocessState::Running,
-        None,
-        None,
-    )
-    .await?;
-    // The login for this address, if one is configured. The plugin gets the user name and an
-    // opaque handle; the password stays in the vault and reaches the request through the host.
-    let credential = inner.remote_login(remote.destination).await;
-    let (progress, written) = reporter(inner, owner, remote.destination);
-    let report = uploader
-        .upload(
-            remote.plugin_id,
-            StorageUpload {
-                handle: owner,
-                directory,
-                files,
-                destination: remote.destination,
-                username: credential
-                    .as_ref()
-                    .and_then(|login| login.username.as_deref()),
-                secret_ref: credential
-                    .as_ref()
-                    .and_then(|login| login.secret_ref.as_deref()),
-                progress,
-                bandwidth: inner.upload_limit(),
-            },
-        )
-        .await;
-    // The upload owns the only other handle on the sender, so it is closed by now and this
-    // waits for the last number to be written rather than for anything to happen.
-    let _ = written.await;
-    let (state, message, ok) = match report {
-        Ok(UploadReport::Verified { files: uploaded }) => {
-            let mut note = format!("{} files uploaded and verified", uploaded.len());
-            if mode == crate::rclone_job::UploadMode::Move {
-                // Only here, and only for the files the destination confirmed it holds. This
-                // is the whole point of `verify` being a call of its own: a server that
-                // answered 201 and stored nothing would otherwise take the only copy with it.
-                let removed = remove_local(directory, &uploaded).await;
-                note.push_str(&format!(", {removed} removed locally"));
-            }
-            (PostprocessState::Completed, Some(note), true)
+) -> Result<crate::steps::StepEnd> {
+    let upload = inner.storage.as_ref().map(|uploader| {
+        move |progress: UploadProgress| async move {
+            // The login for this address, if one is configured. The plugin gets the user name
+            // and an opaque handle; the password stays in the vault and reaches the request
+            // through the host.
+            let credential = inner.remote_login(remote.destination).await;
+            uploader
+                .upload(
+                    remote.plugin_id,
+                    StorageUpload {
+                        handle: owner,
+                        directory,
+                        files,
+                        destination: remote.destination,
+                        username: credential
+                            .as_ref()
+                            .and_then(|login| login.username.as_deref()),
+                        secret_ref: credential
+                            .as_ref()
+                            .and_then(|login| login.secret_ref.as_deref()),
+                        progress,
+                        bandwidth: inner.upload_limit(),
+                    },
+                )
+                .await
         }
-        // Not a failure: what arrived stays, and the next run continues. The step goes back to
-        // queued rather than being marked done on a job that is not.
-        Ok(UploadReport::Stopped) => (PostprocessState::Queued, None, true),
-        Ok(UploadReport::Failed { message }) => (PostprocessState::Failed, Some(message), false),
-        Err(error) => (PostprocessState::Failed, Some(error.to_string()), false),
-    };
-    crate::steps::checkpoint(
+    });
+    crate::upload_step::run(
         inner,
-        owner,
-        PostprocessKind::Upload,
-        remote.destination,
-        state,
-        None,
-        message.map(crate::steps::truncate),
+        crate::upload_step::UploadStep {
+            owner,
+            label: configured,
+            shown: remote.destination,
+            directory,
+            mode,
+            // Planned but not runnable: the destination was installed when the package was
+            // planned and is gone now.
+            unavailable: "no upload destination plugins are loaded",
+        },
+        upload,
     )
-    .await?;
-    // `package_name` shapes the remote folder, which the plugin derives from the handle it was
-    // given; nothing local is named after it here.
-    let _ = package_name;
-    Ok(ok)
+    .await
 }
 
 /// Deletes the local copies of files the destination confirmed it holds, then the folders

@@ -8,7 +8,7 @@ use rd_postprocess::{SfvReport, verify_sfv};
 
 use crate::{
     Inner,
-    steps::{checkpoint, drain_progress, find_step, path_string, truncate},
+    steps::{Outcome, checkpoint, checkpoint_coded, codes, drain_progress, find_step, path_string},
 };
 
 /// Names listed in a failure message before it is cut short; the full count is always given.
@@ -61,43 +61,47 @@ pub(crate) async fn run(
         let _ = drain.await;
         match result {
             Ok(report) if report.is_ok() => {
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::Sfv,
                     &source,
                     PostprocessState::Completed,
                     None,
-                    Some(format!(
-                        "checked={} skipped={}",
-                        report.checked, report.skipped
-                    )),
+                    Outcome::new(
+                        codes::SFV_VERIFIED,
+                        &[
+                            ("count", report.checked.to_string()),
+                            ("skipped", report.skipped.to_string()),
+                        ],
+                        format!("checked={} skipped={}", report.checked, report.skipped),
+                    ),
                 )
                 .await?;
             }
             Ok(report) => {
                 ok = false;
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::Sfv,
                     &source,
                     PostprocessState::Failed,
                     None,
-                    Some(truncate(failure_message(&report))),
+                    Outcome::detailed(codes::SFV_MISMATCH, failure_message(&report)),
                 )
                 .await?;
             }
             Err(error) => {
                 ok = false;
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::Sfv,
                     &source,
                     PostprocessState::Failed,
                     None,
-                    Some(truncate(error.to_string())),
+                    Outcome::detailed(codes::SFV_FAILED, error.to_string()),
                 )
                 .await?;
             }

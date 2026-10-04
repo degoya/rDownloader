@@ -58,10 +58,10 @@ pub(crate) fn parse_object_remote(remote: &str) -> Option<ObjectRemote<'_>> {
     })
 }
 
-/// Runs the upload step into object storage. Returns `false` on failure, as the other two
-/// upload paths do.
-// The same eight inputs the rclone and plugin upload paths take; a struct would exist only
-// for this one call.
+/// Runs the upload step into object storage and says how it ended, as the other two upload
+/// paths do; `configured` is the remote the step was planned under.
+// The same inputs the plugin upload path takes plus the package name the object keys start
+// with; a struct would exist only for this one call.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run(
     inner: &crate::Inner,
@@ -72,83 +72,45 @@ pub(crate) async fn run(
     directory: &Path,
     files: &[String],
     mode: crate::rclone_job::UploadMode,
-) -> Result<bool> {
-    use rd_core::{PostprocessKind, PostprocessStage, PostprocessState};
-
-    // The step was planned under the configured remote; its checkpoints have to name the same.
-    let label = configured;
-    let Some(uploader) = inner.objects.as_ref() else {
-        crate::steps::checkpoint(
-            inner,
-            owner,
-            PostprocessKind::Upload,
-            label,
-            PostprocessState::Failed,
-            None,
-            Some("object storage uploads are not available".to_owned()),
-        )
-        .await?;
-        return Ok(false);
-    };
-    crate::steps::stage(
-        inner,
-        owner,
-        PostprocessStage::Uploading,
-        Some(label.to_owned()),
-    )
-    .await?;
-    crate::steps::checkpoint(
-        inner,
-        owner,
-        PostprocessKind::Upload,
-        label,
-        PostprocessState::Running,
-        None,
-        None,
-    )
-    .await?;
-    let (progress, written) = crate::storage_upload::reporter(inner, owner, label);
-    let report = uploader
-        .upload(
-            remote.profile_id,
-            ObjectUpload {
-                owner,
-                package_name,
-                directory,
-                files,
-                destination: remote.destination,
-                progress,
-                stop: inner.shutdown.child_token(),
-                bandwidth: inner.upload_limit(),
-            },
-        )
-        .await;
-    let _ = written.await;
-    let (state, message, ok) = match report {
-        Ok(UploadReport::Verified { files: uploaded }) => {
-            let mut note = format!("{} files uploaded and verified", uploaded.len());
-            if mode == crate::rclone_job::UploadMode::Move {
-                let removed = crate::storage_upload::remove_local(directory, &uploaded).await;
-                note.push_str(&format!(", {removed} removed locally"));
-            }
-            (PostprocessState::Completed, Some(note), true)
+) -> Result<crate::steps::StepEnd> {
+    let upload = inner.objects.as_ref().map(|uploader| {
+        move |progress: UploadProgress| async move {
+            uploader
+                .upload(
+                    remote.profile_id,
+                    ObjectUpload {
+                        owner,
+                        package_name,
+                        directory,
+                        files,
+                        destination: remote.destination,
+                        progress,
+                        stop: inner.shutdown.child_token(),
+                        bandwidth: inner.upload_limit(),
+                    },
+                )
+                .await
         }
-        // What arrived stays recorded part by part; the next run continues it.
-        Ok(UploadReport::Stopped) => (PostprocessState::Queued, None, true),
-        Ok(UploadReport::Failed { message }) => (PostprocessState::Failed, Some(message), false),
-        Err(error) => (PostprocessState::Failed, Some(error.to_string()), false),
-    };
-    crate::steps::checkpoint(
+    });
+    crate::upload_step::run(
         inner,
-        owner,
-        PostprocessKind::Upload,
-        label,
-        state,
-        None,
-        message.map(crate::steps::truncate),
+        crate::upload_step::UploadStep {
+            owner,
+            label: configured,
+            // The bucket path, not the profile id in front of it; a bucket-bound profile has
+            // none, and the package's own folder is what it uploads into.
+            shown: if remote.destination.is_empty() {
+                package_name
+            } else {
+                remote.destination
+            },
+            directory,
+            mode,
+            unavailable: "object storage uploads are not available",
+        },
+        upload,
     )
-    .await?;
-    Ok(ok)
+    .await
 }
 
 #[cfg(test)]

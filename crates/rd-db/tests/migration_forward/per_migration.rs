@@ -372,3 +372,68 @@ async fn an_archive_password_from_before_the_vault_survives_the_upgrade_and_leav
     );
     assert!(!copy_holds_it(), "the copy still holds the password");
 }
+
+/// DB-10: migration `0118` indexes six columns that were looked up or cascaded on without one,
+/// and the per-download delete from the content index uses its index rather than a scan.
+#[tokio::test]
+async fn the_audit_indexes_exist_after_the_upgrade_and_carry_the_lookups() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 117)
+        .await
+        .expect("schema at 0117");
+    drop(rd_db::Database::open(&path).await.expect("upgrade"));
+
+    let url = format!("sqlite://{}", path.display());
+    let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+    let mut indexes: Vec<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN \
+         ('content_index_path_idx', 'notification_deliveries_rule_idx', \
+          'collector_packages_batch_idx', 'automation_runs_version_idx', \
+          'plugin_repository_installs_repository_idx', 'object_uploads_profile_idx')",
+    )
+    .fetch_all(&mut connection)
+    .await
+    .expect("indexes");
+    indexes.sort();
+    assert_eq!(indexes.len(), 6, "{indexes:?}");
+    let plan: Vec<(i64, i64, i64, String)> =
+        sqlx::query_as("EXPLAIN QUERY PLAN DELETE FROM content_index WHERE path = 'x'")
+            .fetch_all(&mut connection)
+            .await
+            .expect("plan");
+    assert!(
+        plan.iter()
+            .any(|(_, _, _, detail)| detail.contains("content_index_path_idx")),
+        "{plan:?}"
+    );
+    connection.close().await.expect("close");
+}
+
+/// RD-191-12: migration `0119` gives every download its limit-wait and automatic-retry counters,
+/// both at zero, so a download queued before the upgrade starts with full budgets.
+#[tokio::test]
+async fn the_retry_counters_exist_after_the_upgrade_and_start_at_zero() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = schema_at(directory.path(), 118)
+        .await
+        .expect("schema at 0118");
+    drop(rd_db::Database::open(&path).await.expect("upgrade"));
+
+    let url = format!("sqlite://{}", path.display());
+    let mut connection = SqliteConnection::connect(&url).await.expect("connect");
+    let mut columns: Vec<(String, i64, Option<String>)> = sqlx::query_as(
+        "SELECT name, \"notnull\", dflt_value FROM pragma_table_info('downloads') \
+         WHERE name IN ('limit_waits', 'auto_retry_rounds')",
+    )
+    .fetch_all(&mut connection)
+    .await
+    .expect("columns");
+    columns.sort();
+    assert_eq!(
+        columns,
+        [
+            ("auto_retry_rounds".to_owned(), 1, Some("0".to_owned())),
+            ("limit_waits".to_owned(), 1, Some("0".to_owned())),
+        ]
+    );
+}

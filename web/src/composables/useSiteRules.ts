@@ -36,7 +36,7 @@ export const PACKAGE_SOURCES = ['title', 'regex', 'variable'] as const
 type PackageSource = typeof PACKAGE_SOURCES[number]
 
 /** One step as the form holds it: every field of every kind, only some of them shown. */
-export interface StepDraft {
+interface StepDraft {
   kind: StepKind
   url: string
   into: string
@@ -294,7 +294,7 @@ export function draftComplete(draft: RuleDraft): boolean {
     && draft.probe.trim().length > 0
 }
 
-export interface SiteRulesApi {
+interface SiteRulesApi {
   rules: Ref<SiteRule[]>
   groups: Ref<SiteRuleGroup[]>
   loading: Ref<boolean>

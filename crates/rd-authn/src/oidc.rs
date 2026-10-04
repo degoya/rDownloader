@@ -33,7 +33,8 @@ use openidconnect::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+
+use crate::digest::{constant_time_eq, sha256_hex};
 
 pub use crate::oidc_token::{
     Algorithm, CLOCK_LEEWAY_SECONDS, Expectations, IdentityClaims, JsonWebKeySet, TokenError,
@@ -323,7 +324,7 @@ impl Flow {
             client_id: client_id.to_owned(),
             nonce: Nonce::new_random().secret().clone(),
             verifier: PkceCodeChallenge::new_random_sha256().1.secret().clone(),
-            binding_digest: digest_hex(&binding),
+            binding_digest: sha256_hex(&binding),
             return_to: safe_return_path(return_to),
             started_at: now,
         };
@@ -334,11 +335,7 @@ impl Flow {
     #[must_use]
     pub fn bound_to(&self, cookie: Option<&str>) -> bool {
         cookie.is_some_and(|value| {
-            aws_lc_rs::constant_time::verify_slices_are_equal(
-                digest_hex(value).as_bytes(),
-                self.binding_digest.as_bytes(),
-            )
-            .is_ok()
+            constant_time_eq(sha256_hex(value).as_bytes(), self.binding_digest.as_bytes())
         })
     }
 }
@@ -357,13 +354,6 @@ pub fn random_value() -> String {
     let mut bytes = [0_u8; 32];
     rand::rng().fill_bytes(&mut bytes);
     URL_SAFE_NO_PAD.encode(bytes)
-}
-
-fn digest_hex(value: &str) -> String {
-    Sha256::digest(value.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
 }
 
 /// Where a finished sign-in may send the browser: a path inside this application, or `/`.

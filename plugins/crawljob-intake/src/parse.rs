@@ -17,6 +17,11 @@ pub struct ParsedJob {
     pub file_name: Option<String>,
 }
 
+/// The code a claimed crawljob is refused under when no block carries a usable link
+/// (RD-191-07, PLUG-16). The catalogues in `locales/` carry it; it used to be declared there
+/// and never sent, so such a file was answered with silence.
+pub const UNREADABLE: &str = "crawljob_intake.unreadable";
+
 /// Keys that mark a file as a crawljob rather than an arbitrary properties file.
 const SIGNATURE_KEYS: &[&str] = &[
     "packagename=",
@@ -105,7 +110,7 @@ fn links_in(value: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ParsedJob, claims, jobs_in};
+    use super::{ParsedJob, UNREADABLE, claims, jobs_in};
 
     const JOB: &str = "text=https://example.com/one.bin\npackageName=Holiday\nautoStart=TRUE\n";
 
@@ -174,5 +179,31 @@ mod tests {
     fn a_block_without_a_usable_link_is_dropped() {
         const EMPTY: &str = "packageName=Nothing\nautoStart=TRUE\ntext=ftp://example.com/a.bin\n";
         assert!(jobs_in(EMPTY).is_empty());
+    }
+
+    /// A file this parser claims but cannot take a single link from is the case the guest
+    /// refuses with [`UNREADABLE`] rather than answering with nothing.
+    #[test]
+    fn a_claimed_file_without_a_link_is_the_unreadable_case() {
+        const NOTHING: &str = "text=see attachment\npackageName=Holiday\nautoStart=TRUE\n";
+        assert!(claims(NOTHING));
+        assert!(jobs_in(NOTHING).is_empty());
+    }
+
+    /// The code the guest sends is one every catalogue translates.
+    #[test]
+    fn the_unreadable_code_is_in_every_catalogue() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"),
+        );
+        for language in ["de", "en", "es", "fr"] {
+            let path = root.join("locales").join(format!("{language}.json"));
+            let catalogue = std::fs::read_to_string(&path).expect("catalogue");
+            assert!(
+                catalogue.contains(&format!("\"{UNREADABLE}\"")),
+                "{} lacks {UNREADABLE}",
+                path.display()
+            );
+        }
     }
 }

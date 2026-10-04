@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useToast } from '@nuxt/ui/composables'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import SectionHeader from '@/components/SectionHeader.vue'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 type ManagedTools = components['schemas']['ManagedToolsResponse']
 type ManagedTool = components['schemas']['ManagedToolInfo']
@@ -25,22 +25,8 @@ const chosen = ref<Record<string, string>>({})
 const tools = computed<ManagedTool[]>(() => store.value?.tools ?? [])
 const enabled = computed(() => store.value?.enabled ?? false)
 
-/** The live subscription and the timer that coalesces a burst of tool events into one read. */
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 onMounted(() => {
   void load()
-  releaseEvents = subscribeEvents({ 'managed_tool.changed': scheduleReload })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
 })
 
 /**
@@ -59,13 +45,7 @@ onUnmounted(() => {
  * notice is raised — the toasts here belong to actions the user took, and `design.md` has no
  * pattern for announcing that data caught up.
  */
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void load()
-  }, 300)
-}
+useDebouncedEventRefresh(['managed_tool.changed'], load)
 
 async function load(): Promise<void> {
   const response = await api.GET('/api/v1/system/tools')

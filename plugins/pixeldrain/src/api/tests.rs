@@ -80,8 +80,13 @@ fn a_missing_file_is_the_providers_stable_value_and_not_its_sentence() {
     let body = br#"{"success":false,"value":"not_found","message":"The requested file does not exist, it may have been deleted."}"#;
     let envelope = error_envelope(body);
     let failure = failure_from(404, None, &envelope).expect("refused");
-    assert_eq!(failure.kind, ErrorKind::Offline);
+    // Under a 404 the deletion is final (owner, 2026-10-04); the same token under another
+    // status keeps the token's own class.
+    assert_eq!(failure.kind, ErrorKind::Permanent);
     assert_eq!(failure.code, messages::FILE_NOT_FOUND.0);
+    let elsewhere = failure_from(200, None, &envelope).expect("refused");
+    assert_eq!(elsewhere.kind, ErrorKind::Offline);
+    assert_eq!(elsewhere.code, messages::FILE_NOT_FOUND.0);
     assert!(
         !failure.message.contains("may have been deleted"),
         "the provider's sentence must not be forwarded"
@@ -125,6 +130,24 @@ fn a_429_without_a_document_uses_the_retry_after_the_service_asked_for() {
     )
     .expect_err("refused");
     assert_eq!(failure.kind, ErrorKind::IpBlocked(Some(3600)));
+    // A wait of a year is the shared ceiling of one day (RD-191-07).
+    let failure =
+        ensure_http_status(429, retry_after_seconds(Some("31536000"))).expect_err("refused");
+    assert_eq!(failure.kind, ErrorKind::IpBlocked(Some(86_400)));
+}
+
+/// `451` is a legal block, offline and retried; a bare `404` or `410` is the file deleted and
+/// final (owner, 2026-10-04). All three are the same code, which is what the check reads.
+#[test]
+fn a_takedown_is_offline_and_a_deletion_final() {
+    let failure = ensure_http_status(451, None).expect_err("refused");
+    assert_eq!(failure.kind, ErrorKind::Offline);
+    assert_eq!(failure.code, messages::FILE_NOT_FOUND.0);
+    for status in [404, 410] {
+        let failure = ensure_http_status(status, None).expect_err("refused");
+        assert_eq!(failure.kind, ErrorKind::Permanent, "{status}");
+        assert_eq!(failure.code, messages::FILE_NOT_FOUND.0);
+    }
 }
 
 #[test]

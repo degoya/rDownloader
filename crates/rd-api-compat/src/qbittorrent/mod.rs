@@ -5,8 +5,9 @@
 //! nothing else.
 //!
 //! Authentication follows qBittorrent's own shape — `POST /api/v2/auth/login` then a `SID`
-//! cookie — but the credential is one of our revocable `api:*` tokens rather than a second
-//! password. The cookie carries an opaque handle to that token, not the token: see
+//! cookie — but the credential is one of our revocable API tokens holding `api:intake`,
+//! `api:queue` and `api:read` (or `api:*`) rather than a second password
+//! (`auth::compat_access`, audit 1.9.1, API-04). The cookie carries an opaque handle to that token, not the token: see
 //! [`crate::qbittorrent_sessions`] for why the stateless version was given up. The handle still
 //! resolves to a bearer that is checked against the token store on every request, so revoking
 //! the token takes effect immediately; the cookie follows the same `Secure` and base-path policy
@@ -24,7 +25,6 @@ use axum::{
     routing::{get, post},
 };
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 
 use crate::AppState;
 
@@ -53,10 +53,17 @@ pub(crate) struct TorrentQuery {
 }
 
 /// The two routes that exist to *obtain* a credential, so they cannot require one.
+///
+/// Bounded like the native public routes: the login reads its body before the limiter has
+/// said anything, and without this layer an anonymous caller could send it the 65 MiB the
+/// upload routes need (audit 1.9.1, API-05).
 fn public_routes() -> Router<AppState> {
     Router::new()
         .route("/api/v2/auth/login", post(login).get(login))
         .route("/api/v2/auth/logout", post(logout).get(logout))
+        .layer(axum::extract::DefaultBodyLimit::max(
+            rd_api_core::container_upload::PUBLIC_BODY_LIMIT_BYTES,
+        ))
 }
 
 /// Everything else, behind one layer.
@@ -141,7 +148,7 @@ pub(crate) fn routes(state: &AppState) -> Router<AppState> {
     )
 }
 
-/// Refuses a request that carries no valid `api:*` credential.
+/// Refuses a request that carries no valid credential for this surface.
 ///
 /// qBittorrent answers `403 Forbidden` with an empty body for an unauthenticated call, and
 /// clients treat that as "log in again" rather than "the server is broken". That shape is
@@ -156,13 +163,35 @@ async fn require_api_token(
     // cookie, or one holding a cookie this adapter handed out before handles existed, still
     // authenticates. What changed is only what this service *hands out*.
     let credential = match cookie(request.headers()) {
-        Some(sid) => state.qbittorrent_sessions.resolve(&sid).unwrap_or(sid),
+        Some(sid) => {
+            // The browser adds the cookie by itself, and qBittorrent's routes change state on
+            // `GET` as well: a page of another site -- or of another port of the same name,
+            // which `SameSite=Strict` lets through -- must not ride on it (audit 1.9.1,
+            // RA-API-02). A bearer is no browser's ambient credential and needs no such check.
+            let host = rd_api_core::auth::request_host(request.uri(), request.headers());
+            if rd_api_core::auth::refuse_foreign_cookie_request(
+                &state,
+                host.as_deref(),
+                request.headers(),
+            )
+            .await
+            .is_err()
+            {
+                // qBittorrent's bare `403`; the refusal itself is logged where it is decided.
+                return StatusCode::FORBIDDEN.into_response();
+            }
+            state.qbittorrent_sessions.resolve(&sid).unwrap_or(sid)
+        }
         None => bearer(request.headers()).unwrap_or_default(),
     };
-    if valid_token(&state, &credential).await {
-        next.run(request).await
-    } else {
-        StatusCode::FORBIDDEN.into_response()
+    match rd_api_core::auth::compat_access(&state, &credential).await {
+        rd_api_core::auth::CompatAccess::Granted => next.run(request).await,
+        rd_api_core::auth::CompatAccess::Refused => StatusCode::FORBIDDEN.into_response(),
+        // A `403` sends the client back to its login with a key that is fine; the store being
+        // unreadable is this service's fault and is said as one (audit 1.9.1, API-13).
+        rd_api_core::auth::CompatAccess::Unavailable => {
+            StatusCode::SERVICE_UNAVAILABLE.into_response()
+        }
     }
 }
 
@@ -181,18 +210,13 @@ async fn login(
     // SHA-256 and a database lookup, and leaving this door free while the native one is
     // counted makes the counting on the native one decorative: an attacker guesses tokens
     // through whichever door does not answer back.
-    if let rd_authn::Decision::Locked { .. } = state.auth.throttle_check(client.0).await {
+    if state.auth.gate(client.0).await.is_err() {
         // qBittorrent's own answer for a banned address, which its clients already understand.
         return (
             StatusCode::FORBIDDEN,
             "Your IP address has been banned after too many failed login attempts.",
         )
             .into_response();
-    }
-    if let rd_authn::Decision::Proceed { delay } = state.auth.throttle_check(client.0).await
-        && !delay.is_zero()
-    {
-        tokio::time::sleep(delay).await;
     }
 
     // Clients send the credentials as a form body; a few send them in the query string.
@@ -204,9 +228,16 @@ async fn login(
         .or(query.password)
         .or_else(|| bearer(&headers))
         .unwrap_or_default();
-    if !valid_token(&state, &password).await {
-        state.auth.note_failed_login(client.0).await;
-        return "Fails.".into_response();
+    match rd_api_core::auth::compat_access(&state, &password).await {
+        rd_api_core::auth::CompatAccess::Granted => {}
+        rd_api_core::auth::CompatAccess::Refused => {
+            state.auth.note_failed_login(client.0).await;
+            return "Fails.".into_response();
+        }
+        // Not counted as a failed guess: the key was never compared.
+        rd_api_core::auth::CompatAccess::Unavailable => {
+            return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        }
     }
     (
         [(header::SET_COOKIE, session_cookie(&state, &password).await)],
@@ -267,18 +298,6 @@ async fn cookie_path(state: &AppState) -> String {
     } else {
         proxy.base_path().to_owned()
     }
-}
-
-async fn valid_token(state: &AppState, token: &str) -> bool {
-    if token.is_empty() {
-        return false;
-    }
-    let digest = hex::encode(Sha256::digest(token.as_bytes()));
-    state
-        .database
-        .capture_token_valid(&digest, rd_core::API_SCOPE)
-        .await
-        .unwrap_or(false)
 }
 
 fn bearer(headers: &HeaderMap) -> Option<String> {

@@ -17,7 +17,29 @@ pub(crate) async fn record_error(
     file: &DownloadFile,
     failure: Failure,
 ) -> Result<()> {
-    let retry_at = retry::retry_at(&failure, file.retry_count, scheduler.max_retries());
+    // Only a limit reads its waits: every other failure is bounded by the attempts the row
+    // already carries (RD-191-12).
+    let limit_waits = if failure.category.is_limit() {
+        scheduler
+            .database
+            .retry_counters(file.id)
+            .await?
+            .unwrap_or_default()
+            .limit_waits
+    } else {
+        0
+    };
+    let retry_at = retry::retry_at(
+        &failure,
+        file.retry_count,
+        limit_waits,
+        scheduler.max_retries(),
+    );
+    let failure = if retry_at.is_none() && retry::limit_waits_spent(&failure, limit_waits) {
+        retry::limit_waits_exhausted(failure, limit_waits)
+    } else {
+        failure
+    };
     // An IP limit is a property of the hoster, not of this one link: hold the whole hoster
     // back so its other free links do not burn a wait and a captcha to be refused too.
     if matches!(failure.category, FailureKind::IpBlocked { .. })
@@ -49,7 +71,10 @@ async fn hand_over(
     failure: Failure,
     retry_at: Option<chrono::DateTime<chrono::Utc>>,
 ) -> Result<()> {
-    let downloads = scheduler.database.list_downloads().await?;
+    let downloads = scheduler
+        .database
+        .downloads_for_package(file.package_id)
+        .await?;
     let waiting: Vec<&DownloadFile> = crate::mirrors::siblings(file, &downloads)
         .into_iter()
         .filter(|sibling| sibling.state == rd_core::DownloadState::Skipped)
@@ -178,7 +203,10 @@ pub(crate) async fn wake_mirror(scheduler: &SchedulerHandle, file: &DownloadFile
     if file.mirror_group.is_none() {
         return Ok(());
     }
-    let downloads = scheduler.database.list_downloads().await?;
+    let downloads = scheduler
+        .database
+        .downloads_for_package(file.package_id)
+        .await?;
     let waiting: Vec<&DownloadFile> = crate::mirrors::siblings(file, &downloads)
         .into_iter()
         .filter(|sibling| sibling.state == rd_core::DownloadState::Skipped)
@@ -203,11 +231,8 @@ pub(crate) async fn wake_mirror(scheduler: &SchedulerHandle, file: &DownloadFile
 /// Logged rather than propagated: the handover has to happen even when the staging directory
 /// is already gone, and a leftover `.part` is worth a warning, not a stuck group.
 async fn discard_partial_data(scheduler: &SchedulerHandle, file: &DownloadFile) {
-    let destination = match scheduler.database.list_packages().await {
-        Ok(packages) => packages
-            .into_iter()
-            .find(|package| package.id == file.package_id)
-            .map(|package| package.destination),
+    let destination = match scheduler.database.get_package(file.package_id).await {
+        Ok(package) => package.map(|package| package.destination),
         Err(error) => {
             tracing::warn!(download_id = %file.id, %error, "the given-up mirror kept its staging file");
             return;
@@ -369,7 +394,9 @@ fn transient(error: anyhow::Error) -> Failure {
         FailureKind::Transient {
             retry_after_seconds: None,
         },
-        error.to_string(),
+        // With its causes (audit 1.9.1, TR-12): the top line alone is often only "error
+        // sending request".
+        format!("{error:#}"),
     )
 }
 
@@ -412,7 +439,7 @@ fn from_http_error_with_replay(error: HttpDownloadError, is_post_replay: bool) -
                 retry_after_seconds: None,
             },
             rd_http::LOCAL_IO_CODE,
-            error.to_string(),
+            format!("{error:#}"),
         ),
         HttpDownloadError::Internal(error) => transient(error),
     }

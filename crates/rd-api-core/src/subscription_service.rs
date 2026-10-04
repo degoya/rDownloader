@@ -139,7 +139,7 @@ impl SubscriptionService {
         let Some(subscription) = self.inner.database.subscription(id).await? else {
             anyhow::bail!("subscription not found");
         };
-        self.poll_one(subscription).await;
+        self.poll_contained(subscription).await;
         Ok(())
     }
 
@@ -193,12 +193,10 @@ impl SubscriptionService {
             let service = self.clone();
             tasks.push(tokio::spawn(async move {
                 let _permit = permit;
-                service.poll_one(subscription).await;
+                service.poll_contained(subscription).await;
             }));
         }
         for task in tasks {
-            // A panicking poll is contained: it fails its own subscription and the cycle
-            // carries on, rather than taking the loop down with it.
             if let Err(error) = task.await {
                 tracing::warn!(%error, "subscription poll task failed");
             }
@@ -206,12 +204,38 @@ impl SubscriptionService {
         Ok(())
     }
 
+    /// Polls one subscription in a task of its own, so a panic inside it fails that
+    /// subscription's run and the caller carries on.
+    ///
+    /// The run is booked here as well (audit 1.9.1, INTAKE-02): a panic skips `finish`, and a
+    /// subscription without a finished run stays due, is polled again every cycle, panics
+    /// again and never shows why.
+    async fn poll_contained(&self, subscription: Subscription) {
+        let started_at = self.now();
+        let service = self.clone();
+        let polled = subscription.clone();
+        let task = tokio::spawn(async move { service.poll_one(polled).await });
+        let Err(error) = task.await else { return };
+        tracing::warn!(
+            subscription = %subscription.name,
+            %error,
+            "subscription poll task failed"
+        );
+        if error.is_panic() {
+            self.finish(
+                &subscription,
+                started_at,
+                Err(anyhow::anyhow!(POLL_PANICKED)),
+                spread_seed(&subscription),
+            )
+            .await;
+        }
+    }
+
     async fn poll_one(&self, subscription: Subscription) {
         let started_at = self.now();
         let settings = self.settings().await;
-        // The id is the spread key, so subscriptions created in the same minute do not poll
-        // in the same second forever.
-        let seed = subscription.id.into_uuid().as_u128() as u64;
+        let seed = spread_seed(&subscription);
 
         // A stored expression that names no time fails the run with its reason, rather than
         // running on an interval nobody chose.
@@ -285,14 +309,14 @@ impl SubscriptionService {
             );
         }
         let mut records = Vec::with_capacity(outcome.items.len());
+        let filters = rd_subscription::PreparedFilters::new(&subscription.filters);
         for item in outcome.items.iter().take(rd_core::MAX_ITEMS_PER_POLL) {
             // The adapter's own refusal (RD-190-13) is as final as a filter's, and stored the
             // same way.
             let decision = match item.refused {
                 Some(reason) => Err(reason),
-                None => rd_subscription::evaluate(
+                None => filters.evaluate(
                     &rd_subscription::candidate_of(item),
-                    &subscription.filters,
                     subscription.backlog,
                     primed,
                     now,
@@ -573,6 +597,15 @@ impl SubscriptionService {
             tracing::warn!(%error, "subscription run could not be recorded");
         }
     }
+}
+
+/// The error a panicked poll leaves on its run: a stable code the interface translates.
+pub(crate) const POLL_PANICKED: &str = "subscription.poll_panicked";
+
+/// The id is the spread key, so subscriptions created in the same minute do not poll in the
+/// same second forever.
+fn spread_seed(subscription: &Subscription) -> u64 {
+    subscription.id.into_uuid().as_u128() as u64
 }
 
 /// What a successful poll counted.

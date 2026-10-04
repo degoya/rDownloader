@@ -155,40 +155,11 @@ mod tests {
     }
 
     fn subscription() -> rd_core::Subscription {
-        rd_core::Subscription {
-            id: rd_core::SubscriptionId::new(),
-            name: "Feed".to_owned(),
-            source_categories: Vec::new(),
-            url: "https://example.test/feed.xml".parse().expect("url"),
-            kind: rd_core::SubscriptionKind::Feed,
-            enabled: true,
-            mode: rd_core::SubscriptionMode::Review,
-            category_id: None,
-            priority: rd_core::DownloadPriority::default(),
-            interval_seconds: 3_600,
-            filters: rd_core::SubscriptionFilters::default(),
-            backlog: rd_core::BacklogPolicy::default(),
-            category_map: Vec::new(),
-            primed: true,
-            last_run_at: None,
-            next_run_at: None,
-            consecutive_failures: 0,
-            last_error: None,
-            etag: None,
-            last_modified: None,
-            secret_ref: None,
-            has_secret: false,
-            every_release: false,
-            view: rd_core::SubscriptionView::List,
-            autoplay: false,
-            card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
-            schedule: None,
-            script_arguments: Vec::new(),
-            indexer_search: rd_core::IndexerSearch::default(),
-            git_release: rd_core::GitReleaseOptions::default(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        }
+        crate::test_support::subscription(
+            "Feed",
+            rd_core::SubscriptionKind::Feed,
+            "https://example.test/feed.xml",
+        )
     }
 
     #[tokio::test]

@@ -60,18 +60,28 @@ async function readBody(response) {
   }
 }
 
-/** Posts a prepared intake body. Result shape: { ok, status, code, message, links }. */
-export async function submitCapture(config, body, fetchImpl = fetch) {
-  const server = normalizeServer(config.server)
+/**
+ * The one request of the capture surface (EXT-14): the server, the capture token, the caller's
+ * headers merged over the defaults, and one answer shape for every caller.
+ *
+ * Five modules wrote this out, and one of them, `handover-api.js`, dropped the headers its caller
+ * passed. Answers `{ ok, status, code, message, payload }`: on a refusal `code` is the server's,
+ * `auth.unauthorized` for a bare 401 and `http` otherwise, `network` when no answer came at all,
+ * and `message` the server's text; on a success `code` is whatever the body carries and `payload`
+ * the parsed body. A refusal carries no payload, and nothing returned carries the token.
+ */
+export async function request(config, path, init = {}, fetchImpl = fetch) {
+  const headers = { authorization: `Bearer ${config.token ?? ''}` }
+  // A string body is JSON here; a `FormData` body sets its own type with the boundary.
+  if (typeof init.body === 'string') headers['content-type'] = 'application/json'
   let response
   try {
-    response = await fetchImpl(`${server}/api/v1/capture/batches`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${config.token ?? ''}` },
-      body: JSON.stringify(body)
+    response = await fetchImpl(`${normalizeServer(config.server)}${path}`, {
+      ...init,
+      headers: { ...headers, ...(init.headers ?? {}) }
     })
   } catch (error) {
-    return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error), links: 0 }
+    return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error), payload: null }
   }
   const payload = await readBody(response)
   if (!response.ok) {
@@ -80,10 +90,17 @@ export async function submitCapture(config, body, fetchImpl = fetch) {
       status: response.status,
       code: payload?.code ?? (response.status === 401 ? 'auth.unauthorized' : 'http'),
       message: payload?.error ?? `HTTP ${response.status}`,
-      links: 0
+      payload: null
     }
   }
-  return { ok: true, status: response.status, code: null, message: null, links: payload?.candidates?.length ?? 0 }
+  return { ok: true, status: response.status, code: payload?.code ?? null, message: null, payload }
+}
+
+/** Posts a prepared intake body. Result shape: { ok, status, code, message, links }. */
+export async function submitCapture(config, body, fetchImpl = fetch) {
+  const result = await request(config, '/api/v1/capture/batches', { method: 'POST', body: JSON.stringify(body) }, fetchImpl)
+  if (!result.ok) return { ok: false, status: result.status, code: result.code, message: result.message, links: 0 }
+  return { ok: true, status: result.status, code: null, message: null, links: result.payload?.candidates?.length ?? 0 }
 }
 
 /** Result shape: { ok, status, code, message, links }. */
@@ -94,22 +111,12 @@ export async function submitLinks(config, { text, packageName, sourceLabel }, fe
 }
 
 export async function ping(config, fetchImpl = fetch) {
-  const server = normalizeServer(config.server)
-  try {
-    const response = await fetchImpl(`${server}/api/v1/capture/ping`, {
-      headers: { authorization: `Bearer ${config.token ?? ''}` }
-    })
-    const payload = await readBody(response)
-    if (!response.ok) {
-      return { ok: false, status: response.status, message: payload?.error ?? `HTTP ${response.status}` }
-    }
-    return {
-      ok: true,
-      status: response.status,
-      version: payload?.version ?? null,
-      captureVersion: payload?.capture_version ?? 0
-    }
-  } catch (error) {
-    return { ok: false, status: 0, message: String(error?.message ?? error) }
+  const result = await request(config, '/api/v1/capture/ping', {}, fetchImpl)
+  if (!result.ok) return { ok: false, status: result.status, message: result.message }
+  return {
+    ok: true,
+    status: result.status,
+    version: result.payload?.version ?? null,
+    captureVersion: result.payload?.capture_version ?? 0
   }
 }

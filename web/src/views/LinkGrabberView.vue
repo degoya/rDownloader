@@ -15,6 +15,7 @@ import IndexerReviewList from '@/components/IndexerReviewList.vue'
 import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
+import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import { setLinkGrabberActions } from '@/composables/linkGrabberActions'
 import { refreshQueuedSources } from '@/composables/useQueuedSources'
@@ -27,10 +28,13 @@ import { useGrabberRows } from '@/composables/useGrabberRows'
 import { grabberKey, useGrabberSelection } from '@/composables/useGrabberSelection'
 import type { CollectorEntry } from '@/composables/useGrabberSelection'
 import { useIntakeModal } from '@/composables/useIntakeModal'
+import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
 import { useGrabberReorder } from '@/composables/useGrabberReorder'
 import { useOpenSections } from '@/composables/useOpenSections'
+import { useQueueColumns } from '@/composables/useQueueColumns'
 import { useShowMetadata } from '@/composables/useShowMetadata'
+import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { usePublishedSelection } from '@/stores/selection'
@@ -72,6 +76,9 @@ const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } =
 const selection = useGrabberSelection(entries, orderedSelectionKeys)
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
 usePublishedSelection(selection.size)
+
+/** The data columns' widths, set on the container of the header row and the rows (RD-191-11). */
+const columns = useQueueColumns('linkgrabber')
 
 const grabberList = ref<{
   focusRow: (key: string) => Promise<boolean>
@@ -122,6 +129,9 @@ const enqueueableNzbIds = computed(() => nzbGroups.value.filter(entry => !entry.
 const {
   enqueueAll, enqueuePackage, enqueueSelected, enqueueCandidate, visibleCandidateIds
 } = useGrabberEnqueue({ groups, nzbGroups, enqueueableNzbIds, selection, sort, filterActive, notice, bulkBusy })
+/** NZB imports to a provider's account instead of the queue (RD-191-13); a failed one holds no files. */
+const nzbHandOver = useNzbHandOver('linkgrabber')
+const handOverIds = (): string[] => selection.nzbIds.value.filter(id => nzb.imports.find(item => item.id === id)?.state === 'imported')
 
 /**
  * The online check takes what the list shows, like the enqueue does (RD-130-21): a filter or a
@@ -352,6 +362,9 @@ const navbarMenu = computed(() => [[
         >
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-folder-input" :label="t('linkgrabber.actions.move_to_new_package')" :disabled="!selection.collectorIds.value.length" :loading="bulkBusy" @click="moveSelected" />
+          <UDropdownMenu v-if="selection.nzbIds.value.length && nzbHandOver.targets.value.length" :items="nzbHandOver.menuItems(handOverIds)">
+            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-cloud-upload" :label="t('linkgrabber.nzb.hand_over.action')" :title="t('linkgrabber.nzb.hand_over.hint')" :disabled="!handOverIds().length" data-testid="grabber-hand-over" />
+          </UDropdownMenu>
           <span v-if="removeProgress" class="numeric text-xs text-muted" role="status" data-testid="grabber-remove-progress">
             {{ t('linkgrabber.bulk.removing', { done: removeProgress.done, total: removeProgress.total }) }}
           </span>
@@ -361,8 +374,17 @@ const navbarMenu = computed(() => [[
           of the open ones, and the reviewed NZB imports between them. The capture-phase handlers
           read the shift key before a checkbox reports its new value (RD-106-12).
         -->
+        <div v-if="rows.length" :style="columns.style.value">
+        <QueueColumnHeader
+          :widths="columns.widths.value"
+          :meta-label="t('common.queue_columns.meta_linkgrabber')"
+          :gutter="rows.length > DEFAULT_THRESHOLD"
+          :customized="columns.customized.value"
+          @resize="columns.setWidth"
+          @reset="columns.reset"
+          @reset-all="columns.resetAll"
+        />
         <VirtualRowList
-          v-if="rows.length"
           ref="grabberList"
           :rows="rows"
           :label="t('linkgrabber.list.aria', { count: rows.length })"
@@ -424,18 +446,23 @@ const navbarMenu = computed(() => [[
               :enqueuing="nzb.enqueuingIds.has(row.entry.id)"
               :deleting="nzb.deletingIds.has(row.entry.id)"
               :dragging="draggingEntry === grabberKey('nzb', row.entry.id)"
+              :remote-targets="nzbHandOver.targets.value"
+              :handed-over-to="nzbHandOver.handedOverTo(row.entry.item)"
+              :handing-over="nzb.handingOverIds.has(row.entry.id)"
               @select="selection.pickNzb"
               @category="setNzbCategory"
               @priority="setNzbPriority"
               @enqueue="enqueueNzb"
               @enqueue-paused="(id: string) => enqueueNzb(id, true)"
               @remove="deleteNzb"
+              @hand-over="(id: string, accountId: string) => void nzbHandOver.handOver([id], accountId)"
               @dragstart="(id: string) => draggingEntry = grabberKey('nzb', id)"
               @drop="dropOnNzb"
               @move="(id: string, delta: -1 | 1) => moveEntry('nzb', id, delta)"
             />
           </template>
         </VirtualRowList>
+        </div>
         <!-- The collector's fetch, not just its result: "no links" waits for it (RD-104-07). -->
         <DataState v-else :loading="collector.loading" :empty="!collector.error" :rows="3">
           <div class="signal-grid grid min-h-60 place-items-center border border-dashed border-muted p-8 text-center text-sm text-muted">

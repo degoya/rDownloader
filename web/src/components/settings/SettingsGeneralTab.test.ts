@@ -138,3 +138,36 @@ describe('SettingsGeneralTab number fields', () => {
     expect(minimumFree?.validity.valid).toBe(true)
   })
 })
+
+/** RD-191-12: the automatic retry of failed downloads, its interval and rounds under its switch. */
+describe('SettingsGeneralTab automatic retry', () => {
+  function mountRetry(enabled: boolean) {
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+    const settings = { nntp_connections_per_file: 0, nntp_parallel_files: 0, max_active_files: 3, max_chunks_per_file: 4, max_connections_per_host: 6, max_retries: 8, ui_port: null, storage_minimum_free_bytes: '0', auto_retry_failed: enabled, auto_retry_interval_hours: 12, auto_retry_max_rounds: 0 }
+    return render(SettingsGeneralTab, {
+      props: { modelValue: settings as never, speedMib: null },
+      global: { plugins: [i18n], components }
+    })
+  }
+
+  it('offers the switch and keeps its options out of sight while it is off', () => {
+    mountRetry(false)
+
+    expect(screen.getByText('Retry failed downloads automatically')).toBeTruthy()
+    expect(screen.getByTestId('auto-retry-switch')).toBeTruthy()
+    expect(screen.queryByTestId('auto-retry-options')).toBeNull()
+  })
+
+  it('shows the interval in hours and the rounds once it is on', () => {
+    mountRetry(true)
+
+    const interval = screen.getByTestId('auto-retry-interval') as HTMLInputElement
+    expect(interval.value).toBe('12')
+    expect(interval.min).toBe('1')
+    expect(interval.max).toBe('24')
+    const rounds = screen.getByTestId('auto-retry-rounds') as HTMLInputElement
+    expect(rounds.value).toBe('0')
+    expect(rounds.max).toBe('100')
+    expect(screen.getByText('Rounds per download')).toBeTruthy()
+  })
+})

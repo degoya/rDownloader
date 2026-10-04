@@ -35,7 +35,6 @@
     "asset_not_wanted": "File does not match the platforms, architectures or name patterns"
   },
   "form": {
-    "add": "Add subscription",
     "edit": "Edit subscription",
     "name": "Name",
     "url": "Address",

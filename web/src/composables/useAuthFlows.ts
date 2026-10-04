@@ -4,7 +4,7 @@ import { api, responseError } from '@/api/client'
 import type { AuthFlow } from '@/api/types'
 
 /** How often an open sign-in is asked about when no event arrives, in milliseconds. */
-export const AUTH_FLOW_POLL_MS = 3000
+const AUTH_FLOW_POLL_MS = 3000
 
 /** Whether the service is still waiting on the person or the provider. */
 export function isOpenFlow(flow: AuthFlow | null | undefined): boolean {

@@ -10,6 +10,8 @@
 //! Nothing here performs a request. Building an address and reading an answer are pure, so
 //! both are tested without a WebAssembly target and without reaching anything.
 
+use plugin_common::percent_encode;
+
 use crate::json::{self, Json};
 
 const SOURCE_BASE: &str = "https://v3-cinemeta.strem.io";
@@ -146,20 +148,6 @@ fn searchable(title: &str) -> Option<String> {
     }
     let trimmed = out.trim();
     (trimmed.chars().filter(|c| c.is_alphabetic()).count() >= 2).then(|| trimmed.to_owned())
-}
-
-/// Percent-encoding, for the reduced alphabet [`searchable`] leaves behind.
-fn percent_encode(value: &str) -> String {
-    let mut out = String::new();
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
-            out.push(byte as char);
-        } else {
-            out.push('%');
-            out.push_str(&format!("{byte:02X}"));
-        }
-    }
-    out
 }
 
 /// Reads a catalogue answer into fields, choosing the entry the release name pointed at.

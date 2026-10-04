@@ -10,13 +10,34 @@ version: 2
 updates:
   # The actions' versions: few, small, and each one a line to copy. Every action is pinned to a
   # commit with its release as a comment (scripts/check-actions-pinned.sh); Dependabot moves both.
-  # The composite action under .github/actions/ uses none, so the workflows are all there is to read.
+  # The composite actions under .github/actions/ pin actions of their own (setup-rust, setup-web,
+  # RD-191-09), so their directories are read beside the workflows'.
   - package-ecosystem: github-actions
-    directory: "/"
+    directories: ["/", "/.github/actions/*"]
     schedule:
       interval: weekly
     groups:
       actions:
+        patterns: ["*"]
+
+  # The container image's base images (RD-191-09): docker/Dockerfile pins each by tag and by the
+  # digest of its multi-platform index, and this moves the digest when the tag is rebuilt. The tags
+  # themselves stay: Rust follows the toolchain pin (rust-toolchain.toml, RUSTUP_TOOLCHAIN in the
+  # workflows) and Node the major we build with (24); `debian:trixie-slim` sets the glibc floor of
+  # the prebuilt binary and moves only by hand (the comment in the Dockerfile). The Python tools in
+  # the image move with `scripts/docker-tools.sh --bump`, not here.
+  - package-ecosystem: docker
+    directory: "/docker"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: rust
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+    groups:
+      docker-images:
         patterns: ["*"]
 
   # One pull request for everything semver-compatible and one for the major versions: a major

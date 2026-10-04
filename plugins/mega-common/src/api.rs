@@ -48,18 +48,14 @@ const MEGA_TIME_LEFT: &str = "x-mega-time-left";
 ///
 /// Its own header first, the standard one second. Only the numeric form of `Retry-After` is
 /// read: the date form needs a clock to subtract from, a guest has none of its own, and a
-/// wrong guess here would be a wait the scheduler takes literally. An unreadable value is
-/// `None`, which means "the caller decides", not "retry at once".
+/// wrong guess here would be a wait the scheduler takes literally. An unreadable value — and
+/// a `0` — is `None`, which means "the caller decides", not "retry at once". Each value is read
+/// by `plugin_common::retry_after_seconds`, the reader every plugin shares, and so clamped to
+/// the host's one-day ceiling (RD-191-07).
 #[must_use]
 pub fn retry_after(headers: &[(String, String)]) -> Option<u64> {
-    let read = |wanted: &str| {
-        headers.iter().find_map(|(name, value)| {
-            name.eq_ignore_ascii_case(wanted)
-                .then(|| value.trim().parse::<u64>().ok())
-                .flatten()
-        })
-    };
-    read(MEGA_TIME_LEFT).or_else(|| read("retry-after"))
+    plugin_common::retry_after_seconds(plugin_common::http::header(headers, MEGA_TIME_LEFT))
+        .or_else(|| plugin_common::retry_after(headers))
 }
 
 /// The body of a request for one shared file.

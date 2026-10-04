@@ -4,7 +4,7 @@ import { api, responseError, resultMessage } from '@/api/client'
 import type { InstalledPlugin, PluginLifecycle } from '@/api/types'
 
 /** A resolver version under test that a single download can be started with (RD-140-02). */
-export interface StagedResolver {
+interface StagedResolver {
   pluginId: string
   name: string
   version: string

@@ -18,10 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # rust-toolchain.toml names `stable`, which outranks the 1.98.0 the toolchain step installs;
-  # RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its own day
-  # (1.99's deprecation of fetch_update, 2026-10-01).
-  RUSTUP_TOOLCHAIN: 1.98.0
+  # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
   CARGO_INCREMENTAL: 0
 
 jobs:
@@ -46,9 +43,7 @@ jobs:
       # placeholder page stands in for the web build the `web` job of ci.yml makes.
       - name: Placeholder web interface
         run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: 1.98.0
+      - uses: ./.github/actions/setup-rust
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22

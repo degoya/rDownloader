@@ -66,7 +66,9 @@ default-filter = """
 #   the `junit-<os>` artefact, pass or fail.
 # * One retry. A test that fails and then passes is reported as FLAKY in the summary and keeps
 #   its failed attempt in the JUnit file, so it is visible rather than hidden — and it is a
-#   finding to fix, not a pass to shrug at.
+#   finding to fix, not a pass to shrug at. It does not fail the run (owner, 2026-10-04): the CI
+#   steps turn every FLAKY test into a `::warning` annotation naming the test, the platform and
+#   the run (scripts/lib/junit-flaky.py, RD-191-09).
 # * The final summary lists slow and flaky tests, not only failures: a test drifting towards
 #   the default profile's 60 s `slow-timeout` shows up there runs before it is terminated.
 [profile.ci]

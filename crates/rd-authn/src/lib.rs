@@ -11,11 +11,13 @@
 
 pub mod cidr;
 pub mod client_ip;
+pub mod digest;
 pub mod host;
 pub mod oidc;
 #[doc(hidden)]
 pub mod oidc_testing;
 pub mod oidc_token;
+pub mod origin;
 pub mod proxy;
 pub mod recovery;
 pub mod throttle;
@@ -24,6 +26,7 @@ pub mod webauthn;
 
 pub use cidr::{Cidr, CidrError, loopback_ranges};
 pub use client_ip::{ClientAddress, resolve as resolve_client_address};
+pub use digest::{constant_time_eq, sha256_hex};
 pub use proxy::{CookieSecurity, ProxyConfig, ProxyConfigError};
 pub use recovery::{CODE_COUNT as RECOVERY_CODE_COUNT, RecoveryCode};
 pub use throttle::{Decision, LoginThrottle, ThrottleSettings};

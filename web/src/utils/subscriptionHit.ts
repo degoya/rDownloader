@@ -35,7 +35,7 @@ export function cardAspect(ratio: CardRatio): string {
   return ratio.replace(':', ' / ')
 }
 
-export type HitAttributes = Record<string, string>
+type HitAttributes = Record<string, string>
 type Translate = (key: string) => string
 
 export interface HitFact {

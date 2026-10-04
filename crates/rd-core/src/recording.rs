@@ -214,7 +214,9 @@ impl RecordingState {
         self.segments.iter().map(|segment| segment.bytes).sum()
     }
 
-    /// Seconds actually covered, summed over the segments that have ended.
+    /// Seconds actually covered, summed over the segments that have ended. Only the tests ask
+    /// (DB-13).
+    #[cfg(test)]
     #[must_use]
     pub fn recorded_seconds(&self) -> u64 {
         self.segments

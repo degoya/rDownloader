@@ -100,7 +100,7 @@ impl OAuthProvider {
         Ok(AuthorizationRequest {
             authorization_url: request.authorization_url,
             state: request.state,
-            expires_in_seconds: request.expires_in_seconds,
+            expires_in_seconds: request.expires_in_seconds.map(rd_core::clamp_retry_after),
             flow_state: request.flow_state,
         })
     }
@@ -136,8 +136,14 @@ impl OAuthProvider {
         Ok(DeviceAuthorization {
             verification_url: authorization.verification_url,
             user_code: authorization.user_code,
-            expires_in_seconds: authorization.expires_in_seconds,
-            interval_seconds: authorization.interval_seconds,
+            // The plugin's numbers, and through it the provider's: held to a day at the
+            // boundary, so no caller adds `u64::MAX` seconds to a date (RA-HOST-02).
+            expires_in_seconds: authorization
+                .expires_in_seconds
+                .map(rd_core::clamp_retry_after),
+            interval_seconds: authorization
+                .interval_seconds
+                .map(rd_core::clamp_retry_after),
             flow_state: authorization.flow_state,
         })
     }
@@ -183,7 +189,7 @@ fn token_outcome(
     match outcome {
         Wit::Authorized => TokenOutcome::Authorized,
         Wit::Pending(seconds) => TokenOutcome::Pending {
-            retry_after_seconds: seconds,
+            retry_after_seconds: rd_core::clamp_retry_after(seconds),
         },
         Wit::Failed(failure) => {
             let failure = crate::component::from_wit_failure(failure);
@@ -192,5 +198,28 @@ fn token_outcome(
                 message: failure.message,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TokenOutcome, oauth, token_outcome};
+
+    /// RA-HOST-02: a plugin's "ask again in" is held to a day before anybody adds it to a date.
+    #[test]
+    fn a_pending_exchange_waits_at_most_a_day() {
+        use oauth::exports::rdownloader::plugin::oauth::TokenOutcome as Wit;
+        assert_eq!(
+            token_outcome(Wit::Pending(u64::MAX)),
+            TokenOutcome::Pending {
+                retry_after_seconds: rd_core::MAX_RETRY_AFTER_SECONDS
+            }
+        );
+        assert_eq!(
+            token_outcome(Wit::Pending(5)),
+            TokenOutcome::Pending {
+                retry_after_seconds: 5
+            }
+        );
     }
 }

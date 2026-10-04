@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
-import { api, responseError } from '@/api/client'
+import { api } from '@/api/client'
+import { usePagedRecords } from '@/composables/usePagedRecords'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { BASE_PATH } from '@/basePath'
 import type { AuditAction, AuditActorKind, AuditOutcome, AuditRecord, AuditRecordsPage } from '@/api/types'
@@ -13,7 +14,7 @@ const AUDIT_PAGE_SIZE = 200
  * `'all'` is "any" for the three choices: a sentinel rather than an empty string, because the
  * select offering them refuses an item whose value is `''`.
  */
-export interface AuditFilters {
+interface AuditFilters {
   action: AuditAction | 'all'
   outcome: AuditOutcome | 'all'
   actorKind: AuditActorKind | 'all'
@@ -48,7 +49,6 @@ function emptyFilters(): AuditFilters {
  * — the browser saves the file the server names, and a blob built here would lose the name.
  */
 export const useAuditStore = defineStore('audit', () => {
-  const records = ref<AuditRecord[]>([])
   const filters = reactive<AuditFilters>(emptyFilters())
   const fullPage = ref(false)
   const total = ref(0)
@@ -57,10 +57,6 @@ export const useAuditStore = defineStore('audit', () => {
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
-  const fetching = ref(false)
-  const settled = ref(false)
-  /** The first fetch alone shows the loading surface (`design.md`). */
-  const loading = computed(() => !settled.value)
 
   function query(beforeId?: number): AuditQuery {
     const params: AuditQuery = { limit: AUDIT_PAGE_SIZE }
@@ -80,36 +76,18 @@ export const useAuditStore = defineStore('audit', () => {
     total.value = page.total
     retention.value = page.retention
     actions.value = page.actions
-    error.value = null
   }
 
-  async function refresh(): Promise<void> {
-    fetching.value = true
-    const response = await api.GET('/api/v1/audit/records', { params: { query: query() } })
-    if (response.data) {
-      records.value = response.data.records
-      take(response.data)
-    } else {
-      error.value = responseError(response)
-    }
-    fetching.value = false
-    settled.value = true
-  }
-
-  /** Appends the page behind the oldest record shown. */
-  async function loadOlder(): Promise<void> {
-    const oldest = records.value.at(-1)
-    if (!oldest || fetching.value) return
-    fetching.value = true
-    const response = await api.GET('/api/v1/audit/records', { params: { query: query(oldest.id) } })
-    if (response.data) {
-      records.value = [...records.value, ...response.data.records]
-      take(response.data)
-    } else {
-      error.value = responseError(response)
-    }
-    fetching.value = false
-  }
+  /**
+   * The first page under the current filter and the older ones behind it; a refresh drops an
+   * older page still on its way, which belonged to the filter before (WEB-07). The first fetch
+   * alone shows the loading surface (`design.md`).
+   */
+  const { records, fetching, settled, loading, refresh, loadOlder } = usePagedRecords<AuditRecord, AuditRecordsPage>(
+    beforeId => api.GET('/api/v1/audit/records', { params: { query: query(beforeId) } }),
+    take,
+    error
+  )
 
   function clearFilters(): void {
     Object.assign(filters, emptyFilters())

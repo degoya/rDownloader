@@ -8,6 +8,7 @@
  * lives two pages away.
  */
 import { computed, onMounted, onUnmounted } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 import { useI18n } from 'vue-i18n'
 
 import type { StatsRange, TransferStatsGroup } from '@/api/types'
@@ -50,6 +51,16 @@ const tiles = computed(() => {
 function groupKey(group: TransferStatsGroup, kind: 'kind' | 'provider'): string {
   return kind === 'provider' && group.key === 'direct' ? t('stats.groups.direct') : group.key
 }
+
+/** The two breakdowns share one table shape; the figures sit right-aligned, as figures do. */
+const FIGURE_CELL = { th: 'text-right', td: 'numeric text-right' }
+const groupColumns = computed<TableColumn<TransferStatsGroup>[]>(() => [
+  { id: 'key', header: t('stats.groups.key') },
+  { id: 'completed', header: t('stats.groups.completed'), meta: { class: FIGURE_CELL } },
+  { id: 'failed', header: t('stats.groups.failed'), meta: { class: FIGURE_CELL } },
+  { id: 'retries', header: t('stats.groups.retries'), meta: { class: FIGURE_CELL } },
+  { id: 'bytes', header: t('stats.groups.bytes'), meta: { class: FIGURE_CELL } }
+])
 
 const endpoint = computed(() => `${window.location.origin}/api/v1/metrics`)
 </script>
@@ -98,26 +109,18 @@ const endpoint = computed(() => `${window.location.origin}/api/v1/metrics`)
         <div v-if="store.stats?.buckets.length" class="grid gap-4 lg:grid-cols-2">
           <section v-for="group in (['kind', 'provider'] as const)" :key="group" class="border border-muted bg-default p-5">
             <SectionHeader :eyebrow="t('stats.eyebrow')" :title="group === 'kind' ? t('stats.groups.by_kind') : t('stats.groups.by_provider')" />
-            <table class="mt-3 w-full text-sm">
-              <thead>
-                <tr class="text-left text-xs text-muted">
-                  <th class="pb-2 font-medium">{{ t('stats.groups.key') }}</th>
-                  <th class="pb-2 text-right font-medium">{{ t('stats.groups.completed') }}</th>
-                  <th class="pb-2 text-right font-medium">{{ t('stats.groups.failed') }}</th>
-                  <th class="pb-2 text-right font-medium">{{ t('stats.groups.retries') }}</th>
-                  <th class="pb-2 text-right font-medium">{{ t('stats.groups.bytes') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in (group === 'kind' ? store.stats.by_kind : store.stats.by_provider)" :key="row.key" class="border-t border-muted">
-                  <td class="py-2 font-mono text-xs text-highlighted">{{ groupKey(row, group) }}</td>
-                  <td class="numeric py-2 text-right">{{ n(row.completed) }}</td>
-                  <td class="numeric py-2 text-right">{{ n(row.failed) }}</td>
-                  <td class="numeric py-2 text-right">{{ n(row.retries) }}</td>
-                  <td class="numeric py-2 text-right">{{ formatBytes(String(row.bytes)) }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <UTable
+              class="mt-3"
+              :data="group === 'kind' ? store.stats.by_kind : store.stats.by_provider"
+              :columns="groupColumns"
+              :ui="{ th: 'px-0 py-2 pr-3 text-xs font-medium text-muted last:pr-0', td: 'px-0 py-2 pr-3 text-sm last:pr-0' }"
+            >
+              <template #key-cell="{ row }"><span class="font-mono text-xs text-highlighted">{{ groupKey(row.original, group) }}</span></template>
+              <template #completed-cell="{ row }">{{ n(row.original.completed) }}</template>
+              <template #failed-cell="{ row }">{{ n(row.original.failed) }}</template>
+              <template #retries-cell="{ row }">{{ n(row.original.retries) }}</template>
+              <template #bytes-cell="{ row }">{{ formatBytes(String(row.original.bytes)) }}</template>
+            </UTable>
           </section>
         </div>
 

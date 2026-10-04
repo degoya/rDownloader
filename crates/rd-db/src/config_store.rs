@@ -182,7 +182,7 @@ pub(crate) async fn create_category(
         .bind(value.storage_root_id.to_string())
         .bind(&value.relative_path)
         .bind(value.is_default)
-        .bind(value.postprocess_level.map(crate::writer::level_string))
+        .bind(value.postprocess_level.map(crate::enum_string).transpose()?)
         .bind(&value.script)
         .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
         .bind(value.recursive_unpack)
@@ -732,7 +732,7 @@ pub(crate) async fn update_category(
     .bind(value.storage_root_id.to_string())
     .bind(&value.relative_path)
     .bind(value.is_default)
-    .bind(value.postprocess_level.map(crate::writer::level_string))
+    .bind(value.postprocess_level.map(crate::enum_string).transpose()?)
     .bind(&value.script)
     .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
     .bind(value.recursive_unpack)
@@ -1014,7 +1014,7 @@ pub(crate) async fn update_category_postprocess(
          recursive_unpack = ?, unpack_to_subfolder = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
          upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
     )
-    .bind(postprocess.level.map(crate::writer::level_string))
+    .bind(postprocess.level.map(crate::enum_string).transpose()?)
     .bind(&postprocess.script)
     .bind(cleanup_json(postprocess.cleanup_extensions.as_ref())?)
     .bind(postprocess.recursive_unpack)

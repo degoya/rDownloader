@@ -2,11 +2,11 @@
 //! of finished files (RD-150-01). See `migrations/0099_collisions_and_content_index.sql`.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use rd_core::{CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, PackageId};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::parse_id;
+use crate::{parse_id, parse_time, timestamp};
 
 /// The `scope_kind` of a category's policy.
 pub const SCOPE_CATEGORY: &str = "category";
@@ -65,16 +65,6 @@ pub struct ContentIndexEntry {
     pub indexed_at: DateTime<Utc>,
     /// When a check last found the file missing; `None` while it is where `path` says.
     pub missing_since: Option<DateTime<Utc>>,
-}
-
-fn timestamp(value: &DateTime<Utc>) -> String {
-    value.to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
-fn parse_time(value: &str) -> Result<DateTime<Utc>> {
-    Ok(DateTime::parse_from_rfc3339(value)
-        .context("parse stored timestamp")?
-        .with_timezone(&Utc))
 }
 
 fn policy(value: &str) -> Result<CollisionPolicy> {

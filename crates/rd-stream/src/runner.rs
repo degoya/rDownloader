@@ -18,7 +18,8 @@ use crate::{SharedStreamSettings, sidecars::SidecarClients};
 pub struct StreamRunner {
     database: Database,
     settings: SharedStreamSettings,
-    slot_capacity: usize,
+    /// Read on every dispatch pass, so a changed setting needs no restart (audit 1.9.1, TR-07).
+    slots: rd_tools::LiveSlots<rd_core::StreamSettings>,
     /// The HTTP client the sidecar fetches use. Default until
     /// [`Self::with_network_defaults`] hands over the scheduler's, which is the platform
     /// store alone - the behaviour of an installation without a custom CA.
@@ -28,14 +29,13 @@ pub struct StreamRunner {
 impl StreamRunner {
     #[must_use]
     pub fn new(database: Database, settings: SharedStreamSettings) -> Self {
-        let slot_capacity = settings
-            .try_read()
-            .map(|guard| guard.record_max_parallel.clamp(1, 8) as usize)
-            .unwrap_or(2);
+        let slots = rd_tools::LiveSlots::new(std::sync::Arc::clone(&settings), |settings| {
+            settings.record_max_parallel
+        });
         Self {
             database,
             settings,
-            slot_capacity,
+            slots,
             sidecars: SidecarClients::new(),
         }
     }
@@ -73,22 +73,7 @@ pub(crate) fn map_stream_error(stderr: &str) -> Failure {
             "The channel is not live",
         );
     }
-    let tail: String = stderr
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or("streamlink failed")
-        .chars()
-        .take(300)
-        .collect();
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: Some(120),
-        },
-        "record.tool_failed",
-        tail.clone(),
-    )
-    .with_param("message", tail)
+    rd_tools::tool_failed("record.tool_failed", stderr, "streamlink failed")
 }
 
 impl StreamRunner {
@@ -131,7 +116,7 @@ impl ExternalRunner for StreamRunner {
     }
 
     fn slot_capacity(&self) -> usize {
-        self.slot_capacity
+        self.slots.get()
     }
 
     /// A recording can run for hours; it must never occupy a regular download slot.

@@ -10,14 +10,13 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use rd_api::AppState;
 use rd_db::Database;
-use rd_files::NoConsoleWindow as _;
 use rd_scheduler::{SchedulerConfig, SchedulerHandle};
-use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 mod auth_cli;
 mod doctor_site_rules;
+mod instance_lock;
 mod plugin_cli;
 mod remote;
 mod reset_password_cli;
@@ -248,9 +247,10 @@ async fn serve(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         database,
         secrets,
         restore,
+        // Named, so it lives to the end of `serve` rather than being dropped right here.
+        instance: _instance,
     } = startup::open_store(&args.paths, telemetry).await?;
-    let stored = load_stored_settings(&database).await?;
-    let runtime = runtime_settings(&stored)?;
+    let (stored, runtime) = load_stored_settings(&database, &args.paths.database).await?;
     // The stored port only applies when neither --listen nor RDOWNLOADER_LISTEN is given, so
     // an operator can always override a setting that locked them out.
     let listen = args.listen.unwrap_or_else(|| {
@@ -466,144 +466,25 @@ fn end_after_stop_deadline(
     });
 }
 
-#[derive(Deserialize)]
-#[serde(default)]
-struct StoredSettings {
-    /// Plugin ids the user switched off; they stay installed but are never loaded.
-    #[serde(default)]
-    disabled_plugins: Vec<String>,
-    max_active_files: u32,
-    max_chunks_per_file: u32,
-    /// Simultaneous connections one host may see; absent in older blobs, hence the default.
-    #[serde(default = "default_connections_per_host")]
-    max_connections_per_host: u32,
-    /// NNTP connections one file may hold; `0` is as many as the servers allow (RD-108-25).
-    nntp_connections_per_file: u32,
-    /// NZB files at once; `0` is automatic (RD-130-22). Absent in older blobs, hence zero.
-    nntp_parallel_files: u32,
-    speed_limit_bytes_per_second: Option<rd_core::ByteCount>,
-    upload_limit_bytes_per_second: Option<rd_core::ByteCount>,
-    generate_sha256: bool,
-    global_proxy_profile_id: Option<rd_core::ProxyProfileId>,
-    custom_ca_pem: Option<String>,
-    /// Address ranges whose forwarded headers are believed (RD-100-11).
-    #[serde(default)]
-    trusted_proxies: Vec<String>,
-    /// What the outside world calls this installation.
-    #[serde(default)]
-    external_url: Option<String>,
-    /// When the session cookie is marked `Secure`.
-    #[serde(default)]
-    cookie_security: rd_authn::CookieSecurity,
-    max_retries: u32,
-    pause_during_postprocess: bool,
-    #[serde(default = "enabled")]
-    torrent_service_enabled: bool,
-    #[serde(default = "enabled")]
-    usenet_service_enabled: bool,
-    #[serde(default = "enabled")]
-    media_service_enabled: bool,
-    #[serde(default = "enabled")]
-    gallery_service_enabled: bool,
-    #[serde(default = "enabled")]
-    recording_service_enabled: bool,
-    #[serde(default = "enabled")]
-    remote_service_enabled: bool,
-    ui_port: Option<u16>,
-    vendor_directory: Option<String>,
-}
-
-/// A service switch absent from an older settings blob means the service is on.
-const fn enabled() -> bool {
-    true
-}
-
-/// A settings blob written before the per-host limit existed gets the default rather than
-/// an unbounded zero.
-const fn default_connections_per_host() -> u32 {
-    rd_scheduler::DEFAULT_CONNECTIONS_PER_HOST as u32
-}
-
-impl Default for StoredSettings {
-    fn default() -> Self {
-        Self {
-            disabled_plugins: Vec::new(),
-            max_active_files: 3,
-            max_chunks_per_file: 4,
-            max_connections_per_host: default_connections_per_host(),
-            nntp_connections_per_file: 0,
-            nntp_parallel_files: 0,
-            speed_limit_bytes_per_second: None,
-            upload_limit_bytes_per_second: None,
-            generate_sha256: true,
-            global_proxy_profile_id: None,
-            custom_ca_pem: None,
-            trusted_proxies: Vec::new(),
-            external_url: None,
-            cookie_security: rd_authn::CookieSecurity::default(),
-            max_retries: rd_scheduler::DEFAULT_MAX_RETRIES,
-            pause_during_postprocess: true,
-            torrent_service_enabled: true,
-            usenet_service_enabled: true,
-            media_service_enabled: true,
-            gallery_service_enabled: true,
-            recording_service_enabled: true,
-            remote_service_enabled: true,
-            ui_port: None,
-            vendor_directory: None,
-        }
-    }
-}
-
 /// Default address when neither `--listen` nor the `ui_port` setting says otherwise.
 const DEFAULT_LISTEN_PORT: u16 = 8710;
 
-/// Refuses a malformed blob rather than running on defaults: these are the concurrency,
-/// listen-port and directory settings the whole process is built from, and starting on
-/// silent defaults would contradict everything the person configured.
-async fn load_stored_settings(database: &Database) -> Result<StoredSettings> {
-    database.service_settings().await
+/// The stored settings and the runtime settings a start runs with (owner, 2026-10-04,
+/// RA-DB-02): only the runtime slice (`rd_api::RUNTIME_FIELDS`) refuses the start, naming the
+/// field and how to remove it; any other field that does not parse reads as its default with a
+/// warning naming it, so a hand edit or a removed enum variant never locks the service out.
+async fn load_stored_settings(
+    database: &Database,
+    path: &std::path::Path,
+) -> Result<(StoredSettings, rd_scheduler::RuntimeSettings)> {
+    rd_api::startup_settings(database)
+        .await
+        .with_context(|| format!("read the stored settings of {}", path.display()))
 }
 
-fn runtime_settings(stored: &StoredSettings) -> Result<rd_scheduler::RuntimeSettings> {
-    anyhow::ensure!(
-        stored.max_active_files > 0,
-        "stored max_active_files is zero"
-    );
-    anyhow::ensure!(
-        stored.max_chunks_per_file > 0,
-        "stored max_chunks_per_file is zero"
-    );
-    Ok(rd_scheduler::RuntimeSettings {
-        max_active_files: stored.max_active_files as usize,
-        max_chunks_per_file: stored.max_chunks_per_file as usize,
-        max_connections_per_host: stored.max_connections_per_host as usize,
-        external_connections_per_file: stored.nntp_connections_per_file as usize,
-        external_parallel_files: stored.nntp_parallel_files as usize,
-        speed_limit_bytes_per_second: stored
-            .speed_limit_bytes_per_second
-            .map(rd_core::ByteCount::get),
-        upload_limit_bytes_per_second: stored
-            .upload_limit_bytes_per_second
-            .map(rd_core::ByteCount::get),
-        generate_sha256: stored.generate_sha256,
-        global_proxy_profile_id: stored.global_proxy_profile_id,
-        custom_ca_pem: stored.custom_ca_pem.clone(),
-        max_retries: stored
-            .max_retries
-            .min(rd_scheduler::MAX_CONFIGURABLE_RETRIES),
-        pause_during_postprocess: stored.pause_during_postprocess,
-        disabled_kinds: rd_core::ServiceSwitches {
-            torrent: stored.torrent_service_enabled,
-            usenet: stored.usenet_service_enabled,
-            media: stored.media_service_enabled,
-            gallery: stored.gallery_service_enabled,
-            recording: stored.recording_service_enabled,
-            remote: stored.remote_service_enabled,
-        }
-        .disabled_kinds(),
-    })
-}
+/// The settings document the service and the settings view share (audit 1.9.1, INTAKE-06):
+/// the binary kept a mirror of its own with its own defaults, and the two drifted.
+pub(crate) type StoredSettings = rd_api::SettingsResponse;
 
 async fn doctor(args: DoctorArgs) -> Result<()> {
     // The self-test is its own command under the same path: it ends the process with what it
@@ -613,43 +494,44 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
         std::process::exit(code);
     }
     ensure_paths(&args.paths).await?;
-    rd_core::set_data_directory(
-        args.paths
-            .database
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new(".")),
-    );
+    let data_directory = args
+        .paths
+        .database
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    rd_core::set_data_directory(data_directory);
+    // Read-only towards the queue: recovering interrupted jobs is the service's own start-up
+    // step, and run here against a live service it reset the running downloads and steps and
+    // removed packages it took for empty (audit 1.9.1, INTAKE-03).
+    // Held until `doctor` returns when it was free, so no service starts and migrates beside
+    // it (RA-IN-03).
+    let probe = instance_lock::probe(data_directory).await;
     let database = Database::open(&args.paths.database).await?;
-    let recovered = database.recover_interrupted().await?;
-    database.checkpoint_wal().await?;
+    if matches!(probe, instance_lock::Probe::Free(_)) {
+        database.checkpoint_wal().await?;
+    }
     println!("rDownloader doctor: OK");
     println!("database: {}", args.paths.database.display());
     println!(
         "downloads: {}",
         dunce::canonicalize(&args.paths.downloads)?.display()
     );
-    println!("recovered jobs: {recovered}");
-    println!("toolchain:");
-    for (tool, required) in [
-        ("cargo-xwin", false),
-        ("clang-cl", false),
-        ("lld-link", false),
-        ("ninja", false),
-        ("nasm", false),
-        ("node", true),
-        ("npm", true),
-        ("docker", false),
-    ] {
-        let state = if command_available(tool) {
-            "OK"
-        } else if required {
-            "MISSING"
-        } else {
-            "optional/not found"
-        };
-        println!("  {tool}: {state}");
+    match &probe {
+        instance_lock::Probe::Held(Some(control)) => println!(
+            "service: running (process {}, {})",
+            control.pid, control.address
+        ),
+        instance_lock::Probe::Held(None) => {
+            println!("service: running (starting, or not answering yet)");
+        }
+        instance_lock::Probe::Free(_) => println!("service: not running"),
     }
-    let settings = load_stored_settings(&database).await?;
+    // Field by field and never refusing: the doctor is where a start that refuses its settings
+    // is explained (RA-DB-02).
+    let (settings, refused) = rd_api::diagnosed_settings(&database).await?;
+    if let Some(refused) = refused {
+        println!("settings: a start refuses them: {refused}");
+    }
     // The same checks the diagnostic bundle carries (RD-110-02), so the command and the
     // archive never disagree about what was found.
     let checks =
@@ -662,22 +544,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
         })
         .await;
     print!("{}", rd_api::diagnostics_checks::render_checks(&checks));
-    if cfg!(target_os = "linux")
-        && (!command_available("clang-cl") || !command_available("lld-link"))
-    {
-        println!("  Note: the WSL Windows build (cargo xwin) requires clang-cl and lld-link.");
-    }
     Ok(())
-}
-
-fn command_available(command: &str) -> bool {
-    std::process::Command::new(command)
-        .no_console_window()
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
 }
 
 /// One self-test run, with the adapters a running service would use: the same proxy profile
@@ -700,7 +567,7 @@ async fn site_rules_selftest(
     let secrets =
         rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await?;
     database.install_secret_vault(secrets.clone());
-    let stored = load_stored_settings(&database).await?;
+    let (stored, _) = load_stored_settings(&database, &paths.database).await?;
     let network_defaults = SchedulerConfig::for_directory(paths.downloads.clone()).network_defaults;
     {
         let mut defaults = network_defaults.write().await;

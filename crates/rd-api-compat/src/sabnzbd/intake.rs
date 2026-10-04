@@ -92,13 +92,17 @@ async fn queue_nzb(state: &AppState, content: &[u8], name: &str, query: &SabQuer
     };
     // The category the import ended up with: for `*` or an unknown name that is whatever the
     // routing rules or the default category decided, and the files follow it.
-    let destination =
-        match crate::destination::download_destination(state, import.category_id).await {
-            Ok(destination) => {
-                destination.unwrap_or_else(|| state.scheduler.downloads_directory().to_path_buf())
-            }
-            Err(failure) => return error(failure.message()),
-        };
+    // The free-space stop of every other intake applies here too (audit 1.9.1, API-08).
+    let destination = match crate::destination::intake_destination(
+        &state.database,
+        &state.scheduler,
+        import.category_id,
+    )
+    .await
+    {
+        Ok(destination) => destination,
+        Err(failure) => return error(failure.message()),
+    };
     match state
         .database
         // SABnzbd's paused priority is not mapped yet; this path always starts the job.
@@ -114,7 +118,15 @@ async fn queue_nzb(state: &AppState, content: &[u8], name: &str, query: &SabQuer
             "status": true,
             "nzo_ids": [map::nzo_id(&package)],
         })),
-        Err(failure) => error(&failure.to_string()),
+        // The cause goes to the log, not to the client: an internal error's text names tables
+        // and paths, and an automation client shows it to its user (audit 1.9.1, API-13).
+        Err(failure) => {
+            tracing::warn!(
+                error = %rd_core::redact_text(&format!("{failure:#}")),
+                "the SABnzbd adapter could not queue an NZB import"
+            );
+            error("the NZB could not be queued")
+        }
     }
 }
 

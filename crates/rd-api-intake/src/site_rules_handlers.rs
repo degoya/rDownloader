@@ -425,8 +425,10 @@ pub async fn export_site_rules(
 )]
 pub async fn import_site_rules(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     body: Bytes,
 ) -> Result<Json<ImportSiteRulesResponse>, ApiError> {
+    rd_api_core::input_checks::require_media_type(&headers, "application/json")?;
     let (bodies, signed) = import_bodies(&body)?;
     let mut existing: Vec<String> = state
         .database

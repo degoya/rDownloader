@@ -263,7 +263,8 @@ async fn an_offline_file_is_reported_as_offline() {
     assert_eq!(failure.code.as_deref(), Some("1fichier.file_offline"));
 }
 
-/// An HTTP 404 for the page itself is the other way 1fichier reports an offline file.
+/// An HTTP 404 for the page itself is the other way 1fichier reports an offline file — final,
+/// not retried (owner, 2026-10-04).
 #[tokio::test]
 async fn a_404_page_is_reported_as_offline() {
     let host = MockHost::free(
@@ -280,7 +281,7 @@ async fn a_404_page_is_reported_as_offline() {
         .await
         .expect_err("offline file");
 
-    assert_eq!(failure.category, FailureKind::Offline);
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("1fichier.file_offline"));
 }
 

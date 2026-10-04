@@ -14,7 +14,7 @@ use rd_core::{DownloadFile, DownloadKind, DownloadPackage, DownloadState, Failur
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use crate::{SchedulerHandle, retry};
+use crate::SchedulerHandle;
 
 /// Result of one runner attempt for a single file.
 #[derive(Debug)]
@@ -255,10 +255,8 @@ impl SchedulerHandle {
     ) -> Result<()> {
         let package = self
             .database
-            .list_packages()
+            .get_package(file.package_id)
             .await?
-            .into_iter()
-            .find(|package| package.id == file.package_id)
             .context("download package not found")?;
         if file.state == DownloadState::RetryWait {
             self.database
@@ -283,12 +281,8 @@ impl SchedulerHandle {
                 address = ?refused.address,
                 "a proposed link points at an address it may not reach; it is not handed over"
             );
-            let failure = crate::worker::internal_address();
-            let retry_at = retry::retry_at(&failure, file.retry_count, self.max_retries());
-            self.database
-                .record_failure(file.id, failure, retry_at)
-                .await?;
-            return Ok(());
+            return crate::failures::record_error(self, file, crate::worker::internal_address())
+                .await;
         }
         // Every non-HTTP transport passes through here, so one check covers Usenet,
         // torrent, media, gallery and stream instead of five separate ones.
@@ -331,13 +325,10 @@ impl SchedulerHandle {
                 Ok(())
             }
             RunOutcome::Stopped => crate::worker::transition_stopped(self, file).await,
-            RunOutcome::Failed(failure) => {
-                let retry_at = retry::retry_at(&failure, file.retry_count, self.max_retries());
-                self.database
-                    .record_failure(file.id, failure, retry_at)
-                    .await?;
-                Ok(())
-            }
+            // The same way as an HTTP failure, so a mirror group hands its turn on and an IP
+            // limit holds the hoster back for an FTP, SFTP, bucket or plugin member as well
+            // (audit 1.9.1, TR-03).
+            RunOutcome::Failed(failure) => crate::failures::record_error(self, file, failure).await,
         }
     }
 }

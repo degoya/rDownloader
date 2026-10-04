@@ -27,6 +27,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 # shellcheck source=lib/release-tag.sh
 source "$ROOT/scripts/lib/release-tag.sh"
+# shellcheck source=lib/workspace-version.sh
+source "$ROOT/scripts/lib/workspace-version.sh"
 
 OPENAPI=web/openapi.json
 WIT=crates/rd-plugin-api/wit/rdownloader.wit
@@ -50,8 +52,7 @@ workspace_version() {
         [[ -f Cargo.toml ]] || return 0
         source="$(cat Cargo.toml)"
     fi
-    sed -n '/^\[workspace\.package\]/,/^\[/p' <<< "$source" \
-        | sed -n 's/^version = "\(.*\)"/\1/p' | head -1
+    rd_workspace_version <<< "$source"
 }
 
 if [[ -z "$BASE" ]]; then

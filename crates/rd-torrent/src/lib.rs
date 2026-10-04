@@ -48,11 +48,11 @@ pub type SharedTorrentSettings = Arc<RwLock<TorrentSettings>>;
 
 /// Reads the torrent settings from the `service.settings` blob.
 ///
-/// Refuses a malformed blob rather than running on defaults: this is read once at start-up,
-/// and defaulting here would silently open the session on another port and drop the rate
-/// limits the person set.
+/// Read once at start-up, field by field (owner, 2026-10-04, RA-DB-02): a value that does not
+/// parse reads as its default with a warning naming it, instead of refusing the start; only
+/// the scheduler's runtime values refuse one.
 pub async fn load_torrent_settings(database: &Database) -> Result<TorrentSettings> {
-    database.service_settings().await
+    database.service_settings_per_field().await
 }
 
 /// Creates the shared settings handle from the database.

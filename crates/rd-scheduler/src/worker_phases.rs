@@ -241,10 +241,10 @@ pub(super) async fn prepare_destination(
     file: &DownloadFile,
     total_bytes: Option<u64>,
 ) -> Step<Destination> {
-    let packages = scheduler.database.list_packages().await?;
-    let package = packages
-        .into_iter()
-        .find(|package| package.id == file.package_id)
+    let package = scheduler
+        .database
+        .get_package(file.package_id)
+        .await?
         .context("download package not found")?;
     let root = StorageRoot::create(
         StorageRootId::new(),

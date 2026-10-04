@@ -649,7 +649,6 @@
       "deb_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo apt install ./<fichier>.deb",
       "rpm_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo dnf install ./<fichier>.rpm"
     },
-    "notice": "Mise à jour disponible",
     "notice_version": "{version} disponible",
     "notice_installing": "Mise à jour vers {version}",
     "notice_updated": "Mis à jour vers {version}",

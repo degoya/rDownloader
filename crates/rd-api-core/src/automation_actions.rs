@@ -44,13 +44,7 @@ async fn queue_action(
     let Some(package_id) = package_id else {
         anyhow::bail!("this trigger names no package");
     };
-    for file in context
-        .database
-        .list_downloads()
-        .await?
-        .into_iter()
-        .filter(|file| file.package_id == package_id)
-    {
+    for file in context.database.downloads_for_package(package_id).await? {
         let result = if pause {
             context.scheduler.pause(file.id).await
         } else {
@@ -73,13 +67,7 @@ async fn set_category(
     let Some(package_id) = package_id else {
         anyhow::bail!("this trigger names no package");
     };
-    let Some(package) = context
-        .database
-        .list_packages()
-        .await?
-        .into_iter()
-        .find(|package| package.id == package_id)
-    else {
+    let Some(package) = context.database.get_package(package_id).await? else {
         anyhow::bail!("package no longer exists");
     };
     anyhow::ensure!(
@@ -130,12 +118,7 @@ async fn script(
         ..rd_extract::StandaloneScript::default()
     };
     if let Some(package_id) = package_id
-        && let Some(package) = context
-            .database
-            .list_packages()
-            .await?
-            .into_iter()
-            .find(|package| package.id == package_id)
+        && let Some(package) = context.database.get_package(package_id).await?
     {
         about.package_id = package.id.to_string();
         about.package_name = package.name.clone();
@@ -172,10 +155,8 @@ async fn webhook(
     let name = match package_id {
         Some(package_id) => context
             .database
-            .list_packages()
+            .get_package(package_id)
             .await?
-            .into_iter()
-            .find(|package| package.id == package_id)
             .map(|package| package.name),
         None => None,
     };

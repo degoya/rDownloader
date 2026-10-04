@@ -14,8 +14,9 @@ use rd_postprocess::{group_archive_sets, is_sfv, load_password_file, password_ca
 use crate::{
     ExtractionTrigger, Inner, cleanup_job, malware_scan, object_upload, par2_job, par2_refill,
     pipeline::{self, PlanInput},
-    plugin_step, rar_test_job, rclone_job, script_job, settings, sfv_job, storage_upload,
-    unpack_job,
+    plugin_step, rar_test_job, rclone_job, script_job, settings, sfv_job,
+    steps::{StepEnd, find_step},
+    storage_upload, unpack_job,
 };
 
 /// Runs the whole pipeline for a package and records the package state.
@@ -26,11 +27,15 @@ pub(crate) async fn run_package(
 ) -> Result<()> {
     let package = inner
         .database
-        .list_packages()
+        .get_package(package_id)
         .await?
-        .into_iter()
-        .find(|package| package.id == package_id)
         .context("package not found")?;
+    // Nothing runs at start-up, so a package found in post-processing by an automatic run is
+    // one a stop interrupted and `recover()` asked for again: what that run finished stays
+    // finished, the user script and the upload included (audit 1.9.1, RA-IN-01). A manual run
+    // is never this — the interface refuses one while the package is in post-processing.
+    let resuming =
+        trigger == ExtractionTrigger::Auto && package.state == PackageState::Postprocessing;
     let downloads: Vec<DownloadFile> = inner.database.downloads_for_package(package_id).await?;
     // A package whose postponed recovery volumes are still on their way is not ready for the
     // pipeline (RD-107-04). Verifying now would measure the same gap a second time and plan
@@ -235,13 +240,22 @@ pub(crate) async fn run_package(
     let mut rar_test_ok = true;
     if level.repairs() && !rar_test_job::rar_sets(&sets).is_empty() {
         if par2_answered {
-            rar_test_job::skip(inner, &owner, &steps, &sets, "PAR2 verified this package").await?;
+            rar_test_job::skip(
+                inner,
+                &owner,
+                &steps,
+                &sets,
+                crate::steps::codes::RAR_TEST_SKIPPED_PAR2,
+                "PAR2 verified this package",
+            )
+            .await?;
         } else if !sfv_indexes.is_empty() {
             rar_test_job::skip(
                 inner,
                 &owner,
                 &steps,
                 &sets,
+                crate::steps::codes::RAR_TEST_SKIPPED_SFV,
                 "an SFV index verified this package",
             )
             .await?;
@@ -252,6 +266,7 @@ pub(crate) async fn run_package(
                 &owner,
                 &steps,
                 &sets,
+                crate::steps::codes::RAR_TEST_SKIPPED_OUTDATED,
                 "the RAR tool is below its security floor",
             )
             .await?;
@@ -337,16 +352,43 @@ pub(crate) async fn run_package(
     // checksum step over a half-unpacked package would report a mismatch that says nothing.
     let mut plugin_steps_ok = true;
     if scan_clean && !plugin_steps.is_empty() && verification_gate && unpack_ok {
-        let names = package_file_names(&directory).await;
         let downloaded: Vec<String> = downloads
             .iter()
             .map(|file| plugin_step::relative_name(Path::new(&file.file_name)))
             .collect();
-        let removed = plugin_step::removed_files(&names, &before, &downloaded, &cleaned);
-        plugin_steps_ok =
-            plugin_step::run(inner, &owner, &plugin_steps, &directory, &names, &removed).await?;
+        // The files and what was removed are listed per step there: a step may rename.
+        match plugin_step::run(
+            inner,
+            &owner,
+            &plugin_steps,
+            &directory,
+            &before,
+            &downloaded,
+            &cleaned,
+        )
+        .await?
+        {
+            StepEnd::Done => {}
+            StepEnd::Failed => plugin_steps_ok = false,
+            // Left in post-processing for the next start, as a stopped upload is below.
+            StepEnd::Stopped => return Ok(()),
+        }
     }
-    if let Some(name) = script.as_ref().filter(|_| scan_clean) {
+    // A script that ran to an end, whatever it answered, is not run a second time: what it
+    // did outside the package cannot be undone by running it again.
+    let script_done = |name: &str| {
+        resuming
+            && find_step(&steps, rd_core::PostprocessKind::Script, name).is_some_and(|step| {
+                matches!(
+                    step.state,
+                    rd_core::PostprocessState::Completed | rd_core::PostprocessState::Failed
+                )
+            })
+    };
+    if let Some(name) = script
+        .as_ref()
+        .filter(|name| scan_clean && !script_done(name.as_str()))
+    {
         // SABnzbd only defines 0-3; a failed SFV check is a verification failure like PAR2.
         let status = if !verified {
             3
@@ -372,8 +414,16 @@ pub(crate) async fn run_package(
         let timeout = std::time::Duration::from_secs(u64::from(settings.script_timeout_seconds));
         let _ = script_job::run(inner, &owner, &scripts_dir, name, &context, timeout).await?;
     }
-    let mut upload_ok = true;
-    if let Some(remote) = upload.as_ref().filter(|_| scan_clean) {
+    let upload_done = |remote: &str| {
+        resuming
+            && find_step(&steps, rd_core::PostprocessKind::Upload, remote)
+                .is_some_and(|step| step.state == rd_core::PostprocessState::Completed)
+    };
+    let mut upload_end = StepEnd::Done;
+    if let Some(remote) = upload
+        .as_ref()
+        .filter(|remote| scan_clean && !upload_done(remote.as_str()))
+    {
         // Moving a seeding torrent's payload would break the seed, so torrents copy.
         let mode = if package.kind == rd_core::DownloadKind::Torrent {
             rclone_job::UploadMode::Copy
@@ -386,7 +436,7 @@ pub(crate) async fn run_package(
         // `rclone move` cannot offer.
         if let Some(target) = object_upload::parse_object_remote(remote) {
             let names = package_file_names(&directory).await;
-            upload_ok = object_upload::run(
+            upload_end = object_upload::run(
                 inner,
                 &owner,
                 remote,
@@ -399,16 +449,9 @@ pub(crate) async fn run_package(
             .await?;
         } else if let Some(plugin) = storage_upload::parse_plugin_remote(remote) {
             let names = package_file_names(&directory).await;
-            upload_ok = storage_upload::run(
-                inner,
-                &owner,
-                plugin,
-                &package.name,
-                &directory,
-                &names,
-                mode,
-            )
-            .await?;
+            upload_end =
+                storage_upload::run(inner, &owner, remote, plugin, &directory, &names, mode)
+                    .await?;
         } else {
             let context = rclone_job::UploadContext {
                 remote,
@@ -422,9 +465,16 @@ pub(crate) async fn run_package(
                     .binding_limit()
                     .map(|limit| limit.bytes_per_second),
             };
-            upload_ok = rclone_job::run(inner, &owner, &context).await?;
+            upload_end = rclone_job::run(inner, &owner, &context).await?;
         }
     }
+    // A stop is no verdict: the package stays in post-processing with the upload queued, and
+    // the next start resumes it. Marking it completed here dropped its import history and left
+    // the restart a queued row to run the whole pipeline for (audit 1.9.1, RA-IN-01).
+    if upload_end == StepEnd::Stopped {
+        return Ok(());
+    }
+    let upload_ok = upload_end == StepEnd::Done;
     let final_state =
         if verification_gate && unpack_ok && scan_clean && plugin_steps_ok && upload_ok {
             PackageState::Completed

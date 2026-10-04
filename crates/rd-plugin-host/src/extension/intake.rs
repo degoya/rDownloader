@@ -65,7 +65,7 @@ impl IntakeParser {
                     package_hint: candidate.package_hint,
                 })
                 .collect()),
-            Err(failure) => anyhow::bail!("{}", failure.message),
+            Err(failure) => Err(refusal(failure)),
         }
     }
 
@@ -119,7 +119,7 @@ impl IntakeParser {
                         .map(|pieces| (pieces.algorithm, pieces.length, pieces.hashes)),
                 })
                 .collect()),
-            Err(failure) => anyhow::bail!("{}", failure.message),
+            Err(failure) => Err(refusal(failure)),
         }
     }
 
@@ -137,7 +137,7 @@ impl IntakeParser {
             .await?
         {
             Ok(rewritten) => Ok(rewritten),
-            Err(failure) => anyhow::bail!("{}", failure.message),
+            Err(failure) => Err(refusal(failure)),
         }
     }
 }
@@ -164,4 +164,13 @@ pub struct SourceSetProposal {
     pub hashes: Vec<(String, String)>,
     /// `(algorithm, piece length, hashes)`.
     pub pieces: Option<(String, u64, Vec<String>)>,
+}
+
+/// A parser's refusal as an error: its stable code first, when it sent one, so the log names
+/// it (RD-191-07, PLUG-16).
+fn refusal(failure: crate::component::rdownloader::plugin::types::Failure) -> anyhow::Error {
+    match failure.code {
+        Some(code) => anyhow::anyhow!("{code}: {}", failure.message),
+        None => anyhow::anyhow!("{}", failure.message),
+    }
 }

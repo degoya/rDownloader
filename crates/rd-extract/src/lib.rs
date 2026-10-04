@@ -3,6 +3,8 @@
 
 pub mod clamd;
 mod cleanup_job;
+#[cfg(test)]
+mod completion_tests;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_tests;
 #[cfg(test)]
@@ -21,6 +23,8 @@ mod plugin_step;
 #[cfg(test)]
 mod plugin_step_tests;
 mod rar_test_job;
+#[cfg(all(test, unix))]
+mod rclone_hang_tests;
 mod rclone_job;
 mod rclone_remote;
 mod remux_job;
@@ -38,6 +42,9 @@ mod tests;
 mod unpack_job;
 #[cfg(test)]
 mod unpack_subfolder_tests;
+mod upload_step;
+#[cfg(test)]
+mod upload_step_tests;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -437,7 +444,17 @@ impl ExtractionService {
                 () = self.inner.shutdown.cancelled() => return,
                 event = events.recv() => match event {
                     Ok(event) => event,
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    // The missed events may have been the last completion of a package, and
+                    // nothing else would ever ask for its post-processing: `recover()` only
+                    // runs at start-up. So the packages are looked at once instead
+                    // (audit 1.9.1, INTAKE-04).
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
+                        tracing::warn!(missed, "event bus lagged; checking every unsettled package");
+                        if let Err(error) = self.sweep_settled_packages().await {
+                            tracing::warn!(%error, "post-processing sweep after a lag failed");
+                        }
+                        continue;
+                    }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
                 },
             };
@@ -473,10 +490,41 @@ impl ExtractionService {
         let Some(download) = self.inner.database.get_download(download_id).await? else {
             return Ok(());
         };
+        let Some(package) = self.inner.database.get_package(download.package_id).await? else {
+            return Ok(());
+        };
+        self.request_if_settled(&package).await
+    }
+
+    /// Runs [`Self::request_if_settled`] for every package that has not reached
+    /// post-processing yet — what a lagged event bus may have hidden.
+    ///
+    /// One package that cannot be looked at does not end the sweep: the ones after it may be
+    /// exactly what the lag hid (audit 1.9.1, RA-IN-05).
+    async fn sweep_settled_packages(&self) -> Result<()> {
+        for package in self.inner.database.list_packages().await? {
+            if let Err(error) = self.request_if_settled(&package).await {
+                tracing::warn!(package_id = %package.id, %error, "post-processing sweep skipped a package");
+            }
+        }
+        Ok(())
+    }
+
+    /// Requests the pipeline for `package` once every file reached a terminal state and at
+    /// least one completed, unless post-processing already started or ended.
+    async fn request_if_settled(&self, package: &rd_core::DownloadPackage) -> Result<()> {
+        if matches!(
+            package.state,
+            rd_core::PackageState::Postprocessing
+                | rd_core::PackageState::Completed
+                | rd_core::PackageState::Failed
+        ) {
+            return Ok(());
+        }
         let siblings = self
             .inner
             .database
-            .downloads_for_package(download.package_id)
+            .downloads_for_package(package.id)
             .await?;
         let all_terminal = siblings.iter().all(|item| {
             matches!(
@@ -499,26 +547,7 @@ impl ExtractionService {
         if !all_terminal || !any_completed {
             return Ok(());
         }
-        let already = self
-            .inner
-            .database
-            .list_packages()
-            .await?
-            .into_iter()
-            .find(|package| package.id == download.package_id)
-            .is_some_and(|package| {
-                matches!(
-                    package.state,
-                    rd_core::PackageState::Postprocessing
-                        | rd_core::PackageState::Completed
-                        | rd_core::PackageState::Failed
-                )
-            });
-        if already {
-            return Ok(());
-        }
-        self.request(download.package_id, ExtractionTrigger::Auto)
-            .await
+        self.request(package.id, ExtractionTrigger::Auto).await
     }
 }
 

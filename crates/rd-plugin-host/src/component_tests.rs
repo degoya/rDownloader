@@ -11,8 +11,8 @@ use rd_plugin_api::{
 use url::Url;
 
 use super::{
-    ComponentResolver, MAX_RANDOM_BYTES, from_wit_download, random_bytes, wit_captcha, wit_http,
-    wit_types,
+    ComponentResolver, MAX_RANDOM_BYTES, from_wit_download, from_wit_failure, random_bytes,
+    wit_captcha, wit_http, wit_types,
 };
 use crate::{PluginLimits, PluginManifest, SandboxEngine, domain_allowed};
 
@@ -393,6 +393,44 @@ credentials = "api_key"
     let result = ComponentResolver::new(manifest, b"\0asm\x0d\0\x01\0", host);
 
     assert!(result.is_err());
+}
+
+/// PLUG-04: a plugin's wait is held to a day, whichever kind of failure carries it; a wait
+/// within the day and no wait at all are left alone.
+#[test]
+fn a_plugin_retry_delay_is_held_to_a_day() {
+    let failure = |category| wit_types::Failure {
+        category,
+        message: "wait".to_owned(),
+        code: None,
+        params: Vec::new(),
+    };
+    let day = rd_core::MAX_RETRY_AFTER_SECONDS;
+    for (category, expected) in [
+        (wit_types::FailureKind::Transient(Some(u64::MAX)), Some(day)),
+        (
+            wit_types::FailureKind::RateLimited(Some(day + 1)),
+            Some(day),
+        ),
+        (wit_types::FailureKind::IpBlocked(Some(10 * day)), Some(day)),
+        (wit_types::FailureKind::RateLimited(Some(90)), Some(90)),
+        (wit_types::FailureKind::Transient(None), None),
+    ] {
+        let converted = from_wit_failure(failure(category));
+        let delay = match converted.category {
+            rd_core::FailureKind::Transient {
+                retry_after_seconds,
+            }
+            | rd_core::FailureKind::RateLimited {
+                retry_after_seconds,
+            }
+            | rd_core::FailureKind::IpBlocked {
+                retry_after_seconds,
+            } => retry_after_seconds,
+            other => panic!("unexpected category {other:?}"),
+        };
+        assert_eq!(delay, expected);
+    }
 }
 
 #[test]

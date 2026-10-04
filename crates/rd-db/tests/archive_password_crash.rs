@@ -1,7 +1,9 @@
-//! `archive_password.before_reference_adopted` and `archive_password.after_secret_removed`
-//! (RD-190-04, recovery matrix): a start that moves the plain archive passwords into the vault
-//! stops after the vault holds them and before any row points at them, and a sweep stops after
-//! it removed released entries from the vault and before it recorded that.
+//! The vault's crash binary. `archive_password.before_reference_adopted` and
+//! `archive_password.after_secret_removed` (RD-190-04, recovery matrix): a start that moves the
+//! plain archive passwords into the vault stops after the vault holds them and before any row
+//! points at them, and a sweep stops after it removed released entries from the vault and before
+//! it recorded that. `vault.after_orphan_removed` (DB-03): the sweep at start stops after it
+//! removed the first entry nothing names.
 #![cfg(feature = "failpoints")]
 
 use std::path::Path;
@@ -211,4 +213,60 @@ async fn a_sweep_stopped_after_the_vault_is_finished_by_the_next_start() {
         0
     );
     assert_eq!(vault_entries(data), 0);
+}
+
+/// The sweep at start stopped after its first removal: every entry a row or a settings document
+/// names is still there, the next sweep removes the remaining orphans, and a third finds none.
+#[tokio::test]
+async fn a_vault_sweep_stopped_after_one_removal_is_finished_by_the_next_start() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let data = directory.path();
+    let named_column;
+    let named_setting;
+    {
+        let database = open(data).await;
+        let vault = database.secret_vault().expect("vault").clone();
+        named_column = vault.put_string("column".to_owned()).await.expect("put");
+        named_setting = vault.put_string("setting".to_owned()).await.expect("put");
+        for orphan in ["first", "second", "third"] {
+            vault.put_string(orphan.to_owned()).await.expect("orphan");
+        }
+        database
+            .create_account(rd_db::NewAccount {
+                provider: "demo".to_owned(),
+                label: "Demo".to_owned(),
+                username: None,
+                credential_mode: None,
+                secret_ref: Some(named_column.clone()),
+                cookie_ref: None,
+                proxy_profile_id: None,
+                enabled: true,
+            })
+            .await
+            .expect("account");
+        database
+            .set_setting(
+                "oidc_provider".to_owned(),
+                serde_json::json!({ "secret_ref": named_setting }),
+            )
+            .await
+            .expect("setting");
+        assert_eq!(vault_entries(data), 5);
+        let guard = FailpointGuard::once("vault.after_orphan_removed");
+        database
+            .sweep_vault()
+            .await
+            .expect_err("the sweep stops at the crash point");
+        assert!(guard.fired());
+    }
+    assert_eq!(vault_entries(data), 4, "one orphan went before the stop");
+
+    let database = open(data).await;
+    assert_eq!(database.sweep_vault().await.expect("sweep"), 2);
+    assert_eq!(vault_entries(data), 2);
+    let vault = database.secret_vault().expect("vault");
+    for named in [&named_column, &named_setting] {
+        assert!(vault.get(named).await.is_ok(), "a named entry stays");
+    }
+    assert_eq!(database.sweep_vault().await.expect("sweep"), 0);
 }

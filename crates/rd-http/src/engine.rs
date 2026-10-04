@@ -20,6 +20,7 @@ use crate::{
     ChunkSpec,
     hostlimit::HostLimits,
     transform::{MacWalker, StreamTransform, TransformCheckpoint, plan_resume},
+    wind_down::wind_down,
 };
 
 pub(crate) const CHECKPOINT_INTERVAL: Duration = Duration::from_secs(2);
@@ -242,6 +243,9 @@ impl DownloadEngine {
         }
 
         let mut tasks = JoinSet::new();
+        // The workers' own token: one worker's pause or failure stops its siblings without
+        // cancelling the caller's token, which is the queue's and not this transfer's to end.
+        let workers = cancellation.child_token();
         let headers = Arc::new(request.headers);
         // Whether a single chunk stands for the entire file. Only then is a server that
         // answers a range request with the whole body still usable: the bytes it sends are
@@ -263,7 +267,7 @@ impl DownloadEngine {
                 covers_whole_file,
                 part: part.clone(),
                 checkpoints: Arc::clone(&checkpoints),
-                cancellation: cancellation.clone(),
+                cancellation: workers.clone(),
                 url: request.url.clone(),
                 validator: request
                     .etag
@@ -285,18 +289,15 @@ impl DownloadEngine {
             match result {
                 Ok(Ok(DownloadOutcome::Complete)) => {}
                 Ok(Ok(DownloadOutcome::Paused)) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Ok(DownloadOutcome::Paused);
                 }
                 Ok(Err(error)) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(error);
                 }
                 Err(error) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(anyhow::Error::new(error).into());
                 }
             }
@@ -771,7 +772,10 @@ pub(crate) fn status_failure(status: StatusCode, headers: &header::HeaderMap) ->
     let retry_after_seconds = headers
         .get(header::RETRY_AFTER)
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok());
+        .and_then(|value| value.parse::<u64>().ok())
+        // The server's word, capped where it is read: everything downstream turns it into a
+        // due time, and an unbounded one parked or panicked the download (audit 1.9.1, TR-01).
+        .map(rd_core::clamp_retry_after);
     let category = match status.as_u16() {
         401 => FailureKind::AuthRequired,
         403 => FailureKind::AccountInvalid,
@@ -1225,6 +1229,27 @@ mod tests {
             panic!("expected classified failure");
         };
         assert_eq!(auth.category, FailureKind::AuthRequired);
+    }
+
+    /// TR-01: a `Retry-After` of years is read as the ceiling, not taken at its word.
+    #[test]
+    fn a_huge_retry_after_is_capped_where_it_is_read() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            header::RETRY_AFTER,
+            u64::MAX.to_string().parse().expect("header"),
+        );
+        let HttpDownloadError::Failure(failure) =
+            status_failure(StatusCode::SERVICE_UNAVAILABLE, &headers)
+        else {
+            panic!("expected classified failure");
+        };
+        assert_eq!(
+            failure.category,
+            FailureKind::Transient {
+                retry_after_seconds: Some(rd_core::MAX_RETRY_AFTER_SECONDS)
+            }
+        );
     }
 
     #[test]

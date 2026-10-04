@@ -1,16 +1,17 @@
 //! Target-independent XFS API primitives: file-code extraction, the JSON envelope every XFS
 //! `/api/...` endpoint answers with, and its status-code classification. Generalized verbatim from
 //! `plugins/ddownload/src/lib.rs`'s pre-Task-11 native module (`file_code`, `FlexibleU64`,
-//! `ApiEnvelope`, `ensure_http_status`, `ensure_api_status`) — every classification branch below
-//! reproduces ddownload's original mapping exactly (see the IMPL-VERIFY note in
+//! `ApiEnvelope`, `ensure_http_status`, `ensure_api_status`) — the envelope classification below
+//! reproduces ddownload's original mapping exactly, the transport status follows the mapping every
+//! plugin shares (see the IMPL-VERIFY note in
 //! `plugins/katfile/src/native/api.rs`'s module doc for the ways KatFile's shape differs, namely
 //! its API base path).
 //!
 //! A consuming plugin owns its own `Failure` type (`rd_core::Failure` natively, the
 //! `wit_bindgen`-generated type under `wasm32`) and stable `code`/message text, so this module
 //! only classifies: [`ErrorKind`] is deliberately a smaller, target-neutral stand-in for
-//! `rd_core::FailureKind`, and callers convert it to their own failure type right after calling in
-//! here (see `plugins/ddownload/src/native/api.rs`'s `convert_kind`).
+//! `plugin_common::FailureKind`, and [`crate::glue::convert_kind`] converts it right after calling
+//! in here.
 
 use serde::Deserialize;
 use url::Url;
@@ -85,25 +86,30 @@ pub struct ApiEnvelope<T> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
     AccountInvalid,
+    /// The file is withheld: a `451` on the transport (RD-191-07); retried. A `404` or `410` is
+    /// [`Self::Permanent`] (owner, 2026-10-04).
+    Offline,
     Permanent,
     RateLimited,
     Transient,
 }
 
 /// Classifies a raw HTTP transport status (not the API envelope's own `status` field — see
-/// [`classify_api_status`] for that). Mirrors ddownload's original `ensure_http_status` mapping
-/// exactly, including 404/410/451 -> `Permanent` (not `Offline`; ddownload's transfer flow finds
-/// unavailable files through the API envelope, not the raw HTTP status, and Task 11 preserves this
-/// as ddownload's living behavior rather than JD's more granular per-page marker).
+/// [`classify_api_status`] for that) with the mapping every plugin shares,
+/// [`plugin_common::http_status`] (RD-191-07, PLUG-12): a `404` or `410` is final
+/// (`Permanent`, owner 2026-10-04), a `451` `Offline` and retried. A plugin that holds the
+/// response uses [`crate::glue::ensure_http_status`], which also keeps the `Retry-After`.
 #[must_use]
 pub fn classify_http_status(status: u16) -> Option<ErrorKind> {
-    match status {
-        200 | 206 => None,
-        401 | 403 => Some(ErrorKind::AccountInvalid),
-        404 | 410 | 451 => Some(ErrorKind::Permanent),
-        429 => Some(ErrorKind::RateLimited),
-        500..=599 => Some(ErrorKind::Transient),
-        _ => Some(ErrorKind::Permanent),
+    use plugin_common::HttpRefusal;
+    match plugin_common::http_status(status, None) {
+        Ok(()) => None,
+        Err(HttpRefusal::Unauthorized) => Some(ErrorKind::AccountInvalid),
+        Err(HttpRefusal::Gone) => Some(ErrorKind::Permanent),
+        Err(HttpRefusal::Unavailable) => Some(ErrorKind::Offline),
+        Err(HttpRefusal::RateLimited(_)) => Some(ErrorKind::RateLimited),
+        Err(HttpRefusal::ServerError(_)) => Some(ErrorKind::Transient),
+        Err(HttpRefusal::Other(_)) => Some(ErrorKind::Permanent),
     }
 }
 
@@ -178,14 +184,15 @@ mod tests {
     }
 
     #[test]
-    fn classify_http_status_mirrors_ddownloads_original_mapping() {
+    fn classify_http_status_follows_the_shared_mapping() {
         assert_eq!(classify_http_status(200), None);
         assert_eq!(classify_http_status(206), None);
         assert_eq!(classify_http_status(401), Some(ErrorKind::AccountInvalid));
         assert_eq!(classify_http_status(403), Some(ErrorKind::AccountInvalid));
         assert_eq!(classify_http_status(404), Some(ErrorKind::Permanent));
         assert_eq!(classify_http_status(410), Some(ErrorKind::Permanent));
-        assert_eq!(classify_http_status(451), Some(ErrorKind::Permanent));
+        assert_eq!(classify_http_status(451), Some(ErrorKind::Offline));
+        assert_eq!(classify_http_status(418), Some(ErrorKind::Permanent));
         assert_eq!(classify_http_status(429), Some(ErrorKind::RateLimited));
         assert_eq!(classify_http_status(500), Some(ErrorKind::Transient));
         assert_eq!(classify_http_status(599), Some(ErrorKind::Transient));

@@ -1,7 +1,12 @@
 //! Reading AllDebrid's PIN-flow answers.
 //!
-//! Two small documents, scanned rather than parsed: pulling a JSON library into a sandboxed
-//! guest to read four strings would be more code and more surface for no more capability.
+//! Two small documents, scanned rather than parsed with `plugin_common::json`: pulling a JSON
+//! library into a sandboxed guest to read four strings would be more code and more surface for
+//! no more capability. The readers are the ones every sign-in plugin shares (RD-191-07); the
+//! refusal codes and `sanitize_error` stay here, because AllDebrid's codes are upper-case words
+//! where the OAuth device flow's are lower-case.
+
+use plugin_common::json::{number_field, string_field};
 
 /// The application name AllDebrid's API asks for. It identifies the application, not the
 /// person, and authorises nothing on its own.
@@ -17,57 +22,6 @@ pub struct Pin {
     /// The opaque value the application polls with. Not shown to anybody.
     pub check: String,
     pub expires_in: Option<u64>,
-}
-
-/// The string value of a JSON field, without a parser.
-///
-/// Deliberately reads out of the original text rather than a whitespace-stripped copy: the
-/// spaces inside a value are part of it, and squeezing them out turns "The PIN has expired"
-/// into something nobody wrote.
-#[must_use]
-pub fn string_field(body: &str, name: &str) -> Option<String> {
-    let mut rest = value_after(body, name)?;
-    rest = rest.strip_prefix('"')?;
-    let mut out = String::new();
-    let mut chars = rest.chars();
-    while let Some(character) = chars.next() {
-        match character {
-            '"' => return Some(out),
-            '\\' => match chars.next()? {
-                'n' => out.push('\n'),
-                't' => out.push('\t'),
-                'r' => out.push('\r'),
-                other => out.push(other),
-            },
-            other => out.push(other),
-        }
-    }
-    None
-}
-
-/// The numeric value of a JSON field, without a parser.
-#[must_use]
-pub fn number_field(body: &str, name: &str) -> Option<u64> {
-    let rest = value_after(body, name)?;
-    let end = rest
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(rest.len());
-    rest[..end].parse().ok()
-}
-
-/// The text just after `"name":`, with the separating whitespace skipped.
-fn value_after<'a>(body: &'a str, name: &str) -> Option<&'a str> {
-    let needle = format!("\"{name}\"");
-    let mut from = 0;
-    while let Some(at) = body[from..].find(&needle) {
-        let after = &body[from + at + needle.len()..];
-        let trimmed = after.trim_start();
-        if let Some(value) = trimmed.strip_prefix(':') {
-            return Some(value.trim_start());
-        }
-        from += at + needle.len();
-    }
-    None
 }
 
 /// Whether the answer reports failure, and under which code.

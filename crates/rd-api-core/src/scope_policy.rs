@@ -514,6 +514,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/nzb/imports/{id}/enqueue", Method::POST, QUEUE),
     entry("/api/v1/nzb/imports/{id}/files", Method::GET, QUEUE),
     entry("/api/v1/nzb/imports/{id}/postprocess", Method::GET, QUEUE),
+    // An NZB handed to a provider spends that account exactly as a container handed to it
+    // through `/accounts/{id}/remote-jobs` does, so it costs the same (RD-191-13).
+    entry("/api/v1/nzb/imports/{id}/remote-job", Method::POST, SECRETS),
     // The OAuth redirect lands here, and it cannot cost a scope: it arrives from the provider's
     // site, and the session cookie is `SameSite=Strict`, so a browser does not send it on that
     // navigation. Priced `SECRETS` it refused every sign-in with the login switched on (security
@@ -550,6 +553,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/{id}/extract/force", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/folder", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/postprocess", Method::GET, READ),
+    // The NZB behind a package handed to a provider: the import route's cost (RD-191-13).
+    entry("/api/v1/packages/{id}/remote-job", Method::POST, SECRETS),
     entry("/api/v1/plugins", Method::GET, ADMIN),
     // Choosing which of the release's own services are installed (RD-160-05).
     entry("/api/v1/plugins/bundled", Method::GET, ADMIN),
@@ -588,6 +593,10 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         SECRETS,
     ),
     entry("/api/v1/plugins/updates", Method::GET, ADMIN),
+    // Whether every plugin installs its updates itself: the same decision as one plugin's
+    // policy, so the same scope (RD-191-10).
+    entry("/api/v1/plugins/updates/settings", Method::GET, ADMIN),
+    entry("/api/v1/plugins/updates/settings", Method::PUT, ADMIN),
     entry("/api/v1/plugins/{id}", Method::PATCH, ADMIN),
     entry("/api/v1/plugins/{id}/executions", Method::GET, ADMIN),
     // Which build of a plugin runs is the same kind of decision as installing it (RD-140-02).

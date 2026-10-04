@@ -49,18 +49,9 @@ pub(crate) async fn require_step_up(
         note_refusal(state, audit, client, action, "session").await;
         return Err(refusal);
     }
-    if let rd_authn::Decision::Locked { retry_after } = state.auth.throttle_check(client).await {
+    if let Err(refusal) = state.auth.gate(client).await {
         note_refusal(state, audit, client, action, "locked_out").await;
-        return Err(ApiError::too_many_requests(
-            "auth.too_many_attempts",
-            "Too many failed sign-in attempts from this address",
-        )
-        .with_param("seconds", retry_after.as_secs().max(1).to_string()));
-    }
-    if let rd_authn::Decision::Proceed { delay } = state.auth.throttle_check(client).await
-        && !delay.is_zero()
-    {
-        tokio::time::sleep(delay).await;
+        return Err(refusal);
     }
     if !state.auth.password_matches(state, password).await? {
         state.auth.note_failed_login(client).await;

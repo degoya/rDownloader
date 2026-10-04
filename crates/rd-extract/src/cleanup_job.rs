@@ -7,7 +7,7 @@ use rd_core::{PostprocessKind, PostprocessState};
 
 use crate::{
     Inner,
-    steps::{checkpoint, truncate},
+    steps::{Outcome, checkpoint, checkpoint_coded, codes, truncate},
 };
 
 /// Folder levels the cleanup walks, counted from where unpacked content starts.
@@ -135,28 +135,42 @@ pub(crate) async fn run(
         Some(root) => remove_emptied_folders(root, &targets).await,
         None => 0,
     };
-    let (state, message) = if errors.is_empty() {
+    let counts = [
+        ("count", removed.to_string()),
+        ("folders", folders.to_string()),
+    ];
+    let (state, outcome) = if errors.is_empty() {
         (
             PostprocessState::Completed,
-            format!("removed={removed} folders={folders}"),
+            Outcome::new(
+                codes::CLEANUP_DONE,
+                &counts,
+                format!("removed={removed} folders={folders}"),
+            ),
         )
     } else {
+        let detail = errors.join("; ");
         (
             PostprocessState::Failed,
-            truncate(format!(
-                "removed={removed} folders={folders} errors={}",
-                errors.join("; ")
-            )),
+            Outcome::new(
+                codes::CLEANUP_FAILED,
+                &[
+                    counts[0].clone(),
+                    counts[1].clone(),
+                    ("detail", truncate(&detail)),
+                ],
+                format!("removed={removed} folders={folders} errors={detail}"),
+            ),
         )
     };
-    checkpoint(
+    checkpoint_coded(
         inner,
         owner,
         PostprocessKind::Cleanup,
         "cleanup",
         state,
         None,
-        Some(message),
+        outcome,
     )
     .await?;
     // Named the way a plugin step is offered the package, for the step after this one

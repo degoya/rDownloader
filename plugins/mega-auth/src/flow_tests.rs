@@ -35,6 +35,24 @@ fn the_preflight_answer_yields_the_salt_and_the_version() {
     assert!(legacy.salt.is_empty());
 }
 
+/// The answers are parsed, not scanned (RD-191-07): whitespace a server puts around a colon,
+/// a bare object instead of a batch of one, and a nested field of the same name no longer
+/// decide what is read.
+#[test]
+fn an_answer_is_read_as_json_and_not_by_its_spelling() {
+    let spaced = preflight(r#"[ { "s" : "bWVnYS1zYWx0" , "v" : 2 } ]"#).expect("readable");
+    assert_eq!(spaced.version, ACCOUNT_VERSION_2);
+    assert_eq!(spaced.salt, b"mega-salt");
+    let bare = preflight(r#"{"v":2,"s":"bWVnYS1zYWx0"}"#).expect("readable");
+    assert_eq!(bare.salt, b"mega-salt");
+    let nested =
+        preflight(r#"[{"x":{"s":"AAAA","v":9},"s":"bWVnYS1zYWx0","v":2}]"#).expect("readable");
+    assert_eq!(nested.version, ACCOUNT_VERSION_2);
+    assert_eq!(nested.salt, b"mega-salt");
+    assert!(preflight("not json").is_none());
+    assert!(preflight(r#"[{"v":"2"}]"#).is_none());
+}
+
 #[test]
 fn the_sign_in_answer_is_refused_unless_every_block_has_a_usable_length() {
     let good = format!(

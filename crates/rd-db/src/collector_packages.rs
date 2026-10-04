@@ -213,7 +213,7 @@ pub(crate) async fn update(
             execute_for_ids(
                 &mut tx,
                 sqlx::query(sqlx::AssertSqlSafe(&*statement))
-                    .bind(level.map(crate::writer::level_string))
+                    .bind(level.map(crate::enum_string).transpose()?)
                     .bind(now),
                 &bound,
             )
@@ -515,18 +515,19 @@ pub(crate) async fn move_candidates(
     // Where these links are coming from, read before they leave: a mirror group lives inside
     // one package, so the package losing a member has to be recomputed as well as the one
     // gaining it (RD-110-18).
+    // One statement for the whole selection rather than one per link (DB-11).
     let mut touched: Vec<CollectorPackageId> = vec![package_id];
-    for id in ids {
-        if let Some(previous) = sqlx::query_scalar::<_, Option<String>>(
-            "SELECT package_id FROM link_candidates WHERE id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_optional(&mut *tx)
-        .await?
-        .flatten()
-        {
-            touched.push(parse_id(&previous)?);
-        }
+    let previous: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT package_id FROM link_candidates \
+         WHERE id IN (SELECT value FROM json_each(?)) AND package_id IS NOT NULL",
+    )
+    .bind(serde_json::to_string(
+        &ids.iter().map(ToString::to_string).collect::<Vec<_>>(),
+    )?)
+    .fetch_all(&mut *tx)
+    .await?;
+    for previous in previous {
+        touched.push(parse_id(&previous)?);
     }
     for (offset, id) in ids.iter().enumerate() {
         sqlx::query(
@@ -738,15 +739,19 @@ pub(crate) async fn regroup(
 
 /// Moves checkable candidates into `checking` and returns them with their *pre-claim*
 /// state, so callers can tell duplicates apart and restore that state after the check.
+///
+/// One transaction for the whole selection (DB-11): a claim is all of it or none, and a large
+/// re-check costs one commit rather than one per link.
 pub(crate) async fn claim_for_check(
     connection: &mut SqliteConnection,
     ids: &[CandidateId],
 ) -> Result<Vec<LinkCandidate>> {
+    let mut tx = connection.begin().await?;
     let mut claimed = Vec::new();
     for id in ids {
         let Some(row) = sqlx::query_as::<_, CandidateRow>(GET_CANDIDATE)
             .bind(id.to_string())
-            .fetch_optional(&mut *connection)
+            .fetch_optional(&mut *tx)
             .await?
         else {
             continue;
@@ -759,12 +764,13 @@ pub(crate) async fn claim_for_check(
              AND state IN ('online', 'offline', 'error', 'unsupported', 'checking', 'duplicate')",
         )
         .bind(id.to_string())
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?;
         if result.rows_affected() == 1 {
             claimed.push(row.try_into()?);
         }
     }
+    tx.commit().await?;
     Ok(claimed)
 }
 

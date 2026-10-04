@@ -10,6 +10,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{
     ScheduleKind, StreamChannelId, StreamSchedule, StreamScheduleId, StreamScheduledRun,
 };
@@ -61,16 +62,15 @@ pub struct RunQuery {
 pub(crate) fn schedule_input(
     request: StreamScheduleRequest,
 ) -> Result<NewStreamSchedule, ApiError> {
-    let name = request.name.trim();
-    if name.is_empty() || name.chars().count() > MAX_NAME {
-        return Err(ApiError::bad_request(
-            "stream.schedule_name_invalid",
-            "A schedule needs a name",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(MAX_NAME),
+        "stream.schedule_name_invalid",
+        "A schedule needs a name",
+    )?;
     let input = NewStreamSchedule {
         channel_id: request.channel_id,
-        name: name.to_owned(),
+        name,
         enabled: request.enabled,
         kind: request.kind,
         timezone: request.timezone.trim().to_owned(),

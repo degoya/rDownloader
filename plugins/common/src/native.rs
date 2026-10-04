@@ -415,3 +415,115 @@ pub fn to_native_account(account: Account) -> rd_plugin_api::AccountStatus {
             .and_then(|traffic| ByteCount::new(traffic).ok()),
     }
 }
+
+/// Writes a plugin's native `Resolver` (RD-191-07, PLUG-09).
+///
+/// Twenty-seven plugins carried the same ninety lines, different in nothing but the struct's
+/// name: metadata read from `crate::MANIFEST`, `matches` from `crate::resolver::matches`, and
+/// the four calls handed to `crate::resolver` through a [`NativeHost`] and the conversions
+/// above. A plugin's `native.rs` is now one invocation:
+///
+/// ```ignore
+/// plugin_common::native_resolver!(
+///     /// Provider implementation that runs against a native or Component host adapter.
+///     AllDebridResolver
+/// );
+/// ```
+///
+/// The invoking crate supplies `crate::MANIFEST`, a `crate::resolver` module with `matches`,
+/// `check_account`, `resolve`, `check` and `hosters`, and the native-target dependencies every
+/// plugin already has: `async-trait`, `rd-core`, `rd-plugin-api` and `url`.
+// `crate::MANIFEST` is meant to name the calling plugin's manifest, not this crate's.
+#[allow(clippy::crate_in_macro_def)]
+#[macro_export]
+macro_rules! native_resolver {
+    ($(#[$attribute:meta])* $name:ident) => {
+        $(#[$attribute])*
+        pub struct $name {
+            host: ::std::sync::Arc<dyn ::rd_plugin_api::ResolverHost>,
+            metadata: ::rd_plugin_api::ResolverMetadata,
+        }
+
+        impl $name {
+            #[must_use]
+            pub fn new(host: ::std::sync::Arc<dyn ::rd_plugin_api::ResolverHost>) -> Self {
+                Self {
+                    host,
+                    metadata: ::rd_plugin_api::metadata_from_manifest(crate::MANIFEST),
+                }
+            }
+
+            fn for_account(&self, account_id: ::rd_core::AccountId) -> $crate::native::NativeHost {
+                $crate::native::NativeHost::for_account(
+                    ::std::sync::Arc::clone(&self.host),
+                    account_id,
+                )
+            }
+
+            fn for_client(
+                &self,
+                client: ::rd_plugin_api::ClientIdentity,
+            ) -> $crate::native::NativeHost {
+                $crate::native::NativeHost::new(::std::sync::Arc::clone(&self.host), client)
+            }
+        }
+
+        #[::async_trait::async_trait]
+        impl ::rd_plugin_api::Resolver for $name {
+            fn metadata(&self) -> &::rd_plugin_api::ResolverMetadata {
+                &self.metadata
+            }
+
+            fn matches(&self, url: &::url::Url) -> bool {
+                crate::resolver::matches(url.as_str())
+            }
+
+            async fn check_account(
+                &self,
+                account_id: ::rd_core::AccountId,
+            ) -> ::std::result::Result<::rd_plugin_api::AccountStatus, ::rd_core::Failure> {
+                let host = self.for_account(account_id);
+                crate::resolver::check_account(&host, &account_id.to_string())
+                    .await
+                    .map($crate::native::to_native_account)
+                    .map_err($crate::native::to_native_failure)
+            }
+
+            async fn resolve(
+                &self,
+                request: ::rd_plugin_api::ResolveRequest,
+            ) -> ::std::result::Result<::rd_plugin_api::ResolvedDownload, ::rd_core::Failure> {
+                let input = $crate::native::to_resolve_input(&request);
+                let host = self.for_client(request.client.clone());
+                let resolved = crate::resolver::resolve(&host, &input)
+                    .await
+                    .map_err($crate::native::to_native_failure)?;
+                $crate::native::to_native_resolved(resolved, request.client)
+            }
+
+            async fn check(
+                &self,
+                request: ::rd_plugin_api::CheckRequest,
+            ) -> ::std::result::Result<::std::vec::Vec<::rd_core::LinkCheckResult>, ::rd_core::Failure>
+            {
+                let input = $crate::native::to_check_input(&request);
+                let host = self.for_client(request.client);
+                crate::resolver::check(&host, &input)
+                    .await
+                    .map($crate::native::to_native_checks)
+                    .map_err($crate::native::to_native_failure)
+            }
+
+            async fn hosters(
+                &self,
+                account_id: ::rd_core::AccountId,
+            ) -> ::std::result::Result<::std::vec::Vec<::std::string::String>, ::rd_core::Failure>
+            {
+                let host = self.for_account(account_id);
+                crate::resolver::hosters(&host, &account_id.to_string())
+                    .await
+                    .map_err($crate::native::to_native_failure)
+            }
+        }
+    };
+}

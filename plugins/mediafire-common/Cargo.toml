@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+plugin-common = { path = "../common" }
 serde_json.workspace = true
 url.workspace = true
 

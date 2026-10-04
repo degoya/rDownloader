@@ -194,7 +194,9 @@ async fn run_json(
             )
         })?
         .context("spawn yt-dlp")
-        .map_err(|error| tool_failure(error.to_string()))?;
+        // With its cause: "spawn yt-dlp" alone does not say the file is missing or not
+        // executable (re-audit 1.9.1, RA-TR-04).
+        .map_err(|error| tool_failure(format!("{error:#}")))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(map_tool_error(&stderr));
@@ -290,29 +292,39 @@ fn playlist_entry(
 }
 
 /// Maps yt-dlp's stderr to a failure class the queue can retry or block on.
+///
+/// Read from the `ERROR:` line alone and by whole words (audit 1.9.1, TR-02): matched as a
+/// substring of all of stderr, "age" found "Unable to download web*page*" — a network failure
+/// that then counted as a login wall and was never retried — and a warning's "404" or
+/// "removed" made a passing problem permanent.
 pub(crate) fn map_tool_error(stderr: &str) -> Failure {
     let text = stderr.trim();
     if crate::merge::merge_skipped(text) {
         return crate::merge::merge_failure();
     }
-    let lower = text.to_ascii_lowercase();
+    let error_line = text
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| line.starts_with("ERROR:"))
+        .unwrap_or_else(|| text.lines().last().unwrap_or_default());
+    let lower = error_line.to_ascii_lowercase();
+    let says = |phrases: &[&str]| phrases.iter().any(|phrase| contains_words(&lower, phrase));
     // Redacted before it becomes a message and a param: this tail is shown in the UI and
     // stored on the download row, and yt-dlp happily echoes the signed URL it just tried.
-    let tail: String = rd_core::redact_text(text.lines().last().unwrap_or_default())
-        .chars()
-        .take(300)
-        .collect();
-    let category = if lower.contains("unsupported url")
-        || lower.contains("video unavailable")
-        || lower.contains("private video")
-        || lower.contains("not available")
-        || lower.contains("removed")
-        || lower.contains("404")
-    {
+    let tail: String = rd_core::redact_text(error_line).chars().take(300).collect();
+    let category = if says(&[
+        "unsupported url",
+        "video unavailable",
+        "private video",
+        "not available",
+        "removed",
+        "404",
+    ]) {
         FailureKind::Permanent
-    } else if lower.contains("sign in") || lower.contains("login") || lower.contains("age") {
+    } else if says(&["sign in", "login", "log in", "age"]) {
         FailureKind::AuthRequired
-    } else if lower.contains("429") || lower.contains("too many requests") {
+    } else if says(&["429", "too many requests"]) {
         FailureKind::RateLimited {
             retry_after_seconds: Some(600),
         }
@@ -329,6 +341,15 @@ pub(crate) fn map_tool_error(stderr: &str) -> Failure {
     .with_param("detail", tail)
 }
 
+/// Whether `phrase` occurs in `text` with no letter or digit directly before or after it.
+fn contains_words(text: &str, phrase: &str) -> bool {
+    let is_word = |character: Option<char>| character.is_some_and(char::is_alphanumeric);
+    text.match_indices(phrase).any(|(start, _)| {
+        !is_word(text[..start].chars().next_back())
+            && !is_word(text[start + phrase.len()..].chars().next())
+    })
+}
+
 fn tool_failure(detail: String) -> Failure {
     Failure::coded(
         FailureKind::Transient {
@@ -338,4 +359,132 @@ fn tool_failure(detail: String) -> Failure {
         format!("Media tool error: {detail}"),
     )
     .with_param("detail", detail)
+}
+
+#[cfg(test)]
+mod error_tests {
+    use rd_core::FailureKind;
+
+    use super::{contains_words, map_tool_error};
+
+    fn category(stderr: &str) -> FailureKind {
+        map_tool_error(stderr).category
+    }
+
+    /// RA-TR-04: a yt-dlp that cannot be started says why, not only "spawn yt-dlp".
+    #[tokio::test]
+    async fn a_tool_that_cannot_start_reports_the_cause() {
+        let missing = tempfile::tempdir().expect("temp");
+        let failure = super::run_json(
+            &missing.path().join("no-such-yt-dlp"),
+            &"https://example.invalid/watch".parse().expect("url"),
+            false,
+            std::time::Duration::from_secs(10),
+        )
+        .await;
+        let Err(failure) = failure else {
+            panic!("nothing to start")
+        };
+        assert_eq!(failure.code.as_deref(), Some("media.tool_error"));
+        let cause = failure
+            .message
+            .split_once("spawn yt-dlp: ")
+            .map(|(_, cause)| cause.trim())
+            .unwrap_or_default();
+        assert!(!cause.is_empty(), "the cause was lost: {}", failure.message);
+    }
+
+    /// TR-02: yt-dlp's own wording, as it prints it.
+    #[test]
+    fn a_network_failure_is_retried_rather_than_taken_for_a_login_wall() {
+        assert_eq!(
+            category(
+                "ERROR: [youtube] dQw4w9WgXcQ: Unable to download webpage: <urlopen error \
+                 [Errno -3] Temporary failure in name resolution> (caused by \
+                 URLError(gaierror(-3, 'Temporary failure in name resolution')))"
+            ),
+            FailureKind::Transient {
+                retry_after_seconds: Some(120)
+            }
+        );
+        assert_eq!(
+            category(
+                "ERROR: [generic] Unable to download webpage: HTTP Error 503: Service Unavailable"
+            ),
+            FailureKind::Transient {
+                retry_after_seconds: Some(120)
+            }
+        );
+    }
+
+    #[test]
+    fn a_warning_does_not_decide_the_class() {
+        let stderr = "WARNING: [youtube] Video 3 of the playlist was removed (HTTP 404)\n\
+                      WARNING: Falling back to generic n function search\n\
+                      ERROR: [youtube] dQw4w9WgXcQ: Unable to extract initial player response; \
+                      please report this issue on https://github.com/yt-dlp/yt-dlp/issues";
+        assert_eq!(
+            category(stderr),
+            FailureKind::Transient {
+                retry_after_seconds: Some(120)
+            }
+        );
+    }
+
+    #[test]
+    fn age_and_sign_in_walls_need_an_account() {
+        for stderr in [
+            "ERROR: [youtube] dQw4w9WgXcQ: Sign in to confirm your age. This video may be \
+             inappropriate for some users.",
+            "ERROR: [youtube] dQw4w9WgXcQ: Sign in to confirm you\u{2019}re not a bot. Use \
+             --cookies-from-browser or --cookies for the authentication.",
+            "ERROR: [vimeo] 123456: This video is age-restricted",
+        ] {
+            assert_eq!(category(stderr), FailureKind::AuthRequired, "{stderr}");
+        }
+    }
+
+    #[test]
+    fn gone_videos_are_permanent() {
+        for stderr in [
+            "ERROR: [youtube] dQw4w9WgXcQ: Video unavailable. This video has been removed by \
+             the uploader",
+            "ERROR: [youtube] dQw4w9WgXcQ: Private video. Sign in if you've been granted \
+             access to this video",
+            "ERROR: Unsupported URL: https://example.com/page",
+            "ERROR: [generic] Unable to download webpage: HTTP Error 404: Not Found",
+        ] {
+            assert_eq!(category(stderr), FailureKind::Permanent, "{stderr}");
+        }
+    }
+
+    #[test]
+    fn too_many_requests_waits_longer() {
+        assert_eq!(
+            category("ERROR: unable to download video data: HTTP Error 429: Too Many Requests"),
+            FailureKind::RateLimited {
+                retry_after_seconds: Some(600)
+            }
+        );
+    }
+
+    #[test]
+    fn words_match_whole_and_only_whole() {
+        assert!(contains_words("confirm your age.", "age"));
+        assert!(contains_words("age-restricted", "age"));
+        for text in ["webpage", "message", "image", "storage", "usage limit"] {
+            assert!(!contains_words(text, "age"), "{text}");
+        }
+        assert!(!contains_words("error 4040", "404"));
+        assert!(contains_words("http error 404: not found", "404"));
+    }
+
+    #[test]
+    fn the_detail_is_the_error_line() {
+        let failure = map_tool_error("WARNING: something\nERROR: [youtube] x: Video unavailable\n");
+        assert_eq!(
+            failure.params.get("detail").map(String::as_str),
+            Some("ERROR: [youtube] x: Video unavailable")
+        );
+    }
 }

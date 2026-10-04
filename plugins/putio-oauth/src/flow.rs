@@ -77,8 +77,7 @@ pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> 
     // first. Reading a rate limit as a failure would end a sign-in that was going perfectly
     // well.
     if status == 429 || matches!(error.as_deref(), Some("slow_down" | "TOO_MANY_REQUESTS")) {
-        let seconds = retry_after
-            .and_then(|value| value.trim().parse::<u64>().ok())
+        let seconds = plugin_common::retry_after_seconds(retry_after)
             .or_else(|| pkce::number_field(body, "retry_after"))
             .or_else(|| pkce::number_field(body, "interval"));
         return TokenAnswer::Busy(seconds);

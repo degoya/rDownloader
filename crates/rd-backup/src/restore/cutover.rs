@@ -21,11 +21,11 @@
 //! for the interface to report, until it is dismissed.
 
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use rd_files::durable::{exists, remove_any, sync_directory};
 use serde::{Deserialize, Serialize};
 
 /// Below the data directory: the throwaway unpacks of previews and test restores.
@@ -169,70 +169,18 @@ pub enum Cutover {
     },
 }
 
-fn exists(path: &Path) -> bool {
-    fs::symlink_metadata(path).is_ok()
-}
-
-fn remove_any(path: &Path) -> Result<()> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(path),
-        Ok(_) => fs::remove_file(path),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error),
-    }
-    .with_context(|| format!("remove {}", path.display()))
-}
-
-/// How long a rename waits for a handle that is still being closed (Windows only).
+/// How long a rename waits for a handle that is still being closed (Windows only): a database
+/// that failed to open closes its handle on SQLite's worker thread, shortly after
+/// `Database::open` has returned the error, and the roll-back right after it met "used by
+/// another process" (os error 32).
 const RELEASE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// Renames `from` to `to`.
-///
-/// On Windows a file stays locked until its last handle is closed, and a database that failed
-/// to open closes its handle on SQLite's worker thread, shortly after `Database::open` has
-/// returned the error. The roll-back right after it then met "used by another process"
-/// (os error 32), so a sharing or access violation is retried until [`RELEASE_WAIT`] is up.
 fn rename(from: &Path, to: &Path) -> Result<()> {
-    let started = std::time::Instant::now();
-    loop {
-        match fs::rename(from, to) {
-            Err(error)
-                if cfg!(windows)
-                    && matches!(error.raw_os_error(), Some(5 | 32))
-                    && started.elapsed() < RELEASE_WAIT =>
-            {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-            result => {
-                return result
-                    .with_context(|| format!("move {} to {}", from.display(), to.display()));
-            }
-        }
-    }
-}
-
-/// Makes a rename or a new file in `directory` durable. On Windows a directory cannot be opened
-/// this way, and `MoveFileEx` without write-through is what there is.
-fn sync_directory(directory: &Path) {
-    #[cfg(unix)]
-    let _ = fs::File::open(directory).and_then(|handle| handle.sync_all());
-    #[cfg(not(unix))]
-    let _ = directory;
+    rd_files::durable::rename(from, to, RELEASE_WAIT)
 }
 
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<()> {
-    let temporary = path.with_extension("json.tmp");
-    {
-        let mut file = fs::File::create(&temporary)
-            .with_context(|| format!("create {}", temporary.display()))?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-    }
-    rename(&temporary, path)?;
-    if let Some(parent) = path.parent() {
-        sync_directory(parent);
-    }
-    Ok(())
+    rd_files::durable::write_atomically(path, bytes, RELEASE_WAIT)
 }
 
 fn write_marker(layout: &Layout, pending: &PendingRestore) -> Result<()> {

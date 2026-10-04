@@ -19,6 +19,7 @@
 use plugin_common::{
     Account, CaptchaChallenge, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse,
     LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, WidgetChallenge,
+    file_name_from_disposition,
 };
 use serde::Deserialize;
 use url::Url;
@@ -173,7 +174,12 @@ async fn attempt<H: PluginHost>(host: &H, id: &str) -> Result<Attempt, Failure> 
 async fn file_page<H: PluginHost>(host: &H, id: &str) -> Result<(HttpResponse, String), Failure> {
     let response = host.http(HttpRequest::get(page::file_page_url(id))).await?;
     let body = response.text().into_owned();
-    if response.status == 404 || page::is_file_unavailable(&body) {
+    // The site's 404 is the file deleted: final (owner, 2026-10-04). The same notice under
+    // another status is the site's word, not a status, and keeps `Offline`.
+    if matches!(response.status, 404 | 410) {
+        return Err(coded(FailureKind::Permanent, messages::FILE_UNAVAILABLE));
+    }
+    if page::is_file_unavailable(&body) {
         return Err(coded(FailureKind::Offline, messages::FILE_UNAVAILABLE));
     }
     ensure_http_status(&response)?;
@@ -365,28 +371,17 @@ fn sanitised(message: &str) -> String {
         .collect()
 }
 
-fn file_name_from_disposition(value: &str) -> Option<String> {
-    value.split(';').find_map(|part| {
-        let (name, value) = part.trim().split_once('=')?;
-        name.eq_ignore_ascii_case("filename")
-            .then(|| value.trim_matches(['\'', '"']).to_owned())
-            .filter(|value| !value.is_empty())
-    })
-}
-
+/// Classifies a status with the mapping every plugin shares (RD-191-07): a 404 or 410 is final,
+/// a 451 `Offline`, and a 429 carries the site's `Retry-After`. KrakenFiles takes no account, so
+/// a 401/403 — Cloudflare answers with one — is a plain HTTP error, never a refused account
+/// (RA-PLG-01). The direct link's 403-405, which JDownloader reads as "come back in an hour",
+/// is answered before this is asked.
 fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    let kind = match response.status {
-        200..=299 => return Ok(()),
-        429 => FailureKind::RateLimited(None),
-        500..=599 => FailureKind::Transient(None),
-        _ => FailureKind::Permanent,
-    };
-    Err(Failure::coded(
-        kind,
+    xfs_common::glue::ensure_http_status_without_account(
+        response,
         messages::HTTP_ERROR,
-        messages::http_error(response.status),
+        messages::http_error,
     )
-    .with_param("status", response.status.to_string()))
 }
 
 fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {

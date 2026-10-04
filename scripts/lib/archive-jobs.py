@@ -29,9 +29,14 @@ rebuild, which a documentation step must not cause).
 With nothing due it only recounts the Job Inventory when that table disagrees with the two
 catalogs (RD-140-24), and otherwise writes nothing; it exits 0 either way. --check writes nothing:
 it names what is due, every file in archive/ whose status is open again (`Open`, `In progress`,
-`Partial` — moving such a job back is left to a person, with its row) and every Job Inventory row
-whose numbers the catalogs do not bear out, and exits 1 when there is any of the three.
-scripts/check.sh runs it that way, so neither the layout nor the counts can drift.
+`Partial` — moving such a job back is left to a person, with its row), every Job Inventory row
+whose numbers the catalogs do not bear out and every job file, here or in archive/, whose status
+line is missing or starts with a word that is not one of STATUS_WORDS (RD-120-14: `Done` is not
+one), and exits 1 when there is any of the four. A working file `<NNN>-00-*.md` and README.md
+need no status line; one that has a line is checked all the same. scripts/check.sh runs it that
+way on every run, so neither the layout, the counts nor the words can drift. The word check was
+the Rust test crates/rdownloader/tests/job_status_words.rs until RD-191-09: a branch run skips
+the Rust tests for a documentation-only change, which is exactly the change that sets a word.
 
 Exit 2 is a refusal: uncommitted changes under docs/roadmap/jobs/ that this run would mix into,
 or a jobs directory without its index. A tree without docs/roadmap/jobs/ at all — the public
@@ -76,6 +81,39 @@ def status_line(text):
 def status_word(line):
     value = line[len(STATUS_PREFIX):].strip()
     return next((w for w in STATUS_WORDS if value.startswith(w)), value.split(" ")[0])
+
+
+def status_word_problem(name, text):
+    """Why the status line of the job file `name` is unusable, or None when it is fine. A word
+    must stand alone: `Openish` is not `Open`, `Open (…)`, `Open / …` and `Open, …` are."""
+    line = status_line(text)
+    if line is None:
+        if WORKING_FILE.match(name) or name == "README.md":
+            return None
+        return f"no `{STATUS_PREFIX}` line"
+    value = line[len(STATUS_PREFIX):].strip()
+    for word in STATUS_WORDS:
+        rest = value[len(word):] if value.startswith(word) else None
+        if rest is not None and not (rest[:1].isalnum() or rest[:1] == "_"):
+            return None
+    written = re.split(r"[\s(,;:]", value, maxsplit=1)[0]
+    return f"status word `{written}` is not one of {', '.join(f'`{w}`' for w in sorted(STATUS_WORDS))}"
+
+
+def bad_status_files(repo):
+    """(path, problem) for every job file here or in archive/ with an unusable status line."""
+    bad = []
+    for directory in (JOBS, ARCHIVE):
+        if not os.path.isdir(os.path.join(repo, directory)):
+            continue
+        for name in sorted(os.listdir(os.path.join(repo, directory))):
+            path = os.path.join(repo, directory, name)
+            if not name.endswith(".md") or not os.path.isfile(path):
+                continue
+            problem = status_word_problem(name, open(path, encoding="utf-8").read())
+            if problem:
+                bad.append((f"{directory}/{name}", problem))
+    return bad
 
 
 def due_files(repo, release):
@@ -423,13 +461,16 @@ def main(argv):
               file=sys.stdout if check else sys.stderr)
     stale = stale_inventory(repo)
     if check:
+        bad = bad_status_files(repo)
+        for path, problem in bad:
+            print(f"status: {path}: {problem} (docs/roadmap/jobs/README.md, Rules)")
         for name, reason in due:
             print(f"due: {JOBS}/{name} ({reason}) — run scripts/archive-jobs.sh")
         for line in stale:
             print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
                   f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if due or misplaced or stale else 0
+        return 1 if due or misplaced or stale or bad else 0
     if not due:
         if stale:
             index_path = os.path.join(repo, JOBS, "README.md")

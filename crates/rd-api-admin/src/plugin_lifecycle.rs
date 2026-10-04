@@ -65,6 +65,8 @@ pub struct PluginLifecycleResponse {
     pub staged_version: Option<String>,
     /// What a rollback returns to, while it is still installed.
     pub previous_version: Option<String>,
+    /// The plugin's own stored policy. The switch for all plugins
+    /// (`automatic_updates_global` on the inventory) overrides a manual one without changing it.
     pub update_policy: PluginUpdatePolicy,
     /// Whether a stored choice waits for a restart to take effect.
     pub restart_required: bool,
@@ -81,6 +83,9 @@ pub struct PluginInventoryResponse {
     /// One entry per installed plugin id: which version runs, which one is under test, and
     /// how updates arrive (RD-140-02).
     pub lifecycle: Vec<PluginLifecycleResponse>,
+    /// Whether the switch for all plugins is on (RD-191-10): every installed plugin then updates
+    /// as if set to automatic, whatever its own `update_policy` says.
+    pub automatic_updates_global: bool,
 }
 
 /// Names one installed version of the plugin.

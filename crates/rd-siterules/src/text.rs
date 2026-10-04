@@ -58,15 +58,7 @@ pub fn is_host_pattern(text: &str) -> bool {
 /// the apex itself and every name below it.
 #[must_use]
 pub fn host_matches(pattern: &str, host: &str) -> bool {
-    match pattern.strip_prefix("*.") {
-        Some(apex) => {
-            host == apex
-                || host
-                    .strip_suffix(apex)
-                    .is_some_and(|prefix| prefix.ends_with('.'))
-        }
-        None => host == pattern,
-    }
+    rd_core::host_pattern_matches(pattern, host, rd_core::WildcardApex::Included)
 }
 
 fn is_label(label: &str) -> bool {

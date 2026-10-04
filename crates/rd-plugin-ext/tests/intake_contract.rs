@@ -190,3 +190,61 @@ async fn a_parser_without_mirror_sets_keeps_its_plain_world() {
             .is_empty()
     );
 }
+
+/// PLUG-16: a document the parser claims but cannot take one link from is refused, not
+/// answered with an empty list that looks like success. The guest sends
+/// `metalink_intake.unreadable`; this host carries code and message across, and `IntakeParsers`
+/// logs it and lets the native scanner have the paste.
+#[tokio::test]
+async fn a_claimed_metalink_without_a_usable_file_is_refused() {
+    let bytes = component("rd-plugin-metalink-intake");
+    let parser = IntakeParser::new(metalink_manifest(), &bytes, None).expect("compile parser");
+
+    let empty = r#"<metalink xmlns="urn:ietf:params:xml:ns:metalink">
+  <file name="torrent-only.iso"><url>magnet:?xt=urn:btih:abc</url></file>
+</metalink>"#;
+    let error = parser
+        .parse(empty)
+        .await
+        .expect_err("a claimed document with nothing in it is refused");
+    assert!(
+        error.to_string().contains("lists no usable file"),
+        "{error:#}"
+    );
+    assert!(
+        error
+            .to_string()
+            .starts_with("metalink_intake.unreadable: "),
+        "the code reaches the log: {error:#}"
+    );
+}
+
+/// PLUG-16, the crawljob half: claimed (it has `text=` and a crawljob-only key), no link.
+#[tokio::test]
+async fn a_claimed_crawljob_without_a_link_is_refused() {
+    let bytes = component("rd-plugin-crawljob-intake");
+    let parser = IntakeParser::new(crawljob_manifest(), &bytes, None).expect("compile parser");
+
+    let error = parser
+        .parse("text=see attachment\npackageName=Holiday\nautoStart=TRUE\n")
+        .await
+        .expect_err("a claimed crawljob with no link is refused");
+    assert!(
+        error.to_string().contains("carries no usable link"),
+        "{error:#}"
+    );
+    assert!(
+        error
+            .to_string()
+            .starts_with("crawljob_intake.unreadable: "),
+        "the code reaches the log: {error:#}"
+    );
+    // Text it does not claim is still never shown to it, so an ordinary paste stays quiet.
+    assert!(
+        parser
+            .parse("text=https://example.com/a")
+            .await
+            .expect("not claimed")
+            .is_empty()
+    );
+}

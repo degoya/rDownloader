@@ -26,7 +26,7 @@ use crate::{
     listing::{self, Entry},
     messages,
     target::{self, Target},
-    walk::{Limit, Pending, Walk},
+    walk::{Absorb, ApiPath, Limit, Pending, Walk},
 };
 
 const API: &str = "https://api.dropboxapi.com/2";
@@ -63,13 +63,14 @@ fn headers() -> Vec<RequestHeader> {
     ]
 }
 
-/// The `Retry-After` Dropbox sent, or the wait inside its document.
+/// The `Retry-After` Dropbox sent, or the wait inside its document — either clamped to the
+/// shared one-day ceiling, and a `0` read as no wait at all.
 fn retry_after(headers: &[(String, String)], body: &[u8]) -> Option<u64> {
-    headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-        .and_then(|(_, value)| value.trim().parse::<u64>().ok())
-        .or_else(|| reason::retry_after_in(body))
+    plugin_common::retry_after(headers).or_else(|| {
+        reason::retry_after_in(body)
+            .filter(|seconds| *seconds > 0)
+            .map(plugin_common::http::clamp_retry_after)
+    })
 }
 
 /// Calls one RPC endpoint, turning every status that is not an answer into one refusal.
@@ -160,7 +161,7 @@ fn list(target: &Target, pending: &Pending) -> Result<metadata::Listing, Failure
     let body = match &pending.cursor {
         Some(cursor) => call("files/list_folder/continue", &json!({ "cursor": cursor }))?,
         None => {
-            let mut argument = json!({ "path": pending.api_path, "limit": PAGE_LIMIT });
+            let mut argument = json!({ "path": pending.id.as_str(), "limit": PAGE_LIMIT });
             if let Target::Shared { link, password, .. } = target {
                 // Inside a shared folder link the path is relative to the link's root, and the
                 // password travels in the link argument.
@@ -188,7 +189,7 @@ impl Guest for Component {
             Target::Own { path } => path.clone(),
             Target::Shared { sub_path, .. } => sub_path.clone(),
         };
-        let mut walk = Walk::start(&root_path);
+        let mut walk = Walk::start(ApiPath(root_path));
         while let Some(mut pending) = walk.next_folder() {
             if pending.depth == 0 {
                 pending.path = root_name.clone();

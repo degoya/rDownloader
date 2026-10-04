@@ -17,6 +17,8 @@ use rdownloader::plugin::{
     types::{Failure, FailureKind},
 };
 
+use crate::protocol::{self, HeadError, Target};
+
 /// Bytes requested per read; small enough that a stop is noticed promptly.
 const CHUNK: u32 = 32 * 1024;
 
@@ -24,8 +26,8 @@ struct Component;
 
 impl Guest for Component {
     fn probe(url: String, _credential_ref: Option<String>) -> Result<RemoteFile, Failure> {
-        let target = Target::parse(&url)?;
-        let mut connection = target.connect()?;
+        let target = Target::parse(&url).ok_or_else(bad_url)?;
+        let mut connection = connect(&target)?;
         let head = connection.request(&format!("HEAD {}\n", target.path))?;
         let (size, modified) = parse_head(&head)?;
         Ok(RemoteFile {
@@ -44,11 +46,11 @@ impl Guest for Component {
 }
 
 fn transfer(job: &Job) -> Result<TransferEnd, Failure> {
-    let target = Target::parse(&job.url)?;
+    let target = Target::parse(&job.url).ok_or_else(bad_url)?;
     // The checkpoint is the host's memory of us, not a second source of truth: the sink says
     // how many bytes it actually accepted, and that is where the next read has to start.
     let committed = sink::committed();
-    let mut connection = target.connect()?;
+    let mut connection = connect(&target)?;
     let head = connection.request(&format!("GET {} {}\n", target.path, committed))?;
     let (total, _) = parse_head(&head)?;
     sink::progress(committed, Some(total));
@@ -57,7 +59,7 @@ fn transfer(job: &Job) -> Result<TransferEnd, Failure> {
     loop {
         if sink::should_stop() {
             sink::sync()?;
-            return Ok(TransferEnd::Stopped(checkpoint(offset)));
+            return Ok(TransferEnd::Stopped(protocol::checkpoint(offset)));
         }
         let chunk = connection.read(CHUNK)?;
         if chunk.is_empty() {
@@ -76,47 +78,15 @@ fn transfer(job: &Job) -> Result<TransferEnd, Failure> {
             "The server stopped sending before the whole file arrived",
         ));
     }
-    Ok(TransferEnd::Complete(Some(checkpoint(offset))))
+    Ok(TransferEnd::Complete(Some(protocol::checkpoint(offset))))
 }
 
-/// The checkpoint is opaque to the host, so its shape is entirely this backend's business.
-fn checkpoint(offset: u64) -> Vec<u8> {
-    offset.to_be_bytes().to_vec()
-}
-
-struct Target {
-    host: String,
-    port: u16,
-    tls: bool,
-    path: String,
-}
-
-impl Target {
-    /// `example+tcp://host:port/path` or `example+tls://host:port/path`.
-    fn parse(url: &str) -> Result<Self, Failure> {
-        let (scheme, rest) = url.split_once("://").ok_or_else(bad_url)?;
-        let tls = match scheme {
-            "example+tcp" => false,
-            "example+tls" => true,
-            _ => return Err(bad_url()),
-        };
-        let (authority, path) = rest.split_once('/').ok_or_else(bad_url)?;
-        let (host, port) = authority.split_once(':').ok_or_else(bad_url)?;
-        Ok(Self {
-            host: host.to_owned(),
-            port: port.parse().map_err(|_| bad_url())?,
-            tls,
-            path: format!("/{path}"),
-        })
-    }
-
-    fn connect(&self) -> Result<Connection, Failure> {
-        let handle = net::connect(&self.host, self.port, self.tls)?;
-        Ok(Connection {
-            handle,
-            pending: Vec::new(),
-        })
-    }
+fn connect(target: &Target) -> Result<Connection, Failure> {
+    let handle = net::connect(&target.host, target.port, target.tls)?;
+    Ok(Connection {
+        handle,
+        pending: Vec::new(),
+    })
 }
 
 /// The host's handle for this invocation's socket, plus whatever a reply read overshot into.
@@ -137,10 +107,10 @@ impl Connection {
     /// Sends one line and reads the single-line reply that answers it.
     fn request(&mut self, line: &str) -> Result<String, Failure> {
         net::write(self.handle, line.as_bytes())?;
-        let mut reply = std::mem::take(&mut self.pending);
-        let end = loop {
-            if let Some(end) = reply.iter().position(|byte| *byte == b'\n') {
-                break end;
+        let reply = loop {
+            // What follows the line stays in `pending`: it is the start of the body.
+            if let Some(line) = protocol::take_line(&mut self.pending) {
+                break line;
             }
             let chunk = net::read(self.handle, CHUNK)?;
             if chunk.is_empty() {
@@ -150,10 +120,8 @@ impl Connection {
                     "The server closed the connection without answering",
                 ));
             }
-            reply.extend_from_slice(&chunk);
+            self.pending.extend_from_slice(&chunk);
         };
-        self.pending = reply.split_off(end + 1);
-        reply.pop();
         String::from_utf8(reply).map_err(|_| {
             failure(
                 FailureKind::Permanent,
@@ -172,28 +140,23 @@ impl Connection {
     }
 }
 
-/// `OK <size> [<rfc3339>]`, the whole protocol.
+/// The size and time a reply states, or the failure a refusal is reported as.
 fn parse_head(reply: &str) -> Result<(u64, Option<String>), Failure> {
-    let mut parts = reply.split_whitespace();
-    if parts.next() != Some("OK") {
-        host::log("warn", "server refused the request");
-        return Err(failure(
-            FailureKind::Permanent,
-            "example.refused",
-            "The server refused the request",
-        ));
-    }
-    let size = parts
-        .next()
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(|| {
+    protocol::parse_head(reply).map_err(|error| match error {
+        HeadError::Refused => {
+            host::log("warn", "server refused the request");
             failure(
                 FailureKind::Permanent,
-                "example.bad_reply",
-                "The server did not report a size",
+                "example.refused",
+                "The server refused the request",
             )
-        })?;
-    Ok((size, parts.next().map(str::to_owned)))
+        }
+        HeadError::NoSize => failure(
+            FailureKind::Permanent,
+            "example.bad_reply",
+            "The server did not report a size",
+        ),
+    })
 }
 
 fn bad_url() -> Failure {

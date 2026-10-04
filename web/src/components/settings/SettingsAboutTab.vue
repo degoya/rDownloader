@@ -12,6 +12,7 @@
  * instead of being drawn as a link, and one that is not decided yet is the mark alone
  * (`design.md`, "An Address That Leads Nowhere Yet").
  */
+import type { TableColumn } from '@nuxt/ui'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -87,6 +88,20 @@ function summary(ecosystem: Ecosystem): { license: string, count: number }[] {
     .map(([license, count]) => ({ license, count }))
     .sort((left, right) => right.count - left.count || left.license.localeCompare(right.license))
 }
+
+type BundledTool = About['bundled_tools'][number]
+
+const toolColumns = computed<TableColumn<BundledTool>[]>(() => [
+  { id: 'name', header: t('settings.about.licenses.column_name') },
+  { id: 'license', header: t('settings.about.licenses.column_license') },
+  { id: 'file', header: t('settings.about.licenses.column_file') }
+])
+
+const packageColumns = computed<TableColumn<ThirdPartyPackage>[]>(() => [
+  { id: 'name', header: t('settings.about.licenses.column_name') },
+  { id: 'version', header: t('settings.about.licenses.column_version') },
+  { id: 'license', header: t('settings.about.licenses.column_license') }
+])
 
 function visible(ecosystem: Ecosystem): ThirdPartyPackage[] {
   const term = filter.value.trim().toLowerCase()
@@ -165,24 +180,18 @@ const anyOpen = computed(() => open.rust || open.npm)
         <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.tools') }}</h3>
         <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.tools_hint') }}</p>
         <div class="mt-3 overflow-x-auto">
-          <table class="w-full text-left text-sm" data-testid="about-tools">
-            <thead class="eyebrow">
-              <tr>
-                <th class="py-1 pr-4 font-normal">{{ t('settings.about.licenses.column_name') }}</th>
-                <th class="py-1 pr-4 font-normal">{{ t('settings.about.licenses.column_license') }}</th>
-                <th class="py-1 font-normal">{{ t('settings.about.licenses.column_file') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="tool in about.bundled_tools" :key="tool.name" class="border-t border-muted">
-                <td class="py-1.5 pr-4">
-                  <a :href="tool.homepage" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ tool.name }}</a>
-                </td>
-                <td class="py-1.5 pr-4 font-mono text-xs">{{ tool.license }}</td>
-                <td class="py-1.5 font-mono text-xs text-muted">{{ tool.file }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <UTable
+            :data="about.bundled_tools"
+            :columns="toolColumns"
+            :ui="{ thead: 'eyebrow', th: 'px-0 py-1 pr-4 font-normal last:pr-0', td: 'px-0 py-1.5 pr-4 text-sm last:pr-0' }"
+            data-testid="about-tools"
+          >
+            <template #name-cell="{ row }">
+              <a :href="row.original.homepage" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</a>
+            </template>
+            <template #license-cell="{ row }"><span class="font-mono text-xs">{{ row.original.license }}</span></template>
+            <template #file-cell="{ row }"><span class="font-mono text-xs text-muted">{{ row.original.file }}</span></template>
+          </UTable>
         </div>
 
         <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.dependencies') }}</h3>
@@ -223,22 +232,18 @@ const anyOpen = computed(() => open.rust || open.npm)
             </ul>
             <div v-if="open[ecosystem]" class="mt-3 max-h-96 overflow-auto border border-muted">
               <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
-              <table v-else class="w-full text-left text-xs" :data-list="ecosystem">
-                <thead class="eyebrow sticky top-0 bg-default">
-                  <tr>
-                    <th class="px-3 py-1 font-normal">{{ t('settings.about.licenses.column_name') }}</th>
-                    <th class="px-3 py-1 font-normal">{{ t('settings.about.licenses.column_version') }}</th>
-                    <th class="px-3 py-1 font-normal">{{ t('settings.about.licenses.column_license') }}</th>
-                  </tr>
-                </thead>
-                <tbody class="font-mono">
-                  <tr v-for="entry in visible(ecosystem)" :key="`${entry.name}@${entry.version}`" class="border-t border-muted">
-                    <td class="px-3 py-1 break-all">{{ entry.name }}</td>
-                    <td class="numeric px-3 py-1">{{ entry.version }}</td>
-                    <td class="px-3 py-1">{{ entry.license }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <UTable
+                v-else
+                sticky
+                :data="visible(ecosystem)"
+                :columns="packageColumns"
+                :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
+                :data-list="ecosystem"
+              >
+                <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
+                <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
+                <template #license-cell="{ row }">{{ row.original.license }}</template>
+              </UTable>
             </div>
           </div>
         </template>

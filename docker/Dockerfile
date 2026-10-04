@@ -8,8 +8,11 @@
 #
 # Both finish on `runtime-base`, so tools, users, volumes and health check cannot drift apart.
 # BuildKit builds only the stages the chosen target needs: `prebuilt` never touches node or rust.
+#
+# Every base image is pinned by its tag and the digest of its multi-platform index (RD-191-09), so
+# a tag moved upstream changes nothing here until Dependabot's `docker` update moves both.
 
-FROM node:24-bookworm-slim AS web
+FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS web
 WORKDIR /src/web
 # pnpm in the version web/package.json pins (`packageManager`), through Corepack (RD-150-14).
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -19,7 +22,7 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
-FROM rust:1.98-bookworm AS builder
+FROM rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS builder
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
@@ -47,13 +50,11 @@ RUN cargo build --locked --release ${RD_BUILD_JOBS:+-j ${RD_BUILD_JOBS}} -p rdow
 # it on ubuntu-24.04 (glibc 2.39), and a binary linked against a newer glibc than the image has
 # does not start ("GLIBC_2.xx not found"). Moving the release runners to a newer Ubuntu therefore
 # means checking this line first; the `--version` guard below fails the build if it was not.
-FROM debian:trixie-slim AS runtime-base
-# Pinned so the image is reproducible. yt-dlp in particular ages fast; the running versions are
-# visible under Settings -> External tools, and a newer one can be dropped into /config/vendor.
-ARG YT_DLP_VERSION=2026.8.19
-ARG STREAMLINK_VERSION=8.5.0
-ARG GALLERY_DL_VERSION=1.32.11
-ARG APPRISE_VERSION=1.13.1
+FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS runtime-base
+# The Python tools — yt-dlp, streamlink, gallery-dl, apprise — and every dependency, pinned with
+# their hashes in docker/requirements.txt, which scripts/docker-tools.sh compiles from
+# docker/requirements.in (RD-191-09). `--bump` there moves them; yt-dlp in particular ages fast.
+COPY docker/requirements.txt /tmp/requirements.txt
 # RAR extraction (owner, 2026-09-26): Debian builds 7-Zip without the RAR codec, which lives in
 # `7zip-rar` in the non-free component, under the unRAR licence (extract only). The component is
 # switched on for that one package; the sed is checked, since a changed sources file would
@@ -73,11 +74,9 @@ RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.li
         python3-venv \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir \
-        "yt-dlp==${YT_DLP_VERSION}" \
-        "streamlink==${STREAMLINK_VERSION}" \
-        "gallery-dl==${GALLERY_DL_VERSION}" \
-        "apprise==${APPRISE_VERSION}" \
+    && /opt/venv/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: \
+        -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt \
     && ln -s /opt/venv/bin/yt-dlp /opt/venv/bin/streamlink /opt/venv/bin/gallery-dl \
         /opt/venv/bin/apprise /usr/local/bin/ \
     # Post-processing and the tool status look up a binary called `7z`. Debian 13's 7zip package

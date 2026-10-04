@@ -259,7 +259,8 @@ async fn the_measured_start_refusals_end_in_structured_codes() {
         (
             json(404, fixture!("free-start-not-found-404-2026-09-21.json")),
             "hitfile.file_unavailable",
-            FailureKind::Offline,
+            // Final under a 404 (owner, 2026-10-04).
+            FailureKind::Permanent,
         ),
     ] {
         let host = MockHost::new(vec![
@@ -306,7 +307,7 @@ async fn direct_hit_on_the_premium_only_file_is_an_ip_block() {
 }
 
 #[tokio::test]
-async fn a_deleted_file_is_offline() {
+async fn a_deleted_file_is_final() {
     let host = MockHost::new(vec![json(
         404,
         fixture!("download-info-deleted-404-2026-09-21.json"),
@@ -315,7 +316,8 @@ async fn a_deleted_file_is_offline() {
         .resolve(guest("https://hitfile.net/Mn3OpQr"))
         .await
         .expect_err("deleted");
-    assert_eq!(failure.category, FailureKind::Offline);
+    // Final under a 404 (owner, 2026-10-04).
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("hitfile.file_unavailable"));
 }
 

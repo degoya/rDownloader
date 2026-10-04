@@ -1,12 +1,8 @@
+import type { components } from '@/api/schema'
 import type { InstalledPlugin } from '@/api/types'
 import { providerText } from '@/i18n/plugins'
 
-export interface TrustedKey {
-  key_id: string
-  fingerprint: string
-  plugin_name: string | null
-  confirmed_at: string
-}
+export type TrustedKey = components['schemas']['PluginTrustedKeyResponse']
 
 /** Localised plugin name, falling back to the manifest's own value. */
 export function displayName(plugin: InstalledPlugin): string {

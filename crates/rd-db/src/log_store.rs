@@ -9,10 +9,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use rd_core::LogLevel;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
+
+use crate::timestamp;
 
 /// One record about to be stored.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -112,10 +114,6 @@ const COLUMNS: &str =
     "id, recorded_at, level, component, code, correlation_id, message, fields_json";
 
 /// One timestamp shape for every row, so a lexical comparison in SQL is a chronological one.
-fn timestamp(value: &DateTime<Utc>) -> String {
-    value.to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
 /// Writes a batch in one transaction.
 pub(crate) async fn append_log_records(
     connection: &mut SqliteConnection,

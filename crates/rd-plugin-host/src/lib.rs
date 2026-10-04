@@ -1,6 +1,7 @@
 //! Signed resolver package validation and atomic installation.
 
 mod account_label;
+#[cfg(any(test, feature = "test-support"))]
 pub mod artifact;
 mod bundled;
 mod bundled_services;
@@ -18,6 +19,7 @@ pub mod keyderive;
 mod locales;
 mod manifest;
 mod native;
+mod own_endpoints;
 mod packager;
 pub mod preview;
 mod registry;
@@ -54,6 +56,7 @@ pub use native::{
     provider_download_authorization, provider_download_bearer,
     provider_download_carries_credential, provider_token_beside_the_flow,
 };
+pub use own_endpoints::{CLICK_N_LOAD_PORT, OwnEndpoints};
 pub use packager::{
     GeneratedKey, generate_signing_key, load_signing_key_pem, package_plugin, public_key_base64,
 };
@@ -793,10 +796,7 @@ pub fn domain_allowed(url: &url::Url, domains: &[String]) -> bool {
     matches!(url.scheme(), "http" | "https")
         && domains.iter().any(|domain| {
             domain == "*"
-                || domain
-                    .strip_prefix("*.")
-                    .is_some_and(|suffix| host.ends_with(&format!(".{suffix}")))
-                || host == *domain
+                || rd_core::host_pattern_matches(domain, &host, rd_core::WildcardApex::Excluded)
         })
 }
 

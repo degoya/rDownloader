@@ -155,8 +155,12 @@ impl HostLimits {
 }
 
 /// Host without port: the connection budget belongs to the server, not to the scheme.
+///
+/// The shared [`rd_core::host_key`] (no `www.`, no trailing dot), so the budget, a host block
+/// and a limit scope agree on which host a link is (re-audit 1.9.1, RA-TR-08): `www.` and the
+/// bare name are one server to the hoster, and two budgets doubled what it sees.
 fn host_key(url: &Url) -> Option<String> {
-    url.host_str().map(str::to_lowercase)
+    url.host_str().map(rd_core::host_key)
 }
 
 #[cfg(test)]
@@ -204,6 +208,18 @@ mod tests {
         assert!(
             !blocked(&limits, &url("https://two.example.test/file")).await,
             "a second host waited for the first"
+        );
+    }
+
+    /// RA-TR-08: the host as the host block and the limit scopes read it.
+    #[tokio::test]
+    async fn www_and_the_bare_name_share_one_budget() {
+        let limits = HostLimits::new(1);
+        let held = limits.acquire(&url("https://www.Example.test/file")).await;
+        assert!(held.is_some());
+        assert!(
+            blocked(&limits, &url("https://example.test./other")).await,
+            "the same server got a second budget"
         );
     }
 

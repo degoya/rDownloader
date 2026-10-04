@@ -14,6 +14,7 @@ pub mod media_dto;
 pub mod media_handlers;
 pub mod metrics;
 pub mod metrics_format;
+pub mod nzb_remote_job_handlers;
 pub mod package_clear;
 pub mod package_handlers;
 pub mod power_handlers;

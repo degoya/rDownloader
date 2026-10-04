@@ -195,8 +195,8 @@ impl RdMcpServer {
             Ok(ids) => ids,
             Err(error) => return Ok(api_error(error)),
         };
-        if ids.is_empty() || ids.len() > 500 {
-            return Ok(api_error(crate::error_codes::bulk_range(500)));
+        if let Err(error) = rd_api_core::list_bounds::validate_bulk(ids.len()) {
+            return Ok(api_error(error));
         }
         let start_paused = params.start_paused.unwrap_or(false);
         let mut enqueued = Vec::new();
@@ -210,10 +210,11 @@ impl RdMcpServer {
             }
         }
         if enqueued.is_empty() && !errors.is_empty() {
-            return Ok(api_error(ApiError::conflict(
-                "collector.enqueue_failed",
-                errors.join("; "),
-            )));
+            let reason = errors.join("; ");
+            return Ok(api_error(
+                ApiError::conflict("collector.enqueue_failed", reason.clone())
+                    .with_param("reason", reason),
+            ));
         }
         json_result(&EnqueueCollectorResult { enqueued, errors })
     }

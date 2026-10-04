@@ -6,7 +6,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rd_core::{AccountId, AuthFlow, AuthFlowState, EventEnvelope, EventKind};
-use sqlx::{FromRow, SqliteConnection, SqlitePool};
+use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// A flow being started or advanced.
 #[derive(Clone, Debug)]
@@ -34,12 +34,18 @@ pub struct UpsertAuthFlow {
     pub flow_state: Option<String>,
 }
 
-/// Creates or advances the flow of one account.
+/// Creates or advances the flow of one account, answering the vault references the row held
+/// before and no longer holds (DB-02): a restarted sign-in writes none, and the tokens of the
+/// one it replaced would otherwise stay decryptable with nothing pointing at them.
+///
+/// Read and written on the writer's own connection, one after the other, so the answer is
+/// exactly what this call took out of use.
 pub(crate) async fn upsert(
     connection: &mut SqliteConnection,
     input: UpsertAuthFlow,
-) -> Result<(AuthFlow, EventEnvelope)> {
+) -> Result<((AuthFlow, Vec<String>), EventEnvelope)> {
     let now = Utc::now();
+    let previous = flow_references(&mut *connection, input.account_id).await?;
     sqlx::query(
         "INSERT INTO auth_flows \
          (account_id, plugin_id, state, verification_url, user_code, expires_at, next_poll_at, \
@@ -97,29 +103,73 @@ pub(crate) async fn upsert(
             "state": flow.state,
         }),
     );
-    Ok((flow, event))
+    let kept = [&flow.access_ref, &flow.refresh_ref, &flow.key_ref];
+    let released = previous
+        .into_iter()
+        .filter(|old| !kept.iter().any(|new| new.as_ref() == Some(old)))
+        .collect();
+    Ok(((flow, released), event))
 }
 
-/// Removes the flow of one account, if it has one, and the parts it kept (RD-150-09).
+/// Every vault reference the sign-in of one account holds: the flow row's and its parts'.
+pub(crate) async fn sign_in_references(
+    connection: &mut SqliteConnection,
+    account_id: AccountId,
+) -> Result<Vec<String>> {
+    let mut references = flow_references(&mut *connection, account_id).await?;
+    let parts: Vec<String> =
+        sqlx::query_scalar("SELECT secret_ref FROM auth_flow_parts WHERE account_id = ?")
+            .bind(account_id.to_string())
+            .fetch_all(&mut *connection)
+            .await?;
+    references.extend(parts);
+    Ok(references)
+}
+
+/// The vault references the flow row of one account holds, without its parts.
+async fn flow_references(
+    connection: &mut SqliteConnection,
+    account_id: AccountId,
+) -> Result<Vec<String>> {
+    let row: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT access_ref, refresh_ref, key_ref FROM auth_flows WHERE account_id = ?",
+    )
+    .bind(account_id.to_string())
+    .fetch_optional(&mut *connection)
+    .await?;
+    Ok(row
+        .map(|(access, refresh, key)| [access, refresh, key].into_iter().flatten().collect())
+        .unwrap_or_default())
+}
+
+/// Removes the flow of one account, if it has one, and the parts it kept (RD-150-09),
+/// answering every vault reference the two held (DB-02).
 ///
 /// The parts go with the flow because they are halves of the same sign-in: a cancelled one
 /// has signed the account out, and a client secret left behind would be credential material
-/// belonging to nothing.
+/// belonging to nothing. One transaction, so a stop between the two deletes cannot leave the
+/// parts of a sign-in that is gone (DB-15).
 pub(crate) async fn delete(
     connection: &mut SqliteConnection,
     account_id: AccountId,
-) -> Result<EventEnvelope> {
+) -> Result<(Vec<String>, EventEnvelope)> {
+    let mut tx = connection.begin().await?;
+    let released = sign_in_references(&mut tx, account_id).await?;
     sqlx::query("DELETE FROM auth_flows WHERE account_id = ?")
         .bind(account_id.to_string())
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?;
     sqlx::query("DELETE FROM auth_flow_parts WHERE account_id = ?")
         .bind(account_id.to_string())
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?;
-    Ok(EventEnvelope::new(
-        EventKind::AccountChanged,
-        serde_json::json!({ "entity": "auth_flow", "account_id": account_id }),
+    tx.commit().await?;
+    Ok((
+        released,
+        EventEnvelope::new(
+            EventKind::AccountChanged,
+            serde_json::json!({ "entity": "auth_flow", "account_id": account_id }),
+        ),
     ))
 }
 
@@ -156,14 +206,25 @@ pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Aut
 ///
 /// An update rather than an upsert, because the caller knows only these two things and an
 /// upsert would make it restate the whole row -- including the state and the bookkeeping it
-/// has no business touching -- just to change them.
+/// has no business touching -- just to change them. Answers the key reference a new token
+/// dropped; the caller drops the old token and refresh material itself.
 pub(crate) async fn set_renewal(
     connection: &mut SqliteConnection,
     account_id: AccountId,
     token_expires_at: Option<DateTime<Utc>>,
     refresh_ref: Option<&str>,
     access_ref: Option<&str>,
-) -> Result<EventEnvelope> {
+) -> Result<(Option<String>, EventEnvelope)> {
+    let dropped_key = match access_ref {
+        Some(_) => sqlx::query_scalar::<_, Option<String>>(
+            "SELECT key_ref FROM auth_flows WHERE account_id = ?",
+        )
+        .bind(account_id.to_string())
+        .fetch_optional(&mut *connection)
+        .await?
+        .flatten(),
+        None => None,
+    };
     // A new token drops the key that belonged to the old one (RD-120-30): the two are halves
     // of one session, and a renewal never produces key material of its own.
     sqlx::query(
@@ -178,9 +239,12 @@ pub(crate) async fn set_renewal(
     .bind(account_id.to_string())
     .execute(&mut *connection)
     .await?;
-    Ok(EventEnvelope::new(
-        EventKind::AccountChanged,
-        serde_json::json!({ "entity": "auth_flow", "account_id": account_id }),
+    Ok((
+        dropped_key,
+        EventEnvelope::new(
+            EventKind::AccountChanged,
+            serde_json::json!({ "entity": "auth_flow", "account_id": account_id }),
+        ),
     ))
 }
 

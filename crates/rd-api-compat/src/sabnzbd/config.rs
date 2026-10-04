@@ -63,8 +63,13 @@ pub(crate) async fn status(state: &AppState) -> Response {
 /// Category names with SABnzbd's implicit `*` default in front.
 async fn category_names(state: &AppState) -> Vec<String> {
     let mut names = vec!["*".to_owned()];
-    if let Ok(categories) = state.database.list_categories().await {
-        names.extend(categories.into_iter().map(|category| category.name));
+    match state.database.list_categories().await {
+        Ok(categories) => names.extend(categories.into_iter().map(|category| category.name)),
+        // Answered with the default alone, as before, but no longer silently (API-13).
+        Err(error) => tracing::warn!(
+            error = %format!("{error:#}"),
+            "the SABnzbd adapter could not read the categories"
+        ),
     }
     names
 }

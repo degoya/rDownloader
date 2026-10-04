@@ -18,7 +18,3 @@ docs/
 AGENTS.md
 CLAUDE.md
 .claude/
-
-# A test that only makes sense next to the planning files. scripts/measure-mega-login-fuel.sh
-# stays public: plugins/mega-login-probe cites it.
-crates/rdownloader/tests/job_status_words.rs

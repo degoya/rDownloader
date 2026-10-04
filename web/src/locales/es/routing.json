@@ -148,7 +148,10 @@
     "malware_scan_description": "Analizar con ClamAV los paquetes de esta categoría (heredar = ajuste global).",
     "malware_scan_inherit": "Heredar",
     "malware_scan_on": "Activado",
-    "malware_scan_off": "Desactivado"
+    "malware_scan_off": "Desactivado",
+    "color_pick": "Elegir color, actual {color}",
+    "color_hex": "Color como valor hexadecimal",
+    "color_format": "Valor hexadecimal de seis dígitos como #38BDF8"
   },
   "rule": {
     "eyebrow": "Clasificador",
@@ -231,8 +234,7 @@
     "created": "Regla creada",
     "duplicated": "Copia de la regla creada",
     "updated": "Regla actualizada",
-    "form_new": "Nueva regla",
-    "duplicate": "Duplicar regla"
+    "form_new": "Nueva regla"
   },
   "hotfolder": {
     "eyebrow": "Entrada conciliada",

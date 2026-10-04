@@ -27,6 +27,7 @@ async fn service(directory: &std::path::Path) -> ResolverService {
         secrets,
         Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
         None,
+        crate::OwnEndpoints::default(),
     )
 }
 

@@ -12,7 +12,7 @@
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
 };
 use rmcp::{
@@ -25,7 +25,8 @@ use super::{
     RdMcpServer,
     error::{McpToolResult, api_error, json_result, parse_id, respond},
     params_config::IdParams,
-    params_remaining::PluginMessagesParams,
+    params_insight::RemoteJobProvidersParams,
+    params_remaining::{PluginMessagesParams, PluginUpdateSettingsParams},
 };
 use crate::ApiError;
 
@@ -111,13 +112,44 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List plugin updates and what the enabled plugin repositories offer: per update the installed and the offered version, its publisher key, the permissions it asks for, its release notes and whether it is set to install automatically. Installing stays in the interface, where the person sees the preview and confirms it."
+        description = "List plugin updates and what the enabled plugin repositories offer: per update the installed and the offered version, its publisher key, the permissions it asks for, its release notes and whether it is set to install automatically (its own policy, or the switch for all plugins, get_plugin_update_settings). Installing stays in the interface, where the person sees the preview and confirms it."
     )]
     pub async fn list_plugin_updates(&self) -> McpToolResult {
         respond(
             crate::plugin_repository_handlers::list_plugin_updates(State(self.state.clone()))
                 .await
                 .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Read whether every installed plugin installs its updates automatically (automatic_updates). When it is off, each plugin's own update policy applies."
+    )]
+    pub async fn get_plugin_update_settings(&self) -> McpToolResult {
+        respond(
+            crate::plugin_update_policy::get_plugin_update_settings(State(self.state.clone()))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Switch automatic updates for every installed plugin on or off. On: the repository check installs each plugin's newer version by itself, for plugins installed later too. Off: each plugin's own policy applies again; the per-plugin policies are never changed by this switch. Either way an update that asks for a new permission waits for the person's click, a plugin rolled back or under test keeps the version it runs, and an installed update becomes active only after a restart."
+    )]
+    pub async fn set_plugin_update_settings(
+        &self,
+        Parameters(params): Parameters<PluginUpdateSettingsParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::plugin_update_policy::set_plugin_update_settings(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(crate::plugin_update_policy::PluginUpdateSettingsRequest {
+                    automatic_updates: params.automatic_updates,
+                }),
+            )
+            .await
+            .map(|Json(answer)| answer),
         )
     }
 
@@ -136,13 +168,21 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the provider services an installed plugin can run a remote job for. An account whose provider is not listed is refused by submit_remote_job with remote_job.no_plugin."
+        description = "List the provider services an installed plugin can run a remote job for. An account whose provider is not listed is refused by submit_remote_job with remote_job.no_plugin. With `container` (torrent, nzb, dlc, rsdf) only the providers whose plugin takes that file format are listed; `nzb` names the accounts submit_nzb_import_remote_job can hand an NZB import to."
     )]
-    pub async fn list_remote_job_providers(&self) -> McpToolResult {
+    pub async fn list_remote_job_providers(
+        &self,
+        Parameters(params): Parameters<RemoteJobProvidersParams>,
+    ) -> McpToolResult {
         respond(
-            crate::remote_job_handlers::list_remote_job_providers(State(self.state.clone()))
-                .await
-                .map(|Json(answer)| answer),
+            crate::remote_job_handlers::list_remote_job_providers(
+                State(self.state.clone()),
+                Query(crate::remote_job_handlers::RemoteJobProvidersQuery {
+                    container: params.container,
+                }),
+            )
+            .await
+            .map(|Json(answer)| answer),
         )
     }
 

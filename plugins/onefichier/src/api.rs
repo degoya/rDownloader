@@ -193,21 +193,26 @@ pub(crate) fn error_from_status(status: Option<&str>, message: Option<&str>) -> 
     ))
 }
 
-/// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(coded(ErrorKind::AccountInvalid, messages::BAD_API_KEY)),
-        404 => Err(coded(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        429 => Err(coded(ErrorKind::RateLimited(Some(300)), messages::FLOOD)),
-        500..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+/// Maps an HTTP status the JSON envelope doesn't otherwise explain, with the mapping every
+/// plugin shares (`plugin_common::http_status`, RD-191-07): a 404 and a 410 are the file deleted
+/// and final (`Permanent`, owner 2026-10-04), a 451 is `Offline` and retried, and a 429 waits what its `Retry-After` says, five minutes without one.
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    use plugin_common::HttpRefusal;
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_API_KEY),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => {
+            coded(ErrorKind::RateLimited(wait.or(Some(300))), messages::FLOOD)
+        }
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]
@@ -321,5 +326,29 @@ mod tests {
         assert!(matches!(other.kind, ErrorKind::Permanent));
         assert_eq!(other.code, messages::API_ERROR);
         assert!(other.message.contains("Owner locked #649"));
+    }
+
+    /// The shared mapping (RD-191-07): 404 and 410 are final, 451 offline and retried, all
+    /// under `FILE_OFFLINE`; a 429 waits what its `Retry-After` says, or five minutes.
+    #[test]
+    fn ensure_http_status_follows_the_shared_mapping() {
+        assert!(ensure_http_status(200, None).is_ok());
+        for gone in [404, 410] {
+            let failure = ensure_http_status(gone, None).expect_err("gone");
+            assert!(matches!(failure.kind, ErrorKind::Permanent), "{gone}");
+            assert_eq!(failure.code, messages::FILE_OFFLINE.0);
+        }
+        let blocked = ensure_http_status(451, None).expect_err("blocked");
+        assert!(matches!(blocked.kind, ErrorKind::Offline));
+        assert_eq!(blocked.code, messages::FILE_OFFLINE.0);
+        let refused = ensure_http_status(403, None).expect_err("refused");
+        assert!(matches!(refused.kind, ErrorKind::AccountInvalid));
+        let limited = ensure_http_status(429, Some(42)).expect_err("limited");
+        assert!(matches!(limited.kind, ErrorKind::RateLimited(Some(42))));
+        let flood = ensure_http_status(429, None).expect_err("limited");
+        assert!(matches!(flood.kind, ErrorKind::RateLimited(Some(300))));
+        let other = ensure_http_status(418, None).expect_err("other");
+        assert!(matches!(other.kind, ErrorKind::Permanent));
+        assert_eq!(other.code, messages::HTTP_ERROR);
     }
 }

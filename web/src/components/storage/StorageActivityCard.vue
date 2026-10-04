@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
@@ -45,6 +46,12 @@ const REUSE_FIELDS: (keyof ReuseCapability)[] = [
   'verify_completed',
   'applies_collision_policy'
 ]
+
+/** One column per transfer kind's reuse ability, a tick or a dash in each. */
+const reuseColumns = computed<TableColumn<RunnerReuse>[]>(() => [
+  { id: 'kind', header: t('settings.storage.activity.kind') },
+  ...REUSE_FIELDS.map(field => ({ id: field, header: t(`settings.storage.activity.reuse.${field}`) }))
+])
 
 async function loadCounts(): Promise<void> {
   const response = await api.GET('/api/v1/system/data-reset')
@@ -121,22 +128,12 @@ onMounted(() => void load())
       <p class="text-sm font-medium text-highlighted">{{ t('settings.storage.activity.reuse_title') }}</p>
       <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.storage.activity.reuse_description') }}</p>
       <div class="mt-2 overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="text-left text-muted">
-              <th class="py-1 pr-3 font-normal">{{ t('settings.storage.activity.kind') }}</th>
-              <th v-for="field in REUSE_FIELDS" :key="field" class="py-1 pr-3 font-normal">{{ t(`settings.storage.activity.reuse.${field}`) }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="entry in reuse" :key="entry.kind" class="border-t border-muted">
-              <td class="py-1 pr-3 font-medium">{{ t(`settings.storage.activity.runner.${entry.kind}`) }}</td>
-              <td v-for="field in REUSE_FIELDS" :key="field" class="py-1 pr-3">
-                <UIcon :name="entry.capability[field] ? 'i-lucide-check' : 'i-lucide-minus'" :class="entry.capability[field] ? 'text-success' : 'text-muted'" :aria-label="entry.capability[field] ? t('settings.storage.activity.yes') : t('settings.storage.activity.no')" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UTable :data="reuse" :columns="reuseColumns" :ui="{ th: 'px-0 py-1 pr-3 text-xs font-normal text-muted', td: 'px-0 py-1 pr-3 text-xs' }">
+          <template #kind-cell="{ row }"><span class="font-medium">{{ t(`settings.storage.activity.runner.${row.original.kind}`) }}</span></template>
+          <template v-for="field in REUSE_FIELDS" :key="field" #[`${field}-cell`]="{ row }">
+            <UIcon :name="row.original.capability[field] ? 'i-lucide-check' : 'i-lucide-minus'" :class="row.original.capability[field] ? 'text-success' : 'text-muted'" :aria-label="row.original.capability[field] ? t('settings.storage.activity.yes') : t('settings.storage.activity.no')" />
+          </template>
+        </UTable>
       </div>
     </div>
 

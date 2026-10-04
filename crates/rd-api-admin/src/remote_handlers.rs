@@ -10,6 +10,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{
     MAX_REMOTE_HOST, MAX_REMOTE_KEY, MAX_REMOTE_SECRET, RemoteAuthMode, RemoteCredential,
     RemoteCredentialId, RemoteProtocol, SshHostKey,
@@ -269,19 +270,18 @@ pub async fn trust_ssh_host_key(
             "The fingerprint must be the SHA256: form reported by the failed connection",
         ));
     }
-    let algorithm = request.algorithm.trim();
-    if algorithm.is_empty() || algorithm.len() > 64 {
-        return Err(ApiError::bad_request(
-            "remote.algorithm_invalid",
-            "The host key algorithm is not valid",
-        ));
-    }
+    let algorithm = required_text(
+        &request.algorithm,
+        TextLimit::Bytes(64),
+        "remote.algorithm_invalid",
+        "The host key algorithm is not valid",
+    )?;
     state
         .database
         .trust_ssh_host_key(SshHostKey {
             host,
             port: request.port,
-            algorithm: algorithm.to_owned(),
+            algorithm,
             fingerprint: fingerprint.to_owned(),
             first_seen: chrono::Utc::now(),
         })

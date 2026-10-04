@@ -27,6 +27,7 @@
 //!   polling shares that budget with the resolver unrestricting this very job's links, which
 //!   is why the suggested waits below are generous rather than eager.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 use crate::messages;
@@ -260,23 +261,12 @@ pub fn selection_body(chosen: &[u32]) -> Vec<u8> {
 
 /// `application/x-www-form-urlencoded` body for `POST /torrents/addMagnet`.
 ///
-/// Percent-encodes by hand rather than pulling a URL crate in for one field: a magnet is full
-/// of `&`, `=` and `:`, and a body that did not encode them would submit a truncated address.
+/// Percent-encoded with the encoder every plugin shares rather than a URL crate: a magnet is
+/// full of `&`, `=` and `:`, and a body that did not encode them would submit a truncated
+/// address.
 #[must_use]
 pub fn magnet_body(magnet: &str) -> Vec<u8> {
-    let mut body = String::from("magnet=");
-    for byte in magnet.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                body.push(char::from(*byte));
-            }
-            _ => {
-                use std::fmt::Write;
-                let _ = write!(body, "%{byte:02X}");
-            }
-        }
-    }
-    body.into_bytes()
+    format!("magnet={}", plugin_common::percent_encode(magnet)).into_bytes()
 }
 
 /// How a refusal is classified, without depending on either failure representation.
@@ -383,36 +373,31 @@ pub fn failure_from(
     None
 }
 
-/// Maps an HTTP status no `error_code` explains.
+/// Maps an HTTP status no `error_code` explains: the mapping every plugin shares (RD-191-07),
+/// in this plugin's words and with its default wait for a rate limit. A `404`/`410` is the
+/// torrent gone for good; a `451` is `Offline` and retried, still worded `CONTENT_REFUSED`
+/// (RA-PLG-04).
 ///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 => Err(plain(ErrorKind::Offline, messages::TORRENT_GONE)),
-        429 => Err(plain(
-            ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::TORRENT_GONE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::CONTENT_REFUSED),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
             messages::RATE_LIMITED,
-        )),
-        451 => Err(plain(ErrorKind::Permanent, messages::CONTENT_REFUSED)),
-        500..=599 => Err(plain(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+        ),
+        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR.0,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
-}
-
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
+        },
+    })
 }
 
 #[cfg(test)]

@@ -2,61 +2,40 @@
  * The application update check (RD-180-01): its status and "check now", and the self-update of a
  * portable archive or the Windows installer (RD-180-02).
  *
- * Plain `fetch` through the shared `call` helper, like the plugin repository routes beside it,
- * so the card and the sidebar notice share one typed answer and a refusal keeps its code.
+ * Through the shared coded `call`, like the plugin repository routes beside it, so the card and
+ * the sidebar notice share one typed answer and a refusal keeps its code. The shapes are the
+ * generated schema's, with the closed sets the schema writes as `string` put back (WEB-04).
  */
-import { call } from '@/api/pluginRepositories'
+import { call } from './call'
+import type { Refine } from './pluginRepositories'
+import type { components } from './schema'
 
-/** A newer version and how to get it. */
-export interface UpdateOffer {
-  version: string
+type Schemas = components['schemas']
+
+/**
+ * A newer version and how to get it. `notes` is plain text, rendered as text, never as markup;
+ * `action` is `install` (this installation installs it itself and restarts), `download` (the
+ * artifact is replaced by hand) or `command` (a package manager does it); `hint` is a stable code
+ * (`update.hint.docker_recreate`) the interface translates; `rollback_available` says for
+ * `install` whether a new version that does not start properly is taken back by itself.
+ */
+export type UpdateOffer = Refine<Schemas['UpdateOffer'], {
   channel: 'stable' | 'beta'
-  released_at: string
-  /** Plain text; rendered as text, never as markup. */
-  notes: string
-  release_url: string
-  /**
-   * `install`: this installation installs it itself and restarts; `download`: the artifact is
-   * replaced by hand; `command`: a package manager does it.
-   */
   action: 'install' | 'download' | 'command'
-  command: string | null
-  /** A stable code (`update.hint.docker_recreate`) the interface translates. */
-  hint: string | null
-  download_url: string | null
-  download_size: number | null
-  download_sha256: string | null
-  /** For `install`: whether a new version that does not start properly is taken back by itself. */
-  rollback_available: boolean | null
-}
+}>
 
-export type UpdateInstallState =
+type UpdateInstallState =
   | 'downloading' | 'preparing' | 'restarting' | 'installing' | 'verifying' | 'rolling_back'
   | 'done' | 'rolled_back' | 'failed'
 
-/** Where the self-update stands, or how the last one ended. */
-export interface UpdateInstall {
-  state: UpdateInstallState
-  from_version: string
-  target_version: string
-  /** Stable code of why it failed or was rolled back. */
-  reason: string | null
-  started_at: string
-  updated_at: string
-}
+/** Where the self-update stands, or how the last one ended; `reason` is a stable code. */
+export type UpdateInstall = Refine<Schemas['UpdateInstallStatus'], { state: UpdateInstallState }>
 
 /**
  * The offered version downloaded and verified in the background; "Install and restart" then uses
- * that file (owner, 2026-10-01).
+ * that file (owner, 2026-10-01). `reason` is the stable code of why it failed.
  */
-export interface UpdateDownload {
-  version: string
-  state: 'downloading' | 'ready' | 'failed'
-  received_bytes: number
-  total_bytes: number
-  /** Stable code of why it failed. */
-  reason: string | null
-}
+export type UpdateDownload = Refine<Schemas['UpdateDownloadStatus'], { state: 'downloading' | 'ready' | 'failed' }>
 
 /** The states an install ends in. */
 export const INSTALL_ENDED: readonly UpdateInstallState[] = ['done', 'rolled_back', 'failed']
@@ -68,31 +47,21 @@ export type InstallKind =
  * A capture agent connected right now (RD-190-07): the version it reported, `null` for an agent
  * from before 1.9, which reports none, and whether it is older than the service.
  */
-export interface CaptureAgentVersion {
-  version: string | null
-  outdated: boolean
-}
+export type CaptureAgentVersion = Schemas['CaptureAgentVersion']
 
-export interface UpdateStatus {
-  current_version: string
-  configured: boolean
-  check_enabled: boolean
+/**
+ * `error_code`: the stable code of what the last check refused or could not reach; `download`:
+ * the background download of the offered version, if one was asked for; `capture_agents`: the
+ * capture agents connected right now, empty when none runs.
+ */
+export type UpdateStatus = Refine<Schemas['UpdateStatusResponse'], {
   channel: 'stable' | 'beta'
   effective_channel: 'stable' | 'beta'
-  interval_hours: number
   install_kind: InstallKind
-  checking: boolean
-  last_checked_at: string | null
-  next_check_at: string | null
-  /** Stable code of what the last check refused or could not reach. */
-  error_code: string | null
-  available: UpdateOffer | null
-  install: UpdateInstall | null
-  /** The background download of the offered version, if one was asked for. */
-  download: UpdateDownload | null
-  /** The capture agents connected right now; empty when none runs. */
-  capture_agents: CaptureAgentVersion[]
-}
+  available?: UpdateOffer | null
+  install?: UpdateInstall | null
+  download?: UpdateDownload | null
+}>
 
 export const fetchUpdateStatus = () => call<UpdateStatus>('GET', '/api/v1/system/update')
 

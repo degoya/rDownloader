@@ -8,6 +8,7 @@ use utoipa::OpenApi;
 
 use crate::{
     AppState, plugin_bundled, plugin_handlers, plugin_lifecycle, plugin_repository_handlers,
+    plugin_update_policy,
 };
 
 /// Session-authenticated routes of this area.
@@ -100,6 +101,11 @@ pub(crate) fn routes() -> Router<AppState> {
             get(plugin_repository_handlers::list_plugin_updates),
         )
         .route(
+            "/api/v1/plugins/updates/settings",
+            get(plugin_update_policy::get_plugin_update_settings)
+                .put(plugin_update_policy::set_plugin_update_settings),
+        )
+        .route(
             "/api/v1/plugins/repositories",
             get(plugin_repository_handlers::list_plugin_repositories)
                 .post(plugin_repository_handlers::add_plugin_repository),
@@ -157,6 +163,8 @@ pub(crate) fn routes() -> Router<AppState> {
     plugin_repository_handlers::refresh_plugin_repositories,
     plugin_repository_handlers::set_plugin_repository_settings,
     plugin_repository_handlers::list_plugin_updates,
+    plugin_update_policy::get_plugin_update_settings,
+    plugin_update_policy::set_plugin_update_settings,
     plugin_repository_handlers::preview_plugin_package,
     plugin_repository_handlers::preview_repository_package,
     plugin_repository_handlers::install_repository_package,

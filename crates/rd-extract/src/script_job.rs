@@ -16,7 +16,7 @@ use tokio::io::AsyncReadExt;
 
 use crate::{
     Inner,
-    steps::{checkpoint, truncate},
+    steps::{Outcome, checkpoint, checkpoint_coded, codes},
 };
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -376,19 +376,31 @@ pub(crate) async fn run(
         Ok(path) => execute(&path, scripts_dir, context, timeout).await,
         Err(error) => Err(error),
     };
-    let (state, ok, message) = match outcome {
-        Ok((true, output)) => (PostprocessState::Completed, true, output),
-        Ok((false, output)) => (PostprocessState::Failed, false, output),
-        Err(error) => (PostprocessState::Failed, false, error.to_string()),
+    let (state, ok, outcome) = match outcome {
+        Ok((true, output)) => (
+            PostprocessState::Completed,
+            true,
+            Outcome::detailed(codes::SCRIPT_SUCCEEDED, output),
+        ),
+        Ok((false, output)) => (
+            PostprocessState::Failed,
+            false,
+            Outcome::detailed(codes::SCRIPT_FAILED, output),
+        ),
+        Err(error) => (
+            PostprocessState::Failed,
+            false,
+            Outcome::detailed(codes::SCRIPT_FAILED, error.to_string()),
+        ),
     };
-    checkpoint(
+    checkpoint_coded(
         inner,
         owner,
         PostprocessKind::Script,
         name,
         state,
         None,
-        Some(truncate(message)),
+        outcome,
     )
     .await?;
     Ok(ok)

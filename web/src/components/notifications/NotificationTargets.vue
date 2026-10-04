@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
@@ -10,7 +10,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { pluginCodeText } from '@/i18n/plugins'
 import { withPluginVersion } from '@/utils/pluginVersion'
@@ -65,10 +65,6 @@ const { editingId, pending, error } = list
 /** Installed notification-destination plugins; empty unless at least one is installed. */
 const destinations = ref<NotificationDestination[]>([])
 
-/** The live subscription and the timer that coalesces a burst of plugin events into one read. */
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 async function loadDestinations(): Promise<void> {
   const response = await api.GET('/api/v1/notifications/destinations')
   if (response.data) destinations.value = response.data
@@ -76,16 +72,6 @@ async function loadDestinations(): Promise<void> {
 
 onMounted(() => {
   void loadDestinations()
-  releaseEvents = subscribeEvents({ 'plugin_catalog.changed': scheduleReload })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
 })
 
 /**
@@ -109,13 +95,7 @@ onUnmounted(() => {
  * installing a package emits more than one event. No notice is raised — `design.md` has no
  * pattern for announcing that data caught up.
  */
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void loadDestinations()
-  }, 300)
-}
+useDebouncedEventRefresh(['plugin_catalog.changed'], loadDestinations)
 
 /**
  * The `plugin` kind is offered only when something can serve it. A kind that always fails

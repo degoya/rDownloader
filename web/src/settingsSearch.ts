@@ -87,6 +87,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('general.speed_limit', 'general', 'settings.speed_limit.label', { descriptionKey: 'settings.speed_limit.description', keywordsKey: `${K}.speed_limit` }),
   field('general.connections_per_host', 'general', 'settings.connections_per_host.label', { descriptionKey: 'settings.connections_per_host.description' }),
   field('general.retries', 'general', 'settings.retries.label', { descriptionKey: 'settings.retries.description' }),
+  field('general.auto_retry', 'general', 'settings.auto_retry.label', { descriptionKey: 'settings.auto_retry.description' }),
   field('general.ui_port', 'general', 'settings.ui_port.label', { descriptionKey: 'settings.ui_port.description' }),
   field('general.mirrors', 'general', 'settings.mirrors.label', { descriptionKey: 'settings.mirrors.description' }),
   field('general.auto_remove', 'general', 'settings.auto_remove.label', { descriptionKey: 'settings.auto_remove.description' }),
@@ -112,6 +113,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('routing.excluded_domains', 'routing', 'settings.collector.excluded_domains.label', { tab: 'collector', descriptionKey: 'settings.collector.excluded_domains.description' }),
   card('routing.dlc', 'routing', 'settings.collector.dlc.title', { tab: 'collector', descriptionKey: 'settings.collector.dlc.description', terms: ['DLC'] }),
   card('routing.indexer_images', 'routing', 'settings.collector.indexer_images.title', { tab: 'collector', descriptionKey: 'settings.collector.indexer_images.description' }),
+  card('routing.nzb_hand_over', 'routing', 'settings.collector.nzb_hand_over.title', { tab: 'collector', descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize'] }),
   // Hotfolders
   card('hotfolders.list', 'hotfolders', 'routing.hotfolder.title', { descriptionKey: 'routing.hotfolder.description', keywordsKey: `${K}.hotfolders` }),
   field('hotfolders.poll', 'hotfolders', 'routing.hotfolder.poll_label', { descriptionKey: 'routing.hotfolder.poll_description' }),

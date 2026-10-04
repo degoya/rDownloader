@@ -10,7 +10,7 @@
 //! as those characters. So a marker is left alone and the host percent-encodes what it fills in;
 //! every value this plugin holds itself is encoded here.
 
-use crate::json::percent_encode as encode;
+use plugin_common::percent_encode as encode;
 
 /// One field of the body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -45,7 +45,8 @@ pub const RATE_LIMITED: (&str, &str) = ("torbox.rate_limited", "TorBox API rate 
 /// A 5xx, `DATABASE_ERROR`, `DOWNLOAD_SERVER_ERROR`, `NO_SERVERS_AVAILABLE_ERROR`.
 pub const SERVER_BUSY: (&str, &str) = ("torbox.server_busy", "TorBox is temporarily unavailable");
 
-/// HTTP 451, `INVALID_OPTION` and its neighbours.
+/// HTTP 451 (`Offline`, retried: a legal block may be lifted), `INVALID_OPTION` and its
+/// neighbours (`Permanent`).
 pub const REQUEST_REFUSED: (&str, &str) = ("torbox.request_refused", "TorBox refused this request");
 
 /// The API answered with something that is not the expected JSON.

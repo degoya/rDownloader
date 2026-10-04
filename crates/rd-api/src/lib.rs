@@ -33,10 +33,11 @@ pub use rd_api_admin::{
     plugin_update_policy::VersionChoicePolicy,
 };
 pub use rd_api_core::{
-    ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService,
-    RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused, RemoteJobService,
-    RemoteJobSubmitOutcome, RemoteServices, audit, local_control, oidc_client, password_reset,
-    policy_rows, required_scope, service_switches,
+    ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService, RUNTIME_FIELDS,
+    RefusedSetting, RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused,
+    RemoteJobService, RemoteJobSubmitOutcome, RemoteServices, audit, diagnosed_settings,
+    dto::SettingsResponse, local_control, oidc_client, password_reset, policy_rows, required_scope,
+    runtime_settings, service_switches, startup_settings,
 };
 pub use rd_api_intake::{site_rules_service, site_rules_service::catalogue as site_rule_catalogue};
 
@@ -52,9 +53,10 @@ use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
     data_reset_handlers, diagnostics_dto, diagnostics_handlers, lifecycle_handlers,
     notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
-    plugin_repository_handlers, providers_handlers, remote_handlers, restore_handlers,
-    restore_uploads, routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
-    settings_handlers, stats_handlers, stats_retention_service, tools_handlers, update_handlers,
+    plugin_repository_handlers, plugin_update_policy, providers_handlers, remote_handlers,
+    restore_handlers, restore_uploads, routing_backup, settings_backup, settings_backup_crypto,
+    settings_backup_dto, settings_handlers, stats_handlers, stats_retention_service,
+    tools_handlers, update_handlers,
 };
 use rd_api_compat as compat;
 use rd_api_core::{
@@ -71,13 +73,12 @@ use rd_api_mcp as mcp;
 use rd_api_queue::{
     auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_summary,
     collision_handlers, download_handlers, download_sources, duplicates, media_dto, media_handlers,
-    metrics, package_clear, package_handlers, power_handlers, queue_pause_handlers,
-    reconnect_handlers, remote_job_handlers, replay_dto, replay_handlers, storage_handlers,
-    torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
+    metrics, nzb_remote_job_handlers, package_clear, package_handlers, power_handlers,
+    queue_pause_handlers, reconnect_handlers, remote_job_handlers, replay_dto, replay_handlers,
+    storage_handlers, torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
 };
 
-/// The body limit of the routes reachable without a credential: sign-in, setup, passkeys.
-pub const PUBLIC_BODY_LIMIT_BYTES: usize = 64 * 1024;
+pub use rd_api_core::container_upload::PUBLIC_BODY_LIMIT_BYTES;
 
 /// OpenAPI document generated from the Rust handler contracts.
 /// Builds the complete same-origin API and SPA router.

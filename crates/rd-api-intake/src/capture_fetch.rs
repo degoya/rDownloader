@@ -28,6 +28,7 @@
 use std::{fmt, time::Duration};
 
 use axum::http::{HeaderValue, header};
+use rd_api_core::input_checks::{BodyError, read_bounded_body};
 use url::Url;
 
 use crate::ApiError;
@@ -299,28 +300,13 @@ pub(crate) async fn fetch_once(
     Err(fetch_failed().with_param("reason", "too_many_redirects"))
 }
 
-async fn bounded_body(
-    mut response: reqwest::Response,
-    max_bytes: usize,
-) -> Result<Vec<u8>, ApiError> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > max_bytes as u64)
-    {
-        return Err(file_too_large(max_bytes));
-    }
-    let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
+async fn bounded_body(response: reqwest::Response, max_bytes: usize) -> Result<Vec<u8>, ApiError> {
+    read_bounded_body(response, max_bytes)
         .await
-        .map_err(|_| fetch_failed().with_param("reason", "interrupted"))?
-    {
-        body.extend_from_slice(&chunk);
-        if body.len() > max_bytes {
-            return Err(file_too_large(max_bytes));
-        }
-    }
-    Ok(body)
+        .map_err(|error| match error {
+            BodyError::TooLarge => file_too_large(max_bytes),
+            BodyError::Interrupted(_) => fetch_failed().with_param("reason", "interrupted"),
+        })
 }
 
 fn http_url(text: &str) -> Option<Url> {

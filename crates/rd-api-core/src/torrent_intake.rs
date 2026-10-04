@@ -7,6 +7,8 @@ use url::Url;
 use crate::{ApiError, AppState};
 
 /// Enqueues one torrent as a single-row package (shared by import and magnet links).
+///
+/// `start_paused` writes the row paused instead of queued (API-09).
 pub async fn enqueue_torrent(
     state: &AppState,
     source: Url,
@@ -14,17 +16,31 @@ pub async fn enqueue_torrent(
     size: Option<u64>,
     category_id: Option<rd_core::CategoryId>,
     priority: rd_core::DownloadPriority,
+    start_paused: bool,
 ) -> Result<rd_core::DownloadPackage, ApiError> {
-    enqueue_torrent_with(
+    enqueue_torrent_package(
         &state.database,
         &state.scheduler,
-        source,
-        name,
-        size,
-        category_id,
-        priority,
+        TorrentEntry {
+            source,
+            name,
+            size,
+            category_id,
+            priority,
+            start_paused,
+        },
     )
     .await
+}
+
+/// What one torrent enqueue needs besides the service components.
+struct TorrentEntry {
+    source: Url,
+    name: String,
+    size: Option<u64>,
+    category_id: Option<rd_core::CategoryId>,
+    priority: rd_core::DownloadPriority,
+    start_paused: bool,
 }
 
 /// Enqueues a torrent using explicit service components. Hotfolders use this in direct-enqueue
@@ -38,10 +54,36 @@ pub async fn enqueue_torrent_with(
     category_id: Option<rd_core::CategoryId>,
     priority: rd_core::DownloadPriority,
 ) -> Result<rd_core::DownloadPackage, ApiError> {
-    let destination = crate::destination::resolve_destination(database, category_id)
-        .await?
-        .unwrap_or_else(|| scheduler.downloads_directory().to_path_buf());
-    crate::storage_capacity::ensure_intake_allowed(&scheduler.capacity(), &destination).await?;
+    enqueue_torrent_package(
+        database,
+        scheduler,
+        TorrentEntry {
+            source,
+            name,
+            size,
+            category_id,
+            priority,
+            start_paused: false,
+        },
+    )
+    .await
+}
+
+async fn enqueue_torrent_package(
+    database: &rd_db::Database,
+    scheduler: &rd_scheduler::SchedulerHandle,
+    entry: TorrentEntry,
+) -> Result<rd_core::DownloadPackage, ApiError> {
+    let TorrentEntry {
+        source,
+        name,
+        size,
+        category_id,
+        priority,
+        start_paused,
+    } = entry;
+    let destination =
+        crate::destination::intake_destination(database, scheduler, category_id).await?;
     let clean = rd_files::sanitize_file_name(&name);
     let (package, _) = scheduler
         .enqueue_package(
@@ -51,7 +93,7 @@ pub async fn enqueue_torrent_with(
                 category_id,
                 priority,
                 password: None,
-                start_paused: false,
+                start_paused,
                 postprocess_level: None,
                 script: None,
                 // Nothing looked at this: it is started from what the person chose.

@@ -328,8 +328,7 @@ impl AuthFlowService {
                 user_code: None,
                 expires_at: request
                     .expires_in_seconds
-                    .and_then(|seconds| i64::try_from(seconds).ok())
-                    .map(|seconds| now + chrono::Duration::seconds(seconds)),
+                    .map(|seconds| seconds_after(now, seconds)),
                 next_poll_at: None,
                 message: None,
                 token_expires_at: None,
@@ -386,8 +385,7 @@ impl AuthFlowService {
                 user_code: authorization.user_code,
                 expires_at: authorization
                     .expires_in_seconds
-                    .and_then(|seconds| i64::try_from(seconds).ok())
-                    .map(|seconds| now + chrono::Duration::seconds(seconds)),
+                    .map(|seconds| seconds_after(now, seconds)),
                 next_poll_at: Some(now + chrono::Duration::seconds(first_wait)),
                 message: None,
                 token_expires_at: None,
@@ -423,8 +421,8 @@ impl AuthFlowService {
             anyhow::bail!("no sign-in is waiting for this callback");
         };
         if !crate::auth_flow_guard::callback_usable(&flow, Utc::now()) {
-            if flow.state == AuthFlowState::WaitingForUser {
-                let _ = self
+            if flow.state == AuthFlowState::WaitingForUser
+                && let Err(error) = self
                     .store(
                         flow.account_id,
                         &flow.plugin_id,
@@ -432,7 +430,12 @@ impl AuthFlowService {
                             message: "the sign-in window expired".to_owned(),
                         },
                     )
-                    .await;
+                    .await
+            {
+                tracing::warn!(
+                    error = %format!("{error:#}"),
+                    "an expired sign-in could not be marked as failed"
+                );
             }
             anyhow::bail!("this sign-in is no longer waiting for a callback");
         }
@@ -458,13 +461,19 @@ impl AuthFlowService {
             // it would only look stuck until its window ran out.
             Err(error) => {
                 let message = callback_failure(&error);
-                let _ = self
+                if let Err(store_error) = self
                     .store(
                         flow.account_id,
                         &flow.plugin_id,
                         AuthProgress::Failed { message },
                     )
-                    .await;
+                    .await
+                {
+                    tracing::warn!(
+                        error = %format!("{store_error:#}"),
+                        "a failed sign-in callback could not be recorded"
+                    );
+                }
                 return Err(error.into());
             }
         };
@@ -518,7 +527,9 @@ impl AuthFlowService {
                 // `store-oauth-token` call -- so blanking the row here would throw away the
                 // expiry and the refresh reference microseconds after recording them, and the
                 // token would never be renewed. A device flow has nothing there to carry.
-                let kept = self.flow(account_id).await.ok().flatten();
+                // A read that failed is an error, not "nothing to carry" (RA-DB-05): written as
+                // `None`, the upsert would drop the references and the tokens behind them.
+                let kept = self.flow(account_id).await?;
                 rd_db::UpsertAuthFlow {
                     account_id,
                     plugin_id: plugin_id.to_owned(),
@@ -554,9 +565,7 @@ impl AuthFlowService {
                 state: AuthFlowState::WaitingForUser,
                 verification_url: Some(verification_url),
                 user_code,
-                expires_at: expires_in_seconds
-                    .and_then(|seconds| i64::try_from(seconds).ok())
-                    .map(|seconds| now + chrono::Duration::seconds(seconds)),
+                expires_at: expires_in_seconds.map(|seconds| seconds_after(now, seconds)),
                 // Asked again on the next sweep: the person may confirm at once, and waiting
                 // out a full interval before the first check makes a fast sign-in feel slow.
                 next_poll_at: Some(now),
@@ -575,7 +584,7 @@ impl AuthFlowService {
                 // and the plugin's own bookkeeping survive a poll that says "not yet". A
                 // plugin does not repeat them, and re-showing a fresh code every few seconds
                 // would make a sign-in impossible to complete.
-                let kept = self.flow(account_id).await.ok().flatten();
+                let kept = self.flow(account_id).await?;
                 rd_db::UpsertAuthFlow {
                     account_id,
                     plugin_id: plugin_id.to_owned(),
@@ -583,13 +592,10 @@ impl AuthFlowService {
                     verification_url: kept.as_ref().and_then(|flow| flow.verification_url.clone()),
                     user_code: kept.as_ref().and_then(|flow| flow.user_code.clone()),
                     expires_at: kept.as_ref().and_then(|flow| flow.expires_at),
-                    next_poll_at: Some(
-                        now + chrono::Duration::seconds(
-                            i64::try_from(retry_after_seconds)
-                                .unwrap_or(MIN_INTERVAL)
-                                .max(MIN_INTERVAL),
-                        ),
-                    ),
+                    next_poll_at: Some(seconds_after(
+                        now,
+                        retry_after_seconds.max(MIN_INTERVAL.unsigned_abs()),
+                    )),
                     message: None,
                     token_expires_at: kept.as_ref().and_then(|flow| flow.token_expires_at),
                     refresh_ref: kept.as_ref().and_then(|flow| flow.refresh_ref.clone()),
@@ -660,7 +666,7 @@ impl AuthFlowService {
             if flow.is_expired(now) {
                 // The provider's own window ran out. Saying so beats polling something that
                 // will refuse for the rest of the day.
-                let _ = self
+                if let Err(error) = self
                     .store(
                         flow.account_id,
                         &flow.plugin_id,
@@ -668,7 +674,13 @@ impl AuthFlowService {
                             message: "the sign-in window expired".to_owned(),
                         },
                     )
-                    .await;
+                    .await
+                {
+                    tracing::warn!(
+                        error = %format!("{error:#}"),
+                        "an expired sign-in could not be marked as failed"
+                    );
+                }
                 continue;
             }
             let Some(account) = accounts
@@ -676,7 +688,12 @@ impl AuthFlowService {
                 .find(|account| account.id == flow.account_id)
             else {
                 // The account was deleted mid-flow; the row goes with it.
-                let _ = self.cancel(flow.account_id).await;
+                if let Err(error) = self.cancel(flow.account_id).await {
+                    tracing::warn!(
+                        error = %format!("{error:#}"),
+                        "the sign-in of a deleted account could not be removed"
+                    );
+                }
                 continue;
             };
             let result = if oauth.plugin_id(&account.provider).as_deref() == Some(&flow.plugin_id) {
@@ -724,7 +741,12 @@ impl AuthFlowService {
                 .find(|account| account.id == flow.account_id)
             else {
                 // The account was deleted; the row goes with it.
-                let _ = self.cancel(flow.account_id).await;
+                if let Err(error) = self.cancel(flow.account_id).await {
+                    tracing::warn!(
+                        error = %format!("{error:#}"),
+                        "the token renewal of a deleted account could not be removed"
+                    );
+                }
                 continue;
             };
             let outcome = providers
@@ -745,13 +767,19 @@ impl AuthFlowService {
                         &message,
                         now.date_naive(),
                     );
-                    let _ = self
+                    if let Err(error) = self
                         .store(
                             flow.account_id,
                             &flow.plugin_id,
                             AuthProgress::Failed { message },
                         )
-                        .await;
+                        .await
+                    {
+                        tracing::warn!(
+                            error = %format!("{error:#}"),
+                            "a failed token renewal could not be recorded"
+                        );
+                    }
                     crate::notify_notice::announce(&self.inner.database, notice).await;
                 }
             }
@@ -814,7 +842,7 @@ fn renewal_action(outcome: Result<TokenOutcome, ProviderError>) -> RenewalAction
         Ok(TokenOutcome::Pending {
             retry_after_seconds,
         }) => RenewalAction::Defer(
-            i64::try_from(retry_after_seconds)
+            i64::try_from(rd_core::clamp_retry_after(retry_after_seconds))
                 .unwrap_or(REFRESH_BACKOFF)
                 .max(MIN_INTERVAL),
         ),
@@ -859,6 +887,16 @@ fn renewal_action(outcome: Result<TokenOutcome, ProviderError>) -> RenewalAction
     }
 }
 
+/// `seconds` after `now`, held to [`rd_core::MAX_RETRY_AFTER_SECONDS`] (RA-HOST-02).
+///
+/// Every such number here is a plugin's — a sign-in window, an "ask again in" — and
+/// `now + u64::MAX` seconds is a panic in `chrono`, not a date. A sign-in window or a poll
+/// interval longer than a day is no provider's.
+fn seconds_after(now: DateTime<Utc>, seconds: u64) -> DateTime<Utc> {
+    let seconds = i64::try_from(rd_core::clamp_retry_after(seconds)).unwrap_or(MIN_INTERVAL);
+    now + chrono::Duration::seconds(seconds)
+}
+
 /// How long a renewal waits after a plugin reported this kind of failure, or `None` when
 /// waiting cannot help.
 ///
@@ -888,7 +926,7 @@ fn retry_after(category: &FailureKind) -> Option<i64> {
     };
     Some(
         seconds
-            .and_then(|seconds| i64::try_from(seconds).ok())
+            .and_then(|seconds| i64::try_from(rd_core::clamp_retry_after(seconds)).ok())
             .unwrap_or(REFRESH_BACKOFF)
             .max(MIN_INTERVAL),
     )
@@ -1240,6 +1278,118 @@ mod tests {
                 .expect("due")
                 .is_empty()
         );
+    }
+
+    /// RA-HOST-02: every duration here is a plugin's, and `now + u64::MAX` seconds panicked in
+    /// `chrono`. Held to a day, a renewal's wait included.
+    #[test]
+    fn a_plugins_overlong_wait_is_held_to_a_day() {
+        let now = chrono::Utc::now();
+        let day = rd_core::MAX_RETRY_AFTER_SECONDS;
+        let day_seconds = i64::try_from(day).expect("a day fits");
+        assert_eq!(
+            super::seconds_after(now, u64::MAX),
+            now + chrono::Duration::seconds(day_seconds)
+        );
+        assert_eq!(
+            super::seconds_after(now, 30),
+            now + chrono::Duration::seconds(30)
+        );
+        assert_eq!(
+            renewal_action(Ok(TokenOutcome::Pending {
+                retry_after_seconds: u64::MAX,
+            })),
+            RenewalAction::Defer(day_seconds),
+        );
+        assert_eq!(
+            renewal_action(Ok(TokenOutcome::Failed {
+                category: FailureKind::RateLimited {
+                    retry_after_seconds: Some(u64::MAX),
+                },
+                message: "slow down".to_owned(),
+            })),
+            RenewalAction::Defer(day_seconds),
+        );
+    }
+
+    /// RA-DB-05: a flow row that cannot be read is an error, not "nothing to carry over".
+    /// Read as `None`, the upsert after it wrote the renewal and access references as empty,
+    /// and the tokens behind them were lost while the account still had a working sign-in.
+    #[tokio::test]
+    async fn a_flow_that_cannot_be_read_is_never_overwritten_without_its_tokens() {
+        let temporary = tempfile::tempdir().expect("tempdir");
+        let path = temporary.path().join("auth-flows.sqlite3");
+        let database = rd_db::Database::open(&path).await.expect("database");
+        let account = database
+            .create_account(rd_db::NewAccount {
+                provider: "example".to_owned(),
+                label: "Example".to_owned(),
+                username: None,
+                credential_mode: None,
+                secret_ref: None,
+                cookie_ref: None,
+                proxy_profile_id: None,
+                enabled: true,
+            })
+            .await
+            .expect("account");
+        let plugin_id = "019d0000-0000-7000-8000-0000000001ff";
+        database
+            .upsert_auth_flow(rd_db::UpsertAuthFlow {
+                account_id: account.id,
+                plugin_id: plugin_id.to_owned(),
+                state: AuthFlowState::Polling,
+                verification_url: None,
+                user_code: None,
+                expires_at: None,
+                next_poll_at: None,
+                message: None,
+                token_expires_at: None,
+                refresh_ref: Some("account/example/refresh".to_owned()),
+                access_ref: Some("account/example/access".to_owned()),
+                key_ref: None,
+                callback_state: None,
+                flow_state: None,
+            })
+            .await
+            .expect("flow");
+        // A state no build knows: the row is there, and reading it fails.
+        let raw = sqlx::SqlitePool::connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new().filename(&path),
+        )
+        .await
+        .expect("raw connection");
+        sqlx::query("UPDATE auth_flows SET state = 'from_a_later_build'")
+            .execute(&raw)
+            .await
+            .expect("corrupt the state");
+        let service = AuthFlowService::detached(
+            database.clone(),
+            temporary.path().join("plugins"),
+            std::sync::Arc::new(NoHost),
+        );
+
+        for progress in [
+            AuthProgress::Authorized,
+            AuthProgress::Pending {
+                retry_after_seconds: 5,
+            },
+        ] {
+            assert!(
+                service
+                    .store(account.id, plugin_id, progress)
+                    .await
+                    .is_err(),
+                "a failed read stops the write"
+            );
+        }
+        let (refresh, access): (Option<String>, Option<String>) =
+            sqlx::query_as("SELECT refresh_ref, access_ref FROM auth_flows")
+                .fetch_one(&raw)
+                .await
+                .expect("row");
+        assert_eq!(refresh.as_deref(), Some("account/example/refresh"));
+        assert_eq!(access.as_deref(), Some("account/example/access"));
     }
 }
 

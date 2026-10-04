@@ -272,40 +272,73 @@ pub(crate) fn error_from_envelope(
 /// `con.getResponseCode()` checks, run before any JSON parsing is attempted). `trust_404` — see
 /// [`classify_status`]; JD's bare-status check also calls `handle404API(..., trustError404)`, so
 /// the same distinction applies here too.
-pub(crate) fn ensure_http_status(status: u16, trust_404: bool) -> Result<(), ApiFailure> {
+///
+/// Rapidgator's own statuses come first — an untrusted 404, 416, 423 and the long waits JD
+/// keeps for 500 and 503 — and everything else goes through the mapping every plugin shares
+/// (`plugin_common::http_status`, RD-191-07): 403 is a refused account like 401, a trusted 404
+/// and a 410 are final (`Permanent`, owner 2026-10-04), a 451 is `Offline` and retried, and a
+/// 429 carries the `Retry-After` it stated. A stated wait also replaces JD's fixed one on a 500
+/// or 503.
+pub(crate) fn ensure_http_status(
+    status: u16,
+    trust_404: bool,
+    retry_after: Option<u64>,
+) -> Result<(), ApiFailure> {
+    use plugin_common::HttpRefusal;
+    let wait = plugin_common::http_status(status, retry_after)
+        .err()
+        .and_then(|refusal| match refusal {
+            HttpRefusal::RateLimited(wait) | HttpRefusal::ServerError(wait) => wait,
+            _ => None,
+        });
     match status {
-        200..=299 => Ok(()),
-        401 => Err(coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS)),
-        404 if trust_404 => Err(coded(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        404 => Err(coded(
-            ErrorKind::Transient(Some(60)),
-            messages::DOWNLOAD_404_UNTRUSTED,
-        )),
-        416 => Err(coded(
-            ErrorKind::Transient(Some(300)),
-            messages::SERVER_ERROR,
-        )),
-        423 => Err(coded(
-            ErrorKind::RateLimited(Some(300)),
-            messages::LIMIT_REACHED,
-        )),
-        429 => Err(coded(ErrorKind::RateLimited(None), messages::RATE_LIMITED)),
-        500 => Err(coded(
-            ErrorKind::Transient(Some(3600)),
-            messages::SERVER_ERROR,
-        )),
-        503 => Err(coded(
-            ErrorKind::Transient(Some(300)),
-            messages::SERVER_ERROR,
-        )),
-        501 | 502 | 504..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+        404 if !trust_404 => {
+            return Err(coded(
+                ErrorKind::Transient(Some(60)),
+                messages::DOWNLOAD_404_UNTRUSTED,
+            ));
+        }
+        416 => {
+            return Err(coded(
+                ErrorKind::Transient(Some(300)),
+                messages::SERVER_ERROR,
+            ));
+        }
+        423 => {
+            return Err(coded(
+                ErrorKind::RateLimited(Some(300)),
+                messages::LIMIT_REACHED,
+            ));
+        }
+        500 => {
+            return Err(coded(
+                ErrorKind::Transient(wait.or(Some(3600))),
+                messages::SERVER_ERROR,
+            ));
+        }
+        503 => {
+            return Err(coded(
+                ErrorKind::Transient(wait.or(Some(300))),
+                messages::SERVER_ERROR,
+            ));
+        }
+        _ => {}
+    }
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => {
+            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
+        }
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]

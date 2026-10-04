@@ -72,14 +72,17 @@ async fn a_part_file_shorter_than_its_checkpoint_is_completed_from_its_proven_ra
     for (index, segment) in file.segments.iter().take(2).enumerate() {
         let begin = (index * SEGMENT_BYTES) as u64 + 1;
         database
-            .checkpoint_nzb_assembly_segment(
+            .checkpoint_nzb_assembly_segments(
                 file.id,
-                segment.id,
                 "file.bin".to_owned(),
                 total,
-                begin,
-                begin + SEGMENT_BYTES as u64 - 1,
-                crc32fast::hash(&parts[index]),
+                vec![rd_db::AssembledSegment {
+                    segment_id: segment.id,
+                    part_begin: begin,
+                    part_end: begin + SEGMENT_BYTES as u64 - 1,
+                    crc32: crc32fast::hash(&parts[index]),
+                    attempts: 0,
+                }],
             )
             .await
             .expect("checkpoint");

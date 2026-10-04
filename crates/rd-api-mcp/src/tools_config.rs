@@ -26,7 +26,7 @@ use crate::{ApiError, dto::SettingsResponse};
 #[tool_router(router = config_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read the service settings (concurrency, speed limit, post-processing, media/gallery/stream/torrent options). Pass keys to project a subset."
+        description = "Read the service settings (concurrency, speed limit, retries and the automatic retry of failed downloads - auto_retry_failed, auto_retry_interval_hours 1-24, auto_retry_max_rounds 0-100 with 0 no limit -, post-processing, media/gallery/stream/torrent options, nzb_hand_over_linkgrabber_enabled and nzb_hand_over_downloads_enabled - whether the LinkGrabber and the Downloads view offer handing an NZB to a remote-job provider, both default true). Pass keys to project a subset; update_settings changes them."
     )]
     pub async fn get_settings(
         &self,
@@ -70,7 +70,8 @@ impl RdMcpServer {
                     return Err(ApiError::bad_request(
                         "settings.unknown_key",
                         format!("Unknown settings key: {key}"),
-                    ));
+                    )
+                    .with_param("key", key));
                 }
                 object.insert(key, value);
             }
@@ -166,15 +167,14 @@ impl RdMcpServer {
     ) -> McpToolResult {
         let result = async {
             let automations = self.state.database.list_automations().await?;
+            let mut definitions = rd_api_core::automation_service::current_definitions(
+                &self.state.database,
+                &automations,
+            )
+            .await?;
             let mut rows = Vec::with_capacity(automations.len());
             for automation in automations {
-                let definition = self
-                    .state
-                    .database
-                    .automation_versions(automation.id)
-                    .await?
-                    .into_iter()
-                    .find(|version| version.version == automation.version);
+                let definition = definitions.remove(&automation.id);
                 let runs = if params.with_runs.unwrap_or(false) {
                     Some(
                         self.state
@@ -205,20 +205,16 @@ impl RdMcpServer {
         Parameters(params): Parameters<ToggleAutomationParams>,
     ) -> McpToolResult {
         let result = async {
-            let id = super::error::parse_id(&params.id)?;
-            let automation = self
-                .state
-                .database
-                .set_automation_enabled(id, params.enabled)
-                .await
-                .map_err(|error| {
-                    crate::error_codes::store_not_found(
-                        &error,
-                        "automation.not_found",
-                        "Automation not found",
-                    )
-                })?;
-            serde_json::to_value(&automation).map_err(|error| anyhow::Error::new(error).into())
+            let id = parse_id(&params.id)?;
+            Ok(crate::automation_handlers::enable_automation(
+                State(self.state.clone()),
+                AxumPath(id),
+                Json(crate::automation_handlers::EnableRequest {
+                    enabled: params.enabled,
+                }),
+            )
+            .await?
+            .0)
         }
         .await;
         respond(result)

@@ -19,6 +19,7 @@
 //! - **Rate limit**: Put.io answers 429 and states the window in `X-RateLimit-Reset`, a Unix
 //!   timestamp rather than a duration, so turning it into a wait needs the host's clock.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 pub use plugin_common::FailureKind;
@@ -173,25 +174,35 @@ fn classify(status: u16, reset_in_seconds: Option<u64>, envelope: &ErrorEnvelope
         kind.as_deref(),
         Some("INVALID_TOKEN" | "INVALID_GRANT" | "UNAUTHORIZED")
     );
-    match status {
-        401 => failure(FailureKind::AccountInvalid, messages::AUTH_INVALID),
-        403 if token_refused => failure(FailureKind::AccountInvalid, messages::AUTH_INVALID),
-        403 => failure(FailureKind::Unsupported, messages::NOT_PERMITTED),
-        404 | 410 => failure(FailureKind::Permanent, messages::FILE_NOT_FOUND),
-        429 => failure(
-            FailureKind::RateLimited(Some(reset_in_seconds.unwrap_or(RATE_LIMIT_SECONDS))),
+    // A 403 is Put.io's to explain, so it is read before the shared mapping; every other
+    // status is classified by `plugin_common::http_status`, the one mapping every plugin
+    // shares (RD-191-07) — a missing file is final there (owner, 2026-10-04), a legal block
+    // offline and retried, as everywhere else.
+    if status == 403 {
+        return if token_refused {
+            failure(FailureKind::AccountInvalid, messages::AUTH_INVALID)
+        } else {
+            failure(FailureKind::Unsupported, messages::NOT_PERMITTED)
+        };
+    }
+    match plugin_common::http_status(status, reset_in_seconds) {
+        // An error document with a 2xx: Put.io said no and this build has no bucket for it.
+        // The word travels as `reason`; the sentence does not.
+        Ok(()) => failure(FailureKind::Permanent, messages::API_ERROR),
+        Err(HttpRefusal::Unauthorized) => {
+            failure(FailureKind::AccountInvalid, messages::AUTH_INVALID)
+        }
+        Err(HttpRefusal::Gone) => failure(FailureKind::Permanent, messages::FILE_NOT_FOUND),
+        Err(HttpRefusal::Unavailable) => failure(FailureKind::Offline, messages::FILE_NOT_FOUND),
+        Err(HttpRefusal::RateLimited(wait)) => failure(
+            FailureKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
             messages::RATE_LIMITED,
         ),
-        500..=599 => failure(
-            FailureKind::Transient(Some(BUSY_SECONDS)),
+        Err(HttpRefusal::ServerError(wait)) => failure(
+            FailureKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
             messages::SERVER_ERROR,
         ),
-        // An error document with a 2xx or an unremarkable 4xx: Put.io said no and this build
-        // has no bucket for it. The word travels as `reason`; the sentence does not.
-        status if (200..=299).contains(&status) => {
-            failure(FailureKind::Permanent, messages::API_ERROR)
-        }
-        other => ApiFailure {
+        Err(HttpRefusal::Other(other)) => ApiFailure {
             kind: FailureKind::Permanent,
             code: messages::HTTP_ERROR.0,
             message: messages::http_error(other),

@@ -174,7 +174,7 @@ async fn a_public_file_resolves_to_a_durable_address() {
 }
 
 #[tokio::test]
-async fn a_missing_file_is_offline_rather_than_a_wait() {
+async fn a_missing_file_is_final_rather_than_a_wait() {
     // The measured answer for an identifier the service never knew.
     let host = MockHost::with_responses(vec![file_info(
         404,
@@ -184,7 +184,8 @@ async fn a_missing_file_is_offline_rather_than_a_wait() {
         .resolve(resolve_request())
         .await
         .expect_err("refused");
-    assert_eq!(failure.category, FailureKind::Offline);
+    // A deletion under a 404 is not retried (owner, 2026-10-04).
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("pixeldrain.file_not_found"));
     assert!(
         !failure.message.contains("may have been deleted"),

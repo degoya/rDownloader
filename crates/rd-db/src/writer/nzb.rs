@@ -57,6 +57,21 @@ impl Writer {
                     crate::nzb_store::update_import(&mut self.connection, id, change).await;
                 publish_config(reply, result, &self.events);
             }
+            WriterCommand::MarkNzbImportRemoteJob {
+                id,
+                remote_job_id,
+                expected,
+                reply,
+            } => {
+                let result = crate::nzb_store::mark_remote_job(
+                    &mut self.connection,
+                    id,
+                    remote_job_id,
+                    expected,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
             WriterCommand::DeleteNzbImport { id, reply } => {
                 let result = crate::nzb_store::delete_import(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);

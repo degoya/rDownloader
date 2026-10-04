@@ -134,14 +134,18 @@ impl net::Host for PluginStoreState {
             }
             (transfer.tls.clone(), transfer.allow_local)
         };
-        if !allow_local {
-            refuse_local_targets(&host, port)
+        // Resolved once; the connection dials exactly the addresses checked here (PLUG-02).
+        let resolved = connection::resolve_target(&host, port, allow_local, |target| async move {
+            tokio::net::lookup_host(target)
                 .await
-                .map_err(to_wit_failure)?;
+                .map(|addresses| addresses.collect::<Vec<_>>())
+        })
+        .await;
+        let opened = match resolved {
+            Ok(addresses) => HostConnection::open(&addresses, &host, tls, config).await,
+            Err(failure) => Err(failure),
         }
-        let opened = HostConnection::open(&host, port, tls, config)
-            .await
-            .map_err(to_wit_failure);
+        .map_err(to_wit_failure);
         self.credit_host_time(started.elapsed());
         let opened = opened?;
         let handle = self.next_connection;
@@ -236,31 +240,6 @@ fn host_allowed(host: &str, patterns: &[String]) -> bool {
         return false;
     };
     domain_allowed(&url, patterns)
-}
-
-/// Resolves the target and refuses addresses no transfer protocol has a reason to reach.
-async fn refuse_local_targets(host: &str, port: u16) -> Result<(), Failure> {
-    let target = format!("{host}:{port}");
-    let addresses = tokio::net::lookup_host(target).await.map_err(|error| {
-        Failure::coded(
-            FailureKind::Transient {
-                retry_after_seconds: None,
-            },
-            "plugin.net_resolve_failed",
-            format!("Could not resolve the server name: {error}"),
-        )
-        .with_param("error", &error)
-    })?;
-    for address in addresses {
-        if connection::is_local_only(address.ip()) {
-            return Err(Failure::coded(
-                FailureKind::Permanent,
-                "plugin.net_local_target",
-                "The connection target resolves to a local address",
-            ));
-        }
-    }
-    Ok(())
 }
 
 fn refused(capability: &str) -> Failure {

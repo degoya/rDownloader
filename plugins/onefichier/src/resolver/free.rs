@@ -25,7 +25,7 @@ pub(super) async fn resolve<H: PluginHost>(host: &H, url: &Url) -> Result<Resolv
     // an error page carries none at all -- which is how `download.bin` got its name (RD-109-36).
     let file_name = transfer
         .header("content-disposition")
-        .and_then(file_name_from_disposition)
+        .and_then(plugin_common::file_name_from_disposition)
         .or_else(|| stated.as_ref().map(|stated| stated.name.clone()));
     Ok(Resolved {
         url: transfer.final_url,
@@ -52,11 +52,11 @@ async fn free_transfer<H: PluginHost>(
     // A hotlink is possible: 1fichier serves some files straight from the link page, in which
     // case another user is paying for the traffic and no form is involved at all.
     if !is_html(&page_response) {
-        free_status_failure(page_response.status)?;
+        free_status_failure(&page_response)?;
         return Ok((page_response, None));
     }
     let body = page_response.text().into_owned();
-    page_failure(&body, page_response.status)?;
+    page_failure(&body, &page_response)?;
     let stated = page::stated_file(&body);
     let Some(form) = page::download_form(&body) else {
         return Err(no_free_form(&body));
@@ -67,16 +67,16 @@ async fn free_transfer<H: PluginHost>(
     let action = form_action(&page_response.final_url, &form)?;
     let posted = free_post(host, &action, &page::free_form(&form), referer).await?;
     if !is_html(&posted) {
-        free_status_failure(posted.status)?;
+        free_status_failure(&posted)?;
         return Ok((posted, stated));
     }
     let posted_body = posted.text().into_owned();
-    page_failure(&posted_body, posted.status)?;
+    page_failure(&posted_body, &posted)?;
     let Some(link) = page::direct_link(&posted_body) else {
         return Err(no_free_link(&posted_body));
     };
     let transfer = free_get(host, &link, referer).await?;
-    free_status_failure(transfer.status)?;
+    free_status_failure(&transfer)?;
     Ok((transfer, stated))
 }
 
@@ -133,7 +133,7 @@ fn referer_for(url: &Url) -> String {
 
 /// Reports what the page says instead of handing over a download. Every wait or limit marker
 /// becomes an `IpBlocked`, so the scheduler holds back the hoster rather than this one link.
-fn page_failure(html: &str, status: u16) -> Result<(), Failure> {
+fn page_failure(html: &str, response: &HttpResponse) -> Result<(), Failure> {
     if let Some(error) = page::page_error(html) {
         return Err(match error {
             PageError::Offline => coded(FailureKind::Offline, messages::FILE_OFFLINE),
@@ -166,28 +166,36 @@ fn page_failure(html: &str, status: u16) -> Result<(), Failure> {
     }
     // The page explained nothing; a non-2xx status still has to be reported rather than parsed
     // for a form that cannot be there.
-    free_status_failure(status)
+    free_status_failure(response)
 }
 
-/// Maps a status the page body itself did not explain. Deliberately not [`crate::api`]'s
-/// mapping: that one reads 401/403 as a bad API key, which the account-less flow never sends.
-fn free_status_failure(status: u16) -> Result<(), Failure> {
-    match status {
-        200..=299 => Ok(()),
-        404 | 410 => Err(coded(FailureKind::Offline, messages::FILE_OFFLINE)),
-        429 => Err(Failure::coded(
-            FailureKind::RateLimited(Some(300)),
-            messages::FLOOD.0,
-            messages::FLOOD.1,
-        )),
-        500..=599 => Err(coded(FailureKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(Failure::coded(
-            FailureKind::Permanent,
-            messages::HTTP_ERROR,
-            messages::http_error(other),
-        )
-        .with_param("status", other.to_string())),
-    }
+/// Maps a status the page body itself did not explain, with the mapping every plugin shares
+/// (`plugin_common::http_status`, RD-191-07) and two deliberate differences: a 401/403 is a
+/// plain HTTP error, because [`crate::api`]'s reading of it as a bad API key does not apply to
+/// the account-less flow, and a 429 without a `Retry-After` waits 1fichier's usual five minutes.
+fn free_status_failure(response: &HttpResponse) -> Result<(), Failure> {
+    use plugin_common::HttpRefusal;
+    let status = response.status;
+    plugin_common::http_status(status, plugin_common::retry_after(&response.headers)).map_err(
+        |refusal| match refusal {
+            HttpRefusal::Gone => coded(FailureKind::Permanent, messages::FILE_OFFLINE),
+            HttpRefusal::Unavailable => coded(FailureKind::Offline, messages::FILE_OFFLINE),
+            HttpRefusal::RateLimited(wait) => Failure::coded(
+                FailureKind::RateLimited(wait.or(Some(300))),
+                messages::FLOOD.0,
+                messages::FLOOD.1,
+            ),
+            HttpRefusal::ServerError(wait) => {
+                coded(FailureKind::Transient(wait), messages::SERVER_ERROR)
+            }
+            HttpRefusal::Unauthorized | HttpRefusal::Other(_) => Failure::coded(
+                FailureKind::Permanent,
+                messages::HTTP_ERROR,
+                messages::http_error(status),
+            )
+            .with_param("status", status.to_string()),
+        },
+    )
 }
 
 fn no_free_form(html: &str) -> Failure {
@@ -214,13 +222,4 @@ fn is_html(response: &HttpResponse) -> bool {
     response
         .header("content-type")
         .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
-}
-
-fn file_name_from_disposition(value: &str) -> Option<String> {
-    value.split(';').find_map(|part| {
-        let (name, value) = part.trim().split_once('=')?;
-        name.eq_ignore_ascii_case("filename")
-            .then(|| value.trim_matches(['\'', '"']).to_owned())
-            .filter(|value| !value.is_empty())
-    })
 }

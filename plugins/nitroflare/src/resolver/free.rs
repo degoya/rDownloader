@@ -32,7 +32,7 @@ pub(super) async fn resolve<H: PluginHost>(host: &H, file_id: &str) -> Result<Re
         url: transfer.final_url.clone(),
         file_name: disposition
             .as_deref()
-            .and_then(page::file_name_from_disposition)
+            .and_then(plugin_common::file_name_from_disposition)
             .or_else(|| page::url_file_name(&final_url)),
         size: None,
         // The transfer must look like the browser session that earned the link; Nitroflare

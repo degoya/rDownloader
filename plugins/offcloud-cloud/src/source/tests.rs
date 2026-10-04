@@ -60,6 +60,17 @@ fn a_magnet_names_several_topics_and_the_torrent_one_is_found() {
     );
 }
 
+/// PLUG-07: an empty pair (`&&`) never ended the read here, but other plugins' copies did; the
+/// shared reader keeps the tolerant behaviour this plugin always had.
+#[test]
+fn an_empty_pair_does_not_hide_the_info_hash() {
+    let magnet = format!("magnet:?dn=Example&&xt=urn:btih:{HASH}&flag");
+    assert_eq!(
+        magnet_key(&magnet).as_deref(),
+        Some(format!("{MAGNET_PREFIX}{HASH}").as_str())
+    );
+}
+
 #[test]
 fn both_written_forms_of_an_info_hash_normalise_to_lower_case_hex() {
     assert_eq!(

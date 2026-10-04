@@ -97,13 +97,8 @@ fn call(
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
     let response = http::http_request(method, url, query, &headers(content_type), body)?;
-    let retry_after = api::retry_after_seconds(
-        response
-            .headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-            .map(|(_, value)| value.as_str()),
-    );
+    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
+    let retry_after = plugin_common::retry_after(&response.headers);
     // A refusal decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Offcloud answers refusals with a 200.
     let envelope = api::error_envelope(&response.body);

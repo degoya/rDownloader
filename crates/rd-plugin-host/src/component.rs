@@ -615,6 +615,12 @@ impl PluginStoreState {
                 write_methods,
             },
         );
+        // The answer is read up to what the manifest still allows, not a fixed cap (PLUG-06).
+        let request =
+            crate::native::with_response_allowance(self.remaining_response_bytes(), request);
+        // Which addresses the request may reach is the store's to say, like the allowance: the
+        // person's own network only where they supplied the address (RA-HOST-01).
+        let request = crate::native::with_own_network(self.own_network(), request);
         let response = rd_http::with_redirect_gate(gate, request).await;
         // Credited on the failure path too: a request that timed out still spent that time
         // waiting on the network rather than computing.
@@ -927,22 +933,25 @@ pub(crate) fn to_wit_failure(value: Failure) -> wit_types::Failure {
 }
 
 pub(crate) fn from_wit_failure(value: wit_types::Failure) -> Failure {
+    // A plugin's wait is held to the day every other `Retry-After` is held to (RD-191-06,
+    // PLUG-04): a value past it parked a download for years or overflowed the due time.
+    let delay = |seconds: Option<u64>| seconds.map(rd_core::clamp_retry_after);
     let mut failure = Failure::new(
         match value.category {
-            wit_types::FailureKind::Transient(delay) => FailureKind::Transient {
-                retry_after_seconds: delay,
+            wit_types::FailureKind::Transient(seconds) => FailureKind::Transient {
+                retry_after_seconds: delay(seconds),
             },
             wit_types::FailureKind::Permanent => FailureKind::Permanent,
             wit_types::FailureKind::Offline => FailureKind::Offline,
             wit_types::FailureKind::AuthRequired => FailureKind::AuthRequired,
             wit_types::FailureKind::AccountInvalid => FailureKind::AccountInvalid,
-            wit_types::FailureKind::RateLimited(delay) => FailureKind::RateLimited {
-                retry_after_seconds: delay,
+            wit_types::FailureKind::RateLimited(seconds) => FailureKind::RateLimited {
+                retry_after_seconds: delay(seconds),
             },
             wit_types::FailureKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
             wit_types::FailureKind::Unsupported => FailureKind::Unsupported,
-            wit_types::FailureKind::IpBlocked(delay) => FailureKind::IpBlocked {
-                retry_after_seconds: delay,
+            wit_types::FailureKind::IpBlocked(seconds) => FailureKind::IpBlocked {
+                retry_after_seconds: delay(seconds),
             },
             wit_types::FailureKind::CaptchaFailed => FailureKind::CaptchaFailed,
         },

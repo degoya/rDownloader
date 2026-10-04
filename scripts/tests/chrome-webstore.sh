@@ -56,6 +56,7 @@ export CWS_POLL_SECONDS=0 CWS_POLL_TRIES=3
 SECRET="s3cr3t-value-never-printed"
 REFRESH="1//refresh-token-never-printed"
 TOKEN="ya29.access-token-never-printed"
+# shellcheck disable=SC2034  # read inside the eval of expect_true()
 ITEM="https://cws.test/v2/publishers/pub-7/items/nfdbhbkjnbdnaaekabaochlhgkaafnda"
 
 reset() {

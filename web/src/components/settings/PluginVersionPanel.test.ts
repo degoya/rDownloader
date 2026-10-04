@@ -39,10 +39,10 @@ function lifecycle(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function mount(entry: Record<string, unknown>, versions = ['2.0.0', '1.0.0']) {
+function mount(entry: Record<string, unknown>, versions = ['2.0.0', '1.0.0'], automaticForAll = false) {
   return mountComponent(PluginVersionPanel, {
     messages: { plugins: pluginsCatalogue },
-    props: { lifecycle: entry, versions }
+    props: { lifecycle: entry, versions, automaticForAll }
   })
 }
 
@@ -101,6 +101,24 @@ describe('PluginVersionPanel', () => {
 
     await fireEvent.click(screen.getByRole('switch', { name: 'Install updates automatically' }))
     expect(put).toHaveBeenCalledWith('/api/v1/plugins/{id}/lifecycle/policy', { ...path, body: { policy: 'automatic' } })
+  })
+
+  it('shows the switch on and locked while the switch for all plugins applies (RD-191-10)', () => {
+    mount(lifecycle({ update_policy: 'manual' }), ['2.0.0', '1.0.0'], true)
+
+    const toggle = screen.getByRole('switch', { name: 'Install updates automatically' })
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    expect((toggle as HTMLButtonElement).disabled).toBe(true)
+    expect(toggle.getAttribute('description')).toBe(pluginsCatalogue.versions.auto_update_global_hint)
+  })
+
+  it('shows the plugin\'s own policy while the switch for all plugins is off', () => {
+    mount(lifecycle({ update_policy: 'manual' }))
+
+    const toggle = screen.getByRole('switch', { name: 'Install updates automatically' })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    expect((toggle as HTMLButtonElement).disabled).toBe(false)
+    expect(toggle.getAttribute('description')).toBe(pluginsCatalogue.versions.auto_update_hint)
   })
 
   it('hands a refusal to the tab instead of a message', async () => {

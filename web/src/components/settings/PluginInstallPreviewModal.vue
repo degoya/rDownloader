@@ -172,7 +172,7 @@ const added = computed(() => {
             data-preview-publisher
           >
             <template #default="{ open: unfolded }">
-              <button type="button" class="flex w-full items-center gap-3 p-3 text-left" :aria-expanded="unfolded">
+              <UButton color="neutral" variant="ghost" block class="justify-start gap-3 p-3 text-left" :aria-expanded="unfolded">
                 <UIcon :name="keyIcon" :class="['size-5 shrink-0', keyText]" />
                 <span class="min-w-0 flex-1">
                   <span class="flex flex-wrap items-baseline gap-x-2">
@@ -182,7 +182,7 @@ const added = computed(() => {
                   <span :class="['block text-xs', keyText]">{{ t(`plugins.preview.key.${preview.key_status}`) }}</span>
                 </span>
                 <UIcon :name="unfolded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4 shrink-0 text-muted" />
-              </button>
+              </UButton>
             </template>
             <template #content>
               <dl class="grid gap-x-3 gap-y-1 border-t border-default p-3 text-xs sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-y-2">
@@ -238,11 +238,11 @@ const added = computed(() => {
 
           <UCollapsible class="border-t border-default pt-3" data-preview-digest>
             <template #default="{ open: unfolded }">
-              <button type="button" class="flex w-full items-center gap-2 text-left" :aria-expanded="unfolded">
+              <UButton color="neutral" variant="ghost" block class="justify-start gap-2 px-0 py-0.5 text-left" :aria-expanded="unfolded">
                 <UIcon :name="unfolded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4 shrink-0 text-muted" />
                 <span class="flex-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.digest') }}</span>
                 <span v-if="!unfolded" class="font-mono text-xs text-muted">{{ shortDigest }}</span>
-              </button>
+              </UButton>
             </template>
             <template #content>
               <p class="mt-2 whitespace-pre-line pl-6 font-mono text-xs text-toned">{{ hashLines(preview.package_digest) }}</p>

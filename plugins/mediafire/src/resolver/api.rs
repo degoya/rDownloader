@@ -91,19 +91,23 @@ pub(crate) fn api_failure(error: &ApiError) -> Failure {
 pub(crate) fn status_failure(response: &HttpResponse) -> Failure {
     match response.status {
         200..=299 => coded(FailureKind::Permanent, messages::INVALID_RESPONSE),
-        status => http_failure(status),
+        _ => http_failure(response),
     }
 }
 
-/// An HTTP status the plugin cannot use, in the scheduler's categories.
+/// An HTTP status the plugin cannot use, in the scheduler's categories: the mapping every
+/// plugin shares (`plugin_common::http_status`, RD-191-07) — a 404 or 410 final, a 451
+/// `Offline`, a 429 or 5xx with the `Retry-After` the answer stated. One difference: this
+/// plugin sends no account, so a 401/403 is a plain HTTP error, never a refused account
+/// (RA-PLG-01).
 #[must_use]
-pub(crate) fn http_failure(status: u16) -> Failure {
-    let kind = match status {
-        429 => FailureKind::RateLimited(None),
-        404 | 410 => FailureKind::Offline,
-        500..=599 => FailureKind::Transient(None),
-        _ => FailureKind::Permanent,
-    };
+pub(crate) fn http_failure(response: &HttpResponse) -> Failure {
+    let status = response.status;
+    let kind =
+        match plugin_common::http_status(status, plugin_common::retry_after(&response.headers)) {
+            Ok(()) | Err(plugin_common::HttpRefusal::Unauthorized) => FailureKind::Permanent,
+            Err(refusal) => refusal.kind(),
+        };
     Failure::coded(kind, messages::HTTP_ERROR, messages::http_error(status))
         .with_param("status", status.to_string())
 }

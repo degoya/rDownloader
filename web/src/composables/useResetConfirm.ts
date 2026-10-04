@@ -2,7 +2,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 
 import ResetConfirmModal from '@/components/ResetConfirmModal.vue'
 
-export interface ResetConfirmResult {
+interface ResetConfirmResult {
   confirmed: boolean
   /** Whether the finished payload should be deleted along with the partial data. */
   deleteFiles: boolean

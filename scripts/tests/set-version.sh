@@ -15,8 +15,9 @@ trap 'rm -rf "$SCRATCH"' EXIT
 source "$ROOT/scripts/tests/lib/expect.sh"
 
 TREE="$SCRATCH/tree"
-mkdir -p "$TREE/scripts" "$TREE/web" "$TREE/extension" "$SCRATCH/bin"
+mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/extension" "$SCRATCH/bin"
 cp "$ROOT/scripts/set-version.sh" "$TREE/scripts/"
+cp "$ROOT/scripts/lib/workspace-version.sh" "$TREE/scripts/lib/"
 printf '#!/bin/sh\necho "$@" >> "%s/cargo.calls"\n' "$SCRATCH" > "$SCRATCH/bin/cargo"
 chmod +x "$SCRATCH/bin/cargo"
 export PATH="$SCRATCH/bin:$PATH"

@@ -1,32 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { MediaStatus, MediaToolStatus } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 const { t } = useI18n()
 const status = ref<MediaStatus | null>(null)
 const error = ref<string | null>(null)
 const loading = ref(true)
 
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 onMounted(() => {
   void load()
-  releaseEvents = subscribeEvents({ 'managed_tool.changed': scheduleReload })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
 })
 
 async function load(): Promise<void> {
@@ -47,13 +34,7 @@ async function load(): Promise<void> {
  * Re-read rather than patched: the whole answer is derived by the service from the binary it
  * found and the rule set in force, and neither is knowable here.
  */
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void load()
-  }, 300)
-}
+useDebouncedEventRefresh(['managed_tool.changed'], load)
 
 const tools = computed<MediaToolStatus[]>(() => {
   const data = status.value

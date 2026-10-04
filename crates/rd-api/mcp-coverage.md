@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**92 capabilities, 67 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 409 REST operations, 209 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**93 capabilities, 68 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 413 REST operations, 213 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -40,7 +40,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 3 | `list_configuration`, `set_plugin_enabled`, `uninstall_plugin_version` |
 | Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
-| Remote jobs | Remote jobs | 4 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_remote_job` |
+| Remote jobs | Remote jobs | 6 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | The log store | Logs | 1 | `list_log_records` |
 | The audit log | Audit | 1 | `list_audit_records` |
@@ -73,6 +73,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Power actions | Settings > Power | 2 | `cancel_power_action`, `get_power_status` |
 | Plugin execution history | Settings > Plugins | 1 | `list_plugin_executions` |
 | Plugin updates and repository offers | Settings > Plugins | 1 | `list_plugin_updates` |
+| Automatic updates for all plugins | Settings > Plugins | 2 | `get_plugin_update_settings`, `set_plugin_update_settings` |
 | Plugin message catalogues | the interface itself | 1 | `get_plugin_messages` |
 | Automation history, vocabulary and dry run | Automation | 4 | `dry_run_automations`, `get_automation_vocabulary`, `list_automation_runs`, `list_automation_versions` |
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |

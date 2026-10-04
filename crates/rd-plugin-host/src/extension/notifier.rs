@@ -41,7 +41,12 @@ impl NotifierPlugin {
     /// decision and the same code, so a target can be refused when it is saved (RD-130-15)
     /// instead of failing on its first event.
     pub fn check_destination(&self, destination: &str) -> Result<(), Failure> {
-        destination_reach(self.manifest().capabilities.domains(), destination).map(|_| ())
+        destination_reach(
+            self.manifest().capabilities.domains(),
+            destination,
+            &crate::own_endpoints::current(),
+        )
+        .map(|_| ())
     }
 
     /// Whether a target's settings are ones this destination offers, asked when the target
@@ -73,11 +78,16 @@ impl NotifierPlugin {
         let reach = destination_reach(
             self.runtime.manifest().capabilities.domains(),
             message.destination,
+            &crate::own_endpoints::current(),
         )
         .map_err(anyhow::Error::new)?;
         let mut store =
             self.runtime
                 .store_reaching(None, message.secret_ref.map(str::to_owned), reach)?;
+        store.data_mut().own_network = reaches_supplied_address(
+            self.runtime.manifest().capabilities.domains(),
+            message.destination,
+        );
         store.data_mut().destination_settings =
             resolve_settings(self.declared_settings(), message.settings);
         let instance = self.pre.instantiate_async(&mut store).await?;
@@ -226,17 +236,13 @@ fn resolve_settings(
 pub(crate) fn destination_reach(
     domains: &[String],
     destination: &str,
+    own: &crate::OwnEndpoints,
 ) -> Result<Vec<String>, Failure> {
     if !domains.iter().any(|domain| domain == "*") {
         return Ok(domains.to_vec());
     }
     let destination = destination.trim();
-    let written_as_address = ["https://", "http://"].iter().any(|scheme| {
-        destination
-            .get(..scheme.len())
-            .is_some_and(|start| start.eq_ignore_ascii_case(scheme))
-    });
-    if !written_as_address {
+    if !written_as_address(destination) {
         return Ok(domains
             .iter()
             .filter(|domain| *domain != "*")
@@ -254,6 +260,12 @@ pub(crate) fn destination_reach(
     let (Some(host), Some(name)) = (url.host(), url.host_str()) else {
         return Err(invalid());
     };
+    // The request would be refused anyway (RA-HOST-01); refused here, the target is never
+    // saved as one that cannot be delivered to. The rule is the request's own, for an address
+    // the person entered: loopback is fine, the service's own ports and link-local are not.
+    if refused_on_this_machine(&host, &url, own) {
+        return Err(own.refused(&url));
+    }
     if url.scheme() == "http" && !inside_own_network(&host) {
         return Err(Failure::coded(
             FailureKind::Permanent,
@@ -262,6 +274,39 @@ pub(crate) fn destination_reach(
         ));
     }
     Ok(vec![name.to_ascii_lowercase()])
+}
+
+/// Whether a destination is a web address rather than a bare topic or channel name.
+fn written_as_address(destination: &str) -> bool {
+    let destination = destination.trim();
+    ["https://", "http://"].iter().any(|scheme| {
+        destination
+            .get(..scheme.len())
+            .is_some_and(|start| start.eq_ignore_ascii_case(scheme))
+    })
+}
+
+/// Whether [`destination_reach`] narrowed the manifest's `*` to the address the person
+/// entered — the one case a delivery may reach their own network (RA-HOST-01). A bare topic
+/// goes to the services the manifest named, which are public.
+pub(crate) fn reaches_supplied_address(domains: &[String], destination: &str) -> bool {
+    domains.iter().any(|domain| domain == "*") && written_as_address(destination)
+}
+
+/// Whether the request rule for an entered address refuses `url` before any lookup: a literal
+/// address it does not permit, or `localhost` on one of the service's own ports. A name that
+/// resolves there is caught when the request is made.
+fn refused_on_this_machine(host: &Host<&str>, url: &Url, own: &crate::OwnEndpoints) -> bool {
+    let policy = own.policy(true, url);
+    match host {
+        Host::Ipv4(address) => !policy.permits((*address).into()),
+        Host::Ipv6(address) => !policy.permits((*address).into()),
+        Host::Domain(name) => {
+            let name = name.trim_end_matches('.').to_ascii_lowercase();
+            (name == "localhost" || name.ends_with(".localhost"))
+                && own.is_own_port(url.port_or_known_default())
+        }
+    }
 }
 
 /// Whether an address can only be inside the person's own network: the private IPv4 ranges
@@ -292,7 +337,10 @@ fn inside_own_network(host: &Host<&str>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{check_settings, destination_reach, resolve_settings, settings_from_config};
+    use super::{
+        check_settings, destination_reach, reaches_supplied_address, resolve_settings,
+        settings_from_config,
+    };
     use crate::SettingManifest;
 
     fn priority() -> Vec<SettingManifest> {
@@ -394,13 +442,18 @@ mod tests {
         vec!["ntfy.sh".to_owned(), "*".to_owned()]
     }
 
+    /// The service as if it listened on port 8710.
+    fn own() -> crate::OwnEndpoints {
+        crate::OwnEndpoints::new(Some("0.0.0.0:8710".parse().expect("address")))
+    }
+
     fn reach(destination: &str) -> Vec<String> {
-        destination_reach(&ntfy(), destination)
+        destination_reach(&ntfy(), destination, &own())
             .unwrap_or_else(|failure| panic!("{destination}: {failure}"))
     }
 
     fn refusal(destination: &str) -> String {
-        destination_reach(&ntfy(), destination)
+        destination_reach(&ntfy(), destination, &own())
             .expect_err(destination)
             .code
             .unwrap_or_default()
@@ -435,11 +488,10 @@ mod tests {
             "http://192.168.1.20/alerts",
             "http://10.0.0.5:8080/alerts",
             "http://172.16.4.1/alerts",
-            "http://127.0.0.1/alerts",
-            "http://169.254.10.10/alerts",
-            "http://[::1]/alerts",
             "http://[fd12:3456::1]/alerts",
-            "http://[fe80::1]/alerts",
+            // This machine, on a port none of ours (owner, 2026-10-04).
+            "http://127.0.0.1:2586/alerts",
+            "http://[::1]:2586/alerts",
             "http://localhost:2586/alerts",
             // A single label is a service name in a Docker network or on the LAN.
             "http://ntfy:2586/alerts",
@@ -453,7 +505,8 @@ mod tests {
             "http://ntfy.example.org/alerts",
             "http://172.32.0.1/alerts",
             "http://8.8.8.8/alerts",
-            "http://[2001:db8::1]/alerts",
+            // A public IPv6 address; 2001:db8::/32 is documentation and refused as not routable.
+            "http://[2606:4700:4700::1111]/alerts",
             // A suffix that merely ends in the letters is not the suffix.
             "http://example.planlan/alerts",
         ] {
@@ -465,6 +518,42 @@ mod tests {
         }
     }
 
+    /// RA-HOST-01: only an address the person entered may reach their own network; a bare
+    /// topic goes to the named public service, and a manifest without `*` never narrows.
+    #[test]
+    fn only_an_entered_address_reaches_the_own_network() {
+        assert!(reaches_supplied_address(
+            &ntfy(),
+            "http://192.168.1.20/alerts"
+        ));
+        assert!(reaches_supplied_address(
+            &ntfy(),
+            " HTTPS://ntfy.lan/alerts"
+        ));
+        assert!(!reaches_supplied_address(&ntfy(), "downloads"));
+        let named = vec!["api.telegram.org".to_owned()];
+        assert!(!reaches_supplied_address(&named, "https://192.168.1.20/"));
+    }
+
+    /// RA-HOST-01, owner 2026-10-04: a destination on this machine is fine, one of the
+    /// service's own ports is not — its API and Click'n'Load — and link-local never is.
+    #[test]
+    fn our_own_ports_and_link_local_are_refused_when_the_target_is_saved() {
+        for ours in [
+            "http://127.0.0.1:8710/alerts",
+            "https://localhost:8710/alerts",
+            "http://[::1]:8710/alerts",
+            "http://localhost:9666/alerts",
+            "http://ntfy.localhost:9666/alerts",
+        ] {
+            assert_eq!(refusal(ours), "plugin.http_own_service", "{ours}");
+        }
+        for local in ["http://169.254.10.10/alerts", "http://[fe80::1]/alerts"] {
+            assert_eq!(refusal(local), "plugin.http_local_target", "{local}");
+        }
+        assert_eq!(reach("https://localhost:2586/alerts"), ["localhost"]);
+    }
+
     #[test]
     fn an_address_without_a_host_is_refused() {
         assert_eq!(refusal("https://"), "plugin.destination_invalid");
@@ -474,11 +563,11 @@ mod tests {
     fn a_manifest_without_the_catch_all_keeps_its_list_whatever_the_destination() {
         let telegram = vec!["api.telegram.org".to_owned()];
         assert_eq!(
-            destination_reach(&telegram, "https://elsewhere.example/").expect("unchanged"),
+            destination_reach(&telegram, "https://elsewhere.example/", &own()).expect("unchanged"),
             telegram
         );
         assert_eq!(
-            destination_reach(&telegram, "-100123456").expect("unchanged"),
+            destination_reach(&telegram, "-100123456", &own()).expect("unchanged"),
             telegram
         );
     }

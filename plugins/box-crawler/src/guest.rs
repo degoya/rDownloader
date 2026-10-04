@@ -28,7 +28,7 @@ use crate::{
     listing::{self, Entry},
     messages,
     target::{self, Target},
-    walk::{Limit, MAX_PAGES, Walk},
+    walk::{Absorb, Limit, MAX_PAGES, Walk},
 };
 
 /// The vault reference the Box provider keeps its access token under. The value never reaches
@@ -100,11 +100,8 @@ fn fetch(claimed: &Target, url: &str, parameters: &[RequestQuery]) -> Result<Vec
                 refuse(messages::SIGN_IN_REQUIRED, FailureKind::AuthRequired)
             }
             (429, _) | (_, "rate_limit_exceeded") => {
-                let seconds = response
-                    .headers
-                    .iter()
-                    .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-                    .and_then(|(_, value)| value.trim().parse::<u64>().ok());
+                // The shared reader (RD-191-07): clamped to a day, `0` and a date ignored.
+                let seconds = plugin_common::retry_after(&response.headers);
                 refuse(messages::RATE_LIMITED, FailureKind::RateLimited(seconds))
             }
             // Box answers a wrong or missing shared-link password with the same refusal it uses
@@ -238,7 +235,7 @@ impl Guest for Component {
             Root::File(link) => return Ok(vec![link]),
             Root::Folder { id, name } => (id, name),
         };
-        let mut walk = Walk::start(&root_id);
+        let mut walk = Walk::start(root_id);
         while let Some(mut pending) = walk.next_folder() {
             if pending.depth == 0 {
                 pending.path = root_name.clone();

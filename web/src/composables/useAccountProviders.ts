@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 import { api } from '@/api/client'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 const providersWithAccount = ref(new Set<string>())
 const registryProviders = ref(new Set<string>())
@@ -9,8 +9,6 @@ const hasMultihosterAccount = ref(false)
 /** Every provider's display name by slug, from the same `/api/v1/providers` read (RD-130-11). */
 const displayNames = ref(new Map<string, string>())
 let loaded = false
-/** Coalesces a burst of plugin events into one pair of reads. */
-let refreshTimer: number | null = null
 
 async function refresh(): Promise<void> {
   const [accountsResponse, providersResponse] = await Promise.all([
@@ -53,13 +51,7 @@ async function refresh(): Promise<void> {
  * emits more than one event. No notice is raised — `design.md` has no pattern for announcing
  * that data caught up.
  */
-function scheduleRefresh(): void {
-  if (refreshTimer !== null) return
-  refreshTimer = window.setTimeout(() => {
-    refreshTimer = null
-    void refresh()
-  }, 300)
-}
+const events = debouncedEventRefresh(['plugin_catalog.changed', 'account.changed'], refresh)
 
 /**
  * Which providers have an enabled account — used to flag hoster links that will be fetched
@@ -75,7 +67,7 @@ export function useAccountProviders() {
     // `account.changed` for the same reason: half of what this answers is which providers have
     // an enabled account, and an account added, removed or switched off anywhere else left that
     // half as stale as an uninstalled plugin left the other.
-    subscribeEvents({ 'plugin_catalog.changed': scheduleRefresh, 'account.changed': scheduleRefresh })
+    events.connect()
   }
 
   /**

@@ -9,6 +9,7 @@
 //! by the path they sit in — so a bare `/?<key>` is [`Address::Bare`], and whoever reads it
 //! has to ask the service which of the two it is.
 
+use plugin_common::percent_encode;
 use url::Url;
 
 /// Hosts the plugins claim. `app.mediafire.com` serves the same paths behind an application
@@ -162,19 +163,6 @@ pub fn error_number(url: &str) -> Option<u32> {
         .query_pairs()
         .find(|(name, _)| name == "errno")
         .and_then(|(_, value)| value.parse().ok())
-}
-
-/// Percent-encodes one path segment, leaving the characters a file name commonly carries.
-fn percent_encode(segment: &str) -> String {
-    let mut encoded = String::with_capacity(segment.len());
-    for byte in segment.bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
-            encoded.push(char::from(byte));
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    encoded
 }
 
 #[cfg(test)]

@@ -8,8 +8,11 @@
 //! measured behaviour, recorded in `plugins/mega-common/src/api.rs`, and it is why nothing
 //! here reads a status code.
 
-/// The base64 MEGA uses everywhere: URL-safe, unpadded, and forgiving about what it takes.
-const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+use serde_json::Value;
+
+/// MEGA's base64 — URL-safe, unpadded, and forgiving about the standard alphabet and padding —
+/// is `mega-common`'s, the one the resolver and the crawler read links with (RD-191-07).
+pub use mega_common::crypto::{b64_decode, b64_encode};
 
 /// Account version 2, the only one this plugin signs in.
 pub const ACCOUNT_VERSION_2: u64 = 2;
@@ -70,13 +73,16 @@ pub fn api_error(body: &str) -> Option<i64> {
 /// Reads the `us0` answer.
 #[must_use]
 pub fn preflight(body: &str) -> Option<Preflight> {
-    let version = number_field(body, "v")?;
+    let answer = answer_object(body)?;
+    let version = answer.get("v")?.as_u64()?;
     // A version 1 account has no salt, and this plugin refuses it anyway; answering with a
     // `Preflight` that carries an empty salt lets the caller report the version rather than
     // "unreadable answer", which is the difference between a person knowing what to do and
     // not.
-    let salt = string_field(body, "s")
-        .and_then(|value| b64_decode(&value))
+    let salt = answer
+        .get("s")
+        .and_then(Value::as_str)
+        .and_then(b64_decode)
         .unwrap_or_default();
     Some(Preflight { salt, version })
 }
@@ -84,9 +90,16 @@ pub fn preflight(body: &str) -> Option<Preflight> {
 /// Reads the `us` answer.
 #[must_use]
 pub fn session(body: &str) -> Option<Session> {
-    let wrapped_master_key = b64_decode(&string_field(body, "k")?)?;
-    let wrapped_private_key = b64_decode(&string_field(body, "privk")?)?;
-    let encrypted_session_id = b64_decode(&string_field(body, "csid")?)?;
+    let answer = answer_object(body)?;
+    let block = |name: &str| {
+        answer
+            .get(name)
+            .and_then(Value::as_str)
+            .and_then(b64_decode)
+    };
+    let wrapped_master_key = block("k")?;
+    let wrapped_private_key = block("privk")?;
+    let encrypted_session_id = block("csid")?;
     // One AES block, and a private-key block that is whole blocks. A length the derivation
     // would refuse is better caught here, where the plugin can say what is wrong.
     if wrapped_master_key.len() != 16
@@ -128,74 +141,21 @@ pub fn session_id(decrypted_csid: &[u8]) -> Option<String> {
     Some(b64_encode(&decrypted_csid[..SESSION_BYTES]))
 }
 
-/// A string field of a flat JSON object, without a JSON parser.
+/// The one object a command answer carries: MEGA wraps the answer to a batch of one in an
+/// array, and a bare object is read the same way.
 ///
-/// The answers this reads are three fields of base64 and a number. Pulling in a parser for
-/// that would be a dependency in a signed component, and the sibling auth plugins all made
-/// the same choice for the same reason.
-#[must_use]
-pub fn string_field(body: &str, name: &str) -> Option<String> {
-    let needle = format!("\"{name}\":\"");
-    let start = body.find(&needle)? + needle.len();
-    let end = body[start..].find('"')? + start;
-    Some(body[start..end].to_owned())
-}
-
-/// A numeric field of a flat JSON object.
-#[must_use]
-pub fn number_field(body: &str, name: &str) -> Option<u64> {
-    let needle = format!("\"{name}\":");
-    let start = body.find(&needle)? + needle.len();
-    let rest = &body[start..];
-    let end = rest
-        .find(|character: char| !character.is_ascii_digit())
-        .unwrap_or(rest.len());
-    rest[..end].parse().ok()
-}
-
-/// MEGA's base64: URL-safe, unpadded, and tolerant of the standard alphabet and of padding.
-#[must_use]
-pub fn b64_decode(value: &str) -> Option<Vec<u8>> {
-    let mut bits: u32 = 0;
-    let mut held = 0_u32;
-    let mut out = Vec::with_capacity(value.len() * 3 / 4);
-    for character in value.bytes() {
-        let symbol = match character {
-            b'+' => b'-',
-            b'/' => b'_',
-            b'=' | b'\n' | b'\r' | b' ' => continue,
-            other => other,
-        };
-        let index = ALPHABET.iter().position(|entry| *entry == symbol)? as u32;
-        held = (held << 6) | index;
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            out.push(((held >> bits) & 0xff) as u8);
-        }
+/// Parsed, not scanned (RD-191-07). The scan this replaced looked for `"name":"` and took
+/// everything to the next quote, so a space after the colon or a field of the same name in a
+/// nested object decided what was read — and what is read here is key material.
+fn answer_object(body: &str) -> Option<serde_json::Map<String, Value>> {
+    match serde_json::from_str::<Value>(body.trim()).ok()? {
+        Value::Array(items) => match items.into_iter().next()? {
+            Value::Object(object) => Some(object),
+            _ => None,
+        },
+        Value::Object(object) => Some(object),
+        _ => None,
     }
-    Some(out)
-}
-
-/// MEGA's base64, the other way.
-#[must_use]
-pub fn b64_encode(value: &[u8]) -> String {
-    let mut out = String::with_capacity(value.len().div_ceil(3) * 4);
-    for chunk in value.chunks(3) {
-        let mut block = [0_u8; 3];
-        block[..chunk.len()].copy_from_slice(chunk);
-        let packed = (u32::from(block[0]) << 16) | (u32::from(block[1]) << 8) | u32::from(block[2]);
-        let symbols = [
-            (packed >> 18) & 0x3f,
-            (packed >> 12) & 0x3f,
-            (packed >> 6) & 0x3f,
-            packed & 0x3f,
-        ];
-        for symbol in symbols.iter().take(chunk.len() + 1) {
-            out.push(ALPHABET[*symbol as usize] as char);
-        }
-    }
-    out
 }
 
 #[cfg(test)]

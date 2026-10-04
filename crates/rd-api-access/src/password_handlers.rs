@@ -54,18 +54,9 @@ pub async fn change_password(
     // with a bounded, expiring lockout and a global delay that can never become a refusal,
     // which is what stops the protection from turning into the attack. A counter of its own
     // here would be a second, weaker copy of that reasoning.
-    if let rd_authn::Decision::Locked { retry_after } = state.auth.throttle_check(client.0).await {
+    if let Err(refusal) = state.auth.gate(client.0).await {
         note_refusal(&state, &audit, client.0, "locked_out").await;
-        return Err(ApiError::too_many_requests(
-            "auth.too_many_attempts",
-            "Too many failed sign-in attempts from this address",
-        )
-        .with_param("seconds", retry_after.as_secs().max(1).to_string()));
-    }
-    if let rd_authn::Decision::Proceed { delay } = state.auth.throttle_check(client.0).await
-        && !delay.is_zero()
-    {
-        tokio::time::sleep(delay).await;
+        return Err(refusal);
     }
 
     // Before the current password is consulted, and on purpose: this refusal depends only on

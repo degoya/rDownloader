@@ -42,7 +42,9 @@ pub(crate) fn resolved_package_name(
     package_name: &str,
     file_name: &str,
 ) -> Option<String> {
-    let host = source.host_str()?.trim_start_matches("www.");
+    // The same form `group_links` names the package with (audit 1.9.1, RA-IN-06).
+    let host = rd_core::host_key(source.host_str()?);
+    let host = host.as_str();
     if host.is_empty() || !package_name.trim().eq_ignore_ascii_case(host) {
         return None;
     }
@@ -101,13 +103,7 @@ impl SchedulerHandle {
         };
         // One file's name is a statement about the package only while it is the only file in
         // it. A second link makes the package a set, and the set is named by grouping.
-        let siblings = self
-            .database
-            .list_downloads()
-            .await?
-            .into_iter()
-            .filter(|other| other.package_id == package.id)
-            .count();
+        let siblings = self.database.downloads_for_package(package.id).await?.len();
         if siblings != 1 {
             return Ok(());
         }
@@ -176,6 +172,16 @@ mod tests {
     fn the_www_prefix_does_not_hide_the_fallback() {
         assert_eq!(
             name("https://www.example.com/x", "example.com", "Movie.2024.mkv").as_deref(),
+            Some("Movie.2024")
+        );
+        // `rd_core::host_key`, the form `group_links` names with (RA-IN-06).
+        assert_eq!(
+            name(
+                "https://www.example.com./x",
+                "example.com",
+                "Movie.2024.mkv"
+            )
+            .as_deref(),
             Some("Movie.2024")
         );
     }

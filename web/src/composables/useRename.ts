@@ -2,7 +2,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 
 import RenameModal from '@/components/RenameModal.vue'
 
-export interface RenameOptions {
+interface RenameOptions {
   title: string
   label: string
   value: string

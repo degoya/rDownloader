@@ -13,6 +13,7 @@ mod redirect;
 mod sniff;
 mod tls;
 mod transform;
+mod wind_down;
 
 pub use address_guard::{
     AddressPolicy, AddressRefused, AddressScope, GuardedResolver, HostLookup, LookupFuture,

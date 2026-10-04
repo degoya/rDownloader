@@ -25,6 +25,14 @@
 /// Longest container this plugin reads. A `.torrent`, an `.nzb` or a `.dlc` is kilobytes;
 /// anything far past this is not one, and scanning it would spend the invocation's budget
 /// finding that out.
+///
+/// Four MiB, half of `torrent_common::MAX_CONTAINER_BYTES` (RA-PLG-05), deliberately: a
+/// container here is hashed whole for its upload key, copied once more without whitespace to
+/// tell `.rsdf` from `.dlc`, and copied again into the upload's multipart body, all inside
+/// `premiumize-transfers`' 32 MiB, and that was never measured at eight. A torrent between four
+/// and eight MiB is accepted by the other remote-job plugins and not claimed here, so the host
+/// does not offer it to Premiumize; raising the bound takes a measured run with an 8 MiB
+/// container first, and more memory if that run asks for it.
 pub const MAX_CONTAINER_BYTES: usize = 4 * 1024 * 1024;
 
 /// Shortest container worth looking at. Below this there is nothing to recognise.

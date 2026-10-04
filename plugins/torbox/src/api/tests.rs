@@ -136,10 +136,24 @@ fn each_word_and_each_status_lands_where_a_caller_can_act_on_it() {
     assert_eq!(unknown.code, messages::API_ERROR.0);
     assert!(unknown.message.contains("SOMETHING_NEW"));
     assert!(ensure_http_status(200, None).is_ok());
+    // A 404 or 410 is final (owner, 2026-10-04); a legal block is `Offline` and retried, still
+    // worded as TorBox refusing the request (RA-PLG-04).
+    for gone in [404, 410] {
+        let gone = ensure_http_status(gone, None).expect_err("a refusal");
+        assert_eq!(gone.kind, ErrorKind::Permanent);
+        assert_eq!(gone.code, messages::FILE_GONE.0);
+    }
+    let blocked = ensure_http_status(451, None).expect_err("a refusal");
+    assert_eq!(blocked.kind, ErrorKind::Offline);
+    assert_eq!(blocked.code, messages::REQUEST_REFUSED.0);
     assert_eq!(
-        ensure_http_status(404, None).expect_err("a refusal").kind,
-        ErrorKind::Offline
+        ensure_http_status(503, Some(45))
+            .expect_err("a refusal")
+            .kind,
+        ErrorKind::Transient(Some(45))
     );
+    assert_eq!(retry_after_seconds(Some("0")), None);
+    assert_eq!(retry_after_seconds(Some("31536000")), Some(86_400));
 }
 
 /// A cancelled subscription still has the plan until it runs out, and showing a free account

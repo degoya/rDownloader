@@ -421,6 +421,49 @@ async fn the_page_states_end_in_their_own_codes() {
     );
 }
 
+/// The page's status is classified the way every plugin classifies one (RA-PLG-03): a 404 or
+/// 410 is final, a 451 offline and retried, a 429 waits what its `Retry-After` says, and a 403
+/// is no refused account - this plugin sends none.
+#[tokio::test]
+async fn a_page_status_follows_the_shared_mapping() {
+    for (status, retry_after, expected) in [
+        (404_u16, None, FailureKind::Permanent),
+        (410, None, FailureKind::Permanent),
+        (451, None, FailureKind::Offline),
+        (403, None, FailureKind::Permanent),
+        (
+            429,
+            Some("120"),
+            FailureKind::RateLimited {
+                retry_after_seconds: Some(120),
+            },
+        ),
+        (
+            503,
+            Some("0"),
+            FailureKind::Transient {
+                retry_after_seconds: None,
+            },
+        ),
+    ] {
+        let mut refused = html(FILE_PAGE);
+        refused.status = status;
+        if let Some(value) = retry_after {
+            refused.headers.push(rd_plugin_api::ResolvedHeader {
+                name: "Retry-After".to_owned(),
+                value: value.to_owned(),
+            });
+        }
+        let host = MockHost::with_responses(vec![json(200, GET_INFO), refused]);
+        let failure = resolver(&host)
+            .resolve(resolve_request(FILE_URL))
+            .await
+            .expect_err("refused");
+        assert_eq!(failure.category, expected, "{status}");
+        assert_eq!(failure.code.as_deref(), Some("mediafire.http_error"));
+    }
+}
+
 #[tokio::test]
 async fn a_page_status_that_is_not_an_answer_is_reported() {
     let mut refused = html(FILE_PAGE);

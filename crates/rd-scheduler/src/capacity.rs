@@ -221,18 +221,22 @@ impl SchedulerHandle {
         let Ok(destinations) = self.package_destinations().await else {
             return;
         };
-        let Ok(files) = self.database.list_downloads().await else {
-            return;
-        };
-        for file in files.into_iter().filter(&matches) {
-            let Some(destination) = destinations.get(&file.package_id) else {
-                continue;
-            };
-            if self.config.capacity.target_for(destination).await != target {
+        // Package by package: only the packages on `target` have their files read.
+        for (package_id, destination) in destinations {
+            if self.config.capacity.target_for(&destination).await != target {
                 continue;
             }
-            if let Err(error) = action(self, file.id).await {
-                tracing::warn!(download_id = %file.id, %error, "capacity action failed");
+            let files = match self.database.downloads_for_package(package_id).await {
+                Ok(files) => files,
+                Err(error) => {
+                    tracing::warn!(%package_id, %error, "a package's downloads were not read");
+                    continue;
+                }
+            };
+            for file in files.into_iter().filter(&matches) {
+                if let Err(error) = action(self, file.id).await {
+                    tracing::warn!(download_id = %file.id, %error, "capacity action failed");
+                }
             }
         }
     }

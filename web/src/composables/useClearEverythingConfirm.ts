@@ -2,7 +2,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 
 import ClearEverythingModal from '@/components/ClearEverythingModal.vue'
 
-export interface ClearEverythingResult {
+interface ClearEverythingResult {
   confirmed: boolean
   /** Whether what unfinished files wrote beside their target goes as well. */
   deletePartial: boolean

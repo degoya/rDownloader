@@ -12,10 +12,12 @@ use anyhow::{Context, Result};
 use rd_core::{PostprocessKind, PostprocessStage, PostprocessState};
 use rd_files::NoConsoleWindow as _;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     Inner,
-    steps::{checkpoint, truncate},
+    steps::{Outcome, StepEnd, checkpoint, checkpoint_outcome, codes},
+    upload_step::UPLOAD_FAILED,
 };
 
 pub(crate) const PROGRESS_INTERVAL: Duration = Duration::from_millis(750);
@@ -113,8 +115,34 @@ pub(crate) fn percent(bytes: u64, total: Option<u64>) -> Option<u8> {
     Some(u8::try_from((bytes.min(total) * 100) / total).unwrap_or(100))
 }
 
-/// Runs the upload step; `Ok(true)` when rclone exited with status 0.
-pub(crate) async fn run(inner: &Inner, owner: &str, context: &UploadContext<'_>) -> Result<bool> {
+/// How long rclone may go without moving a byte before it is taken for hung.
+///
+/// Not a limit on the whole upload: a large package over a slow line takes hours, and that is
+/// not a fault. A run whose byte count has not moved for half an hour is — a dead remote, a
+/// credential prompt nobody answers — and before this it kept the post-processing queue for
+/// good (audit 1.9.1, INTAKE-05).
+pub(crate) const STALL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+/// How an rclone run ended.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum Ended {
+    /// Exit status 0.
+    Uploaded,
+    /// Any other exit, with the status and the tail of the log.
+    Failed(String),
+    /// No byte moved for the stall limit; rclone was killed.
+    Stalled(Duration),
+    /// The service is stopping; rclone was killed and the next start runs the step again.
+    Stopped,
+}
+
+/// Runs the upload step: done when rclone exited with status 0, stopped by a shutdown (the
+/// step goes back to queued, as an interrupted plugin upload does), failed otherwise.
+pub(crate) async fn run(
+    inner: &Inner,
+    owner: &str,
+    context: &UploadContext<'_>,
+) -> Result<StepEnd> {
     let target = destination(context.remote, context.package_name);
     crate::steps::stage(
         inner,
@@ -133,36 +161,63 @@ pub(crate) async fn run(inner: &Inner, owner: &str, context: &UploadContext<'_>)
         None,
     )
     .await?;
-    let outcome = execute(inner, owner, context, &target).await;
-    let (state, ok, output, message) = match outcome {
-        Ok((true, _)) => (PostprocessState::Completed, true, Some(target), None),
-        Ok((false, tail)) => (PostprocessState::Failed, false, None, Some(tail)),
+    let stop = inner.shutdown.child_token();
+    let ended = execute(inner, owner, context, &target, &stop, STALL_TIMEOUT).await;
+    let (state, end, output, outcome) = match ended {
+        Ok(Ended::Uploaded) => (
+            PostprocessState::Completed,
+            StepEnd::Done,
+            Some(target),
+            None,
+        ),
+        Ok(Ended::Stopped) => (PostprocessState::Queued, StepEnd::Stopped, None, None),
+        Ok(Ended::Failed(tail)) => (
+            PostprocessState::Failed,
+            StepEnd::Failed,
+            None,
+            Some(Outcome::detailed(UPLOAD_FAILED, tail)),
+        ),
+        Ok(Ended::Stalled(limit)) => (
+            PostprocessState::Failed,
+            StepEnd::Failed,
+            None,
+            Some(Outcome::new(
+                codes::UPLOAD_STALLED,
+                &[("minutes", (limit.as_secs() / 60).to_string())],
+                format!(
+                    "rclone moved no data for {} minutes and was stopped",
+                    limit.as_secs() / 60
+                ),
+            )),
+        ),
         Err(error) => (
             PostprocessState::Failed,
-            false,
+            StepEnd::Failed,
             None,
-            Some(error.to_string()),
+            Some(Outcome::detailed(UPLOAD_FAILED, format!("{error:#}"))),
         ),
     };
-    checkpoint(
+    checkpoint_outcome(
         inner,
         owner,
         PostprocessKind::Upload,
         context.remote,
         state,
         output,
-        message.map(truncate),
+        outcome,
     )
     .await?;
-    Ok(ok)
+    Ok(end)
 }
 
-async fn execute(
+pub(crate) async fn execute(
     inner: &Inner,
     owner: &str,
     context: &UploadContext<'_>,
     target: &str,
-) -> Result<(bool, String)> {
+    stop: &CancellationToken,
+    stall: Duration,
+) -> Result<Ended> {
     let Some(tool) = rd_core::locate_tool(context.executable, context.vendor_directory, "rclone")
     else {
         anyhow::bail!("rclone not found (settings, vendor folder or PATH)");
@@ -175,11 +230,38 @@ async fn execute(
         .kill_on_drop(true);
     let mut child = command.spawn().context("spawn rclone")?;
     let stderr = child.stderr.take().context("rclone stderr")?;
-    let mut lines = BufReader::new(stderr).lines();
+    // Split on bytes and read each line lossily: `lines()` ends at the first line that is not
+    // UTF-8 (a file name in a legacy encoding), and a pipe nobody drains any more is one rclone
+    // blocks on once it is full (audit 1.9.1, INTAKE-05).
+    let mut segments = BufReader::new(stderr).split(b'\n');
     let mut tail: Vec<String> = Vec::new();
     let mut last_progress = std::time::Instant::now() - PROGRESS_INTERVAL;
-    while let Ok(Some(line)) = lines.next_line().await {
-        if let Some((bytes, total)) = parse_stats_line(&line) {
+    let mut moved: Option<u64> = None;
+    let mut deadline = tokio::time::Instant::now() + stall;
+    loop {
+        let segment = tokio::select! {
+            () = stop.cancelled() => {
+                let _ = child.kill().await;
+                return Ok(Ended::Stopped);
+            }
+            () = tokio::time::sleep_until(deadline) => {
+                let _ = child.kill().await;
+                return Ok(Ended::Stalled(stall));
+            }
+            segment = segments.next_segment() => segment,
+        };
+        let Ok(Some(segment)) = segment else {
+            break;
+        };
+        let line = String::from_utf8_lossy(&segment);
+        let line = line.trim_end_matches('\r');
+        if let Some((bytes, total)) = parse_stats_line(line) {
+            // Only bytes that moved count as life; rclone prints its stats every second
+            // whether anything moves or not.
+            if moved.is_none_or(|before| bytes > before) {
+                moved = Some(bytes);
+                deadline = tokio::time::Instant::now() + stall;
+            }
             if last_progress.elapsed() >= PROGRESS_INTERVAL {
                 last_progress = std::time::Instant::now();
                 let _ = inner
@@ -200,19 +282,18 @@ async fn execute(
         if tail.len() >= 20 {
             tail.remove(0);
         }
-        tail.push(line);
+        tail.push(line.to_owned());
     }
     let status = child.wait().await.context("wait for rclone")?;
-    let summary = if status.success() {
-        String::new()
+    Ok(if status.success() {
+        Ended::Uploaded
     } else {
-        format!(
+        Ended::Failed(format!(
             "rclone exit status {}\n{}",
             status.code().unwrap_or(-1),
             tail.join("\n")
-        )
-    };
-    Ok((status.success(), summary))
+        ))
+    })
 }
 
 #[cfg(test)]

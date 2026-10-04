@@ -58,6 +58,24 @@ fn both_spellings_of_one_info_hash_are_one_key() {
     );
 }
 
+/// PLUG-07: an empty pair (`&&`) or one without a `=` used to end the whole read here, so a
+/// perfectly good magnet had no key and Put.io was never asked. It is skipped now, as it always
+/// was at TorBox and Offcloud.
+#[test]
+fn an_empty_pair_does_not_hide_the_info_hash() {
+    let expected = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+    for address in [
+        "magnet:?dn=Example&&xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+        "magnet:?dn=Example&flag&xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709",
+    ] {
+        assert_eq!(
+            magnet_info_hash(address).as_deref(),
+            Some(expected),
+            "{address}"
+        );
+    }
+}
+
 #[test]
 fn a_magnet_that_names_no_torrent_has_no_key() {
     for address in [

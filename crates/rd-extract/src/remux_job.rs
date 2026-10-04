@@ -129,14 +129,14 @@ pub(crate) async fn run(
         Err(error) => {
             let message = rd_core::redact_text(&error.to_string());
             tracing::warn!(%message, "remux failed; the recording's segments were kept");
-            checkpoint(
+            crate::steps::checkpoint_coded(
                 inner,
                 context.owner,
                 PostprocessKind::Remux,
                 &source,
                 PostprocessState::Failed,
-                Some(message),
                 None,
+                crate::steps::Outcome::detailed(crate::steps::codes::REMUX_FAILED, message),
             )
             .await?;
             // A failed remux leaves a partial container behind that nothing should mistake
@@ -173,15 +173,7 @@ async fn run_ffmpeg(ffmpeg: &Path, directory: &Path, list: &Path, output: &Path)
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output_result.stderr);
-    let tail: String = stderr
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or("ffmpeg failed")
-        .chars()
-        .take(300)
-        .collect();
-    anyhow::bail!("{tail}")
+    anyhow::bail!("{}", rd_tools::stderr_tail(&stderr, "ffmpeg failed"))
 }
 
 /// The segment files of a recording, in recording order.

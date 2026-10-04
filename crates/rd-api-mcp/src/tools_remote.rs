@@ -6,7 +6,9 @@
 //! `discard`, deletes the job at the provider and refuses anything without an explicit
 //! confirmation; a tool passing that confirmation would be the assistant confirming on the
 //! person's behalf, so it stays out. `forget_remote_job` is the half that only touches this
-//! installation's own list, and it says so in its own answer.
+//! installation's own list, and it says so in its own answer. `submit_nzb_import_remote_job`
+//! hands an NZB import from the LinkGrabber to a provider the same way, and
+//! `submit_package_remote_job` the NZB behind a queued package (RD-191-13).
 
 use axum::{
     Json,
@@ -18,7 +20,10 @@ use super::{
     RdMcpServer,
     error::{McpToolResult, parse_id, respond},
     params_config::IdParams,
-    params_insight::{RemoteJobChoiceParams, SubmitRemoteJobParams},
+    params_insight::{
+        RemoteJobChoiceParams, SubmitNzbImportRemoteJobParams, SubmitPackageRemoteJobParams,
+        SubmitRemoteJobParams,
+    },
 };
 use crate::remote_job_handlers::{RemoteJobChoiceRequest, SubmitRemoteJobRequest};
 
@@ -53,6 +58,52 @@ impl RdMcpServer {
                     container: params.container,
                     file_name: params.file_name,
                 }),
+            )
+            .await?
+            .0)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Hand an NZB import still waiting in the LinkGrabber to one account's provider, which fetches it from Usenet on its side; the finished files come back into the LinkGrabber as links. Only accounts whose provider takes NZB files are accepted (list_remote_job_providers with container nzb). The import stays in the LinkGrabber marked `handed_over`; `already_running` true means this account already had a job for this NZB and nothing was sent."
+    )]
+    pub async fn submit_nzb_import_remote_job(
+        &self,
+        Parameters(params): Parameters<SubmitNzbImportRemoteJobParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let account_id = parse_id(&params.account_id)?;
+            Ok(
+                crate::nzb_remote_job_handlers::submit_nzb_import_remote_job(
+                    State(self.state.clone()),
+                    AxumPath(id),
+                    Json(crate::nzb_remote_job_handlers::NzbImportRemoteJobRequest { account_id }),
+                )
+                .await?
+                .0,
+            )
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Hand the NZB behind a package in the download list to one account's provider, in any state of the package (a failed one included); the provider fetches it from Usenet on its side and the finished files come back into the LinkGrabber as links. The package stays; its NZB import is marked `handed_over`. Refused with package.remote_job_no_nzb when the package did not come from an NZB. Only accounts whose provider takes NZB files are accepted (list_remote_job_providers with container nzb); `already_running` true means this account already had a job for this NZB and nothing was sent."
+    )]
+    pub async fn submit_package_remote_job(
+        &self,
+        Parameters(params): Parameters<SubmitPackageRemoteJobParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let account_id = parse_id(&params.account_id)?;
+            Ok(crate::nzb_remote_job_handlers::submit_package_remote_job(
+                State(self.state.clone()),
+                AxumPath(id),
+                Json(crate::nzb_remote_job_handlers::NzbImportRemoteJobRequest { account_id }),
             )
             .await?
             .0)

@@ -379,6 +379,12 @@ async fn unsupported_version_is_rejected() {
     let (status, error) = import(&harness.router, bundle, None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(error["code"], "settings.backup_version_unsupported");
+    // The version travels as a parameter, not inside the English text (API-11).
+    assert_eq!(error["params"]["version"], "999", "{error}");
+    assert_eq!(
+        error["error"],
+        "This settings bundle version is not supported"
+    );
 }
 
 #[tokio::test]

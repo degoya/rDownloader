@@ -23,7 +23,10 @@
 //! case the guard exists for; the same torrent as a file and as a magnet are two, and that is
 //! recorded as the cost rather than hidden.
 
-use sha1::{Digest, Sha1};
+// The magnet reader is `torrent-common`'s, the same code every remote-job plugin runs
+// (RD-191-07).
+pub use torrent_common::normalise_info_hash;
+use torrent_common::{is_magnet, magnet_info_hash, sha1_hex as digest};
 
 pub use premiumize_common::container::MAX_CONTAINER_BYTES;
 
@@ -38,10 +41,10 @@ pub fn magnet_key(address: &str) -> Option<String> {
     if address.len() > MAX_ADDRESS_BYTES {
         return None;
     }
-    let rest = address
-        .strip_prefix("magnet:?")
-        .or_else(|| address.strip_prefix("MAGNET:?"))?;
-    if let Some(hash) = info_hash(rest) {
+    if !is_magnet(address) {
+        return None;
+    }
+    if let Some(hash) = magnet_info_hash(address) {
         return Some(format!("btih:{hash}"));
     }
     Some(format!("magnet:{}", digest(address.as_bytes())))
@@ -85,84 +88,6 @@ pub fn container_key(bytes: &[u8]) -> Option<String> {
 #[must_use]
 pub fn upload_tag(bytes: &[u8]) -> String {
     digest(bytes).chars().take(12).collect()
-}
-
-/// The BitTorrent info hash a magnet's query names, as lower-case hex.
-fn info_hash(query: &str) -> Option<String> {
-    for pair in query.split('&') {
-        let (name, value) = pair.split_once('=')?;
-        // `xt.1` and friends: a magnet may name several topics, and each is a candidate.
-        if name != "xt" && !name.starts_with("xt.") {
-            continue;
-        }
-        let Some(raw) = value
-            .strip_prefix("urn:btih:")
-            .or_else(|| value.strip_prefix("urn%3Abtih%3A"))
-        else {
-            continue;
-        };
-        if let Some(hash) = normalise_info_hash(raw) {
-            return Some(hash);
-        }
-    }
-    None
-}
-
-/// Accepts a 40-character hex or a 32-character base32 info hash and answers lower-case hex.
-///
-/// Both spellings are in the field and both mean the same twenty bytes, so normalising here
-/// means a magnet copied from two different sites produces one transfer and not two.
-#[must_use]
-pub fn normalise_info_hash(raw: &str) -> Option<String> {
-    let raw = raw.trim();
-    if raw.len() == 40 && raw.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Some(raw.to_ascii_lowercase());
-    }
-    if raw.len() == 32 {
-        return decode_base32(raw).map(|bytes| to_hex(&bytes));
-    }
-    None
-}
-
-fn digest(bytes: &[u8]) -> String {
-    let mut hasher = Sha1::new();
-    hasher.update(bytes);
-    to_hex(&hasher.finalize())
-}
-
-fn to_hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut text, byte| {
-        use std::fmt::Write;
-        // Writing into a String cannot fail; the result is discarded rather than unwrapped.
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
-}
-
-/// RFC 4648 base32 without padding, as a magnet spells an info hash.
-fn decode_base32(text: &str) -> Option<Vec<u8>> {
-    let mut accumulator: u64 = 0;
-    let mut bits = 0_u32;
-    let mut bytes = Vec::with_capacity(20);
-    for character in text.chars() {
-        let value = match character.to_ascii_uppercase() {
-            letter @ 'A'..='Z' => u64::from(letter as u8 - b'A'),
-            digit @ '2'..='7' => u64::from(digit as u8 - b'2') + 26,
-            _ => return None,
-        };
-        accumulator = (accumulator << 5) | value;
-        bits += 5;
-        if bits >= 8 {
-            bits -= 8;
-            let byte = u8::try_from((accumulator >> bits) & 0xff).ok()?;
-            bytes.push(byte);
-            // The consumed bits are dropped rather than left in the accumulator. Without this
-            // it grows by five bits per character and overflows on the thirteenth, which in a
-            // debug build is a panic and in a release build a wrong answer.
-            accumulator &= (1_u64 << bits) - 1;
-        }
-    }
-    (bytes.len() == 20).then_some(bytes)
 }
 
 #[cfg(test)]

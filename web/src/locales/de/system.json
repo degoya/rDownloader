@@ -649,7 +649,6 @@
       "deb_file": "Das Repository enthält nur Releases. Eine Beta oder ein heruntergeladenes Paket installierst du aus der Datei: sudo apt install ./<datei>.deb",
       "rpm_file": "Das Repository enthält nur Releases. Eine Beta oder ein heruntergeladenes Paket installierst du aus der Datei: sudo dnf install ./<datei>.rpm"
     },
-    "notice": "Update verfügbar",
     "notice_version": "{version} verfügbar",
     "notice_installing": "Update auf {version} läuft",
     "notice_updated": "Auf {version} aktualisiert",

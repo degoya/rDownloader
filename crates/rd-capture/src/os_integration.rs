@@ -1,8 +1,14 @@
 use std::path::Path;
 
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use anyhow::{Context, bail};
+// The process and registry helpers are `rd-autostart`'s, which this crate already depends on;
+// the copies that lived here are gone (audit 1.9.1, INTAKE-13).
+#[cfg(target_os = "linux")]
+use rd_autostart::shell::run;
 #[cfg(windows)]
-use rd_files::NoConsoleWindow as _;
+use rd_autostart::shell::{reg_add, reg_delete_key_if_present};
 
 #[derive(Clone, Copy)]
 pub enum Kind {
@@ -177,7 +183,7 @@ fn windows_remove(kind: Kind) -> Result<()> {
     // The same list `install` writes, read for its removal keys. The executable path plays no
     // part in a key, so an empty one is enough to build the entries here.
     for key in windows_removal_keys(&windows_entries(kind, "")) {
-        reg_delete_tree_if_present(&key)?;
+        reg_delete_key_if_present(&key)?;
     }
     Ok(())
 }
@@ -218,40 +224,6 @@ fn windows_scheme_entries(executable: &str) -> Vec<RegistryEntry> {
             removes: scheme,
         },
     ]
-}
-
-#[cfg(windows)]
-fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
-    let mut command = std::process::Command::new("reg.exe");
-    command.no_console_window().args(["add", key]);
-    if let Some(name) = name {
-        command.args(["/v", name]);
-    } else {
-        command.arg("/ve");
-    }
-    command.args(["/t", "REG_SZ", "/d", value, "/f"]);
-    run(&mut command, "write Windows registry")
-}
-
-#[cfg(windows)]
-fn reg_delete_tree_if_present(key: &str) -> Result<()> {
-    let present = std::process::Command::new("reg.exe")
-        .no_console_window()
-        .args(["query", key])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .with_context(|| format!("query Windows registry key {key}"))?
-        .success();
-    if !present {
-        return Ok(());
-    }
-    run(
-        std::process::Command::new("reg.exe")
-            .no_console_window()
-            .args(["delete", key, "/f"]),
-        "remove Windows registry key",
-    )
 }
 
 #[cfg(target_os = "linux")]
@@ -376,15 +348,6 @@ fn desktop_quote(path: &Path) -> Result<String> {
             .replace('$', "\\$")
             .replace('%', "%%")
     ))
-}
-
-#[cfg(any(windows, target_os = "linux"))]
-fn run(command: &mut std::process::Command, operation: &str) -> Result<()> {
-    let status = command.status().with_context(|| operation.to_owned())?;
-    if !status.success() {
-        bail!("{operation} failed with {status}");
-    }
-    Ok(())
 }
 
 #[cfg(target_os = "macos")]

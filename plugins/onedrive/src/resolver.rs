@@ -183,9 +183,8 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         return Ok(response);
     }
     let code = reason::of(&response.body);
-    let retry = response
-        .header("retry-after")
-        .and_then(|value| value.trim().parse::<u64>().ok());
+    // The shared reader (RD-191-07): clamped to a day, `0` and a date ignored.
+    let retry = plugin_common::retry_after(&response.headers);
     let ((stable, message), kind) = api::classify(response.status, code.as_deref(), retry);
     let mut failure = Failure::coded(kind, stable, message);
     if let Some(code) = code {

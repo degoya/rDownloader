@@ -124,7 +124,11 @@ async fn call<H: PluginHost>(
     )
     .with_header("Content-Type", "application/x-www-form-urlencoded");
     let response = host.http(request).await?;
-    api::ensure_http_status(response.status).map_err(convert_failure)?;
+    api::ensure_http_status(
+        response.status,
+        plugin_common::retry_after(&response.headers),
+    )
+    .map_err(convert_failure)?;
     Ok(response)
 }
 

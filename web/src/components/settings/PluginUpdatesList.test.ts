@@ -1,6 +1,7 @@
 /**
  * The updates list (RD-140-01): an update names both versions and its repository, an automatic
- * one says so, and every install starts at the preview rather than at the service.
+ * one says so, and every install starts at the preview rather than at the service. Above it, the
+ * switch for all plugins (RD-191-10).
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,9 +11,13 @@ import pluginsCatalogue from '@/locales/en/plugins.json'
 import { mountComponent } from '@/test/mount'
 
 const listOffers = vi.fn()
+const getUpdateSettings = vi.fn()
+const setUpdateSettings = vi.fn()
 vi.mock('@/api/pluginRepositories', async importOriginal => ({
   ...await importOriginal<typeof import('@/api/pluginRepositories')>(),
-  listOffers: () => listOffers()
+  listOffers: () => listOffers(),
+  getUpdateSettings: () => getUpdateSettings(),
+  setUpdateSettings: (automatic: boolean) => setUpdateSettings(automatic)
 }))
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 vi.mock('@/i18n/server', () => ({
@@ -69,7 +74,62 @@ function mount(offers: PluginOffers) {
 describe('PluginUpdatesList', () => {
   beforeEach(() => {
     listOffers.mockReset()
+    getUpdateSettings.mockReset()
+    getUpdateSettings.mockResolvedValue({ ok: true, data: { automatic_updates: false } })
+    setUpdateSettings.mockReset()
     previewSources.length = 0
+  })
+
+  it('reads the switch for all plugins, switches it on and tells the tab', async () => {
+    setUpdateSettings.mockResolvedValue({ ok: true, data: { automatic_updates: true } })
+    const view = mount({ updates: [], available: [], installed: [] })
+    const toggle = await screen.findByRole('switch', { name: pluginsCatalogue.updates.automatic_all })
+    await vi.waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false))
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+
+    getUpdateSettings.mockResolvedValue({ ok: true, data: { automatic_updates: true } })
+    await fireEvent.click(toggle)
+    expect(setUpdateSettings).toHaveBeenCalledWith(true)
+    expect(await screen.findByText(pluginsCatalogue.updates.automatic_all_on)).toBeTruthy()
+    expect(view.emitted('automaticChanged')).toEqual([[true]])
+    await vi.waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'))
+  })
+
+  it('shows the switch on as the service reports it, and a refusal to switch it off', async () => {
+    getUpdateSettings.mockResolvedValue({ ok: true, data: { automatic_updates: true } })
+    setUpdateSettings.mockResolvedValue({ ok: false, status: 403, message: { code: 'auth.forbidden' } })
+    const view = mount({ updates: [], available: [], installed: [] })
+    const toggle = await screen.findByRole('switch', { name: pluginsCatalogue.updates.automatic_all })
+    await vi.waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'))
+
+    await fireEvent.click(toggle)
+    expect(setUpdateSettings).toHaveBeenCalledWith(false)
+    expect(await screen.findByText('auth.forbidden')).toBeTruthy()
+    expect(view.emitted('automaticChanged')).toBeUndefined()
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('keeps the switch disabled until the service reported it (RA-WEB-03)', async () => {
+    let answer: (value: unknown) => void = () => {}
+    getUpdateSettings.mockReturnValue(new Promise(resolve => { answer = resolve }))
+    mount({ updates: [], available: [], installed: [] })
+    const toggle = await screen.findByRole('switch', { name: pluginsCatalogue.updates.automatic_all }) as HTMLButtonElement
+    expect(toggle.disabled).toBe(true)
+    await fireEvent.click(toggle)
+    expect(setUpdateSettings).not.toHaveBeenCalled()
+
+    answer({ ok: true, data: { automatic_updates: true } })
+    await vi.waitFor(() => expect(toggle.disabled).toBe(false))
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('shows why the switch cannot be read, and leaves it disabled (RA-WEB-03)', async () => {
+    getUpdateSettings.mockResolvedValue({ ok: false, status: 500, message: { code: 'internal.error' } })
+    const view = mount({ updates: [], available: [], installed: [] })
+    expect(await screen.findByText('internal.error')).toBeTruthy()
+    expect(view.container.querySelector('[data-automatic-all-error]')).not.toBeNull()
+    const toggle = screen.getByRole('switch', { name: pluginsCatalogue.updates.automatic_all }) as HTMLButtonElement
+    expect(toggle.disabled).toBe(true)
   })
 
   it('names both versions and the repository, and marks an automatic update', async () => {
@@ -78,7 +138,7 @@ describe('PluginUpdatesList', () => {
         { offer: offer('DDownload', '1.2.4', { installed_version: '1.2.3' }), installed_version: '1.2.3', policy: 'automatic', adds_permissions: false, added_permissions: NONE },
         { offer: offer('Rapidgator', '2.0.0', { installed_version: '1.9.0' }), installed_version: '1.9.0', policy: 'manual', adds_permissions: false, added_permissions: NONE }
       ],
-      available: []
+      available: [], installed: []
     })
     expect(await screen.findByText('v1.2.3 → v1.2.4')).toBeTruthy()
     expect(screen.getByText('v1.9.0 → v2.0.0')).toBeTruthy()
@@ -98,7 +158,7 @@ describe('PluginUpdatesList', () => {
         },
         { offer: offer('Rapidgator', '2.0.0'), installed_version: '1.9.0', policy: 'manual', adds_permissions: false, added_permissions: NONE }
       ],
-      available: []
+      available: [], installed: []
     })
     const badge = await screen.findByText(pluginsCatalogue.updates.adds_permissions)
     // The tooltip names what is new, translated grants first, then the addresses (RD-160-09).
@@ -113,7 +173,7 @@ describe('PluginUpdatesList', () => {
   })
 
   it('opens the preview for the exact version, and never installs straight away', async () => {
-    mount({ updates: [{ offer: offer('DDownload', '1.2.4'), installed_version: '1.2.3', policy: 'manual', adds_permissions: false, added_permissions: NONE }], available: [] })
+    mount({ updates: [{ offer: offer('DDownload', '1.2.4'), installed_version: '1.2.3', policy: 'manual', adds_permissions: false, added_permissions: NONE }], available: [], installed: [] })
     await fireEvent.click(await screen.findByRole('button', { name: pluginsCatalogue.updates.review }))
     expect(previewSources).toEqual([
       { kind: 'repository', repositoryId: 'official', pluginId: 'id-DDownload', version: '1.2.4' }
@@ -123,7 +183,8 @@ describe('PluginUpdatesList', () => {
   it('lists what is not installed, and offers no review for what this build cannot run', async () => {
     mount({
       updates: [],
-      available: [offer('Fresh', '1.0.0'), offer('Future', '3.0.0', { compatibility: 'contract_unsupported' })]
+      available: [offer('Fresh', '1.0.0'), offer('Future', '3.0.0', { compatibility: 'contract_unsupported' })],
+      installed: []
     })
     expect(await screen.findByText(pluginsCatalogue.updates.empty)).toBeTruthy()
     expect(screen.getByText('Fresh')).toBeTruthy()

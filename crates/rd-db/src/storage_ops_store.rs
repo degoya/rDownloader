@@ -2,11 +2,11 @@
 //! `migrations/0100_storage_operations.sql`.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use rd_core::{DownloadId, PackageId, StorageOperationKind, StorageOperationState};
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
-use crate::parse_id;
+use crate::{parse_id, parse_time, timestamp};
 
 /// Rows kept; the oldest beyond this go when a new one is started.
 pub const STORAGE_OPERATIONS_KEPT: i64 = 2000;
@@ -98,16 +98,6 @@ struct Row {
     error_message: Option<String>,
     started_at: String,
     finished_at: Option<String>,
-}
-
-fn timestamp(value: &DateTime<Utc>) -> String {
-    value.to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
-fn parse_time(value: &str) -> Result<DateTime<Utc>> {
-    Ok(DateTime::parse_from_rfc3339(value)
-        .context("parse stored timestamp")?
-        .with_timezone(&Utc))
 }
 
 fn bytes(value: Option<u64>) -> Option<i64> {

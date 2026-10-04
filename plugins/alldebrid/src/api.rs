@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -260,20 +261,26 @@ pub(crate) fn error_from_status(status: &str, error: Option<&ApiError>) -> Optio
 }
 
 /// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 | 451 => Err(coded(ErrorKind::Offline, messages::LINK_DOWN)),
-        429 => Err(coded(ErrorKind::RateLimited(None), messages::RATE_LIMITED)),
-        500..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07); this only names each in AllDebrid's codes. `retry_after` is the response's
+/// `Retry-After`, which a `429` or a `5xx` now carries into the wait.
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::LINK_DOWN),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::LINK_DOWN),
+        HttpRefusal::RateLimited(wait) => {
+            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
+        }
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]
@@ -435,5 +442,26 @@ mod tests {
             merge_hosters(data),
             vec!["1fichier.com", "rapidgator.net", "youtube.com"]
         );
+    }
+
+    /// The shared mapping (RD-191-07): a `429` carries the provider's wait, `451` is offline.
+    #[test]
+    fn ensure_http_status_uses_the_shared_mapping() {
+        assert!(ensure_http_status(204, None).is_ok());
+        assert!(matches!(
+            ensure_http_status(429, Some(30)).expect_err("429").kind,
+            ErrorKind::RateLimited(Some(30))
+        ));
+        assert!(matches!(
+            ensure_http_status(451, None).expect_err("451").kind,
+            ErrorKind::Offline
+        ));
+        assert!(matches!(
+            ensure_http_status(403, None).expect_err("403").kind,
+            ErrorKind::AccountInvalid
+        ));
+        let other = ensure_http_status(418, None).expect_err("418");
+        assert!(matches!(other.kind, ErrorKind::Permanent));
+        assert_eq!(other.code, messages::HTTP_ERROR);
     }
 }

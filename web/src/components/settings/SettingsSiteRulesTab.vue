@@ -26,13 +26,14 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SiteRuleEditor from '@/components/settings/SiteRuleEditor.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
+import { useJsonImport } from '@/composables/useJsonImport'
 import {
   emptyDraft,
   fromRule,
   useSiteRules,
   type RuleDraft
 } from '@/composables/useSiteRules'
-import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
+import { downloadJson } from '@/utils/jsonFile'
 
 const { t, te } = useI18n()
 const toast = useToast()
@@ -43,7 +44,6 @@ const copyName = useCopyName()
 const draft = ref<RuleDraft>(emptyDraft())
 const editingId = ref<string | null>(null)
 const testResult = ref<SiteRuleTestResult | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
 const editorElement = ref<HTMLElement | null>(null)
 const ruleCount = computed(() => rules.rules.value.length)
 
@@ -147,20 +147,15 @@ async function exportRules(): Promise<void> {
   downloadJson(document_, 'site-rules')
 }
 
-function chooseFile(): void {
-  openFilePicker(fileInput.value)
-}
+/** The server reads and checks the pack itself; here only that it is JSON at all. */
+const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<string>({
+  check: (_parsed, text) => text,
+  unreadable: () => t('siterules.transfer.import_unreadable'),
+  refuse: message => toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' }),
+  take: importRules
+})
 
-async function selectFile(event: Event): Promise<void> {
-  const file = chosenFile(event)
-  if (!file) return
-  const text = await file.text()
-  try {
-    JSON.parse(text)
-  } catch {
-    toast.add({ title: t('siterules.transfer.import_unreadable'), color: 'error', icon: 'i-lucide-circle-alert' })
-    return
-  }
+async function importRules(text: string): Promise<void> {
   const result = await rules.importRules(text)
   if (!result) return
   const refused = result.rules

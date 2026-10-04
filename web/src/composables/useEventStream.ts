@@ -17,7 +17,7 @@ import {
   resetServiceConnection
 } from '@/composables/serviceConnection'
 
-type StreamListener = (event: MessageEvent) => void
+export type StreamListener = (event: MessageEvent) => void
 
 const ENDPOINT = withBase('/api/v1/events')
 const BASE_RECONNECT_MS = 1_000
@@ -217,7 +217,7 @@ export function resumeEventStream(): void {
  * Opens the stream now if it is down and waiting out its backoff — the browser reported the
  * network back (`online`). Every subscriber re-reads once it is open, since the gap is unknown.
  */
-export function reconnectEventStream(): void {
+function reconnectEventStream(): void {
   // A live `source` is either open or being retried by the browser itself, with the resume id.
   if (suspended || source || listeners.size === 0) return
   closeStream()

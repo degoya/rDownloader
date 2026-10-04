@@ -150,3 +150,52 @@ async fn only_torbox_and_premiumize_name_cache_kinds() {
         ]
     );
 }
+
+/// RD-191-13: the providers whose manifest declares `nzb` under `[extension] containers` are
+/// exactly the providers whose built plugin identifies an NZB container. The declaration is what
+/// the LinkGrabber offers accounts by, without compiling anything; this is its proof against the
+/// guest code, so a plugin that learns or loses NZBs without its manifest saying so fails here.
+#[tokio::test]
+async fn the_declared_nzb_providers_are_the_ones_that_identify_an_nzb() {
+    let installed = tempfile::tempdir().expect("tempdir");
+    for directory in remote_job_directories() {
+        install(installed.path(), &directory);
+    }
+    let installer = PluginInstaller::new(installed.path().to_owned(), PluginVerifier::new(true));
+    let manifests = installer
+        .verified_manifests()
+        .await
+        .expect("the verified manifests");
+    let declared = RemoteJobRunners::providers_accepting(&manifests, "nzb");
+    assert_eq!(
+        declared,
+        BTreeSet::from(["premiumize", "torbox"].map(str::to_owned))
+    );
+
+    let runners = RemoteJobRunners::load(&installer, None)
+        .await
+        .expect("the runners");
+    let nzb = br#"<?xml version="1.0" encoding="UTF-8"?>
+<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
+ <head><meta type="name">Show.S01E01</meta></head>
+ <file poster="poster" date="1700000000" subject="Show.S01E01.rar">
+  <groups><group>alt.binaries.test</group></groups>
+  <segments><segment bytes="42" number="1">part1@example.test</segment></segments>
+ </file>
+</nzb>
+"#;
+    let source = rd_plugin_host::extension::RemoteJobSource::Container(nzb.to_vec());
+    let mut identified = BTreeSet::new();
+    for provider in RemoteJobRunners::claimed_providers(&manifests) {
+        if matches!(
+            runners.identify(&provider, &source).await,
+            rd_plugin_ext::StartOutcome::Identified { .. }
+        ) {
+            identified.insert(provider);
+        }
+    }
+    assert_eq!(
+        identified, declared,
+        "the manifests must say what the plugins do"
+    );
+}

@@ -3,25 +3,39 @@
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
+use rd_api_core::list_bounds::paged;
 use rd_core::CandidateId;
 use rd_db::StoreErrorKind;
 
-use crate::{ApiError, AppState, dto::MessageResponse};
+use crate::{
+    ApiError, AppState,
+    dto::{MessageResponse, PageQuery},
+};
 
-#[utoipa::path(get, path = "/api/v1/collector/batches", tag = "collector", responses((status = 200, body = [rd_core::CollectorBatch])))]
+/// Every capture batch, newest first; `limit`/`offset` cut a page out of that order (API-15).
+#[utoipa::path(get, path = "/api/v1/collector/batches", tag = "collector", params(PageQuery), responses((status = 200, body = [rd_core::CollectorBatch], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_batches(
     State(state): State<AppState>,
-) -> Result<Json<Vec<rd_core::CollectorBatch>>, ApiError> {
-    Ok(Json(state.database.list_collector_batches().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<rd_core::CollectorBatch>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(
+        window,
+        state.database.list_collector_batches().await?,
+    ))
 }
 
-#[utoipa::path(get, path = "/api/v1/collector/candidates", tag = "collector", responses((status = 200, body = [rd_core::LinkCandidate])))]
+/// Every link not yet enqueued, in package and link order; `limit`/`offset` cut a page out of
+/// that order (API-15).
+#[utoipa::path(get, path = "/api/v1/collector/candidates", tag = "collector", params(PageQuery), responses((status = 200, body = [rd_core::LinkCandidate], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_candidates(
     State(state): State<AppState>,
-) -> Result<Json<Vec<rd_core::LinkCandidate>>, ApiError> {
-    Ok(Json(state.database.list_candidates().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<rd_core::LinkCandidate>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(window, state.database.list_candidates().await?))
 }
 
 #[utoipa::path(delete, path = "/api/v1/collector/candidates/{id}", tag = "collector", params(("id" = rd_core::CandidateId, Path)), responses((status = 200, body = MessageResponse), (status = 404), (status = 409)))]

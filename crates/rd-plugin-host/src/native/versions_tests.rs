@@ -78,6 +78,7 @@ async fn service(directory: &std::path::Path) -> ResolverService {
         secrets,
         Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
         None,
+        crate::OwnEndpoints::default(),
     );
     // 1.0.0 is the default (a rollback, say), 2.0.0 is under test and claims one more host.
     service.replace_chain(Chain {

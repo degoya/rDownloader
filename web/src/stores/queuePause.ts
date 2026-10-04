@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { QueuePause } from '@/api/types'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 /** The durations the pause menu offers, in minutes (RD-190-20). */
 export const PAUSE_DURATIONS = [30, 60, 180] as const
@@ -40,9 +40,7 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
   const now = ref(Date.now())
-  let releaseEvents: (() => void) | null = null
   let clock: number | null = null
-  let reloadTimer: number | null = null
 
   const active = computed(() => until.value !== null && Date.parse(until.value) > now.value)
   /** Seconds until the queue runs again; `0` while it is not paused. */
@@ -107,36 +105,27 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     }
   }
 
-  function scheduleLoad(): void {
-    if (reloadTimer !== null) return
-    reloadTimer = window.setTimeout(() => {
-      reloadTimer = null
-      void load()
-    }, 400)
-  }
+  const events = debouncedEventRefresh(['download.state'], load, { delayMs: 400 })
 
   function tick(): void {
     const wasActive = active.value
     now.value = Date.now()
     // The server ends the pause on its own tick; read back what it made of it.
-    if (wasActive && !active.value) scheduleLoad()
+    if (wasActive && !active.value) events.schedule()
   }
 
   /** Connected app-wide by `App.vue` once there is a session, like the transfer list. */
   function connect(): void {
-    if (releaseEvents) return
-    releaseEvents = subscribeEvents({ 'download.state': scheduleLoad })
+    if (clock !== null) return
+    events.connect()
     clock = window.setInterval(tick, 1_000)
     void load()
   }
 
   function disconnect(): void {
-    releaseEvents?.()
-    releaseEvents = null
+    events.disconnect()
     if (clock !== null) window.clearInterval(clock)
     clock = null
-    if (reloadTimer !== null) window.clearTimeout(reloadTimer)
-    reloadTimer = null
   }
 
   return { until, files, busy, error, active, remainingSeconds, load, pauseFor, pauseUntil, resume, connect, disconnect }

@@ -233,11 +233,16 @@ async fn run(
         .map_err(|error| failed("update.plan_invalid", &error))?;
     updates.set_progress("handed", target, None);
     if let Err(error) = updates.launch(&journal) {
-        let _ = journal.end(
+        if let Err(journal_error) = journal.end(
             install::Phase::Failed,
             "update.updater_failed",
             format!("{error:#}"),
-        );
+        ) {
+            tracing::warn!(
+                error = %format!("{journal_error:#}"),
+                "the failed update could not be recorded in its journal"
+            );
+        }
         return Err(failed("update.updater_failed", &error));
     }
     tracing::info!(target = %target, "the updater was started and stops this service next");

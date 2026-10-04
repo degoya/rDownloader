@@ -14,11 +14,7 @@ pub(crate) async fn current_destination(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
 ) -> Result<Option<PathBuf>> {
-    let packages = scheduler.database.list_packages().await?;
-    let Some(package) = packages
-        .into_iter()
-        .find(|package| package.id == file.package_id)
-    else {
+    let Some(package) = scheduler.database.get_package(file.package_id).await? else {
         return Ok(None);
     };
     let root = StorageRoot::create(

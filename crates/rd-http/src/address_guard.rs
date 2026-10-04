@@ -57,8 +57,14 @@ pub fn literal_address(url: &Url) -> Option<IpAddr> {
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct AddressPolicy {
     local_network: bool,
+    /// Whether loopback addresses are permitted after all (RA-HOST-01, owner 2026-10-04): for
+    /// a plugin request to an address the person entered, on a port none of the service's own.
+    loopback: bool,
     /// The addresses this service answers on, beyond loopback.
     this_machine: Vec<IpAddr>,
+    /// Ports no redirect may lead to, whatever the host: the service's own listeners. A hop
+    /// may change the port, and a name is judged by the resolver, which never sees one.
+    refused_ports: Vec<u16>,
 }
 
 impl AddressPolicy {
@@ -67,8 +73,30 @@ impl AddressPolicy {
     pub fn new(local_network: bool) -> Self {
         Self {
             local_network,
+            loopback: false,
             this_machine: Vec::new(),
+            refused_ports: Vec::new(),
         }
+    }
+
+    /// Also permits loopback — `127.0.0.0/8`, `::1` and an IPv4 loopback inside an IPv6
+    /// address — though no other address [`AddressScope::Local`] covers: link-local, with a
+    /// cloud's metadata endpoint, stays refused. For a request to an address the person
+    /// entered, which may name a server on this machine.
+    #[must_use]
+    pub fn with_loopback(mut self) -> Self {
+        self.loopback = true;
+        self
+    }
+
+    /// Refuses every redirect to one of `ports`, on any host.
+    #[must_use]
+    pub fn refusing_redirects_to(mut self, ports: &[u16]) -> Self {
+        let mut ports = ports.to_vec();
+        ports.sort_unstable();
+        ports.dedup();
+        self.refused_ports = ports;
+        self
     }
 
     /// Also refuses the address the service listens on — or, listening on every interface,
@@ -99,7 +127,7 @@ impl AddressPolicy {
         match address_scope(address) {
             AddressScope::Public => true,
             AddressScope::Private => self.local_network,
-            AddressScope::Local => false,
+            AddressScope::Local => self.loopback && address.is_loopback(),
         }
     }
 
@@ -109,7 +137,12 @@ impl AddressPolicy {
     #[must_use]
     pub fn hop_refusal(&self, target: &Url) -> Option<AddressRefused> {
         let host = target.host_str().unwrap_or_default().to_owned();
-        if !matches!(target.scheme(), "http" | "https") || host.is_empty() {
+        if !matches!(target.scheme(), "http" | "https")
+            || host.is_empty()
+            || target
+                .port_or_known_default()
+                .is_some_and(|port| self.refused_ports.contains(&port))
+        {
             return Some(AddressRefused {
                 host,
                 address: None,

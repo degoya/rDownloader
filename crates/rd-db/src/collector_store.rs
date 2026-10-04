@@ -42,6 +42,8 @@ pub(crate) async fn add_batch(
         created_at: Utc::now(),
     };
     let (rules, default_category) = crate::config_store::routing_config(connection).await?;
+    // Prepared once for the whole batch: every link is routed against the same rules.
+    let routing = rd_collector::CategoryRules::new(&rules);
     let source_value = enum_string(intake.source)?;
     let mut transaction = connection.begin().await?;
     sqlx::query(
@@ -155,8 +157,7 @@ pub(crate) async fn add_batch(
             let provider = providers[*index].clone();
             let file_name = file_names[*index].clone();
             let category_id = intake.category_id.or_else(|| {
-                rd_collector::select_category(
-                    &rules,
+                routing.select(
                     &rd_collector::CategoryContext {
                         source: intake.source,
                         url,
@@ -828,27 +829,26 @@ pub(crate) async fn set_enrichment(
     Ok(())
 }
 
-pub(crate) const CANDIDATE_SELECT: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json \
-     FROM link_candidates";
+/// The columns a `CandidateRow` reads, once for both queries below (DB-12).
+macro_rules! candidate_columns {
+    () => {
+        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json"
+    };
+}
 
-pub(crate) const GET_CANDIDATE: &str = "SELECT id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json \
-     FROM link_candidates WHERE id = ?";
+pub(crate) const CANDIDATE_SELECT: &str =
+    concat!("SELECT ", candidate_columns!(), " FROM link_candidates");
+
+pub(crate) const GET_CANDIDATE: &str = concat!(
+    "SELECT ",
+    candidate_columns!(),
+    " FROM link_candidates WHERE id = ?"
+);
 
 fn provider_for(url: &Url) -> String {
     rd_provider_registry::provider_for_url(url)
         .map_or_else(|| "direct_http".to_owned(), |spec| spec.slug)
 }
 
-pub(crate) async fn insert_event(
-    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    event: &EventEnvelope,
-) -> Result<()> {
-    sqlx::query("INSERT INTO events (id, kind, occurred_at, payload_json) VALUES (?, ?, ?, ?)")
-        .bind(event.id.to_string())
-        .bind(enum_string(&event.kind)?)
-        .bind(event.occurred_at)
-        .bind(serde_json::to_string(&event.payload)?)
-        .execute(&mut **tx)
-        .await?;
-    Ok(())
-}
+/// The writer's own, under the name the collector stores have always imported it by.
+pub(crate) use crate::writer::insert_event;

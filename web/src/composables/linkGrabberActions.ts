@@ -8,7 +8,7 @@
  * `indexerSearchFocus.ts` is one: the view imports this, and the catalogue's router import would
  * otherwise follow it into every test that renders the view.
  */
-export interface LinkGrabberActions {
+interface LinkGrabberActions {
   addLinks: () => void
   enqueueAll: () => void
   enqueuePaused: () => void

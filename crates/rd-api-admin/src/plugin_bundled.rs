@@ -479,7 +479,11 @@ async fn remove_version(
         .plugins
         .remove_version(&id, &manifest.version)
         .await
-        .map_err(|error| ApiError::bad_request("plugin.remove_failed", format!("{error:#}")))?;
+        .map_err(|error| {
+            let reason = format!("{error:#}");
+            ApiError::bad_request("plugin.remove_failed", reason.clone())
+                .with_param("reason", reason)
+        })?;
     if !removed {
         // Gone in between, by another request: nothing left to forget or to record.
         return Ok(());

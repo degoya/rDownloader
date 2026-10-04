@@ -26,7 +26,7 @@ impl Writer {
                     access_ref.as_deref(),
                 )
                 .await;
-                publish_unit_event(reply, result, &self.events);
+                publish_config(reply, result, &self.events);
             }
             WriterCommand::SetAuthFlowSession {
                 account_id,
@@ -73,7 +73,7 @@ impl Writer {
             }
             WriterCommand::DeleteAuthFlow { account_id, reply } => {
                 let result = crate::auth_flow_store::delete(&mut self.connection, account_id).await;
-                publish_unit_event(reply, result, &self.events);
+                publish_config(reply, result, &self.events);
             }
             WriterCommand::TakeAuthFlowCallback {
                 callback_state,

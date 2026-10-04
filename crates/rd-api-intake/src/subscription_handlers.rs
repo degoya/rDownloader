@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{
     BacklogPolicy, DownloadPriority, MAX_FILTER_PATTERNS, MAX_POLL_INTERVAL_SECONDS, Subscription,
     SubscriptionBulkStateResponse, SubscriptionFilters, SubscriptionHistoryClearResponse,
@@ -394,24 +395,22 @@ pub(crate) fn subscription_input(
     request: &SubscriptionRequest,
     secret_ref: Option<String>,
 ) -> Result<NewSubscription, ApiError> {
-    let name = request.name.trim();
-    if name.is_empty() || name.chars().count() > MAX_NAME {
-        return Err(ApiError::bad_request(
-            "subscription.name_invalid",
-            "A subscription needs a name",
-        ));
-    }
-    let raw = request.url.trim();
-    if raw.is_empty() || raw.len() > MAX_URL {
-        return Err(ApiError::bad_request(
-            "subscription.url_invalid",
-            "A subscription needs an address",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(MAX_NAME),
+        "subscription.name_invalid",
+        "A subscription needs a name",
+    )?;
+    let raw = required_text(
+        &request.url,
+        TextLimit::Bytes(MAX_URL),
+        "subscription.url_invalid",
+        "A subscription needs an address",
+    )?;
     let url = if request.kind == SubscriptionKind::Script {
-        script_url(raw)?
+        script_url(&raw)?
     } else {
-        let url = url::Url::parse(raw).map_err(|_| {
+        let url = url::Url::parse(&raw).map_err(|_| {
             ApiError::bad_request("subscription.url_invalid", "Address is not a URL")
         })?;
         if !matches!(url.scheme(), "http" | "https") {
@@ -455,7 +454,7 @@ pub(crate) fn subscription_input(
         })?;
     Ok(NewSubscription {
         source_categories: sanitize_source_categories(&request.source_categories)?,
-        name: name.to_owned(),
+        name,
         url,
         kind: request.kind,
         enabled: request.enabled,
@@ -1213,6 +1212,7 @@ pub async fn probe_caps(
         .parse()
         .map_err(|error: url::ParseError| {
             ApiError::unprocessable("subscription.url_invalid", error.to_string())
+                .with_param("reason", error)
         })?;
     if request.api_key.trim().is_empty() {
         return Err(ApiError::unprocessable(
@@ -1234,11 +1234,14 @@ pub(crate) async fn fetch_caps(
     base: &url::Url,
     api_key: &str,
 ) -> Result<rd_subscription::IndexerCaps, ApiError> {
-    let url = rd_subscription::build_caps_query(base, api_key)
-        .map_err(|error| ApiError::unprocessable("subscription.url_invalid", error.to_string()))?;
+    let url = rd_subscription::build_caps_query(base, api_key).map_err(|error| {
+        ApiError::unprocessable("subscription.url_invalid", error.to_string())
+            .with_param("reason", error)
+    })?;
 
     let network = state.scheduler.direct_client(&url).await.map_err(|error| {
         ApiError::bad_gateway("subscription.client_unavailable", error.to_string())
+            .with_param("reason", error)
     })?;
     let body = rd_http::fetch_conditional(
         &network.client,
@@ -1248,12 +1251,13 @@ pub(crate) async fn fetch_caps(
     )
     .await
     .map_err(|error| {
-        ApiError::bad_gateway(
-            "subscription.caps_failed",
-            format!("{error} ({})", rd_subscription::redact_query(&url)),
-        )
+        let reason = format!("{error} ({})", rd_subscription::redact_query(&url));
+        ApiError::bad_gateway("subscription.caps_failed", reason.clone())
+            .with_param("reason", reason)
     })?;
     let body = body.body.unwrap_or_default();
-    rd_subscription::parse_caps(&body)
-        .map_err(|error| ApiError::bad_gateway("subscription.caps_invalid", error.to_string()))
+    rd_subscription::parse_caps(&body).map_err(|error| {
+        ApiError::bad_gateway("subscription.caps_invalid", error.to_string())
+            .with_param("reason", error)
+    })
 }

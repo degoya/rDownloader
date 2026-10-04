@@ -13,6 +13,7 @@ use rd_plugin_host::{
 
 const SHA256: &str = include_str!("../../../plugins/sha256-postprocess/manifest.toml");
 const MD5: &str = include_str!("../../../plugins/md5-postprocess/manifest.toml");
+const RENAME: &str = include_str!("../../../plugins/rename-postprocess/manifest.toml");
 
 fn manifest(source: &str) -> PluginManifest {
     toml::from_str(source).expect("bundled manifest")
@@ -265,6 +266,95 @@ async fn volumes_the_unpack_already_removed_are_skipped_not_failed() {
         plugin.run(source, Vec::new(), None).await.expect("run"),
         StepOutcome::Failed { .. }
     ));
+}
+
+/// RD-191-06, PLUG-01: a checksum over a file well past what the manifest's fuel used to buy.
+///
+/// SHA-256 ran out of fuel at 16 MiB and MD5 at 64 MiB (`wasm trap: all fuel consumed`); the
+/// reads now pay for the bytes they hand over, so the size of the file no longer decides. The
+/// file is sparse, so the test costs no disk.
+#[tokio::test]
+async fn a_checksum_over_96_mib_fits_the_budget() {
+    const SIZE: u64 = 96 * 1024 * 1024;
+    // Digests of 96 MiB of zeros, as `sha256sum` and `md5sum` print them.
+    const ZEROS_SHA256: &str = "425382d5857f04fc49585cabbdef6fc647472ee26f52c54caaaeaad17320b3f8";
+    const ZEROS_MD5: &str = "c13d611ce737cc731e8fae3f8d864052";
+    for (source, name, sidecar, digest) in [
+        (
+            SHA256,
+            "rd-plugin-sha256-postprocess",
+            "big.sha256",
+            ZEROS_SHA256,
+        ),
+        (MD5, "rd-plugin-md5-postprocess", "big.md5", ZEROS_MD5),
+    ] {
+        let bytes = component(name);
+        let plugin = PostprocessPlugin::new(manifest(source), &bytes, None).expect("compile");
+        let directory = tempfile::tempdir().expect("tempdir");
+        std::fs::File::create(directory.path().join("big.bin"))
+            .and_then(|file| file.set_len(SIZE))
+            .expect("sparse file");
+        std::fs::write(
+            directory.path().join(sidecar),
+            format!("{digest}  big.bin\n"),
+        )
+        .expect("sidecar");
+        let state = SourceState::new(
+            "package-1".to_owned(),
+            directory.path().to_path_buf(),
+            vec!["big.bin".to_owned(), sidecar.to_owned()],
+        );
+        assert_eq!(
+            plugin.run(state, Vec::new(), None).await.expect("run"),
+            passed(),
+            "{name}"
+        );
+    }
+}
+
+/// RD-191-06, PLUG-05: `rename-postprocess` resumes at a name, not at a count.
+///
+/// The first run renamed `x y.mkv` to `x.y.mkv` and stopped before `x z.mkv`. Listed and sorted
+/// again, the renamed file moved behind the one it stopped at, so a count of one done skipped
+/// `x z.mkv` for good.
+#[tokio::test]
+async fn rename_resumes_at_the_name_it_stopped_at() {
+    let bytes = component("rd-plugin-rename-postprocess");
+    let plugin = PostprocessPlugin::new(manifest(RENAME), &bytes, None).expect("compile");
+
+    // Stopped before it starts: the checkpoint names the first file, with nothing renamed.
+    let (_directory, source) = package(&[("x y.mkv", PAYLOAD), ("x z.mkv", PAYLOAD)]);
+    source
+        .cancellation()
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    let mut first = 0_u32.to_le_bytes().to_vec();
+    first.extend_from_slice(b"x y.mkv");
+    assert_eq!(
+        plugin.run(source, Vec::new(), None).await.expect("run"),
+        StepOutcome::Stopped { checkpoint: first }
+    );
+
+    // After the restart, with one file renamed by the run that stopped.
+    let (directory, source) = package(&[
+        ("x z.mkv", PAYLOAD),
+        ("x.a.mkv", PAYLOAD),
+        ("x.y.mkv", PAYLOAD),
+    ]);
+    let mut checkpoint = 1_u32.to_le_bytes().to_vec();
+    checkpoint.extend_from_slice(b"x z.mkv");
+    assert_eq!(
+        plugin
+            .run(source, Vec::new(), Some(checkpoint))
+            .await
+            .expect("run"),
+        passed()
+    );
+    assert!(directory.path().join("x.z.mkv").is_file());
+    assert!(!directory.path().join("x z.mkv").exists());
+    assert!(
+        directory.path().join("x.a.mkv").is_file(),
+        "a tidy name stays"
+    );
 }
 
 #[tokio::test]

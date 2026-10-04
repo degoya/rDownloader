@@ -2,6 +2,7 @@
 //! (RD-050-12).
 
 use axum::{Json, extract::Path as AxumPath, extract::State};
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_limits::{DaySet, LimitSource, MINUTES_PER_DAY, RunnerLimitSupport, ScopeLimit};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -319,13 +320,12 @@ pub async fn bandwidth_capabilities() -> Json<Vec<RunnerLimitSupport>> {
 fn validated_profile(
     request: BandwidthProfileRequest,
 ) -> Result<rd_db::NewBandwidthProfile, ApiError> {
-    let name = request.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 100 {
-        return Err(ApiError::bad_request(
-            "bandwidth.name_invalid",
-            "A profile name must be between 1 and 100 characters",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(100),
+        "bandwidth.name_invalid",
+        "A profile name must be between 1 and 100 characters",
+    )?;
     if request.scopes.len() > MAX_SCOPES {
         return Err(
             ApiError::bad_request("bandwidth.too_many_scopes", "Too many scope limits")

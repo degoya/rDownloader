@@ -6,7 +6,7 @@ import type { Download, DownloadPackage, DownloadState } from '@/api/types'
 
 /** The download list's state filters, in the order the select offers them (RD-190-21). */
 export const QUEUE_FILTERS = ['all', 'active', 'queued', 'paused', 'failed', 'seeding', 'completed'] as const
-export type QueueFilter = typeof QUEUE_FILTERS[number]
+type QueueFilter = typeof QUEUE_FILTERS[number]
 
 /**
  * The states behind each filter. `queued` takes the files waiting for their next attempt too,

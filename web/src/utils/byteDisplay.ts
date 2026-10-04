@@ -7,7 +7,7 @@ import { ref } from 'vue'
  * preference changes — switching it in the settings updates every figure on screen without a
  * reload. Defaults to binary, which is what every version so far displayed.
  */
-export type ByteDisplay = 'binary' | 'decimal'
+type ByteDisplay = 'binary' | 'decimal'
 
 export const byteDisplay = ref<ByteDisplay>('binary')
 
@@ -25,7 +25,7 @@ export function setByteDisplay(value: string | null | undefined): void {
  * Named by magnitude, not by unit: which name the step carries — MiB or MB — is the separate
  * `byteDisplay` choice, and the two settings have to stay combinable.
  */
-export type ByteUnit = 'auto' | 'byte' | 'kilo' | 'mega' | 'giga' | 'tera' | 'peta'
+type ByteUnit = 'auto' | 'byte' | 'kilo' | 'mega' | 'giga' | 'tera' | 'peta'
 
 /** The pinnable magnitudes in ladder order; the index is the power the divisor is raised to. */
 export const BYTE_UNIT_STEPS: readonly ByteUnit[] = ['byte', 'kilo', 'mega', 'giga', 'tera', 'peta']

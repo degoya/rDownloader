@@ -32,6 +32,7 @@
 //!   requests count towards the cap. So 429 and `error_code` 5/34 are waits with a floor, and
 //!   `Retry-After` is honoured when it is there.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -293,23 +294,27 @@ pub(crate) fn failure_from(
 }
 
 /// Maps an HTTP status no `error_code` explains.
+///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07); a `429` without a stated wait waits a minute, a `5xx` takes the response's
+/// `Retry-After` when it sent one.
 pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 | 451 => Err(plain(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        429 => Err(plain(
-            ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
             messages::RATE_LIMITED,
-        )),
-        500..=599 => Err(plain(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+        ),
+        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
@@ -321,11 +326,9 @@ fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
     }
 }
 
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-pub(crate) fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
-}
+// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
+// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
+pub(crate) use plugin_common::retry_after_seconds;
 
 #[cfg(test)]
 #[path = "api/tests.rs"]

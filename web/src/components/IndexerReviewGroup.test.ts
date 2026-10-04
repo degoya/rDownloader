@@ -61,9 +61,17 @@ describe('IndexerReviewGroup', () => {
     expect(screen.queryByTestId('subscription-group-footer')).toBeNull()
   })
 
-  it('has no footer while the cards view holds the hits', async () => {
-    mount({ subscription: { id: 'sub-1', name: 'omgwtfnzbs HD', view: 'cards' } })
+  // Owner, 2026-10-04: the actions belong at the end of the group in the cards view as well;
+  // only the pages stay out, because the slider loads more by itself.
+  it('repeats the bulk actions under the cards view, without pages', async () => {
+    const { emitted } = mount({
+      subscription: { id: 'sub-1', name: 'omgwtfnzbs HD', view: 'cards' },
+      total: 500
+    })
     await openGroup()
-    expect(screen.queryByTestId('subscription-group-footer')).toBeNull()
+    const footer = screen.getByTestId('subscription-group-footer')
+    expect(within(footer).queryByRole('navigation')).toBeNull()
+    await fireEvent.click(within(footer).getByText(linkgrabberCatalogue.indexers.queue_all))
+    expect(emitted('queueAll')).toHaveLength(1)
   })
 })

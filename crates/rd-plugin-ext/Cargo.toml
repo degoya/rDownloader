@@ -26,6 +26,8 @@ tracing-subscriber.workspace = true
 tempfile.workspace = true
 sha2.workspace = true
 rd-provider-registry = { path = "../rd-provider-registry" }
+# The contract tests load the built components (`artifact`, RD-191-06 PLUG-15).
+rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 # The end-to-end proof that a vaulted link fragment reaches the resolver (RD-110-38).
 rd-secrets = { path = "../rd-secrets" }
 # The MEGA contract test recomputes the key it asserts was never sent, rather than pasting it.

@@ -18,7 +18,12 @@
 
 #![forbid(unsafe_code)]
 
+pub mod device_flow;
+pub mod disposition;
+pub mod encode;
 mod host;
+pub mod http;
+pub mod json;
 pub mod label;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
@@ -31,8 +36,14 @@ pub mod native;
 pub mod pkce;
 mod poll;
 mod types;
+pub mod walk;
 
+pub use disposition::file_name_from_disposition;
+pub use encode::percent_encode;
 pub use host::PluginHost;
+pub use http::{
+    HttpRefusal, MAX_RETRY_AFTER_SECONDS, http_status, retry_after, retry_after_seconds,
+};
 pub use label::{Label, LabelPart};
 pub use poll::block_on;
 pub use types::{

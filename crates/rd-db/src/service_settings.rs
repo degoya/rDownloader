@@ -16,6 +16,9 @@
 //! * [`Database::service_settings_or_default`] falls back to the slice's defaults. For
 //!   supervision loops and request handlers, where refusing would turn one bad field into a
 //!   dead scheduler or a 500 on every poll. The report is what makes the fallback honest.
+//! * [`Database::service_settings_per_field`] falls back field by field. For the slices a start
+//!   reads: only the scheduler's runtime values refuse a start (owner, 2026-10-04, RA-DB-02),
+//!   and `rd_api_core::startup_settings` reads those strictly through the same parser.
 //!
 //! Nothing here caches. Several callers re-read on purpose — switching metadata enrichment off
 //! has to take effect on the next link, not after a restart — and a cache would have to invent
@@ -64,6 +67,22 @@ impl Database {
         Ok(parse_service_settings(&blob).unwrap_or_default())
     }
 
+    /// Reads one typed slice field by field: a field that does not parse reads as its default,
+    /// with a warning naming it ([`parse_service_settings_per_field`]).
+    ///
+    /// For the slices a start reads besides the scheduler's runtime values (owner, 2026-10-04,
+    /// RA-DB-02): a hand edit or an enum variant a release removed costs that one setting, never
+    /// the start. Only a blob that is not a document at all is refused.
+    pub async fn service_settings_per_field<T>(&self) -> Result<T>
+    where
+        T: DeserializeOwned + Default,
+    {
+        let Some(blob) = self.get_setting(SERVICE_SETTINGS_KEY).await? else {
+            return Ok(T::default());
+        };
+        Ok(parse_service_settings_per_field(&blob, &[])?)
+    }
+
     /// Reads one typed field of the blob.
     ///
     /// An absent field and an absent blob both read as `None`. A field that is *present* with
@@ -105,6 +124,80 @@ where
             Err(inner)
                 .with_context(|| format!("decode {target}.{path} from {SERVICE_SETTINGS_KEY}"))
         }
+    }
+}
+
+/// A stored field the per-field reader would not drop, and what rejected it.
+#[derive(Debug)]
+pub struct SettingsFieldError {
+    /// The top-level field of the document, `None` when the document itself has the wrong
+    /// shape (not an object).
+    pub field: Option<String>,
+    /// The full path serde rejected, `max_retries` or `categories[2].policy`.
+    pub path: String,
+    pub error: serde_json::Error,
+}
+
+impl std::fmt::Display for SettingsFieldError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.path.as_str() {
+            "" | "." => write!(formatter, "{SERVICE_SETTINGS_KEY}: {}", self.error),
+            path => write!(formatter, "{SERVICE_SETTINGS_KEY}.{path}: {}", self.error),
+        }
+    }
+}
+
+impl std::error::Error for SettingsFieldError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
+/// Deserializes a whole document field by field: a top-level field that does not parse is
+/// dropped with a warning naming it, so it reads as its default, unless it is one of `strict`.
+///
+/// For the start of the service (owner, 2026-10-04, RA-DB-02): only the values it runs with are
+/// worth refusing a start over; a hand edit or a removed enum variant anywhere else must not
+/// leave an installation that cannot start and therefore cannot be repaired from its own view.
+/// A strict field, or a document that is not an object, is returned as the error.
+pub fn parse_service_settings_per_field<T>(
+    blob: &serde_json::Value,
+    strict: &[&str],
+) -> std::result::Result<T, SettingsFieldError>
+where
+    T: DeserializeOwned,
+{
+    let mut document = blob.clone();
+    // Every round either parses or removes one key, so this ends after at most one round per
+    // field of the document.
+    loop {
+        let error = match serde_path_to_error::deserialize(document.clone()) {
+            Ok(parsed) => return Ok(parsed),
+            Err(error) => error,
+        };
+        let path = error.path().to_string();
+        let field = error
+            .path()
+            .iter()
+            .next()
+            .and_then(|segment| match segment {
+                serde_path_to_error::Segment::Map { key } => Some(key.clone()),
+                _ => None,
+            });
+        let error = error.into_inner();
+        let droppable = field
+            .as_deref()
+            .filter(|field| !strict.contains(field))
+            .and_then(|field| document.as_object_mut()?.remove(field));
+        if droppable.is_none() {
+            return Err(SettingsFieldError { field, path, error });
+        }
+        tracing::warn!(
+            setting = %path,
+            error = %error,
+            "a stored value in {SERVICE_SETTINGS_KEY} does not parse; it reads as its default \
+             until it is saved again"
+        );
     }
 }
 
@@ -188,8 +281,50 @@ fn last_report(target: &str) -> Option<String> {
 mod tests {
     use rd_core::StorageSettings;
 
-    use super::{SERVICE_SETTINGS_KEY, last_report};
+    use super::{SERVICE_SETTINGS_KEY, last_report, parse_service_settings_per_field};
     use crate::Database;
+
+    /// RA-DB-02: a field that does not parse costs only itself, not the whole document, and
+    /// the fields beside it keep their stored values.
+    #[test]
+    fn the_per_field_reader_drops_only_the_field_that_does_not_parse() {
+        let blob = serde_json::json!({
+            "storage_auto_resume": "sometimes",
+            "storage_collision_policy": "skip",
+            "storage_unknown_size_headroom": 9,
+        });
+        let settings: StorageSettings =
+            parse_service_settings_per_field(&blob, &[]).expect("lenient read");
+        assert_eq!(
+            settings.storage_auto_resume,
+            StorageSettings::default().storage_auto_resume
+        );
+        assert_eq!(
+            settings.storage_collision_policy,
+            rd_core::CollisionPolicy::Skip
+        );
+        assert_eq!(settings.storage_unknown_size_headroom, 9);
+    }
+
+    #[test]
+    fn the_per_field_reader_refuses_a_strict_field_and_names_it() {
+        let blob = serde_json::json!({ "storage_collision_policy": "shred" });
+        let refused = parse_service_settings_per_field::<StorageSettings>(
+            &blob,
+            &["storage_collision_policy"],
+        )
+        .expect_err("a strict field is not dropped");
+        assert_eq!(refused.field.as_deref(), Some("storage_collision_policy"));
+        assert!(
+            refused.to_string().contains("storage_collision_policy"),
+            "{refused}"
+        );
+
+        let not_an_object = serde_json::json!("not a settings document");
+        let refused = parse_service_settings_per_field::<StorageSettings>(&not_an_object, &[])
+            .expect_err("a document that is no object has no field to drop");
+        assert_eq!(refused.field, None);
+    }
 
     /// The whole point of the accessor: a retyped field must not read as "no thresholds
     /// configured" without a word in the log. If this ever passes with an empty report, the

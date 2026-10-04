@@ -23,6 +23,16 @@ fn a_magnet_is_a_torrent_job_keyed_by_its_info_hash() {
     assert_eq!(key, format!("torrent:{EMPTY_SHA1}"));
 }
 
+/// PLUG-07: an empty pair (`&&`) never ended the read here, but the other plugins' copies did;
+/// the shared reader keeps the tolerant behaviour this plugin always had.
+#[test]
+fn an_empty_pair_does_not_hide_the_info_hash() {
+    let magnet = format!("magnet:?dn=Example.Release&&xt=urn:btih:{EMPTY_SHA1}&");
+    let (kind, key) = identify(Handed::Magnet(&magnet)).expect("a magnet is claimed");
+    assert_eq!(kind, Kind::Torrent);
+    assert_eq!(key, format!("torrent:{EMPTY_SHA1}"));
+}
+
 /// The two spellings of one info hash are one key, which is what makes a magnet copied from
 /// two sites one job and not two.
 #[test]

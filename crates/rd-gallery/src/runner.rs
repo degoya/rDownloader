@@ -1,18 +1,17 @@
 //! Queue runner: downloads one whole gallery with `gallery-dl` into a subfolder of the
 //! package destination. Progress is bytes/files seen so far; the total is unknown upfront.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind};
 use rd_db::Database;
 use rd_scheduler::{ExternalRunner, RunOutcome};
 use rd_tools::{
-    ProgressThrottle, ToolProcess,
+    LiveSlots, ProgressThrottle, ToolLine, ToolProcess,
     process::{Stdout, prepare},
 };
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::sync::CancellationToken;
 
 use crate::SharedGallerySettings;
@@ -21,20 +20,20 @@ use crate::SharedGallerySettings;
 pub struct GalleryRunner {
     database: Database,
     settings: SharedGallerySettings,
-    slot_capacity: usize,
+    /// Read on every dispatch pass, so a changed setting needs no restart (audit 1.9.1, TR-07).
+    slots: LiveSlots<rd_core::GallerySettings>,
 }
 
 impl GalleryRunner {
     #[must_use]
     pub fn new(database: Database, settings: SharedGallerySettings) -> Self {
-        let slot_capacity = settings
-            .try_read()
-            .map(|guard| guard.gallery_max_parallel.clamp(1, 8) as usize)
-            .unwrap_or(2);
+        let slots = LiveSlots::new(Arc::clone(&settings), |settings| {
+            settings.gallery_max_parallel
+        });
         Self {
             database,
             settings,
-            slot_capacity,
+            slots,
         }
     }
 }
@@ -67,23 +66,18 @@ pub(crate) fn map_gallery_error(stderr: &str) -> Failure {
             "This gallery requires authentication (configure it in gallery-dl.conf)",
         );
     }
-    let tail: String = stderr
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or("gallery-dl failed")
-        .chars()
-        .take(300)
-        .collect();
     // Re-runs are cheap: gallery-dl skips files that already exist.
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: Some(120),
-        },
+    rd_tools::tool_failed("gallery.tool_failed", stderr, "gallery-dl failed")
+}
+
+/// A run its deadline ended: the tool failed and is retried, where a stop read as the
+/// person's own pause and was never tried again (re-audit 1.9.1, RA-TR-03).
+fn timed_out(stderr: &str) -> Failure {
+    rd_tools::tool_failed(
         "gallery.tool_failed",
-        tail.clone(),
+        stderr,
+        "gallery-dl ran past its time limit",
     )
-    .with_param("message", tail)
 }
 
 #[async_trait]
@@ -105,7 +99,7 @@ impl ExternalRunner for GalleryRunner {
     }
 
     fn slot_capacity(&self) -> usize {
-        self.slot_capacity
+        self.slots.get()
     }
 
     async fn run(
@@ -150,21 +144,20 @@ impl ExternalRunner for GalleryRunner {
             .arg("--")
             .arg(file.source.as_str());
         let mut process = ToolProcess::spawn(&mut command, "gallery-dl", Stdout::Read)?;
-        let stdout = process.take_stdout().context("gallery-dl stdout")?;
         // gallery-dl prints one path per stored file ("# path" for skipped ones). Sizes are
         // summed from disk; totals stay unknown, so the UI shows plain byte progress.
-        let mut lines = BufReader::new(stdout).lines();
         let mut committed: u64 = 0;
         let mut throttle = ProgressThrottle::default();
         loop {
-            let line = tokio::select! {
-                () = cancellation.cancelled() => {
-                    process.kill().await;
-                    return Ok(RunOutcome::Stopped);
+            let line = match process.next_line(cancellation.cancelled()).await? {
+                ToolLine::Line(line) => line,
+                ToolLine::End => break,
+                ToolLine::Stopped => return Ok(RunOutcome::Stopped),
+                // No deadline is set today: a gallery runs as long as its files take.
+                ToolLine::TimedOut => {
+                    return Ok(RunOutcome::Failed(timed_out(&process.stderr().await)));
                 }
-                line = lines.next_line() => line?,
             };
-            let Some(line) = line else { break };
             let path = line.trim().trim_start_matches("# ").trim();
             if path.is_empty() {
                 continue;
@@ -195,8 +188,21 @@ impl ExternalRunner for GalleryRunner {
 
 #[cfg(test)]
 mod tests {
-    use super::{gallery_folder, map_gallery_error};
+    use super::{gallery_folder, map_gallery_error, timed_out};
     use rd_core::FailureKind;
+
+    /// RA-TR-03: a deadline is a failure with a retry, not a stop.
+    #[test]
+    fn a_run_past_its_deadline_is_a_retryable_failure() {
+        let failure = timed_out("");
+        assert_eq!(failure.code.as_deref(), Some("gallery.tool_failed"));
+        assert!(failure.category.is_retryable());
+        assert!(
+            failure.message.contains("time limit"),
+            "{}",
+            failure.message
+        );
+    }
 
     #[test]
     fn folder_name_is_sanitized_and_never_empty() {

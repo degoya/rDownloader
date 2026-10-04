@@ -13,7 +13,7 @@
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
 };
 use rd_core::{AccountId, RemoteJob, RemoteJobId};
 use rd_plugin_host::extension::RemoteJobSource;
@@ -96,13 +96,35 @@ pub struct DiscardRemoteJobRequest {
 /// moment the form is drawn and the moment somebody presses the button, and then the refusal
 /// on submit is still the right answer -- it just becomes rare instead of routine
 /// (RD-120-23).
-#[utoipa::path(get, path = "/api/v1/remote-jobs/providers", tag = "configuration", responses((status = 200, body = Vec<String>)))]
+///
+/// With `container` the list narrows to the providers whose plugin declares it takes that
+/// container format (`[extension] containers`, RD-191-13) -- `nzb` is what the LinkGrabber asks,
+/// to offer an NZB import only to accounts that can run it. Without it the answer is unchanged.
+#[utoipa::path(get, path = "/api/v1/remote-jobs/providers", tag = "configuration", params(RemoteJobProvidersQuery), responses((status = 200, body = Vec<String>)))]
 pub async fn list_remote_job_providers(
     State(state): State<AppState>,
+    Query(query): Query<RemoteJobProvidersQuery>,
 ) -> Result<Json<Vec<String>>, ApiError> {
-    Ok(Json(
-        state.remote_jobs.providers().await?.into_iter().collect(),
-    ))
+    let providers = match query.container.as_deref().map(str::trim) {
+        Some(format) if !format.is_empty() => {
+            state
+                .remote_jobs
+                .providers_accepting(&format.to_ascii_lowercase())
+                .await?
+        }
+        _ => state.remote_jobs.providers().await?,
+    };
+    Ok(Json(providers.into_iter().collect()))
+}
+
+/// The optional narrowing of [`list_remote_job_providers`].
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct RemoteJobProvidersQuery {
+    /// A container format -- `torrent`, `nzb`, `dlc` or `rsdf`. Only the providers whose plugin
+    /// declares it are listed; a format no plugin declares lists none.
+    #[serde(default)]
+    pub container: Option<String>,
 }
 
 /// Every remote job this installation knows about, newest first.
@@ -249,7 +271,7 @@ pub async fn forget_remote_job(
 /// nobody asked, naming a job the provider never created — 400. Anything else came from the
 /// provider through a plugin, under a code this crate cannot enumerate and must not rewrite,
 /// so it keeps the code and travels as a bad gateway.
-fn refused(refusal: RemoteJobRefused) -> ApiError {
+pub(crate) fn refused(refusal: RemoteJobRefused) -> ApiError {
     match refusal.code.as_str() {
         "remote_job.not_found" => ApiError::not_found("remote_job.not_found", refusal.message),
         "remote_job.no_account" => ApiError::not_found("remote_job.no_account", refusal.message),

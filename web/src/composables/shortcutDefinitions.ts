@@ -21,7 +21,7 @@ import { useTransfersStore } from '@/stores/transfers'
 
 export type ShortcutGroup = 'navigation' | 'actions'
 
-export interface ShortcutDefinition {
+interface ShortcutDefinition {
   /** `defineShortcuts` key string. */
   keys: string
   /** Display keys rendered as `UKbd` in the help modal. */
@@ -44,7 +44,7 @@ interface ShortcutToastOptions {
 }
 
 /** Shape of one entry in Nuxt UI's shared `useOverlay().overlays` list — all this module needs. */
-export interface OverlayLike {
+interface OverlayLike {
   isOpen: boolean
 }
 

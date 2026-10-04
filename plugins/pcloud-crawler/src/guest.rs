@@ -36,7 +36,7 @@ use rdownloader::plugin::{
 use crate::{
     listing, messages,
     target::{self, Target},
-    walk::{Limit, Walk},
+    walk::{Absorb, Limit, Walk},
 };
 
 /// The vault reference the pCloud provider keeps its access token under. The value never
@@ -246,7 +246,11 @@ fn report(limit: Option<Limit>) {
             match limit {
                 Limit::Depth => "pcloud folder is nested deeper than this crawl walks",
                 Limit::Files => "pcloud folder holds more files than this crawl lists",
-                Limit::Folders => "pcloud folder holds more subfolders than this crawl reads",
+                // pCloud answers a folder whole, so the page limit never fires; should it ever,
+                // the folder was cut short like one with too many subfolders.
+                Limit::Folders | Limit::Pages => {
+                    "pcloud folder holds more subfolders than this crawl reads"
+                }
             },
         );
     }
@@ -289,7 +293,7 @@ fn crawl_own(folder_id: u64, start: Region) -> Result<Vec<CrawledLink>, Failure>
                 let body = fixed(
                     region,
                     "listfolder",
-                    &[("folderid", pending.folder_id.to_string())],
+                    &[("folderid", pending.id.to_string())],
                     true,
                 )?;
                 metadata::item(&body)
@@ -346,7 +350,7 @@ fn crawl_public(code: &str, start: Region) -> Result<Vec<CrawledLink>, Failure> 
         }
         // Read out of the document rather than fetched: pCloud already sent the whole tree.
         // A node deeper than the floor simply yields nothing, which the limits then report.
-        let Some(node) = find_folder(&root, pending.folder_id, 0) else {
+        let Some(node) = find_folder(&root, pending.id, 0) else {
             walk.note(Limit::Depth);
             continue;
         };

@@ -112,8 +112,12 @@ pub struct ErrorBody {
 /// How the API refused a call, in the terms the flows decide on.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Refusal {
-    /// `404` `file_is_not_available_for_download`, `File not found`.
+    /// `file_is_not_available_for_download`, `File not found`, under a status other than `404`
+    /// or `410`. `Offline`: the site's word, without the status that makes it final.
     FileUnavailable,
+    /// The same words under a `404` or `410`, or either status alone: the file deleted. Final,
+    /// not retried (owner, 2026-10-04), under the same code as [`Self::FileUnavailable`].
+    FileGone,
     /// `File can be download only with premium`, `File size is greater than allowed`.
     PremiumOnly,
     /// `409` `Download url not found`.
@@ -126,8 +130,9 @@ pub enum Refusal {
     NeedCaptcha,
     /// `401` `Unauthenticated.`
     Unauthenticated,
-    /// `429`.
-    RateLimited,
+    /// `429`, with the response's `Retry-After` when it stated a usable one (read by the shared
+    /// reader, RD-191-07: clamped to a day, `0` and dates ignored).
+    RateLimited(Option<u64>),
     /// An `error_name` this crate does not know, sanitised.
     Api(String),
     /// A status nothing above explains.
@@ -138,9 +143,16 @@ pub enum Refusal {
 #[must_use]
 pub fn refusal(response: &HttpResponse) -> Option<Refusal> {
     let body: ErrorBody = serde_json::from_slice(&response.body).unwrap_or_default();
+    let unavailable = || {
+        if matches!(response.status, 404 | 410) {
+            Refusal::FileGone
+        } else {
+            Refusal::FileUnavailable
+        }
+    };
     if let Some(name) = body.error_name.as_deref() {
         return Some(match name {
-            "file_is_not_available_for_download" => Refusal::FileUnavailable,
+            "file_is_not_available_for_download" => unavailable(),
             "invalid_captcha" => Refusal::CaptchaInvalid,
             "password_incorrect" => Refusal::PasswordIncorrect,
             other => Refusal::Api(sanitize_code(other)),
@@ -156,7 +168,7 @@ pub fn refusal(response: &HttpResponse) -> Option<Refusal> {
         .and_then(serde_json::Value::as_object)
         .is_some_and(|fields| fields.contains_key("captcha"));
     if message.contains("file not found") {
-        return Some(Refusal::FileUnavailable);
+        return Some(unavailable());
     }
     if message.contains("only with premium") || message.contains("greater than allowed") {
         return Some(Refusal::PremiumOnly);
@@ -170,8 +182,10 @@ pub fn refusal(response: &HttpResponse) -> Option<Refusal> {
     match response.status {
         200..=299 => None,
         401 => Some(Refusal::Unauthenticated),
-        404 => Some(Refusal::FileUnavailable),
-        429 => Some(Refusal::RateLimited),
+        404 | 410 => Some(Refusal::FileGone),
+        429 => Some(Refusal::RateLimited(plugin_common::retry_after(
+            &response.headers,
+        ))),
         422 => Some(Refusal::Api(first_error_field(body.errors.as_ref()))),
         status => Some(Refusal::Http(status)),
     }
@@ -193,6 +207,12 @@ pub fn failure_for(brand: &Brand, refusal: Refusal) -> Failure {
         Refusal::FileUnavailable => coded(
             brand,
             FailureKind::Offline,
+            codes.file_unavailable,
+            "the file is not available for download",
+        ),
+        Refusal::FileGone => coded(
+            brand,
+            FailureKind::Permanent,
             codes.file_unavailable,
             "the file is not available for download",
         ),
@@ -232,9 +252,9 @@ pub fn failure_for(brand: &Brand, refusal: Refusal) -> Failure {
             codes.not_signed_in,
             "the API refused the call as not signed in",
         ),
-        Refusal::RateLimited => coded(
+        Refusal::RateLimited(wait) => coded(
             brand,
-            FailureKind::RateLimited(None),
+            FailureKind::RateLimited(wait),
             codes.rate_limited,
             "the API's rate limit was reached",
         ),

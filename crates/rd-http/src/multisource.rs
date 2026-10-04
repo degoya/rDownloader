@@ -30,7 +30,10 @@ use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use crate::{CheckpointSink, ChunkSpec, DownloadEngine, DownloadOutcome, HttpDownloadError};
+use crate::{
+    CheckpointSink, ChunkSpec, DownloadEngine, DownloadOutcome, HttpDownloadError,
+    wind_down::wind_down,
+};
 
 /// One address of the file, ready to be fetched from.
 #[derive(Clone, Debug)]
@@ -233,6 +236,8 @@ impl DownloadEngine {
         }
 
         let mut tasks: JoinSet<Fetched> = JoinSet::new();
+        // The fetches' own token, so ending them leaves the caller's alone (TR-09).
+        let workers = cancellation.child_token();
         loop {
             while let Some(chunk) = pending.pop_front() {
                 let Some(source) = pool.pick() else {
@@ -245,8 +250,7 @@ impl DownloadEngine {
                     .chunk_marked(chunk.id, Some(source.position), false)
                     .await
                 {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(HttpDownloadError::Internal(error));
                 }
                 let covers_whole_file =
@@ -254,7 +258,7 @@ impl DownloadEngine {
                 let engine = self.clone();
                 let part = part.clone();
                 let checkpoints: Arc<dyn CheckpointSink> = tracked.clone();
-                let cancellation = cancellation.clone();
+                let cancellation = workers.clone();
                 tasks.spawn(async move {
                     let started_at = chunk.committed;
                     let result = match &source.via {
@@ -296,8 +300,7 @@ impl DownloadEngine {
             let fetched = match joined {
                 Ok(fetched) => fetched,
                 Err(error) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(anyhow::Error::new(error).into());
                 }
             };
@@ -361,25 +364,21 @@ impl DownloadEngine {
                         }
                     };
                     if let Err(error) = outcome {
-                        cancellation.cancel();
-                        tasks.abort_all();
+                        wind_down(&mut tasks, &workers).await;
                         return Err(HttpDownloadError::Internal(error));
                     }
                 }
                 Ok(DownloadOutcome::Paused) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Ok(DownloadOutcome::Paused);
                 }
                 // This machine's disk, not the mirror: another source writes to the same one.
                 Err(HttpDownloadError::Local(error)) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(HttpDownloadError::Local(error));
                 }
                 Err(HttpDownloadError::Internal(error)) => {
-                    cancellation.cancel();
-                    tasks.abort_all();
+                    wind_down(&mut tasks, &workers).await;
                     return Err(HttpDownloadError::Internal(error));
                 }
                 Err(error) => {
@@ -414,8 +413,7 @@ impl DownloadEngine {
                     }
                     .await;
                     if let Err(error) = recorded {
-                        cancellation.cancel();
-                        tasks.abort_all();
+                        wind_down(&mut tasks, &workers).await;
                         return Err(HttpDownloadError::Internal(error));
                     }
                     chunk.committed = confirmed;

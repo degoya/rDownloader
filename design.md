@@ -484,7 +484,9 @@ prevent columns from shifting during live updates.
   first tab), a push per change so back and forward walk the tabs. A count that should not wait
   unseen — installed plugins, waiting updates, the routing lists — goes into the tab's badge.
   The save bar shows only under a tab that edits the settings document — and under every such
-  tab: System had none until RD-180-15, and its fields were saved only by another page's button. The tables are
+  tab: System had none until RD-180-15, and its fields were saved only by another page's button.
+  Until the document is loaded, a tab that edits it or shows its values waits with the failure,
+  *Retry* and the tab bar above; the page's self-saving tabs stay usable (RA-WEB-05). The tables are
   `SETTINGS_SUB_TABS` in `settingsSections.ts` and `useSettingsSubTab`; the search entries name
   their tab, and a test holds each entry to the tab slot its anchor is actually rendered in. As
   of 1.8: Storage & rules, Plugins, Network, Security and System have tabs; Bandwidth and
@@ -888,7 +890,11 @@ them already did is the standard, and a form that differs is drifting:
 `UFormField` with `orientation="horizontal"` for a label-and-switch row rather than a hand-built
 flex row, `USwitch label/description` where the switch stands alone, `UCheckboxGroup` for a set
 of chips a person toggles (it carries the group semantics a row of buttons lacks),
-`URadioGroup legend` rather than a `<p>` above it, `UAccordion` for groups that open. No second UI
+`URadioGroup legend` rather than a `<p>` above it, `UAccordion` for groups that open, `UFileUpload`
+for a file the person picks or drops (`accept` names the extension, not a MIME type a browser
+leaves empty), `UColorPicker` in a `UPopover` for a colour with a `UInput` for the exact hex value
+beside it (the picker has no keyboard operation), `UTable` for a
+table of figures, and a `UButton` as the trigger of a `UCollapsible` (RD-191-02). No second UI
 library, and no re-implementation of one of its components. Our own components exist only where
 Nuxt UI has no counterpart and the markup would otherwise drift — `FormListLayout`,
 `SectionHeader`, `FormActions` — and they are compositions of Nuxt UI, not replacements for it.
@@ -1538,6 +1544,27 @@ one track list left to right, so it can shrink a row but never break it. `Packag
 `TransferCard.vue` and `CollectorCandidateRow.vue` carry all nine, and a test in each asserts
 it, because a row that quietly loses a cell stops wrapping and starts overlapping again.
 
+**The data columns' widths are the viewer's; the name's floor is not** (RD-191-11). The download
+list and the LinkGrabber carry a column header — `QueueColumnHeader.vue`, one more `.queue-row`
+with the same nine cells, so a label sits over its cell at every tier and a hidden cell takes its
+label along; below 560 px, where there are no columns, it is not drawn. The start edge of state,
+progress, size and metadata is a resize handle: a pointer drag with pointer capture, and for the
+keyboard a focusable `role="separator"` with `aria-orientation="vertical"` and the column width as
+`aria-valuenow`/`min`/`max`. The arrow keys move the edge the way a drag does — left widens, right
+narrows — by 8 px, Shift by 32 px; Enter and a double click put the column back, and the header's
+own menu (its actions cell, the one place both lists show at every width) resets them all. Nuxt UI
+has no handle for a grid that is not a `UTable`; this one is the exception, and the menu and its
+button are Nuxt UI. The widths reach the rows as `--queue-col-<column>` on the container around the
+header and the list (`useQueueColumns.ts`, kept per view in `localStorage`, every access guarded),
+and every row elsewhere falls back to the measured widths above. What may not move is the
+accounting: a widened column is the track `minmax(default, chosen)` and the name's minimum is
+`min(200px, what the defaults leave it)`, so the grid hands the name its floor first and a widened
+column gives way before the name does — widening spends only name width above 200 px and never
+pushes a row past its container. Each column has a floor of what its cell must still show (the
+size's 137 px figure, a state badge, a shrunk category select) and 480 px as its ceiling. A
+windowed list reserves its scrollbar gutter, and the header then reserves the same one, so the
+edges line up with the cells under them.
+
 **The LinkGrabber's link row is on the same grid, and the subscription rows are deliberately
 not** (RD-110-27). The link row sits in the same panel body as the queue, so the measurement
 above is its measurement too: handle, checkbox, chevron, name — the thumbnail, the file name, the
@@ -1592,6 +1619,7 @@ Reference implementations: `PackageGroup.vue` for expansion and row actions,
 `SettingsAccountsTab.vue` for a mixed row with both labelled and icon-only actions,
 `SubscriptionItemRow.vue` for a row with a thumbnail and a shared detail block that wraps
 under its title, `CollectorCandidateRow.vue` for a leaf row on the shared grid,
+`QueueColumnHeader.vue` for a column header with resizable columns on that grid,
 `RoutingCategories.vue` for a form beside its list with the edited row marked.
 
 ### Frontend Technology

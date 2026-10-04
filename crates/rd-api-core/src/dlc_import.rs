@@ -14,7 +14,12 @@ use rd_collector::{DlcDocument, DlcPackage};
 use rd_core::IngressSource;
 use rd_db::NewCollectorBatch;
 
-use crate::{ApiError, dto::SettingsResponse, link_check_service::LinkCheckService};
+use crate::{
+    ApiError,
+    dto::SettingsResponse,
+    input_checks::{BodyError, read_bounded_body},
+    link_check_service::LinkCheckService,
+};
 
 /// JDownloader's service, used when the settings name no other one.
 pub(crate) const DEFAULT_DLC_ENDPOINT: &str = "http://service.jdownloader.org/dlcrypt/service.php";
@@ -23,7 +28,7 @@ pub(crate) const DEFAULT_DLC_ENDPOINT: &str = "http://service.jdownloader.org/dl
 const SERVICE_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The answer carries one encrypted key; anything larger is not an answer we can use.
-const MAX_SERVICE_ANSWER_BYTES: u64 = 64 * 1024;
+const MAX_SERVICE_ANSWER_BYTES: usize = 64 * 1024;
 
 /// Handles the intake needs, so both callers can build it from what they have.
 pub struct DlcIntake<'a> {
@@ -128,24 +133,12 @@ pub async fn decrypt_container(
 /// be short: a declared length is checked first, and a chunked answer that keeps coming is
 /// abandoned once it passes the cap.
 async fn bounded_body(response: reqwest::Response) -> Result<String, ApiError> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > MAX_SERVICE_ANSWER_BYTES)
-    {
-        return Err(service_unreachable("the answer is too large to be a key"));
-    }
-    let mut response = response;
-    let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
+    let body = read_bounded_body(response, MAX_SERVICE_ANSWER_BYTES)
         .await
-        .map_err(|error| service_unreachable(&error.to_string()))?
-    {
-        body.extend_from_slice(&chunk);
-        if body.len() as u64 > MAX_SERVICE_ANSWER_BYTES {
-            return Err(service_unreachable("the answer is too large to be a key"));
-        }
-    }
+        .map_err(|error| match error {
+            BodyError::TooLarge => service_unreachable("the answer is too large to be a key"),
+            BodyError::Interrupted(error) => service_unreachable(&error.to_string()),
+        })?;
     String::from_utf8(body).map_err(|_| service_unreachable("the answer is not text"))
 }
 

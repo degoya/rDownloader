@@ -8,7 +8,7 @@ use seedr_common::{folder::Listing, reason::ErrorEnvelope};
 
 use super::{
     ErrorKind, Stage, bounded_name, created_title, created_transfer_id, failure_from, find_folder,
-    magnet_display_name, place, retry_after_seconds, stage_of,
+    magnet_display_name, place, stage_of,
 };
 use crate::messages;
 
@@ -199,19 +199,38 @@ fn a_rate_limit_waits_for_as_long_as_the_header_asks() {
     let bare = failure_from(429, None, &envelope("")).expect("a refusal");
     assert_eq!(bare.kind, ErrorKind::RateLimited(Some(60)));
 
-    for bad in ["Wed, 21 Oct 2026 07:28:00 GMT", "-5", "0", "999999"] {
-        assert_eq!(retry_after_seconds(Some(bad)), None, "{bad}");
+    // The header is read by the shared reader (RD-191-07): a date, a negative number and `0`
+    // are no wait, and an absurd one is held to the host's ceiling of a day rather than an hour.
+    for bad in ["Wed, 21 Oct 2026 07:28:00 GMT", "-5", "0"] {
+        assert_eq!(plugin_common::retry_after_seconds(Some(bad)), None, "{bad}");
     }
-    assert_eq!(retry_after_seconds(Some("120")), Some(120));
+    assert_eq!(
+        plugin_common::retry_after_seconds(Some("999999")),
+        Some(plugin_common::MAX_RETRY_AFTER_SECONDS)
+    );
+    assert_eq!(plugin_common::retry_after_seconds(Some("120")), Some(120));
+    let capped = failure_from(429, Some(999_999), &envelope("")).expect("a refusal");
+    assert_eq!(
+        capped.kind,
+        ErrorKind::RateLimited(Some(plugin_common::MAX_RETRY_AFTER_SECONDS))
+    );
 }
 
-/// A missing transfer is `offline` rather than permanent, which is what lets `discard` treat it
-/// as already done: there is nothing left to remove.
+/// A legal block (`451`) is offline and retried, the same as every other plugin reports it.
 #[test]
-fn a_missing_transfer_is_offline_and_an_outage_waits() {
+fn a_takedown_is_gone() {
+    let gone = failure_from(451, None, &envelope("")).expect("a refusal");
+    assert_eq!(gone.kind, ErrorKind::Offline);
+    assert_eq!(gone.code, messages::TRANSFER_GONE.0);
+}
+
+/// A missing transfer is final (owner, 2026-10-04): a poll stops rather than asking again. Its
+/// code is what lets `discard` treat it as already done: there is nothing left to remove.
+#[test]
+fn a_missing_transfer_is_final_and_an_outage_waits() {
     let gone = failure_from(404, None, &envelope("")).expect("a refusal");
     assert_eq!(gone.code, messages::TRANSFER_GONE.0);
-    assert_eq!(gone.kind, ErrorKind::Offline);
+    assert_eq!(gone.kind, ErrorKind::Permanent);
 
     let outage = failure_from(503, None, &envelope("")).expect("a refusal");
     assert_eq!(outage.code, messages::SERVER_ERROR.0);

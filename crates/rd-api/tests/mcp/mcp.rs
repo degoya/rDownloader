@@ -307,6 +307,11 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
     let added = tool_text(&extract_json(&ct, &body));
     assert_eq!(added["created"].as_array().expect("created").len(), 1);
     assert_eq!(added["failed"].as_array().expect("failed").len(), 0);
+    // Created paused, not paused afterwards: the answer already shows the row it wrote (API-09).
+    assert_eq!(
+        added["created"][0]["download"]["state"], "paused",
+        "{added}"
+    );
     let download_id = added["created"][0]["download"]["id"]
         .as_str()
         .expect("download id")
@@ -322,6 +327,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
     let listed = tool_text(&extract_json(&ct, &body));
     assert_eq!(listed["total"], 1);
     assert_eq!(listed["items"][0]["file_name"], "unreachable.bin");
+    assert_eq!(listed["items"][0]["state"], "paused", "{listed}");
 
     let remove = tool_call(
         6,
@@ -760,6 +766,18 @@ async fn the_new_tools_cost_what_their_routes_cost() {
         ),
         (7, "list_log_records", "{}", "api:admin"),
         (8, "list_audit_records", "{}", "api:admin"),
+        (
+            9,
+            "submit_nzb_import_remote_job",
+            r#"{"id":"whatever","account_id":"whatever"}"#,
+            "api:secrets",
+        ),
+        (
+            10,
+            "submit_package_remote_job",
+            r#"{"id":"whatever","account_id":"whatever"}"#,
+            "api:secrets",
+        ),
     ] {
         let refused = format!(
             r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call",
@@ -1587,4 +1605,79 @@ async fn an_admin_token_changes_privileged_settings_over_mcp() {
     let fields = newest["details"]["fields"].as_str().expect("fields");
     assert!(fields.contains("session_max_hours"), "{newest}");
     assert!(fields.contains("session_idle_hours"), "{newest}");
+}
+
+/// `list_nzb_imports` takes the route's optional page window (API-15): without it the whole
+/// review list, with it a slice of the same order, and a page size out of range is the route's
+/// own refusal.
+#[tokio::test]
+async fn the_nzb_review_list_pages_over_mcp() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (router, database, _) = test_parts(directory.path()).await;
+    for (name, digest) in [("one", "c3"), ("two", "d4"), ("three", "e5")] {
+        database
+            .add_nzb_import(rd_db::NewNzbImport {
+                name: format!("{name}.nzb"),
+                sha256: digest.repeat(32),
+                category_id: None,
+                priority: None,
+                import_mode: rd_core::ImportMode::Review,
+                source: rd_core::IngressSource::Manual,
+                source_path: None,
+                password: None,
+                announce_arrival: false,
+                files: vec![rd_db::NewNzbFile {
+                    subject: format!("{name}.bin"),
+                    poster: "poster".to_owned(),
+                    groups: vec!["alt.binaries.test".to_owned()],
+                    segments: vec![rd_db::NewNzbSegment {
+                        number: 1,
+                        bytes: 128,
+                        message_id: format!("{name}-1@example.test"),
+                    }],
+                }],
+            })
+            .await
+            .expect("import");
+    }
+    let session = handshake(&router, API_BEARER).await;
+    let ids = |rows: &serde_json::Value| -> Vec<String> {
+        rows.as_array()
+            .expect("rows")
+            .iter()
+            .filter_map(|row| row["id"].as_str().map(ToOwned::to_owned))
+            .collect()
+    };
+
+    let whole = ids(&tool_result(
+        &router,
+        &session,
+        2,
+        "list_nzb_imports",
+        serde_json::json!({}),
+    )
+    .await);
+    assert_eq!(whole.len(), 3);
+    // A page carries the whole list's length, which REST sends as a header.
+    let page = tool_result(
+        &router,
+        &session,
+        3,
+        "list_nzb_imports",
+        serde_json::json!({ "limit": 2, "offset": 1 }),
+    )
+    .await;
+    assert_eq!(ids(&page["items"]), whole[1..]);
+    assert_eq!(page["total"], 3, "{page}");
+    assert_eq!(page["truncated"], false, "{page}");
+
+    let refusal = tool_refusal(
+        &router,
+        &session,
+        4,
+        "list_nzb_imports",
+        serde_json::json!({ "limit": 0 }),
+    )
+    .await;
+    assert_eq!(refusal["code"], "request.page_limit", "{refusal}");
 }

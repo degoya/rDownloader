@@ -8,7 +8,7 @@
     "label": "Paquet .rdplug",
     "hint": "65 MiB maximum ; les données binaires ne sont pas stockées comme envoi temporaire.",
     "submit": "Vérifier et installer",
-    "network_error": "Erreur réseau pendant l’installation"
+    "drop": "Déposez un paquet .rdplug ici ou choisissez-en un"
   },
   "installed": {
     "eyebrow": "Versions installées",
@@ -148,7 +148,8 @@
     "auto_update": "Installer les mises à jour automatiquement",
     "auto_update_hint": "Sinon, une mise à jour est affichée et installée d'un clic. Dans les deux cas, elle devient active après un redémarrage.",
     "release_notes": "Notes de version ({count})",
-    "release_notes_from": "depuis {repository}"
+    "release_notes_from": "depuis {repository}",
+    "auto_update_global_hint": "S'applique en ce moment à tous les plugins : « Installer automatiquement les mises à jour de tous les plugins » est activé sous Mises à jour. Désactivez-le là-bas et le choix propre à ce plugin s'applique de nouveau."
   },
   "preview": {
     "title": "Vérifier avant l’installation",
@@ -197,7 +198,11 @@
     },
     "adds_permissions": "Nouvelles autorisations",
     "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques.",
-    "added_permissions": "Nouveau : {permissions}"
+    "added_permissions": "Nouveau : {permissions}",
+    "automatic_all": "Installer automatiquement les mises à jour de tous les plugins",
+    "automatic_all_hint": "S'applique à chaque plugin installé, y compris ceux installés plus tard, quel que soit son réglage. Une mise à jour qui demande de nouvelles autorisations attend toujours votre clic, et chaque mise à jour ne devient active qu'après un redémarrage.",
+    "automatic_all_on": "Les mises à jour de tous les plugins s'installent désormais automatiquement.",
+    "automatic_all_off": "Chaque plugin se met de nouveau à jour selon son propre réglage."
   },
   "repositories": {
     "eyebrow": "Sources",

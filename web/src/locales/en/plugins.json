@@ -8,7 +8,7 @@
     "label": ".rdplug package",
     "hint": "Maximum 65 MiB; binary data is not stored as a temporary upload.",
     "submit": "Verify & install",
-    "network_error": "Network error during installation"
+    "drop": "Drop an .rdplug package here or choose one"
   },
   "installed": {
     "eyebrow": "Installed versions",
@@ -148,7 +148,8 @@
     "auto_update": "Install updates automatically",
     "auto_update_hint": "Otherwise an update is shown and installed when you click it. Either way it becomes active at a restart.",
     "release_notes": "Release notes ({count})",
-    "release_notes_from": "from {repository}"
+    "release_notes_from": "from {repository}",
+    "auto_update_global_hint": "Applies to every plugin right now: \"Install updates of all plugins automatically\" is on under Updates. Switch it off there and this plugin's own choice applies again."
   },
   "preview": {
     "title": "Review before installing",
@@ -197,7 +198,11 @@
     },
     "adds_permissions": "New permissions",
     "adds_permissions_hint": "Asks for more than the installed version, so it installs only after your review, even when updates are automatic.",
-    "added_permissions": "New: {permissions}"
+    "added_permissions": "New: {permissions}",
+    "automatic_all": "Install updates of all plugins automatically",
+    "automatic_all_hint": "Applies to every installed plugin, including ones installed later, whatever a plugin is set to. An update that asks for new permissions still waits for your click, and every update becomes active only after a restart.",
+    "automatic_all_on": "Updates of all plugins now install automatically.",
+    "automatic_all_off": "Each plugin updates by its own setting again."
   },
   "repositories": {
     "eyebrow": "Sources",

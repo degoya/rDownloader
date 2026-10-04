@@ -15,6 +15,7 @@ import {
   CONTRACT_VERSION,
   buildIntakePayload,
   correlateRequest,
+  headerValue,
   originMatchPattern,
   shouldIntercept,
   staysInBrowser
@@ -80,13 +81,6 @@ function serverOriginOf(server) {
   } catch {
     return null
   }
-}
-
-function headerValue(headers, name) {
-  for (const header of headers ?? []) {
-    if (String(header?.name ?? '').toLowerCase() === name) return String(header?.value ?? '')
-  }
-  return null
 }
 
 /**

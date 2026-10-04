@@ -229,9 +229,9 @@ async fn a_hidden_permission_is_refused_and_a_new_one_is_marked() {
         ["collector.example.net"]
     );
     assert!(updates[0].added_permissions.granted.is_empty());
-    let automatic = service.automatic_updates().await.expect("automatic");
+    // The refresh's own split (`plugin_repository_handlers`): what installs itself.
     assert!(
-        automatic.is_empty(),
+        !updates[0].installs_itself(),
         "a widening update would install itself"
     );
     service
@@ -454,8 +454,13 @@ async fn an_automatic_update_needs_a_key_that_is_still_trusted() {
     let verifier = fixture.installer.verifier();
     assert!(verifier.revoke_key("fixture-v1").expect("revoke"));
 
-    let updates = service.automatic_updates().await.expect("automatic");
-    assert_eq!(updates.len(), 1, "the automatic path picks it up");
+    let updates = service.updates().await.expect("updates");
+    // The refresh's own split (`plugin_repository_handlers`): what installs itself.
+    let automatic = updates
+        .iter()
+        .filter(|update| update.installs_itself())
+        .count();
+    assert_eq!(automatic, 1, "the automatic path picks it up");
     let (_, bytes) = service
         .download(OFFICIAL_REPOSITORY_ID, FIXTURE_ID, "1.2.4")
         .await

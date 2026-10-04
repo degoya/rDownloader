@@ -147,6 +147,7 @@ pub(crate) async fn add_import(
         has_password: new.password.is_some(),
         password: new.password.clone(),
         position,
+        handed_over: None,
         created_at: Utc::now(),
     };
     sqlx::query(
@@ -290,6 +291,7 @@ pub(crate) async fn record_import_failure(
         has_password: false,
         password: None,
         position,
+        handed_over: None,
         created_at: event.occurred_at,
     };
     sqlx::query(
@@ -415,6 +417,56 @@ pub(crate) async fn update_import(
             .execute(&mut *transaction)
             .await?;
     }
+    let updated = get_by_id_connection(&mut transaction, id)
+        .await?
+        .context(StoreError::not_found("NZB import not found"))?;
+    insert_event(&mut transaction, &event).await?;
+    transaction.commit().await?;
+    Ok((updated, event))
+}
+
+/// One import by id, or `None`.
+pub(crate) async fn get_import(pool: &SqlitePool, id: NzbImportId) -> Result<Option<NzbImport>> {
+    sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!("{IMPORT_SELECT} WHERE id = ?")))
+        .bind(id.to_string())
+        .fetch_optional(pool)
+        .await?
+        .map(TryInto::try_into)
+        .transpose()
+}
+
+/// Marks an import as handed to `remote_job_id` (RD-191-13): one still in the LinkGrabber
+/// (`expected` = `Imported`), or the one behind a queued package (`Enqueued`), which the
+/// Downloads view hands over.
+///
+/// The import is not consumed: it stays reviewable, and enqueueing it stays possible, because
+/// a hand-over the provider then refuses must not cost the person their NZB.
+pub(crate) async fn mark_remote_job(
+    connection: &mut SqliteConnection,
+    id: NzbImportId,
+    remote_job_id: rd_core::RemoteJobId,
+    expected: NzbImportState,
+) -> Result<(NzbImport, EventEnvelope)> {
+    let event = EventEnvelope::new(
+        EventKind::CollectorChanged,
+        serde_json::json!({ "nzb_import_id": id, "updated": true }),
+    );
+    let mut transaction = connection.begin().await?;
+    let state: String = sqlx::query_scalar("SELECT state FROM nzb_imports WHERE id = ?")
+        .bind(id.to_string())
+        .fetch_optional(&mut *transaction)
+        .await?
+        .context(StoreError::not_found("NZB import not found"))?;
+    anyhow::ensure!(
+        state == enum_string(expected)?,
+        StoreError::wrong_state("the NZB import is no longer where it was handed over from")
+    );
+    sqlx::query("UPDATE nzb_imports SET remote_job_id = ?, updated_at = ? WHERE id = ?")
+        .bind(remote_job_id.to_string())
+        .bind(event.occurred_at)
+        .bind(id.to_string())
+        .execute(&mut *transaction)
+        .await?;
     let updated = get_by_id_connection(&mut transaction, id)
         .await?
         .context(StoreError::not_found("NZB import not found"))?;
@@ -658,7 +710,9 @@ async fn get_by_id_connection(
         .transpose()
 }
 
-const IMPORT_SELECT: &str = "SELECT id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, last_error, password_ref IS NOT NULL AS has_password, position, created_at FROM nzb_imports";
+// The hand-over's account is read through the job rather than stored twice: the job's row is
+// what the mark stands for, and `ON DELETE SET NULL` clears `remote_job_id` with it (RD-191-13).
+const IMPORT_SELECT: &str = "SELECT id, name, sha256, state, file_count, segment_count, total_bytes, category_id, priority, import_mode, source_path, last_error, password_ref IS NOT NULL AS has_password, position, remote_job_id, (SELECT account_id FROM remote_jobs WHERE remote_jobs.id = nzb_imports.remote_job_id) AS remote_account_id, created_at FROM nzb_imports";
 
 #[derive(FromRow)]
 struct NzbImportRow {
@@ -676,6 +730,8 @@ struct NzbImportRow {
     last_error: Option<String>,
     has_password: i64,
     position: i64,
+    remote_job_id: Option<String>,
+    remote_account_id: Option<String>,
     created_at: DateTime<Utc>,
 }
 
@@ -704,6 +760,13 @@ impl TryFrom<NzbImportRow> for NzbImport {
             // In the vault (RD-190-04); revealed for the answers that show it.
             password: None,
             position: row.position,
+            handed_over: match (row.remote_job_id, row.remote_account_id) {
+                (Some(job), Some(account)) => Some(rd_core::NzbHandOver {
+                    remote_job_id: parse_id(&job)?,
+                    account_id: parse_id(&account)?,
+                }),
+                _ => None,
+            },
             created_at: row.created_at,
         })
     }

@@ -35,6 +35,7 @@
 //! of the keyed one. The shape of a *successful* `/api/user` answer was read from the
 //! provider's own open-source web client, not seen on the wire; see [`User`].
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 use crate::messages;
@@ -252,7 +253,9 @@ pub fn error_envelope(body: &[u8]) -> ErrorEnvelope {
 /// The document is read before the status, and that order matters in both directions:
 /// Pixeldrain's refusals carry their own HTTP status *and* the token, and the token is the finer
 /// answer of the two -- a 404 alone cannot tell a deleted file from a blocked one. A status with
-/// no readable document falls through to [`ensure_http_status`].
+/// no readable document falls through to [`ensure_http_status`]. The token names the file's
+/// fate and the status its finality: `not_found` under a 404 or 410 is the file deleted, final
+/// and not retried (owner, 2026-10-04), the way a bare 404 is.
 #[must_use]
 pub fn failure_from(
     status: u16,
@@ -262,44 +265,54 @@ pub fn failure_from(
     if envelope.success == Some(false)
         && let Some(value) = envelope.value.as_deref()
     {
-        return Some(classify_value(value));
+        let failure = classify_value(value);
+        if failure.code == messages::FILE_NOT_FOUND.0 && matches!(status, 404 | 410) {
+            return Some(ApiFailure {
+                kind: ErrorKind::Permanent,
+                ..failure
+            });
+        }
+        return Some(failure);
     }
     ensure_http_status(status, retry_after).err()
 }
 
 /// Maps an HTTP status no document explains.
 ///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07), named in Pixeldrain's terms where Pixeldrain means something narrower: a
+/// refused credential is an account the file *requires* (`AuthRequired`) — this plugin is used
+/// without one — and a `429` is this IP's request budget (`IpBlocked`), not the account's. The
+/// waits fall back to this bucket's own figures when the response named none.
+///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED)),
-        404 | 410 => Err(plain(ErrorKind::Offline, messages::FILE_NOT_FOUND)),
-        429 => Err(plain(
-            ErrorKind::IpBlocked(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_NOT_FOUND),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_NOT_FOUND),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::IpBlocked(Some(wait.unwrap_or(QUOTA_SECONDS))),
             messages::IP_RATE_LIMITED,
-        )),
-        500..=599 => Err(plain(
-            ErrorKind::Transient(Some(retry_after.unwrap_or(OVERLOAD_SECONDS))),
+        ),
+        HttpRefusal::ServerError(wait) => plain(
+            ErrorKind::Transient(Some(wait.unwrap_or(OVERLOAD_SECONDS))),
             messages::SERVER_ERROR,
-        )),
-        other => Err(with_param(
+        ),
+        HttpRefusal::Other(other) => with_param(
             ErrorKind::Permanent,
             messages::HTTP_ERROR,
             "status",
             other.to_string(),
-        )),
-    }
+        ),
+    })
 }
 
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
-}
+// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
+// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
+pub use plugin_common::retry_after_seconds;
 
 /// What `availability` says about a file that exists.
 ///

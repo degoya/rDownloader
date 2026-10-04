@@ -244,11 +244,13 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         return Ok(response);
     }
     let reason = reason::of(&response.body);
-    // Dropbox states the wait twice: as the `Retry-After` header and inside the document.
-    let retry = response
-        .header("retry-after")
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .or_else(|| reason::retry_after_in(&response.body));
+    // Dropbox states the wait twice: as the `Retry-After` header and inside the document. Both
+    // are read the shared way (RD-191-07): clamped to a day, `0` taken as no wait stated.
+    let retry = plugin_common::retry_after(&response.headers).or_else(|| {
+        reason::retry_after_in(&response.body)
+            .filter(|seconds| *seconds > 0)
+            .map(plugin_common::http::clamp_retry_after)
+    });
     let ((code, message), kind) = api::classify(response.status, reason.as_deref(), retry);
     let mut failure = Failure::coded(kind, code, message);
     if let Some(reason) = reason {

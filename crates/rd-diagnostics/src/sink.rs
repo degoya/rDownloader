@@ -1,4 +1,5 @@
-//! Drains the capture channel into the database and keeps the store within retention.
+//! Drains the capture channel into the database and keeps the store within retention, together
+//! with the persisted events and the expired sessions (DB-09).
 //!
 //! Records are written in batches — one writer command per batch — so a chatty minute costs
 //! the serialized writer a handful of transactions rather than a thousand. The sweep reads the
@@ -96,6 +97,7 @@ async fn flush(database: &Database, buffer: &mut Vec<NewLogRecord>) -> u64 {
 /// and the writer, it needs the same "bounded batches with a yield between them" rule, and a
 /// second timer would only add a second way for the writer to be busy.
 async fn sweep(database: &Database) {
+    sweep_history(database).await;
     let settings: LogRetentionSettings = match database.service_settings_or_default().await {
         Ok(settings) => settings,
         Err(error) => {
@@ -115,6 +117,22 @@ async fn sweep(database: &Database) {
     };
     if let Err(error) = prune_audit(database, &audit).await {
         tracing::warn!(%error, "audit retention sweep failed");
+    }
+}
+
+/// The two tables nothing else keeps small while the service runs (DB-09): persisted events
+/// past their retention, deleted in bounded batches, and sessions past their grace period.
+/// Both used to be swept only at start, so a service that ran for months kept every one.
+async fn sweep_history(database: &Database) {
+    if let Err(error) = database.purge_old_events().await {
+        tracing::warn!(%error, "event retention sweep failed");
+    }
+    let purged = match database.session_limits().await {
+        Ok(limits) => database.purge_expired_sessions(limits).await,
+        Err(error) => Err(error),
+    };
+    if let Err(error) = purged {
+        tracing::warn!(%error, "session retention sweep failed");
     }
 }
 

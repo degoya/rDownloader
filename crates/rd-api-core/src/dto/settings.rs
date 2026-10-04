@@ -31,8 +31,21 @@ pub struct SettingsResponse {
     pub archive_max_uncompressed_bytes: rd_core::ByteCount,
     pub rar_executable: Option<String>,
     pub rar_tool: String,
-    /// Retries per file before a retryable failure becomes final (0–100).
+    /// Retries per file before a retryable failure becomes final (0–100). Waiting out a limit
+    /// the hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of
+    /// them; at most 48 such waits in a row (RD-191-12).
     pub max_retries: u32,
+    /// Put failed downloads back into the queue on a timer when their failure may pass by
+    /// itself: a limit, an IP block, a server or network that was down, a file reported
+    /// offline (RD-191-12).
+    #[serde(default)]
+    pub auto_retry_failed: bool,
+    /// Hours between a download failing and its automatic retry (1–24).
+    #[serde(default = "default_auto_retry_interval_hours")]
+    pub auto_retry_interval_hours: u32,
+    /// Automatic retry rounds per download (0–100); `0` is no limit.
+    #[serde(default = "default_auto_retry_max_rounds")]
+    pub auto_retry_max_rounds: u32,
     /// Keep NZB import entries and stored .torrent files after the download finishes;
     /// off removes them automatically on completion.
     #[serde(default = "default_keep_import_history")]
@@ -380,6 +393,19 @@ pub struct SettingsResponse {
     /// details themselves stay visible when it is off.
     #[serde(default = "default_true")]
     pub subscription_item_images_enabled: bool,
+    /// Whether the LinkGrabber offers to hand an NZB import to a remote-job provider: the menu
+    /// in each NZB row and the entry in the selection bar (RD-191-13).
+    ///
+    /// On by default, because it is offered only where an account takes NZB files. It is a
+    /// display choice and nothing more: the badge of an import already handed over stays, and
+    /// the REST route and the MCP tool keep working, so switching it off cannot strand a job.
+    #[serde(default = "default_true")]
+    pub nzb_hand_over_linkgrabber_enabled: bool,
+    /// The same offer in the Downloads view, in the menu of a package that came from an NZB
+    /// (RD-191-13). A switch of its own (owner, 2026-10-04): handing over a failed package is a
+    /// different habit from handing over before the queue.
+    #[serde(default = "default_true")]
+    pub nzb_hand_over_downloads_enabled: bool,
     /// Port the web UI listens on; applied on the next start. `--listen`/`RDOWNLOADER_LISTEN`
     /// override it.
     pub ui_port: Option<u16>,
@@ -516,6 +542,9 @@ impl Default for SettingsResponse {
             rar_executable: None,
             rar_tool: "unrar".to_owned(),
             max_retries: rd_scheduler::DEFAULT_MAX_RETRIES,
+            auto_retry_failed: false,
+            auto_retry_interval_hours: default_auto_retry_interval_hours(),
+            auto_retry_max_rounds: default_auto_retry_max_rounds(),
             keep_import_history: default_keep_import_history(),
             auto_remove_finished: false,
             auto_remove_delay_hours: default_auto_remove_delay_hours(),
@@ -633,6 +662,8 @@ impl Default for SettingsResponse {
             excluded_domains_file: None,
             dlc_service_enabled: false,
             subscription_item_images_enabled: true,
+            nzb_hand_over_linkgrabber_enabled: true,
+            nzb_hand_over_downloads_enabled: true,
             dlc_service_endpoint: None,
             ui_port: None,
         }
@@ -735,6 +766,14 @@ const fn default_session_max_hours() -> u32 {
 /// A day: long enough to notice a finished package, short enough to keep the queue readable.
 const fn default_auto_remove_delay_hours() -> u32 {
     24
+}
+
+const fn default_auto_retry_interval_hours() -> u32 {
+    rd_scheduler::DEFAULT_AUTO_RETRY_INTERVAL_HOURS
+}
+
+const fn default_auto_retry_max_rounds() -> u32 {
+    rd_scheduler::DEFAULT_AUTO_RETRY_MAX_ROUNDS
 }
 
 const fn default_log_retention_records() -> u32 {

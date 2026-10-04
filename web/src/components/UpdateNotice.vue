@@ -60,6 +60,6 @@ onBeforeUnmount(() => {
     </UTooltip>
     <!-- Outside the line above: an install that ends in the new version offers nothing any more,
          and its outcome must stay on screen. -->
-    <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available" :kind="status.install_kind" />
+    <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available ?? null" :kind="status.install_kind" />
   </div>
 </template>

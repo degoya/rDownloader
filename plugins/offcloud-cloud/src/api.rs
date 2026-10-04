@@ -38,6 +38,7 @@
 //! provider's documentation and from two independent clients of it; `docs/roadmap/jobs/
 //! 120-02-offcloud.md` records the run against a real account as open.
 
+use plugin_common::{HttpRefusal, percent_encode};
 use serde::Deserialize;
 
 use crate::messages;
@@ -338,23 +339,7 @@ pub fn name_from_url(url: &str) -> Option<String> {
 }
 
 fn percent_decode(value: &str) -> String {
-    let bytes = value.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut at = 0;
-    while at < bytes.len() {
-        if bytes[at] == b'%'
-            && let Some(hex) = bytes.get(at + 1..at + 3)
-            && let Ok(text) = std::str::from_utf8(hex)
-            && let Ok(byte) = u8::from_str_radix(text, 16)
-        {
-            out.push(byte);
-            at += 3;
-            continue;
-        }
-        out.push(bytes[at]);
-        at += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
+    String::from_utf8_lossy(&plugin_common::encode::percent_decode(value)).into_owned()
 }
 
 /// How a refusal is classified, without depending on either failure representation.
@@ -512,45 +497,37 @@ pub fn failure_from(
     envelope.error.as_deref().map(classify_error)
 }
 
-/// Maps an HTTP status no document explains.
+/// Maps an HTTP status no document explains: the mapping every plugin shares (RD-191-07), in
+/// this plugin's words and with its defaults.
 ///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 => Err(plain(ErrorKind::Offline, messages::JOB_GONE)),
-        429 => Err(ApiFailure {
-            kind: ErrorKind::RateLimited(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
-            code: messages::RATE_LIMITED.0,
-            message: messages::RATE_LIMITED.1.to_owned(),
-            params: Vec::new(),
-        }),
-        500..=599 => Err(plain(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::JOB_GONE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::JOB_GONE),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::RateLimited(Some(wait.unwrap_or(QUOTA_SECONDS))),
+            messages::RATE_LIMITED,
+        ),
+        HttpRefusal::ServerError(wait) => plain(
+            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
             messages::SERVER_ERROR,
-        )),
-        other => Err(with_param(
+        ),
+        HttpRefusal::Other(other) => with_param(
             ErrorKind::Permanent,
             messages::HTTP_ERROR,
             "status",
             other.to_string(),
-        )),
-    }
-}
-
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
+        ),
+    })
 }
 
 /// `application/x-www-form-urlencoded` body, as the published API asks for its parameters.
 ///
-/// Percent-encodes by hand rather than pulling a URL crate in for two fields: one of them is a
+/// Percent-encoded with the encoder every plugin shares rather than a URL crate: one field is a
 /// magnet, which is full of `&`, `=` and `:`, and a body that did not encode them would submit
 /// a truncated address.
 #[must_use]
@@ -560,27 +537,11 @@ pub fn form_body(pairs: &[(&str, &str)]) -> Vec<u8> {
         if !body.is_empty() {
             body.push('&');
         }
-        encode_into(&mut body, name);
+        body.push_str(&percent_encode(name));
         body.push('=');
-        encode_into(&mut body, value);
+        body.push_str(&percent_encode(value));
     }
     body.into_bytes()
-}
-
-fn encode_into(body: &mut String, value: &str) {
-    for byte in value.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                body.push(char::from(*byte));
-            }
-            _ => {
-                use std::fmt::Write;
-                // Writing into a String cannot fail; the result is discarded rather than
-                // unwrapped, because `unwrap_used` is denied outside tests.
-                let _ = write!(body, "%{byte:02X}");
-            }
-        }
-    }
 }
 
 /// The JSON body `cloud/remove` takes: one identifier in the list it expects.

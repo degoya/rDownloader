@@ -96,6 +96,19 @@ impl ApiError {
         Self::with_status(StatusCode::PAYLOAD_TOO_LARGE, code, message)
     }
 
+    /// Creates a "this route does not read a body of that type" error.
+    #[must_use]
+    pub fn unsupported_media_type(code: &'static str, message: impl Into<String>) -> Self {
+        Self::with_status(StatusCode::UNSUPPORTED_MEDIA_TYPE, code, message)
+    }
+
+    /// Creates a "temporarily unable to answer" error: the request was fine, a store it needs
+    /// was not.
+    #[must_use]
+    pub fn service_unavailable(code: &'static str, message: impl Into<String>) -> Self {
+        Self::with_status(StatusCode::SERVICE_UNAVAILABLE, code, message)
+    }
+
     /// Creates a rate-limit error.
     #[must_use]
     pub fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {
@@ -162,7 +175,9 @@ impl ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(error: anyhow::Error) -> Self {
-        tracing::error!(error = %rd_core::redact_text(&error.to_string()), "request failed");
+        // `{:#}` writes the whole cause chain: `to_string()` kept only the outermost context,
+        // which named the step that failed and dropped why (audit 1.9.1, API-06).
+        tracing::error!(error = %rd_core::redact_text(&format!("{error:#}")), "request failed");
         Self::with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
             crate::error_codes::INTERNAL_ERROR,

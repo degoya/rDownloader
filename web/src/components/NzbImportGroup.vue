@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { Category, DownloadPriority, NzbFileStatus, NzbImport, PostprocessStep } from '@/api/types'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { formatBytes, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 
@@ -19,6 +20,11 @@ const props = defineProps<{
   deleting: boolean
   /** True while this row is the one being dragged, so it dims like a package does. */
   dragging: boolean
+  /** Accounts whose provider takes NZB files (RD-191-13); without any, the action is not shown. */
+  remoteTargets?: NzbHandOverTarget[]
+  /** The provider this import was handed to, when it was. */
+  handedOverTo?: string | null
+  handingOver?: boolean
 }>()
 const emit = defineEmits<{
   select: [id: string, selected: boolean]
@@ -32,6 +38,8 @@ const emit = defineEmits<{
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the import up, 1 moves it down. */
   move: [id: string, delta: -1 | 1]
+  /** To a provider's account instead of the queue (RD-191-13). */
+  handOver: [id: string, accountId: string]
 }>()
 
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
@@ -43,6 +51,8 @@ const files = ref<NzbFileStatus[]>([])
 const steps = ref<PostprocessStep[]>([])
 
 const failed = computed(() => props.item.state === 'failed')
+/** A failed import whose group, opened, would explain nothing: no error and no failed step. */
+const failedSilently = computed(() => failed.value && !props.item.error && !steps.value.some(step => step.state === 'failed'))
 const stateColor = computed<'success' | 'error' | 'warning'>(() => props.item.duplicate ? 'warning' : failed.value ? 'error' : 'success')
 /** Online/offline equivalent: a parsed import is reachable, a failed one is not. */
 const stateLabel = computed(() => props.item.duplicate
@@ -56,6 +66,14 @@ const categoryModel = computed({
   get: () => props.item.category_id ?? NO_SELECTION,
   set: (value: string) => emit('category', props.item.id, value === NO_SELECTION ? null : value)
 })
+/** One entry per account whose provider takes NZB files; picking one hands this import over. */
+const handOverItems = computed(() => (props.remoteTargets ?? []).map(target => ({
+  label: target.label,
+  icon: 'i-lucide-cloud-upload',
+  onSelect: () => emit('handOver', props.item.id, target.accountId)
+})))
+/** Enqueueing stays possible after a hand-over; the buttons say what it would add. */
+const enqueueHint = computed(() => props.handedOverTo ? t('linkgrabber.nzb.hand_over.enqueue_hint', { provider: props.handedOverTo }) : undefined)
 const priorityModel = computed({
   get: () => props.item.priority ?? 'normal',
   set: (value: DownloadPriority) => emit('priority', props.item.id, value)
@@ -128,16 +146,58 @@ function completedSegments(file: NzbFileStatus): number {
         <span v-if="props.item.password" class="max-w-32 truncate font-mono text-xs">{{ props.item.password }}</span>
       </span>
       <UBadge color="primary" variant="outline" size="sm" class="shrink-0" :title="t('linkgrabber.nzb.badge')">NZB</UBadge>
-      <UBadge :color="stateColor" variant="subtle" size="sm" class="shrink-0">{{ stateLabel }}</UBadge>
+      <!-- A failed import opens on its badge, as a failed package does: the reason is what the
+           reader came for (RD-191-11). A duplicate or a usable import keeps a plain badge. -->
+      <UButton
+        v-if="failed && !props.item.duplicate"
+        color="error"
+        variant="subtle"
+        size="xs"
+        class="shrink-0"
+        :label="stateLabel"
+        :title="props.item.error || t('linkgrabber.nzb.show_files')"
+        :aria-expanded="open"
+        :loading="pending"
+        data-testid="nzb-failed"
+        @click="toggle"
+      />
+      <UBadge v-else :color="stateColor" variant="subtle" size="sm" class="shrink-0">{{ stateLabel }}</UBadge>
+      <!-- Handed to a provider (RD-191-13): the import stays here so it is not queued twice by
+           accident, and the badge leads to where the job can be watched. -->
+      <UButton
+        v-if="props.handedOverTo"
+        :to="{ name: 'remote-jobs' }"
+        icon="i-lucide-cloud"
+        color="info"
+        variant="subtle"
+        size="xs"
+        class="shrink-0"
+        :label="t('linkgrabber.nzb.hand_over.badge', { provider: props.handedOverTo })"
+        :title="t('linkgrabber.nzb.hand_over.badge_hint')"
+        data-testid="nzb-handed-over"
+      />
       <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
-      <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
-      <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />
+      <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" :title="enqueueHint" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
+      <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="enqueueHint ?? t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />
+      <UDropdownMenu v-if="handOverItems.length && !failed" :items="handOverItems">
+        <UButton
+          icon="i-lucide-cloud-upload"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          :aria-label="t('linkgrabber.nzb.hand_over.action')"
+          :title="t('linkgrabber.nzb.hand_over.hint')"
+          :loading="props.handingOver"
+          data-testid="nzb-hand-over"
+        />
+      </UDropdownMenu>
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_nzb')" :loading="props.deleting" @click="emit('remove', props.item.id)" />
       </div>
     </header>
     <UAlert v-if="props.item.error" class="mx-2 my-2" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="props.item.error" />
     <div v-if="open" class="divide-y divide-muted">
+      <p v-if="failedSilently" class="px-2 py-2 text-sm text-error">{{ t('linkgrabber.nzb.failed_no_reason') }}</p>
       <div v-for="file in files" :key="file.id" class="flex items-center gap-2 px-2 py-1.5 transition hover:bg-elevated/60">
         <span class="text-muted"><UIcon name="i-lucide-file" class="size-4" /></span>
         <div class="flex min-w-0 flex-1 items-center gap-3">

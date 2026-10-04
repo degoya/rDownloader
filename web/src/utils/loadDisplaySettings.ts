@@ -1,6 +1,7 @@
 import { api } from '@/api/client'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
+import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 import { setTitleStatus } from '@/utils/titleStatus'
 
 /**
@@ -18,5 +19,6 @@ export async function loadDisplaySettings(): Promise<void> {
   setByteDisplay(response.data.byte_display)
   setByteUnit(response.data.byte_unit)
   setShowItemImages(response.data.subscription_item_images_enabled)
+  setShowNzbHandOver(response.data)
   setTitleStatus(response.data.title_status_enabled)
 }

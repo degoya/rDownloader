@@ -25,6 +25,8 @@ pub(crate) struct Store {
     /// What this start did with a restore waiting for it (RD-160-03); a switched one is
     /// finished once the start completed ([`finish_restore`]).
     pub(crate) restore: Cutover,
+    /// This service's hold on the data directory; kept until the process ends.
+    pub(crate) instance: crate::instance_lock::InstanceLock,
 }
 
 /// Opens the database and the vault, and starts the log sink and the trace exporter.
@@ -51,6 +53,9 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
     if let Err(error) = rd_files::protect_private_dir(private) {
         tracing::warn!(%error, path = %private.display(), "the data directory could not be made private; other accounts on this machine may read the database and the local control token");
     }
+    // Before a restore switches or anything recovers: a second service would take the first
+    // one's running downloads for interrupted ones (audit 1.9.1, INTAKE-03).
+    let instance = crate::instance_lock::acquire(&data_directory)?;
     let layout = cutover::Layout::new(&paths.database);
     let mut restore = cutover::apply_pending(&layout)?;
     let database = match Database::open(&paths.database).await {
@@ -101,11 +106,24 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         }
     }
     take_over_archive_passwords(&database, &data_directory).await;
+    // Entries nothing names any more, left by a stop between a value and its row (DB-03). Not
+    // in a start that switched or put back a restore: the installation kept aside for it still
+    // names entries the live database does not, until the restore is finished.
+    if matches!(restore, Cutover::Nothing) {
+        match database.sweep_vault().await {
+            Ok(0) => {}
+            Ok(removed) => tracing::info!(removed, "orphaned vault entries removed"),
+            Err(error) => {
+                tracing::warn!(%error, "the vault was not swept; the next start tries again")
+            }
+        }
+    }
     Ok(Store {
         data_directory,
         database,
         secrets,
         restore,
+        instance,
     })
 }
 

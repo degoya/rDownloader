@@ -158,9 +158,12 @@ pub async fn enqueue_nzb_import(
             "NZB import failed and cannot be queued",
         ));
     }
-    let destination = crate::destination::download_destination(&state, import.category_id)
-        .await?
-        .unwrap_or_else(|| state.scheduler.downloads_directory().to_path_buf());
+    let destination = crate::destination::intake_destination(
+        &state.database,
+        &state.scheduler,
+        import.category_id,
+    )
+    .await?;
     let package = state
         .database
         .enqueue_nzb_import(
@@ -333,14 +336,7 @@ async fn validate_socks_proxy(
 }
 
 fn validate_name(value: &str) -> Result<(), ApiError> {
-    if !(1..=100).contains(&value.trim().chars().count()) {
-        return Err(ApiError::bad_request(
-            "usenet.name_length",
-            "Name must be between 1 and 100 characters",
-        )
-        .with_param("max", 100));
-    }
-    Ok(())
+    rd_api_core::input_checks::name_length(value, "usenet.name_length", 100)
 }
 
 fn validate_secret(value: Option<&str>) -> Result<(), ApiError> {

@@ -577,7 +577,8 @@ async fn fetch_manifest(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, 
         .await
         .map_err(|error| ToolError::DownloadFailed {
             name: "manifest".to_owned(),
-            reason: error.to_string(),
+            // With its causes: reqwest's top line is "error sending request" (RA-TR-04).
+            reason: rd_core::error_with_causes(&error),
         })?;
     if !response.status().is_success() {
         return Err(ToolError::DownloadFailed {
@@ -590,7 +591,8 @@ async fn fetch_manifest(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, 
         .await
         .map_err(|error| ToolError::DownloadFailed {
             name: "manifest".to_owned(),
-            reason: error.to_string(),
+            // With its causes: reqwest's top line is "error sending request" (RA-TR-04).
+            reason: rd_core::error_with_causes(&error),
         })?;
     if bytes.len() > MAX_MANIFEST_BYTES {
         return Err(ToolError::DownloadFailed {
@@ -599,4 +601,36 @@ async fn fetch_manifest(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, 
         });
     }
     Ok(bytes.to_vec())
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use crate::ToolError;
+
+    /// RA-TR-04: a manifest that cannot be fetched says why, not only reqwest's top line
+    /// "error sending request for url (…)".
+    #[tokio::test]
+    async fn an_unreachable_manifest_reports_the_cause() {
+        // A port nothing listens on: bound and closed again, so the connect is refused.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .and_then(|listener| listener.local_addr())
+            .expect("free port")
+            .port();
+        let error = super::fetch_manifest(
+            &reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("client"),
+            &format!("http://127.0.0.1:{port}/manifest.json"),
+        )
+        .await
+        .expect_err("nothing answers");
+        let ToolError::DownloadFailed { reason, .. } = error else {
+            panic!("an unexpected error: {error}");
+        };
+        assert!(
+            reason.to_lowercase().contains("connect"),
+            "the cause was lost: {reason}"
+        );
+    }
 }

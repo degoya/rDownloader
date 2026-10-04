@@ -174,5 +174,18 @@
     "title": "Discard unsaved changes?",
     "description": "Some changes have not been saved yet. If you leave the page now, they are lost.",
     "discard": "Discard"
+  },
+  "queue_columns": {
+    "aria": "Columns",
+    "name": "Name",
+    "state": "State",
+    "progress": "Progress",
+    "size": "Size",
+    "meta_downloads": "Category · Account",
+    "meta_linkgrabber": "Hoster · Variant",
+    "resize": "Width of the “{column}” column",
+    "resize_hint": "Drag, or use the arrow keys (Shift for larger steps); double-click or Enter resets it",
+    "menu": "Columns",
+    "reset_all": "Reset all column widths"
   }
 }

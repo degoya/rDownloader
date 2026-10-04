@@ -174,5 +174,18 @@
     "title": "¿Descartar los cambios sin guardar?",
     "description": "Algunos cambios aún no se han guardado. Si sales de la página ahora, se perderán.",
     "discard": "Descartar"
+  },
+  "queue_columns": {
+    "aria": "Columnas",
+    "name": "Nombre",
+    "state": "Estado",
+    "progress": "Progreso",
+    "size": "Tamaño",
+    "meta_downloads": "Categoría · Cuenta",
+    "meta_linkgrabber": "Hoster · Variante",
+    "resize": "Ancho de la columna «{column}»",
+    "resize_hint": "Arrastra o usa las flechas (Mayús para pasos más grandes); doble clic o Intro la restablece",
+    "menu": "Columnas",
+    "reset_all": "Restablecer todos los anchos de columna"
   }
 }

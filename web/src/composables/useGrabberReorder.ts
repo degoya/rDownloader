@@ -6,7 +6,7 @@ import { grabberKey, mergeGrabberEntries, type CollectorEntry, type GrabberKind,
 import type { CollectorSort } from '@/utils/collectorSort'
 
 /** The part of the list component this needs: putting focus back on a row that has moved. */
-export interface RowFocus {
+interface RowFocus {
   focusRow: (key: string) => Promise<boolean>
 }
 

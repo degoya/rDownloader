@@ -2,10 +2,10 @@ name: Installers
 
 # RD-180-05: the installers as a user runs them, built from this tree the way release.yml builds
 # them — scripts/package-deb-rpm.sh and scripts/package-msi.sh over a stage in the release layout
-# (debug binaries of this tree, the signed plugins of the latest release). Each is installed
-# silently, started until /api/v1/health answers, given marker files in its data folder,
-# installed again over itself (the upgrade path), started again, and removed; the data folder
-# must still be there with the database and the markers.
+# (debug binaries of this tree, the signed plugins of the latest release's `plugins-vX.Y.Z`).
+# Each is installed silently, started until /api/v1/health answers, given marker files in its
+# data folder, installed again over itself (the upgrade path), started again, and removed; the
+# data folder must still be there with the database and the markers.
 #
 #   deb on Ubuntu 24.04: apt install, the packaged systemd user unit under a lingering user manager
 #   rpm in a Fedora container: dnf install, the service run as a user
@@ -21,6 +21,11 @@ name: Installers
 #   gh workflow run installers.yml --ref <branch>
 on:
   push:
+    # Branches only, never a tag (owner, 2026-10-04): path filters do not apply to tags, and a
+    # `push` that names `branches` but no `tags` starts for no tag at all. The release's commit
+    # was checked on its integration branch before the merge; the tag adds nothing to check
+    # (scripts/tests/release-assets.sh).
+    branches: ["**"]
     paths:
       - .github/workflows/installers.yml
       - packaging/linux/**
@@ -28,6 +33,7 @@ on:
       - resources/macos/**
       - scripts/package-deb-rpm.sh
       - scripts/package-msi.sh
+      - scripts/release-assets.sh
       - scripts/lib/archive-layout.sh
       - scripts/lib/version-file.sh
       - scripts/windows/**
@@ -42,10 +48,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # rust-toolchain.toml names `stable`, which outranks the 1.98.0 the toolchain step installs;
-  # RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its own day
-  # (1.99's deprecation of fetch_update, 2026-10-01).
-  RUSTUP_TOOLCHAIN: 1.98.0
+  # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
 
@@ -73,22 +76,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # rust-embed compiles web/dist into the binary.
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: ./.github/actions/setup-web
       - name: Build the web UI
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: 1.98.0
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: installers
@@ -106,7 +100,7 @@ jobs:
           cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
             scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/
           rd_write_version_file stage "$(scripts/set-version.sh)" "linux ${ARCH}" debug
-          gh release download --repo "${GITHUB_REPOSITORY}" --pattern '*.rdplug' --dir stage/plugins
+          scripts/release-assets.sh fetch-plugins "${GITHUB_REPOSITORY}" stage/plugins
           tar --directory stage --create --gzip --file "rdownloader-linux-${ARCH}.tar.gz" .
           rd_check_archive_layout "rdownloader-linux-${ARCH}.tar.gz" linux
       # The runner's own nfpm build, checked against the SHA-256 in nfpm's checksums.txt.
@@ -224,22 +218,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: ./.github/actions/setup-web
       - name: Build the web UI
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: 1.98.0
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: installers
@@ -256,17 +241,9 @@ jobs:
           cp scripts/windows/start-rdownloader.bat scripts/windows/stop-rdownloader.bat \
             scripts/windows/start-capture.bat scripts/windows/stop-capture.bat stage/
           rd_write_version_file stage "$(scripts/set-version.sh)" "windows x86_64" debug
-          gh release download --repo "${GITHUB_REPOSITORY}" --pattern '*.rdplug' --dir stage/plugins
+          scripts/release-assets.sh fetch-plugins "${GITHUB_REPOSITORY}" stage/plugins
       - name: Install WiX
-        shell: pwsh
-        run: |
-          dotnet tool install --global wix --version 5.0.2
-          if ($LASTEXITCODE -ne 0) { throw "installing wix failed" }
-          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
-          $env:PATH = "$tools;$env:PATH"
-          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          wix extension add --global WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
-          if ($LASTEXITCODE -ne 0) { throw "adding the WiX extensions failed" }
+        uses: ./.github/actions/install-wix
       # Two builds of one version: each gets a product code of its own, so the second installs as
       # the major upgrade of the first, as a release does over the one before it.
       - name: Build the MSI twice
@@ -339,9 +316,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: 1.98.0
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: installers

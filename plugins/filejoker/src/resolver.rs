@@ -10,13 +10,12 @@ mod free;
 
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
-    PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved, file_name_from_disposition,
 };
 use url::Url;
 
 use self::api::{
-    PRIMARY_DOMAIN, coded, ensure_http_status, file_code, file_name_from_disposition, invalid_url,
-    is_html, range_probe,
+    PRIMARY_DOMAIN, coded, ensure_http_status, file_code, invalid_url, is_html, range_probe,
 };
 use crate::{messages, page};
 

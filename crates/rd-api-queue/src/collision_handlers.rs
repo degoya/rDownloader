@@ -147,13 +147,7 @@ async fn package_view(
 }
 
 async fn ensure_package(state: &AppState, id: PackageId) -> Result<(), ApiError> {
-    if state
-        .database
-        .list_packages()
-        .await?
-        .iter()
-        .any(|package| package.id == id)
-    {
+    if state.database.get_package(id).await?.is_some() {
         Ok(())
     } else {
         Err(crate::error_codes::package_not_found())

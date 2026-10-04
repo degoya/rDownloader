@@ -208,3 +208,38 @@ describe('TransferCard grid cells', () => {
     expect((document.querySelector('.queue-cell-progress') as HTMLElement).textContent?.trim()).toBe('40%')
   })
 })
+
+/** RD-191-12: when a file is tried again on its own, the card says at what time. */
+describe('TransferCard next attempt', () => {
+  function card(state: DownloadState, nextRetryAt: string | null) {
+    return mountComponent(TransferCard, {
+      messages: { downloads, torrent, common },
+      props: {
+        download: {
+          id: 'd1', kind: 'http', state, file_name: 'release.rar',
+          source: 'https://example.invalid/release.rar',
+          committed_bytes: '0', total_bytes: '100', next_retry_at: nextRetryAt
+        } as unknown as Download
+      }
+    })
+  }
+  const inAnHour = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+  it('shows the time of the retry a waiting file and an automatically retried failed one wait for', () => {
+    for (const state of ['retry_wait', 'failed'] as const) {
+      const view = card(state, inAnHour)
+      const line = view.getByTestId('next-attempt').textContent ?? ''
+      expect(line).toContain('Next attempt at')
+      expect(line).toMatch(/\d/)
+      view.unmount()
+    }
+  })
+
+  it('says nothing without a due time, or once the file is queued again', () => {
+    const failed = card('failed', null)
+    expect(failed.queryByTestId('next-attempt')).toBeNull()
+    failed.unmount()
+    const queued = card('queued', inAnHour)
+    expect(queued.queryByTestId('next-attempt')).toBeNull()
+  })
+})

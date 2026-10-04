@@ -5,6 +5,7 @@ use axum::{
     extract::{Path as AxumPath, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_db::StoreErrorKind;
 use regex::Regex;
 
@@ -871,11 +872,13 @@ async fn validated_hotfolder(
     request: CreateHotFolderRequest,
 ) -> Result<rd_db::NewHotFolder, ApiError> {
     validate_name(&request.name)?;
-    if request.processed_path.trim().is_empty() || request.failed_path.trim().is_empty() {
-        return Err(ApiError::bad_request(
+    for subfolder in [&request.processed_path, &request.failed_path] {
+        required_text(
+            subfolder,
+            TextLimit::Unbounded,
             "hotfolder.subfolders_required",
             "Processed and failed paths must not be empty",
-        ));
+        )?;
     }
     validate_relative(
         &request.processed_path,
@@ -887,12 +890,12 @@ async fn validated_hotfolder(
         "hotfolder.failed_path_invalid",
         "Failed path",
     )?;
-    if request.path.trim().is_empty() {
-        return Err(ApiError::bad_request(
-            "hotfolder.path_required",
-            "Hotfolder path is required",
-        ));
-    }
+    required_text(
+        &request.path,
+        TextLimit::Unbounded,
+        "hotfolder.path_required",
+        "Hotfolder path is required",
+    )?;
     if matches!(request.executor, rd_core::HotFolderExecutor::Daemon) {
         let path = PathBuf::from(&request.path);
         if !path.is_absolute() {

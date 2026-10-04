@@ -15,7 +15,7 @@ import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
-import { formatByteProgress, formatDuration, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
 const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean }>()
@@ -70,6 +70,11 @@ const sizeLabel = computed(() => formatByteProgress(props.download.committed_byt
  */
 const etaLabel = computed(() => formatDuration(props.etaSeconds))
 const lastError = computed(() => props.download.last_error ? translateServerMessage(props.download.last_error) : null)
+/**
+ * When the file is tried again on its own (RD-191-12): the retry after a failure or a hoster's
+ * limit, and the round of the automatic retry a failed file waits for.
+ */
+const nextAttempt = computed(() => ['retry_wait', 'failed'].includes(props.download.state) ? formatPauseEnd(props.download.next_retry_at) : '')
 const pausable = computed(() => ['downloading', 'resolving', 'queued', 'retry_wait'].includes(props.download.state))
 const resumable = computed(() => ['paused', 'failed', 'blocked', 'cancelled', 'skipped'].includes(props.download.state))
 const cancelled = computed(() => props.download.state === 'cancelled')
@@ -270,6 +275,10 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       </div>
     </div>
     <p v-if="lastError && !expanded" class="truncate px-11 pb-1.5 text-xs text-error" :title="lastError">{{ lastError }}</p>
+    <p v-if="nextAttempt" class="flex items-center gap-1 px-11 pb-1.5 text-xs text-muted" data-testid="next-attempt">
+      <UIcon name="i-lucide-clock" class="size-3.5 shrink-0" />
+      <span class="numeric">{{ t('downloads.transfer.next_attempt', { time: nextAttempt }) }}</span>
+    </p>
     <div v-if="expanded" class="grid gap-1 border-t border-muted px-11 py-2 text-xs text-muted">
       <div class="flex items-center gap-2 md:hidden">
         <UProgress :model-value="progressOf(props.download)" size="xs" class="flex-1" />

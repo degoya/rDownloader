@@ -233,6 +233,25 @@ fn a_glob_matches_the_whole_name_and_treats_everything_else_literally() {
 }
 
 #[test]
+fn a_glob_backtracks_over_several_stars_and_single_wildcards() {
+    // Audit 1.9.1, INTAKE-10: the matcher that replaced the per-asset regular expression.
+    assert!(glob_matches(
+        "*-linux-*.tar.gz",
+        "tool-1.2.0-linux-x86_64.tar.gz"
+    ));
+    assert!(glob_matches("tool-?.?.?-*", "tool-1.2.0-linux.zip"));
+    assert!(!glob_matches("tool-?.?.?-*", "tool-1.20.0-linux.zip"));
+    assert!(glob_matches("**", ""));
+    assert!(!glob_matches("?", ""));
+    assert!(glob_matches("  *.ZIP  ", "tool.zip"));
+    assert!(glob_matches("t\u{fc}?l*", "t\u{fc}\u{fc}l.zip"));
+    assert!(!glob_matches("*a*b", "aaab-c"));
+    // A line break was never matched by a wildcard, and still is not.
+    assert!(!glob_matches("a*b", "a\nb"));
+    assert!(!glob_matches("a?b", "a\nb"));
+}
+
+#[test]
 fn checksum_files_are_recognised_by_name() {
     assert_eq!(checksum_file("SHA256SUMS"), Some(ChecksumFile::List));
     assert_eq!(checksum_file("checksums.txt"), Some(ChecksumFile::List));

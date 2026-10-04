@@ -29,12 +29,11 @@ use anyhow::Result;
 use object_store::{GetOptions, path::Path};
 use rd_core::{
     ByteCount, Failure, FailureKind, ObjectAddress, ObjectCredentialSource, ObjectStorageProfile,
-    ObjectStorageProvider, RemoteEntry, RemoteListing, RemoteSettings,
+    ObjectStorageProvider, RemoteEntry, RemoteListing,
 };
 use rd_db::Database;
 use rd_secrets::SecretStore;
 use secrecy::SecretString;
-use tokio::sync::RwLock;
 
 pub use folder::{
     FOLDER_BUCKET_INVALID, FOLDER_NAME_INVALID, FOLDER_PROFILE_MISSING, FolderObject, ObjectFolder,
@@ -44,8 +43,8 @@ pub use upload::STALE_UPLOAD_AGE;
 
 use connect::{OpenError, Opening, Store};
 
-/// Live remote settings shared with the FTP and SFTP runners (`rd_ftp::SharedRemoteSettings`).
-pub type SharedRemoteSettings = Arc<RwLock<RemoteSettings>>;
+/// Live remote settings shared with the FTP and SFTP runners.
+pub use rd_transfer_file::SharedRemoteSettings;
 
 /// Stable code of a profile whose endpoint is not a usable `http(s)` URL.
 pub const ENDPOINT_INVALID: &str = "object_storage.endpoint_invalid";
@@ -106,7 +105,7 @@ pub const fn provider_available(provider: ObjectStorageProvider) -> bool {
 pub struct ObjectStorageService {
     database: Database,
     secrets: SecretStore,
-    settings: SharedRemoteSettings,
+    settings: rd_transfer_file::LiveRemoteSettings,
     network: rd_http::SharedNetworkDefaults,
     /// Replaces [`connect::open`] in the crate's own tests, which run against memory.
     #[cfg(test)]
@@ -124,7 +123,7 @@ impl ObjectStorageService {
         Self {
             database,
             secrets,
-            settings,
+            settings: rd_transfer_file::LiveRemoteSettings::new(settings),
             network,
             #[cfg(test)]
             fixture: None,
@@ -136,15 +135,11 @@ impl ObjectStorageService {
     }
 
     pub(crate) fn max_parallel(&self) -> usize {
-        self.settings.try_read().map_or(2, |settings| {
-            settings.sanitized().remote_max_parallel as usize
-        })
+        self.settings.max_parallel()
     }
 
     pub(crate) fn timeout(&self) -> Duration {
-        self.settings
-            .try_read()
-            .map_or_else(|_| Duration::from_secs(60), |s| s.sanitized().timeout())
+        self.settings.timeout()
     }
 
     /// The profile that serves an address.

@@ -23,7 +23,7 @@ use crate::{
     listing::{self, Entry},
     messages,
     target::{self, Kind},
-    walk::{Limit, Walk},
+    walk::{Absorb, Limit, Walk},
 };
 
 const API: &str = "https://www.premiumize.me/api";
@@ -130,7 +130,7 @@ fn crawl_item(id: &str) -> Result<Vec<CrawledLink>, Failure> {
 
 /// Walks a cloud folder, breadth first, under the limits in `crate::walk`.
 fn crawl_folder(id: &str) -> Result<Vec<CrawledLink>, Failure> {
-    let mut walk = Walk::start(id);
+    let mut walk = Walk::start(id.to_owned());
     while let Some(mut pending) = walk.next_folder() {
         let body = fetch("/folder/list", &pending.id)?;
         let folder = listing::folder(&body)
@@ -156,7 +156,11 @@ fn crawl_folder(id: &str) -> Result<Vec<CrawledLink>, Failure> {
             match limit {
                 Limit::Depth => "premiumize folder is nested deeper than this crawl walks",
                 Limit::Files => "premiumize folder holds more files than this crawl lists",
-                Limit::Folders => "premiumize folder holds more subfolders than this crawl reads",
+                // `folder/list` answers a folder whole, so the page limit never fires; should it
+                // ever, the folder was cut short like one with too many subfolders.
+                Limit::Folders | Limit::Pages => {
+                    "premiumize folder holds more subfolders than this crawl reads"
+                }
             },
         );
     }

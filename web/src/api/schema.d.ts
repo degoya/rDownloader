@@ -1640,6 +1640,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every capture batch, newest first; `limit`/`offset` cut a page out of that order (API-15). */
         get: operations["list_batches"];
         put?: never;
         post: operations["collector_intake"];
@@ -1656,6 +1657,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Every link not yet enqueued, in package and link order; `limit`/`offset` cut a page out of
+         *     that order (API-15).
+         */
         get: operations["list_candidates"];
         put?: never;
         post?: never;
@@ -2076,6 +2081,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every LinkGrabber package in its list order; `limit`/`offset` cut a page out (API-15). */
         get: operations["list_collector_packages"];
         put?: never;
         post?: never;
@@ -2334,6 +2340,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every download in creation order; `limit`/`offset` cut a page out of that order (API-15). */
         get: operations["list_downloads"];
         put?: never;
         post: operations["create_download"];
@@ -3247,6 +3254,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * The NZB imports waiting for review; `limit`/`offset` cut a page out of the list's order
+         *     (API-15).
+         */
         get: operations["list_nzb_imports"];
         put?: never;
         post: operations["import_nzb"];
@@ -3320,6 +3331,28 @@ export interface paths {
         get: operations["list_postprocess_steps"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nzb/imports/{id}/remote-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hands an NZB import still in the LinkGrabber to one account's provider as a remote job.
+         * @description Refused before anything leaves the machine when the import failed or is queued, when the
+         *     account does not exist, has no remote-job plugin or one that takes no NZB, and when the
+         *     written-out NZB exceeds the 16 MiB a remote job's container may carry.
+         */
+        post: operations["submit_nzb_import_remote_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3409,6 +3442,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Every package in the queue's order; `limit`/`offset` cut a page out of it (API-15). */
         get: operations["list_packages"];
         put?: never;
         post?: never;
@@ -3612,6 +3646,31 @@ export interface paths {
         get: operations["list_package_postprocess"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packages/{id}/remote-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hands the NZB behind a package in the Downloads view to one account's provider as a remote
+         *     job (RD-191-13).
+         * @description Whatever state the package is in -- a failed package above all, whose articles the own
+         *     servers no longer had. The package stays where it is, and the import behind it carries the
+         *     mark the Downloads view shows. Refused with `package.remote_job_no_nzb` for a package that
+         *     came from no NZB, or whose import history was dropped; the account and size refusals are
+         *     those of the LinkGrabber's route.
+         */
+        post: operations["submit_package_remote_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3939,6 +3998,27 @@ export interface paths {
         /** Updates for installed plugins and what else the enabled repositories offer. */
         get: operations["list_plugin_updates"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/updates/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_plugin_update_settings"];
+        /**
+         * Switches automatic updates for every installed plugin on or off.
+         * @description The per-plugin policies are left as they are; the repository refresh reads this switch
+         *     first, the next refresh installs what it now allows.
+         */
+        put: operations["set_plugin_update_settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4459,6 +4539,10 @@ export interface paths {
          *     moment the form is drawn and the moment somebody presses the button, and then the refusal
          *     on submit is still the right answer -- it just becomes rare instead of routine
          *     (RD-120-23).
+         *
+         *     With `container` the list narrows to the providers whose plugin declares it takes that
+         *     container format (`[extension] containers`, RD-191-13) -- `nzb` is what the LinkGrabber asks,
+         *     to offer an NZB import only to accounts that can run it. Without it the answer is unchanged.
          */
         get: operations["list_remote_job_providers"];
         put?: never;
@@ -7973,6 +8057,12 @@ export interface components {
             category_id?: components["schemas"]["CategoryId"] | null;
             file_name?: string | null;
             package_name?: string | null;
+            /**
+             * @description Create the download paused instead of queued (API-09). The row is written in that
+             *     state, so the scheduler never gets the chance to start it first; resume it as any
+             *     other paused download. Absent means `false`.
+             */
+            paused?: boolean;
             priority?: components["schemas"]["DownloadPriority"] | null;
             proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
             /** Format: uri */
@@ -10291,6 +10381,12 @@ export interface components {
             subject: string;
             total_bytes: components["schemas"]["ByteCount"];
         };
+        /** @description Where an NZB import went when it was handed to a provider instead of the queue. */
+        NzbHandOver: {
+            /** @description The account whose provider runs the job; the LinkGrabber names the provider by it. */
+            account_id: components["schemas"]["AccountId"];
+            remote_job_id: components["schemas"]["RemoteJobId"];
+        };
         /** @description Summary stored after a bounded, entity-free NZB parse. */
         NzbImport: {
             category_id?: components["schemas"]["CategoryId"] | null;
@@ -10300,6 +10396,7 @@ export interface components {
             error?: string | null;
             /** Format: int32 */
             file_count: number;
+            handed_over?: components["schemas"]["NzbHandOver"] | null;
             /** @description Whether an archive password (from `{{password}}` in the file name) is stored. */
             has_password?: boolean;
             id: components["schemas"]["NzbImportId"];
@@ -10339,6 +10436,25 @@ export interface components {
         };
         /** Format: uuid */
         NzbImportId: string;
+        /** @description Which account's provider an NZB import goes to. */
+        NzbImportRemoteJobRequest: {
+            /**
+             * @description A remote-job account whose provider takes NZB files
+             *     (`GET /api/v1/remote-jobs/providers?container=nzb`).
+             */
+            account_id: components["schemas"]["AccountId"];
+        };
+        /** @description What handing an NZB import over produced. */
+        NzbImportRemoteJobResponse: {
+            /**
+             * @description True when the account already had a job for this NZB. Nothing was written and nothing
+             *     was sent -- the duplicate guard answering, not a failure.
+             */
+            already_running: boolean;
+            /** @description The import, now carrying `handed_over`. */
+            import: components["schemas"]["NzbImport"];
+            job: components["schemas"]["RemoteJob"];
+        };
         /**
          * @description Persistent lifecycle of an imported NZB.
          * @enum {string}
@@ -10797,6 +10913,11 @@ export interface components {
          *     silently omitting it explains nothing about why a third-party hoster stopped working.
          */
         PluginInventoryResponse: {
+            /**
+             * @description Whether the switch for all plugins is on (RD-191-10): every installed plugin then updates
+             *     as if set to automatic, whatever its own `update_policy` says.
+             */
+            automatic_updates_global: boolean;
             incompatible: components["schemas"]["IncompatiblePluginResponse"][];
             installed: components["schemas"]["InstalledPluginResponse"][];
             /**
@@ -10821,6 +10942,10 @@ export interface components {
             running_version?: string | null;
             /** @description The version under test: only a download started with it runs it. */
             staged_version?: string | null;
+            /**
+             * @description The plugin's own stored policy. The switch for all plugins
+             *     (`automatic_updates_global` on the inventory) overrides a manual one without changing it.
+             */
             update_policy: components["schemas"]["PluginUpdatePolicy"];
         };
         /** @description One package an enabled repository offers. */
@@ -10973,6 +11098,19 @@ export interface components {
             offer: components["schemas"]["PluginOfferResponse"];
             /** @description `manual` or `automatic`. */
             policy: string;
+        };
+        /** @description Body of `PUT /api/v1/plugins/updates/settings`. */
+        PluginUpdateSettingsRequest: {
+            automatic_updates: boolean;
+        };
+        /** @description Whether every installed plugin updates itself (RD-191-10). */
+        PluginUpdateSettingsResponse: {
+            /**
+             * @description On: every installed plugin, and every plugin installed later, updates as if set to
+             *     automatic. Off: each plugin's own policy applies. Either way an update that asks for a
+             *     new permission waits for a click, and an installed update runs from the next start.
+             */
+            automatic_updates: boolean;
         };
         /** @description Names one installed version of the plugin. */
         PluginVersionRequest: {
@@ -12344,6 +12482,25 @@ export interface components {
              * @default true
              */
             auto_remove_keep_failed: boolean;
+            /**
+             * @description Put failed downloads back into the queue on a timer when their failure may pass by
+             *     itself: a limit, an IP block, a server or network that was down, a file reported
+             *     offline (RD-191-12).
+             * @default false
+             */
+            auto_retry_failed: boolean;
+            /**
+             * Format: int32
+             * @description Hours between a download failing and its automatic retry (1–24).
+             * @default 6
+             */
+            auto_retry_interval_hours: number;
+            /**
+             * Format: int32
+             * @description Automatic retry rounds per download (0–100); `0` is no limit.
+             * @default 3
+             */
+            auto_retry_max_rounds: number;
             /** @default null */
             bandwidth_default_profile_id: components["schemas"]["BandwidthProfileId"] | null;
             /**
@@ -12569,7 +12726,9 @@ export interface components {
             max_connections_per_host: number;
             /**
              * Format: int32
-             * @description Retries per file before a retryable failure becomes final (0–100).
+             * @description Retries per file before a retryable failure becomes final (0–100). Waiting out a limit
+             *     the hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of
+             *     them; at most 48 such waits in a row (RD-191-12).
              * @default 8
              */
             max_retries: number;
@@ -12695,6 +12854,23 @@ export interface components {
              * @default 0
              */
             nntp_parallel_files: number;
+            /**
+             * @description The same offer in the Downloads view, in the menu of a package that came from an NZB
+             *     (RD-191-13). A switch of its own (owner, 2026-10-04): handing over a failed package is a
+             *     different habit from handing over before the queue.
+             * @default true
+             */
+            nzb_hand_over_downloads_enabled: boolean;
+            /**
+             * @description Whether the LinkGrabber offers to hand an NZB import to a remote-job provider: the menu
+             *     in each NZB row and the entry in the selection bar (RD-191-13).
+             *
+             *     On by default, because it is offered only where an account takes NZB files. It is a
+             *     display choice and nothing more: the badge of an import already handed over stays, and
+             *     the REST route and the MCP tool keep working, so switching it off cannot strand a job.
+             * @default true
+             */
+            nzb_hand_over_linkgrabber_enabled: boolean;
             /**
              * @description Whether finished spans are exported over OTLP (RD-110-03). Off by default and off
              *     after an upgrade: exporting traces sends the shape of a person's activity to a third
@@ -19059,7 +19235,15 @@ export interface operations {
     };
     list_batches: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -19069,11 +19253,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CollectorBatch"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -19103,7 +19296,15 @@ export interface operations {
     };
     list_candidates: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -19113,11 +19314,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["LinkCandidate"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -20069,7 +20279,15 @@ export interface operations {
     };
     list_collector_packages: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -20079,11 +20297,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CollectorPackage"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -20569,7 +20796,15 @@ export interface operations {
     };
     list_downloads: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -20579,11 +20814,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadFile"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -22702,7 +22946,15 @@ export interface operations {
     };
     list_nzb_imports: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -22712,11 +22964,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["NzbImport"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -22926,6 +23187,67 @@ export interface operations {
             };
         };
     };
+    submit_nzb_import_remote_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["NzbImportId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NzbImportRemoteJobRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NzbImportRemoteJobResponse"];
+                };
+            };
+            /** @description The account's provider runs no remote jobs or takes no NZB */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The import failed or is already queued */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The NZB exceeds 16 MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     oauth_callback: {
         parameters: {
             query: {
@@ -23112,7 +23434,15 @@ export interface operations {
     };
     list_packages: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -23122,11 +23452,20 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many rows the whole list holds; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadPackage"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -23542,6 +23881,60 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PostprocessStep"][];
                 };
+            };
+        };
+    };
+    submit_package_remote_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NzbImportRemoteJobRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NzbImportRemoteJobResponse"];
+                };
+            };
+            /** @description The package has no NZB behind it, or the account's provider runs no remote jobs or takes no NZB */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The NZB exceeds 16 MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -24194,6 +24587,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PluginOffersResponse"];
+                };
+            };
+        };
+    };
+    get_plugin_update_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginUpdateSettingsResponse"];
+                };
+            };
+        };
+    };
+    set_plugin_update_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginUpdateSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginUpdateSettingsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
         };
@@ -25217,7 +25663,13 @@ export interface operations {
     };
     list_remote_job_providers: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description A container format -- `torrent`, `nzb`, `dlc` or `rsdf`. Only the providers whose plugin
+                 *     declares it are listed; a format no plugin declares lists none.
+                 */
+                container?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

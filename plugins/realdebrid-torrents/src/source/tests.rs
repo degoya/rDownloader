@@ -34,6 +34,18 @@ fn both_spellings_of_one_info_hash_produce_one_key() {
     );
 }
 
+/// PLUG-07: an empty pair (`&&`) or one without a `=` used to end the whole read here, so a
+/// perfectly good magnet had no key and was refused. It is skipped now, as everywhere else.
+#[test]
+fn an_empty_pair_does_not_hide_the_info_hash() {
+    for magnet in [
+        format!("magnet:?dn=file.bin&&xt=urn:btih:{HASH}"),
+        format!("magnet:?dn=file.bin&flag&xt=urn:btih:{HASH_BASE32}"),
+    ] {
+        assert_eq!(magnet_info_hash(&magnet).as_deref(), Some(HASH), "{magnet}");
+    }
+}
+
 /// And a `.torrent` file of the same content produces that very same key, which is what lets
 /// the file and the magnet find one remote job instead of two.
 #[test]

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useLatestFetch } from '@/composables/useLatestFetch'
 import type {
   Automation,
   AutomationDryRun,
@@ -28,47 +29,28 @@ export const useAutomationsStore = defineStore('automations', () => {
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
   const busy = ref(false)
-  /** True while the automation list is being fetched — `busy` covers the write actions. */
-  const fetching = ref(false)
-  /** True once the first fetch has settled, so "no automations" is only said when it is true. */
-  const settled = ref(false)
   /**
-   * What the view shows in place of an empty list while the **first** fetch is on its way
-   * (RD-104-07).
-   *
-   * Not `fetching.value || !settled.value` (RD-106-19): `fetching` goes true on every
-   * `refresh()`, and every save, delete and toggle ends in one, so an empty list traded its
-   * empty state for the loading skeleton and back on each of them — the reported flicker.
-   * `design.md` promises that surface for the first fetch alone. `settled` is set even when
-   * that first fetch failed, which is what we want: `loading` turns false and `DataState`
-   * renders the error it prefers over the empty state. `fetching` itself is untouched as the
-   * per-refresh flag, and `busy` still covers the write actions the buttons bind.
+   * The list's fetch (`busy` covers the write actions); `loading` is its first fetch alone, and
+   * only the newest refresh lands (WEB-06).
    */
-  const loading = computed(() => !settled.value)
-
-  let releaseEvents: (() => void) | null = null
-  let refreshTimer: number | null = null
+  const { fetching, loading, run } = useLatestFetch()
 
   async function refresh(): Promise<void> {
-    fetching.value = true
     try {
-      const [list, history] = await Promise.all([
-        api.GET('/api/v1/automations'),
-        api.GET('/api/v1/automations/runs')
-      ])
-      if (list.data) {
-        automations.value = list.data
-        error.value = null
-      } else {
-        error.value = responseError(list)
-      }
-      if (history.data) runs.value = history.data
+      await run(
+        () => Promise.all([api.GET('/api/v1/automations'), api.GET('/api/v1/automations/runs')]),
+        ([list, history]) => {
+          if (list.data) {
+            automations.value = list.data
+            error.value = null
+          } else {
+            error.value = responseError(list)
+          }
+          if (history.data) runs.value = history.data
+        }
+      )
     } catch {
       error.value = responseError(undefined)
-    } finally {
-      // `scheduleRefresh` waits for this flag; left set by a rejection it would wait forever.
-      fetching.value = false
-      settled.value = true
     }
   }
 
@@ -172,18 +154,6 @@ export const useAutomationsStore = defineStore('automations', () => {
     return response.data
   }
 
-  /** Re-reads the list and the run history, at most once per burst of events. */
-  function scheduleRefresh(): void {
-    if (refreshTimer !== null) return
-    refreshTimer = window.setTimeout(() => {
-      refreshTimer = null
-      // Re-arm instead of stacking a second request on top of one already in flight; a burst
-      // of events would otherwise multiply into parallel round trips.
-      if (fetching.value) return scheduleRefresh()
-      void refresh()
-    }, 300)
-  }
-
   /**
    * What the bus says about automations.
    *
@@ -200,19 +170,8 @@ export const useAutomationsStore = defineStore('automations', () => {
    * bulk import emits one event per automation. No notice is raised — `design.md` has no
    * pattern for announcing that data caught up.
    */
-  function connectEvents(): void {
-    if (releaseEvents) return
-    releaseEvents = subscribeEvents({ 'automation.changed': scheduleRefresh })
-  }
-
-  function disconnectEvents(): void {
-    releaseEvents?.()
-    releaseEvents = null
-    if (refreshTimer !== null) {
-      window.clearTimeout(refreshTimer)
-      refreshTimer = null
-    }
-  }
+  const { connect: connectEvents, disconnect: disconnectEvents } =
+    debouncedEventRefresh(['automation.changed'], refresh, { busy: () => fetching.value })
 
   return {
     automations,

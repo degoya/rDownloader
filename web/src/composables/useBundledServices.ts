@@ -6,7 +6,7 @@ import { useFetchState } from '@/composables/useFetchState'
 import { translateServerMessage } from '@/i18n/server'
 
 /** What one install run did, for the caller to say. */
-export interface BundledInstallOutcome {
+interface BundledInstallOutcome {
   installed: number
   failures: BundledInstallFailure[]
   /** A refused request (not one plugin failing), in the reader's language. */
@@ -20,7 +20,7 @@ export interface BundledInstallOutcome {
 }
 
 /** What one removal did (RD-180-14). */
-export interface BundledRemoveOutcome {
+interface BundledRemoveOutcome {
   removed: string[]
   failures: BundledInstallFailure[]
   /** A refused request (not one service staying), in the reader's language. */

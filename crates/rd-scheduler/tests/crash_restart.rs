@@ -339,6 +339,79 @@ async fn a_crash_after_the_package_row_leaves_no_empty_package_behind() {
     );
 }
 
+/// A crash after a LinkGrabber torrent's reviewed selection was written and before its row
+/// joined the queue (1.9.1, API-07). The row was written paused for exactly this window: a
+/// queued row without its selection would start on the default one, and the runner would then
+/// persist that over the reviewed choice.
+#[tokio::test]
+async fn a_crash_after_the_torrent_selection_leaves_the_row_paused_with_it() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, database) = scheduler_over(temporary.path()).await;
+    let (mut spec, mut files) = one_paused_file(temporary.path());
+    // Meant to start, so the step after the crash point is the one that would queue it.
+    spec.start_paused = false;
+    let magnet: url::Url = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567"
+        .parse()
+        .expect("magnet");
+    files[0].source = magnet.clone();
+    files[0].kind = rd_core::DownloadKind::Torrent;
+    let mut reviewed = rd_core::TorrentJobState::default();
+    reviewed.plan.explicit = std::collections::BTreeMap::from([(0, true), (1, false)]);
+
+    let guard = FailpointGuard::once("scheduler.after_torrent_selection");
+    assert!(
+        scheduler
+            .enqueue_package_with_torrents(spec, files, vec![(magnet, reviewed.clone())])
+            .await
+            .is_err(),
+        "the crash point did not stop the enqueue"
+    );
+    assert!(guard.fired(), "the crash point was never reached");
+    drop(guard);
+
+    // The restart: `recover_interrupted` is the first thing that touches the database.
+    database.recover_interrupted().await.expect("recovery");
+
+    let rows = database.list_downloads().await.expect("downloads");
+    assert_eq!(
+        rows.len(),
+        1,
+        "the torrent row was lost or doubled: {rows:?}"
+    );
+    assert_eq!(
+        rows[0].state,
+        rd_core::DownloadState::Paused,
+        "the row joined the queue without the step that queues it"
+    );
+    let stored = database
+        .download_torrent_state(rows[0].id)
+        .await
+        .expect("torrent state")
+        .expect("the reviewed selection survived the crash");
+    assert_eq!(
+        stored.plan.explicit, reviewed.plan.explicit,
+        "the row holds a selection other than the reviewed one"
+    );
+
+    // And the person's resume queues it with that selection, not the default one (RA-TR-07).
+    scheduler.resume(rows[0].id).await.expect("resume");
+    let resumed = database
+        .get_download(rows[0].id)
+        .await
+        .expect("read")
+        .expect("row");
+    assert_eq!(resumed.state, rd_core::DownloadState::Queued);
+    let started_with = database
+        .download_torrent_state(rows[0].id)
+        .await
+        .expect("torrent state")
+        .expect("the selection outlived the resume");
+    assert_eq!(
+        started_with.plan.explicit, reviewed.plan.explicit,
+        "the resume replaced the reviewed selection"
+    );
+}
+
 /// A category move that stops between its verified copy and the removal of the original
 /// (RD-150-02). Within one device the copy *is* the rename, so the stop leaves the payload at
 /// the new place alone; the second half of the case builds the state a cross-device copy
@@ -437,12 +510,14 @@ async fn a_crash_before_the_original_is_removed_ends_with_one_verified_copy() {
 /// as coverage and is not.
 #[test]
 fn every_scheduler_crash_point_is_exercised_by_a_case() {
-    // Three sources: one crash point sits on a `pub(crate)` path that no integration test can
-    // reach, so its case is a unit test beside the code it interrupts; the timed pause's case
-    // lives with the other timed-pause tests (RD-190-20).
+    // Four sources: two crash points sit on `pub(crate)` paths that no integration test can
+    // reach, so their cases are unit tests beside the code they interrupt (the mirror fallback,
+    // and the auto-retry sweep, RD-191-12); the timed pause's case lives with the other
+    // timed-pause tests (RD-190-20).
     let source = concat!(
         include_str!("crash_restart.rs"),
         include_str!("../src/mirror_fallback_tests.rs"),
+        include_str!("../src/auto_retry_tests.rs"),
         include_str!("queue_pause.rs"),
     );
     for point in rd_core::failpoint::CRASH_POINTS

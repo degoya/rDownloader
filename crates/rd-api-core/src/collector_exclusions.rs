@@ -27,11 +27,17 @@ struct Cached {
 static CACHE: Mutex<Option<Cached>> = Mutex::new(None);
 
 /// Blocklist configured in the service settings, empty when none applies.
+///
+/// The file is stat'ed and possibly read on every intake request, so it runs on the blocking
+/// pool rather than stalling an async worker on a slow or network-mounted disk.
 pub async fn blocklist(database: &rd_db::Database) -> Result<Arc<Vec<String>>, ApiError> {
     let configured = database
         .service_setting_field::<String>("excluded_domains_file")
         .await?;
-    Ok(excluded_domains(configured.as_deref()))
+    let entries = tokio::task::spawn_blocking(move || excluded_domains(configured.as_deref()))
+        .await
+        .map_err(|error| anyhow::anyhow!("domain blocklist task failed: {error}"))?;
+    Ok(entries)
 }
 
 /// Default file name looked up next to the database when no path is configured.
@@ -62,7 +68,26 @@ pub fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
     {
         return Arc::clone(&cached.entries);
     }
-    let entries = Arc::new(load_excluded_domains(path));
+    let entries = match load_excluded_domains(path) {
+        Ok(entries) => Arc::new(entries),
+        Err(error) => {
+            // An unreadable list (permissions, a directory, a broken mount) is not an empty
+            // one: silently admitting every host would hide the fault. The last good read of
+            // the same file keeps applying, nothing is cached, and the next intake retries.
+            tracing::warn!(
+                path = %path.display(),
+                %error,
+                "the excluded domains file could not be read; keeping the last list read from it"
+            );
+            return cache
+                .as_ref()
+                .filter(|cached| cached.path == path)
+                .map_or_else(
+                    || Arc::new(Vec::new()),
+                    |cached| Arc::clone(&cached.entries),
+                );
+        }
+    };
     *cache = Some(Cached {
         path: path.to_path_buf(),
         modified,
@@ -71,10 +96,18 @@ pub fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
     entries
 }
 
-/// A missing file yields an empty list; a blocklist nobody wrote blocks nothing.
-#[must_use]
-pub fn load_excluded_domains(path: &Path) -> Vec<String> {
-    std::fs::read_to_string(path).map_or_else(|_| Vec::new(), |content| parse(&content))
+/// A missing file yields an empty list; a blocklist nobody wrote blocks nothing. Any other IO
+/// error is returned, so the caller can tell an unreadable list from an absent one.
+///
+/// # Errors
+///
+/// Whatever reading the file fails with, except `NotFound`.
+pub fn load_excluded_domains(path: &Path) -> std::io::Result<Vec<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(content) => Ok(parse(&content)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(error),
+    }
 }
 
 /// One host per line, `#` comments and blank lines ignored.
@@ -98,10 +131,9 @@ fn normalize(value: &str) -> Option<String> {
         .split(['/', '?', '#'])
         .next()
         .unwrap_or(after_scheme)
-        .trim()
-        .to_ascii_lowercase();
-    let host = host.trim_start_matches("www.");
-    (!host.is_empty()).then(|| host.to_owned())
+        .trim();
+    let host = rd_core::host_key(host);
+    (!host.is_empty()).then_some(host)
 }
 
 /// Same semantics as `rd_core::MediaSettings::handles_host`: a host matches an entry exactly
@@ -111,11 +143,10 @@ pub fn is_excluded(entries: &[String], host: &str) -> bool {
     if entries.is_empty() {
         return false;
     }
-    let host = host.trim().to_ascii_lowercase();
-    let host = host.trim_start_matches("www.");
+    let host = rd_core::host_key(host);
     entries
         .iter()
-        .any(|entry| host == entry.as_str() || host.ends_with(&format!(".{entry}")))
+        .any(|entry| host == *entry || host.ends_with(&format!(".{entry}")))
 }
 
 #[cfg(test)]
@@ -141,6 +172,8 @@ mod tests {
         let entries = parse("example.com\n");
         assert!(is_excluded(&entries, "example.com"));
         assert!(is_excluded(&entries, "www.EXAMPLE.com"));
+        // `rd_core::host_key` (RA-IN-06): a trailing dot is the same host.
+        assert!(is_excluded(&entries, "www.example.com."));
         assert!(is_excluded(&entries, "files.cdn.example.com"));
     }
 
@@ -156,6 +189,20 @@ mod tests {
     #[test]
     fn missing_file_yields_an_empty_list() {
         let path = std::env::temp_dir().join("rd-excluded-domains-does-not-exist.txt");
-        assert!(load_excluded_domains(&path).is_empty());
+        assert!(
+            load_excluded_domains(&path)
+                .expect("a missing file is an empty list")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn an_unreadable_file_is_an_error_not_an_empty_list() {
+        // A file that exists but is not text stands in for any file that cannot be read. (A
+        // directory did on Linux; Windows answers reading one with an error kind of its own.)
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("excluded-domains.txt");
+        std::fs::write(&path, [0xff, 0xfe, 0xfd]).expect("write");
+        assert!(load_excluded_domains(&path).is_err());
     }
 }

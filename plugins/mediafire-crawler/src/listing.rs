@@ -49,8 +49,8 @@ pub fn folder_entry(info: &FolderInfo) -> Option<Entry> {
 }
 
 /// A name that can stand on its own: not empty, not a dot entry, no control character.
-/// Separators are not refused here — [`crate::walk::join`] replaces them, and a name that
-/// carried one is still the file's name.
+/// Separators are not refused here — [`crate::walk::join`] drops them from a path segment,
+/// and a name that carried one is still the file's name.
 #[must_use]
 pub fn valid_name(name: &str) -> bool {
     !name.is_empty() && name != "." && name != ".." && !name.chars().any(char::is_control)

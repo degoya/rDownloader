@@ -5,8 +5,9 @@
 # tagged 1.3.0 and of an untagged 1.4.0, a document and a source comment naming the finished
 # job, and a plugin comment that must stay as it is. The run is made twice; the second has to
 # be a no-op, and every relative link in the tree has to resolve after the first. Then --check has
-# to refuse a miscounted Job Inventory row that a plain run recounts (RD-140-24), and last a job
-# that is open again but still lies in the archive.
+# to refuse a miscounted Job Inventory row that a plain run recounts (RD-140-24), a job that is
+# open again but still lies in the archive, and last every status line that is missing or not one
+# of the five words (RD-120-14, moved here from a Rust test by RD-191-09).
 #
 # Pure python3, bash and git: it runs in a second. check.sh runs it when scripts/lib/ or
 # scripts/tests/ change, and under --full.
@@ -157,6 +158,31 @@ git -C "$TREE" -c user.name=t -c user.email=t@t commit -qam recounted
 sed -i 's/^- \*\*Status:\*\* Implemented.*/- **Status:** Partial (reopened)/' "$JOBS/archive/140-01-done.md"
 run --check
 expect "check refuses an open job left in the archive" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "open again: docs/roadmap/jobs/archive/140-01-done.md (Partial)"'
+
+git -C "$TREE" checkout -q -- docs/roadmap/jobs
+
+# The status words (RD-120-14, a Rust test until RD-191-09): five words, each standing alone.
+printf -- '- **Status:** Done (2026-10-04)\n' > "$JOBS/140-03-done-word.md"
+printf -- '- **Status:** Openish\n' > "$JOBS/140-04-openish.md"
+printf '# RD-140-05\n\n- **Milestone:** 1.4\n' > "$JOBS/140-05-no-line.md"
+printf -- '- **Status:** Erledigt\n' > "$JOBS/archive/140-06-archived.md"
+run --check
+expect "check refuses \`Done\`" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "status: docs/roadmap/jobs/140-03-done-word.md: status word \`Done\`"'
+expect "a word that merely starts with an allowed one is refused" 'has "$SCRATCH/out" "140-04-openish.md: status word \`Openish\`"'
+expect "a job file without a status line is refused" 'has "$SCRATCH/out" "140-05-no-line.md: no \`- **Status:**\` line"'
+expect "the archive is read too" 'has "$SCRATCH/out" "archive/140-06-archived.md: status word \`Erledigt\`"'
+expect "the message names the allowed words" 'has "$SCRATCH/out" "\`Blocked/No-Go\`, \`Implemented\`, \`In progress\`, \`Open\`, \`Partial\`"'
+expect "a working file needs no status line" '! has "$SCRATCH/out" "140-00-release-koordination.md: no"'
+rm "$JOBS/140-03-done-word.md" "$JOBS/140-04-openish.md" "$JOBS/140-05-no-line.md" "$JOBS/archive/140-06-archived.md"
+for value in "Open" "Open / feasibility-gated" "In progress (2026-10-04)" "Partial, corrected by RD-095-02" \
+    "Blocked/No-Go — gemessen" "Implemented (Abnahme auf Windows offen)"; do
+    printf -- '- **Status:** %s\n' "$value" > "$JOBS/140-07-word.md"
+    run --check
+    expect "\`$value\` passes" '! has "$SCRATCH/out" "140-07-word.md:"'
+done
+printf -- '- **Status:** Done\n' > "$JOBS/140-00-release-koordination.md"
+run --check
+expect "a working file that grows a status line is checked like any other" 'has "$SCRATCH/out" "140-00-release-koordination.md: status word \`Done\`"'
 
 echo
 echo "$passed passed, $failures failed"

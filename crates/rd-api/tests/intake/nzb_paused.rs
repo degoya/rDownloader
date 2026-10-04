@@ -184,3 +184,54 @@ async fn an_nzb_candidate_enqueued_paused_starts_paused() {
         "an NZB candidate enqueued paused must not start downloading: {result}"
     );
 }
+
+/// The ids of a list answer, in order, and its `X-Total-Count` when it carries one.
+async fn imports_page(harness: &common::Harness, uri: &str) -> (Vec<String>, Option<String>) {
+    let (status, headers, bytes) = common::send_raw(
+        &harness.router,
+        common::request_to("GET", uri)
+            .body(axum::body::Body::empty())
+            .expect("request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{uri}");
+    let rows: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+    let ids = rows
+        .as_array()
+        .expect("rows")
+        .iter()
+        .filter_map(|row| row["id"].as_str().map(ToOwned::to_owned))
+        .collect();
+    let total = headers
+        .get("x-total-count")
+        .and_then(|value| value.to_str().ok())
+        .map(ToOwned::to_owned);
+    (ids, total)
+}
+
+/// The review list pages in its own order (API-15); unpaged it is the whole list, as before.
+#[tokio::test]
+async fn the_nzb_review_list_pages_in_its_own_order() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    for (name, digest) in [("one.nzb", "c3"), ("two.nzb", "d4"), ("three.nzb", "e5")] {
+        harness
+            .database
+            .add_nzb_import(nzb_import(name, digest))
+            .await
+            .expect("import");
+    }
+
+    let (whole, total) = imports_page(&harness, "/api/v1/nzb/imports").await;
+    assert_eq!(whole.len(), 3);
+    assert_eq!(total, None, "an unpaged answer carries no count");
+    let (window, total) = imports_page(&harness, "/api/v1/nzb/imports?limit=1&offset=1").await;
+    assert_eq!(window, whole[1..2]);
+    assert_eq!(total.as_deref(), Some("3"));
+    let (beyond, _) = imports_page(&harness, "/api/v1/nzb/imports?offset=3").await;
+    assert!(beyond.is_empty());
+
+    let (status, refused) = common::get_json(&harness.router, "/api/v1/nzb/imports?limit=0").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(refused["code"], "request.page_limit", "{refused}");
+}

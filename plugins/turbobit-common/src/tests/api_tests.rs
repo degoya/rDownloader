@@ -9,11 +9,16 @@ use crate::api::{self, Count, Refusal};
 #[test]
 fn the_measured_refusals_map_to_their_kinds() {
     for (status, body, expected) in [
-        (404, tb::INFO_DELETED, Refusal::FileUnavailable),
-        (404, hf::INFO_DELETED, Refusal::FileUnavailable),
-        (404, tb::INIT_NOT_FOUND, Refusal::FileUnavailable),
-        (404, tb::START_NOT_FOUND, Refusal::FileUnavailable),
-        (404, hf::START_NOT_FOUND, Refusal::FileUnavailable),
+        // Under a 404 the deletion is final (owner, 2026-10-04); the same word elsewhere is
+        // the site's word alone, and a bare 404 or 410 says the same as the word.
+        (404, tb::INFO_DELETED, Refusal::FileGone),
+        (404, hf::INFO_DELETED, Refusal::FileGone),
+        (404, tb::INIT_NOT_FOUND, Refusal::FileGone),
+        (404, tb::START_NOT_FOUND, Refusal::FileGone),
+        (404, hf::START_NOT_FOUND, Refusal::FileGone),
+        (200, tb::INFO_DELETED, Refusal::FileUnavailable),
+        (404, "", Refusal::FileGone),
+        (410, "", Refusal::FileGone),
         (422, tb::CAPTCHA_INVALID, Refusal::CaptchaInvalid),
         (422, hf::CAPTCHA_INVALID, Refusal::CaptchaInvalid),
         (409, hf::START_409, Refusal::NoDirectLink),
@@ -31,7 +36,7 @@ fn the_measured_refusals_map_to_their_kinds() {
             r#"{"message":"File size is greater than allowed"}"#,
             Refusal::PremiumOnly,
         ),
-        (429, "", Refusal::RateLimited),
+        (429, "", Refusal::RateLimited(None)),
         (503, "", Refusal::Http(503)),
         (
             400,
@@ -73,6 +78,11 @@ fn every_refusal_has_one_code_and_the_kind_the_scheduler_acts_on() {
             FailureKind::Offline,
         ),
         (
+            Refusal::FileGone,
+            "turbobit.file_unavailable",
+            FailureKind::Permanent,
+        ),
+        (
             Refusal::PremiumOnly,
             "turbobit.premium_only",
             FailureKind::AuthRequired,
@@ -103,7 +113,7 @@ fn every_refusal_has_one_code_and_the_kind_the_scheduler_acts_on() {
             FailureKind::AuthRequired,
         ),
         (
-            Refusal::RateLimited,
+            Refusal::RateLimited(None),
             "turbobit.rate_limited",
             FailureKind::RateLimited(None),
         ),
@@ -261,4 +271,18 @@ fn a_count_arrives_as_a_number_a_float_or_a_string_with_a_comma() {
     assert_eq!(parse("\"12,5\"").into_f64(), Some(12.5));
     assert_eq!(parse("\"abc\"").into_u64(), None);
     assert_eq!(parse("-1.0").into_u64(), None);
+}
+
+/// A `429` carries the wait the API stated, so the scheduler waits that long rather than its
+/// own default (RD-191-07).
+#[test]
+fn a_rate_limit_carries_the_stated_retry_after() {
+    let mut response = json(429, "");
+    response
+        .headers
+        .push(("Retry-After".to_owned(), "75".to_owned()));
+    assert_eq!(
+        api::refusal(&response),
+        Some(Refusal::RateLimited(Some(75)))
+    );
 }

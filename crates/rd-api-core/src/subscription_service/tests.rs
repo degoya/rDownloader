@@ -15,11 +15,12 @@ use rd_subscription::{DiscoveredItem, PollOutcome, SourceAdapter};
 
 use super::SubscriptionService;
 
-/// A script adapter that counts its runs and fails when told to.
+/// A script adapter that counts its runs and fails, or panics, when told to.
 #[derive(Default)]
 struct CountingScript {
     runs: AtomicUsize,
     fail: AtomicBool,
+    panic: AtomicBool,
 }
 
 #[async_trait::async_trait]
@@ -30,6 +31,11 @@ impl SourceAdapter for CountingScript {
 
     async fn poll(&self, _subscription: &rd_core::Subscription) -> anyhow::Result<PollOutcome> {
         self.runs.fetch_add(1, Ordering::SeqCst);
+        if self.panic.load(Ordering::SeqCst) {
+            // What a slice through a multi-byte character did to a feed poll (audit 1.9.1,
+            // INTAKE-02).
+            panic!("byte index 447 is not a char boundary");
+        }
         if self.fail.load(Ordering::SeqCst) {
             anyhow::bail!("script exited with status 3: login refused");
         }
@@ -312,5 +318,40 @@ async fn a_schedule_edit_retimes_the_subscription_instead_of_running_it() {
     fixture.set(local(15, 6, 0, 30));
     fixture.tick().await;
     assert_eq!(fixture.runs(), 0);
+    fixture.service.shutdown();
+}
+
+#[tokio::test]
+async fn a_panicking_poll_still_finishes_its_run_with_a_stable_code() {
+    // Audit 1.9.1, INTAKE-02: a panic used to skip `finish`, so the subscription stayed due,
+    // was polled again every cycle and showed no error at all.
+    let fixture = fixture(local(15, 5, 0, 0)).await;
+    let created = fixture
+        .database
+        .create_subscription(daily_at_six())
+        .await
+        .expect("subscription");
+    fixture.script.panic.store(true, Ordering::SeqCst);
+
+    fixture.service.poll_now(created.id).await.expect("run now");
+    assert_eq!(fixture.runs(), 1);
+    let stored = fixture
+        .database
+        .subscription(created.id)
+        .await
+        .expect("get")
+        .expect("exists");
+    assert_eq!(stored.last_error.as_deref(), Some(super::POLL_PANICKED));
+    assert_eq!(stored.consecutive_failures, 1);
+    // Backed off like any other failure, rather than due again at once.
+    let retry = stored.next_run_at.expect("next run");
+    assert!(retry > local(15, 5, 0, 0), "{retry}");
+    let runs = fixture
+        .database
+        .subscription_runs(created.id, 10)
+        .await
+        .expect("runs");
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].error.as_deref(), Some(super::POLL_PANICKED));
     fixture.service.shutdown();
 }

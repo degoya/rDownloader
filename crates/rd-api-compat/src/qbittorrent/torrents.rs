@@ -9,30 +9,45 @@ use super::{TorrentQuery, map, ok};
 use crate::{AppState, dto::DownloadBulkAction};
 
 /// Collects every torrent package with its job row and real info hash.
-async fn views(state: &AppState) -> Vec<map::TorrentView> {
-    let Ok(packages) = state.database.list_packages().await else {
-        return Vec::new();
+///
+/// Three reads and one pass (audit 1.9.1, API-03): the job states and the packages are keyed
+/// once, so a list of `n` downloads costs `n` lookups rather than `n` scans of both tables.
+///
+/// A store that cannot be read answers `503` rather than an empty list. An empty list is a
+/// statement -- "you have no torrents" -- and Sonarr and Radarr act on it, marking every one
+/// they are waiting for as gone.
+async fn views(state: &AppState) -> Result<Vec<map::TorrentView>, Box<Response>> {
+    let read = async {
+        anyhow::Ok((
+            state.database.list_packages().await?,
+            state.database.list_downloads().await?,
+            state.database.all_download_torrent_states().await?,
+            state.database.list_categories().await?,
+        ))
     };
-    let Ok(downloads) = state.database.list_downloads().await else {
-        return Vec::new();
-    };
-    let Ok(torrent_states) = state.database.all_download_torrent_states().await else {
-        return Vec::new();
-    };
-    let categories = state.database.list_categories().await.unwrap_or_default();
-    downloads
+    let (packages, downloads, torrent_states, categories) =
+        read.await.map_err(|error| Box::new(unavailable(&error)))?;
+    let hashes: std::collections::HashMap<rd_core::DownloadId, String> = torrent_states
+        .into_iter()
+        .filter_map(|(id, job)| {
+            job.metadata
+                .as_ref()
+                .map(|metadata| (id, map::normalize_hash(&metadata.info_hash)))
+        })
+        .collect();
+    let packages: std::collections::HashMap<rd_core::PackageId, rd_core::DownloadPackage> =
+        packages
+            .into_iter()
+            .map(|package| (package.id, package))
+            .collect();
+    Ok(downloads
         .into_iter()
         .filter_map(|download| {
-            let hash = torrent_states
-                .iter()
-                .find(|(id, _)| *id == download.id)
-                .and_then(|(_, job)| job.metadata.as_ref())
-                .map(|metadata| map::normalize_hash(&metadata.info_hash))
+            let hash = hashes
+                .get(&download.id)
+                .cloned()
                 .or_else(|| map::hash_from_magnet(&download.source))?;
-            let package = packages
-                .iter()
-                .find(|package| package.id == download.package_id)?
-                .clone();
+            let package = packages.get(&download.package_id)?.clone();
             let category = categories
                 .iter()
                 .find(|category| Some(category.id) == package.category_id)
@@ -45,7 +60,7 @@ async fn views(state: &AppState) -> Vec<map::TorrentView> {
                 category,
             })
         })
-        .collect()
+        .collect())
 }
 
 /// Form fields of a `POST`, which is where qBittorrent clients put their parameters.
@@ -86,7 +101,10 @@ pub(crate) async fn info(
     State(state): State<AppState>,
     Query(query): Query<TorrentQuery>,
 ) -> Response {
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let slots: Vec<serde_json::Value> = views
         .iter()
         .filter(|view| matches_filter(view, &query))
@@ -170,7 +188,10 @@ pub(crate) async fn properties(
     State(state): State<AppState>,
     Query(query): Query<TorrentQuery>,
 ) -> Response {
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let hashes = requested(&query, &form(""), &views);
     let Some(view) = views.iter().find(|view| hashes.contains(&view.hash)) else {
         return not_found();
@@ -201,17 +222,23 @@ pub(crate) async fn files(
     State(state): State<AppState>,
     Query(query): Query<TorrentQuery>,
 ) -> Response {
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let hashes = requested(&query, &form(""), &views);
     let Some(view) = views.iter().find(|view| hashes.contains(&view.hash)) else {
         return not_found();
     };
-    let Ok(Some(job)) = state
+    let job = match state
         .database
         .download_torrent_state(view.download.id)
         .await
-    else {
-        return axum::Json(Vec::<serde_json::Value>::new()).into_response();
+    {
+        Ok(Some(job)) => job,
+        Ok(None) => return axum::Json(Vec::<serde_json::Value>::new()).into_response(),
+        // Not an empty file list: a client would read it as a torrent without files (API-13).
+        Err(error) => return unavailable(&error),
     };
     // Resolved through the same evaluator the native API and the UI use, so the selection
     // a client sees is the one the review step actually produced — including files an
@@ -244,16 +271,28 @@ pub(crate) async fn files(
 }
 
 pub(crate) async fn categories(State(state): State<AppState>) -> Response {
+    let categories = match state.database.list_categories().await {
+        Ok(categories) => categories,
+        // An empty map tells the client its categories are gone, and it creates them again.
+        Err(error) => return unavailable(&error),
+    };
     let mut map = serde_json::Map::new();
-    if let Ok(categories) = state.database.list_categories().await {
-        for category in categories {
-            map.insert(
-                category.name.clone(),
-                serde_json::json!({ "name": category.name, "savePath": "" }),
-            );
-        }
+    for category in categories {
+        map.insert(
+            category.name.clone(),
+            serde_json::json!({ "name": category.name, "savePath": "" }),
+        );
     }
     axum::Json(serde_json::Value::Object(map)).into_response()
+}
+
+/// `503` for a store that could not be read, with the cause in the log (audit 1.9.1, API-13).
+fn unavailable(error: &anyhow::Error) -> Response {
+    tracing::warn!(
+        error = %format!("{error:#}"),
+        "the qBittorrent adapter could not read the store"
+    );
+    axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response()
 }
 
 /// Categories are configured in the application, not by a download client.
@@ -290,7 +329,10 @@ async fn act(
     body: &str,
     action: DownloadBulkAction,
 ) -> Response {
-    let views = views(state).await;
+    let views = match views(state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let hashes = requested(query, &form(body), &views);
     let targets: Vec<rd_core::DownloadId> = views
         .iter()
@@ -344,7 +386,10 @@ pub(crate) async fn delete(
     Query(query): Query<TorrentQuery>,
     body: String,
 ) -> Response {
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let hashes = requested(&query, &form(&body), &views);
     let ids: Vec<rd_core::PackageId> = views
         .iter()
@@ -517,11 +562,20 @@ async fn add_url(
 
 async fn resolve_category(state: &AppState, name: Option<&str>) -> Option<rd_core::CategoryId> {
     let name = name.map(str::trim).filter(|name| !name.is_empty())?;
-    state
-        .database
-        .list_categories()
-        .await
-        .ok()?
+    let categories = match state.database.list_categories().await {
+        Ok(categories) => categories,
+        Err(error) => {
+            // Queued without a category rather than refused; said, so a torrent that lands in
+            // the wrong folder is explained (audit 1.9.1, API-13).
+            tracing::warn!(
+                error = %format!("{error:#}"),
+                category = name,
+                "the qBittorrent adapter could not read the categories"
+            );
+            return None;
+        }
+    };
+    categories
         .into_iter()
         .find(|category| category.name.eq_ignore_ascii_case(name))
         .map(|category| category.id)
@@ -554,7 +608,10 @@ pub(crate) async fn file_priority(
         .or_else(|| form.get("hash").cloned())
         .map(|value| map::normalize_hash(&value))
         .unwrap_or_default();
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let Some(view) = views.iter().find(|view| view.hash == hash) else {
         return not_found();
     };
@@ -598,7 +655,10 @@ pub(crate) async fn set_share_limits(
     body: String,
 ) -> Response {
     let form = form(&body);
-    let views = views(&state).await;
+    let views = match views(&state).await {
+        Ok(views) => views,
+        Err(unavailable) => return *unavailable,
+    };
     let hashes = requested(&query, &form, &views);
     let ratio = form
         .get("ratioLimit")

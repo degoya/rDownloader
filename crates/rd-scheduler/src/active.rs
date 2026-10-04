@@ -15,9 +15,30 @@ pub(crate) struct ActiveState {
     pub(crate) exempt: HashSet<DownloadId>,
     /// Running files of kinds whose files share one `max_active_files` slot (RD-130-22).
     pub(crate) pooled: HashMap<DownloadId, DownloadKind>,
+    /// Idle files a reset, a removal or a discard is working on, with how many of them at
+    /// once. The dispatcher skips them, and only the hold's own end counts down: a stop reason
+    /// could be taken out by a resume or another call's `release_stop_guard` in the middle of
+    /// the work (re-audit 1.9.1, RA-TR-02).
+    pub(crate) held: HashMap<DownloadId, usize>,
 }
 
 impl ActiveState {
+    /// Whether a dispatch pass has to leave `id` alone: it runs, it is being stopped, or a
+    /// reset or removal holds it.
+    pub(crate) fn untouchable(&self, id: &DownloadId) -> bool {
+        self.tokens.contains_key(id) || self.reasons.contains_key(id) || self.held.contains_key(id)
+    }
+
+    /// Lets go of one hold on `id`; the last one lets the dispatcher back at it.
+    pub(crate) fn release_hold(&mut self, id: &DownloadId) {
+        if let Some(count) = self.held.get_mut(id) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                self.held.remove(id);
+            }
+        }
+    }
+
     /// Running files as `max_active_files` counts them: exempt ones not at all, the files
     /// of a pooled kind once for the kind.
     pub(crate) fn counted(&self) -> usize {
@@ -92,6 +113,29 @@ mod tests {
         start(&mut active, DownloadKind::Http, false, false);
         assert!(!active.admits(DownloadKind::Usenet, false, true, 2));
         assert!(active.admits(DownloadKind::Usenet, false, true, 3));
+    }
+
+    /// RA-TR-02: two holds on one row end only with the second, and nothing else lifts them.
+    #[test]
+    fn a_hold_ends_with_its_last_holder() {
+        let mut active = ActiveState::default();
+        let id = DownloadId::new();
+        *active.held.entry(id).or_default() += 1;
+        *active.held.entry(id).or_default() += 1;
+        active.reasons.remove(&id);
+        assert!(
+            active.untouchable(&id),
+            "a lost stop reason does not end a hold"
+        );
+        active.release_hold(&id);
+        assert!(active.untouchable(&id), "one holder is still at work");
+        active.release_hold(&id);
+        assert!(!active.untouchable(&id));
+        active.release_hold(&id);
+        assert!(
+            active.held.is_empty(),
+            "a stray release leaves nothing behind"
+        );
     }
 
     #[test]

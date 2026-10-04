@@ -5,7 +5,8 @@
  * Measured on 2026-09-22 before this test existed: Desktop client had a bare paragraph, API &
  * MCP a card heading without a description, Security no header at all and Accounts a header
  * without a description. Each page is mounted through `SettingsView` at its own address, with
- * the service answering nothing, so what is counted is the page as a person reaches it.
+ * the service answering nothing but the settings document — the pages bound to it wait for it
+ * (WEB-01) — so what is counted is the page as a person reaches it.
  */
 import { render } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -23,7 +24,9 @@ beforeAll(loadEveryLocale)
 
 vi.mock('@/api/client', () => ({
   api: {
-    GET: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+    GET: vi.fn(async (path: string) => path === '/api/v1/settings'
+      ? { data: (await import('@/settingsDefaults')).defaultSettings() }
+      : { data: undefined, error: { code: 'internal' } }),
     POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
     PUT: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
     PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
@@ -56,6 +59,8 @@ async function mountPage(section: string, locale = 'en'): Promise<HTMLElement> {
   const { container } = render(SettingsView, {
     global: { plugins: [router, i18n], stubs: { ...uiStubs, UDashboardNavbar } as never }
   })
+  // The settings document answers before the bound pages render.
+  await new Promise(resolve => setTimeout(resolve, 0))
   return container as HTMLElement
 }
 

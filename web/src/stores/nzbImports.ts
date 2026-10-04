@@ -3,22 +3,22 @@ import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import type { DownloadPriority, NzbImport, NzbImportUpdateRequest } from '@/api/types'
 import type { FileImportEntry } from '@/composables/useNzbImportModal'
 import { i18n } from '@/i18n'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
-import { withBase } from '@/basePath'
 import { MIB } from '@/utils/format'
 
 /** Extra multipart fields accepted alongside `file` at import time. */
-export interface NzbImportOptions {
+interface NzbImportOptions {
   /** Overrides the uploaded file name; empty keeps it. */
   name?: string
   categoryId?: string | null
   priority?: DownloadPriority | null
 }
 
-export interface NzbImportChange {
+interface NzbImportChange {
   categoryId?: string | null
   priority?: DownloadPriority
 }
@@ -32,6 +32,14 @@ export type NzbImportResult =
   | { status: 'created', item: NzbImport }
   | { status: 'duplicate', item: NzbImport }
   | { status: 'error', message: string }
+
+/**
+ * What handing one import to a provider produced (RD-191-13). `alreadyRunning` is the server's
+ * duplicate guard: the account already had a job for this NZB, and nothing was sent.
+ */
+export type NzbHandOverResult =
+  | { ok: true, item: NzbImport, alreadyRunning: boolean }
+  | { ok: false, message: string }
 
 /** Aggregated outcome of a multi-file import batch; one entry lands in exactly one bucket. */
 export interface NzbBatchResult {
@@ -48,6 +56,7 @@ export const useNzbImportsStore = defineStore('nzbImports', () => {
   clearWhenReconnected(error)
   const deletingIds = ref<Set<string>>(new Set())
   const enqueuingIds = ref<Set<string>>(new Set())
+  const handingOverIds = ref<Set<string>>(new Set())
 
   async function refresh(): Promise<void> {
     const response = await api.GET('/api/v1/nzb/imports')
@@ -72,10 +81,11 @@ export const useNzbImportsStore = defineStore('nzbImports', () => {
     form.append('category_id', options.categoryId ?? '')
     form.append('priority', options.priority ?? '')
     try {
-      const response = await fetch(withBase('/api/v1/nzb/imports'), { method: 'POST', body: form, credentials: 'include' })
-      const payload: unknown = await response.json()
-      if (!response.ok || !isNzbImport(payload)) {
-        error.value = payloadMessage(payload)
+      // Through the client, multipart included, so a lost session or connection is noticed.
+      const response = await api.POST('/api/v1/nzb/imports', { body: form as never })
+      const payload: unknown = response.data
+      if (!isNzbImport(payload)) {
+        error.value = payloadMessage(response.error)
         return { status: 'error', message: error.value }
       }
       imports.value = [payload, ...imports.value.filter((item) => item.id !== payload.id)]
@@ -162,6 +172,58 @@ export const useNzbImportsStore = defineStore('nzbImports', () => {
     return true
   }
 
+  /**
+   * Hands one import to an account's provider instead of the queue (RD-191-13). The import
+   * stays listed, carrying `handed_over`; the caller reports the outcome.
+   */
+  async function handOver(id: string, accountId: string): Promise<NzbHandOverResult> {
+    handingOverIds.value = new Set([...handingOverIds.value, id])
+    try {
+      const response = await api.POST('/api/v1/nzb/imports/{id}/remote-job', {
+        params: { path: { id } },
+        body: { account_id: accountId }
+      })
+      if (!response.data) return { ok: false, message: responseError(response) }
+      const updated = response.data.import
+      imports.value = imports.value.map(item => item.id === updated.id ? updated : item)
+      return { ok: true, item: updated, alreadyRunning: response.data.already_running }
+    } finally {
+      const next = new Set(handingOverIds.value)
+      next.delete(id)
+      handingOverIds.value = next
+    }
+  }
+
+  /**
+   * A remote job forgotten or discarded takes the hand-over badge with it on the server
+   * (`ON DELETE SET NULL`, RD-191-13), and so does a removed account with its jobs; no
+   * `collector.changed` says so, only `remote_job.changed` or `account.changed`. Re-read only
+   * while a badge is on screen: the remote-job event also reports every state change of every
+   * job, and without a badge there is nothing it could change here.
+   */
+  const { connect: connectEvents, disconnect: disconnectEvents } = debouncedEventRefresh(
+    ['remote_job.changed', 'account.changed'],
+    () => imports.value.some(item => item.handed_over) ? refresh() : undefined
+  )
+
+  /**
+   * Hands the NZB behind a queued package to an account's provider, from the Downloads view
+   * (RD-191-13). The package stays; the import behind it carries `handed_over`, which is what
+   * the package's badge reads.
+   */
+  async function handOverPackage(packageId: string, accountId: string): Promise<NzbHandOverResult> {
+    const response = await api.POST('/api/v1/packages/{id}/remote-job', {
+      params: { path: { id: packageId } },
+      body: { account_id: accountId }
+    })
+    if (!response.data) return { ok: false, message: responseError(response) }
+    const updated = response.data.import
+    imports.value = imports.value.some(item => item.id === updated.id)
+      ? imports.value.map(item => item.id === updated.id ? updated : item)
+      : [...imports.value, updated]
+    return { ok: true, item: updated, alreadyRunning: response.data.already_running }
+  }
+
   async function remove(id: string): Promise<boolean> {
     if (deletingIds.value.has(id)) return false
     deletingIds.value = new Set([...deletingIds.value, id])
@@ -178,7 +240,7 @@ export const useNzbImportsStore = defineStore('nzbImports', () => {
     return true
   }
 
-  return { imports, pending, error, deletingIds, enqueuingIds, refresh, importNzb, importMany, enqueue, enqueueMany, update, remove }
+  return { imports, pending, error, deletingIds, enqueuingIds, handingOverIds, refresh, importNzb, importMany, enqueue, enqueueMany, handOver, handOverPackage, update, remove, connectEvents, disconnectEvents }
 })
 
 function isNzbImport(value: unknown): value is NzbImport {

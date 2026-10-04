@@ -53,8 +53,9 @@ if [[ "$mode" != "test" ]]; then
     node extension/build.mjs
 
     echo "==> verifying the packaged archives"
-    expected="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml \
-        | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
+    # shellcheck source=lib/workspace-version.sh
+    source "$ROOT/scripts/lib/workspace-version.sh"
+    expected="$(rd_workspace_version < Cargo.toml)"
     expected="${expected%%[-+]*}"
     for target in chrome firefox; do
         archive="artifacts/browser-extensions/rdownloader-$target.zip"

@@ -9,9 +9,10 @@
  * repository only delivers — every package from it still needs a plugin key the person trusts,
  * which the install preview asks about separately.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { Answer } from '@/api/call'
 import {
   addRepository,
   groupFingerprint,
@@ -20,7 +21,6 @@ import {
   removeRepository,
   setRefreshHours,
   updateRepository,
-  type Answer,
   type PluginRepositories,
   type PluginRepository
 } from '@/api/pluginRepositories'
@@ -29,7 +29,7 @@ import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { serverMessageFrom, translateServerMessage, type ServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
 
@@ -62,30 +62,11 @@ const approvalOpen = computed({
 })
 const canAdd = computed(() => form.value.url.trim() !== '' && form.value.publicKey.trim() !== '')
 
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 onMounted(() => {
   void load()
-  releaseEvents = subscribeEvents({ 'plugin.changed': scheduleReload })
 })
 
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
-})
-
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void load()
-  }, 300)
-}
+useDebouncedEventRefresh(['plugin.changed'], load)
 
 async function load(): Promise<void> {
   adopt(await listRepositories())

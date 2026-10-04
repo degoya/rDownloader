@@ -12,7 +12,6 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
-use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use crate::{ApiError, AppState, scope_policy};
@@ -186,6 +185,34 @@ impl AuthService {
                 rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
             })
             .check(client, Instant::now())
+    }
+
+    /// The limiter's gate for one attempt from `client`, asked once (audit 1.9.1, API-10).
+    ///
+    /// A locked-out address is refused with the coded `429`, carrying the seconds it has to
+    /// wait; any other attempt waits out the global slow-down first. Every sign-in door goes
+    /// through this, so none of them can honour the lockout and forget the delay -- the copies
+    /// this replaces asked the limiter twice and each spelled the refusal out again.
+    ///
+    /// # Errors
+    ///
+    /// `429 auth.too_many_attempts` with the `seconds` parameter.
+    pub async fn gate(&self, client: std::net::IpAddr) -> Result<(), ApiError> {
+        match self.throttle_check(client).await {
+            rd_authn::Decision::Locked { retry_after } => Err(ApiError::too_many_requests(
+                "auth.too_many_attempts",
+                "Too many failed sign-in attempts from this address",
+            )
+            .with_param("seconds", retry_after.as_secs().max(1).to_string())),
+            rd_authn::Decision::Proceed { delay } => {
+                if !delay.is_zero() {
+                    // Paid by everyone while an attack is running, and capped low enough that
+                    // it stays a nuisance rather than an outage.
+                    tokio::time::sleep(delay).await;
+                }
+                Ok(())
+            }
+        }
     }
 
     async fn record_login_failure(&self, client: std::net::IpAddr) {
@@ -375,6 +402,8 @@ struct RequestFacts {
     path: String,
     method: Method,
     headers: HeaderMap,
+    /// [`request_host`] of the request.
+    host: Option<String>,
     from_this_machine: bool,
 }
 
@@ -389,6 +418,7 @@ impl RequestFacts {
                 .to_owned(),
             method: request.method().clone(),
             headers: request.headers().clone(),
+            host: request_host(request.uri(), request.headers()),
             from_this_machine: crate::client::from_this_machine(
                 request.extensions(),
                 request.headers(),
@@ -435,7 +465,7 @@ pub async fn credential(
     let Some(token) = bearer_token(headers) else {
         return (Vec::new(), crate::audit::Actor::anonymous());
     };
-    let digest = hex::encode(Sha256::digest(token.as_bytes()));
+    let digest = digest_of(token);
     match state.database.capture_token_identity(&digest).await {
         Ok(Some((id, label, scopes))) => {
             note_token_use(state, digest.clone());
@@ -521,6 +551,9 @@ pub async fn require_session(
 ) -> Result<Response, ApiError> {
     // Captured before anything is awaited; see [`RequestFacts`].
     let facts = RequestFacts::of(&request);
+    if let Some(facts) = facts.as_ref() {
+        refuse_foreign_site(&state, &facts.method, facts.host.as_deref(), &facts.headers).await?;
+    }
     let (granted, actor) = match facts.as_ref() {
         Some(facts) => match local_control_grant(&state, facts) {
             Some(grant) => grant,
@@ -554,6 +587,101 @@ pub async fn require_session(
     // because this is the one place every authenticated request passes through.
     request.extensions_mut().insert(actor);
     Ok(next.run(request).await)
+}
+
+/// The name a request gives this service: its `Host`, else the URI authority -- an HTTP/2
+/// request may carry only `:authority` (audit 1.9.1, RA-API-05). The same two `host_check`
+/// reads, with the port kept, because an origin is compared port and all.
+#[must_use]
+pub fn request_host(uri: &axum::http::Uri, headers: &HeaderMap) -> Option<String> {
+    if let Some(value) = headers.get(header::HOST) {
+        return Some(value.to_str().unwrap_or("null").to_owned());
+    }
+    let authority = uri.authority()?;
+    Some(match authority.port() {
+        Some(port) => format!("{}:{}", authority.host(), port.as_str()),
+        None => authority.host().to_owned(),
+    })
+}
+
+/// Refuses a state-changing request a browser sent from a page of another site (audit 1.9.1,
+/// API-01); the decision is `rd_authn::origin`.
+///
+/// Before any credential is looked at, on purpose: the credential a cross-site request carries
+/// is the browser's ambient one -- and none at all when the login is switched off for this
+/// machine, where every caller here is the administrator. A safe method changes nothing and
+/// passes; so does a request without `Origin` and `Sec-Fetch-Site`, which no browser sends.
+/// `host` is [`request_host`] of the request.
+pub async fn refuse_foreign_site(
+    state: &AppState,
+    method: &Method,
+    host: Option<&str>,
+    headers: &HeaderMap,
+) -> Result<(), ApiError> {
+    if method.is_safe() {
+        return Ok(());
+    }
+    refuse_foreign(state, host, headers, false).await
+}
+
+/// [`refuse_foreign_site`] for a request whose credential is a cookie the browser adds by
+/// itself, on every method: the qBittorrent adapter changes state on `GET` as qBittorrent does,
+/// and its `SID` cookie is `SameSite=Strict`, which still rides along from a page on another
+/// port of the same name (audit 1.9.1, RA-API-02). Such a page's `GET` -- an image, a link --
+/// carries no `Origin`, so a browser that says `same-site` without one is refused here too;
+/// `same-origin` and `none` (typed into the address bar) pass, and so does any client that
+/// sends neither header, which is every *arr.
+pub async fn refuse_foreign_cookie_request(
+    state: &AppState,
+    host: Option<&str>,
+    headers: &HeaderMap,
+) -> Result<(), ApiError> {
+    refuse_foreign(state, host, headers, true).await
+}
+
+async fn refuse_foreign(
+    state: &AppState,
+    host: Option<&str>,
+    headers: &HeaderMap,
+    ambient_credential: bool,
+) -> Result<(), ApiError> {
+    let text = |name: header::HeaderName| {
+        headers
+            .get(name)
+            .map(|value| value.to_str().unwrap_or("null").to_owned())
+    };
+    let sec_fetch_site = text(header::HeaderName::from_static("sec-fetch-site"));
+    let origin = text(header::ORIGIN);
+    if sec_fetch_site.is_none() && origin.is_none() {
+        return Ok(());
+    }
+    let unvouched = ambient_credential
+        && origin.is_none()
+        && sec_fetch_site.as_deref().is_some_and(|site| {
+            let site = site.trim();
+            !site.eq_ignore_ascii_case("same-origin") && !site.eq_ignore_ascii_case("none")
+        });
+    let external_origin = state.proxy.read().await.origin().map(str::to_owned);
+    let foreign = rd_authn::origin::foreign_request(
+        sec_fetch_site.as_deref(),
+        origin.as_deref(),
+        host,
+        external_origin.as_deref(),
+    )
+    .or(unvouched.then_some(rd_authn::origin::Foreign::Origin));
+    let Some(foreign) = foreign else {
+        return Ok(());
+    };
+    tracing::warn!(
+        origin = origin.as_deref().unwrap_or("-"),
+        sec_fetch_site = sec_fetch_site.as_deref().unwrap_or("-"),
+        reason = ?foreign,
+        "a state-changing request from another site was refused"
+    );
+    Err(ApiError::forbidden(
+        "request.cross_site_refused",
+        "This service does not accept changes sent from a page of another site",
+    ))
 }
 
 /// The local control token (`crate::local_control`, RD-180-02) opens its own routes and no
@@ -624,7 +752,7 @@ pub struct OpenedSession {
 
 /// The stored form of a bearer: hex SHA-256, never the value itself.
 pub(crate) fn digest_of(token: &str) -> String {
-    hex::encode(Sha256::digest(token.as_bytes()))
+    rd_authn::sha256_hex(token)
 }
 
 /// The stored digest of this request's session credential, if it carries one.
@@ -644,7 +772,7 @@ async fn scoped_token_authenticated(state: &AppState, headers: &HeaderMap, scope
     let Some(token) = bearer_token(headers) else {
         return false;
     };
-    let digest = hex::encode(Sha256::digest(token.as_bytes()));
+    let digest = digest_of(token);
     let valid = state
         .database
         .capture_token_valid(&digest, scope)
@@ -665,15 +793,100 @@ async fn scoped_token_authenticated(state: &AppState, headers: &HeaderMap, scope
 /// means.
 ///
 /// Detached on purpose. The write goes through the serialized database writer, and a request
-/// must not queue behind it for a field nobody reads in real time; the throttle inside the
-/// statement is what keeps a busy client from filing one write per request.
+/// must not queue behind it for a field nobody reads in real time. The statement throttles
+/// itself to once a minute, but only after the command has queued; [`TOKEN_TOUCHED`] keeps a
+/// busy client -- an MCP tool call passed through here three times -- from queueing one
+/// command per request in the first place (audit 1.9.1, API-14).
 fn note_token_use(state: &AppState, digest: String) {
+    let now = Instant::now();
+    {
+        let Ok(mut touched) = TOKEN_TOUCHED.lock() else {
+            return;
+        };
+        let interval = std::time::Duration::from_secs(
+            u64::try_from(rd_db::SESSION_TOUCH_INTERVAL_SECONDS).unwrap_or(60),
+        );
+        if touched
+            .get(&digest)
+            .is_some_and(|last| now.duration_since(*last) < interval)
+        {
+            return;
+        }
+        // Bounded by the live tokens in practice; the sweep only keeps revoked ones from
+        // lingering forever.
+        if touched.len() >= 1024 {
+            touched.retain(|_, last| now.duration_since(*last) < interval);
+        }
+        touched.insert(digest.clone(), now);
+    }
     let database = state.database.clone();
     tokio::spawn(async move {
         if let Err(error) = database.touch_capture_token(digest).await {
             tracing::debug!(error = %error, "a machine token's last use was not recorded");
         }
     });
+}
+
+/// When each token digest last queued its "last used" write, for [`note_token_use`].
+static TOKEN_TOUCHED: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, Instant>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+/// The scopes a SABnzbd or qBittorrent client needs (audit 1.9.1, API-04; owner, 2026-10-04):
+/// it adds work, controls the work it added and reads the queue back -- and touches no setting,
+/// no stored credential and no administration.
+pub const COMPAT_SCOPES: &[rd_core::Scope] = &[
+    rd_core::Scope::Intake,
+    rd_core::Scope::Queue,
+    rd_core::Scope::Read,
+];
+
+/// How a compatibility client's key fared.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompatAccess {
+    /// A live token holding [`COMPAT_SCOPES`]; its use is recorded.
+    Granted,
+    /// No key, an unknown or revoked one, or one without the scopes.
+    Refused,
+    /// The token store could not be read: a fault of this service, not of the key.
+    Unavailable,
+}
+
+/// The one credential check of the SABnzbd and qBittorrent adapters (API-04, API-11).
+///
+/// Both used to demand the literal `api:*` -- secrets and administration included -- and wrote
+/// neither the token's "last used" nor an audit record, so a key handed to Sonarr was the most
+/// powerful credential the service issues and the least visible one. Now it needs what the
+/// adapters do and nothing more, and is recorded like every other bearer. An `api:*` token
+/// still passes: it expands to every scope.
+///
+/// A database error is reported as [`CompatAccess::Unavailable`] instead of a refusal, so the
+/// adapter can say "try later" rather than "wrong key" -- a client told its key is wrong asks
+/// its user for a new one.
+pub async fn compat_access(state: &AppState, key: &str) -> CompatAccess {
+    if key.is_empty() {
+        return CompatAccess::Refused;
+    }
+    let digest = digest_of(key);
+    match state.database.capture_token_identity(&digest).await {
+        Ok(Some((id, label, scopes))) => {
+            let granted = rd_core::granted_scopes(scopes.iter().map(String::as_str));
+            if !COMPAT_SCOPES.iter().all(|scope| granted.contains(scope)) {
+                return CompatAccess::Refused;
+            }
+            note_token_use(state, digest);
+            note_token_audit(state, id, label, scopes);
+            CompatAccess::Granted
+        }
+        Ok(None) => CompatAccess::Refused,
+        Err(error) => {
+            tracing::warn!(
+                error = %format!("{error:#}"),
+                "could not read the token store for a compatibility client"
+            );
+            CompatAccess::Unavailable
+        }
+    }
 }
 
 /// The transport gate on `/mcp`: any credential carrying at least one API scope gets in.
@@ -683,19 +896,24 @@ fn note_token_use(state: &AppState, digest: String) {
 /// every stored account. The per-tool policy in [`crate::mcp`] is what decides now, so this
 /// only has to establish that there *is* a credential; refusing a narrower one here would put
 /// the decision back in a place that cannot see which tool was called.
+///
+/// The credential it resolved travels on with the request as [`Granted`] and the
+/// [`crate::audit::Actor`], the way `require_session` hands them to a handler: the MCP server
+/// reads them from the request parts instead of looking the token up twice more per tool call
+/// (audit 1.9.1, API-14).
 pub async fn require_api_token(
     State(state): State<AppState>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
     let from_this_machine =
         crate::client::from_this_machine(request.extensions(), request.headers());
-    if state.auth.disabled_for(from_this_machine) {
-        return Ok(next.run(request).await);
-    }
+    let host = request_host(request.uri(), request.headers());
+    refuse_foreign_site(&state, request.method(), host.as_deref(), request.headers()).await?;
     // At least one *API* scope, not merely a non-empty set: a browser-capture token carries
-    // `capture:*` and must not reach this endpoint through a check that only counts.
-    let granted = granted_scopes(&state, request.headers(), from_this_machine).await;
+    // `capture:*` and must not reach this endpoint through a check that only counts. With the
+    // login switched off for this machine the credential is every scope, as before.
+    let (granted, actor) = credential(&state, request.headers(), from_this_machine).await;
     // `api:metrics` is an API scope for the token editor's purposes, but it opens nothing
     // here: a scrape token must not be able to open an MCP session either (RD-110-01).
     if !granted
@@ -720,6 +938,8 @@ pub async fn require_api_token(
         );
         return Ok(unauthorized_with_challenge());
     }
+    request.extensions_mut().insert(Granted(granted));
+    request.extensions_mut().insert(actor);
     Ok(next.run(request).await)
 }
 
@@ -782,7 +1002,7 @@ async fn refusal_reason(state: &AppState, headers: &HeaderMap) -> String {
         Err(reason) => return reason,
         Ok(token) => token,
     };
-    let digest = hex::encode(Sha256::digest(token.as_bytes()));
+    let digest = digest_of(token);
     let fingerprint = &digest[..8];
     match state.database.capture_token_scopes(&digest).await {
         Ok(Some(scopes)) => format!(
@@ -1136,6 +1356,7 @@ mod tests {
             path: path.to_owned(),
             method,
             headers: HeaderMap::new(),
+            host: None,
             from_this_machine: true,
         }
     }

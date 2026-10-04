@@ -12,7 +12,7 @@ import { ref } from 'vue'
  * persists what the user closed and one that is closed by default persists what was opened.
  * That is the shape the queue already had under `rdownloader-open-packages`.
  */
-export interface OpenSectionsOptions {
+interface OpenSectionsOptions {
   /** `localStorage` key; omitted, the state lives for as long as the view does. */
   storageKey?: string
   /** What an id nobody has touched is. */

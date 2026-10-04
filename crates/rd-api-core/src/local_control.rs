@@ -24,7 +24,6 @@ use std::path::{Path, PathBuf};
 use axum::http::Method;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 /// The file below the data directory.
 pub const FILE: &str = "local-control.json";
@@ -71,7 +70,7 @@ impl LocalControl {
     pub fn accepts(&self, bearer: &str) -> bool {
         self.digest
             .as_deref()
-            .is_some_and(|digest| digest == digest_of(bearer))
+            .is_some_and(|digest| digest == rd_authn::sha256_hex(bearer))
     }
 
     /// A control that accepts `token`, without writing any file. For tests.
@@ -79,7 +78,7 @@ impl LocalControl {
     #[must_use]
     pub fn for_token(token: &str) -> Self {
         Self {
-            digest: Some(digest_of(token)),
+            digest: Some(rd_authn::sha256_hex(token)),
         }
     }
 
@@ -104,7 +103,7 @@ impl LocalControl {
         write_private(&path, &serde_json::to_vec_pretty(&file)?)?;
         Ok((
             Self {
-                digest: Some(digest_of(&token)),
+                digest: Some(rd_authn::sha256_hex(&token)),
             },
             ControlFileGuard { path, token },
         ))
@@ -142,10 +141,6 @@ fn read_at(path: &Path) -> anyhow::Result<Option<ControlFile>> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error.into()),
     }
-}
-
-fn digest_of(token: &str) -> String {
-    hex::encode(Sha256::digest(token.as_bytes()))
 }
 
 /// The address a client on this machine connects to.

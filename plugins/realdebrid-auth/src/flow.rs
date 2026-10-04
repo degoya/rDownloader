@@ -25,7 +25,7 @@
 //! A provider that could not be reached at all never gets here: `http-request` fails, the guest
 //! returns that failure, and the host keeps the stored token and tries again later.
 
-use crate::json;
+use plugin_common::json;
 
 /// The `error_code` numbers Real-Debrid answers an OAuth request with that mean *wait*, not
 /// *no*: 5 is "slow down" and 34 is "too many requests". Both count towards the very cap that
@@ -180,8 +180,7 @@ pub fn read_credentials_answer(
 
 /// How long a wait lasts: the `Retry-After` header, then the body's `interval`, then the floor.
 fn wait_seconds(retry_after: Option<&str>, body: &str) -> u64 {
-    retry_after
-        .and_then(|value| value.trim().parse::<u64>().ok())
+    plugin_common::retry_after_seconds(retry_after)
         .or_else(|| json::number_field(body, "interval"))
         .unwrap_or(DEFAULT_WAIT)
 }

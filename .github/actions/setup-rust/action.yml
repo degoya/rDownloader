@@ -1,0 +1,34 @@
+name: Set up Rust
+description: >
+  The workspace's Rust toolchain, 1.98.1, with the components and targets a job asks for, and
+  RUSTUP_TOOLCHAIN for every later step of the job (RD-191-09: the version stood in 16 setup
+  steps and 12 env blocks). rust-toolchain.toml names `stable`, which outranks the installed
+  toolchain; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
+  own day (1.99's deprecation of fetch_update, 2026-10-01). The version moves here, in
+  docs/development.md and in the component cache keys of ci.yml and release.yml together.
+inputs:
+  components:
+    description: Comma-separated rustup components (rustfmt, clippy, …)
+    required: false
+    default: ""
+  targets:
+    description: Comma-separated additional targets
+    required: false
+    default: ""
+outputs:
+  toolchain:
+    description: The toolchain installed, as rustup names it
+    value: ${{ steps.toolchain.outputs.name }}
+runs:
+  using: composite
+  steps:
+    # dtolnay/rust-toolchain has no releases: pinned to a commit of its `stable` branch, the
+    # toolchain named explicitly (docs/development.md, "GitHub CI").
+    - id: toolchain
+      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      with:
+        toolchain: 1.98.1
+        components: ${{ inputs.components }}
+        targets: ${{ inputs.targets }}
+    - shell: bash
+      run: echo "RUSTUP_TOOLCHAIN=${{ steps.toolchain.outputs.name }}" >> "${GITHUB_ENV}"

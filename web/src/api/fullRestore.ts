@@ -21,7 +21,7 @@ export interface RestoreMapping {
 }
 
 /** What a call answered: the payload, or the translated reason it did not. */
-export type RestoreAnswer<T> = { ok: true, data: T } | { ok: false, error: string }
+type RestoreAnswer<T> = { ok: true, data: T } | { ok: false, error: string }
 
 function answer<T>(response: { data?: T, error?: unknown }): RestoreAnswer<T> {
   return response.data !== undefined

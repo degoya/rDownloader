@@ -133,3 +133,65 @@ async fn an_end_that_is_missing_past_or_too_far_is_refused() {
         "a refused pause must not be in force: {read}"
     );
 }
+
+/// `paused` on the create request writes the row paused in the first place (API-09): there is
+/// no queued moment the dispatcher could start it in, for a direct link and a magnet alike, and
+/// it resumes like any other paused download. Without the field nothing changes.
+#[tokio::test]
+async fn a_download_created_paused_is_paused_from_its_first_row() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let router = &harness.router;
+    const HASH: &str = "0123456789abcdef0123456789abcdef01234567";
+    for url in [
+        "https://example.invalid/held.mkv".to_owned(),
+        format!("magnet:?xt=urn:btih:{HASH}&dn=Held.Release"),
+    ] {
+        let (status, created) = common::post_json(
+            router,
+            "/api/v1/downloads",
+            serde_json::json!({ "url": url, "package_name": "Held", "paused": true }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{url}: {created}");
+        assert_eq!(created["state"], "paused", "{url}: {created}");
+        let id: rd_core::DownloadId = created["id"]
+            .as_str()
+            .expect("download id")
+            .parse()
+            .expect("id");
+        let row = harness
+            .database
+            .get_download(id)
+            .await
+            .expect("read")
+            .expect("row");
+        assert_eq!(row.state, rd_core::DownloadState::Paused, "{url}");
+    }
+
+    let (status, plain) = common::post_json(
+        router,
+        "/api/v1/downloads",
+        serde_json::json!({ "url": "https://example.invalid/plain.mkv", "package_name": "Plain" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{plain}");
+    assert_ne!(plain["state"], "paused", "{plain}");
+
+    let held = harness
+        .database
+        .list_downloads()
+        .await
+        .expect("downloads")
+        .into_iter()
+        .find(|row| row.file_name == "held.mkv")
+        .expect("held row");
+    let (status, resumed) = common::post_json(
+        router,
+        &format!("/api/v1/downloads/{}/resume", held.id),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{resumed}");
+    assert_eq!(resumed["code"], "download.resumed", "{resumed}");
+}

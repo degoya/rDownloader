@@ -15,7 +15,7 @@ use crate::error::StoreError;
 use crate::models::PersistedChunk;
 use crate::models::{NewDownload, NewPackage};
 
-use super::{PROGRESS_EVENT_INTERVAL, Writer, insert_event, kind_string, level_string};
+use super::{PROGRESS_EVENT_INTERVAL, Writer, insert_event};
 
 impl Writer {
     pub(super) async fn create_package(
@@ -38,7 +38,12 @@ impl Writer {
         .bind(package.category_id.map(|id| id.to_string()))
         .bind(package.priority.as_i32())
         .bind(position)
-        .bind(package.postprocess_level.map(level_string))
+        .bind(
+            package
+                .postprocess_level
+                .map(crate::enum_string)
+                .transpose()?,
+        )
         .bind(&package.script)
         .bind(crate::package_store::encode_enrichment(
             &package.enrichment,
@@ -125,7 +130,7 @@ impl Writer {
         .bind(auth_profile_id.map(|id| id.to_string()))
         .bind(auth_profile_pinned)
         .bind(position)
-        .bind(kind_string(download.kind))
+        .bind(crate::enum_string(download.kind)?)
         .bind(
             download
                 .media
@@ -228,6 +233,49 @@ impl Writer {
         next: DownloadState,
     ) -> Result<DownloadFile> {
         self.transition_download_with_reason(id, next, None).await
+    }
+
+    /// Queues a row the enqueue wrote paused, the step that follows a torrent's reviewed
+    /// selection (API-07).
+    ///
+    /// Conditional, and without a lifecycle event (re-audit 1.9.1, RA-TR-08, RA-API-06): the
+    /// row moves only while it is still `paused` and untouched since `created_at`, so a pause
+    /// or resume somebody gave it in between stands. The event carries no `state`/`previous`
+    /// pair, like the selection's own: a row that was created queued announces no transition
+    /// either, so automations and notifications see none here, while a client refetches.
+    pub(super) async fn join_queue(
+        &mut self,
+        id: DownloadId,
+        created_at: chrono::DateTime<Utc>,
+    ) -> Result<DownloadFile> {
+        let event = EventEnvelope::new(
+            EventKind::DownloadState,
+            serde_json::json!({ "download_id": id, "joined_queue": true }),
+        );
+        let mut tx = self.connection.begin().await?;
+        let joined = sqlx::query(
+            "UPDATE downloads SET state = ?, updated_at = ? \
+             WHERE id = ? AND state = ? AND updated_at = ?",
+        )
+        .bind(DownloadState::Queued.to_string())
+        .bind(event.occurred_at)
+        .bind(id.to_string())
+        .bind(DownloadState::Paused.to_string())
+        .bind(created_at)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected()
+            == 1;
+        if joined {
+            insert_event(&mut tx, &event).await?;
+        }
+        tx.commit().await?;
+        if joined {
+            let _ = self.events.send(event);
+        }
+        crate::models::get_download_from_connection(&mut self.connection, id)
+            .await?
+            .context(StoreError::not_found("download not found"))
     }
 
     /// Blocks a download and records the cause on the row.

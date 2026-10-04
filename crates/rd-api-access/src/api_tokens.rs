@@ -25,7 +25,7 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
-use sha2::{Digest, Sha256};
+use rd_api_core::input_checks::{TextLimit, required_text};
 
 use crate::{
     ApiError, AppState,
@@ -53,14 +53,12 @@ async fn pair_with_scopes(
     scopes: Vec<String>,
     label_error_code: &'static str,
 ) -> Result<CapturePairResponse, ApiError> {
-    let label = label.trim();
-    if label.is_empty() || label.chars().count() > 100 {
-        return Err(ApiError::bad_request(
-            label_error_code,
-            "Token label must be between 1 and 100 characters",
-        )
-        .with_param("max", 100));
-    }
+    let label = required_text(
+        label,
+        TextLimit::Chars(100),
+        label_error_code,
+        "Token label must be between 1 and 100 characters",
+    )?;
     let mut random = [0_u8; 32];
     rand::rng().fill_bytes(&mut random);
     let bearer = URL_SAFE_NO_PAD.encode(random);
@@ -68,8 +66,8 @@ async fn pair_with_scopes(
         .database
         .create_capture_token(
             rd_core::CaptureTokenId::new(),
-            label.to_owned(),
-            hex::encode(Sha256::digest(bearer.as_bytes())),
+            label,
+            rd_authn::sha256_hex(&bearer),
             scopes,
         )
         .await?;

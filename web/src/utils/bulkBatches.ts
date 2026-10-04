@@ -3,13 +3,13 @@ import { i18n } from '@/i18n'
 import { serverMessageFrom, translateServerMessage, type ServerMessage } from '@/i18n/server'
 
 /**
- * The most ids one bulk request may carry: every bulk route refuses more (`MAX_BULK` in the
- * queue and LinkGrabber handlers), so a request body stays bounded however much is selected.
+ * The most ids one bulk request may carry: every bulk route refuses more (`MAX_BULK` in
+ * `rd_api_core::list_bounds`, audit 1.9.1), so a request body stays bounded however much is selected.
  */
 export const BULK_LIMIT = 500
 
 /** What a run of batches brought back. */
-export interface BatchRun<D> {
+interface BatchRun<D> {
   /** The answers of the batches that went through, in order. */
   data: D[]
   /** The ids of those batches, in the same order. */

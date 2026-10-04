@@ -4,7 +4,7 @@ use anyhow::Context as _;
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use rd_collector::extract_urls;
@@ -19,11 +19,10 @@ use crate::{
         CandidateReorderRequest, CollectorIntakeRequest, CollectorIntakeResponse,
         CollectorPackageBulkRequest, CollectorPackageEnqueueRequest,
         CollectorPackageReorderRequest, CollectorPackageUpdateRequest, GrabberEntryReorderRequest,
-        MessageResponse,
+        MessageResponse, PageQuery,
     },
 };
-
-const MAX_BULK: usize = 500;
+use rd_api_core::list_bounds::{paged, validate_bulk};
 
 /// URLs, file names, sizes, package hints, mirror hints, captured requests and vaulted body
 /// references, parallel per link.
@@ -651,7 +650,14 @@ async fn adopt_share_login(
         }
     };
     for reference in orphaned {
-        let _ = state.secrets.remove(&reference).await;
+        // Left behind, it is an unreferenced secret in the vault, not a broken package; said,
+        // so it can be found (audit 1.9.1, API-13).
+        if let Err(error) = state.secrets.remove(&reference).await {
+            tracing::warn!(
+                error = %format!("{error:#}"),
+                "a replaced credential could not be removed from the vault"
+            );
+        }
     }
     Ok(())
 }
@@ -703,11 +709,17 @@ pub async fn capture_intake(
     collector_intake(state, request).await
 }
 
-#[utoipa::path(get, path = "/api/v1/collector/packages", tag = "collector", responses((status = 200, body = [rd_core::CollectorPackage])))]
+/// Every LinkGrabber package in its list order; `limit`/`offset` cut a page out (API-15).
+#[utoipa::path(get, path = "/api/v1/collector/packages", tag = "collector", params(PageQuery), responses((status = 200, body = [rd_core::CollectorPackage], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_collector_packages(
     State(state): State<AppState>,
-) -> Result<Json<Vec<CollectorPackage>>, ApiError> {
-    Ok(Json(state.database.list_collector_packages().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<CollectorPackage>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(
+        window,
+        state.database.list_collector_packages().await?,
+    ))
 }
 
 #[utoipa::path(patch, path = "/api/v1/collector/packages/{id}", tag = "collector", params(("id" = rd_core::CollectorPackageId, Path)), request_body = CollectorPackageUpdateRequest, responses((status = 200, body = rd_core::CollectorPackage), (status = 404)))]
@@ -985,15 +997,15 @@ fn trimmed_facet(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-/// Hidden hosters in the form the grouping compares them in (RD-130-21): trimmed, lowercased,
-/// without a leading `www.` — the reduction `hosterOf` makes in the interface — each once and
+/// Hidden hosters in the form the grouping compares them in (RD-130-21): the shared
+/// [`rd_core::host_key`] (trimmed, lowercased, without a trailing dot or a leading `www.`;
+/// audit 1.9.1, INTAKE-11) — the reduction `hosterOf` makes in the interface — each once and
 /// sorted, so the stored list reads the same however it was sent.
 fn normalized_hosters(values: Vec<String>) -> Vec<String> {
     let hosters: std::collections::BTreeSet<String> = values
         .into_iter()
         .filter_map(|value| {
-            let value = value.trim().to_ascii_lowercase();
-            let value = value.strip_prefix("www.").unwrap_or(&value).to_owned();
+            let value = rd_core::host_key(&value);
             (!value.is_empty()).then_some(value)
         })
         .collect();
@@ -1251,17 +1263,12 @@ async fn package_change(
     postprocess: crate::postprocess_handlers::PostprocessChange,
 ) -> Result<CollectorPackageChange, ApiError> {
     let name = match name {
-        Some(value) => {
-            let trimmed = value.trim();
-            if trimmed.is_empty() || trimmed.chars().count() > 200 {
-                return Err(ApiError::bad_request(
-                    "package.name_length",
-                    "Package name must be between 1 and 200 characters",
-                )
-                .with_param("max", 200));
-            }
-            Some(trimmed.to_owned())
-        }
+        Some(value) => Some(rd_api_core::input_checks::required_text(
+            &value,
+            rd_api_core::input_checks::TextLimit::Chars(200),
+            "package.name_length",
+            "Package name must be between 1 and 200 characters",
+        )?),
         None => None,
     };
     if let Some(id) = category_id
@@ -1284,17 +1291,12 @@ async fn package_change(
     };
     let password = match (password, clear_password) {
         (_, true) => Some(None),
-        (Some(value), false) => {
-            let trimmed = value.trim();
-            if trimmed.is_empty() || trimmed.chars().count() > 1024 {
-                return Err(ApiError::bad_request(
-                    "package.password_length",
-                    "Archive password must be between 1 and 1024 characters",
-                )
-                .with_param("max", 1024));
-            }
-            Some(Some(trimmed.to_owned()))
-        }
+        (Some(value), false) => Some(Some(rd_api_core::input_checks::required_text(
+            &value,
+            rd_api_core::input_checks::TextLimit::Chars(1024),
+            "package.password_length",
+            "Archive password must be between 1 and 1024 characters",
+        )?)),
         (None, false) => None,
     };
     if name.is_none()
@@ -1317,13 +1319,6 @@ async fn package_change(
         postprocess_level: postprocess.level,
         script: postprocess.script,
     })
-}
-
-fn validate_bulk(count: usize) -> Result<(), ApiError> {
-    if count == 0 || count > MAX_BULK {
-        return Err(crate::error_codes::bulk_range(MAX_BULK));
-    }
-    Ok(())
 }
 
 fn message(code: &str, text: &str) -> Json<MessageResponse> {

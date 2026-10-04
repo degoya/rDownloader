@@ -25,7 +25,7 @@ use rdownloader::plugin::{
 use crate::{
     listing, messages,
     target::{self, Address},
-    walk::{Limit, Walk},
+    walk::{Absorb, Limit},
 };
 
 struct Component;
@@ -85,10 +85,10 @@ fn fetch(url: &str) -> Result<String, Failure> {
 /// Walks the tree under the crawled address, breadth first, under the limits in `crate::walk`.
 fn crawl_directory(root: &Address) -> Result<Vec<CrawledLink>, Failure> {
     let root_url = root.to_url();
-    let mut walk = Walk::start(&root_url, &target::directory_name(&root.path));
+    let mut walk = crate::walk::start(&root_url, &target::directory_name(&root.path));
     let mut first = true;
-    while let Some(pending) = walk.next_directory() {
-        let page = match fetch(&pending.url) {
+    while let Some(pending) = walk.next_folder() {
+        let page = match fetch(&pending.id) {
             Ok(page) => page,
             // Only the address a person actually pasted gets to end the crawl. A directory
             // three levels down that answers 403 is a hole in the tree, not a failure of
@@ -108,7 +108,7 @@ fn crawl_directory(root: &Address) -> Result<Vec<CrawledLink>, Failure> {
             }
             first = false;
         }
-        let Some(address) = target::parse(&pending.url) else {
+        let Some(address) = target::parse(&pending.id) else {
             continue;
         };
         walk.absorb(&pending, listing::entries(&address, &page));
@@ -121,7 +121,11 @@ fn crawl_directory(root: &Address) -> Result<Vec<CrawledLink>, Failure> {
             match limit {
                 Limit::Depth => "this listing is nested deeper than the crawl walks",
                 Limit::Files => "this listing holds more files than the crawl lists",
-                Limit::Directories => "this listing holds more directories than the crawl reads",
+                // A listing page answers a directory whole, so the page limit never fires;
+                // should it ever, the directory was cut short like one with too many below it.
+                Limit::Folders | Limit::Pages => {
+                    "this listing holds more directories than the crawl reads"
+                }
             },
         );
     }

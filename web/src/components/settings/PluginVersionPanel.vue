@@ -19,6 +19,12 @@ import type { PluginLifecycle } from '@/api/types'
  */
 const props = defineProps<{
   lifecycle: PluginLifecycle
+  /**
+   * The switch for all plugins is on (RD-191-10): this plugin updates automatically whatever its
+   * own policy, so its switch reads on and is locked. Its own policy stays stored and applies
+   * again once the switch for all plugins is off.
+   */
+  automaticForAll?: boolean
   /** Installed versions that are not withdrawn; the only ones a pointer may name. */
   versions: string[]
   /**
@@ -129,11 +135,11 @@ function setAutomatic(value: boolean): Promise<void> {
     </details>
 
     <USwitch
-      :model-value="automatic"
-      :disabled="busy"
+      :model-value="automaticForAll || automatic"
+      :disabled="busy || automaticForAll"
       size="sm"
       :label="t('plugins.versions.auto_update')"
-      :description="t('plugins.versions.auto_update_hint')"
+      :description="t(automaticForAll ? 'plugins.versions.auto_update_global_hint' : 'plugins.versions.auto_update_hint')"
       @update:model-value="setAutomatic"
     />
   </div>

@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 mediafire-common = { path = "../mediafire-common" }
+plugin-common = { path = "../common" }
 serde_json.workspace = true
 wit-bindgen.workspace = true
 

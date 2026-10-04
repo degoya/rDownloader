@@ -214,10 +214,9 @@ rd_full_already_green() {
 # Cargo.lock still gets its full run.
 RD_VERSION_FILES=(Cargo.toml Cargo.lock web/package.json extension/manifest.base.json web/openapi.json)
 
-# The workspace version in the Cargo.toml text on stdin, as scripts/set-version.sh reads it.
-rd_workspace_version() {
-    sed -n '/^\[workspace\.package\]/,/^\[/p' | sed -n 's/^version = "\(.*\)"/\1/p' | head -1
-}
+# rd_workspace_version: the workspace version in the Cargo.toml text on stdin.
+# shellcheck source=workspace-version.sh
+source "$(dirname "${BASH_SOURCE[0]}")/workspace-version.sh"
 
 # Whether the working tree of checkout $1 differs from $2 (default HEAD) only by a version bump:
 # nothing untracked, no path but the version files, and in them no line but one that carried

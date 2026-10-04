@@ -6,14 +6,12 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-chrono.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 dunce.workspace = true
 rd-api = { path = "../rd-api" }
 rd-autostart = { path = "../rd-autostart" }
 rd-backup = { path = "../rd-backup" }
-rd-authn = { path = "../rd-authn" }
 rd-collector = { path = "../rd-collector" }
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

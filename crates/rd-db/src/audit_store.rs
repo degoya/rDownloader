@@ -9,10 +9,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use rd_core::{AuditAction, AuditActorKind, AuditOutcome};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
+
+use crate::timestamp;
 
 /// One record about to be stored. Every string reached this already redacted.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -157,10 +159,6 @@ const COLUMNS: &str = "id, recorded_at, action, outcome, actor_kind, actor_id, a
      client_address, target_kind, target_id, target_name, trace_id, details_json";
 
 /// One timestamp shape for every row, so a lexical comparison in SQL is a chronological one.
-fn timestamp(value: &DateTime<Utc>) -> String {
-    value.to_rfc3339_opts(SecondsFormat::Millis, true)
-}
-
 /// Writes a batch in one transaction.
 pub(crate) async fn append_audit_records(
     connection: &mut SqliteConnection,

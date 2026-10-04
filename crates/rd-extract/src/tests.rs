@@ -516,6 +516,9 @@ async fn a_matching_sfv_index_lets_the_package_complete() {
         .expect("SFV step");
     assert_eq!(sfv.state, PostprocessState::Completed);
     assert_eq!(sfv.message.as_deref(), Some("checked=1 skipped=0"));
+    // The English text stays as the fallback; the code is what the interface translates
+    // (audit 1.9.1, INTAKE-09).
+    assert_eq!(sfv.code.as_deref(), Some(crate::steps::codes::SFV_VERIFIED));
     assert!(destination.join("payload.txt").exists());
 }
 
@@ -542,6 +545,7 @@ async fn a_failed_sfv_check_skips_unpacking_and_fails_the_package() {
     assert_eq!(sfv.state, PostprocessState::Failed);
     let message = sfv.message.as_deref().expect("failure message");
     assert!(message.contains("mismatch=1"), "{message}");
+    assert_eq!(sfv.code.as_deref(), Some(crate::steps::codes::SFV_MISMATCH));
     assert!(message.contains("payload.zip"), "{message}");
     // Extraction never ran, so nothing was unpacked and no outcome was recorded.
     assert!(!destination.join("payload.txt").exists());

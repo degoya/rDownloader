@@ -37,7 +37,7 @@ pub(super) async fn resolve<H: PluginHost>(
         url: transfer.final_url,
         file_name: disposition
             .as_deref()
-            .and_then(page::file_name_from_disposition)
+            .and_then(plugin_common::file_name_from_disposition)
             .or(url_name),
         size: None,
         // The transfer must look like the browser session that earned the link; Rapidgator
@@ -258,11 +258,30 @@ async fn post_form<H: PluginHost>(
 
 async fn send<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpResponse, Failure> {
     let response = host.http(request).await?;
-    // A 404 *is* trusted here, unlike on the `file/download` API endpoint: JD's
-    // `checkOfflineWebsite` runs before every other website error check and maps a 404 response
-    // code straight to `ERROR_FILE_NOT_FOUND`.
-    crate::api::ensure_http_status(response.status, true).map_err(convert_failure)?;
+    free_status(&response)?;
     Ok(response)
+}
+
+/// Classifies a website answer of the account-less flow.
+///
+/// A 404 *is* trusted here, unlike on the `file/download` API endpoint: JD's
+/// `checkOfflineWebsite` runs before every other website error check and maps a 404 response
+/// code straight to `ERROR_FILE_NOT_FOUND`. A 401 or 403 is a plain HTTP error rather than the
+/// API's refused account: no account was sent, so none can be refused, and a bot wall's 403
+/// reported as `AccountInvalid` would send the person to fix credentials they never gave
+/// (RA-PLG-01, as 1fichier's free flow does).
+fn free_status(response: &HttpResponse) -> Result<(), Failure> {
+    let status = response.status;
+    if matches!(status, 401 | 403) {
+        return Err(Failure::coded(
+            FailureKind::Permanent,
+            messages::HTTP_ERROR,
+            messages::http_error(status),
+        )
+        .with_param("status", status.to_string()));
+    }
+    crate::api::ensure_http_status(status, true, plugin_common::retry_after(&response.headers))
+        .map_err(convert_failure)
 }
 
 /// Aborts a free flow when the page reports a free-download or IP limit.

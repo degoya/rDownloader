@@ -6,7 +6,8 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { AreaBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
-import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
+import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
+import { downloadJson } from '@/utils/jsonFile'
 
 /**
  * Export and import for one configuration area.
@@ -27,7 +28,6 @@ const toast = useToast()
 const confirm = useConfirm()
 const exporting = ref(false)
 const importing = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
 
 function fail(message: string): void {
   toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
@@ -48,21 +48,14 @@ async function exportArea(): Promise<void> {
   toast.add({ title: t('common.backup.export_success'), color: 'success', icon: 'i-lucide-file-check-2' })
 }
 
-function chooseFile(): void {
-  openFilePicker(fileInput.value)
-}
+const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<AreaBundle>({
+  check: parsed => isAreaBundle(parsed) ? parsed : new JsonRefusal(t('common.backup.invalid_file')),
+  unreadable: () => t('common.backup.invalid_file'),
+  refuse: fail,
+  take: importArea
+})
 
-async function selectFile(event: Event): Promise<void> {
-  const file = chosenFile(event)
-  if (!file) return
-  let bundle: AreaBundle
-  try {
-    const parsed: unknown = JSON.parse(await file.text())
-    if (!isAreaBundle(parsed)) return fail(t('common.backup.invalid_file'))
-    bundle = parsed
-  } catch {
-    return fail(t('common.backup.invalid_file'))
-  }
+async function importArea(bundle: AreaBundle): Promise<void> {
   const accepted = await confirm({
     title: t('common.backup.confirm_title'),
     description: t('common.backup.confirm_description', { count: entryCount(bundle) }),

@@ -13,7 +13,7 @@ use std::time::Duration;
 use anyhow::Result;
 use clap::Args;
 
-use crate::remote::{Client, CommandError, Failure};
+use crate::remote::{CommandError, Failure};
 
 /// How often the waiting looks at the file.
 const POLL: Duration = Duration::from_millis(200);
@@ -75,21 +75,17 @@ pub(crate) async fn stop(data_directory: &Path, wait: Duration) -> Result<bool> 
     let Some(control) = rd_api::local_control::read(data_directory)? else {
         return Ok(false);
     };
-    let client = Client::local(
-        &format!("http://{}", control.address),
-        Some(control.token.clone()),
-        30,
-    )?;
-    let asked: Result<serde_json::Value> = client
-        .post("/api/v1/system/shutdown", &serde_json::json!({}))
-        .await;
-    if let Err(error) = asked {
-        // A file left by a process that was killed: nothing listens there any more.
-        if error
-            .downcast_ref::<CommandError>()
-            .is_some_and(|command| command.failure == Failure::Unreachable)
-            && rd_api::local_control::read(data_directory)?.is_some_and(|file| file == control)
-        {
+    let asked = crate::auth_cli::ask_service(
+        data_directory,
+        "/api/v1/system/shutdown",
+        &serde_json::json!({}),
+    )
+    .await?;
+    // `None` is no file, or one nobody answers for. The file was there a moment ago, so a stop
+    // that reached nothing is the second — left by a process that was killed — unless it went
+    // away in between, which means that service ended on its own.
+    if asked.is_none() {
+        if rd_api::local_control::read(data_directory)?.is_some_and(|file| file == control) {
             return Err(CommandError::new(
                 Failure::Unreachable,
                 format!(
@@ -102,7 +98,7 @@ pub(crate) async fn stop(data_directory: &Path, wait: Duration) -> Result<bool> 
             )
             .into());
         }
-        return Err(error);
+        return Ok(false);
     }
     if wait.is_zero() {
         return Ok(true);

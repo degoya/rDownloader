@@ -35,7 +35,6 @@
     "asset_not_wanted": "Le fichier ne correspond pas aux plateformes, architectures ou motifs de nom"
   },
   "form": {
-    "add": "Ajouter un abonnement",
     "edit": "Modifier l'abonnement",
     "name": "Nom",
     "url": "Adresse",

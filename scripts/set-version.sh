@@ -28,11 +28,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-current() {
-    # Anchored to the [workspace.package] section: several other sections have a `version` key.
-    sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml \
-        | sed -n 's/^version = "\(.*\)"/\1/p' | head -1
-}
+# shellcheck source=lib/workspace-version.sh
+source "$ROOT/scripts/lib/workspace-version.sh"
+current() { rd_workspace_version < Cargo.toml; }
 
 if [[ $# -eq 0 ]]; then
     current

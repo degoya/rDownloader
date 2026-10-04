@@ -49,7 +49,7 @@ export PATH="$SCRATCH/bin:$PATH"
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/public-ci.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{public-ci,verified,lanes}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{public-ci,verified,lanes,workspace-version}.sh "$TREE/scripts/lib/"
 cat > "$TREE/scripts/export-public.sh" <<'EOF'
 #!/usr/bin/env bash
 # Stub: records its arguments, commits onto --branch in the public clone and pushes it.

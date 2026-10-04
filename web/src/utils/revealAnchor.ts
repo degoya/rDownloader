@@ -9,13 +9,13 @@
  */
 
 /** How long the mark stays; `main.css` fades it over the same time. */
-export const HIGHLIGHT_MS = 2000
+const HIGHLIGHT_MS = 2000
 
 /** The first thing inside a field that takes typing or a click: input, select, switch, button. */
 const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /** Ids are the registry's own constants (`[a-z0-9._]`), so no escaping is needed. */
-export function anchorSelector(id: string): string {
+function anchorSelector(id: string): string {
   return `[data-settings-anchor="${id}"]`
 }
 

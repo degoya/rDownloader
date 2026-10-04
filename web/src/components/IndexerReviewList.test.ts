@@ -487,7 +487,8 @@ describe('IndexerReviewList', () => {
 
     expect(screen.getByText('Indexer subscriptions')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Check all' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy()
+    // The button waits for the review summary, which may answer after the list.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy())
     // What RD-106-18 wanted — the hits being noticed — is the header's business now; the groups
     // themselves wait behind the button.
     expect(screen.queryByText('Weekly documentaries')).toBeNull()

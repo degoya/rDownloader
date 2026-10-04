@@ -121,6 +121,13 @@ pub(crate) struct RecordNowParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PluginUpdateSettingsParams {
+    /// On: every installed plugin, and every plugin installed later, installs its updates by
+    /// itself. Off: each plugin's own policy applies again, unchanged.
+    pub automatic_updates: bool,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct TestRegexParams {
     /// The regular expression, as a routing rule would carry it.
     pub pattern: String,

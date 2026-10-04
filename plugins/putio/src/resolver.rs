@@ -178,11 +178,14 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
     let envelope = ErrorEnvelope::of(&response.body);
     // Asked for only when it is needed: `now-unix-seconds` is a host call, and a reset header
     // is on the one answer in a thousand that is a rate limit.
+    // A standard `Retry-After` is read too, after Put.io's own header (RD-191-07); it carries a
+    // duration and needs no clock.
     let reset = if response.status == 429 {
         api::rate_limit_wait(
             response.header("X-RateLimit-Reset"),
             host.now_unix_seconds().await,
         )
+        .or_else(|| plugin_common::retry_after(&response.headers))
     } else {
         None
     };

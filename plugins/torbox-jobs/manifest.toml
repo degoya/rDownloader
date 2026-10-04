@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000011e"
 name = "TorBox jobs"
-version = "0.2.5"
+version = "0.2.6"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -27,6 +27,9 @@ slug = "torbox_jobs"
 # The provider whose account these jobs run on. The host looks the account up; this plugin
 # never learns which one it is, and never sees its key.
 claims = ["torbox"]
+# The container formats this provider takes, read by the host without compiling the plugin:
+# the LinkGrabber offers an NZB only to accounts whose plugin names `nzb` here (RD-191-13).
+containers = ["torrent", "nzb"]
 
 [metadata]
 description = "Runs magnets, torrent files, NZBs and web links as jobs on a TorBox account, and checks TorBox's cache for them."

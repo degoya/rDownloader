@@ -27,7 +27,7 @@ use crate::{
     listing::{self, Entry},
     messages,
     target::{self, Target},
-    walk::{Limit, MAX_CHUNKS, Walk},
+    walk::{Absorb, Limit, MAX_CHUNKS},
 };
 
 struct Component;
@@ -122,7 +122,7 @@ fn read_folder(key: &str) -> Result<(Vec<Entry>, bool), Failure> {
     let mut entries = Vec::new();
     let mut truncated = false;
     for content_type in ["folders", "files"] {
-        let mut chunk = 1;
+        let mut chunk: usize = 1;
         loop {
             let response = call(
                 "folder/get_content",
@@ -155,9 +155,9 @@ fn crawl_folder(key: &str, undecided: bool) -> Result<Vec<CrawledLink>, Failure>
     if info.private {
         return Err(refuse(messages::FOLDER_PRIVATE, FailureKind::Permanent));
     }
-    let mut walk = Walk::start(key, &info.name);
+    let mut walk = crate::walk::start(key, &info.name);
     while let Some(pending) = walk.next_folder() {
-        let (entries, truncated) = read_folder(&pending.key)?;
+        let (entries, truncated) = read_folder(&pending.id)?;
         walk.absorb(&pending, entries, truncated);
     }
     if let Some(limit) = walk.limit() {
@@ -169,7 +169,7 @@ fn crawl_folder(key: &str, undecided: bool) -> Result<Vec<CrawledLink>, Failure>
                 Limit::Depth => "mediafire folder is nested deeper than this crawl walks",
                 Limit::Files => "mediafire folder holds more files than this crawl lists",
                 Limit::Folders => "mediafire folder holds more subfolders than this crawl reads",
-                Limit::Chunks => "mediafire folder lists further than this crawl pages",
+                Limit::Pages => "mediafire folder lists further than this crawl pages",
             },
         );
     }

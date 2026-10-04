@@ -6,27 +6,30 @@
 # `shellcheck` over every tracked shell script, then every test under scripts/tests/. None of it
 # compiles, and all of it together takes seconds.
 #
-# When: under --full, and whenever anything under scripts/ changed but its documentation. Until
-# RD-140-22 the tests ran only for scripts/lib/ and scripts/tests/, so a change to a script
-# itself — the thing the tests are about — tested nothing.
+# When: under --full, and whenever anything under scripts/ but its documentation, or another
+# tracked shell script, changed. Until RD-140-22 the tests ran only for scripts/lib/ and
+# scripts/tests/, so a change to a script itself — the thing the tests are about — tested nothing. `actionlint` over the workflows runs
+# under --full and whenever .github/ changed (RD-191-09).
 #
 # The lint runs at severity `warning`: errors and warnings fail the run, the info and style
 # notes (quoting a literal `$` on purpose, `ls` in a pipe) do not. Project-wide settings are in
-# scripts/.shellcheckrc. A machine without shellcheck skips it with a notice; bash -n and the
-# tests still run.
+# scripts/.shellcheckrc. A machine without shellcheck or actionlint skips that one with a notice
+# (docs/development.md says how to install both); bash -n and the tests still run. The `scripts`
+# job of .github/workflows/ci.yml runs rd_script_lint and rd_workflow_lint with both installed, at
+# the versions pinned there, so a lint finding cannot reach development unseen (RD-191-09 T03:
+# until then shellcheck ran nowhere, because no machine had it).
 #
 # Expects from the caller: `step`, `skip`, `full` and `changed`, as check.sh defines them, and
-# the working directory at the checkout root.
+# the working directory at the checkout root. rd_script_lint and rd_workflow_lint need only
+# `step` and `skip`.
 
-rd_script_checks() {
-    local file test failed=0 touched
+# bash -n and shellcheck over every tracked shell script: scripts/ and what ships or runs beside
+# it (packaging/, docker/, resources/, .claude/hooks/). Not the test fixtures, stand-ins for
+# yt-dlp and the like that a test executes (RD-191-09 RA-TOOL-02).
+rd_script_lint() {
+    local file failed=0
     local -a files
-    touched="$(grep -E '^scripts/' <<< "$changed" | grep -vE '\.md$' || true)"
-    if [[ "$full" -ne 1 && -z "$touched" ]]; then
-        skip "bash -n, shellcheck and the script tests" "nothing under scripts/ changed but documentation"
-        return 0
-    fi
-    mapfile -t files < <(git ls-files 'scripts/*.sh' 'scripts/*.command')
+    mapfile -t files < <(git ls-files '*.sh' '*.command' ':(exclude)*/tests/fixtures/*')
 
     step "bash -n over ${#files[@]} shell scripts"
     for file in "${files[@]}"; do
@@ -36,15 +39,44 @@ rd_script_checks() {
     echo "    every one parses"
 
     if command -v shellcheck > /dev/null; then
-        step "shellcheck over ${#files[@]} shell scripts (severity warning)"
+        step "shellcheck $(shellcheck --version | sed -n 's/^version: //p') over ${#files[@]} shell scripts (severity warning)"
         shellcheck --severity=warning "${files[@]}"
         echo "    clean"
     else
         echo
         echo "==> shellcheck is not installed; skipped (uv tool install shellcheck-py, or the"
-        echo "    distribution's shellcheck package)"
+        echo "    distribution's shellcheck package; docs/development.md)"
         skip "shellcheck" "not installed"
     fi
+}
+
+# actionlint over .github/workflows/, with shellcheck over their `run:` blocks when installed.
+rd_workflow_lint() {
+    if command -v actionlint > /dev/null; then
+        step "actionlint $(actionlint --version | head -n 1) over .github/workflows/"
+        actionlint
+        echo "    clean"
+    else
+        echo
+        echo "==> actionlint is not installed; skipped (docs/development.md)"
+        skip "actionlint" "not installed"
+    fi
+}
+
+rd_script_checks() {
+    local test touched workflows
+    touched="$(grep -E '^scripts/|\.(sh|command)$' <<< "$changed" | grep -vE '\.md$' || true)"
+    workflows="$(grep -E '^\.github/' <<< "$changed" || true)"
+    if [[ "$full" -eq 1 || -n "$workflows" ]]; then
+        rd_workflow_lint
+    else
+        skip "actionlint" "nothing under .github/ changed"
+    fi
+    if [[ "$full" -ne 1 && -z "$touched" ]]; then
+        skip "bash -n, shellcheck and the script tests" "no shell script and nothing under scripts/ changed but documentation"
+        return 0
+    fi
+    rd_script_lint
 
     for test in scripts/tests/*.sh; do
         step "script test: $test"

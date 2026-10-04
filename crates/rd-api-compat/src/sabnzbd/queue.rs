@@ -1,5 +1,7 @@
 //! The `queue` mode: listing what is still being worked on, and acting on one slot.
 
+use std::collections::{HashMap, HashSet};
+
 use axum::response::Response;
 use rd_core::{DownloadFile, DownloadPackage};
 
@@ -26,6 +28,7 @@ async fn list(state: &AppState) -> Response {
     let Ok(categories) = state.database.list_categories().await else {
         return error("queue unavailable");
     };
+    let totals = totals(&downloads);
     let mut total = 0_u64;
     let mut left = 0_u64;
     let slots: Vec<serde_json::Value> = packages
@@ -33,7 +36,7 @@ async fn list(state: &AppState) -> Response {
         .filter(|package| !map::is_history(package))
         .enumerate()
         .map(|(index, package)| {
-            let (bytes, done) = totals(&downloads, package);
+            let (bytes, done) = totals.get(&package.id).copied().unwrap_or_default();
             total += bytes;
             left += bytes.saturating_sub(done);
             slot(
@@ -113,22 +116,25 @@ fn slot(
     })
 }
 
-/// Byte totals of one package: how much it is, and how much is committed.
+/// Byte totals of every package: how much it is, and how much is committed.
+///
+/// One pass over the downloads, keyed by package (audit 1.9.1, API-03): summing per package
+/// scanned every download once for every package in the queue.
 ///
 /// A row standing by is left out of both sums. A mirror that stood down and a PAR2 recovery
 /// volume held back until a repair asks for it (RD-107-04) are bytes nobody is going to
 /// fetch, and counting them would report a package as permanently short of its own size.
-fn totals(downloads: &[DownloadFile], package: &DownloadPackage) -> (u64, u64) {
-    downloads
+fn totals(downloads: &[DownloadFile]) -> HashMap<rd_core::PackageId, (u64, u64)> {
+    let mut totals: HashMap<rd_core::PackageId, (u64, u64)> = HashMap::new();
+    for file in downloads
         .iter()
-        .filter(|file| file.package_id == package.id)
         .filter(|file| file.state != rd_core::DownloadState::Skipped)
-        .fold((0, 0), |(total, done), file| {
-            (
-                total + file.total_bytes.map_or(0, rd_core::ByteCount::get),
-                done + file.committed_bytes.get(),
-            )
-        })
+    {
+        let (total, done) = totals.entry(file.package_id).or_default();
+        *total += file.total_bytes.map_or(0, rd_core::ByteCount::get);
+        *done += file.committed_bytes.get();
+    }
+    totals
 }
 
 async fn act(state: &AppState, query: &SabQuery, action: DownloadBulkAction) -> Response {
@@ -181,6 +187,7 @@ async fn apply_to_package(
     let Ok(downloads) = state.database.list_downloads().await else {
         return error("queue unavailable");
     };
+    let ids: HashSet<rd_core::PackageId> = ids.iter().copied().collect();
     let targets: Vec<rd_core::DownloadId> = downloads
         .iter()
         .filter(|file| ids.contains(&file.package_id))

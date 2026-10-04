@@ -91,7 +91,8 @@ pub(crate) async fn fetch_decoded_with_attempts(
                 let attempts = u32::try_from(failures.len().saturating_add(1))?;
                 return Ok((decoded, attempts));
             }
-            Err(error) => failures.push(error.to_string()),
+            // With its causes, or a refused connection reads as its context alone (RA-TR-04).
+            Err(error) => failures.push(format!("{error:#}")),
         }
     }
     bail!(
@@ -263,6 +264,30 @@ mod tests {
         let message = error.to_string();
         assert!(message.contains("missing"), "{message}");
         assert!(message.contains("offline"), "{message}");
+    }
+
+    /// RA-TR-04: a server's failure keeps its cause, not only the context it was given.
+    #[tokio::test]
+    async fn a_server_failure_is_reported_with_its_cause() {
+        let refused = anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "connection refused",
+        ))
+        .context("fetch article");
+        let mut sources: Vec<Box<dyn ArticleSource>> =
+            vec![Box::new(FixtureSource(VecDeque::from([Err(refused)])))];
+        let error = download_file(
+            &mut sources,
+            vec![SegmentRequest {
+                number: 1,
+                message_id: "segment-1".to_owned(),
+            }],
+        )
+        .await
+        .expect_err("the only server fails");
+        let message = error.to_string();
+        assert!(message.contains("fetch article"), "{message}");
+        assert!(message.contains("connection refused"), "{message}");
     }
 
     #[test]

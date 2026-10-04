@@ -120,6 +120,21 @@ const uiPort = computed<number | null>({
       <UFormField data-settings-anchor="general.retries" :label="t('settings.retries.label')" :description="t('settings.retries.description')">
         <UInput v-model.number="settings.max_retries" type="number" min="0" max="100" icon="i-lucide-repeat" class="mt-2 w-full" />
       </UFormField>
+      <div class="border-t border-muted pt-4">
+        <UFormField data-settings-anchor="general.auto_retry" :label="t('settings.auto_retry.label')" :description="t('settings.auto_retry.description')" orientation="horizontal">
+          <USwitch v-model="settings.auto_retry_failed" data-testid="auto-retry-switch" />
+        </UFormField>
+        <div v-if="settings.auto_retry_failed" class="mt-4 grid gap-4" data-testid="auto-retry-options">
+          <UFormField :label="t('settings.auto_retry.interval_label')" :description="t('settings.auto_retry.interval_description')">
+            <UInput v-model.number="settings.auto_retry_interval_hours" type="number" min="1" max="24" icon="i-lucide-timer" class="mt-2 w-full" data-testid="auto-retry-interval">
+              <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
+            </UInput>
+          </UFormField>
+          <UFormField :label="t('settings.auto_retry.rounds_label')" :description="t('settings.auto_retry.rounds_description')">
+            <UInput v-model.number="settings.auto_retry_max_rounds" type="number" min="0" max="100" icon="i-lucide-rotate-ccw" class="mt-2 w-full" data-testid="auto-retry-rounds" />
+          </UFormField>
+        </div>
+      </div>
       <div>
         <UFormField data-settings-anchor="general.ui_port" :label="t('settings.ui_port.label')" :description="t('settings.ui_port.description')">
           <UInput v-model.number="uiPort" type="number" min="1024" max="65535" icon="i-lucide-plug" :placeholder="t('settings.ui_port.placeholder')" class="mt-2 w-full" />

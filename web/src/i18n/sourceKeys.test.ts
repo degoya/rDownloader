@@ -60,88 +60,14 @@ const apiSources: string[] = backendAvailable
   : []
 
 /**
- * Codes the backend constructs that no catalogue translates yet, as found on 2026-09-08.
+ * Codes the backend constructs that no catalogue translates yet.
  *
- * They are listed rather than fixed because 76 codes are 304 sentences, which belongs in a
- * translation pass and not in the change that first made them visible. Every one of them
- * currently reaches the reader as the backend's English prose in all four languages. The list
- * may only shrink: a code that gains a translation has to leave it, and the second test below
- * fails while it lingers.
+ * Found on 2026-09-08 with 76 codes and emptied in the 1.9.1 audit (RD-191-05): every `rd-api*`
+ * code now resolves in all four languages, and a new code ships its translation with it. The
+ * constant stays so the exception remains explicit and reviewable rather than silent; a code
+ * that gains a translation has to leave it, which `keeps the untranslated list shrinking` checks.
  */
-const UNTRANSLATED_CODES: readonly string[] = [
-  'account.credential_mode_required',
-  'account.credential_mode_unsupported',
-  'api.token_not_found',
-  'api.token_required',
-  'api.token_revoked',
-  'automation.deleted',
-  'automation.dry_run_target_missing',
-  'automation.not_found',
-  'backup.area_missing',
-  'backup.format_unsupported',
-  'backup.version_unsupported',
-  'capture.field_length',
-  'capture.header_length',
-  'capture.headers_limit',
-  'capture.links_limit',
-  'capture.method_unsupported',
-  'collector.auth_profile_disabled',
-  'collector.auth_profile_missing',
-  'collector.auth_profile_not_found',
-  'collector.auth_profile_scope_mismatch',
-  'collector.candidate_missing',
-  'collector.check_target_missing',
-  'collector.enqueue_failed',
-  'collector.no_links',
-  'collector.nzb_client_unavailable',
-  'collector.nzb_empty',
-  'collector.nzb_fetch_failed',
-  'collector.nzb_invalid',
-  'collector.nzb_rejected',
-  'collector.package_empty',
-  'nzb.no_change',
-  'plugin.disabled',
-  'plugin.enabled',
-  'plugin.remove_failed',
-  'plugin.removed',
-  'reconnect.already_running',
-  'reconnect.disabled',
-  'reconnect.script_missing',
-  'reconnect.started',
-  'remote.parallel_invalid',
-  'remote.timeout_invalid',
-  'request.multipart_missing_file',
-  'settings.auto_remove_delay_invalid',
-  'settings.managed_tools_manifest_url_invalid',
-  'settings.patch_empty',
-  'settings.proxy_invalid',
-  'settings.reconnect_interval_invalid',
-  'settings.reconnect_script_missing',
-  'settings.reconnect_timeout_invalid',
-  'settings.reconnect_url_invalid',
-  'settings.tool_compatibility_override_invalid',
-  'settings.unknown_key',
-  'stream.recording_policy_invalid',
-  'stream.schedule_name_invalid',
-  'stream.schedule_not_found',
-  'subscription.api_key_missing',
-  'subscription.caps_failed',
-  'subscription.caps_invalid',
-  'subscription.category_map_too_many',
-  'subscription.client_unavailable',
-  'subscription.duration_range_invalid',
-  'subscription.filters_too_many',
-  'subscription.interval_invalid',
-  'subscription.item_not_found',
-  'subscription.name_invalid',
-  'subscription.not_an_indexer',
-  'subscription.not_found',
-  'subscription.source_categories_too_many',
-  'subscription.url_invalid',
-  'subscription.url_scheme',
-  'tools.version_not_installed',
-  'torrent.priority_invalid'
-]
+const UNTRANSLATED_CODES: readonly string[] = []
 
 function rustFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

@@ -173,6 +173,16 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good",
     },
     CrashPoint {
+        name: "scheduler.after_torrent_selection",
+        owner: "rd-scheduler",
+        invariant: "a torrent row whose reviewed file selection was written before it joined the queue stays paused with that selection after the next start, never queued and never started with the default selection; resuming it starts the reviewed one",
+    },
+    CrashPoint {
+        name: "scheduler.before_auto_retry_requeued",
+        owner: "rd-scheduler",
+        invariant: "a failed download whose automatic retry came due before it was put back into the queue stays failed with its due time and its round uncounted; the pass after the next start puts it back exactly once and counts one round, with its attempts and limit waits starting from zero",
+    },
+    CrashPoint {
         name: "scheduler.before_mirror_promoted",
         owner: "rd-scheduler",
         invariant: "a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming",
@@ -203,6 +213,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once",
     },
     CrashPoint {
+        name: "transfer_file.before_progress_recorded",
+        owner: "rd-transfer-file",
+        invariant: "bytes an FTP, SFTP or bucket transfer synced to its part file before the row recorded them are continued by the next run from the part file's length, after the remote file was checked against what the first run saw; nothing is fetched twice, and the finished file matches the source byte for byte",
+    },
+    CrashPoint {
         name: "update.after_leftover_set_aside",
         owner: "rd-update",
         invariant: "a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update",
@@ -231,6 +246,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "usenet.before_checkpoint_batch",
         owner: "rd-usenet",
         invariant: "the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed",
+    },
+    CrashPoint {
+        name: "vault.after_orphan_removed",
+        owner: "rd-db",
+        invariant: "a vault sweep stopped after it removed some of the entries no cell of the database names keeps every entry a row or a settings document names; the next start removes the remaining orphans and nothing else",
     },
 ];
 

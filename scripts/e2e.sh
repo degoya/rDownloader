@@ -15,7 +15,8 @@
 # Without --bin-dir the binaries come from whichever of the target directory's `release-test`,
 # its `release` and artifacts/linux holds the newest pair; the run prints which one and its
 # version. Logs go to RD_E2E_LOG_DIR (default /tmp/claude-<uid>/e2e/<time>).
-# Lock-free: only --build takes the target's build lock, around the bare cargo call.
+# Lock-free: only --build's cargo call runs under the lock every heavy script takes — the
+# target's lock, a lane, the memory gate, the stamp and JOBS (scripts/lib/jobs.sh, RD-191-09).
 #
 # The extension run needs 127.0.0.1:8710 free (the one address its manifest grants at install)
 # and Playwright's Chromium (`pnpm --dir web exec playwright install chromium`, done here). The
@@ -24,9 +25,22 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/jobs.sh
+source "$ROOT/scripts/lib/jobs.sh"
+# Sourced before the `cd`, because the lock library resolves this script's own path from $0; it
+# brings scripts/lib/lanes.sh with it.
+# shellcheck source=lib/lock.sh
+source "$ROOT/scripts/lib/lock.sh"
+# --build re-runs this script as `--build-only` for its cargo call, so the lock is held for the
+# build and never for the end-to-end runs, which start services and a browser for minutes.
+if [[ "${1:-}" == --build-only ]]; then
+    rd_take_lock "$@"
+    cd "$ROOT"
+    CARGO_BUILD_JOBS="$JOBS" cargo build --locked --profile release-test -j "$JOBS" \
+        -p rdownloader -p rd-capture
+    exit 0
+fi
 cd "$ROOT"
-# shellcheck source=scripts/lib/lanes.sh
-source "$ROOT/scripts/lib/lanes.sh"
 
 browser=0
 capture=0
@@ -43,7 +57,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -60,11 +74,8 @@ if [[ "$build" -eq 1 ]]; then
     [[ -z "$bin_dir" ]] || { echo "--build and --bin-dir are mutually exclusive" >&2; exit 2; }
     [[ -f web/dist/index.html ]] \
         || { echo "web/dist is missing; rust-embed needs the built frontend (pnpm --dir web run build)" >&2; exit 1; }
-    lock="$(rd_target_lock_file "$target" "$ROOT")"
-    echo "==> building rdownloader and rdownloader-capture (release-test) under $lock"
-    # A shared target links other checkouts' rlibs unless this checkout's sources are newer.
-    CARGO_TARGET_DIR="$target" flock -o "$lock" bash -c \
-        'find crates -name "*.rs" -exec touch {} + && cargo build --locked --profile release-test -p rdownloader -p rd-capture'
+    echo "==> building rdownloader and rdownloader-capture (release-test, -j $JOBS) under the build lock"
+    CARGO_TARGET_DIR="$target" "$ROOT/scripts/e2e.sh" --build-only
     bin_dir="$target/release-test"
 fi
 

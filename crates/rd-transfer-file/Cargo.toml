@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Forwards rd-core's deterministic crash points; see crates/rd-core/src/failpoint.rs.
+failpoints = ["rd-core/failpoints"]
+
 [dependencies]
 anyhow.workspace = true
 rd-core = { path = "../rd-core" }
@@ -14,6 +18,7 @@ rd-limits = { path = "../rd-limits" }
 rd-scheduler = { path = "../rd-scheduler" }
 tokio.workspace = true
 tokio-util.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

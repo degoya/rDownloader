@@ -275,8 +275,10 @@ pub async fn list_plugin_updates(
 )]
 pub async fn preview_plugin_package(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     bytes: Bytes,
 ) -> Result<Json<PluginPreviewResponse>, ApiError> {
+    rd_api_core::input_checks::require_media_type(&headers, "application/octet-stream")?;
     if bytes.is_empty() || bytes.len() > MAX_PLUGIN_PACKAGE_BYTES {
         return Err(ApiError::bad_request(
             "plugin.package_size_invalid",

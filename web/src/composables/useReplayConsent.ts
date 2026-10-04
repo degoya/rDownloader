@@ -3,7 +3,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 import type { ReplayPreview } from '@/api/types'
 import CollectorReplayConsentModal from '@/components/CollectorReplayConsentModal.vue'
 
-export interface ReplayConsentResult {
+interface ReplayConsentResult {
   approvedOrigins: string[]
 }
 

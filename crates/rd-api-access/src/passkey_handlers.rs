@@ -245,18 +245,7 @@ pub async fn passkey_challenge(
     // Metered like the sign-in it starts. This endpoint is public — it has to be — and it
     // allocates server state for an anonymous caller, so an address the limiter has already
     // locked out must not be able to keep starting ceremonies while it waits.
-    if let rd_authn::Decision::Locked { retry_after } = state.auth.throttle_check(client.0).await {
-        return Err(ApiError::too_many_requests(
-            "auth.too_many_attempts",
-            "Too many failed sign-in attempts from this address",
-        )
-        .with_param("seconds", retry_after.as_secs().max(1).to_string()));
-    }
-    if let rd_authn::Decision::Proceed { delay } = state.auth.throttle_check(client.0).await
-        && !delay.is_zero()
-    {
-        tokio::time::sleep(delay).await;
-    }
+    state.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
     let passkeys = load_passkeys(&state).await?;
@@ -313,21 +302,10 @@ pub async fn passkey_login(
     // The same throttle as the password login. A signature is far harder to guess than a
     // password, but this endpoint reaches the same session-opening code, and leaving one door
     // unmetered would make the metering on the other one decorative.
-    if let rd_authn::Decision::Locked { retry_after } = state.auth.throttle_check(client.0).await {
-        return Err(ApiError::too_many_requests(
-            "auth.too_many_attempts",
-            "Too many failed sign-in attempts from this address",
-        )
-        .with_param("seconds", retry_after.as_secs().max(1).to_string()));
-    }
-    if let rd_authn::Decision::Proceed { delay } = state.auth.throttle_check(client.0).await
-        && !delay.is_zero()
-    {
-        // The other half of that symmetry. Honouring only the lockout left the distributed
-        // case — every attempt from a fresh address, so the per-address counter never builds —
-        // metered on the password login and free here, which is the door an attacker picks.
-        tokio::time::sleep(delay).await;
-    }
+    // Both halves of the gate: honouring only the lockout left the distributed case -- every
+    // attempt from a fresh address, so the per-address counter never builds -- metered on the
+    // password login and free here, which is the door an attacker picks.
+    state.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
     let Some(authentication) = state.passkey_authentications.take(&request.ceremony_id) else {

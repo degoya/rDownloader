@@ -31,16 +31,13 @@ Every case asserts all four. They are not interchangeable, and each has its own 
 | **B — real process kill** | That the operating system's write actually landed | CI only, `#[ignore]` by default | ~1 s per case, one spawned binary each |
 | **C — migration forward** | An older installation upgrades without losing its queue | Every test run | <1 s |
 
-Axis A only exists when it is asked for, and it is each *owning* crate's feature that asks:
+Axis A only exists when it is asked for, and it is each *owning* crate's feature that asks. The
+runs are `scripts/lib/crash-matrix.list`, the one list `scripts/check.sh` and CI's `crash-matrix`
+job read (RD-191-09); by hand, each line `rd_crash_matrix_runs` prints is one
+`cargo nextest run -j 2 <line>`:
 
 ```bash
-cargo nextest run --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints,rd-extract/failpoints,rd-api-core/failpoints,rd-torrent/failpoints,rd-plugin-transfer/failpoints,rd-update/failpoints \
-    -j 2 -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host \
-    -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
-# The plugin update's two points sit in rd-api-admin and are driven through the admin suite.
-cargo nextest run --features rd-api/failpoints -j 2 -p rd-api --test admin stopped_updates
-# The archive passwords' two points sit in rd-db; only their own test binary runs here.
-cargo nextest run --features rd-db/failpoints -j 2 -p rd-db --test archive_password_crash
+bash -c 'source scripts/lib/crash-matrix.sh; rd_crash_matrix_runs'
 ```
 
 `rd-core/failpoints` on its own is not enough, however plausible it looks. Every crash-test
@@ -60,7 +57,11 @@ backup before an update); the count is measured with the next run. RD-180-02 add
 `rd-update` cases (`tests/install_crash.rs`, the portable self-update's switch); `rd-update` has
 no count recorded yet. RD-190-04 added two `rd-db` cases in a binary of their own
 (`tests/archive_password_crash.rs`, compiled to nothing without `rd-db/failpoints`); its count is
-measured with the next run.
+measured with the next run. RD-191-03 added the first `rd-transfer-file` case
+(`transfer_file.before_progress_recorded`, the staging half FTP, SFTP and buckets share); the
+crate has no count recorded yet. RD-191-12 added one `rd-scheduler` case
+(`scheduler.before_auto_retry_requeued`), behind the feature; the count with it is measured with
+the next run.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything
@@ -120,18 +121,22 @@ row for a point that does not exist.
 | `restore.after_live_set_aside` | rd-backup | a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
 | `scheduler.after_queue_pause_recorded` | rd-scheduler | a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good |
+| `scheduler.after_torrent_selection` | rd-scheduler | a torrent row whose reviewed file selection was written before it joined the queue stays paused with that selection after the next start, never queued and never started with the default selection; resuming it starts the reviewed one |
+| `scheduler.before_auto_retry_requeued` | rd-scheduler | a failed download whose automatic retry came due before it was put back into the queue stays failed with its due time and its round uncounted; the pass after the next start puts it back exactly once and counts one round, with its attempts and limit waits starting from zero |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
 | `scheduler.before_move_source_removed` | rd-scheduler | a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it |
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `subscription.after_items_archived` | rd-api-core | release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them |
 | `torrent.before_seed_completed` | rd-torrent | a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once |
+| `transfer_file.before_progress_recorded` | rd-transfer-file | bytes an FTP, SFTP or bucket transfer synced to its part file before the row recorded them are continued by the next run from the part file's length, after the remote file was checked against what the first run saw; nothing is fetched twice, and the finished file matches the source byte for byte |
 | `update.after_leftover_set_aside` | rd-update | a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update |
 | `update.after_new_placed` | rd-update | a portable update stopped after a new entry took its place, with other entries still the old version's, is taken back by the next start, whichever version that start runs: every entry is the old version's again, the new ones leave, and a newer program restarts as the old one; nothing below the data directory changes |
 | `update.after_previous_set_aside` | rd-update | a portable update stopped after an old entry went into .previous and before its new one took its place is taken back by the next start: the entry comes back from .previous, nothing of the new version stays and the database is left as it was, since the new version never ran |
 | `update.before_health_check` | rd-update | a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
 | `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
+| `vault.after_orphan_removed` | rd-db | a vault sweep stopped after it removed some of the entries no cell of the database names keeps every entry a row or a settings document names; the next start removes the remaining orphans and nothing else |
 
 `archive_password.before_reference_adopted` and `archive_password.after_secret_removed` are the
 archive passwords in the vault (RD-190-04, `rd-db/src/archive_password.rs`). A write records the
@@ -144,6 +149,15 @@ that the next start removes the reserved entries and moves the values again, and
 then holds one entry per password. The second stops the sweep after a deleted package's entry left
 the vault and before the record did, and asserts that the next start removes the record. Both
 cases (`crates/rd-db/tests/archive_password_crash.rs`) run with `rd-db/failpoints`.
+
+`vault.after_orphan_removed` is the vault's sweep at start (DB-03, `rd-db/src/vault_sweep.rs`).
+Every other owner of a vault entry writes the value before its row and removes it after the row
+is gone, so a stop in between leaves an entry nothing names. The sweep lists the vault, reads every
+reference any text cell of the database holds (columns and JSON documents alike) and removes the
+rest, one entry at a time. The case stops it after the first removal and asserts that every named
+entry is still there, that the next sweep removes the remaining orphans, and that a third finds
+nothing. It runs with `rd-db/failpoints` in `crates/rd-db/tests/archive_password_crash.rs`, the
+vault's crash binary.
 
 `backup.before_archive_published` is the full backup's two-phase step (RD-160-01): the
 encrypted archive is complete in the staging folder below the data directory, and only then is
@@ -269,6 +283,14 @@ package is a side effect of removing its last file, and it has none. Its case th
 asserts the folder-free form of invariant 4: `recover_interrupted`, the first thing a restart
 runs, drops the empty row, and leaves a package that does have files exactly where it was.
 
+`scheduler.after_torrent_selection` covers the order the LinkGrabber's torrents are queued in
+(1.9.1, API-07): a torrent row is written paused, gets the file selection reviewed in the
+LinkGrabber, and only then joins the queue. A stop between the last two leaves the row paused
+with its selection — the order exists so that no instant has a queued row without one, because
+a runner that starts on the default selection persists it over the reviewed one. Its case
+asserts that the row is paused, holds the reviewed selection, and stays so after
+`recover_interrupted`.
+
 `scheduler.before_package_move` is the one point that is not about bytes inside a file. It
 covers the two-phase protocol a package folder is moved or renamed with: the database is
 written first and the disk follows, so the interesting instant is the one where the row
@@ -296,6 +318,14 @@ are already queued, so the group would wait for a link that has already given up
 long as the install lives. Its case therefore asserts the queue-level form of invariant 4:
 the start that follows finds the group with nobody holding it and gives the turn to the next
 mirror, and it does so without the person touching anything.
+
+`scheduler.before_auto_retry_requeued` is the automatic retry of failed downloads (RD-191-12).
+A round is two writes, each a single statement: the due time on the failed row, then — once it
+has passed — the row back to `queued` with its attempts and limit waits at zero and the round
+counted. A stop between deciding that a row is due and the second write leaves the row exactly as
+the first write left it. The case asserts the queue-level form of invariant 4: after the next
+start the pass puts the download back into the queue once, counts one round and nothing else; the
+round is never counted for a row that stayed failed, and never twice.
 
 `scheduler.after_queue_pause_recorded` is the timed pause of the whole queue (RD-190-20). The
 pause is recorded first — its end and the files it stops — and the files are paused one by one

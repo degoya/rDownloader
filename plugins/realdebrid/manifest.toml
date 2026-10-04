@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000000c"
 name = "Real-Debrid"
-version = "0.2.5"
+version = "0.2.6"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["*"]

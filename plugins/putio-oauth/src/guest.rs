@@ -93,10 +93,7 @@ fn accept_json() -> Vec<RequestHeader> {
 
 /// The `Retry-After` Put.io sent, if it sent one.
 fn retry_after(headers: &[(String, String)]) -> Option<String> {
-    headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-        .map(|(_, value)| value.clone())
+    plugin_common::http::header(headers, "retry-after").map(str::to_owned)
 }
 
 /// Turns the token endpoint's answer into the outcome the host acts on.

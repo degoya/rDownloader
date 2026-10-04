@@ -5,7 +5,7 @@ use axum::{Json, extract::State};
 use crate::{
     ApiError, AppState,
     dto::SettingsResponse,
-    settings_store::{read_settings, service_switches},
+    settings_store::{read_settings, runtime_settings},
 };
 
 #[utoipa::path(get, path = "/api/v1/settings", tag = "system", responses((status = 200, body = SettingsResponse)))]
@@ -495,25 +495,7 @@ pub(crate) fn validate_settings(
             "The DLC decryption service must be an http or https URL",
         ));
     }
-    let runtime = rd_scheduler::RuntimeSettings {
-        max_active_files: settings.max_active_files as usize,
-        max_chunks_per_file: settings.max_chunks_per_file as usize,
-        max_connections_per_host: settings.max_connections_per_host as usize,
-        external_connections_per_file: settings.nntp_connections_per_file as usize,
-        external_parallel_files: settings.nntp_parallel_files as usize,
-        speed_limit_bytes_per_second: settings
-            .speed_limit_bytes_per_second
-            .map(rd_core::ByteCount::get),
-        upload_limit_bytes_per_second: settings
-            .upload_limit_bytes_per_second
-            .map(rd_core::ByteCount::get),
-        generate_sha256: settings.generate_sha256,
-        global_proxy_profile_id: settings.global_proxy_profile_id,
-        custom_ca_pem: settings.custom_ca_pem.clone(),
-        max_retries: settings.max_retries,
-        pause_during_postprocess: settings.pause_during_postprocess,
-        disabled_kinds: service_switches(settings).disabled_kinds(),
-    };
+    let runtime = runtime_settings(settings);
     rd_scheduler::SchedulerHandle::validate_runtime_settings(&runtime)?;
     Ok(runtime)
 }

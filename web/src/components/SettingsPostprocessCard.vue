@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { ObjectStorageProfile, PostprocessLevel, PostprocessPluginStep, Settings, UploadDestination } from '@/api/types'
 import { enabledObjectStorageProfiles, uploadRemoteFor } from '@/composables/useObjectStorageProfiles'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -35,10 +35,6 @@ const uploadDestinations = ref<UploadDestination[]>([])
 /** Enabled object storage profiles (RD-150-04); the picker stays hidden when there are none. */
 const storageProfiles = ref<ObjectStorageProfile[]>([])
 
-/** The live subscription and the timer that coalesces a burst of plugin events into one read. */
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 async function loadPluginLists(): Promise<void> {
   const [steps, destinations] = await Promise.all([
     api.GET('/api/v1/postprocess/plugin-steps'),
@@ -51,16 +47,6 @@ async function loadPluginLists(): Promise<void> {
 onMounted(() => {
   void loadPluginLists()
   void enabledObjectStorageProfiles().then(profiles => { storageProfiles.value = profiles })
-  releaseEvents = subscribeEvents({ 'postprocess_catalog.changed': scheduleReload })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
 })
 
 /**
@@ -86,13 +72,7 @@ onUnmounted(() => {
  * Debounced, because installing a package emits more than one event. No notice is raised —
  * `design.md` has no pattern for announcing that data caught up.
  */
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void loadPluginLists()
-  }, 300)
-}
+useDebouncedEventRefresh(['postprocess_catalog.changed'], loadPluginLists)
 
 /**
  * Writes the prefix for a chosen destination and leaves the address to the person.

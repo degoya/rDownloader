@@ -109,7 +109,8 @@
 //!   is followed instead (`RateLimited{None}`) for consistency with every other plugin in this
 //!   workspace, since JD's browser layer (`createNewBrowserInstance`/`prepAPI`) allows 400/401/
 //!   403/406/429/503/520/522 through to body-level handling rather than throwing on them
-//!   directly — plugin-common's 401/403 → `AccountInvalid`, 404/410/451 → `Offline`, 5xx →
+//!   directly — plugin-common's 401/403 → `AccountInvalid`, 404/410 → `Permanent`, 451 →
+//!   `Offline`, 5xx →
 //!   `Transient` conventions are applied for any bare status JD's own plugin never documents a
 //!   distinct handler for. See [`super::ensure_http_status`].
 //! - **`/login`'s own captcha short-circuit** (lines 1170-1240, outside `handleErrorsAPI`): JD
@@ -362,32 +363,40 @@ fn classify_errorcode_falls_back_to_a_permanent_unknown_error() {
 
 #[test]
 fn ensure_http_status_maps_bare_codes() {
-    assert!(ensure_http_status(200).is_ok());
+    assert!(ensure_http_status(200, None).is_ok());
     assert!(matches!(
-        ensure_http_status(400).expect_err("400").kind,
+        ensure_http_status(400, None).expect_err("400").kind,
         ErrorKind::Transient(Some(300))
     ));
     assert!(matches!(
-        ensure_http_status(401).expect_err("401").kind,
+        ensure_http_status(401, None).expect_err("401").kind,
         ErrorKind::AccountInvalid
     ));
     assert!(matches!(
-        ensure_http_status(403).expect_err("403").kind,
+        ensure_http_status(403, None).expect_err("403").kind,
         ErrorKind::AccountInvalid
     ));
     assert!(matches!(
-        ensure_http_status(404).expect_err("404").kind,
-        ErrorKind::Offline
+        ensure_http_status(404, None).expect_err("404").kind,
+        ErrorKind::Permanent
     ));
     assert!(matches!(
-        ensure_http_status(429).expect_err("429").kind,
+        ensure_http_status(429, None).expect_err("429").kind,
         ErrorKind::RateLimited(None)
     ));
     assert!(matches!(
-        ensure_http_status(503).expect_err("503").kind,
+        ensure_http_status(429, Some(90)).expect_err("429").kind,
+        ErrorKind::RateLimited(Some(90))
+    ));
+    assert!(matches!(
+        ensure_http_status(451, None).expect_err("451").kind,
+        ErrorKind::Offline
+    ));
+    assert!(matches!(
+        ensure_http_status(503, None).expect_err("503").kind,
         ErrorKind::Transient(None)
     ));
-    let other = ensure_http_status(418).expect_err("418");
+    let other = ensure_http_status(418, None).expect_err("418");
     assert!(matches!(other.kind, ErrorKind::Permanent));
     assert_eq!(other.code, messages::HTTP_ERROR);
 }

@@ -132,7 +132,7 @@
   },
   "retries": {
     "label": "Reintentos por archivo",
-    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100)"
+    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100). Esperar a que pase un límite o un bloqueo de IP del alojamiento no cuenta."
   },
   "import_history": {
     "label": "Conservar historial de importación",
@@ -489,6 +489,19 @@
       "enabled": {
         "label": "Mostrar imágenes de portada",
         "description": "Activado por defecto. Mientras está desactivado, los detalles del resultado siguen visibles y solo las imágenes no se cargan, de modo que el indexador no sabe qué resultados están en pantalla."
+      }
+    },
+    "nzb_hand_over": {
+      "eyebrow": "NZB",
+      "title": "Entregar a un proveedor",
+      "description": "Un NZB puede entregarse a una cuenta cuyo proveedor acepte archivos NZB (como TorBox o Premiumize): desde el LinkGrabber antes de ponerlo en cola, o desde las descargas, por ejemplo cuando un paquete ha fallado. El proveedor descarga el NZB de Usenet por su cuenta; los archivos terminados vuelven al LinkGrabber como enlaces.",
+      "linkgrabber": {
+        "label": "Mostrar la entrega en el LinkGrabber",
+        "description": "Activado por defecto. El menú de cada fila NZB y la entrada de la barra de selección solo aparecen si tienes una cuenta en un proveedor que acepte archivos NZB (TorBox, Premiumize). Una importación ya entregada conserva su distintivo."
+      },
+      "downloads": {
+        "label": "Mostrar la entrega en las descargas",
+        "description": "Activado por defecto. La entrada del menú de un paquete que procede de un NZB aparece en cualquier estado del paquete, también fallido, pero solo si tienes una cuenta en un proveedor que acepte archivos NZB (TorBox, Premiumize). Un paquete ya entregado conserva su distintivo."
       }
     }
   },
@@ -945,5 +958,13 @@
       "updates": "Actualizaciones",
       "retention": "Retención"
     }
+  },
+  "auto_retry": {
+    "label": "Reintentar automáticamente las descargas fallidas",
+    "description": "Una descarga que falló por un límite, un bloqueo de IP, un servidor inaccesible o un archivo indicado como sin conexión vuelve a la cola tras un tiempo. Un enlace eliminado, una cuenta rechazada o una suma de comprobación errónea no.",
+    "interval_label": "Intervalo",
+    "interval_description": "Horas entre el fallo y el siguiente intento (1–24).",
+    "rounds_label": "Rondas por descarga",
+    "rounds_description": "Cuántas veces como máximo vuelve una descarga a la cola; 0 significa sin límite (0–100)."
   }
 }

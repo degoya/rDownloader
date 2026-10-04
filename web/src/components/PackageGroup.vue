@@ -6,6 +6,7 @@ import type { Category, Download, DownloadPackage, DownloadPriority, Postprocess
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
@@ -41,6 +42,13 @@ const props = defineProps<{
   controlBusy: 'pause' | 'resume' | null
   /** The view's "Show metadata" switch is off: the enricher chips stay stored, only unshown (RD-150-19). */
   hideMetadata?: boolean
+  /**
+   * Accounts the NZB behind this package can be handed to (RD-191-13); empty while the
+   * Downloads switch is off or no account takes NZB files.
+   */
+  remoteTargets?: NzbHandOverTarget[]
+  /** The provider the package's NZB was handed to, or `null`. */
+  handedOverTo?: string | null
 }>()
 const emit = defineEmits<{
   select: [id: string, selected: boolean]
@@ -63,6 +71,8 @@ const emit = defineEmits<{
   copyLinks: [id: string]
   pausePackage: [id: string]
   resumePackage: [id: string]
+  /** The NZB behind the package to that account's provider (RD-191-13). */
+  handOver: [id: string, accountId: string]
 }>()
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
 const dragTitle = computed(() => `${t('downloads.package.drag_title')} — ${t('common.a11y.reorder_keys')}`)
@@ -196,6 +206,21 @@ const showPassword = computed(() =>
  * labels they carried as `aria-label`s. The file rows below have worked this way since RD-106-12
  * — one dropdown, no loose icons — so the header now reads like its own children.
  */
+/**
+ * The accounts the package's NZB can go to, under a heading of their own (RD-191-13): offered in
+ * every state of the package, a failed one above all, whose articles the own servers lacked.
+ */
+const handOverActions = computed(() => props.package.nzb_import_id && props.remoteTargets?.length
+  ? [[
+      { type: 'label' as const, label: t('downloads.package.hand_over') },
+      ...props.remoteTargets.map(target => ({
+        label: target.label,
+        icon: 'i-lucide-cloud-upload',
+        description: t('downloads.package.hand_over_hint'),
+        onSelect: () => emit('handOver', props.package.id, target.accountId)
+      }))
+    ]]
+  : [])
 const actions = computed(() => [[
   {
     label: t('downloads.package.copy_path_aria'),
@@ -226,7 +251,7 @@ const actions = computed(() => [[
   ...(sourcePage.value
     ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : [])
-], [
+], ...handOverActions.value, [
   ...(usenet.value && props.package.nzb_import_id
     ? [{ label: t('downloads.package.segments_aria'), icon: 'i-lucide-layers', onSelect: () => { showSegments.value = !showSegments.value } }]
     : []),
@@ -290,11 +315,38 @@ function controlPackage(): void {
           <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
         </span>
         <UBadge v-if="postprocessing" color="primary" variant="subtle" size="sm" class="numeric shrink-0" :title="props.package.postprocess?.current ?? undefined">{{ stageBadge || t('downloads.postprocess.queue.pending') }}</UBadge>
-        <UBadge v-else-if="postprocessFailed" color="error" variant="subtle" size="sm" class="shrink-0">{{ extraction === 'failed' ? t('downloads.package.extract_failed') : t('downloads.package.postprocess_failed') }}</UBadge>
+        <!-- A failure is where the reader wants the reason, so the badge opens the steps that
+             carry it — the same panel as the menu's entry (RD-191-11). -->
+        <UButton
+          v-else-if="postprocessFailed"
+          color="error"
+          variant="subtle"
+          size="xs"
+          class="shrink-0"
+          :label="extraction === 'failed' ? t('downloads.package.extract_failed') : t('downloads.package.postprocess_failed')"
+          :title="t('downloads.package.postprocess_aria')"
+          :aria-expanded="showSteps"
+          data-testid="postprocess-failed"
+          @click="toggleSteps"
+        />
         <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
              stays on the badge as its accessible name (RD-109-30). -->
         <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
         <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
+        <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
+             leads to where the job can be watched. -->
+        <UButton
+          v-if="props.handedOverTo"
+          :to="{ name: 'remote-jobs' }"
+          icon="i-lucide-cloud"
+          color="info"
+          variant="subtle"
+          size="xs"
+          class="shrink-0"
+          :label="t('downloads.package.handed_over', { provider: props.handedOverTo })"
+          :title="t('downloads.package.handed_over_hint')"
+          data-testid="package-handed-over"
+        />
       </div>
       <span class="queue-cell-state numeric truncate text-xs text-muted" :title="t('downloads.package.finished_title', { finished, total: props.downloads.length })">
         {{ finished }}/{{ props.downloads.length }}
@@ -312,8 +364,9 @@ function controlPackage(): void {
       </span>
       <div class="queue-cell-meta min-w-0 items-center gap-1">
         <!-- The category stays editable after the download: changing it moves the package's
-             data into the new folder. The priority is history once everything is here. -->
-        <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36" :aria-label="t('downloads.package.category_aria')" />
+             data into the new folder. The priority is history once everything is here. The
+             select may shrink with a narrowed column (RD-191-11). -->
+        <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36 min-w-0" :aria-label="t('downloads.package.category_aria')" />
         <UDropdownMenu v-if="!props.complete" :items="priorityActions" :content="{ align: 'end' }">
           <UButton :icon="PRIORITY_ICONS[props.package.priority]" size="xs" color="neutral" variant="ghost" :aria-label="priorityLabel" :title="priorityLabel" />
         </UDropdownMenu>

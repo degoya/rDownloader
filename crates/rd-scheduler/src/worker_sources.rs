@@ -102,7 +102,10 @@ pub(super) async fn run(
                 continue;
             }
             Err(rd_http::TargetRefusal::Unresolved(error)) => {
-                let failure = transient("download.network_failed", error.to_string());
+                let failure = transient(
+                    "download.network_failed",
+                    rd_core::error_with_causes(&error),
+                );
                 note_failure(scheduler, file, source.position, &failure).await?;
                 continue;
             }

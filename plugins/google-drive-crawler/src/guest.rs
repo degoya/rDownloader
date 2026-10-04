@@ -23,7 +23,7 @@ use rdownloader::plugin::{
 use crate::{
     listing::{self, Entry},
     messages, target,
-    walk::{Limit, MAX_PAGES, Walk},
+    walk::{Absorb, Limit, MAX_PAGES, Walk},
 };
 
 const API: &str = "https://www.googleapis.com/drive/v3";
@@ -87,11 +87,8 @@ fn fetch(url: &str, parameters: &[RequestQuery]) -> Result<Vec<u8>, Failure> {
             }
             (429, _)
             | (_, "rateLimitExceeded" | "userRateLimitExceeded" | "dailyLimitExceeded") => {
-                let seconds = response
-                    .headers
-                    .iter()
-                    .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-                    .and_then(|(_, value)| value.trim().parse::<u64>().ok());
+                // The shared reader (RD-191-07): clamped to a day, `0` and a date ignored.
+                let seconds = plugin_common::retry_after(&response.headers);
                 refuse(messages::RATE_LIMITED, FailureKind::RateLimited(seconds))
             }
             (500..=599, _) => refuse(messages::FOLDER_UNREACHABLE, FailureKind::Transient(None)),
@@ -177,7 +174,7 @@ impl Guest for Component {
             return Err(refuse(messages::NOT_A_FOLDER, FailureKind::Unsupported));
         };
         let root = folder_name(&claimed.id)?;
-        let mut walk = Walk::start(&claimed.id);
+        let mut walk = Walk::start(claimed.id.clone());
         while let Some(mut pending) = walk.next_folder() {
             if pending.depth == 0 {
                 pending.path = root.clone();

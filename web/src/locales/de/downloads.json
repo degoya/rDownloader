@@ -137,7 +137,11 @@
     "extract_failed": "Entpacken fehlgeschlagen",
     "actions_aria": "Paketaktionen",
     "priority_value": "Priorität: {priority}",
-    "storage_aria": "Konflikte und Duplikate"
+    "storage_aria": "Konflikte und Duplikate",
+    "hand_over": "An Anbieter übergeben",
+    "hand_over_hint": "Der Anbieter lädt die NZB dieses Pakets selbst aus dem Usenet; die fertigen Dateien kommen als Links in den LinkGrabber zurück. Das Paket bleibt hier.",
+    "handed_over": "An {provider} übergeben",
+    "handed_over_hint": "Zu den entfernten Aufträgen"
   },
   "transfer": {
     "actions_aria": "Dateiaktionen",
@@ -179,7 +183,8 @@
         "internal": "Zeigt auf deinen eigenen Rechner oder in ein Netz, das diese Quellenliste nicht erreichen darf."
       },
       "unsupported_hint": "Quellen, deren Protokoll dieser Dienst nicht abrufen kann, werden angezeigt, aber nicht genutzt."
-    }
+    },
+    "next_attempt": "Nächster Versuch um {time}"
   },
   "summary": {
     "eyebrow": "Warteschlangen-Status",

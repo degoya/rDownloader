@@ -137,7 +137,11 @@
     "extract_failed": "Extraction failed",
     "actions_aria": "Package actions",
     "priority_value": "Priority: {priority}",
-    "storage_aria": "Collisions and duplicates"
+    "storage_aria": "Collisions and duplicates",
+    "hand_over": "Hand to provider",
+    "hand_over_hint": "The provider fetches this package's NZB from Usenet itself; the finished files come back into the LinkGrabber as links. The package stays here.",
+    "handed_over": "Handed to {provider}",
+    "handed_over_hint": "Open remote jobs"
   },
   "transfer": {
     "actions_aria": "File actions",
@@ -179,7 +183,8 @@
         "internal": "Points at your own machine or into a network this source list may not reach."
       },
       "unsupported_hint": "Sources whose protocol this service cannot fetch are shown but not used."
-    }
+    },
+    "next_attempt": "Next attempt at {time}"
   },
   "summary": {
     "eyebrow": "Queue status",

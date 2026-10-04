@@ -1,6 +1,8 @@
 //! What one answer about one key means, in every shape TorBox gives it.
 
-use super::{Outcome, RATE_LIMIT_SECONDS, RETRY_SECONDS, read, retry_after_seconds};
+use plugin_common::retry_after_seconds;
+
+use super::{Outcome, RATE_LIMIT_SECONDS, RETRY_SECONDS, read};
 
 fn body(text: &str) -> Vec<u8> {
     text.as_bytes().to_vec()
@@ -85,4 +87,17 @@ fn a_date_shaped_retry_after_is_ignored_rather_than_guessed_at() {
         None
     );
     assert_eq!(retry_after_seconds(None), None);
+}
+
+/// The wait the guest hands `read` is the shared reader's (RD-191-07): a `0` is no wait, so a
+/// rate limit falls back on this plugin's own default instead of asking again at once, and a
+/// year is the host's one-day ceiling.
+#[test]
+fn a_zero_or_absurd_retry_after_is_not_taken_at_its_word() {
+    assert_eq!(retry_after_seconds(Some("0")), None);
+    assert_eq!(
+        read(429, retry_after_seconds(Some("0")), b"{}"),
+        Outcome::Retry(RATE_LIMIT_SECONDS)
+    );
+    assert_eq!(retry_after_seconds(Some("31536000")), Some(86_400));
 }

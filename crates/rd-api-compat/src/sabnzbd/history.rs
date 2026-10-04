@@ -1,7 +1,9 @@
 //! The `history` mode: packages that reached an end state, and removing one.
 
+use std::collections::HashMap;
+
 use axum::response::Response;
-use rd_core::{DownloadFile, DownloadPackage, PackageState};
+use rd_core::{DownloadPackage, PackageState};
 
 use super::{SabQuery, error, json, map, ok};
 use crate::AppState;
@@ -24,6 +26,12 @@ async fn list(state: &AppState) -> Response {
     let Ok(categories) = state.database.list_categories().await else {
         return error("history unavailable");
     };
+    // Committed bytes per package in one pass over the downloads (audit 1.9.1, API-03), not one
+    // pass per finished package.
+    let mut committed: HashMap<rd_core::PackageId, u64> = HashMap::new();
+    for file in &downloads {
+        *committed.entry(file.package_id).or_default() += file.committed_bytes.get();
+    }
     let slots: Vec<serde_json::Value> = packages
         .iter()
         .filter(|package| map::is_history(package))
@@ -33,7 +41,7 @@ async fn list(state: &AppState) -> Response {
                 index,
                 package,
                 map::category(package, &categories),
-                &downloads,
+                committed.get(&package.id).copied().unwrap_or_default(),
             )
         })
         .collect();
@@ -53,17 +61,7 @@ async fn list(state: &AppState) -> Response {
     }))
 }
 
-fn slot(
-    index: usize,
-    package: &DownloadPackage,
-    category: &str,
-    downloads: &[DownloadFile],
-) -> serde_json::Value {
-    let bytes: u64 = downloads
-        .iter()
-        .filter(|file| file.package_id == package.id)
-        .map(|file| file.committed_bytes.get())
-        .sum();
+fn slot(index: usize, package: &DownloadPackage, category: &str, bytes: u64) -> serde_json::Value {
     let failed = package.state == PackageState::Failed;
     // `storage` is the field an automation client reads to find the finished files; without
     // it an import silently does nothing. It is the package destination, which is where the

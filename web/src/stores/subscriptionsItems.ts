@@ -17,7 +17,7 @@ export interface ItemQuery {
 }
 
 /** Why a change reached the hit lists, as `noteChange` needs it (RD-110-30). */
-export interface ItemsChange {
+interface ItemsChange {
   /** The stream said events were lost, so every wanted list may be out of date. */
   lost: boolean
   /** The subscription whose finished poll wrote rows, if any. */

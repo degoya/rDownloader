@@ -450,6 +450,29 @@ async fn a_download_link_on_a_foreign_host_is_refused() {
     );
 }
 
+/// A 403 on the account-less flow — Rapidgator's bot wall answers with one — is a plain HTTP
+/// error: no account was sent, so it cannot be an account the person has to fix (RA-PLG-01).
+#[tokio::test]
+async fn a_refusal_without_an_account_is_not_a_refused_account() {
+    for status in [401_u16, 403] {
+        let mut page = html(PAGE_URL, "<html><body>Access denied</body></html>");
+        page.status = status;
+        let resolver = RapidgatorResolver::new(MockHost::free(vec![page], Some("unused")));
+
+        let failure = resolver
+            .resolve(free_request())
+            .await
+            .expect_err("a refused page fails");
+
+        assert_eq!(failure.category, FailureKind::Permanent, "{status}");
+        assert_eq!(failure.code.as_deref(), Some("rapidgator.http_error"));
+        assert_eq!(
+            failure.params.get("status").map(String::as_str),
+            Some(status.to_string().as_str())
+        );
+    }
+}
+
 /// The free path must be reachable without any account at all — the whole point of the
 /// `requires_account = false` metadata the host dispatches on.
 #[test]

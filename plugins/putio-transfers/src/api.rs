@@ -34,6 +34,7 @@
 //! keeps is that nobody has to guess, and that nothing at the provider is deleted to express a
 //! choice.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 use crate::messages;
@@ -328,26 +329,34 @@ fn classify(status: u16, reset_in_seconds: Option<u64>, word: Option<&str>) -> A
         Some("INVALID_TOKEN" | "INVALID_GRANT" | "UNAUTHORIZED")
     );
     match status {
-        401 => failure(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
         403 if token_refused => failure(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
         403 => failure(ErrorKind::Unsupported, messages::NOT_PERMITTED),
-        404 | 410 => failure(ErrorKind::Offline, messages::TRANSFER_GONE),
-        429 => failure(
-            ErrorKind::RateLimited(Some(reset_in_seconds.unwrap_or(RATE_LIMIT_SECONDS))),
-            messages::RATE_LIMITED,
-        ),
-        500..=599 => failure(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
-            messages::SERVER_ERROR,
-        ),
         status if (200..=299).contains(&status) => {
             failure(ErrorKind::Permanent, messages::API_ERROR)
         }
-        other => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            params: Vec::new(),
+        // Everything else is the mapping every plugin shares (RD-191-07); what stays here is
+        // this provider's words and its defaults.
+        _ => match plugin_common::http_status(status, reset_in_seconds) {
+            Ok(()) => failure(ErrorKind::Permanent, messages::API_ERROR),
+            Err(HttpRefusal::Unauthorized) => {
+                failure(ErrorKind::AccountInvalid, messages::AUTH_INVALID)
+            }
+            Err(HttpRefusal::Gone) => failure(ErrorKind::Permanent, messages::TRANSFER_GONE),
+            Err(HttpRefusal::Unavailable) => failure(ErrorKind::Offline, messages::TRANSFER_GONE),
+            Err(HttpRefusal::RateLimited(wait)) => failure(
+                ErrorKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
+                messages::RATE_LIMITED,
+            ),
+            Err(HttpRefusal::ServerError(wait)) => failure(
+                ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
+                messages::SERVER_ERROR,
+            ),
+            Err(HttpRefusal::Other(other)) => ApiFailure {
+                kind: ErrorKind::Permanent,
+                code: messages::HTTP_ERROR.0,
+                message: messages::http_error(other),
+                params: Vec::new(),
+            },
         },
     }
 }

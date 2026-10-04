@@ -15,13 +15,11 @@
 
 use plugin_common::{
     CaptchaChallenge, Failure, FailureKind, HttpRequest, HttpResponse, PluginHost, ResolveInput,
-    Resolved, WidgetChallenge,
+    Resolved, WidgetChallenge, file_name_from_disposition,
 };
 use url::Url;
 
-use super::api::{
-    coded, ensure_http_status, file_name_from_disposition, invalid_url, is_html, range_probe,
-};
+use super::api::{coded, ensure_http_status, invalid_url, is_html, range_probe};
 use crate::{messages, page};
 
 /// Runs the account-less XFS free flow and turns its result into a transfer.

@@ -6,7 +6,7 @@
 //! reach the guest, which is where a limit has to sit if it is to shape what is pulled off
 //! the wire rather than only what is written to disk.
 
-use std::{net::IpAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 
 use rd_core::{Failure, FailureKind};
 use tokio::{
@@ -32,13 +32,18 @@ enum Stream {
 }
 
 impl HostConnection {
+    /// Connects to exactly the addresses [`resolve_target`] checked, never to a name.
+    ///
+    /// A name resolved twice — once to be checked, once to be dialled — answers twice, and a
+    /// server that controls it answers the second time with `127.0.0.1` (DNS rebinding,
+    /// RD-191-06 PLUG-02). `host` is only the TLS server name.
     pub(crate) async fn open(
+        addresses: &[SocketAddr],
         host: &str,
-        port: u16,
         tls: bool,
         config: Arc<rustls::ClientConfig>,
     ) -> Result<Self, Failure> {
-        let stream = tokio::time::timeout(SOCKET_TIMEOUT, TcpStream::connect((host, port)))
+        let stream = tokio::time::timeout(SOCKET_TIMEOUT, TcpStream::connect(addresses))
             .await
             .map_err(|_| transient("plugin.net_timeout", "Connecting to the server timed out"))?
             .map_err(|error| {
@@ -130,20 +135,51 @@ where
         })
 }
 
-/// Whether a resolved address is one no transfer protocol has a reason to reach.
+/// Resolves a connection target once and refuses addresses no transfer protocol has a reason to
+/// reach.
 ///
-/// Loopback is where the service's own API listens; link-local carries the cloud metadata
-/// endpoint. A signed plugin naming either in its manifest would still be asking for
-/// something it cannot legitimately need, so both are refused outside development mode.
-/// Private LAN ranges are *not* refused — a file server on the local network is the ordinary
-/// case for a transfer backend.
-pub(crate) fn is_local_only(address: IpAddr) -> bool {
-    match address {
-        IpAddr::V4(v4) => v4.is_loopback() || v4.is_link_local() || v4.is_unspecified(),
-        IpAddr::V6(v6) => {
-            v6.is_loopback() || v6.is_unspecified() || (v6.segments()[0] & 0xffc0) == 0xfe80
-        }
+/// `lookup` is called once — `FnOnce` says so — and what it answered is what
+/// [`HostConnection::open`] dials, so the checked addresses and the connected one are the same
+/// (PLUG-02). Loopback is where the service's own API listens and link-local carries the cloud
+/// metadata endpoint; both are refused outside development mode (`allow_local`), as is
+/// everything else [`rd_core::address_scope`] calls local, an IPv4 address inside an IPv6 one
+/// (`::ffff:127.0.0.1`) included. Private LAN ranges are *not* refused — a file server on the
+/// local network is the ordinary case for a transfer backend.
+pub(crate) async fn resolve_target<F, Fut>(
+    host: &str,
+    port: u16,
+    allow_local: bool,
+    lookup: F,
+) -> Result<Vec<SocketAddr>, Failure>
+where
+    F: FnOnce(String) -> Fut,
+    Fut: std::future::Future<Output = std::io::Result<Vec<SocketAddr>>>,
+{
+    let addresses = lookup(format!("{host}:{port}")).await.map_err(|error| {
+        transient(
+            "plugin.net_resolve_failed",
+            format!("Could not resolve the server name: {error}"),
+        )
+        .with_param("error", &error)
+    })?;
+    if addresses.is_empty() {
+        return Err(transient(
+            "plugin.net_resolve_failed",
+            "Could not resolve the server name: no address",
+        )
+        .with_param("error", "no address"));
     }
+    if !allow_local
+        && addresses
+            .iter()
+            .any(|address| rd_core::address_scope(address.ip()) == rd_core::AddressScope::Local)
+    {
+        return Err(permanent(
+            "plugin.net_local_target",
+            "The connection target resolves to a local address",
+        ));
+    }
+    Ok(addresses)
 }
 
 /// Whether one more connection may be opened for this invocation.
@@ -169,26 +205,99 @@ fn permanent(code: &'static str, message: impl Into<String>) -> Failure {
 mod tests {
     use super::*;
 
-    #[test]
-    fn loopback_and_link_local_are_refused_but_the_lan_is_not() {
+    fn answer(
+        addresses: &[&str],
+    ) -> impl FnOnce(String) -> std::future::Ready<std::io::Result<Vec<SocketAddr>>> {
+        let addresses = addresses
+            .iter()
+            .map(|address| address.parse().expect("socket address"))
+            .collect::<Vec<SocketAddr>>();
+        move |_| std::future::ready(Ok(addresses))
+    }
+
+    #[tokio::test]
+    async fn loopback_and_link_local_are_refused_but_the_lan_is_not() {
         for local in [
-            "127.0.0.1",
-            "127.13.0.9",
-            "0.0.0.0",
-            "169.254.169.254",
-            "::1",
-            "fe80::1",
+            "127.0.0.1:21",
+            "127.13.0.9:21",
+            "0.0.0.0:21",
+            "169.254.169.254:21",
+            "[::1]:21",
+            "[fe80::1]:21",
+            // An IPv4 loopback inside an IPv6 address is still loopback (PLUG-02).
+            "[::ffff:127.0.0.1]:21",
+            "[::ffff:169.254.169.254]:21",
         ] {
-            assert!(
-                is_local_only(local.parse().expect("address")),
-                "{local} must not be reachable"
+            let refused = resolve_target("files.example", 21, false, answer(&[local]))
+                .await
+                .expect_err("a local address is refused");
+            assert_eq!(
+                refused.code.as_deref(),
+                Some("plugin.net_local_target"),
+                "{local}"
             );
         }
-        for reachable in ["192.168.1.10", "10.0.0.5", "172.16.4.2", "93.184.216.34"] {
+        for reachable in [
+            "192.168.1.10:21",
+            "10.0.0.5:21",
+            "172.16.4.2:21",
+            "93.184.216.34:21",
+        ] {
             assert!(
-                !is_local_only(reachable.parse().expect("address")),
+                resolve_target("files.example", 21, false, answer(&[reachable]))
+                    .await
+                    .is_ok(),
                 "{reachable} is an ordinary transfer target"
             );
         }
+        // One local answer among public ones is enough to refuse the name.
+        assert!(
+            resolve_target(
+                "files.example",
+                21,
+                false,
+                answer(&["93.184.216.34:21", "127.0.0.1:21"])
+            )
+            .await
+            .is_err()
+        );
+        // Development mode reaches the local service on purpose.
+        assert!(
+            resolve_target("localhost", 21, true, answer(&["127.0.0.1:21"]))
+                .await
+                .is_ok()
+        );
+    }
+
+    /// PLUG-02: a resolver that answers a public address first and loopback afterwards — what
+    /// a rebinding name does — is asked once, and its first answer is what gets dialled.
+    #[tokio::test]
+    async fn a_rebinding_name_is_resolved_once_and_the_checked_address_is_kept() {
+        let asked = std::sync::atomic::AtomicUsize::new(0);
+        let rebinding = |_target: String| {
+            let call = asked.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let address: SocketAddr = if call == 0 {
+                "93.184.216.34:21".parse().expect("public")
+            } else {
+                "127.0.0.1:21".parse().expect("loopback")
+            };
+            std::future::ready(Ok(vec![address]))
+        };
+        let addresses = resolve_target("rebind.example", 21, false, rebinding)
+            .await
+            .expect("the first answer is public");
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(
+            addresses,
+            vec!["93.184.216.34:21".parse::<SocketAddr>().expect("public")]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_name_without_an_address_is_a_transient_resolve_failure() {
+        let failure = resolve_target("nowhere.example", 21, false, answer(&[]))
+            .await
+            .expect_err("no address");
+        assert_eq!(failure.code.as_deref(), Some("plugin.net_resolve_failed"));
     }
 }

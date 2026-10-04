@@ -304,3 +304,85 @@ async fn a_deleted_torrent_job_leaves_the_engine_session() {
     );
     assert!(common::persisted_torrents(directory.path()).is_empty());
 }
+
+/// A token holding `api:intake`, `api:queue` and `api:read` is all the adapter needs -- not
+/// `api:*`, which also opens settings, stored credentials and administration (audit 1.9.1,
+/// API-04) -- and its use shows in the token list and the audit log like any other bearer's.
+#[tokio::test]
+async fn the_three_working_scopes_are_enough_and_the_key_s_use_is_recorded() {
+    use sha2::Digest;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let narrow = |bearer: &'static str, scopes: &[&str]| {
+        let database = harness.database.clone();
+        let scopes: Vec<String> = scopes.iter().map(|scope| (*scope).to_owned()).collect();
+        async move {
+            database
+                .create_capture_token(
+                    rd_core::CaptureTokenId::new(),
+                    "sonarr".to_owned(),
+                    hex::encode(sha2::Sha256::digest(bearer.as_bytes())),
+                    scopes,
+                )
+                .await
+                .expect("token")
+        }
+    };
+    let working = narrow(
+        "test-sabnzbd-working-key",
+        &[
+            rd_core::API_INTAKE_SCOPE,
+            rd_core::API_QUEUE_SCOPE,
+            rd_core::API_READ_SCOPE,
+        ],
+    )
+    .await;
+    narrow("test-sabnzbd-intake-only-key", &[rd_core::API_INTAKE_SCOPE]).await;
+
+    let (status, body) = sab(
+        &harness.router,
+        "mode=queue&apikey=test-sabnzbd-working-key&output=json",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["queue"].is_object(), "{body}");
+
+    // One scope short is refused like a wrong key.
+    let (_, body) = sab(
+        &harness.router,
+        "mode=queue&apikey=test-sabnzbd-intake-only-key&output=json",
+    )
+    .await;
+    assert_eq!(body["error"], "API Key Incorrect", "{body}");
+
+    // Both records are written off the request path.
+    let mut used = false;
+    let mut audited = false;
+    for _ in 0..100 {
+        used = harness
+            .database
+            .list_capture_tokens(&[rd_core::API_INTAKE_SCOPE])
+            .await
+            .expect("tokens")
+            .iter()
+            .any(|token| token.id == working.id && token.last_used_at.is_some());
+        audited = !harness
+            .database
+            .query_audit_records(&rd_db::AuditQuery {
+                action: Some(rd_core::AuditAction::TokenUsed),
+                target_id: Some(working.id.to_string()),
+                limit: 10,
+                ..rd_db::AuditQuery::default()
+            })
+            .await
+            .expect("audit")
+            .is_empty();
+        if used && audited {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(used, "the key's last use was not recorded");
+    assert!(audited, "the key's use was not audited");
+}

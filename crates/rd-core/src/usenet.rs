@@ -38,8 +38,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
-    ByteCount, CategoryId, ImportMode, NzbFileId, NzbImportId, NzbSegmentId, ProxyProfileId,
-    UsenetServerId,
+    AccountId, ByteCount, CategoryId, ImportMode, NzbFileId, NzbImportId, NzbSegmentId,
+    ProxyProfileId, RemoteJobId, UsenetServerId,
 };
 
 /// Redaction-safe NNTP endpoint configuration.
@@ -231,5 +231,19 @@ pub struct NzbImport {
     /// contract — leaving every client to invent a fallback position for a value that is always
     /// there.
     pub position: i64,
+    /// The remote job this NZB was handed to (RD-191-13), while that job's row exists.
+    ///
+    /// The import stays in the LinkGrabber after the hand-over, marked, so it is not queued a
+    /// second time by accident; removing the job from the remote-job list clears the mark.
+    #[serde(default)]
+    pub handed_over: Option<NzbHandOver>,
     pub created_at: DateTime<Utc>,
+}
+
+/// Where an NZB import went when it was handed to a provider instead of the queue.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+pub struct NzbHandOver {
+    pub remote_job_id: RemoteJobId,
+    /// The account whose provider runs the job; the LinkGrabber names the provider by it.
+    pub account_id: AccountId,
 }

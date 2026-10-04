@@ -217,20 +217,22 @@ fn map_cache_check(urls: &[String], response: &CacheCheckResponse) -> Vec<LinkCh
         .collect()
 }
 
+/// Maps a status no document explains through `plugin_common::http_status`, the one mapping
+/// every plugin shares (RD-191-07), reported under this plugin's one HTTP code with the status
+/// as a parameter. A `429` or a `5xx` carries the response's `Retry-After`.
 fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    let kind = match response.status {
-        200..=299 => return Ok(()),
-        401 | 403 => FailureKind::AccountInvalid,
-        429 => FailureKind::RateLimited(None),
-        500..=599 => FailureKind::Transient(None),
-        _ => FailureKind::Permanent,
-    };
-    Err(Failure::coded(
-        kind,
-        messages::HTTP_ERROR,
-        messages::http_error(response.status),
+    plugin_common::http_status(
+        response.status,
+        plugin_common::retry_after(&response.headers),
     )
-    .with_param("status", response.status.to_string()))
+    .map_err(|refusal| {
+        Failure::coded(
+            refusal.kind(),
+            messages::HTTP_ERROR,
+            messages::http_error(response.status),
+        )
+        .with_param("status", response.status.to_string())
+    })
 }
 
 fn ensure_success(status: &str, code: Option<&str>, message: Option<&str>) -> Result<(), Failure> {
@@ -684,5 +686,43 @@ mod tests {
             statuses,
             [LinkStatus::Cached, LinkStatus::Online, LinkStatus::Unknown]
         );
+    }
+
+    fn answer(status: u16, headers: &[(&str, &str)]) -> HttpResponse {
+        HttpResponse {
+            status,
+            final_url: "https://www.premiumize.me/api/x".to_owned(),
+            headers: headers
+                .iter()
+                .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+                .collect(),
+            body: Vec::new(),
+        }
+    }
+
+    /// The shared mapping (RD-191-07): a `429` carries the provider's `Retry-After`, a `410` is
+    /// final (owner, 2026-10-04), a `451` offline and retried, and everything travels under this
+    /// plugin's one HTTP code with its status.
+    #[test]
+    fn a_bare_status_is_classified_by_the_shared_mapping() {
+        assert!(ensure_http_status(&answer(200, &[])).is_ok());
+        let limited = ensure_http_status(&answer(429, &[("Retry-After", "40")])).expect_err("429");
+        assert_eq!(limited.kind, FailureKind::RateLimited(Some(40)));
+        assert_eq!(limited.code.as_deref(), Some(messages::HTTP_ERROR));
+        assert_eq!(
+            ensure_http_status(&answer(410, &[])).expect_err("410").kind,
+            FailureKind::Permanent
+        );
+        assert_eq!(
+            ensure_http_status(&answer(451, &[])).expect_err("451").kind,
+            FailureKind::Offline
+        );
+        assert_eq!(
+            ensure_http_status(&answer(403, &[])).expect_err("403").kind,
+            FailureKind::AccountInvalid
+        );
+        let odd = ensure_http_status(&answer(418, &[])).expect_err("418");
+        assert_eq!(odd.kind, FailureKind::Permanent);
+        assert_eq!(odd.params, vec![("status".to_owned(), "418".to_owned())]);
     }
 }

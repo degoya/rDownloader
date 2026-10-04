@@ -1,0 +1,129 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import { QUEUE_COLUMN_LIMITS, QUEUE_COLUMNS, type QueueColumn } from '@/composables/useQueueColumns'
+
+/**
+ * The column header above a list on the queue grid (RD-191-11).
+ *
+ * It is one more `.queue-row` with the same nine named cells, so its labels sit over the cells
+ * they name at every tier and a column the tier hides takes its label with it. The start edge
+ * of each data column carries a resize handle; Nuxt UI has none for a grid that is not a
+ * `UTable`, so the handle is a small element of its own with the separator semantics a screen
+ * reader and a keyboard need: the arrow keys move the edge (left widens, as a drag to the left
+ * does), Shift moves it further, Enter and a double click put the column back. The widths
+ * themselves belong to `useQueueColumns`; this only reports what was asked for.
+ */
+const props = defineProps<{
+  widths: Record<QueueColumn, number>
+  /** What the metadata cell holds differs per list; the other labels are the same in both. */
+  metaLabel: string
+  /** The list below scrolls inside its own viewport; reserve the same scrollbar gutter. */
+  gutter?: boolean
+  /** Any column off its default; enables "reset all". */
+  customized?: boolean
+}>()
+
+const emit = defineEmits<{
+  resize: [column: QueueColumn, width: number]
+  reset: [column: QueueColumn]
+  resetAll: []
+}>()
+
+const { t } = useI18n()
+
+const labels = computed<Record<'name' | QueueColumn, string>>(() => ({
+  name: t('common.queue_columns.name'),
+  state: t('common.queue_columns.state'),
+  progress: t('common.queue_columns.progress'),
+  size: t('common.queue_columns.size'),
+  meta: props.metaLabel
+}))
+
+const STEP = 8
+const BIG_STEP = 32
+
+let drag: { column: QueueColumn, pointerId: number, startX: number, startWidth: number } | null = null
+
+/**
+ * What the column is drawn at. The grid may hold a widened column below its stored width to
+ * keep the name readable, so a drag starts from the edge the viewer sees, not from the figure.
+ */
+function shownWidth(column: QueueColumn, handle: HTMLElement): number {
+  const width = handle.parentElement?.getBoundingClientRect().width ?? 0
+  return width > 0 ? Math.round(width) : props.widths[column]
+}
+
+function onPointerDown(column: QueueColumn, event: PointerEvent): void {
+  if (event.button !== 0) return
+  const handle = event.currentTarget as HTMLElement
+  handle.setPointerCapture?.(event.pointerId)
+  drag = { column, pointerId: event.pointerId, startX: event.clientX, startWidth: shownWidth(column, handle) }
+  event.preventDefault()
+}
+
+function onPointerMove(event: PointerEvent): void {
+  if (!drag || event.pointerId !== drag.pointerId) return
+  emit('resize', drag.column, drag.startWidth + drag.startX - event.clientX)
+}
+
+function onPointerEnd(event: PointerEvent): void {
+  if (!drag || event.pointerId !== drag.pointerId) return
+  ;(event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId)
+  drag = null
+}
+
+function onKeydown(column: QueueColumn, event: KeyboardEvent): void {
+  const handle = event.currentTarget as HTMLElement
+  const step = event.shiftKey ? BIG_STEP : STEP
+  if (event.key === 'ArrowLeft') emit('resize', column, shownWidth(column, handle) + step)
+  else if (event.key === 'ArrowRight') emit('resize', column, shownWidth(column, handle) - step)
+  else if (event.key === 'Enter') emit('reset', column)
+  else return
+  event.preventDefault()
+}
+
+const menu = computed(() => [[
+  { label: t('common.queue_columns.reset_all'), icon: 'i-lucide-rotate-ccw', disabled: !props.customized, onSelect: () => emit('resetAll') }
+]])
+</script>
+
+<template>
+  <div class="queue-head" :class="props.gutter ? 'overflow-hidden [scrollbar-gutter:stable]' : ''" role="group" :aria-label="t('common.queue_columns.aria')" data-testid="queue-column-header">
+    <div class="queue-row border-x border-transparent px-2 text-xs font-medium text-muted">
+      <span class="queue-cell-handle" />
+      <span class="queue-cell-select" />
+      <span class="queue-cell-expand" />
+      <span class="queue-cell-name truncate">{{ labels.name }}</span>
+      <div v-for="column in QUEUE_COLUMNS" :key="column" class="relative min-w-0 items-center" :class="[`queue-cell-${column}`, column === 'size' ? 'text-right' : '']">
+        <span class="block truncate">{{ labels[column] }}</span>
+        <div
+          role="separator"
+          tabindex="0"
+          aria-orientation="vertical"
+          :aria-valuenow="props.widths[column]"
+          :aria-valuemin="QUEUE_COLUMN_LIMITS[column].min"
+          :aria-valuemax="QUEUE_COLUMN_LIMITS[column].max"
+          :aria-label="t('common.queue_columns.resize', { column: labels[column] })"
+          :title="t('common.queue_columns.resize_hint')"
+          :data-column="column"
+          class="group/edge absolute inset-y-0 -left-2 z-10 flex w-2 cursor-col-resize touch-none justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          @pointerdown="onPointerDown(column, $event)"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerEnd"
+          @pointercancel="onPointerEnd"
+          @dblclick="emit('reset', column)"
+          @keydown="onKeydown(column, $event)"
+        >
+          <span class="h-full w-px bg-accented transition group-hover/edge:bg-primary group-focus-visible/edge:bg-primary" />
+        </div>
+      </div>
+      <div class="queue-cell-actions flex items-center justify-end">
+        <UDropdownMenu :items="menu" :content="{ align: 'end' }">
+          <UButton icon="i-lucide-columns-3" size="xs" color="neutral" variant="ghost" :aria-label="t('common.queue_columns.menu')" :title="t('common.queue_columns.menu')" data-testid="queue-columns-menu" />
+        </UDropdownMenu>
+      </div>
+    </div>
+  </div>
+</template>

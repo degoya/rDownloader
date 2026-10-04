@@ -16,8 +16,8 @@ import { filterRows, hideHosters, mirrorRows, type MirrorGroup } from '@/utils/m
  * because only a flat sequence can be windowed — and a row's key has to survive the window
  * moving past it, or the focus and the selection do not.
  */
-export interface GrabberPackageRow extends VirtualRow { kind: 'package', entry: CollectorEntry }
-export interface GrabberCandidateRow extends VirtualRow {
+interface GrabberPackageRow extends VirtualRow { kind: 'package', entry: CollectorEntry }
+interface GrabberCandidateRow extends VirtualRow {
   kind: 'candidate'
   entry: CollectorEntry
   candidate: LinkCandidate
@@ -26,8 +26,8 @@ export interface GrabberCandidateRow extends VirtualRow {
   /** Set when this row is one of a group's other mirrors. */
   member?: boolean
 }
-export interface GrabberNzbRow extends VirtualRow { kind: 'nzb', entry: NzbEntry }
-export type GrabberRow = GrabberPackageRow | GrabberCandidateRow | GrabberNzbRow
+interface GrabberNzbRow extends VirtualRow { kind: 'nzb', entry: NzbEntry }
+type GrabberRow = GrabberPackageRow | GrabberCandidateRow | GrabberNzbRow
 
 /** Starting estimates only; the list measures what the rows really are once they are drawn. */
 const PACKAGE_ROW_SIZE = 48

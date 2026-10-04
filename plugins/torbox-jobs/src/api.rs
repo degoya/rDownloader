@@ -31,6 +31,7 @@
 //!   generous rather than eager, because the polling shares the account's budget with the
 //!   resolver minting this very job's addresses.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 use crate::{messages, source::Kind};
@@ -657,32 +658,34 @@ pub fn failure_from(
     None
 }
 
-/// Maps an HTTP status no `error` word explains.
+/// Maps an HTTP status no `error` word explains: the mapping every plugin shares (RD-191-07),
+/// in this plugin's words and with its defaults. A `404`/`410` is the job gone for good; a
+/// legal block (`451`) is `Offline` there and retried, still worded `REQUEST_REFUSED` like the
+/// words that say TorBox refused the request itself (RA-PLG-04).
 ///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 => Err(plain(ErrorKind::Offline, messages::JOB_GONE)),
-        429 => Err(plain(
-            ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::JOB_GONE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::REQUEST_REFUSED),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
             messages::RATE_LIMITED,
-        )),
-        451 => Err(plain(ErrorKind::Permanent, messages::REQUEST_REFUSED)),
-        500..=599 => Err(plain(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
+        ),
+        HttpRefusal::ServerError(wait) => plain(
+            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
             messages::SERVER_ERROR,
-        )),
-        other => Err(ApiFailure {
+        ),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR.0,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 // --- Cache check (RD-130-11) ----------------------------------------------------------
@@ -764,13 +767,6 @@ fn cached_size(value: &serde_json::Value) -> Option<u64> {
     }
     let size = value.as_f64()?;
     (size.is_finite() && size >= 0.0).then_some(size as u64)
-}
-
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
 }
 
 #[cfg(test)]

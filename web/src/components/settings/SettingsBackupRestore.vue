@@ -6,10 +6,11 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { SettingsBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
+import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsFullBackupCard from '@/components/settings/SettingsFullBackupCard.vue'
 import SettingsFullRestoreCard from '@/components/settings/SettingsFullRestoreCard.vue'
-import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
+import { downloadJson } from '@/utils/jsonFile'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -20,7 +21,6 @@ const exportPassphrase = ref('')
 const exportConfirmation = ref('')
 const exporting = ref(false)
 const exportError = ref<string | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFileName = ref<string | null>(null)
 const importBundle = ref<SettingsBundle | null>(null)
 const importPassphrase = ref('')
@@ -65,36 +65,32 @@ async function downloadBackup(): Promise<void> {
   })
 }
 
-function chooseFile(): void {
-  openFilePicker(fileInput.value)
-}
+/** Chosen and checked here, restored only from the form below — a passphrase may still be due. */
+const jsonImport = useJsonImport<SettingsBundle>({
+  check: (parsed) => {
+    if (!isRecord(parsed) || parsed.format !== 'rdownloader-settings-bundle') {
+      return new JsonRefusal(t('system.backup.import.invalid_file'))
+    }
+    if (parsed.version !== 1) {
+      return new JsonRefusal(t('system.backup.import.unsupported_version', { version: String(parsed.version) }))
+    }
+    return isSettingsBundle(parsed) ? parsed : new JsonRefusal(t('system.backup.import.invalid_file'))
+  },
+  unreadable: () => t('system.backup.import.invalid_file'),
+  refuse: (message) => { importError.value = message },
+  take: (bundle, file) => {
+    selectedFileName.value = file.name
+    importBundle.value = bundle
+  }
+})
+const { fileInput, choose: chooseFile } = jsonImport
 
 async function selectFile(event: Event): Promise<void> {
   importError.value = null
   importBundle.value = null
   selectedFileName.value = null
   importPassphrase.value = ''
-  const file = chosenFile(event)
-  if (!file) return
-  try {
-    const parsed: unknown = JSON.parse(await file.text())
-    if (!isRecord(parsed) || parsed.format !== 'rdownloader-settings-bundle') {
-      importError.value = t('system.backup.import.invalid_file')
-      return
-    }
-    if (parsed.version !== 1) {
-      importError.value = t('system.backup.import.unsupported_version', { version: String(parsed.version) })
-      return
-    }
-    if (!isSettingsBundle(parsed)) {
-      importError.value = t('system.backup.import.invalid_file')
-      return
-    }
-    selectedFileName.value = file.name
-    importBundle.value = parsed
-  } catch {
-    importError.value = t('system.backup.import.invalid_file')
-  }
+  await jsonImport.select(event)
 }
 
 async function restoreBackup(): Promise<void> {

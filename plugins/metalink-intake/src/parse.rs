@@ -55,6 +55,11 @@ const MARKERS: &[&str] = &[
     "<metalink",
 ];
 
+/// The code a claimed document is refused under when no `<file>` in it carries a usable
+/// address (RD-191-07, PLUG-16). The catalogues in `locales/` carry it; it used to be declared
+/// there and never sent, so such a document was answered with silence.
+pub const UNREADABLE: &str = "metalink_intake.unreadable";
+
 /// Whether this text looks like a Metalink document at all.
 #[must_use]
 pub fn claims(input: &str) -> bool {
@@ -301,7 +306,7 @@ fn starts_with_ignore_case(value: &str, prefix: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ParsedFile, ParsedPieces, ParsedSource, claims, files_in};
+    use super::{ParsedFile, ParsedPieces, ParsedSource, UNREADABLE, claims, files_in};
 
     const META4: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <metalink xmlns="urn:ietf:params:xml:ns:metalink">
@@ -542,5 +547,35 @@ mod tests {
         assert_eq!(file.name.as_deref(), Some("Çalış İst.bin"));
         assert_eq!(file.sources[0].location.as_deref(), Some("at"));
         assert_eq!(file.sources[0].priority, Some(1));
+    }
+
+    /// A document this parser claims but that lists no file with an address is the case the
+    /// guest refuses with [`UNREADABLE`] rather than answering with nothing.
+    #[test]
+    fn a_claimed_document_without_a_file_is_the_unreadable_case() {
+        const NOTHING: &str = r#"<metalink xmlns="urn:ietf:params:xml:ns:metalink"></metalink>"#;
+        assert!(claims(NOTHING));
+        assert!(
+            files_in(NOTHING)
+                .into_iter()
+                .all(|file| file.urls.is_empty())
+        );
+    }
+
+    /// The code the guest sends is one every catalogue translates.
+    #[test]
+    fn the_unreadable_code_is_in_every_catalogue() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"),
+        );
+        for language in ["de", "en", "es", "fr"] {
+            let path = root.join("locales").join(format!("{language}.json"));
+            let catalogue = std::fs::read_to_string(&path).expect("catalogue");
+            assert!(
+                catalogue.contains(&format!("\"{UNREADABLE}\"")),
+                "{} lacks {UNREADABLE}",
+                path.display()
+            );
+        }
     }
 }

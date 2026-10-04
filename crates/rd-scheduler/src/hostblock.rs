@@ -77,13 +77,10 @@ impl HostBlocks {
 }
 
 /// Groups a hoster's aliases onto one key: `www.` is noise, and the limit applies per host.
+/// The shared [`rd_core::host_key`], so a block and a limit scope agree on the host (audit
+/// 1.9.1, INTAKE-11).
 fn block_key(source: &Url) -> Option<String> {
-    let host = source.host_str()?;
-    Some(
-        host.strip_prefix("www.")
-            .unwrap_or(host)
-            .to_ascii_lowercase(),
-    )
+    source.host_str().map(rd_core::host_key)
 }
 
 #[cfg(test)]
@@ -117,6 +114,12 @@ mod tests {
                 .blocked_until(&url("https://www.rapidgator.net/file/three"), now)
                 .is_some(),
             "www. is the same hoster"
+        );
+        assert!(
+            blocks
+                .blocked_until(&url("https://RapidGator.net./file/four"), now)
+                .is_some(),
+            "a trailing dot is the same hoster (INTAKE-11)"
         );
         assert!(
             blocks

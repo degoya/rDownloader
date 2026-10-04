@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { api } from '@/api/client'
+
 import { useTransfersStore } from './transfers'
 
 /** Captures the listeners `connectEvents` registers, so a server event can be replayed. */
@@ -86,14 +88,13 @@ describe('transfers store: a refused removal', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('shows the refusal translated by its code, not the raw server text', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(
-      JSON.stringify({ error: 'raw server text', code: 'download.active_must_pause' }),
-      { status: 409, headers: { 'Content-Type': 'application/json' } }
-    )))
+    vi.spyOn(api, 'DELETE').mockResolvedValue({
+      error: { error: 'raw server text', code: 'download.active_must_pause' }
+    } as never)
     const store = useTransfersStore()
 
     expect(await store.remove('dl-1')).toBe(false)
@@ -102,10 +103,12 @@ describe('transfers store: a refused removal', () => {
   })
 
   it('falls back to the generic notice when the body says nothing', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 500 })))
+    // `openapi-fetch` hands a body that is no JSON over as its text.
+    vi.spyOn(api, 'DELETE').mockResolvedValue({ error: 'not json' } as never)
     const store = useTransfersStore()
 
     expect(await store.remove('dl-1')).toBe(false)
+    expect(api.DELETE).toHaveBeenCalledWith('/api/v1/downloads/{id}', { params: { path: { id: 'dl-1' } } })
 
     expect(store.error).not.toBe('')
     expect(store.error).not.toBeNull()

@@ -278,6 +278,7 @@ pub async fn service_over(directory: &std::path::Path, wire: &Wire) -> Service {
         secrets.clone(),
         Arc::new(RwLock::new(defaults)),
         None,
+        rd_plugin_host::OwnEndpoints::default(),
     );
     Service {
         service,

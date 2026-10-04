@@ -70,7 +70,11 @@ async fn fetch_captcha_image<H: PluginHost>(
     image_url: &Url,
 ) -> Result<CaptchaChallenge, Failure> {
     let response = host.http(HttpRequest::get(image_url.to_string())).await?;
-    api::ensure_http_status(response.status).map_err(convert_failure)?;
+    api::ensure_http_status(
+        response.status,
+        plugin_common::retry_after(&response.headers),
+    )
+    .map_err(convert_failure)?;
     let mime = api::free::image_mime(response.header("content-type"), &response.body)
         .map_err(convert_failure)?;
     Ok(CaptchaChallenge::Image(ImageChallenge {

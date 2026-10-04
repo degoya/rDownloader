@@ -219,8 +219,9 @@ async fn resolve_with_bad_api_key_reports_account_invalid() {
     assert_eq!(failure.code.as_deref(), Some("1fichier.bad_api_key"));
 }
 
+/// A 404 is the file deleted: final, not retried (owner, 2026-10-04), under the same code.
 #[tokio::test]
-async fn resolve_offline_file_reports_offline_via_http_404() {
+async fn resolve_deleted_file_is_final_via_http_404() {
     let host = MockHost::new(
         json_response(
             404,
@@ -234,7 +235,7 @@ async fn resolve_offline_file_reports_offline_via_http_404() {
         .resolve(resolve_request())
         .await
         .expect_err("offline");
-    assert_eq!(failure.category, FailureKind::Offline);
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("1fichier.file_offline"));
 }
 

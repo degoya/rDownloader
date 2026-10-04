@@ -78,6 +78,12 @@ pub fn item_key(identity: &ItemIdentity<'_>) -> String {
 /// Deliberately conservative: only the parts that provably do not change *which item this
 /// is* are removed. Query parameters other than the known trackers are kept, because on
 /// plenty of sites the query is the entire address of the item.
+///
+/// Not `rd_core::normalized_source_url`, on purpose (audit 1.9.1, INTAKE-11): this result is
+/// stored as the item key, and a feed spells its links the same way every time, so `www.` and
+/// a trailing dot stay in the host here. Folding them as the source identity does would
+/// re-key every stored item and import each one again. The one thing this adds over the
+/// source identity is dropping tracking parameters.
 #[must_use]
 pub fn normalize_url(url: &Url) -> String {
     let mut normalized = url.clone();
@@ -139,7 +145,9 @@ fn truncate(value: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());
     let digest = hex::encode(hasher.finalize());
-    let head_len = MAX_ITEM_KEY - digest.len() - 1;
+    // A byte index can land inside a multi-byte character (a feed guid of umlauts), and
+    // slicing there panics the whole poll (audit 1.9.1, INTAKE-02).
+    let head_len = value.floor_char_boundary(MAX_ITEM_KEY - digest.len() - 1);
     let mut head = value[..head_len].to_owned();
     head.push('#');
     head.push_str(&digest);
@@ -211,6 +219,14 @@ mod tests {
         assert_ne!(normalize_url(&first), normalize_url(&second));
     }
 
+    /// The item key keeps `www.` where the source identity folds it (INTAKE-11): changing it
+    /// would re-key every stored item, and each would be imported a second time.
+    #[test]
+    fn the_item_key_keeps_the_host_as_the_feed_spells_it() {
+        let page = url("https://WWW.Example.test/watch?v=abc");
+        assert_eq!(normalize_url(&page), "https://www.example.test/watch?v=abc");
+    }
+
     #[test]
     fn different_items_without_an_id_or_url_stay_distinct() {
         let make = |title: &str, published: &str| {
@@ -246,6 +262,24 @@ mod tests {
         });
         assert!(key.len() <= MAX_ITEM_KEY, "{}", key.len());
         // Truncation must not make two different ids equal.
+        let other = item_key(&ItemIdentity {
+            source_id: Some(&format!("{long}y")),
+            ..ItemIdentity::default()
+        });
+        assert_ne!(key, other);
+    }
+
+    #[test]
+    fn a_long_non_ascii_id_is_cut_at_a_character_boundary() {
+        // Audit 1.9.1, INTAKE-02: after the four bytes of `id:x`, 300 two-byte characters
+        // put the byte cut (447) inside a `\u{fc}`, which used to panic the poll.
+        let long = format!("x{}", "\u{fc}".repeat(300));
+        let key = item_key(&ItemIdentity {
+            source_id: Some(&long),
+            ..ItemIdentity::default()
+        });
+        assert!(key.len() <= MAX_ITEM_KEY, "{}", key.len());
+        assert!(key.starts_with("id:x\u{fc}"), "{key}");
         let other = item_key(&ItemIdentity {
             source_id: Some(&format!("{long}y")),
             ..ItemIdentity::default()

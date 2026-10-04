@@ -43,6 +43,8 @@ struct MockDropbox {
     requests: Mutex<Vec<Sent>>,
     authorizations: Mutex<Vec<String>>,
     has_token: bool,
+    /// The `Retry-After` every answer carries.
+    retry_after: Mutex<&'static str>,
 }
 
 impl MockDropbox {
@@ -53,6 +55,7 @@ impl MockDropbox {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: true,
+            retry_after: Mutex::new("90"),
         })
     }
 
@@ -63,6 +66,7 @@ impl MockDropbox {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: false,
+            retry_after: Mutex::new("90"),
         })
     }
 
@@ -97,7 +101,7 @@ impl ResolverHost for MockDropbox {
             final_url: request.url.clone(),
             headers: vec![rd_plugin_api::ResolvedHeader {
                 name: "Retry-After".to_owned(),
-                value: "90".to_owned(),
+                value: (*self.retry_after.lock().expect("retry-after")).to_owned(),
             }],
             body: if account {
                 br#"{"email":"someone@example.invalid","name":{"display_name":"Someone"}}"#.to_vec()
@@ -305,6 +309,35 @@ async fn a_rate_limit_blocks_only_this_provider_for_the_time_dropbox_asked() {
             retry_after_seconds: Some(90)
         }
     );
+}
+
+/// Both of Dropbox's waits are read the way every plugin reads one (RA-PLG-03): a `0` header is
+/// no stated wait, so the document's figure applies; a document's `0` is none either; and a year
+/// is clamped to a day.
+#[tokio::test]
+async fn a_stated_wait_is_read_the_shared_way() {
+    for (stated, document, expected) in [
+        ("0", 300, Some(300)),
+        ("0", 0, None),
+        ("31536000", 300, Some(86_400)),
+        ("", 31_536_000, Some(86_400)),
+    ] {
+        let host = MockDropbox::answering(
+            429,
+            &format!(
+                r#"{{"error":{{"reason":{{".tag":"too_many_requests"}},"retry_after":{document}}}}}"#
+            ),
+        );
+        *host.retry_after.lock().expect("retry-after") = stated;
+        let failure = resolve(host, FILE_LINK).await.expect_err("a rate limit");
+        assert_eq!(
+            failure.category,
+            FailureKind::IpBlocked {
+                retry_after_seconds: expected
+            },
+            "{stated} / {document}"
+        );
+    }
 }
 
 /// A folder pasted at the resolver says it is a folder, rather than "this file has no bytes".

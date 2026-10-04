@@ -3,21 +3,25 @@
 use axum::{
     Json,
     extract::{Multipart, Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
+use rd_api_core::list_bounds::paged;
 use rd_db::StoreErrorKind;
-use sha2::{Digest, Sha256};
 
 use crate::{
     ApiError, AppState,
-    dto::{MessageResponse, NzbImportUpdateRequest},
+    dto::{MessageResponse, NzbImportUpdateRequest, PageQuery},
 };
 
-#[utoipa::path(get, path = "/api/v1/nzb/imports", tag = "collector", responses((status = 200, body = [rd_core::NzbImport])))]
+/// The NZB imports waiting for review; `limit`/`offset` cut a page out of the list's order
+/// (API-15).
+#[utoipa::path(get, path = "/api/v1/nzb/imports", tag = "collector", params(PageQuery), responses((status = 200, body = [rd_core::NzbImport], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_nzb_imports(
     State(state): State<AppState>,
-) -> Result<Json<Vec<rd_core::NzbImport>>, ApiError> {
-    Ok(Json(state.database.list_nzb_imports().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<rd_core::NzbImport>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(window, state.database.list_nzb_imports().await?))
 }
 
 #[utoipa::path(patch, path = "/api/v1/nzb/imports/{id}", tag = "collector", params(("id" = rd_core::NzbImportId, Path)), request_body = NzbImportUpdateRequest, responses((status = 200, body = rd_core::NzbImport), (status = 400), (status = 404), (status = 409)))]
@@ -178,7 +182,7 @@ pub async fn store_nzb_import(
     let password = marker_password.or_else(|| parsed.password.clone());
     let import = rd_db::NewNzbImport {
         name: rd_files::sanitize_file_name(&file_name),
-        sha256: hex::encode(Sha256::digest(content)),
+        sha256: rd_api_core::input_checks::sha256_hex(content),
         category_id,
         source,
         priority,

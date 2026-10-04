@@ -71,18 +71,25 @@ pub trait PluginStepRunner: Send + Sync {
 
 /// Runs the plugin steps of one package, in the order they were planned.
 ///
-/// Returns `false` if one of them failed, which the caller treats exactly as a failed unpack:
-/// the package is not finished, and the reason is on the step.
+/// The package's files are listed again before every step (RD-191-06, PLUG-05): a step may
+/// rename them, and the next one offered the names from before would ask for files that are no
+/// longer there. `before`, `downloaded` and `cleaned` are what [`removed_files`] needs to name
+/// what the pipeline removed, against each fresh list.
+///
+/// Failed if one of them failed, which the caller treats exactly as a failed unpack: the
+/// package is not finished, and the reason is on the step. Stopped if the service stopped one:
+/// the steps after it wait for the next start rather than running past it (RA-IN-01).
 pub(crate) async fn run(
     inner: &Inner,
     owner: &str,
     planned: &[String],
     directory: &Path,
-    files: &[String],
-    removed: &[String],
-) -> Result<bool> {
+    before: &[String],
+    downloaded: &[String],
+    cleaned: &[String],
+) -> Result<steps::StepEnd> {
     let Some(runner) = inner.plugin_steps.as_ref() else {
-        return Ok(true);
+        return Ok(steps::StepEnd::Done);
     };
     for plugin_id in planned {
         let existing = inner
@@ -102,6 +109,8 @@ pub(crate) async fn run(
             continue;
         }
         let checkpoint = existing.and_then(|step| step.checkpoint);
+        let files = crate::package_job::package_file_names(directory).await;
+        let removed = removed_files(&files, before, downloaded, cleaned);
         steps::stage(
             inner,
             owner,
@@ -125,8 +134,8 @@ pub(crate) async fn run(
                 PluginStepJob {
                     handle: owner,
                     directory,
-                    files,
-                    removed,
+                    files: &files,
+                    removed: &removed,
                     checkpoint,
                 },
             )
@@ -150,24 +159,43 @@ pub(crate) async fn run(
             // step, never of the package's other steps.
             Err(error) => (PostprocessState::Failed, Some(error.to_string()), None),
         };
-        let failed = state == PostprocessState::Failed;
-        inner
-            .database
-            .checkpoint_postprocess_with(
-                owner.to_owned(),
+        let end = match state {
+            PostprocessState::Failed => Some(steps::StepEnd::Failed),
+            PostprocessState::Queued => Some(steps::StepEnd::Stopped),
+            _ => None,
+        };
+        if let Some(message) = message {
+            // Only a failure has words, and a failure keeps no resume state, so the coded
+            // checkpoint loses nothing the plain one would have kept (audit 1.9.1, INTAKE-09).
+            steps::checkpoint_coded(
+                inner,
+                owner,
                 PostprocessKind::PluginStep,
-                plugin_id.clone(),
+                plugin_id,
                 state,
                 None,
-                message.map(steps::truncate),
-                keep,
+                steps::Outcome::detailed(steps::codes::PLUGIN_STEP_FAILED, message),
             )
             .await?;
-        if failed {
-            return Ok(false);
+        } else {
+            inner
+                .database
+                .checkpoint_postprocess_with(
+                    owner.to_owned(),
+                    PostprocessKind::PluginStep,
+                    plugin_id.clone(),
+                    state,
+                    None,
+                    None,
+                    keep,
+                )
+                .await?;
+        }
+        if let Some(end) = end {
+            return Ok(end);
         }
     }
-    Ok(true)
+    Ok(steps::StepEnd::Done)
 }
 
 /// Records a step that passed with warnings: completed, with the warning on the step where the

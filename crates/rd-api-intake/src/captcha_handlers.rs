@@ -13,6 +13,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_captcha::{
     CaptchaAnswerers, CaptchaSettings, PendingCaptcha, PendingWidget, SolverKind, SubmitOutcome,
 };
@@ -107,13 +108,7 @@ pub async fn solve_captcha(
     Path(id): Path<rd_core::CaptchaId>,
     Json(request): Json<SolveCaptchaRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let token = request.token.trim().to_owned();
-    if token.is_empty() || token.len() > MAX_TOKEN_BYTES {
-        return Err(ApiError::bad_request(
-            "captcha.token_invalid",
-            "The captcha answer is empty or too long",
-        ));
-    }
+    let token = captcha_token(&request.token)?;
     submitted(state.scheduler.captcha().submit(id, token))
 }
 
@@ -246,13 +241,7 @@ pub async fn answer_capture_captcha(
     Path(id): Path<rd_core::CaptchaId>,
     Json(request): Json<AnswerWidgetCaptchaRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let token = request.token.trim().to_owned();
-    if token.is_empty() || token.len() > MAX_TOKEN_BYTES {
-        return Err(ApiError::bad_request(
-            "captcha.token_invalid",
-            "The captcha answer is empty or too long",
-        ));
-    }
+    let token = captcha_token(&request.token)?;
     match state.scheduler.captcha().submit_from_browser(id, token) {
         SubmitOutcome::Delivered => Ok(Json(MessageResponse::new(
             "captcha.solved",
@@ -410,11 +399,22 @@ fn solver_unreachable(failure: Failure) -> ApiError {
 }
 
 fn validated_api_key(value: String) -> Result<String, ApiError> {
-    let trimmed = value.trim().to_owned();
-    if trimmed.is_empty() || trimmed.len() > MAX_API_KEY_BYTES {
-        return Err(api_key_invalid());
-    }
-    Ok(trimmed)
+    required_text(
+        &value,
+        TextLimit::Bytes(MAX_API_KEY_BYTES),
+        "captcha.api_key_invalid",
+        "The solver API key is empty or too long",
+    )
+}
+
+/// A typed or a browser answer: trimmed, present, and at most [`MAX_TOKEN_BYTES`].
+fn captcha_token(value: &str) -> Result<String, ApiError> {
+    required_text(
+        value,
+        TextLimit::Bytes(MAX_TOKEN_BYTES),
+        "captcha.token_invalid",
+        "The captcha answer is empty or too long",
+    )
 }
 
 /// Solver endpoints are contacted with the user's API key, so only absolute HTTPS URLs are
@@ -429,13 +429,6 @@ fn validated_endpoint(value: &str) -> Result<String, ApiError> {
         return Err(endpoint_invalid());
     }
     Ok(trimmed.trim_end_matches('/').to_owned())
-}
-
-fn api_key_invalid() -> ApiError {
-    ApiError::bad_request(
-        "captcha.api_key_invalid",
-        "The solver API key is empty or too long",
-    )
 }
 
 fn endpoint_invalid() -> ApiError {

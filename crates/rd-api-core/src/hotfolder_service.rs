@@ -6,7 +6,6 @@ use rd_core::{HotFolderConfig, HotFolderExecutor, HotFolderId};
 use rd_hotfolder::{HotFolderIntake, IntakeSink, PollInterval, WatchOptions};
 
 use crate::{ApiError, dto::SettingsResponse};
-use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -171,7 +170,7 @@ struct DatabaseSink {
 #[async_trait]
 impl IntakeSink for DatabaseSink {
     async fn submit(&self, intake: HotFolderIntake) -> Result<()> {
-        let computed = hex::encode(Sha256::digest(&intake.content));
+        let computed = rd_authn::sha256_hex(&intake.content);
         anyhow::ensure!(
             computed == intake.sha256,
             "hotfolder hash changed before intake"
@@ -235,20 +234,20 @@ impl IntakeSink for DatabaseSink {
         if mode == rd_core::ImportMode::Enqueue && !import.duplicate {
             // The category the import actually got, not the folder's: when a routing rule or
             // the default category decided, the files belong where that category points.
-            let destination =
-                crate::destination::resolve_destination(&self.database, import.category_id)
-                    .await?
-                    .unwrap_or_else(|| self.scheduler.downloads_directory().to_path_buf());
-            if let Some(shortfall) =
-                crate::storage_capacity::intake_block(&self.scheduler.capacity(), &destination)
-                    .await
-            {
-                anyhow::bail!(
-                    "storage root is below its free-space threshold ({} bytes free, {} required)",
-                    shortfall.free_bytes,
-                    shortfall.minimum_free_bytes
-                );
-            }
+            // A refusal keeps its code; a store or filesystem failure keeps its cause, which
+            // an HTTP answer would have reduced to `internal.error` (audit 1.9.1, RA-API-01).
+            let destination = crate::destination::intake_target(
+                &self.database,
+                &self.scheduler,
+                import.category_id,
+            )
+            .await
+            .map_err(|failure| match failure {
+                crate::destination::IntakeTargetError::Refused(refusal) => {
+                    anyhow::anyhow!("{} ({})", refusal.message(), refusal.code())
+                }
+                crate::destination::IntakeTargetError::Failed(error) => error,
+            })?;
             self.database
                 // A watched folder configured to enqueue means "start it"; pausing is a
                 // LinkGrabber decision, so this path never starts paused.
@@ -277,6 +276,34 @@ impl IntakeSink for DatabaseSink {
                 %error,
                 path = %failure.source_path.display(),
                 "hotfolder could not record the failed NZB import"
+            );
+        }
+    }
+
+    /// Records a drop moved to `processed` without a second import (audit 1.9.1, RA-IN-02).
+    ///
+    /// While the first import's row exists, that row is the record: it holds the same content
+    /// under the same digest. Only when it is gone — removed between the import and the move —
+    /// did the drop reach nobody, and it gets the same failed row a refused NZB gets.
+    async fn record_duplicate(&self, duplicate: rd_hotfolder::DuplicateIntake) {
+        let imports = match self.database.list_nzb_imports().await {
+            Ok(imports) => imports,
+            Err(error) => {
+                tracing::warn!(%error, "hotfolder could not look up the NZB history for a duplicate");
+                return;
+            }
+        };
+        let in_history = imports
+            .iter()
+            .any(|import| import.sha256 == duplicate.sha256);
+        let Some(record) = nzb_duplicate_record(&duplicate, in_history) else {
+            return;
+        };
+        if let Err(error) = self.database.record_nzb_import_failure(record).await {
+            tracing::warn!(
+                %error,
+                path = %duplicate.source_path.display(),
+                "hotfolder could not record the duplicate NZB drop"
             );
         }
     }
@@ -325,6 +352,26 @@ fn nzb_failure_record(failure: &rd_hotfolder::FailedIntake) -> Option<rd_db::Fai
         sha256: failure.sha256.clone(),
         source_path: Some(path_string(&failure.source_path)),
         error: failure.reason.clone(),
+    })
+}
+
+/// The failed row for a duplicate NZB drop whose first import is no longer in the history;
+/// `None` while it is, or for any other kind of file.
+fn nzb_duplicate_record(
+    duplicate: &rd_hotfolder::DuplicateIntake,
+    in_history: bool,
+) -> Option<rd_db::FailedNzbImport> {
+    if in_history {
+        return None;
+    }
+    nzb_failure_record(&rd_hotfolder::FailedIntake {
+        source_path: duplicate.source_path.clone(),
+        sha256: duplicate.sha256.clone(),
+        failed_path: duplicate.processed_path.clone(),
+        reason: format!(
+            "The same file was taken in moments before and its import was removed since; moved to {} without a second import",
+            duplicate.processed_path.display()
+        ),
     })
 }
 
@@ -459,7 +506,10 @@ mod tests {
 
     use rd_core::HotFolderId;
 
-    use super::{nzb_failure_record, poll_interval_of, still_running, validate_hotfolder_settings};
+    use super::{
+        nzb_duplicate_record, nzb_failure_record, poll_interval_of, still_running,
+        validate_hotfolder_settings,
+    };
     use crate::dto::SettingsResponse;
 
     /// A watcher that ended no longer blocks a restart; a running one still does.
@@ -546,5 +596,26 @@ mod tests {
             );
         }
         assert!(nzb_failure_record(&failure("release.NZB")).is_some());
+    }
+
+    fn duplicate(name: &str) -> rd_hotfolder::DuplicateIntake {
+        rd_hotfolder::DuplicateIntake {
+            source_path: PathBuf::from("/watch").join(name),
+            sha256: "a".repeat(64),
+            processed_path: PathBuf::from("/watch/processed").join(name),
+        }
+    }
+
+    /// RA-IN-02: a duplicate whose first import is gone is recorded like a refused NZB; while
+    /// the import is there, it is the record, and another kind of file has no NZB row.
+    #[test]
+    fn a_duplicate_drop_is_recorded_only_when_its_import_is_gone() {
+        let record = nzb_duplicate_record(&duplicate("Release.nzb"), false).expect("record");
+        assert_eq!(record.name, "Release.nzb");
+        assert_eq!(record.sha256, "a".repeat(64));
+        assert!(record.error.contains("processed"), "{}", record.error);
+
+        assert!(nzb_duplicate_record(&duplicate("Release.nzb"), true).is_none());
+        assert!(nzb_duplicate_record(&duplicate("batch.torrent"), false).is_none());
     }
 }

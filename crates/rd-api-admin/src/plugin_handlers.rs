@@ -82,6 +82,8 @@ pub async fn list_plugins(
         installed,
         incompatible,
         lifecycle,
+        automatic_updates_global: crate::plugin_update_policy::automatic_for_all(&state.database)
+            .await?,
     }))
 }
 
@@ -143,7 +145,11 @@ pub async fn remove_plugin_version(
         .plugins
         .remove_version(&id, &version)
         .await
-        .map_err(|error| ApiError::bad_request("plugin.remove_failed", format!("{error:#}")))?;
+        .map_err(|error| {
+            let reason = format!("{error:#}");
+            ApiError::bad_request("plugin.remove_failed", reason.clone())
+                .with_param("reason", reason)
+        })?;
     if !removed {
         return Err(ApiError::not_found(
             "plugin.not_installed",
@@ -316,8 +322,10 @@ pub async fn install_plugin(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
     Query(query): Query<InstallPluginQuery>,
+    headers: axum::http::HeaderMap,
     bytes: Bytes,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
+    rd_api_core::input_checks::require_media_type(&headers, "application/octet-stream")?;
     if bytes.is_empty() || bytes.len() > MAX_PLUGIN_PACKAGE_BYTES {
         return Err(ApiError::bad_request(
             "plugin.package_size_invalid",
@@ -525,10 +533,19 @@ pub async fn revoke_plugin_key(
     audit: crate::audit::AuditContext,
     Path(key_id): Path<String>,
 ) -> Result<Json<MessageResponse>, ApiError> {
+    // The row first, as with a digest withdrawal: it is what the next start reads back, and a
+    // live verifier that has dropped a key the database still trusts would quietly trust it
+    // again after a restart.
+    state.database.revoke_plugin_key(key_id.clone()).await?;
     // Dropping it from the live verifier stops new installs at once; plugins already
     // installed keep running until the next start, where re-verification skips them.
-    state.plugins.verifier().revoke_key(&key_id).ok();
-    state.database.revoke_plugin_key(key_id.clone()).await?;
+    if let Err(error) = state.plugins.verifier().revoke_key(&key_id) {
+        tracing::warn!(
+            key_id = %key_id,
+            error = %format!("{error:#}"),
+            "signing key revoked in the database but not in the live verifier; it takes effect at the next start"
+        );
+    }
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginKeyRevoked)
@@ -612,11 +629,22 @@ pub async fn revoke_plugin_digest(
         .await?;
     // Nothing already running is torn down; the refusal takes effect at the next load, exactly
     // as a revoked signing key does.
-    let newly = state
+    let newly = match state
         .plugins
         .verifier()
         .revoke_package_digest(target.digest)
-        .unwrap_or(true);
+    {
+        Ok(newly) => newly,
+        Err(error) => {
+            // The row is written and wins at the next start; only the live set lags behind.
+            tracing::warn!(
+                digest = %hex,
+                error = %format!("{error:#}"),
+                "package withdrawn in the database but not in the live verifier; it takes effect at the next start"
+            );
+            true
+        }
+    };
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginDigestRevoked)
@@ -664,7 +692,13 @@ pub async fn unrevoke_plugin_digest(
         )
         .with_param("digest", hex));
     }
-    state.plugins.verifier().unrevoke_package_digest(&raw).ok();
+    if let Err(error) = state.plugins.verifier().unrevoke_package_digest(&raw) {
+        tracing::warn!(
+            digest = %hex,
+            error = %format!("{error:#}"),
+            "withdrawal lifted in the database but not in the live verifier; it takes effect at the next start"
+        );
+    }
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginDigestUnrevoked)

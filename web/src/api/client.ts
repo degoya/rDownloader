@@ -49,7 +49,7 @@ export async function noticeLostSession(response: Response): Promise<void> {
 const synthetic = new WeakSet<Response>()
 
 /** Whether the service itself sent this answer, rather than `networkFailure` standing in for it. */
-export function answeredByService(response: Response): boolean {
+function answeredByService(response: Response): boolean {
   return !synthetic.has(response)
 }
 
@@ -78,7 +78,7 @@ export const NETWORK_UNREACHABLE = 'network.unreachable'
  * stable code every caller meets the failure in `{ error }`, where it already handles refusals.
  * An abort is left alone: it is the caller's own decision, not a failure to report.
  */
-export function networkFailure(error: unknown): Response | undefined {
+function networkFailure(error: unknown): Response | undefined {
   if (error instanceof DOMException && error.name === 'AbortError') return undefined
   reportServiceUnreachable()
   const response = new Response(

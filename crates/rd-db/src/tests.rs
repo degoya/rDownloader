@@ -8205,3 +8205,75 @@ async fn a_package_built_by_a_move_outlives_the_batch_it_was_named_after() {
         "the package outlives the batch it was named after"
     );
 }
+
+/// The single getters answer like the lists they stand in for (audit 1.9.1, DB-04).
+#[tokio::test]
+async fn one_package_and_one_account_read_like_their_lists() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(directory.path().join("getters.sqlite"))
+        .await
+        .expect("database");
+    let package_id = PackageId::new();
+    database
+        .create_package(NewPackage {
+            id: package_id,
+            name: "one".to_owned(),
+            destination: directory.path().to_string_lossy().into_owned(),
+            category_id: None,
+            priority: rd_core::DownloadPriority::Normal,
+            postprocess_level: None,
+            script: None,
+            enrichment: Vec::new(),
+        })
+        .await
+        .expect("package");
+    let account = database
+        .create_account(NewAccount {
+            provider: "premiumize".to_owned(),
+            label: "Premiumize".to_owned(),
+            username: None,
+            credential_mode: None,
+            secret_ref: Some("secret://premiumize/api-key".to_owned()),
+            cookie_ref: None,
+            proxy_profile_id: None,
+            enabled: true,
+        })
+        .await
+        .expect("account");
+
+    let listed = database.list_packages().await.expect("packages");
+    let one = database
+        .get_package(package_id)
+        .await
+        .expect("get")
+        .expect("the package");
+    assert_eq!(
+        serde_json::to_value(&one).expect("json"),
+        serde_json::to_value(&listed[0]).expect("json")
+    );
+    assert!(
+        database
+            .get_package(PackageId::new())
+            .await
+            .expect("get")
+            .is_none()
+    );
+
+    let accounts = database.list_accounts().await.expect("accounts");
+    let found = database
+        .get_account(account.id)
+        .await
+        .expect("get")
+        .expect("the account");
+    assert_eq!(
+        serde_json::to_value(&found).expect("json"),
+        serde_json::to_value(&accounts[0]).expect("json")
+    );
+    assert!(
+        database
+            .get_account(rd_core::AccountId::new())
+            .await
+            .expect("get")
+            .is_none()
+    );
+}

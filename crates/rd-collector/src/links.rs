@@ -50,10 +50,11 @@ pub fn canonical_url(mut url: Url) -> Url {
     {
         return url;
     }
-    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+    // The shared host form (audit 1.9.1, INTAKE-11): lower case, no trailing dot, no `www.`.
+    let Some(host) = url.host_str().map(rd_core::host_key) else {
         return url;
     };
-    let host = host.strip_prefix("www.").unwrap_or(&host);
+    let host = host.as_str();
     if host == "youtu.be" {
         let id = url.path().trim_matches('/').to_owned();
         if !id.is_empty()

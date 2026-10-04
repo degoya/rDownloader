@@ -91,22 +91,10 @@ pub fn file_address(id: &str) -> String {
     format!("https://drive.google.com/file/d/{id}/view")
 }
 
-/// Percent-encodes a value for an address a plugin builds itself.
-///
-/// Needed where the finished address goes back to the host as a string rather than as a query
-/// list the host would encode — the Workspace export `mimeType`, which contains `/` and `+`.
-#[must_use]
-pub fn percent_encode(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
-            encoded.push(byte as char);
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    encoded
-}
+// Needed where the finished address goes back to the host as a string rather than as a query
+// list the host would encode — the Workspace export `mimeType`, which contains `/` and `+`. The
+// encoder is the one every plugin shares (RD-191-07).
+pub use plugin_common::percent_encode;
 
 #[cfg(test)]
 mod tests {

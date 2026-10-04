@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { api } from '@/api/client'
 import { i18n } from '@/i18n'
 import {
   loadPluginMessages,
@@ -11,6 +12,22 @@ import { translateAccountLabel, translateServerMessage } from '@/i18n/server'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
+
+vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+
+type MessagesRequest = { params: { path: { locale: string } } }
+
+/** The client's answer: the body on success, a refusal otherwise. */
+function answer(implementation: (locale: string) => unknown): void {
+  vi.mocked(api.GET).mockImplementation((async (_path: string, init: MessagesRequest) =>
+    implementation(init.params.path.locale)) as never)
+}
+
+/** The locales asked for, in order. */
+function requested(): string[] {
+  return (vi.mocked(api.GET).mock.calls as unknown as [string, MessagesRequest][])
+    .map(([, init]) => init.params.path.locale)
+}
 
 /** Response bodies keyed by locale, as `/api/v1/plugins/i18n/{locale}` would return them. */
 const BUNDLES: Record<string, unknown> = {
@@ -32,16 +49,8 @@ const BUNDLES: Record<string, unknown> = {
 }
 
 function mockFetch(bundles: Record<string, unknown> = BUNDLES): void {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: string) => {
-      const locale = input.split('/').pop() ?? ''
-      const body = bundles[locale]
-      return body === undefined
-        ? ({ ok: false, status: 404, json: async () => ({}) } as Response)
-        : ({ ok: true, status: 200, json: async () => body } as Response)
-    })
-  )
+  vi.mocked(api.GET).mockReset()
+  answer(locale => bundles[locale] === undefined ? { error: {} } : { data: bundles[locale] })
 }
 
 describe('plugin-supplied translations', () => {
@@ -114,9 +123,8 @@ describe('plugin-supplied translations', () => {
     i18n.global.locale.value = 'de'
     await loadPluginMessages('de')
 
-    const requested = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.map(call => call[0])
-    expect(requested).toContain('/api/v1/plugins/i18n/de')
-    expect(requested).toContain('/api/v1/plugins/i18n/en')
+    expect(api.GET).toHaveBeenCalledWith('/api/v1/plugins/i18n/{locale}', { params: { path: { locale: 'de' } } })
+    expect(requested()).toContain('en')
     expect(providerText('fastshare', 'name')).toBe('FastShare')
   })
 
@@ -149,7 +157,8 @@ describe('plugin-supplied translations', () => {
   })
 
   it('survives an unreachable backend without throwing', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
+    vi.mocked(api.GET).mockReset()
+    answer(() => { throw new Error('offline') })
 
     await expect(loadPluginMessages('en')).resolves.toBeUndefined()
     expect(providerText('fastshare', 'name')).toBeUndefined()
@@ -163,17 +172,18 @@ describe('plugin-supplied translations', () => {
 
     await loadPluginMessages('en')
 
-    expect(fetch).not.toHaveBeenCalled()
+    expect(api.GET).not.toHaveBeenCalled()
   })
 
   it('loads the translations a signed-out start could not fetch, without a reload', async () => {
     // The reported sequence: the boot attempt is refused, the user signs in, and the plugin
     // strings have to arrive for that same session rather than after a page reload.
     setPluginMessagesAvailable(false)
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response))
+    vi.mocked(api.GET).mockReset()
+    answer(() => ({ error: { code: 'auth.session_required' } }))
     i18n.global.locale.value = 'de'
     await loadPluginMessages('de')
-    expect(fetch).not.toHaveBeenCalled()
+    expect(api.GET).not.toHaveBeenCalled()
     expect(providerText('fastshare', 'name')).toBeUndefined()
 
     // Signing in is what the session store reports here.
@@ -189,10 +199,11 @@ describe('plugin-supplied translations', () => {
   it('keeps a refused locale retryable instead of remembering it as done', async () => {
     // A failure must not make every language switch ask again, but it must not become
     // permanent either: that is what left plugin strings untranslated for a whole session.
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }) as Response))
+    vi.mocked(api.GET).mockReset()
+    answer(() => ({ error: { code: 'network.unreachable' } }))
     await loadPluginMessages('en')
     await loadPluginMessages('en')
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(api.GET).toHaveBeenCalledTimes(1)
 
     mockFetch()
     resetPluginMessages()
@@ -204,11 +215,11 @@ describe('plugin-supplied translations', () => {
     mockFetch()
     await loadPluginMessages('en')
     await loadPluginMessages('en')
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(api.GET).toHaveBeenCalledTimes(1)
 
     resetPluginMessages()
     await loadPluginMessages('en')
-    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(api.GET).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -46,32 +46,12 @@ pub(crate) async fn extract_rar_into(
     password: Option<&str>,
     progress: Option<&ProgressSender>,
 ) -> Result<ExtractionReport, ExtractionError> {
-    if !tool.executable.exists() {
-        return Err(ExtractionError::Other(anyhow::anyhow!(
-            "configured RAR executable does not exist"
-        )));
-    }
-    let mut command = tokio::process::Command::new(&tool.executable);
-    command
-        .kill_on_drop(true)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .no_console_window();
-    apply_tool_environment(&mut command);
-    let arguments = rar_arguments(
-        tool.kind,
-        RarAction::Extract { staging },
-        first_volume,
-        password,
-    );
-    arguments
-        .apply_to(tool.kind, &mut command)
-        .inspect_err(|error| log_refused(tool, &arguments, error))?;
-    log_started(tool, &arguments);
-    let mut child = command.spawn().context("spawn RAR tool")?;
-    let mut stdout = child.stdout.take().context("RAR tool stdout")?;
-    let mut stderr = child.stderr.take().context("RAR tool stderr")?;
+    let RarProcess {
+        mut child,
+        mut stdout,
+        mut stderr,
+        arguments,
+    } = spawn_rar(tool, RarAction::Extract { staging }, first_volume, password)?;
     let run = async {
         let mut stdout_text = String::new();
         let reader = async {
@@ -224,6 +204,52 @@ fn tree_exceeds(root: &Path, limit: u64) -> bool {
     false
 }
 
+/// A started RAR tool, its output taken, and the arguments it was started with for the log.
+struct RarProcess {
+    child: tokio::process::Child,
+    stdout: tokio::process::ChildStdout,
+    stderr: tokio::process::ChildStderr,
+    arguments: RarArguments,
+}
+
+/// Starts the RAR tool for `action` the one way both the unpack and the integrity test do: no
+/// shell, no console window, the tool environment, no stdin, piped output, killed when dropped
+/// (audit 1.9.1, INTAKE-15).
+fn spawn_rar(
+    tool: &ExternalRarTool,
+    action: RarAction<'_>,
+    first_volume: &Path,
+    password: Option<&str>,
+) -> Result<RarProcess, ExtractionError> {
+    if !tool.executable.exists() {
+        return Err(ExtractionError::Other(anyhow::anyhow!(
+            "configured RAR executable does not exist"
+        )));
+    }
+    let mut command = tokio::process::Command::new(&tool.executable);
+    command
+        .kill_on_drop(true)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .no_console_window();
+    apply_tool_environment(&mut command);
+    let arguments = rar_arguments(tool.kind, action, first_volume, password);
+    arguments
+        .apply_to(tool.kind, &mut command)
+        .inspect_err(|error| log_refused(tool, &arguments, error))?;
+    log_started(tool, &arguments);
+    let mut child = command.spawn().context("spawn RAR tool")?;
+    let stdout = child.stdout.take().context("RAR tool stdout")?;
+    let stderr = child.stderr.take().context("RAR tool stderr")?;
+    Ok(RarProcess {
+        child,
+        stdout,
+        stderr,
+        arguments,
+    })
+}
+
 /// The tool, and its arguments without the password, before it starts (RD-120-56).
 ///
 /// Until then nothing of an extraction reached the log, so a failure that only happens with one
@@ -287,27 +313,12 @@ pub async fn test_rar(
     first_volume: &Path,
     password: Option<&str>,
 ) -> Result<(), ExtractionError> {
-    if !tool.executable.exists() {
-        return Err(ExtractionError::Other(anyhow::anyhow!(
-            "configured RAR executable does not exist"
-        )));
-    }
-    let mut command = tokio::process::Command::new(&tool.executable);
-    command
-        .kill_on_drop(true)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .no_console_window();
-    apply_tool_environment(&mut command);
-    let arguments = rar_arguments(tool.kind, RarAction::Test, first_volume, password);
-    arguments
-        .apply_to(tool.kind, &mut command)
-        .inspect_err(|error| log_refused(tool, &arguments, error))?;
-    log_started(tool, &arguments);
-    let mut child = command.spawn().context("spawn RAR tool")?;
-    let mut stdout = child.stdout.take().context("RAR tool stdout")?;
-    let mut stderr = child.stderr.take().context("RAR tool stderr")?;
+    let RarProcess {
+        mut child,
+        mut stdout,
+        mut stderr,
+        arguments,
+    } = spawn_rar(tool, RarAction::Test, first_volume, password)?;
     let run = async {
         // `t` lists every member it tested, so a large set prints a line per file; only the end,
         // where the verdict is, is kept.

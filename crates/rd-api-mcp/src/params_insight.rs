@@ -121,6 +121,35 @@ pub(crate) struct SubmitRemoteJobParams {
     pub file_name: Option<String>,
 }
 
+/// An NZB import handed to a provider instead of the queue (RD-191-13).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SubmitNzbImportRemoteJobParams {
+    /// The NZB import waiting in the LinkGrabber (id from list_nzb_imports).
+    pub id: String,
+    /// The account whose provider is to fetch it. list_remote_job_providers with
+    /// `container` "nzb" names the providers that take NZB files.
+    pub account_id: String,
+}
+
+/// The NZB behind a queued package handed to a provider (RD-191-13).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SubmitPackageRemoteJobParams {
+    /// The package in the download list (id from list_packages); it must have come from an NZB.
+    pub id: String,
+    /// The account whose provider is to fetch it. list_remote_job_providers with
+    /// `container` "nzb" names the providers that take NZB files.
+    pub account_id: String,
+}
+
+/// The optional narrowing of the remote-job provider list.
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
+pub(crate) struct RemoteJobProvidersParams {
+    /// Only the providers whose plugin takes this container format: `torrent`, `nzb`, `dlc`
+    /// or `rsdf`. Absent lists every provider that runs remote jobs.
+    #[serde(default)]
+    pub container: Option<String>,
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct RemoteJobChoiceParams {
     /// The job that is waiting in `awaiting_choice`.

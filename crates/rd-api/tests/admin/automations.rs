@@ -53,6 +53,12 @@ async fn an_automation_is_created_listed_and_versioned() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
 
+    // Enabled now, so its definition comes from the engine's one query rather than from the
+    // per-automation lookup a disabled one still takes (API-11): the newer version, either way.
+    let (_, listed) = get_json(&harness.router, "/api/v1/automations").await;
+    assert_eq!(listed[0]["enabled"], true, "{listed}");
+    assert_eq!(listed[0]["definition"]["version"], 2, "{listed}");
+
     let (_, versions) = get_json(
         &harness.router,
         &format!("/api/v1/automations/{id}/versions"),

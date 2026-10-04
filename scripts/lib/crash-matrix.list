@@ -1,0 +1,34 @@
+# The crash and restart matrix (RD-140-04, axis A): which crates' `failpoints` feature it turns on
+# and what it runs. Read by scripts/lib/crash-matrix.sh for scripts/check.sh and the
+# `crash-matrix` job of .github/workflows/ci.yml; AGENTS.md points here (RD-191-09: the list was
+# kept by hand in four places).
+#
+#     <package> [<nextest selection>]
+#
+# Every package without a selection joins one shared run: `--features <package>/failpoints` and
+# `-p <package>` for each. A package with a selection runs alone, its own feature on, with that
+# selection. The feature is off everywhere else, so the shipped build has no crash point in it, and
+# each crash-test file is gated on the feature of the crate that owns its point — rd-core's alone
+# turns none of the others on, and a binary compiled to nothing reports success.
+#
+# A new persistence path gets its point in rd_core::failpoint::CRASH_POINTS, its row in
+# crates/rd-core/recovery-matrix.md, a case — and, in a crate not listed yet, its line here.
+rd-core
+rd-http
+rd-scheduler
+rd-usenet
+rd-object-storage
+rd-backup
+rd-plugin-host
+rd-extract
+rd-api-core
+rd-torrent
+rd-plugin-transfer
+rd-transfer-file
+rd-update
+# The plugin update's two points sit in rd-api-admin and are driven through the admin suite, so
+# only those cases of rd-api run (RD-180-12).
+rd-api      --test admin stopped_updates
+# The vault's three points (archive passwords, the sweep at start) sit in rd-db; their binary
+# alone (RD-190-04, RD-191-04).
+rd-db       --test archive_password_crash

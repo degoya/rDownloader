@@ -14,6 +14,8 @@ use wasmtime::{
 use crate::{PluginLimits, engine::SharedEngine};
 
 pub(crate) const EPOCH_TICK: Duration = Duration::from_millis(10);
+/// Longest plugin log line the host keeps, in characters.
+const MAX_LOG_CHARS: usize = 4096;
 /// Interfaces every plugin may import, whatever its manifest says. Neither reaches the
 /// network, a credential value or the user.
 const BASE_IMPORTS: [&str; 2] = ["rdownloader:plugin/host", "rdownloader:plugin/types"];
@@ -42,6 +44,13 @@ pub struct PluginStoreState {
     pub(crate) request_authority: rd_plugin_api::RequestAuthority,
     /// Whether this invocation may use the methods that write at the far end.
     pub(crate) write_methods: bool,
+    /// Whether this invocation's requests may reach the person's own network (RA-HOST-01).
+    ///
+    /// Only where the manifest's `*` was narrowed to an address the person supplied — their
+    /// WebDAV server, the Nextcloud they crawl, their ntfy — since that server is on the LAN as
+    /// often as not. A domain a plugin named itself reaches public addresses only, and this
+    /// machine is never reachable, whichever the case (`native::host::address_policy`).
+    pub(crate) own_network: bool,
     /// One vault reference this invocation may expand, chosen by the host.
     ///
     /// A resolver's secret is found through its account and its provider; a notification
@@ -113,6 +122,11 @@ impl PluginStoreState {
         Ok(())
     }
 
+    /// Response bytes the manifest still allows this invocation (PLUG-06).
+    pub(crate) fn remaining_response_bytes(&self) -> u64 {
+        self.max_response_bytes.saturating_sub(self.response_bytes)
+    }
+
     /// Number of response bytes delivered during this invocation.
     #[must_use]
     pub fn response_bytes(&self) -> u64 {
@@ -140,17 +154,71 @@ impl PluginStoreState {
         self.write_methods
     }
 
+    pub(crate) fn own_network(&self) -> bool {
+        self.own_network
+    }
+
     pub(crate) fn remember_redactions(&mut self, values: impl IntoIterator<Item = String>) {
         self.redactions
             .extend(values.into_iter().filter(|value| value.len() >= 4));
     }
 
+    /// Masks every remembered secret in a plugin's log line, then cuts it to
+    /// [`MAX_LOG_CHARS`].
+    ///
+    /// The cut is made in the line's *original* positions (RA-HOST-03): the secrets are found
+    /// in the line as the plugin wrote it, a secret that starts before the cut is masked whole,
+    /// and nothing that started past the cut is kept. Masking first and cutting the masked text
+    /// (PLUG-18) let a mask shorter than its secret pull text from beyond the cut back in front
+    /// of it — a third secret there, half outside the scanned part, was logged as its prefix.
+    /// The input is still bounded, to the cut plus the longest secret, which is as far as a
+    /// secret starting before the cut can reach, so a plugin cannot make the host scan a line
+    /// of any length.
     pub(crate) fn redact_log(&self, message: &str) -> String {
-        let mut redacted = message.chars().take(4096).collect::<String>();
-        for secret in &self.redactions {
-            redacted = redacted.replace(secret, "[REDACTED]");
+        let longest = self
+            .redactions
+            .iter()
+            .map(|secret| secret.chars().count())
+            .max()
+            .unwrap_or(0);
+        let byte_at = |chars: usize| {
+            message
+                .char_indices()
+                .nth(chars)
+                .map_or(message.len(), |(index, _)| index)
+        };
+        let cut = byte_at(MAX_LOG_CHARS);
+        let scanned = &message[..byte_at(MAX_LOG_CHARS.saturating_add(longest))];
+        let mut masked = self
+            .redactions
+            .iter()
+            .flat_map(|secret| {
+                scanned
+                    .match_indices(secret.as_str())
+                    .map(|(start, found)| (start, start + found.len()))
+            })
+            .collect::<Vec<_>>();
+        masked.sort_unstable();
+        let mut logged = String::new();
+        let mut kept_to = 0;
+        for (start, end) in masked {
+            if start >= cut {
+                break;
+            }
+            if end <= kept_to {
+                continue;
+            }
+            if start >= kept_to {
+                logged.push_str(&scanned[kept_to..start]);
+                logged.push_str("[REDACTED]");
+            }
+            kept_to = end;
         }
-        redacted
+        if kept_to < cut {
+            logged.push_str(&scanned[kept_to..cut]);
+        }
+        // Only ever shortens text that is already masked, so it cannot bring a secret back.
+        logged.chars().take(MAX_LOG_CHARS).collect()
     }
 }
 
@@ -246,6 +314,7 @@ impl SandboxEngine {
             destination_settings: Vec::new(),
             request_authority: rd_plugin_api::RequestAuthority::Provider,
             write_methods: false,
+            own_network: false,
             execution_deadline: Instant::now()
                 + Duration::from_millis(self.limits.timeout_milliseconds),
             wait_budget: Duration::from_millis(self.limits.wait_budget_milliseconds),
@@ -618,6 +687,95 @@ mod tests {
         assert_eq!(
             store.data().redact_log("cookie=session-secret"),
             "cookie=[REDACTED]"
+        );
+    }
+
+    /// PLUG-18: a secret that crosses the 4096-character cut is masked whole. Cut first, the
+    /// part before the cut no longer matched and went to the log as it was.
+    #[test]
+    fn a_secret_across_the_cut_is_masked_not_halved() {
+        let sandbox = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+        let mut store = sandbox.create_store(Vec::new()).expect("store");
+        let secret = "s3cr3t-cookie-value";
+        store.data_mut().remember_redactions([secret.to_owned()]);
+        // The secret starts ten characters before the cut and ends past it.
+        let message = format!("{}{secret}{}", "a".repeat(4086), "b".repeat(100));
+
+        let logged = store.data().redact_log(&message);
+
+        assert_eq!(logged.chars().count(), 4096);
+        assert!(
+            !logged.contains("s3cr3t"),
+            "no prefix of the secret survives"
+        );
+        assert!(logged.ends_with("[REDACTED]"));
+        // A line of any length is still cut.
+        assert_eq!(
+            store
+                .data()
+                .redact_log(&"x".repeat(100_000))
+                .chars()
+                .count(),
+            4096
+        );
+    }
+
+    /// RA-HOST-03: masks shorter than their secrets must not pull text from past the cut in
+    /// front of it. Two 60-character secrets early in the line shrink by 100 characters; a
+    /// third secret starting at 4150 lay past the scanned part's end once the line was masked
+    /// and cut afterwards, and its first characters were logged.
+    #[test]
+    fn shrinking_masks_do_not_pull_a_secret_from_past_the_cut() {
+        let sandbox = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+        let mut store = sandbox.create_store(Vec::new()).expect("store");
+        let first = format!("first-{}", "1".repeat(54));
+        let second = format!("second-{}", "2".repeat(53));
+        let third = format!("third-{}", "3".repeat(54));
+        store
+            .data_mut()
+            .remember_redactions([first.clone(), second.clone(), third.clone()]);
+        let filler = 4150 - first.len() - second.len();
+        let message = format!(
+            "{first}{second}{}{third}{}",
+            "a".repeat(filler),
+            "b".repeat(50)
+        );
+        assert_eq!(message.find(&third), Some(4150));
+
+        let logged = store.data().redact_log(&message);
+
+        assert!(!logged.contains("third"), "nothing past the cut is logged");
+        assert!(!logged.contains("first-") && !logged.contains("second-"));
+        assert!(logged.starts_with("[REDACTED][REDACTED]a"));
+        // The cut is in the line as written: both masks and the filler up to position 4096.
+        assert_eq!(logged.chars().count(), 20 + 4096 - 120);
+        assert!(!logged.contains('b'));
+    }
+
+    /// RA-HOST-03: a secret that starts before the cut is masked whole however far it reaches,
+    /// and overlapping secrets are masked as one stretch.
+    #[test]
+    fn a_secret_starting_before_the_cut_is_masked_and_overlaps_merge() {
+        let sandbox = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+        let mut store = sandbox.create_store(Vec::new()).expect("store");
+        store
+            .data_mut()
+            .remember_redactions(["token-abc".to_owned(), "abc-cookie".to_owned()]);
+
+        assert_eq!(
+            store.data().redact_log("x token-abc-cookie y"),
+            "x [REDACTED] y"
+        );
+        let long = format!("tail-{}", "z".repeat(200));
+        store.data_mut().remember_redactions([long.clone()]);
+        let message = format!("{}{long}", "a".repeat(4095));
+        let logged = store.data().redact_log(&message);
+        assert!(logged.starts_with(&"a".repeat(4095)));
+        assert!(!logged.contains("tail"));
+        assert_eq!(
+            logged.chars().count(),
+            4096,
+            "the mask itself is cut at the limit"
         );
     }
 }

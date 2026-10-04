@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::OriginalUri,
-    http::{StatusCode, header},
+    http::header,
     response::{IntoResponse, Response},
 };
 use rust_embed::RustEmbed;
@@ -49,12 +49,20 @@ fn serve_with_base(uri: &axum::http::Uri, base: &str) -> Response {
     let requested = uri.path().trim_start_matches('/');
     let requested_asset = WebAssets::get(requested);
     if requested_asset.is_none() && must_exist(requested) {
-        return StatusCode::NOT_FOUND.into_response();
+        return crate::ApiError::not_found(
+            "web.asset_not_found",
+            "This file is not part of the web interface",
+        )
+        .into_response();
     }
     let is_spa_fallback = requested_asset.is_none();
     let asset = requested_asset.or_else(|| WebAssets::get("index.html"));
     let Some(asset) = asset else {
-        return StatusCode::NOT_FOUND.into_response();
+        return crate::ApiError::not_found(
+            "web.interface_missing",
+            "The web interface is not built into this binary",
+        )
+        .into_response();
     };
     let mime = mime_guess::from_path(if requested.is_empty() || is_spa_fallback {
         "index.html"

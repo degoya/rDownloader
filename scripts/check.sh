@@ -237,7 +237,8 @@ if [[ "$defer" -eq 1 ]]; then
             echo >&2
             echo "!! --defer refused: $path is not a triviality." >&2
             echo "   Deferrable: docs/ and *.md, web/src/locales/**, web/src/assets/**," >&2
-            echo "   and a .vue or .css change that does not touch a <script> block." >&2
+            echo "   and a .vue or .css change that does not touch a <script> block —" >&2
+            echo "   never a file a Rust test reads (scripts/lib/rust-test-inputs.map)." >&2
             echo "   Run scripts/check.sh without --defer." >&2
             exit 1
         fi
@@ -301,11 +302,14 @@ if touches '^plugins/|^crates/rd-plugin-api/wit/'; then
     packages+=(rd-plugin-ext rd-plugin-host)
 fi
 
-# rd-api's library tests hold the About page's licence list to web/pnpm-lock.yaml and to the
-# helper tools' licence texts (RD-130-12), so an npm dependency or a vendor text is a Rust change
-# here: without this a new npm package would reach development with no licence entry. Setting
-# the flag is enough — every Rust run includes rd-api's library.
-if touches '^web/pnpm-lock\.yaml$|^resources/vendor-licenses/'; then
+# Rust tests that read a file outside crates/ and plugins/ (RD-191-09): a catalogue rd-diagnostics
+# compiles in, the npm lockfile and the vendor texts the About page's licence list is held to
+# (RD-130-12), the container fixtures, a script a test pins. scripts/lib/rust-test-inputs.map
+# names the crates whose tests read each; they count as touched, which also makes the change a
+# Rust change.
+mapfile -t input_packages < <(rd_scope_input_packages <<< "$changed")
+if [[ ${#input_packages[@]} -gt 0 ]]; then
+    packages+=("${input_packages[@]}")
     rust_touched=1
 fi
 
@@ -390,10 +394,15 @@ if [[ ${#rd_api_selected[@]} -gt 0 && ${#rd_api_selected[@]} -lt ${#rd_api_all[@
     rd_api_filter=(-E "$(rd_api_test_filter "${rd_api_selected[@]}")")
 fi
 
+# The crash matrix's runs and the crates that call for them: scripts/lib/crash-matrix.list, the
+# one list check.sh and ci.yml read (RD-191-09).
+# shellcheck source=lib/crash-matrix.sh
+source "$ROOT/scripts/lib/crash-matrix.sh"
+mapfile -t crash_triggers < <(rd_crash_matrix_triggers)
 failpoints=0
 if [[ "$full" -eq 1 ]] \
-    || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$' \
-    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxE 'rd-core|rd-db|rd-http|rd-scheduler|rd-usenet|rd-object-storage|rd-backup|rd-plugin-host|rd-extract|rd-api-core|rd-torrent|rd-plugin-transfer|rd-api-admin|rd-update'; then
+    || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$|^scripts/lib/crash-matrix\.' \
+    || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxF -f <(printf '%s\n' "${crash_triggers[@]}"); then
     failpoints=1
 fi
 
@@ -411,8 +420,9 @@ git diff --check "$boundary"
 echo "    no whitespace damage"
 
 # The scripts themselves: bash -n, shellcheck and every test under scripts/tests/ (RD-140-22),
-# whenever something under scripts/ changed — a script included, not only its libraries. Python
-# and bash, seconds, so no reason to wait for the Rust half.
+# whenever something under scripts/ changed — a script included, not only its libraries — and
+# actionlint whenever .github/ did (RD-191-09). Python and bash, seconds, so no reason to wait
+# for the Rust half.
 # shellcheck source=lib/script-checks.sh
 source "$ROOT/scripts/lib/script-checks.sh"
 rd_script_checks
@@ -489,6 +499,15 @@ if [[ "$run_rust" -eq 1 ]]; then
         exit 1
     fi
     echo "    ${#rd_api_all[@]} suites in $(rd_api_test_binaries | wc -l) binaries, every one mapped"
+
+    # The same for the files outside crates/ that Rust tests read (RD-191-09): a path a Rust
+    # source names without its row would leave a change to it untested at branch level again.
+    step "the Rust test inputs map against the sources"
+    if ! python3 scripts/lib/rust-test-inputs.py . "$RD_RUST_INPUTS_MAP" >&2; then
+        echo "!! Give each such path its row in $RD_RUST_INPUTS_MAP." >&2
+        exit 1
+    fi
+    echo "    every file outside crates/ and plugins/ a Rust test reads has its row"
 
     # shellcheck source=lib/components.sh
     source "$ROOT/scripts/lib/components.sh"
@@ -608,19 +627,16 @@ if [[ "$run_rust" -eq 1 ]]; then
             step "crash and restart matrix"
             # Off in every other run, including the one above: with the feature disabled the
             # crash points expand to nothing, which is the point. See
-            # crates/rd-core/recovery-matrix.md.
-            # Every owning crate's own feature, not just rd-core's: each crash-test file is
-            # gated on the feature of the crate that owns the point, and rd-core/failpoints does
-            # not turn those on — a binary compiled to nothing reports success.
-            run_tests --features rd-http/failpoints,rd-scheduler/failpoints,rd-usenet/failpoints,rd-object-storage/failpoints,rd-backup/failpoints,rd-plugin-host/failpoints,rd-extract/failpoints,rd-api-core/failpoints,rd-torrent/failpoints,rd-plugin-transfer/failpoints,rd-update/failpoints \
-                -p rd-core -p rd-http -p rd-scheduler -p rd-usenet -p rd-object-storage -p rd-backup -p rd-plugin-host -p rd-extract -p rd-api-core -p rd-torrent -p rd-plugin-transfer -p rd-update
-            # The plugin update's two points sit in rd-api-admin and are driven through the
-            # admin suite, so only those cases of rd-api run here (RD-180-12).
-            run_tests --features rd-api/failpoints -p rd-api --test admin stopped_updates
-            # The archive passwords' two points sit in rd-db; their binary alone (RD-190-04).
-            run_tests --features rd-db/failpoints -p rd-db --test archive_password_crash
+            # crates/rd-core/recovery-matrix.md, and scripts/lib/crash-matrix.list for why every
+            # owning crate's own feature is turned on, not only rd-core's.
+            # Read first and run after: a test reading stdin must not eat the next run's line.
+            mapfile -t crash_runs < <(rd_crash_matrix_runs)
+            for crash_line in "${crash_runs[@]}"; do
+                read -r -a crash_run <<< "$crash_line"
+                run_tests "${crash_run[@]}"
+            done
         else
-            skip "crash and restart matrix" "none of rd-core, rd-db, rd-http, rd-scheduler, rd-usenet, rd-object-storage, rd-backup, rd-plugin-host, rd-extract, rd-api-core, rd-torrent, rd-plugin-transfer, rd-api-admin, rd-update, failpoint.rs or the recovery matrix changed"
+            skip "crash and restart matrix" "none of ${crash_triggers[*]}, failpoint.rs, the recovery matrix or scripts/lib/crash-matrix.list changed"
         fi
 
         if [[ "$sqlx" -eq 1 ]]; then

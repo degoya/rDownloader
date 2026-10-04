@@ -62,10 +62,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # rust-toolchain.toml names `stable`, which outranks the 1.98.0 the toolchain step installs;
-  # RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its own day
-  # (1.99's deprecation of fetch_update, 2026-10-01).
-  RUSTUP_TOOLCHAIN: 1.98.0
+  # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
   CARGO_INCREMENTAL: 0
 
 jobs:
@@ -76,14 +73,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: ./.github/actions/setup-web
       - run: pnpm install --frozen-lockfile
         working-directory: web
       - run: pnpm run build
@@ -124,17 +114,15 @@ jobs:
         with:
           name: e2e-web-dist
           path: web/dist
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: 1.98.0
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       # `release-test`: the release profile without its single codegen unit and LTO, so the run
       # tests release code in a fraction of the release build's time.
       - name: Build the service and the capture agent
         run: cargo build --locked --profile release-test -p rdownloader -p rd-capture
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-web
         with:
-          node-version: 24
+          pnpm: false
 
       # A hosted Linux runner has no login session, so `systemctl --user` has no manager to talk
       # to. Lingering starts one; its bus is what `autostart install` enables the unit through.

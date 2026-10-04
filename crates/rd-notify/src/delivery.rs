@@ -24,6 +24,13 @@ const APPRISE_URLS_VARIABLE: &str = "APPRISE_URLS";
 /// How much of a response is kept for the history.
 const MAX_EXCERPT: usize = 500;
 
+/// How long one apprise run may take before it is killed and the attempt counted as failed.
+///
+/// apprise sends to one service and exits; a minute is far beyond any working call. Without a
+/// limit a hung run kept its target `in_flight` for good and the test action never answered
+/// (audit 1.9.1, INTAKE-05).
+const APPRISE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// What a target's own configuration adds on top of the endpoint.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -248,9 +255,30 @@ async fn send_apprise(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
+        // A run that is given up on — the limit below, or a service stopping and dropping
+        // the attempt — must not leave apprise behind.
+        .kill_on_drop(true)
         .no_console_window();
+    run_apprise(command, secret, APPRISE_TIMEOUT).await
+}
+
+/// Runs a prepared apprise command within `limit`.
+async fn run_apprise(
+    mut command: tokio::process::Command,
+    secret: &secrecy::SecretString,
+    limit: std::time::Duration,
+) -> Result<Attempt> {
     let child = command.spawn().context("start apprise")?;
-    let output = child.wait_with_output().await.context("run apprise")?;
+    let Ok(output) = tokio::time::timeout(limit, child.wait_with_output()).await else {
+        // Dropping the future dropped the child, which `kill_on_drop` ends. Retried like any
+        // other apprise failure: the service on the other end may only be slow today.
+        return Ok(Attempt::failed(
+            None,
+            format!("apprise did not finish within {} seconds", limit.as_secs()),
+            true,
+        ));
+    };
+    let output = output.context("run apprise")?;
     if output.status.success() {
         return Ok(Attempt::ok(None));
     }
@@ -265,6 +293,40 @@ async fn send_apprise(
 #[cfg(test)]
 mod tests {
     use super::{excerpt, sign};
+
+    /// A hung apprise is killed at its limit and the attempt fails retryably, instead of
+    /// holding its target `in_flight` for good (audit 1.9.1, INTAKE-05).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_hung_apprise_is_killed_at_its_limit() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = tempfile::tempdir().expect("tempdir");
+        let script = folder.path().join("apprise");
+        std::fs::write(&script, "#!/bin/sh\nexec sleep 30\n").expect("script");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let mut command = tokio::process::Command::new(&script);
+        command
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true);
+        let secret = secrecy::SecretString::from("tgram://token/chat");
+        let started = std::time::Instant::now();
+        let attempt = super::run_apprise(command, &secret, std::time::Duration::from_millis(300))
+            .await
+            .expect("attempt");
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+        assert!(!attempt.ok);
+        assert!(attempt.retryable);
+        assert!(
+            attempt
+                .excerpt
+                .as_deref()
+                .is_some_and(|text| text.contains("did not finish")),
+            "{attempt:?}"
+        );
+    }
 
     /// Apprise is found in the folder configured under Settings -> Tools (RD-120-62), not only
     /// beside the program, in the data folder and on `PATH`.

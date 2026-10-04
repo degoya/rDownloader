@@ -1,6 +1,6 @@
 //! Queue runner: downloads one media file with `yt-dlp` into the package folder.
 
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -13,10 +13,9 @@ use rd_db::Database;
 use rd_scheduler::{ExternalRunner, RunOutcome};
 use rd_secrets::SecretStore;
 use rd_tools::{
-    ProgressThrottle, ToolProcess,
+    LiveSlots, ProgressThrottle, ToolLine, ToolProcess,
     process::{Stdout, prepare},
 };
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -198,21 +197,21 @@ pub struct MediaRunner {
     database: Database,
     secrets: SecretStore,
     settings: SharedMediaSettings,
-    slot_capacity: usize,
+    /// Read on every dispatch pass, so a changed setting needs no restart (audit 1.9.1, TR-07).
+    slots: LiveSlots<rd_core::MediaSettings>,
 }
 
 impl MediaRunner {
     #[must_use]
     pub fn new(database: Database, secrets: SecretStore, settings: SharedMediaSettings) -> Self {
-        let slot_capacity = settings
-            .try_read()
-            .map(|guard| guard.media_max_parallel.clamp(1, 8) as usize)
-            .unwrap_or(2);
+        let slots = LiveSlots::new(Arc::clone(&settings), |settings| {
+            settings.media_max_parallel
+        });
         Self {
             database,
             secrets,
             settings,
-            slot_capacity,
+            slots,
         }
     }
 
@@ -298,7 +297,7 @@ impl ExternalRunner for MediaRunner {
     }
 
     fn slot_capacity(&self) -> usize {
-        self.slot_capacity
+        self.slots.get()
     }
 
     async fn run(
@@ -456,8 +455,6 @@ impl ExternalRunner for MediaRunner {
         let mut command = tokio::process::Command::new(ytdlp);
         command.args(plan.build());
         let mut process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?;
-        let stdout = process.take_stdout().context("yt-dlp stdout")?;
-        let mut lines = BufReader::new(stdout).lines();
         let mut final_path: Option<String> = None;
         let mut throttle = ProgressThrottle::default();
         // A merged video is fetched as two streams that each count 0-100 %. Bytes of the
@@ -466,14 +463,15 @@ impl ExternalRunner for MediaRunner {
         let mut stream_total: Option<u64> = None;
         let mut stream_committed: u64 = 0;
         loop {
-            let line = tokio::select! {
-                () = cancellation.cancelled() => {
-                    process.kill().await;
-                    return Ok(RunOutcome::Stopped);
+            let line = match process.next_line(cancellation.cancelled()).await? {
+                ToolLine::Line(line) => line,
+                ToolLine::End => break,
+                ToolLine::Stopped => return Ok(RunOutcome::Stopped),
+                // No deadline is set today: a download runs as long as its bytes take.
+                ToolLine::TimedOut => {
+                    return Ok(RunOutcome::Failed(timed_out(&process.stderr().await)));
                 }
-                line = lines.next_line() => line?,
             };
-            let Some(line) = line else { break };
             if line.trim().starts_with("[download] Destination:") {
                 finished_bytes += stream_total.unwrap_or(stream_committed);
                 stream_total = None;
@@ -552,11 +550,44 @@ impl ExternalRunner for MediaRunner {
     }
 }
 
+/// A run its deadline ended: the tool failed, retried like any other yt-dlp failure. Answered
+/// as a stop it read as the person's own pause and was never tried again (re-audit 1.9.1,
+/// RA-TR-03).
+fn timed_out(stderr: &str) -> Failure {
+    let tail = rd_tools::stderr_tail(stderr, "yt-dlp ran past its time limit");
+    Failure::coded(
+        FailureKind::Transient {
+            retry_after_seconds: Some(120),
+        },
+        "media.ytdlp_failed",
+        format!("yt-dlp failed: {tail}"),
+    )
+    .with_param("detail", tail)
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
 
-    use super::{final_path_line, output_template, progressive_format};
+    use super::{final_path_line, output_template, progressive_format, timed_out};
+
+    /// RA-TR-03: a deadline is a failure with a retry, not a stop.
+    #[test]
+    fn a_run_past_its_deadline_is_a_retryable_failure() {
+        let failure = timed_out("");
+        assert_eq!(failure.code.as_deref(), Some("media.ytdlp_failed"));
+        assert!(failure.category.is_retryable());
+        assert!(
+            failure.message.contains("time limit"),
+            "{}",
+            failure.message
+        );
+        assert!(
+            timed_out("WARNING: slow\nERROR: stalled\n")
+                .message
+                .contains("ERROR: stalled")
+        );
+    }
 
     #[test]
     fn keeps_only_the_alternative_that_needs_no_merge() {

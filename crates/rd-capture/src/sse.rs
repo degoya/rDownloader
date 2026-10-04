@@ -123,10 +123,11 @@ const MAX_BACKOFF: Duration = Duration::from_secs(60);
 
 /// Fraction of a reconnect delay used as spread, in percent.
 ///
-/// The same ±10% `rd-subscription`'s schedule uses, and for the same reason: without it every
-/// watcher that lost the connection to a restarting service comes back at exactly 2, 4, 8 …
-/// seconds, all together, and hands the service its whole load in one moment.
-const JITTER_PERCENT: u64 = 10;
+/// The same ±10% `rd-subscription`'s schedule uses ([`rd_core::RETRY_JITTER_PERCENT`], audit
+/// 1.9.1, INTAKE-12), and for the same reason: without it every watcher that lost the
+/// connection to a restarting service comes back at exactly 2, 4, 8 … seconds, all together,
+/// and hands the service its whole load in one moment.
+const JITTER_PERCENT: u32 = rd_core::RETRY_JITTER_PERCENT;
 
 /// When to try the stream again after it dropped.
 ///
@@ -176,20 +177,15 @@ impl Reconnect {
 
 /// Deterministic spread of ±[`JITTER_PERCENT`] around a delay.
 fn spread(delay: Duration, seed: u64, attempt: u64) -> Duration {
-    let milliseconds = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX);
-    let span = milliseconds / 100 * JITTER_PERCENT;
-    if span == 0 {
+    let milliseconds = i64::try_from(delay.as_millis()).unwrap_or(i64::MAX);
+    // The shared integer mix of `rd_core::jitter`, which `rd-subscription::schedule` uses too:
+    // neighbouring seeds must not produce neighbouring offsets, or the spreading does nothing.
+    let offset = rd_core::jitter(milliseconds, JITTER_PERCENT, seed.wrapping_add(attempt));
+    if offset == 0 {
         return delay;
     }
-    // The same cheap integer mix `rd-subscription::schedule` uses: neighbouring seeds must not
-    // produce neighbouring offsets, or the spreading does nothing.
-    let mixed = seed
-        .wrapping_add(attempt)
-        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-        .rotate_left(31)
-        .wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let offset = mixed % (span * 2 + 1);
-    Duration::from_millis(milliseconds.saturating_sub(span).saturating_add(offset))
+    let spread = milliseconds.saturating_add(offset);
+    Duration::from_millis(u64::try_from(spread).unwrap_or_default())
 }
 
 #[cfg(test)]

@@ -160,14 +160,15 @@ function busy(itemId: string): boolean {
         </ul>
       </template>
     </div>
-    <!-- A long list scrolls the header's bulk actions away; they repeat here beside the pages. -->
+    <!-- A long list scrolls the header's bulk actions away; they repeat here beside the pages.
+         The cards view has no pages (its slider loads more), but the actions repeat there too. -->
     <footer
-      v-if="open && !cards && !props.loading && !props.error && props.items.length > 0"
+      v-if="open && !props.loading && !props.error && props.items.length > 0"
       class="flex flex-wrap items-center gap-2 border-t border-muted p-2"
       data-testid="subscription-group-footer"
     >
       <UPagination
-        v-if="props.total > props.pageSize"
+        v-if="!cards && props.total > props.pageSize"
         :page="props.page"
         :total="props.total"
         :items-per-page="props.pageSize"

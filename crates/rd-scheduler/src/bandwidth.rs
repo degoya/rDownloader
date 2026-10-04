@@ -398,14 +398,7 @@ impl SchedulerHandle {
     /// Using the persisted progress rather than the limiters covers every transport,
     /// including the ones that run as external processes and never pass through a bucket.
     async fn committed_total(&self) -> Result<u64> {
-        Ok(self
-            .database
-            .list_downloads()
-            .await?
-            .into_iter()
-            .fold(0u64, |total, file| {
-                total.saturating_add(file.committed_bytes.get())
-            }))
+        self.database.committed_bytes_total().await
     }
 
     async fn load_budget_baseline(&self) -> Option<u64> {
@@ -430,14 +423,10 @@ impl SchedulerHandle {
     pub(crate) async fn transfer_scope(&self, file: &rd_core::DownloadFile) -> TransferScope {
         let category_id = self
             .database
-            .list_packages()
+            .get_package(file.package_id)
             .await
             .ok()
-            .and_then(|packages| {
-                packages
-                    .into_iter()
-                    .find(|package| package.id == file.package_id)
-            })
+            .flatten()
             .and_then(|package| package.category_id);
         TransferScope::for_download(
             file.kind,

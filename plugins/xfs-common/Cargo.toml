@@ -6,11 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+plugin-common = { path = "../common" }
 serde.workspace = true
-url.workspace = true
-
-[dev-dependencies]
 serde_json.workspace = true
+url.workspace = true
 
 [lib]
 crate-type = ["rlib"]

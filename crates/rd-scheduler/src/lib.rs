@@ -1,6 +1,9 @@
 //! Persistent queue scheduler.
 
 mod active;
+mod auto_retry;
+#[cfg(test)]
+mod auto_retry_tests;
 mod bandwidth;
 mod block;
 mod capacity;
@@ -9,6 +12,8 @@ mod collision;
 mod collision_tests;
 mod content_index;
 mod control;
+#[cfg(test)]
+mod dispatch_tests;
 mod enqueue;
 mod failures;
 mod finish;
@@ -24,6 +29,8 @@ mod queue_pause;
 mod rates;
 mod replay;
 mod retry;
+#[cfg(test)]
+mod run_guard_tests;
 mod runner;
 mod worker;
 
@@ -54,6 +61,7 @@ use active::ActiveState;
 pub use bandwidth::{BandwidthService, BandwidthStatus};
 pub use block::BlockReason;
 pub use content_index::ContentIndexCheck;
+pub use control::NzbDropped;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
 use provider::ProviderSlot;
@@ -95,6 +103,9 @@ pub struct SchedulerConfig {
 pub struct PackageOptions {
     pub category_id: Option<rd_core::CategoryId>,
     pub priority: rd_core::DownloadPriority,
+    /// Write the file paused instead of queued, in the same row write, so the dispatcher
+    /// cannot start it before a later pause would land (API-09).
+    pub paused: bool,
 }
 
 /// Settings that can be changed without restarting active transfers.
@@ -122,6 +133,13 @@ pub struct RuntimeSettings {
     pub max_retries: u32,
     /// Hold new downloads while a package is post-processing.
     pub pause_during_postprocess: bool,
+    /// Put failed downloads whose failure may pass later back into the queue (RD-191-12).
+    pub auto_retry_failed: bool,
+    /// Hours between a failure and its automatic retry, [`MIN_AUTO_RETRY_INTERVAL_HOURS`] to
+    /// [`MAX_AUTO_RETRY_INTERVAL_HOURS`].
+    pub auto_retry_interval_hours: u32,
+    /// Automatic retry rounds per download, at most [`MAX_AUTO_RETRY_ROUNDS`]; `0` is no limit.
+    pub auto_retry_max_rounds: u32,
     /// Transfer kinds switched off entirely. A queued job of such a kind is blocked with a
     /// reason rather than left waiting, and intake refuses new ones.
     pub disabled_kinds: Vec<rd_core::DownloadKind>,
@@ -132,10 +150,16 @@ pub const DEFAULT_MAX_RETRIES: u32 = 8;
 /// The most files an external runner may be told to work on at once. Why eight is the
 /// runner's to say: `rd_usenet::parallel::MAX_PARALLEL_FILES` carries the reasoning.
 pub const MAX_EXTERNAL_PARALLEL_FILES: usize = 8;
+pub use auto_retry::{
+    DEFAULT_AUTO_RETRY_INTERVAL_HOURS, DEFAULT_AUTO_RETRY_MAX_ROUNDS,
+    MAX_AUTO_RETRY_INTERVAL_HOURS, MAX_AUTO_RETRY_ROUNDS, MIN_AUTO_RETRY_INTERVAL_HOURS,
+};
 /// The per-host connection bounds, re-exported for the callers that configure them. The binary
 /// wires the service through this crate and does not link `rd-http` itself.
 pub use rd_http::{DEFAULT_CONNECTIONS_PER_HOST, MAX_CONNECTIONS_PER_HOST};
-pub use retry::MAX_CONFIGURABLE_RETRIES;
+pub use retry::{
+    DEFAULT_RATE_LIMIT_WAIT, LIMIT_WAITS_EXHAUSTED_CODE, MAX_CONFIGURABLE_RETRIES, MAX_LIMIT_WAITS,
+};
 
 impl Default for RuntimeSettings {
     fn default() -> Self {
@@ -152,6 +176,9 @@ impl Default for RuntimeSettings {
             global_proxy_profile_id: None,
             custom_ca_pem: None,
             pause_during_postprocess: true,
+            auto_retry_failed: false,
+            auto_retry_interval_hours: DEFAULT_AUTO_RETRY_INTERVAL_HOURS,
+            auto_retry_max_rounds: DEFAULT_AUTO_RETRY_MAX_ROUNDS,
             disabled_kinds: Vec::new(),
         }
     }
@@ -174,6 +201,15 @@ impl SchedulerConfig {
             postprocess_hold: rd_core::PostprocessHold::new(),
             own_address: None,
         }
+    }
+}
+
+/// Marks the start's storage recovery as run when it is dropped, panic or not.
+struct RecoveryFinished(Arc<tokio::sync::watch::Sender<bool>>);
+
+impl Drop for RecoveryFinished {
+    fn drop(&mut self) {
+        self.0.send_replace(true);
     }
 }
 
@@ -206,6 +242,13 @@ pub struct SchedulerHandle {
     max_retries: Arc<AtomicU32>,
     generate_sha256: Arc<AtomicBool>,
     pause_during_postprocess: Arc<AtomicBool>,
+    /// The automatic retry of failed downloads (RD-191-12); see `auto_retry.rs`.
+    auto_retry_failed: Arc<AtomicBool>,
+    auto_retry_interval_hours: Arc<AtomicU32>,
+    auto_retry_max_rounds: Arc<AtomicU32>,
+    /// Whether the last pass of the automatic retry found it on; `true` at a start, so the
+    /// first pass clears due times a switched-off retry left behind.
+    auto_retry_was_enabled: Arc<AtomicBool>,
     /// Transfer kinds the operator switched off. Read on every dispatch so a change takes
     /// effect without a restart.
     disabled_kinds: Arc<Mutex<Vec<rd_core::DownloadKind>>>,
@@ -238,6 +281,10 @@ pub struct SchedulerHandle {
     /// run, so a caller can tell a move it starts itself from one the start resumed.
     storage_recovered: Arc<tokio::sync::watch::Sender<bool>>,
     shutdown: CancellationToken,
+    /// How often a dispatch pass read the startable rows: the tests hold a pass to one read
+    /// and a switched-off kind to one more (TR-08, TR-18; re-audit 1.9.1, RA-TR-07).
+    #[cfg(test)]
+    queue_reads: Arc<AtomicUsize>,
 }
 
 impl SchedulerHandle {
@@ -305,6 +352,8 @@ impl SchedulerHandle {
             secrets.clone(),
             network_defaults.clone(),
             Some(Arc::new(captcha.clone())),
+            // The service's own listeners are no plugin's to reach (RA-HOST-01).
+            rd_plugin_host::OwnEndpoints::new(config.own_address),
         );
         if let Some(plugins) = plugins {
             let loaded = resolvers.load_components_from_registry(plugins).await?;
@@ -339,6 +388,10 @@ impl SchedulerHandle {
             external_parallel_files: Arc::new(AtomicUsize::new(config.external_parallel_files)),
             generate_sha256: Arc::new(AtomicBool::new(true)),
             pause_during_postprocess: Arc::new(AtomicBool::new(true)),
+            auto_retry_failed: Arc::new(AtomicBool::new(false)),
+            auto_retry_interval_hours: Arc::new(AtomicU32::new(DEFAULT_AUTO_RETRY_INTERVAL_HOURS)),
+            auto_retry_max_rounds: Arc::new(AtomicU32::new(DEFAULT_AUTO_RETRY_MAX_ROUNDS)),
+            auto_retry_was_enabled: Arc::new(AtomicBool::new(true)),
             disabled_kinds: Arc::new(Mutex::new(Vec::new())),
             network_defaults,
             captcha,
@@ -359,6 +412,8 @@ impl SchedulerHandle {
             relocations: Arc::new(tokio::sync::Mutex::new(())),
             storage_recovered: Arc::new(tokio::sync::watch::Sender::new(false)),
             shutdown: CancellationToken::new(),
+            #[cfg(test)]
+            queue_reads: Arc::new(AtomicUsize::new(0)),
         };
         // Closes `scheduler.before_mirror_promoted`: a group whose active member failed while
         // its successor had not been promoted yet holds nothing and is dispatched by nobody,
@@ -382,8 +437,10 @@ impl SchedulerHandle {
         {
             let recovering = handle.clone();
             tokio::spawn(async move {
+                // Sent on the way out however the work ends: a panic in it left every
+                // `storage_recovery_finished` waiting for good (audit 1.9.1, T13).
+                let _finished = RecoveryFinished(Arc::clone(&recovering.storage_recovered));
                 recovering.recover_storage_work().await;
-                recovering.storage_recovered.send_replace(true);
             });
         }
         tokio::spawn(handle.clone().supervise());
@@ -504,7 +561,7 @@ impl SchedulerHandle {
     /// reconnect says nothing about a hoster that refused the credentials or a server that
     /// was briefly unreachable.
     pub async fn requeue_ip_blocked(&self) -> anyhow::Result<usize> {
-        let waiting = self.database.list_downloads().await?;
+        let waiting = self.database.startable_downloads().await?;
         let mut requeued = 0;
         for file in waiting {
             if file.state != DownloadState::RetryWait {
@@ -557,6 +614,16 @@ impl SchedulerHandle {
             settings.max_retries <= MAX_CONFIGURABLE_RETRIES,
             "max_retries must not exceed {MAX_CONFIGURABLE_RETRIES}"
         );
+        anyhow::ensure!(
+            (MIN_AUTO_RETRY_INTERVAL_HOURS..=MAX_AUTO_RETRY_INTERVAL_HOURS)
+                .contains(&settings.auto_retry_interval_hours),
+            "auto_retry_interval_hours must be between {MIN_AUTO_RETRY_INTERVAL_HOURS} and \
+             {MAX_AUTO_RETRY_INTERVAL_HOURS}"
+        );
+        anyhow::ensure!(
+            settings.auto_retry_max_rounds <= MAX_AUTO_RETRY_ROUNDS,
+            "auto_retry_max_rounds must not exceed {MAX_AUTO_RETRY_ROUNDS}"
+        );
         if let Some(certificate) = settings
             .custom_ca_pem
             .as_ref()
@@ -593,6 +660,12 @@ impl SchedulerHandle {
             .store(settings.generate_sha256, Ordering::Release);
         self.pause_during_postprocess
             .store(settings.pause_during_postprocess, Ordering::Release);
+        self.auto_retry_failed
+            .store(settings.auto_retry_failed, Ordering::Release);
+        self.auto_retry_interval_hours
+            .store(settings.auto_retry_interval_hours, Ordering::Release);
+        self.auto_retry_max_rounds
+            .store(settings.auto_retry_max_rounds, Ordering::Release);
         // Re-enabling a kind has to release what disabling it blocked; otherwise switching a
         // service back on leaves its jobs sitting in `Blocked` with no way to notice.
         let released: Vec<rd_core::DownloadKind> = {
@@ -634,8 +707,14 @@ impl SchedulerHandle {
     /// identical to one that is merely waiting its turn, and there is nothing in the queue
     /// that says why it never starts.
     async fn block_queued_of_kind(&self, kind: rd_core::DownloadKind) {
-        let Ok(files) = self.database.list_downloads().await else {
-            return;
+        let files = match self.startable_downloads().await {
+            Ok(files) => files,
+            Err(error) => {
+                // Said rather than swallowed (audit 1.9.1, TR-18): the next pass tries again,
+                // but a database that keeps refusing should show up in the log.
+                tracing::warn!(%error, ?kind, "queued jobs of a disabled kind were not read");
+                return;
+            }
         };
         for file in files
             .into_iter()
@@ -651,26 +730,42 @@ impl SchedulerHandle {
         }
     }
 
+    /// The rows a dispatch pass may start, read through the state index.
+    async fn startable_downloads(&self) -> Result<Vec<rd_core::DownloadFile>> {
+        #[cfg(test)]
+        self.queue_reads.fetch_add(1, Ordering::AcqRel);
+        self.database.startable_downloads().await
+    }
+
     /// Requeues what disabling those kinds had blocked — and only that.
     ///
     /// The kind alone is not enough of a filter: a file of a re-enabled kind may also be
     /// blocked because its storage root is full or because its validators changed mid-transfer,
     /// and switching the kind back on is not a verdict on either of those.
     async fn requeue_blocked_of_kinds(&self, kinds: &[rd_core::DownloadKind]) {
-        let Ok(blocked) = self
+        let blocked = match self
             .database
             .downloads_blocked_by(BlockReason::KindDisabled.as_str())
             .await
-        else {
-            return;
-        };
-        let Ok(files) = self.database.list_downloads().await else {
-            return;
-        };
-        for file in files
-            .into_iter()
-            .filter(|file| kinds.contains(&file.kind) && blocked.contains(&file.id))
         {
+            Ok(blocked) => blocked,
+            Err(error) => {
+                tracing::warn!(%error, "jobs blocked by a disabled kind were not read");
+                return;
+            }
+        };
+        for id in blocked {
+            let file = match self.database.get_download(id).await {
+                Ok(Some(file)) => file,
+                Ok(None) => continue,
+                Err(error) => {
+                    tracing::warn!(%error, download = %id, "a blocked job could not be read");
+                    continue;
+                }
+            };
+            if !kinds.contains(&file.kind) {
+                continue;
+            }
             if let Err(error) = self.resume(file.id).await {
                 tracing::warn!(%error, download = %file.id, "could not resume a re-enabled kind");
             }
@@ -842,7 +937,11 @@ impl SchedulerHandle {
                 account_id,
                 proxy_profile_id,
                 auth_profile: rd_core::AuthProfileSelection::Auto,
-                initial_state: DownloadState::Queued,
+                initial_state: if options.paused {
+                    DownloadState::Paused
+                } else {
+                    DownloadState::Queued
+                },
                 kind: rd_core::DownloadKind::Http,
                 media: None,
                 remote_credential_id: None,
@@ -903,6 +1002,12 @@ impl SchedulerHandle {
                     {
                         tracing::error!(%error, "transfer rate sampling failed");
                     }
+                    // Once a minute: its intervals are counted in hours (RD-191-12).
+                    if capacity_tick.is_multiple_of(120)
+                        && let Err(error) = self.supervise_auto_retry().await
+                    {
+                        tracing::error!(%error, "the automatic retry of failed downloads failed");
+                    }
                     // Every tick, and before the dispatch below: the end of a pause is the
                     // moment its files may start, not up to a second later.
                     if let Err(error) = self.supervise_queue_pause().await {
@@ -921,25 +1026,39 @@ impl SchedulerHandle {
     /// Its own read of the queue rather than the dispatch loop's: that one returns early while
     /// a budget, a hold or post-processing keeps the queue back, and a rate frozen at whatever
     /// it was when the hold began would be worse than one that decays to nothing.
+    ///
+    /// Only the files that hold a slot are read, one row each: only those move bytes, and the
+    /// whole table once a second was most of what an idle queue cost (audit 1.9.1, TR-08).
     async fn supervise_rates(&self) -> Result<()> {
-        let files = self.database.list_downloads().await?;
-        let observations = files
-            .iter()
-            .map(|file| rates::RateObservation {
+        let running = self
+            .active
+            .lock()
+            .await
+            .tokens
+            .keys()
+            .copied()
+            .collect::<Vec<_>>();
+        let mut observations = Vec::with_capacity(running.len());
+        for id in running {
+            let Some(file) = self.database.get_download(id).await? else {
+                continue;
+            };
+            observations.push(rates::RateObservation {
                 id: file.id,
                 committed_bytes: file.committed_bytes.get(),
                 // Only a running transfer moves bytes. Verifying, repairing, extracting and
                 // seeding do not, and neither does anything that is waiting.
                 transferring: file.state == DownloadState::Downloading,
-            })
-            .collect::<Vec<_>>();
+            });
+        }
         self.rates.observe(std::time::Instant::now(), &observations);
         Ok(())
     }
 
-    /// The current smoothed rate of every download in the queue, in bytes per second.
+    /// The current smoothed rate of every running download, in bytes per second.
     ///
     /// Empty until the supervise loop has sampled twice; a rate needs two readings to exist.
+    /// A download that holds no slot has no entry.
     #[must_use]
     pub fn transfer_rates(&self) -> HashMap<DownloadId, u64> {
         self.rates.rates()
@@ -971,16 +1090,27 @@ impl SchedulerHandle {
                 || self.max_active_files.load(Ordering::Acquire),
                 |profile_limit| profile_limit.min(self.max_active_files.load(Ordering::Acquire)),
             );
+        // Only the rows that can start, through the state index: an idle queue of finished
+        // downloads used to be loaded whole, JSON and all, twice a second (audit 1.9.1, TR-08).
+        let files = self
+            .startable_downloads()
+            .await?
+            .into_iter()
+            .filter(|file| {
+                file.state == DownloadState::Queued
+                    || file.next_retry_at.is_some_and(|retry_at| retry_at <= now)
+            })
+            .collect::<Vec<_>>();
+        if files.is_empty() {
+            return Ok(());
+        }
         let destinations = self.package_destinations().await?;
-        let files = self.database.list_downloads().await?;
-        // Cloned once for the mirror check below, which needs to look at a file's siblings
-        // while the loop has already taken the list apart.
-        let all_files = files.clone();
-        for file in files.into_iter().filter(|file| {
-            file.state == DownloadState::Queued
-                || (file.state == DownloadState::RetryWait
-                    && file.next_retry_at.is_some_and(|retry_at| retry_at <= now))
-        }) {
+        // A mirror group's members, read once per package and pass: the check below needs a
+        // file's siblings in every state, not only the startable ones.
+        let mut groups: HashMap<PackageId, Vec<rd_core::DownloadFile>> = HashMap::new();
+        // A switched-off kind is blocked once per pass, not once per waiting file of it.
+        let mut blocked_kinds: Vec<rd_core::DownloadKind> = Vec::new();
+        for file in files {
             // A hoster's free-download limit applies to the whole IP, so hold back its
             // other anonymous links instead of spending another wait and captcha on them.
             // Downloads backed by an account are unaffected.
@@ -993,7 +1123,15 @@ impl SchedulerHandle {
             // runs; this catches the case where somebody started a waiting one by hand, and
             // stands the loser down rather than fetching the same bytes twice.
             if file.mirror_group.is_some() {
-                let siblings = mirrors::siblings(&file, &all_files);
+                if let std::collections::hash_map::Entry::Vacant(slot) =
+                    groups.entry(file.package_id)
+                {
+                    slot.insert(self.database.downloads_for_package(file.package_id).await?);
+                }
+                let siblings = groups
+                    .get(&file.package_id)
+                    .map(|members| mirrors::siblings(&file, members))
+                    .unwrap_or_default();
                 let taken = siblings
                     .iter()
                     .any(|sibling| mirrors::has_taken_the_turn(sibling.state));
@@ -1010,6 +1148,9 @@ impl SchedulerHandle {
                     self.database
                         .transition_download(file.id, DownloadState::Skipped)
                         .await?;
+                    // Read again on the next member of the group, which must see this one
+                    // standing by rather than contending.
+                    groups.remove(&file.package_id);
                     continue;
                 }
             }
@@ -1024,7 +1165,10 @@ impl SchedulerHandle {
             // A switched-off service must not leave work waiting forever with no reason
             // shown, so the job is blocked instead of skipped.
             if self.kind_disabled(file.kind).await {
-                self.block_queued_of_kind(file.kind).await;
+                if !blocked_kinds.contains(&file.kind) {
+                    blocked_kinds.push(file.kind);
+                    self.block_queued_of_kind(file.kind).await;
+                }
                 continue;
             }
             let external = match file.kind {
@@ -1061,7 +1205,13 @@ impl SchedulerHandle {
             let cancellation = CancellationToken::new();
             {
                 let mut active = self.active.lock().await;
-                if active.tokens.contains_key(&file.id) || active.reasons.contains_key(&file.id) {
+                // Asked under the lock `shutdown` collects the tokens under: a pass that was
+                // already running when the shutdown began would otherwise add a token nobody
+                // cancels and start a job while the WAL is checkpointed (audit 1.9.1, TR-06).
+                if self.shutdown.is_cancelled() {
+                    return Ok(());
+                }
+                if active.untouchable(&file.id) {
                     continue;
                 }
                 // Exempt kinds (recordings) start regardless of the global cap, and so does
@@ -1088,61 +1238,64 @@ impl SchedulerHandle {
         Ok(())
     }
 
+    /// One attempt on `file` and everything that has to follow it, whatever the attempt did.
+    ///
+    /// The attempt runs in a task of its own, so a panic in a worker or a runner ends that task
+    /// and nothing else: the slot below is given back and the row is recorded as a failed
+    /// attempt, where it used to keep its place in `active` and sit in `Downloading` until the
+    /// next start (audit 1.9.1, TR-05).
     async fn run_file(
         &self,
         file: rd_core::DownloadFile,
         cancellation: CancellationToken,
         runner: Option<Arc<dyn ExternalRunner>>,
     ) {
-        // The trace every attempt on this download belongs to (RD-110-03).
-        //
-        // Derived from the download id rather than inherited from whoever enqueued it: queued
-        // work outlives the request that queued it — this runs minutes later, in another
-        // task, possibly after a restart — so there is no request context left to inherit.
-        // Deriving means the resolver call, the transfer and post-processing all land in one
-        // trace for download `42` without a single function growing a parameter, because
-        // `rd_diagnostics` copies an open span's `trace_id` onto everything inside it.
-        let trace = rd_core::TraceContext::for_job("download", &file.id.to_string());
-        let span = tracing::info_span!(
-            "download.run",
-            trace_id = %trace.trace_id_hex(),
-            download_id = %file.id,
-            kind = ?file.kind,
-        );
-        let result = tracing::Instrument::instrument(
-            async {
-                match runner {
-                    Some(runner) => self.run_external(runner, &file, cancellation).await,
-                    None => worker::run(self, &file, cancellation).await,
-                }
-            },
-            span,
-        )
-        .await;
+        let attempt = {
+            let scheduler = self.clone();
+            let file = file.clone();
+            tokio::spawn(async move { scheduler.attempt(&file, cancellation, runner).await })
+        };
+        let (result, panicked) = match attempt.await {
+            Ok(result) => (result, false),
+            Err(error) => (
+                Err(anyhow::anyhow!(
+                    "the download attempt ended abnormally: {error}"
+                )),
+                true,
+            ),
+        };
         if let Err(error) = &result {
-            tracing::warn!(download_id = %file.id, %error, "download attempt failed");
+            // With its causes: the top line of a request error is "error sending request",
+            // and what went wrong sits further down (audit 1.9.1, TR-12).
+            let message = format!("{error:#}");
+            tracing::warn!(download_id = %file.id, error = %message, "download attempt failed");
             if let Ok(Some(current)) = self.database.get_download(file.id).await
-                && matches!(
+                && (matches!(
                     current.state,
                     DownloadState::Resolving
                         | DownloadState::Downloading
                         | DownloadState::Verifying
                         | DownloadState::Repairing
                         | DownloadState::Extracting
-                )
+                ) || (panicked
+                    // A panic before the first transition left the row startable; without a
+                    // recorded attempt the next pass would run into the same panic at once.
+                    && matches!(
+                        current.state,
+                        DownloadState::Queued | DownloadState::RetryWait
+                    )))
             {
                 let failure = Failure::new(
                     FailureKind::Transient {
                         retry_after_seconds: None,
                     },
-                    error.to_string(),
+                    message,
                 );
-                let retry_at = retry::retry_at(&failure, current.retry_count, self.max_retries());
-                if let Err(error) = self
-                    .database
-                    .record_failure(file.id, failure, retry_at)
-                    .await
-                {
+                // The same way as a failure the runner reported: a mirror group hands its turn
+                // on once the attempts are spent, where `record_failure` alone left the waiting
+                // members `Skipped` until the next start (re-audit 1.9.1, RA-TR-01) — a missing
+                // `yt-dlp` is an `Err`, not a `RunOutcome::Failed`.
+                if let Err(error) = crate::failures::record_error(self, &current, failure).await {
                     // The token is dropped just below either way, so a lost write leaves the
                     // row in `Downloading`/`Resolving` with nothing running behind it, and
                     // `schedule_runnable` only ever looks at `Queued`/`RetryWait`. The entry
@@ -1172,5 +1325,39 @@ impl SchedulerHandle {
                 "outstanding category move was not completed"
             );
         }
+    }
+
+    /// The attempt itself: the external runner, or the built-in HTTP worker.
+    async fn attempt(
+        &self,
+        file: &rd_core::DownloadFile,
+        cancellation: CancellationToken,
+        runner: Option<Arc<dyn ExternalRunner>>,
+    ) -> Result<()> {
+        // The trace every attempt on this download belongs to (RD-110-03).
+        //
+        // Derived from the download id rather than inherited from whoever enqueued it: queued
+        // work outlives the request that queued it — this runs minutes later, in another
+        // task, possibly after a restart — so there is no request context left to inherit.
+        // Deriving means the resolver call, the transfer and post-processing all land in one
+        // trace for download `42` without a single function growing a parameter, because
+        // `rd_diagnostics` copies an open span's `trace_id` onto everything inside it.
+        let trace = rd_core::TraceContext::for_job("download", &file.id.to_string());
+        let span = tracing::info_span!(
+            "download.run",
+            trace_id = %trace.trace_id_hex(),
+            download_id = %file.id,
+            kind = ?file.kind,
+        );
+        tracing::Instrument::instrument(
+            async {
+                match runner {
+                    Some(runner) => self.run_external(runner, file, cancellation).await,
+                    None => worker::run(self, file, cancellation).await,
+                }
+            },
+            span,
+        )
+        .await
     }
 }

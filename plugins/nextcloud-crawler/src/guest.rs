@@ -28,7 +28,7 @@ use rdownloader::plugin::{
 use crate::{
     messages, propfind,
     target::{self, Share},
-    walk::{Limit, Walk},
+    walk::{Absorb, Limit},
 };
 
 struct Component;
@@ -226,13 +226,13 @@ fn crawl_share(share: &Share) -> Result<Vec<CrawledLink>, Failure> {
         .find(|item| crate::walk::normalize(&item.href) == crate::walk::normalize(&root_href))
         .map(|item| item.name.clone())
         .unwrap_or_default();
-    let mut walk = Walk::start(&root_href, &crate::walk::join("", &root_name));
+    let mut walk = crate::walk::start(&root_href, &crate::walk::join("", &root_name));
     let mut page = Some(first_page);
     while let Some(pending) = walk.next_folder() {
         let items = match page.take() {
             Some(items) => items,
             None => {
-                let url = absolute(share, &format!("{}/", pending.href));
+                let url = absolute(share, &format!("{}/", pending.id));
                 match list(share, endpoint, &url) {
                     Ok(Some(items)) => items,
                     // A subfolder that is gone or refused is a hole in the tree, not a
@@ -255,7 +255,11 @@ fn crawl_share(share: &Share) -> Result<Vec<CrawledLink>, Failure> {
             match limit {
                 Limit::Depth => "this share is nested deeper than the crawl walks",
                 Limit::Files => "this share holds more files than the crawl lists",
-                Limit::Folders => "this share holds more subfolders than the crawl reads",
+                // A `PROPFIND` answers a folder whole, so the page limit never fires; should it
+                // ever, the folder was cut short like one with too many subfolders.
+                Limit::Folders | Limit::Pages => {
+                    "this share holds more subfolders than the crawl reads"
+                }
             },
         );
     }

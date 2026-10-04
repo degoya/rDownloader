@@ -137,7 +137,11 @@
     "extract_failed": "Échec de l'extraction",
     "actions_aria": "Actions du paquet",
     "priority_value": "Priorité : {priority}",
-    "storage_aria": "Collisions et doublons"
+    "storage_aria": "Collisions et doublons",
+    "hand_over": "Confier à un fournisseur",
+    "hand_over_hint": "Le fournisseur récupère lui-même le NZB de ce paquet sur Usenet ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens. Le paquet reste ici.",
+    "handed_over": "Confié à {provider}",
+    "handed_over_hint": "Ouvrir les travaux distants"
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
@@ -179,7 +183,8 @@
         "internal": "Pointe vers votre propre machine ou vers un réseau que cette liste de sources ne peut pas atteindre."
       },
       "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
-    }
+    },
+    "next_attempt": "Prochaine tentative à {time}"
   },
   "summary": {
     "eyebrow": "État de la file",

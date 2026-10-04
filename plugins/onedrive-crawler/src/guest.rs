@@ -26,7 +26,7 @@ use rdownloader::plugin::{
 use crate::{
     listing::{self, Entry},
     messages, target,
-    walk::{Limit, MAX_PAGES, Walk},
+    walk::{Absorb, Limit, MAX_PAGES, Walk},
 };
 
 /// The vault reference the OneDrive provider keeps its access token under. The value never
@@ -90,11 +90,8 @@ fn fetch(url: &str, parameters: &[RequestQuery]) -> Result<Vec<u8>, Failure> {
                 refuse(messages::ACCESS_DENIED, FailureKind::Permanent)
             }
             (429, _) | (_, "activityLimitReached" | "tooManyRequests") => {
-                let seconds = response
-                    .headers
-                    .iter()
-                    .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-                    .and_then(|(_, value)| value.trim().parse::<u64>().ok());
+                // The shared reader (RD-191-07): clamped to a day, `0` and a date ignored.
+                let seconds = plugin_common::retry_after(&response.headers);
                 refuse(messages::RATE_LIMITED, FailureKind::RateLimited(seconds))
             }
             (500..=599, _) | (_, "serviceNotAvailable") => {
@@ -121,7 +118,14 @@ fn absorb_folder(
     share_id: &str,
     pending: &crate::walk::Pending,
 ) -> Result<(), Failure> {
-    let first = format!("{}/children", route(share_id, &pending.id));
+    // The shared root is reached through the share alone; the walk knows it by its own id only
+    // so that a folder linking back to it is not read twice.
+    let item_id = if pending.depth == 0 {
+        ""
+    } else {
+        pending.id.as_str()
+    };
+    let first = format!("{}/children", route(share_id, item_id));
     let mut next: Option<String> = None;
     for page_number in 0..MAX_PAGES {
         let body = match &next {
@@ -198,7 +202,7 @@ impl Guest for Component {
             }
             return Err(refuse(messages::NOT_A_FOLDER, FailureKind::Unsupported));
         }
-        let mut walk = Walk::start(&root_id);
+        let mut walk = Walk::start(root_id);
         while let Some(mut pending) = walk.next_folder() {
             if pending.depth == 0 {
                 pending.path = root_name.clone();

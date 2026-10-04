@@ -28,8 +28,13 @@ use crate::{
 
 /// The repository the official releases are published in.
 pub const OFFICIAL_REPOSITORY: &str = "degoya/rDownloader";
-/// Largest release list read. Thirty releases with generated notes stay far below it.
-pub const MAX_RELEASE_LIST_BYTES: u64 = 4 * 1024 * 1024;
+/// Releases the beta channel reads per list. Each version publishes two since 1.9.1, the
+/// application's and `plugins-vX.Y.Z`, so sixty keep the window at thirty versions.
+pub const RELEASE_LIST_PAGE: u32 = 60;
+/// Largest release list read. Measured 2026-10-04: a release with the plugins among its ~90
+/// assets is ~144 KB in the list, so even sixty of those come to ~8.6 MB.
+pub const MAX_RELEASE_LIST_BYTES: u64 = 16 * 1024 * 1024;
+const _: () = assert!(RELEASE_LIST_PAGE as u64 * 144 * 1024 < MAX_RELEASE_LIST_BYTES);
 
 /// Where one repository publishes its manifests.
 #[derive(Clone, Debug)]
@@ -59,7 +64,7 @@ impl Sources {
                 Channel::Stable.file_name()
             )),
             releases: parse(format!(
-                "https://api.github.com/repos/{repository}/releases?per_page=30"
+                "https://api.github.com/repos/{repository}/releases?per_page={RELEASE_LIST_PAGE}"
             )),
             download_prefix: format!("https://github.com/{repository}/releases/download/"),
         }

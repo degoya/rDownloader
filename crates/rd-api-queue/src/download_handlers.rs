@@ -1,7 +1,7 @@
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
 use rd_core::DownloadId;
 use rd_db::StoreErrorKind;
@@ -12,16 +12,20 @@ use crate::{
     dto::{
         CreateDownloadRequest, DownloadBulkAction, DownloadBulkRequest, DownloadBulkResponse,
         DownloadExtractRequest, DownloadRateEntry, DownloadRatesResponse, DownloadRenameRequest,
-        DownloadSummaryResponse, MessageResponse, StorageSpace,
+        DownloadSummaryResponse, MessageResponse, PageQuery, StorageSpace,
     },
     error_codes::parse_id,
 };
+use rd_api_core::list_bounds::{paged, validate_bulk};
 
-#[utoipa::path(get, path = "/api/v1/downloads", tag = "downloads", responses((status = 200, body = [rd_core::DownloadFile])))]
+/// Every download in creation order; `limit`/`offset` cut a page out of that order (API-15).
+#[utoipa::path(get, path = "/api/v1/downloads", tag = "downloads", params(PageQuery), responses((status = 200, body = [rd_core::DownloadFile], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_downloads(
     State(state): State<AppState>,
-) -> Result<Json<Vec<rd_core::DownloadFile>>, ApiError> {
-    Ok(Json(state.database.list_downloads().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<rd_core::DownloadFile>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(window, state.database.list_downloads().await?))
 }
 
 #[utoipa::path(get, path = "/api/v1/downloads/summary", tag = "downloads", responses((status = 200, body = DownloadSummaryResponse)))]
@@ -268,14 +272,16 @@ pub async fn create_download_inner(
             None,
             request.category_id,
             request.priority.unwrap_or_default(),
+            request.paused,
         )
         .await?;
+        // A magnet is a single-row package: its one file is the download created here.
         let file = state
             .database
-            .list_downloads()
+            .downloads_for_package(package.id)
             .await?
             .into_iter()
-            .find(|file| file.package_id == package.id)
+            .next()
             .ok_or_else(|| anyhow::anyhow!("torrent download row missing"))?;
         return Ok(file);
     }
@@ -308,6 +314,7 @@ pub async fn create_download_inner(
     let options = rd_scheduler::PackageOptions {
         category_id: request.category_id,
         priority: request.priority.unwrap_or_default(),
+        paused: request.paused,
     };
     let file = if let Some(destination) = destination {
         state
@@ -420,9 +427,7 @@ pub async fn apply_download_action(
     action: DownloadBulkAction,
     ids: Vec<DownloadId>,
 ) -> Result<DownloadBulkResponse, ApiError> {
-    if ids.is_empty() || ids.len() > 500 {
-        return Err(crate::error_codes::bulk_range(500));
-    }
+    validate_bulk(ids.len())?;
     let mut affected = 0_u32;
     let mut errors = Vec::new();
     let mut refusals = Vec::new();
@@ -463,6 +468,9 @@ fn bulk_refusal(action: DownloadBulkAction, error: anyhow::Error) -> ApiError {
             "download.mirror_active",
             "Another link to this file is already downloading",
         );
+    }
+    if error.downcast_ref::<rd_scheduler::NzbDropped>().is_some() {
+        return nzb_dropped();
     }
     if !refused(&error, StoreErrorKind::WrongState) {
         return error.into();
@@ -570,9 +578,7 @@ pub async fn extract_downloads(
     State(state): State<AppState>,
     Json(request): Json<DownloadExtractRequest>,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
-    if request.ids.is_empty() || request.ids.len() > 500 {
-        return Err(crate::error_codes::bulk_range(500));
-    }
+    validate_bulk(request.ids.len())?;
     let downloads = state.database.list_downloads().await?;
     let mut packages: Vec<rd_core::PackageId> = downloads
         .iter()
@@ -674,6 +680,14 @@ pub async fn reset_download(
     ))
 }
 
+/// A reset of a Usenet file whose NZB its package dropped: nothing left to fetch it from.
+fn nzb_dropped() -> ApiError {
+    ApiError::conflict(
+        "download.nzb_dropped",
+        "The NZB of this Usenet download was dropped, so it cannot be fetched again",
+    )
+}
+
 /// Recognises a refusal from either layer of the reset and remove paths.
 ///
 /// `rd-scheduler` checks the same two conditions before the store is ever reached, so it tags
@@ -686,6 +700,9 @@ fn refused(error: &anyhow::Error, kind: StoreErrorKind) -> bool {
 
 /// Maps the refusals of the reset path onto the codes the UI translates.
 fn reset_failure(error: anyhow::Error) -> ApiError {
+    if error.downcast_ref::<rd_scheduler::NzbDropped>().is_some() {
+        return nzb_dropped();
+    }
     if refused(&error, StoreErrorKind::WrongState) {
         ApiError::conflict(
             "download.active_must_pause",
@@ -946,6 +963,24 @@ pub(crate) mod tests {
                 .into_message()
                 .code,
             "download.mirror_active"
+        );
+        // RA-DB-01: a reset of a Usenet file without its NZB says so, alone and in a batch.
+        for action in [
+            DownloadBulkAction::Reset,
+            DownloadBulkAction::ResetDeleteFiles,
+        ] {
+            assert_eq!(
+                super::bulk_refusal(action, anyhow::Error::new(rd_scheduler::NzbDropped))
+                    .into_message()
+                    .code,
+                "download.nzb_dropped"
+            );
+        }
+        assert_eq!(
+            super::reset_failure(anyhow::Error::new(rd_scheduler::NzbDropped))
+                .into_message()
+                .code,
+            "download.nzb_dropped"
         );
         // Anything untagged stays the internal error it is.
         assert_eq!(

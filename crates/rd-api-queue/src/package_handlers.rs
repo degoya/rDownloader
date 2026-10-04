@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use axum::{
     Json,
     extract::{Path, Query, State},
+    http::HeaderMap,
 };
 use rd_core::{CategoryId, DownloadPriority, DownloadState, PackageId};
 use rd_db::{CategoryAssignment, PackageChange};
@@ -14,23 +15,20 @@ use crate::{
     dto::{
         DownloadReorderRequest, MessageResponse, PackageBulkRequest, PackageDeleteRequest,
         PackageExtractRequest, PackageFolderRequest, PackageReorderRequest, PackageUpdateRequest,
+        PageQuery,
     },
     package_clear::{blocking_code, busy_error},
 };
-
-const MAX_BULK: usize = 500;
+use rd_api_core::list_bounds::{paged, validate_bulk};
 
 /// The one place a package name is checked, so the folder rename cannot drift from the label.
 fn package_name(value: &str) -> Result<String, ApiError> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() || trimmed.chars().count() > MAX_PACKAGE_NAME {
-        return Err(ApiError::bad_request(
-            "package.name_length",
-            "Package name must be between 1 and 200 characters",
-        )
-        .with_param("max", MAX_PACKAGE_NAME));
-    }
-    Ok(trimmed.to_owned())
+    rd_api_core::input_checks::required_text(
+        value,
+        rd_api_core::input_checks::TextLimit::Chars(MAX_PACKAGE_NAME),
+        "package.name_length",
+        "Package name must be between 1 and 200 characters",
+    )
 }
 
 const MAX_PACKAGE_NAME: usize = 200;
@@ -134,10 +132,10 @@ pub async fn rename_package_folder(
     Json(request): Json<PackageFolderRequest>,
 ) -> Result<Json<rd_core::DownloadPackage>, ApiError> {
     let name = package_name(&request.name)?;
-    let packages = state.database.list_packages().await?;
-    let package = packages
-        .iter()
-        .find(|package| package.id == id)
+    let package = state
+        .database
+        .get_package(id)
+        .await?
         .ok_or_else(crate::error_codes::package_not_found)?;
     if package.destination.is_empty() {
         return Err(ApiError::conflict(
@@ -155,10 +153,10 @@ pub async fn rename_package_folder(
     // old folder, and moving the folder out from under it would cost the resume point.
     if state
         .database
-        .list_downloads()
+        .downloads_for_package(id)
         .await?
         .iter()
-        .any(|file| file.package_id == id && is_transferring(file.state))
+        .any(|file| is_transferring(file.state))
     {
         return Err(ApiError::conflict(
             "package.folder_busy",
@@ -175,8 +173,13 @@ pub async fn rename_package_folder(
     })?;
     let destination = target.to_string_lossy().into_owned();
     if destination != package.destination {
+        // The one whole-table read left here: rd-db has no lookup by destination, and it is
+        // only needed when no folder of that name exists on disk.
         let taken = tokio::fs::try_exists(&target).await.unwrap_or(true)
-            || packages
+            || state
+                .database
+                .list_packages()
+                .await?
                 .iter()
                 .any(|other| other.id != id && other.destination == destination);
         if taken {
@@ -456,10 +459,9 @@ pub async fn reorder_downloads(
     crate::error_codes::validate_reorder_size(request.ids.len())?;
     let members: Vec<rd_core::DownloadId> = state
         .database
-        .list_downloads()
+        .downloads_for_package(request.package_id)
         .await?
         .into_iter()
-        .filter(|download| download.package_id == request.package_id)
         .map(|download| download.id)
         .collect();
     crate::error_codes::validate_reorder(&members, &request.ids)?;
@@ -570,16 +572,15 @@ async fn category_change(
     }))
 }
 
-fn validate_bulk(count: usize) -> Result<(), ApiError> {
-    if count == 0 || count > MAX_BULK {
-        return Err(crate::error_codes::bulk_range(MAX_BULK));
-    }
-    Ok(())
-}
-
-#[utoipa::path(get, path = "/api/v1/packages", tag = "downloads", responses((status = 200, body = [rd_core::DownloadPackage])))]
+/// Every package in the queue's order; `limit`/`offset` cut a page out of it (API-15).
+#[utoipa::path(get, path = "/api/v1/packages", tag = "downloads", params(PageQuery), responses((status = 200, body = [rd_core::DownloadPackage], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_packages(
     State(state): State<AppState>,
-) -> Result<Json<Vec<rd_core::DownloadPackage>>, ApiError> {
-    Ok(Json(state.database.list_packages_with_passwords().await?))
+    rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
+) -> Result<(HeaderMap, Json<Vec<rd_core::DownloadPackage>>), ApiError> {
+    let window = page.window()?;
+    Ok(paged(
+        window,
+        state.database.list_packages_with_passwords().await?,
+    ))
 }

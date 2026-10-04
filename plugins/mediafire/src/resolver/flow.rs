@@ -28,7 +28,7 @@ pub(crate) async fn direct_link<H: PluginHost>(host: &H, key: &str) -> Result<St
             return Err(temporarily_unavailable(60));
         }
         if !(200..=299).contains(&response.status) {
-            return Err(http_failure(response.status));
+            return Err(http_failure(&response));
         }
         if !page::is_html(&response) {
             // The page redirected to the file itself. Accept a delivery host and nothing

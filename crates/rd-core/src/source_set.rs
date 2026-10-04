@@ -261,7 +261,8 @@ impl SourceSet {
     }
 
     /// Whether the set carries something that proves the bytes, which is the condition for
-    /// mixing chunks from several sources into one file.
+    /// mixing chunks from several sources into one file. Only the tests ask (DB-13).
+    #[cfg(test)]
     #[must_use]
     pub fn has_hash_basis(&self) -> bool {
         self.checksum.is_some() || self.pieces.is_some()
@@ -439,10 +440,14 @@ pub enum SourceOutcome {
 /// what the server asked for when that is longer.
 #[must_use]
 pub fn source_backoff(failures: u32, retry_after_seconds: Option<u64>) -> Duration {
-    let exponent = failures.saturating_sub(1).min(16);
-    let computed = BACKOFF_BASE_SECONDS
-        .saturating_mul(1_i64 << exponent)
-        .min(BACKOFF_MAX_SECONDS);
+    // The shared backoff (audit 1.9.1, INTAKE-12); any exponent past the old `min(16)` was
+    // already beyond the cap, so the figures are unchanged.
+    let computed = crate::timing::exponential_backoff(
+        failures.saturating_sub(1),
+        BACKOFF_BASE_SECONDS.unsigned_abs(),
+        BACKOFF_MAX_SECONDS.unsigned_abs(),
+    );
+    let computed = i64::try_from(computed).unwrap_or(BACKOFF_MAX_SECONDS);
     // A Retry-After beyond i64 is still "wait as long as allowed", not "no wait at all".
     let asked = retry_after_seconds
         .map(|seconds| i64::try_from(seconds).unwrap_or(i64::MAX))

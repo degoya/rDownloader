@@ -1,0 +1,48 @@
+# The files outside crates/ and plugins/ that Rust tests read, and the crates whose tests read
+# them (RD-191-09). Read by rd_scope_input_packages in scripts/lib/scope.sh. One row per line:
+#
+#     <extended regex over a changed path>   <package>... | -
+#
+# A changed path a row matches makes those crates touched at branch level: their tests run, and
+# with them clippy and one level of reverse dependencies, as for a change to their own sources.
+# Such a path is never deferrable (check.sh --defer), even under web/src/locales/. Without the
+# table a branch run took a change to en/logs.json for a translation and ran no Rust test, while
+# rd-diagnostics compiles that file in.
+#
+# For rd-api only its library runs from here, as for every Rust change; the integration suites a
+# path needs are rows of scripts/lib/rd-api-tests.map. A test that reads a file of another crate
+# is not listed: a change under crates/ makes that crate touched, and its reverse dependencies
+# follow. scripts/lib/rust-test-inputs.py holds this table against the sources: a path a Rust
+# file names (`include_str!`, `include_bytes!`, a `join`) that git tracks outside crates/ and
+# plugins/ needs a row naming the crate, and check.sh refuses the run until it has one. A row
+# with `-` names paths that need none: a literal that only looks like a repository path, or a
+# file check.sh already scopes another way.
+
+# Catalogues: rd-diagnostics compiles in en/logs.json and its tests read every language's;
+# rd-plugin-host's bundled_locales test reads the core's server codes.
+^web/src/locales/[^/]+/logs\.json$          rd-diagnostics
+^web/src/locales/en/server\.json$           rd-plugin-host
+# The About page's licence list against the npm lockfile and the vendor texts (RD-130-12).
+^web/pnpm-lock\.yaml$                       rd-api
+^resources/vendor-licenses/                 rd-api-admin
+# The capture agent's macOS helper and tray icon, compiled in.
+^resources/macos/                           rd-capture
+^extension/icons/icon32\.png$               rd-capture
+# The container fixtures.
+^testfile/                                  rd-api rd-collector
+# The plugin templates the scaffold and the stream-transform contract read.
+^sdk/templates/                             rd-pack rd-plugin-ext
+# Scripts whose behaviour a Rust test pins.
+^scripts/build-plugins\.sh$                 rdownloader rd-plugin-host
+^scripts/i18n-key\.sh$                      rdownloader
+^scripts/migration-pin\.sh$                 rd-db
+^scripts/check-capture-linux-tree\.sh$      rd-capture
+# Governs the whole build anyway (rd_scope_build_governing); no_components_profile reads it.
+^\.config/nextest\.toml$                    rdownloader
+
+# --- not inputs ----------------------------------------------------------------------------------
+# The root manifest and lock file: scripts/lib/lock-scope.py names the members whose resolved tree
+# changed (rd-plugin-host, which reads the wasmtime version there, is one when wasmtime moves).
+^Cargo\.(toml|lock)$                         -
+# A temp directory's `dist/plugins`, not the tracked placeholder of the same name.
+^dist/                                      -

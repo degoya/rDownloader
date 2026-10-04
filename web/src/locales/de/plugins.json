@@ -8,7 +8,7 @@
     "label": ".rdplug-Paket",
     "hint": "Maximal 65 MiB; Binärdaten werden nicht als temporärer Upload gespeichert.",
     "submit": "Prüfen & installieren",
-    "network_error": "Netzwerkfehler bei der Installation"
+    "drop": "Ziehe ein .rdplug-Paket hierher oder wähle eines aus"
   },
   "installed": {
     "eyebrow": "Installierte Versionen",
@@ -148,7 +148,8 @@
     "auto_update": "Updates automatisch installieren",
     "auto_update_hint": "Sonst wird ein Update angezeigt und per Klick installiert. Aktiv wird es in beiden Fällen erst nach einem Neustart.",
     "release_notes": "Versionshinweise ({count})",
-    "release_notes_from": "aus {repository}"
+    "release_notes_from": "aus {repository}",
+    "auto_update_global_hint": "Gilt gerade für alle Plugins: Unter „Updates“ ist „Updates aller Plugins automatisch installieren“ eingeschaltet. Schaltest du es aus, gilt wieder die Wahl dieses Plugins."
   },
   "preview": {
     "title": "Vor der Installation prüfen",
@@ -197,7 +198,11 @@
     },
     "adds_permissions": "Neue Rechte",
     "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach deiner Prüfung installiert, auch bei automatischen Updates.",
-    "added_permissions": "Neu: {permissions}"
+    "added_permissions": "Neu: {permissions}",
+    "automatic_all": "Updates aller Plugins automatisch installieren",
+    "automatic_all_hint": "Gilt für jedes installierte Plugin, auch für später installierte, egal was bei einem Plugin eingestellt ist. Ein Update, das neue Berechtigungen will, wartet trotzdem auf deinen Klick, und aktiv wird jedes Update erst nach einem Neustart.",
+    "automatic_all_on": "Updates aller Plugins werden jetzt automatisch installiert.",
+    "automatic_all_off": "Jedes Plugin aktualisiert sich wieder nach seiner eigenen Einstellung."
   },
   "repositories": {
     "eyebrow": "Quellen",

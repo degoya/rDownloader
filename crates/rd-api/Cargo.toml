@@ -58,7 +58,7 @@ rd-gallery = { path = "../rd-gallery" }
 rd-http = { path = "../rd-http" }
 rd-media = { path = "../rd-media" }
 rd-plugin-api = { path = "../rd-plugin-api" }
-rd-plugin-host = { path = "../rd-plugin-host" }
+rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 rd-provider-registry = { path = "../rd-provider-registry" }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }

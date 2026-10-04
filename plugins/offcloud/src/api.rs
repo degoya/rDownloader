@@ -28,6 +28,7 @@
 //! provider's documentation and from two independent clients of it; `docs/roadmap/jobs/
 //! 120-02-offcloud.md` records the run against a real account as open.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 use crate::messages;
@@ -271,39 +272,37 @@ pub fn failure_from(
 
 /// Maps an HTTP status no document explains.
 ///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07); the waits fall back to this bucket's own figures when the response named none.
+///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)),
-        404 | 410 => Err(plain(ErrorKind::Offline, messages::LINK_GONE)),
-        429 => Err(ApiFailure {
-            kind: ErrorKind::RateLimited(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
-            code: messages::RATE_LIMITED.0,
-            message: messages::RATE_LIMITED.1.to_owned(),
-            params: Vec::new(),
-        }),
-        500..=599 => Err(plain(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::LINK_GONE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::LINK_GONE),
+        HttpRefusal::RateLimited(wait) => plain(
+            ErrorKind::RateLimited(Some(wait.unwrap_or(QUOTA_SECONDS))),
+            messages::RATE_LIMITED,
+        ),
+        HttpRefusal::ServerError(wait) => plain(
+            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
             messages::SERVER_ERROR,
-        )),
-        other => Err(with_param(
+        ),
+        HttpRefusal::Other(other) => with_param(
             ErrorKind::Permanent,
             messages::HTTP_ERROR,
             "status",
             other.to_string(),
-        )),
-    }
+        ),
+    })
 }
 
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
-}
+// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
+// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
+pub use plugin_common::retry_after_seconds;
 
 /// `application/x-www-form-urlencoded` body, as the published API asks for its parameters.
 ///

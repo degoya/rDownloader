@@ -168,14 +168,15 @@ fn an_already_generated_redirect_link_is_resolved_afresh_by_its_id() {
 }
 
 #[test]
-fn a_deleted_file_is_offline_after_one_call() {
+fn a_deleted_file_is_final_after_one_call() {
     for (brand, link, answer) in [
         (&TURBOBIT, TB_LINK, tb::INFO_DELETED),
         (&HITFILE, "https://hitfile.net/Mn3OpQr", hf::INFO_DELETED),
     ] {
         let host = MockHost::new(vec![json(404, answer)]);
         let failure = run(resolve(brand, &host, &free(link))).expect_err("deleted");
-        assert_eq!(failure.kind, FailureKind::Offline);
+        // A 404 is final, not retried (owner, 2026-10-04).
+        assert_eq!(failure.kind, FailureKind::Permanent);
         assert!(
             code(&failure).ends_with(".file_unavailable"),
             "{}",
@@ -346,7 +347,7 @@ fn a_start_without_a_link_or_with_a_foreign_one_never_yields_the_page() {
             &TURBOBIT,
             json(404, tb::START_NOT_FOUND),
             "turbobit.file_unavailable",
-            FailureKind::Offline,
+            FailureKind::Permanent,
         ),
         (
             &TURBOBIT,

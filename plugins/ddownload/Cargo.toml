@@ -7,7 +7,6 @@ license.workspace = true
 
 [dependencies]
 serde.workspace = true
-serde_json.workspace = true
 url.workspace = true
 plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
@@ -15,10 +14,8 @@ xfs-common = { path = "../xfs-common" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-trait.workspace = true
-chrono.workspace = true
 rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
-uuid.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

@@ -166,11 +166,14 @@ pub(crate) async fn check<H: PluginHost>(
                 // Carrying on would deepen the very limit that refused this one.
                 return Err(failure);
             }
+            // Read by its code: TorBox's own "gone" words are `Offline`, a 404 or 410 is
+            // `Permanent` (owner, 2026-10-04), and both say the file is not there.
             Err(failure) => results.push(LinkCheck {
                 url: url.clone(),
-                status: match failure.kind {
-                    FailureKind::Offline => LinkStatus::Offline,
-                    _ => LinkStatus::Unknown,
+                status: if failure.code.as_deref() == Some(messages::FILE_GONE.0) {
+                    LinkStatus::Offline
+                } else {
+                    LinkStatus::Unknown
                 },
                 file_name: None,
                 size: None,

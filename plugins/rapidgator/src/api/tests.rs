@@ -284,7 +284,7 @@ fn classify_status_maps_untrusted_404_to_a_transient_retry_not_offline() {
     assert_eq!(failure.code, messages::DOWNLOAD_404_UNTRUSTED.0);
 
     // The bare-HTTP-status fallback makes the same distinction.
-    let bare = ensure_http_status(404, false).expect_err("untrusted 404");
+    let bare = ensure_http_status(404, false, None).expect_err("untrusted 404");
     assert!(matches!(bare.kind, ErrorKind::Transient(Some(60))));
     assert_eq!(bare.code, messages::DOWNLOAD_404_UNTRUSTED.0);
 }
@@ -318,30 +318,63 @@ fn classify_status_falls_back_to_a_transient_unknown_error() {
 
 #[test]
 fn ensure_http_status_maps_bare_codes() {
-    assert!(ensure_http_status(200, true).is_ok());
+    assert!(ensure_http_status(200, true, None).is_ok());
     assert!(matches!(
-        ensure_http_status(401, true).expect_err("401").kind,
+        ensure_http_status(401, true, None).expect_err("401").kind,
         ErrorKind::AccountInvalid
     ));
+    // The shared mapping (RD-191-07): 403 is a refused account like 401, a trusted 404 and a
+    // 410 are final (owner, 2026-10-04), a 451 is offline and retried.
     assert!(matches!(
-        ensure_http_status(404, true).expect_err("404").kind,
+        ensure_http_status(403, true, None).expect_err("403").kind,
+        ErrorKind::AccountInvalid
+    ));
+    for gone in [404, 410] {
+        assert!(matches!(
+            ensure_http_status(gone, true, None).expect_err("gone").kind,
+            ErrorKind::Permanent
+        ));
+    }
+    assert!(matches!(
+        ensure_http_status(451, true, None).expect_err("451").kind,
         ErrorKind::Offline
     ));
     assert!(matches!(
-        ensure_http_status(423, true).expect_err("423").kind,
+        ensure_http_status(423, true, None).expect_err("423").kind,
         ErrorKind::RateLimited(Some(300))
     ));
     assert!(matches!(
-        ensure_http_status(500, true).expect_err("500").kind,
+        ensure_http_status(500, true, None).expect_err("500").kind,
         ErrorKind::Transient(Some(3600))
     ));
     assert!(matches!(
-        ensure_http_status(503, true).expect_err("503").kind,
+        ensure_http_status(503, true, None).expect_err("503").kind,
         ErrorKind::Transient(Some(300))
     ));
-    let other = ensure_http_status(418, true).expect_err("418");
+    let other = ensure_http_status(418, true, None).expect_err("418");
     assert!(matches!(other.kind, ErrorKind::Permanent));
     assert_eq!(other.code, messages::HTTP_ERROR);
+}
+
+/// A stated `Retry-After` travels into a 429 and replaces JD's fixed wait on a 503.
+#[test]
+fn ensure_http_status_keeps_a_stated_wait() {
+    assert!(matches!(
+        ensure_http_status(429, true, Some(90))
+            .expect_err("429")
+            .kind,
+        ErrorKind::RateLimited(Some(90))
+    ));
+    assert!(matches!(
+        ensure_http_status(429, true, None).expect_err("429").kind,
+        ErrorKind::RateLimited(None)
+    ));
+    assert!(matches!(
+        ensure_http_status(503, true, Some(45))
+            .expect_err("503")
+            .kind,
+        ErrorKind::Transient(Some(45))
+    ));
 }
 
 #[test]

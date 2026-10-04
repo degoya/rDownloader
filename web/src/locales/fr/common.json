@@ -174,5 +174,18 @@
     "title": "Abandonner les modifications non enregistrées ?",
     "description": "Certaines modifications ne sont pas encore enregistrées. Si vous quittez la page maintenant, elles seront perdues.",
     "discard": "Abandonner"
+  },
+  "queue_columns": {
+    "aria": "Colonnes",
+    "name": "Nom",
+    "state": "État",
+    "progress": "Progression",
+    "size": "Taille",
+    "meta_downloads": "Catégorie · Compte",
+    "meta_linkgrabber": "Hébergeur · Variante",
+    "resize": "Largeur de la colonne « {column} »",
+    "resize_hint": "Faites glisser ou utilisez les flèches (Maj pour des pas plus grands) ; un double-clic ou Entrée la rétablit",
+    "menu": "Colonnes",
+    "reset_all": "Réinitialiser toutes les largeurs de colonne"
   }
 }

@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+plugin-common = { path = "../common" }
 premiumize-common = { path = "../premiumize-common" }
 wit-bindgen.workspace = true
 

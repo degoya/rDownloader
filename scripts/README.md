@@ -11,6 +11,7 @@ and taken WSL down more than once.
 | `integrate.sh` | Integrate a wave: integration worktree from `--base`, each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the generators once, unbumped components refused and stale ones built, then `check.sh --full` and `--windows` detached with logs, PID and status under `/tmp/claude-<uid>/<branch>/`, and after both are green `prune-target.sh --if-free` (RD-160-06); `--merge-only`, `--no-check`, `--no-windows`; a re-run skips what is merged (RD-140-22) |
 | `public-ci.sh` | Run the public GitHub CI on a branch before its merge: export as `ci/<branch>`, `--platforms linux,windows` (all three without it) starts `ci.yml` for exactly those (the push itself carries `[skip ci]`), wait, delete the public branch on green, keep it and fail on red; greens are recorded per runner image and tree in `.git/rd-verified-ci`, and a platform green for the tree up to documentation and version lines is not dispatched again (RD-160-06); shares `lib/public-ci.sh` with the release's `public-ci` step (RD-140-22, RD-140-23) |
 | `ci-log.sh` | Read a failed GitHub run: name the failed jobs, store each log without ANSI codes and timestamps under `/tmp/claude-<uid>/ci/`, print only the `FAIL`, `error[E…]`/`error:`, `panicked`, `failures` and `##[error]` lines with their line numbers; a run id, run or job URL, or `--job <id>` (RD-140-22) |
+| `ci-tree-greens.sh` | `<owner/repo> <tree> <image>... [-- <job>...]`: the runner images no successful `ci.yml` run of that very tree covers, as a JSON list, and after `--` a second list of the named jobs (or their matrix legs) no such run passed — `ci.yml`'s `gate` job asks it on a push to `main`, so a release does not run its already checked tree again; everything when GitHub does not answer (RD-191-09) |
 | `package-linux.sh` | Linux release build → `artifacts/linux` + tarball, with `VERSION.txt` (version, commit, build time; in `release-pipeline.sh` `Release-Build X.Y.Z (Basis <sha>)` instead of `<sha>-dirty`; `profile  release` or `profile  release-test (test package, …)`); verifies the committed site-rule file with the new binary and puts it beside the tarball as `artifacts/rdownloader-site-rules.json` (RD-130-07); `--profile release-test` (or `RD_PACKAGE_PROFILE`) builds a test package in the faster profile, default `release` (RD-150-20); the tarball is flat and holds what release.yml's does (`lib/archive-layout.sh`), `vendor/` stays in the folder (RD-180-05) |
 | `package-windows.sh` | Windows cross-build from WSL → `artifacts/windows` + zip, with `VERSION.txt`; refuses a tree without a `--full` green; `--profile release-test` and the flat archive layout as for Linux |
 | `package-deb-rpm.sh` | deb and rpm of one Linux architecture from its release tarball, with nfpm and `packaging/linux/nfpm.yaml.in`: `/usr/lib/rdownloader`, `/usr/bin` links, systemd user units, `install-kind` marker; `--render-only` writes the nfpm configurations (RD-180-05) |
@@ -19,19 +20,21 @@ and taken WSL down more than once.
 | `self-update-smoke.sh` | The self-update with real binaries (RD-180-02): `<old> <old-version> <new> <new-version>`, the old one run as a portable installation and handed three updates the way the service does (backup through the local control token, journal, `apply-update` from a copy) — the new version (exit 0, with a signed-in web and a capture event stream held open across the stop, which must neither hold it up nor need the updater's stop by force), a program that ends at once and, with `RD_SMOKE_DEBUG_BUILD=1`, one declared unhealthy (both rolled back, exit 2); Linux and Git Bash on Windows; `.github/workflows/self-update.yml` runs it |
 | `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`, with the packager `rd-pack` in `release-test` rather than the service in `release`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned; `--list-packageable` / `--list-examples` name the bundle and the examples, which are built but not bundled (RD-150-20) |
 | `plugin-release-notes.sh` | The release notes of one plugin version from `CHANGELOG.md`: every entry that ends with `` `<plugin>` <version> `` (or a list of names before the version), as plain text within the index's 2000 characters; the release workflow hands them to `plugin index build --notes` (RD-160-09). `--missing <ref>` before a release: the plugins raised since that tag that no entry names, as the lines to end an entry with; exit 1 while any is left |
+| `release-assets.sh` | The files of a tag's two GitHub releases, for `release.yml`'s `publish` job: `split <assets> <plugins>` drops the intermediate archives, the packager and docker's `*.dockerbuild` record from the downloaded artifacts and moves every `.rdplug` into the plugin release `plugins-vX.Y.Z` (exit 1 when there is none); `sums <dir>...` writes one `SHA256SUMS` per release over its own files; `fetch-plugins <repository> <dir>` downloads the newest release's plugins for `installers.yml` |
 | `check-plugin-imports.sh` | Verify a built component imports nothing outside `rdownloader:plugin` |
 | `check-capture-linux-tree.sh` | Hold the resolved Linux dependency tree of `rd-capture` against the window stacks |
 | `web-dist-stale.sh` | Is `web/dist` current? Exit 0 yes, 1 missing or behind a source |
 | `docker.sh` | Build and run the container image (`build`, `run --port N`, `stop`) |
 | `docker-smoke.sh` | Start an image on fresh volumes and check `--version`, `/api/v1/health` and apprise as the service user; CI and the release run it before any push (RD-140-25) |
+| `docker-tools.sh` | The container image's Python tools, hash-pinned (RD-191-09): without arguments, check that `docker/requirements.txt` is the compile of `docker/requirements.in`; `--lock` compiles it with uv for every platform, `--bump` moves every tool to its newest release first |
 | `set-version.sh` | Read, set or `--check` the release version: `Cargo.toml` is the source, `web/package.json`, `extension/manifest.base.json`, `web/openapi.json` (`info.version`) and the lock are its copies |
 | `tag-release.sh` | Annotated `vX.Y.Z` tag for the current commit; refuses a tree without a `--full` green; never pushes |
-| `release.sh` | The whole chain in order: version, checks, packages |
+| `release.sh` | The manual variant of the chain, kept beside `release-pipeline.sh` (RD-191-09): version, checks, packages — no commit, no tag; a release is cut with the pipeline |
 | `release-pipeline.sh` | The same chain run to the tag, with an evidence log that gates it; ends with the checkout back on `development` (RD-160-06) |
 | `release-start.sh` | Start web build → `check.sh --full` → `release-pipeline.sh <version> [--push]` detached (a version is `X.Y.Z` or `X.Y.Z-beta.N`) (`setsid nohup`); log, PID and exit code under `/tmp/claude-<uid>/release-<version>/` (RD-140-06) |
 | `prune-target.sh` | Keep `target/` small: per `deps` directory keep the newest hash variant per stem and artifact kind — a build's `.rlib`, a `check`'s `.rmeta` or `.d`, a test binary each count on their own (`--keep N`, RD-160-06), drop stale unhashed split debug info and every `incremental/`; never `target/wasm32-unknown-unknown/`; `--dry-run` says what would go, lock-free; `--if-free` prunes only what no build holds right now and never waits (RD-160-06); the lanes under `target/lanes/` each under their own lock, and with `--all` every worktree's own target (RD-140-06) |
 | `release-smoke.sh` | Start the built binary and check the real API and UI |
-| `e2e.sh` | End to end against a fresh service (RD-180-12): the Chrome extension in Playwright's Chromium, paired through its options page, sending a page from its popup (needs `127.0.0.1:8710` free), and the capture agent's `configure`, `run`, `rdownloader://` and Click'n'Load handover, each asserted in the LinkGrabber; `--browser`, `--capture`, `--bin-dir DIR` (default: the newest pair of `release-test`, `release`, `artifacts/linux`), `--build` (`release-test`, the bare cargo call under the target's lock); lock-free otherwise; the autostart step runs only in CI's `e2e.yml` (`docs/development.md#end-to-end-runs`) |
+| `e2e.sh` | End to end against a fresh service (RD-180-12): the Chrome extension in Playwright's Chromium, paired through its options page, sending a page from its popup (needs `127.0.0.1:8710` free), and the capture agent's `configure`, `run`, `rdownloader://` and Click'n'Load handover, each asserted in the LinkGrabber; `--browser`, `--capture`, `--bin-dir DIR` (default: the newest pair of `release-test`, `release`, `artifacts/linux`), `--build` (`release-test`, its cargo call at `-j $JOBS` under the lock and lane every heavy script takes, as `--build-only`); lock-free otherwise; the autostart step runs only in CI's `e2e.yml` (`docs/development.md#end-to-end-runs`) |
 | `soak.sh` | A long run of a built binary (`--binary`, else `artifacts/linux/`, else `target/release/`; builds nothing) from a throwaway data directory under `--out` (default `artifacts/soak/<time>/`) against a local HTTP fixture with ranges that cuts every transfer off every two minutes: keeps a queue going, verifies every completed file byte for byte, samples memory, open files, threads, database size and throughput and fails naming each budget of `soak-budgets.toml` it exceeded; `--duration` (default 5m, at least 3m for the growth windows); `samples.csv`, `summary.json`, `server.log`; the nightly `.github/workflows/soak.yml` runs it for 2 h; `lib/soak.py evaluate` judges a samples file again (RD-180-12) |
 | `export-public.sh` | Export a release tag to the public repository as one fresh commit, minus `public-exclude.txt` (all of `docs/` among it), refusing a link from what stays into what is left out, after a gitleaks scan; pushes only with `--push` (`--branch <name>` for an unreleased export, `--skip-push-ci` to keep its push from starting CI) |
 | `export-wiki.sh` | Convert the private user wiki to GitHub-wiki form and commit it as "Handbook for <version>" into the public wiki's clone; pushes only with `--push`. Leaves out a page whose first line is `<!-- private page -->` (and its sidebar entry) and every section between `<!-- private -->` and `<!-- /private -->` lines; refuses a public link to either, a link into a path `public-exclude.txt` names, an unbalanced marker and marker text anywhere else |
@@ -49,7 +52,7 @@ and taken WSL down more than once.
 | `migration-pin.sh` | Pin a new migration's checksum in `crates/rd-db/migrations.sha384` (appends only) |
 | `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
 | `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/pnpm-lock.yaml` changed (`--check` to verify); the Rust part is `cargo tree` per shipped target, so it lists what a package contains; needs `pnpm install` in `web/` and asks the npm registry for the packages of other platforms |
-| `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); with nothing due it only recounts a Job Inventory the catalogs contradict; `--check` names what is due, any open job lying in `archive/` and any miscounted inventory row, and exits 1 — `check.sh` runs it on every change (RD-140-24); refuses uncommitted changes under `docs/roadmap/jobs/` |
+| `archive-jobs.sh` | Move finished job files (`Implemented`, `Blocked/No-Go`, working files of tagged releases) into `docs/roadmap/jobs/archive/`, rewrite every link and path to them, move their index rows and recount (RD-140-19); with nothing due it only recounts a Job Inventory the catalogs contradict; `--check` names what is due, any open job lying in `archive/`, any miscounted inventory row and any status line that is missing or not one of the five words (RD-191-09), and exits 1 — `check.sh` runs it on every change (RD-140-24); refuses uncommitted changes under `docs/roadmap/jobs/` |
 | `doc-facts.sh` | Write the release facts the documentation repeats — feature-list date and version, bundled-plugin count, MCP tool count, `rdownloader:plugin@X.Y.Z` — from their sources; `--check` writes nothing and exits 1 on a stale value, 2 on a reworded anchor; `--wiki DIR` includes the user wiki; the pipeline's `doc-facts` step and `docs-gate` run it (RD-140-24) |
 | `wit-reference.sh` | Generate the plugin contract reference — every world, interface, function, record, variant and enum of `crates/rd-plugin-api/wit/rdownloader.wit` with its doc comments — into the user wiki's `plugins/plugin-reference.md` between `<!-- BEGIN wit-reference -->` and `<!-- END wit-reference -->` (`--wiki DIR`; with `--check` writes nothing and exits 1 when stale); `--print` writes it to stdout; `--check` alone reads the WIT strictly and exits 2 on a construct it does not know — CI runs that; job-id and ADR parentheses of the WIT's comments stay out of the page, a job id elsewhere in one is exit 2; the pipeline's `docs-gate` runs `--wiki --check` (RD-160-04) |
 | `check-sdk-templates.sh` | Every world of the WIT has a template in `sdk/templates/<world>` building that world, with a manifest, the current contract copy, a `README.md` and a unit test, and no template lacks a world; CI's `components` job runs it (RD-160-04) |
@@ -153,8 +156,9 @@ and the run names them with the reason (RD-130-17). `tests/lock-scope.sh` holds 
 against fixtures.
 
 **The scripts check themselves** (RD-140-22). When anything under `scripts/` but its
-documentation changes, and under `--full`, `check.sh` runs `bash -n` and `shellcheck
---severity=warning` over every tracked shell script (settings in `scripts/.shellcheckrc`; without
+documentation or another tracked shell script changes, and under `--full`, `check.sh` runs `bash
+-n` and `shellcheck --severity=warning` over every tracked shell script outside the test fixtures,
+the shipped ones in `packaging/`, `docker/` and `resources/` included (settings in `scripts/.shellcheckrc`; without
 `shellcheck` installed it says so and skips it — `uv tool install shellcheck-py` provides one),
 then every `scripts/tests/*.sh`. They need no build and take seconds together: the Cargo.lock
 scope rules, the exports' link guard, the job archive, the scope boundary, and `worktree.sh`,
@@ -165,7 +169,8 @@ scope rules, the exports' link guard, the job archive, the scope boundary, and `
 (`doc-facts.sh`) on a fixture tree, the contract reference and the template check
 (`wit-reference.sh`) on a fixture contract, the breaking-change rules (`compat-check.sh`) on a
 fixture contract, the plugin release notes (`plugin-release-notes.sh`) on a scratch changelog,
-the package-manager files (`package-managers.sh`) on a fixture `SHA256SUMS`,
+the package-manager files (`package-managers.sh`) on a fixture `SHA256SUMS`, the two releases'
+files and checksums and the workflows' tag triggers (`release-assets.sh`) on a scratch download,
 the release archive layout (`archive-layout.sh`) and the installer sources (`package-deb-rpm.sh`,
 `package-msi.sh`, building the deb as well where nfpm is installed) on scratch archives,
 the apt and dnf repositories (`package-repo.sh`) on fixture packages and a throwaway key,
@@ -179,6 +184,21 @@ repository, and the scope boundary with the release's pre-bump green. A new test
 finds it by itself.
 `cargo fmt`, the capture-tree check, the map check and the component checks always run: they
 are seconds.
+
+**Since RD-191-09** `actionlint` runs too, under `--full` and whenever `.github/` changed, and
+`ci.yml`'s `scripts` job runs shellcheck and actionlint at pinned versions, so the lint no longer
+depends on a machine having them (`docs/development.md#ci-setup-lint-and-the-release-day-runs-rd-191-09`).
+The new libraries each have their test: the crash matrix (`lib/crash-matrix.list`, read by
+`check.sh` and `ci.yml`; `crash-matrix.sh`), the files outside `crates/` that Rust tests read
+(`lib/rust-test-inputs.map`, whose crates count as touched and which `--defer` refuses, held
+against the sources by `lib/rust-test-inputs.py`; `rust-test-inputs.sh`), the JUnit flaky
+annotations (`lib/junit-flaky.py`; `junit-flaky.sh`), the packaging half both package scripts
+share (`lib/package.sh`; `package-lib.sh`), the stores' HTTP helpers (`lib/store-api.sh`, through
+the store tests), the one workspace-version reader (`lib/workspace-version.sh`), the Unix
+launchers' parity (`launcher-parity.sh`), `e2e.sh --build`'s job cap (`e2e-build.sh`),
+`ci-tree-greens.sh` and `docker-tools.sh`. The job files' status words are checked by
+`archive-jobs.sh --check` on every run instead of a Rust test a documentation-only change never
+reached.
 
 **`--full` runs everything** — the workspace, every `rd-api` suite, the crash matrix,
 sqlx, web and extension. It belongs at the end of a wave on
@@ -197,7 +217,8 @@ reminder that `--full` is still due. Without that a branch green looks like a fu
 
 `--defer` is the deliberate postponement, for text, translations and appearance. It accepts only
 `docs/` and `*.md`, `web/src/locales/**`, `web/src/assets/**`, and a `.vue` or `.css` change that
-does not touch a `<script>` block; anything else is refused by name. It runs `git diff --check`,
+does not touch a `<script>` block — never a file a Rust test reads (`lib/rust-test-inputs.map`,
+e.g. `en/logs.json`, RD-191-09); anything else is refused by name. It runs `git diff --check`,
 the four-language locale parity test and the typecheck as the diff demands — and it
 does **not** record a green. That is the whole mechanism: the change set of the next ordinary run
 is measured against the last recorded green, so the postponed commits come along by themselves,
@@ -294,9 +315,10 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
 - **No script builds the plugin repository index.** `release-pipeline.sh` signs the plugins
   locally, but the packages a release publishes are the ones the release workflow builds and
   signs, and the index names each by the digest of those bytes — an index built here would
-  describe components that were never published. `.github/workflows/release.yml` builds, verifies
-  and attaches `rdownloader-plugin-index.json` in its `plugins` job instead (RD-140-01), with
-  each package's notes from `plugin-release-notes.sh` (RD-160-09); by hand
+  describe components that were never published. `.github/workflows/release.yml` builds and
+  verifies `rdownloader-plugin-index.json` in its `plugins` job instead (RD-140-01), with
+  each package's notes from `plugin-release-notes.sh` (RD-160-09) and URLs into the plugin
+  release `plugins-vX.Y.Z`, and `publish` attaches it to the application release; by hand
   it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>` (or the
   same with `rd-pack`), see
   `docs/plugins.md#plugin-repository-index`.
@@ -424,8 +446,8 @@ The releases before that are **deliberately left untagged** and are not to be fi
 `0.6.1, 0.7.0, 0.8.0, 0.9.0, 0.9.1, 0.9.3` … `0.9.8` have no tag, and picking a commit for each of
 them now would be guesswork written down as fact. `CHANGELOG.md` remains the record for those.
 
-`release.sh` is the older, manual chain — version, `check.sh --full`, both packages, no commit
-and no tag — and still builds a package set on its own; `--plugins` signs the plugins as well,
+`release.sh` is the manual variant of the chain, kept beside the pipeline (owner's default,
+RD-191-09) — version, `check.sh --full`, both packages, no commit and no tag — and still builds a package set on its own; `--plugins` signs the plugins as well,
 `--no-checks` skips the test run. A release is cut with the pipeline.
 
 The changelog, the roadmap and the job files stay by hand on purpose: they are judgement rather

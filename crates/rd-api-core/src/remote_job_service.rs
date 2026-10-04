@@ -279,6 +279,19 @@ impl RemoteJobService {
         Ok(RemoteJobRunners::claimed_providers(&manifests))
     }
 
+    /// The provider slugs whose remote-job plugin declares it takes `format` as a container
+    /// (`[extension] containers`), read from the installed manifests like [`providers`]
+    /// (RD-191-13).
+    ///
+    /// [`providers`]: RemoteJobService::providers
+    pub async fn providers_accepting(
+        &self,
+        format: &str,
+    ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        let manifests = self.inner.plugins.verified_manifests().await?;
+        Ok(RemoteJobRunners::providers_accepting(&manifests, format))
+    }
+
     async fn load(&self) -> anyhow::Result<RemoteJobRunners> {
         #[cfg(test)]
         if let Some(scripted) = self

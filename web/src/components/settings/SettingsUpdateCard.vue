@@ -57,7 +57,7 @@ const lastInstall = computed(() => {
 })
 
 /** A capture agent's version as shown; an agent from before 1.9 reports none. */
-function agentVersion(version: string | null): string {
+function agentVersion(version: string | null | undefined): string {
   return version ?? t('system.updates.agents.unknown')
 }
 
@@ -161,6 +161,6 @@ async function checkNow(): Promise<void> {
       </UFormField>
     </div>
 
-    <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available" :kind="status.install_kind" />
+    <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available ?? null" :kind="status.install_kind" />
   </section>
 </template>

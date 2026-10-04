@@ -22,7 +22,7 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/release-pipeline.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{lock,lanes,verified,jobs,public-ci,release-tag}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{lock,lanes,verified,jobs,public-ci,release-tag,workspace-version}.sh "$TREE/scripts/lib/"
 git init -q -b development "$TREE"
 git -C "$TREE" commit -q --allow-empty -m base
 

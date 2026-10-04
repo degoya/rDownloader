@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useNotifications } from '@/composables/useNotifications'
 import { i18n } from '@/i18n'
 import type { CollectorPackage, LinkCandidate } from '@/api/types'
@@ -47,8 +47,6 @@ export const useCollectorStore = defineStore('collector', () => {
   clearWhenReconnected(error)
   const enqueuingIds = ref<Set<string>>(new Set())
   const deletingIds = ref<Set<string>>(new Set())
-  let releaseEvents: (() => void) | null = null
-  let refreshTimer: number | null = null
   /** True while a refresh is awaiting the network; event bursts wait rather than pile up. */
   let refreshing = false
   /** Monotonic ticket so a late response from an older refresh cannot overwrite a newer one. */
@@ -76,7 +74,7 @@ export const useCollectorStore = defineStore('collector', () => {
     } catch {
       if (ticket === refreshTicket) error.value = responseError(undefined)
     } finally {
-      // A rejection must not leave the flag set: `scheduleRefresh` would re-arm behind it for
+      // A rejection must not leave the flag set: the event debounce would re-arm behind it for
       // good and the LinkGrabber would stop following events until a reload.
       if (ticket === refreshTicket) {
         refreshing = false
@@ -86,16 +84,6 @@ export const useCollectorStore = defineStore('collector', () => {
     }
   }
 
-  function scheduleRefresh(): void {
-    if (refreshTimer !== null) return
-    refreshTimer = window.setTimeout(() => {
-      refreshTimer = null
-      // Re-arm instead of stacking a second request on top of one already in flight; a burst
-      // of events would otherwise multiply into parallel round trips.
-      if (refreshing) return scheduleRefresh()
-      void refresh()
-    }, 300)
-  }
 
   const { renameCandidate, setMediaVariant, fetchMediaFormats, previewMediaSelection, previewMediaOutput, setAuthProfile, setMediaSelection, replayPreview, grantReplayConsent, revokeReplayConsent } =
     useCandidateActions({ candidates, error, refresh })
@@ -349,21 +337,26 @@ export const useCollectorStore = defineStore('collector', () => {
     return Boolean(response.data)
   }
 
-  function connectEvents(): void {
-    if (releaseEvents) return
-    releaseEvents = subscribeEvents({
-      'collector.changed': scheduleRefresh,
-      'usenet.changed': scheduleRefresh,
-      'category.changed': scheduleRefresh,
+  const events = debouncedEventRefresh(
+    ['collector.changed', 'usenet.changed', 'category.changed'],
+    refresh,
+    {
+      busy: () => refreshing,
       // Links arriving from anywhere (web UI, extension, hotfolder, subscriptions) announce
       // themselves here; the desktop toast is raised from the same envelope.
-      'collector.intake': announceIntake
-    })
+      handlers: { 'collector.intake': announceIntake }
+    }
+  )
+
+  /** The NZB imports follow their remote jobs too, for the hand-over badge (RD-191-13). */
+  function connectEvents(): void {
+    events.connect()
+    useNzbImportsStore().connectEvents()
   }
 
   function disconnectEvents(): void {
-    releaseEvents?.()
-    releaseEvents = null
+    events.disconnect()
+    useNzbImportsStore().disconnectEvents()
   }
 
   /**

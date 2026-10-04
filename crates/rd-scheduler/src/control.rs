@@ -13,6 +13,22 @@ use rd_files::{
 
 use crate::{SchedulerHandle, StopReason};
 
+/// A reset refused because the Usenet file's package let go of its NZB after it completed.
+///
+/// With the NZB gone there are no articles left to fetch, so a queued row could only fail; the
+/// refusal comes before the reset touches the file on disk (re-audit 1.9.1, RA-DB-01). A type
+/// of its own so the interface can say why instead of "pause it first".
+#[derive(Debug)]
+pub struct NzbDropped;
+
+impl std::fmt::Display for NzbDropped {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a usenet download whose NZB was dropped cannot be fetched again")
+    }
+}
+
+impl std::error::Error for NzbDropped {}
+
 impl SchedulerHandle {
     /// Requests a safe pause at the next checkpoint boundary.
     pub async fn pause(&self, id: DownloadId) -> Result<()> {
@@ -60,13 +76,66 @@ impl SchedulerHandle {
         }
     }
 
+    /// Runs `work` on a file no worker runs while a hold keeps the dispatcher off it, and lets
+    /// the hold go afterwards whatever `work` answered.
+    ///
+    /// Refused with `refusal` when a worker holds the file. A queued or retry-waiting row is
+    /// startable the whole time: a reset that let go of the reason before deleting the `.part`
+    /// let the dispatcher start it in between, the worker resumed at the row's checkpoint in a
+    /// new empty file, and the payload began with zeros (audit 1.9.1, TR-04). The hold is a
+    /// count of its own rather than a stop reason, because a resume, the end of a pause or
+    /// cancel, or a second hold on the same row took the reason out in the middle of the work
+    /// (re-audit 1.9.1, RA-TR-02). A stop reason left from the pause or cancel that made the
+    /// work legal still goes at the end, as it did.
+    pub(crate) async fn while_held<T>(
+        &self,
+        id: DownloadId,
+        refusal: &'static str,
+        work: impl std::future::Future<Output = Result<T>>,
+    ) -> Result<T> {
+        {
+            let mut active = self.active.lock().await;
+            if active.tokens.contains_key(&id) {
+                bail!(StoreError::wrong_state(refusal));
+            }
+            *active.held.entry(id).or_default() += 1;
+        }
+        let result = work.await;
+        self.active.lock().await.release_hold(&id);
+        self.release_stop_guard(id).await;
+        result
+    }
+
     /// Moves a paused, failed, blocked or cancelled job back to the queue.
+    ///
+    /// Refused while a reset or removal holds the row: queued in the middle of it, the row was
+    /// written back by the reset anyway, or deleted under a resume that said it was queued.
     pub async fn resume(&self, id: DownloadId) -> Result<()> {
-        self.active.lock().await.reasons.remove(&id);
+        {
+            let mut active = self.active.lock().await;
+            if active.held.contains_key(&id) {
+                bail!(StoreError::wrong_state(
+                    "the download is being reset or removed right now"
+                ));
+            }
+            active.reasons.remove(&id);
+        }
         // Starting a waiting mirror by hand is a decision about which link to use, so its
         // siblings stand down for it. Without this the dispatcher would put it straight back:
         // it picks the group's member by the same rule that chose the current one.
         self.stand_down_siblings_of(id).await?;
+        // A failed download starts again with a fresh retry budget, as a round of the automatic
+        // retry does but uncounted (RD-191-12): with the spent attempts kept, its next transient
+        // failure ended it at once. Anything else keeps its counters; a row that left `failed`
+        // meanwhile takes the ordinary transition.
+        let failed = self
+            .database
+            .get_download(id)
+            .await?
+            .is_some_and(|file| file.state == DownloadState::Failed);
+        if failed && self.database.retry_failed_download(id).await?.is_some() {
+            return Ok(());
+        }
         self.database
             .transition_download(id, DownloadState::Queued)
             .await?;
@@ -85,7 +154,7 @@ impl SchedulerHandle {
         if file.mirror_group.is_none() || file.state != DownloadState::Skipped {
             return Ok(());
         }
-        let downloads = self.database.list_downloads().await?;
+        let downloads = self.database.downloads_for_package(file.package_id).await?;
         let siblings = crate::mirrors::siblings(&file, &downloads);
         // Refused rather than silently reverted: the dispatcher would put this one straight
         // back and nothing would say why. Throwing away a transfer that is already under way
@@ -194,18 +263,12 @@ impl SchedulerHandle {
                 "active download must be paused or cancelled before removal"
             ));
         }
-        {
-            let mut active = self.active.lock().await;
-            if active.tokens.contains_key(&id) {
-                bail!(StoreError::wrong_state(
-                    "active download must be paused or cancelled before removal"
-                ));
-            }
-            active.reasons.insert(id, StopReason::Cancelled);
-        }
-        let removed = self.remove_idle(current).await;
-        self.release_stop_guard(id).await;
-        removed
+        self.while_held(
+            id,
+            "active download must be paused or cancelled before removal",
+            self.remove_idle(current),
+        )
+        .await
     }
 
     /// The part of [`Self::remove`] that runs while the stop reason keeps the dispatcher off.
@@ -213,10 +276,8 @@ impl SchedulerHandle {
         let id = current.id;
         let package = self
             .database
-            .list_packages()
+            .get_package(current.package_id)
             .await?
-            .into_iter()
-            .find(|package| package.id == current.package_id)
             .filter(|package| !package.destination.is_empty());
         let usenet_import = package.as_ref().and_then(|package| {
             (current.kind == rd_core::DownloadKind::Usenet)
@@ -247,12 +308,7 @@ impl SchedulerHandle {
         // only while it is empty — data the user kept there stays untouched.
         if let Some(package) = package
             && Path::new(&package.destination) != self.config.downloads_directory
-            && !self
-                .database
-                .list_packages()
-                .await?
-                .iter()
-                .any(|remaining| remaining.id == package.id)
+            && self.database.get_package(package.id).await?.is_none()
         {
             remove_empty_package_directory(&package.destination, usenet_import).await;
         }
@@ -277,30 +333,33 @@ impl SchedulerHandle {
                 "active download must be paused or cancelled before it can be reset"
             ));
         }
-        {
-            let mut active = self.active.lock().await;
-            if active.tokens.contains_key(&id) {
-                bail!(StoreError::wrong_state(
-                    "active download must be paused or cancelled before it can be reset"
-                ));
-            }
-            // The pause or cancel that made this reset legal left a stop reason behind, and
-            // the dispatcher skips every id that has one (`schedule_runnable`). Without this
-            // the row goes back to `queued` and is then never picked up again, with no error
-            // anywhere, until the process restarts.
-            active.reasons.remove(&id);
+        // Asked before anything is deleted: the store refuses the same row in
+        // `reset_download`, but only after `discard_unfinished` and `delete_completed_files`
+        // had taken the file a refused reset leaves behind (re-audit 1.9.1, RA-DB-01).
+        if current.kind == rd_core::DownloadKind::Usenet && current.nzb_file_id.is_none() {
+            bail!(NzbDropped);
         }
-        let packages = self.database.list_packages().await?;
-        if let Some(package) = self.discard_unfinished(&current, &packages).await?
-            && delete_completed_files
-        {
-            let payload = Path::new(&package.destination).join(&current.file_name);
-            if let Err(error) = remove_file_if_present(&payload).await {
-                tracing::warn!(download_id = %id, %error, "finished file was not discarded");
-            }
-        }
-        self.database.reset_download(id).await?;
-        Ok(())
+        // Held until the row is written back, and then let go: the pause or cancel that made
+        // this reset legal left a stop reason too, and the dispatcher skips every id that has
+        // one, so a reason that outlived the reset kept the `queued` row from ever starting.
+        self.while_held(
+            id,
+            "active download must be paused or cancelled before it can be reset",
+            async {
+                let packages = self.database.list_packages().await?;
+                if let Some(package) = self.discard_unfinished(&current, &packages).await?
+                    && delete_completed_files
+                {
+                    let payload = Path::new(&package.destination).join(&current.file_name);
+                    if let Err(error) = remove_file_if_present(&payload).await {
+                        tracing::warn!(download_id = %id, %error, "finished file was not discarded");
+                    }
+                }
+                self.database.reset_download(id).await?;
+                anyhow::Ok(())
+            },
+        )
+        .await
     }
 
     /// Deletes what an unfinished, stopped job has written so far, ahead of its removal.
@@ -316,14 +375,17 @@ impl SchedulerHandle {
             .get_download(id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if is_active(current.state) || self.active.lock().await.tokens.contains_key(&id) {
-            bail!(StoreError::wrong_state(
-                "active download must be paused or cancelled before its data is discarded"
-            ));
+        const REFUSAL: &str =
+            "active download must be paused or cancelled before its data is discarded";
+        if is_active(current.state) {
+            bail!(StoreError::wrong_state(REFUSAL));
         }
-        let packages = self.database.list_packages().await?;
-        self.discard_unfinished(&current, &packages).await?;
-        Ok(())
+        self.while_held(id, REFUSAL, async {
+            let packages = self.database.list_packages().await?;
+            self.discard_unfinished(&current, &packages).await?;
+            anyhow::Ok(())
+        })
+        .await
     }
 
     /// The staging file and the tool scratch files of one job, shared by a reset and
@@ -358,13 +420,16 @@ impl SchedulerHandle {
             .filter(|other| other.destination == package.destination)
             .map(|other| other.id)
             .collect::<std::collections::HashSet<_>>();
-        let neighbours = self
-            .database
-            .list_downloads()
-            .await?
-            .into_iter()
-            .filter(|other| other.id != id && folder.contains(&other.package_id))
-            .collect::<Vec<_>>();
+        let mut neighbours = Vec::new();
+        for package_id in folder {
+            neighbours.extend(
+                self.database
+                    .downloads_for_package(package_id)
+                    .await?
+                    .into_iter()
+                    .filter(|other| other.id != id),
+            );
+        }
         if let Err(error) = discard_scratch_files(&package.destination, current, &neighbours).await
         {
             tracing::warn!(download_id = %id, %error, "leftover scratch files were not discarded");
@@ -390,13 +455,7 @@ impl SchedulerHandle {
         else {
             return Ok(());
         };
-        let Some(package) = self
-            .database
-            .list_packages()
-            .await?
-            .into_iter()
-            .find(|package| package.id == package_id)
-        else {
+        let Some(package) = self.database.get_package(package_id).await? else {
             return Ok(());
         };
         let from = PathBuf::from(&previous);
@@ -414,13 +473,7 @@ impl SchedulerHandle {
             return Ok(());
         }
         let import_id = package.nzb_import_id;
-        let files: Vec<DownloadFile> = self
-            .database
-            .list_downloads()
-            .await?
-            .into_iter()
-            .filter(|file| file.package_id == package_id)
-            .collect();
+        let files = self.database.downloads_for_package(package_id).await?;
         let running = self
             .active
             .lock()
@@ -595,7 +648,10 @@ impl SchedulerHandle {
                     placed.digest.clone(),
                 )
             },
-            Err(error) => rd_db::StorageOperationOutcome::failed(error.code(), error.to_string()),
+            Err(error) => rd_db::StorageOperationOutcome::failed(
+                error.code(),
+                rd_core::error_with_causes(error),
+            ),
         };
         if let Err(error) = self
             .database
@@ -841,12 +897,21 @@ async fn remove_empty_package_directory(
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use anyhow::Context;
     use rd_core::{DownloadFile, DownloadState};
 
     use crate::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
 
     /// A scheduler over a temporary database, plus one paused package below `storage/`.
     async fn paused_package(directory: &Path) -> (SchedulerHandle, DownloadFile, PathBuf) {
+        paused_package_of(directory, rd_core::DownloadKind::Http).await
+    }
+
+    /// [`paused_package`] with one file of `kind`.
+    async fn paused_package_of(
+        directory: &Path,
+        kind: rd_core::DownloadKind,
+    ) -> (SchedulerHandle, DownloadFile, PathBuf) {
         let database = rd_db::Database::open(directory.join("scheduler-test.sqlite3"))
             .await
             .expect("database");
@@ -862,6 +927,10 @@ mod tests {
         )
         .await
         .expect("scheduler");
+        // The start carries on unfinished moves in the background; under load it ran after a
+        // case had set up a move of its own and finished it first (T13, as `b8a3643b` for the
+        // crash cases). Let it run before the case begins.
+        scheduler.storage_recovery_finished().await;
         let (_package, files) = scheduler
             .enqueue_package(
                 PackageSpec {
@@ -883,7 +952,7 @@ mod tests {
                     account_id: None,
                     proxy_profile_id: None,
                     auth_profile: rd_core::AuthProfileSelection::Auto,
-                    kind: rd_core::DownloadKind::Http,
+                    kind,
                     media: None,
                     remote_credential_id: None,
                     replay: None,
@@ -1118,6 +1187,115 @@ mod tests {
         assert_eq!(current.state, rd_core::DownloadState::Queued);
         assert_eq!(current.committed_bytes.get(), 0, "progress starts at zero");
         assert_eq!(current.retry_count, 0, "and so does the retry budget");
+        assert!(
+            !scheduler.active.lock().await.reasons.contains_key(&file.id),
+            "the reset lets go of the dispatcher once the row is written back"
+        );
+    }
+
+    /// TR-04: a reset holds the row against the dispatcher until it is written back. Let go
+    /// before the `.part` was deleted, a due retry started in between and resumed at the row's
+    /// checkpoint in a new empty file.
+    ///
+    /// RA-TR-07/RA-TR-02: the real `reset` runs inside a second hold, the way two resets or a
+    /// reset and a removal of one row overlap, and so do the pause and cancel that each let go
+    /// of a stop reason when they are done. None of them may let the dispatcher at the row
+    /// while the outer hold is still at work.
+    #[tokio::test]
+    async fn a_dispatch_pass_leaves_a_row_alone_while_it_is_being_reset() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _) = paused_package(temporary.path()).await;
+
+        scheduler
+            .while_held(file.id, "refused", async {
+                scheduler.reset(file.id, false).await?;
+                scheduler.pause(file.id).await?;
+                scheduler.cancel(file.id).await?;
+                // Startable, as a queued row or a retry that fell due is while it is reset.
+                scheduler.database.reset_download(file.id).await?;
+                scheduler.schedule_runnable().await?;
+                anyhow::ensure!(
+                    !scheduler.active.lock().await.tokens.contains_key(&file.id),
+                    "the dispatcher started a row in the middle of its reset"
+                );
+                anyhow::Ok(())
+            })
+            .await
+            .expect("held");
+        let active = scheduler.active.lock().await;
+        assert!(
+            !active.reasons.contains_key(&file.id) && !active.held.contains_key(&file.id),
+            "and the hold ends with the work"
+        );
+    }
+
+    /// RA-TR-02: a resume in the middle of a reset took the hold out and queued the row while
+    /// its `.part` was still being deleted. It is refused, and the row stays where it was.
+    #[tokio::test]
+    async fn a_resume_during_a_reset_does_not_queue_the_row() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, _) = paused_package(temporary.path()).await;
+
+        scheduler
+            .while_held(file.id, "refused", async {
+                let refused = scheduler.resume(file.id).await;
+                anyhow::ensure!(
+                    refused
+                        .as_ref()
+                        .is_err_and(|error| rd_db::store_kind(error)
+                            == Some(rd_db::StoreErrorKind::WrongState)),
+                    "a resume in the middle of a reset was not refused: {refused:?}"
+                );
+                let current = scheduler
+                    .database
+                    .get_download(file.id)
+                    .await?
+                    .context("still there")?;
+                anyhow::ensure!(
+                    current.state == DownloadState::Paused,
+                    "the resume queued the row anyway: {:?}",
+                    current.state
+                );
+                anyhow::Ok(())
+            })
+            .await
+            .expect("held");
+        scheduler
+            .resume(file.id)
+            .await
+            .expect("resume after the hold");
+    }
+
+    /// RA-DB-01: a Usenet file whose NZB was dropped is refused before the reset deletes
+    /// anything, with a reason of its own; it used to lose the finished file first and then be
+    /// told to pause.
+    #[tokio::test]
+    async fn a_refused_reset_of_a_usenet_file_without_its_nzb_keeps_the_file() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let (scheduler, file, destination) =
+            paused_package_of(temporary.path(), rd_core::DownloadKind::Usenet).await;
+        assert!(file.nzb_file_id.is_none(), "no NZB behind the row");
+        tokio::fs::create_dir_all(&destination)
+            .await
+            .expect("destination");
+        let payload = destination.join(&file.file_name);
+        tokio::fs::write(&payload, b"payload")
+            .await
+            .expect("payload");
+
+        let refused = scheduler
+            .reset(file.id, true)
+            .await
+            .expect_err("nothing left to fetch it from");
+        assert!(
+            refused.downcast_ref::<super::NzbDropped>().is_some(),
+            "refused with its own reason: {refused:#}"
+        );
+        assert!(payload.exists(), "a refused reset deletes nothing");
+        assert!(
+            !scheduler.active.lock().await.held.contains_key(&file.id),
+            "and holds nothing"
+        );
     }
 
     /// `Episode 1` resetting must not take `Episode 10`'s or `Episode 1.5`'s stream fragments

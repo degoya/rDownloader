@@ -153,7 +153,18 @@ fn a_success_status_carrying_an_error_code_is_still_a_refusal() {
     assert!(failure_from(200, None, &empty).is_none());
     assert!(failure_from(503, None, &empty).is_some());
     assert!(ensure_http_status(204, None).is_ok());
-    assert!(ensure_http_status(451, None).is_err());
+    // A legal block is `Offline` and retried, still worded as a refusal (RA-PLG-04); a 404 or
+    // 410 is the torrent gone for good (owner, 2026-10-04).
+    let takedown = ensure_http_status(451, None).expect_err("a refusal");
+    assert_eq!(takedown.kind, ErrorKind::Offline);
+    assert_eq!(takedown.code, messages::CONTENT_REFUSED.0);
+    for gone in [404, 410] {
+        let gone = ensure_http_status(gone, None).expect_err("a refusal");
+        assert_eq!(gone.kind, ErrorKind::Permanent);
+        assert_eq!(gone.code, messages::TORRENT_GONE.0);
+    }
+    let limited = ensure_http_status(429, Some(120)).expect_err("a refusal");
+    assert_eq!(limited.kind, ErrorKind::RateLimited(Some(120)));
 }
 
 /// The torrent's own name is the root of every path below it, which is what turns the magnet

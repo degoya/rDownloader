@@ -21,6 +21,14 @@ use crate::rclone_job::bwlimit;
 /// How many trailing lines of rclone's output a failure keeps.
 const TAIL_LINES: usize = 20;
 
+/// How long a call that moves no file data — a listing, a rename, a delete — may take.
+///
+/// The copies have no such limit: an archive of many gigabytes over a slow line takes as long
+/// as it takes, and the backup that asked stops them by dropping the call (`kill_on_drop`). A
+/// listing that has not answered in ten minutes is a hung remote, and before this it held the
+/// backup run for good (audit 1.9.1, INTAKE-05).
+const METADATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
 /// Why an rclone call did not do what it was asked.
 #[derive(Debug)]
 pub enum RcloneFailure {
@@ -129,7 +137,7 @@ impl RcloneRemote {
             true,
             &[local.as_os_str().to_owned(), self.path_of(name).into()],
         );
-        self.run(arguments).await.map(drop)
+        self.run(arguments, None).await.map(drop)
     }
 
     /// Renames `from` to `to` inside the folder.
@@ -143,7 +151,7 @@ impl RcloneRemote {
             false,
             &[self.path_of(from).into(), self.path_of(to).into()],
         );
-        self.run(arguments).await.map(drop)
+        self.run(arguments, Some(METADATA_TIMEOUT)).await.map(drop)
     }
 
     /// Copies `name` from the folder to the local path.
@@ -157,7 +165,7 @@ impl RcloneRemote {
             false,
             &[self.path_of(name).into(), local.as_os_str().to_owned()],
         );
-        self.run(arguments).await.map(drop)
+        self.run(arguments, None).await.map(drop)
     }
 
     /// Deletes `name` from the folder.
@@ -167,7 +175,7 @@ impl RcloneRemote {
     /// [`RcloneFailure::NotFound`] when there is no such file.
     pub async fn delete(&self, name: &str) -> Result<(), RcloneFailure> {
         let arguments = self.arguments("deletefile", false, &[self.path_of(name).into()]);
-        self.run(arguments).await.map(drop)
+        self.run(arguments, Some(METADATA_TIMEOUT)).await.map(drop)
     }
 
     /// The files directly in the folder; a folder that does not exist yet is empty.
@@ -177,7 +185,7 @@ impl RcloneRemote {
     /// When rclone is not there, does not succeed or answers with something unreadable.
     pub async fn list(&self) -> Result<Vec<RcloneEntry>, RcloneFailure> {
         let arguments = self.arguments("lsjson", false, &[self.remote.clone().into()]);
-        match self.run(arguments).await {
+        match self.run(arguments, Some(METADATA_TIMEOUT)).await {
             Ok(stdout) => parse_lsjson(&stdout),
             Err(RcloneFailure::NotFound) => Ok(Vec::new()),
             Err(other) => Err(other),
@@ -199,8 +207,13 @@ impl RcloneRemote {
         arguments
     }
 
-    /// Runs rclone and returns what it wrote to standard output.
-    async fn run(&self, arguments: Vec<OsString>) -> Result<Vec<u8>, RcloneFailure> {
+    /// Runs rclone and returns what it wrote to standard output; `limit` bounds a call that
+    /// moves no file data.
+    async fn run(
+        &self,
+        arguments: Vec<OsString>,
+        limit: Option<std::time::Duration>,
+    ) -> Result<Vec<u8>, RcloneFailure> {
         let mut command = tokio::process::Command::new(&self.tool);
         command
             .args(arguments)
@@ -212,10 +225,18 @@ impl RcloneRemote {
         // The allowlist plus what rclone reads for itself (security review 2026-09-28,
         // finding 7), the same as the upload in `rclone_job`.
         rd_postprocess::restrict_environment(&mut command, rd_postprocess::RCLONE_VARIABLES);
-        let output = command
-            .output()
-            .await
-            .map_err(|error| RcloneFailure::Spawn(error.to_string()))?;
+        // `output()` drains both pipes together, so rclone never blocks on a full one; a limit
+        // that runs out drops the child, which `kill_on_drop` ends.
+        let output = match limit {
+            Some(limit) => tokio::time::timeout(limit, command.output())
+                .await
+                .map_err(|_| RcloneFailure::Failed {
+                    status: None,
+                    output: format!("rclone timed out after {} seconds", limit.as_secs()),
+                })?,
+            None => command.output().await,
+        }
+        .map_err(|error| RcloneFailure::Spawn(error.to_string()))?;
         match output.status.code() {
             Some(0) => Ok(output.stdout),
             // rclone's exit statuses: 3 is a directory, 4 a file that is not there.

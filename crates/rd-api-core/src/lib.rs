@@ -31,9 +31,11 @@ pub mod error_codes;
 pub mod host_check;
 pub mod hosters;
 pub mod hotfolder_service;
+pub mod input_checks;
 pub mod link_check_cache;
 pub mod link_check_probe;
 pub mod link_check_service;
+pub mod list_bounds;
 pub mod local_control;
 pub mod notify_notice;
 pub mod notify_service;
@@ -70,7 +72,10 @@ pub use remote_job_service::{
     RemoteJobRefused, RemoteJobService, SubmitOutcome as RemoteJobSubmitOutcome,
 };
 pub use scope_policy::{policy_rows, required_scope};
-pub use settings_store::service_switches;
+pub use settings_store::{
+    RUNTIME_FIELDS, RefusedSetting, diagnosed_settings, runtime_settings, service_switches,
+    startup_settings,
+};
 
 /// Shared state cloned into request handlers.
 #[derive(Clone)]

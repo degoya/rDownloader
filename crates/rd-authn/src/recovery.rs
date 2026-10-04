@@ -19,7 +19,8 @@
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
-use sha2::{Digest, Sha256};
+
+use crate::digest::{constant_time_eq, sha256_hex};
 
 /// How many codes are issued at enrolment.
 ///
@@ -60,8 +61,7 @@ pub fn generate_codes() -> Vec<RecoveryCode> {
 #[must_use]
 pub fn digest_of(code: &str) -> String {
     let normalised = normalise(code);
-    let digest = Sha256::digest(normalised.as_bytes());
-    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+    sha256_hex(normalised)
 }
 
 /// Finds which stored digest a typed code matches, if any.
@@ -99,17 +99,6 @@ fn normalise(code: &str) -> String {
         .filter(char::is_ascii_alphanumeric)
         .flat_map(char::to_lowercase)
         .collect()
-}
-
-fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    let mut difference = 0_u8;
-    for (a, b) in left.iter().zip(right) {
-        difference |= a ^ b;
-    }
-    difference == 0
 }
 
 #[cfg(test)]

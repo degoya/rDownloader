@@ -2,6 +2,9 @@ name: Release
 
 on:
   push:
+    # Anchored at the start, so the plugin release's tag `plugins-vX.Y.Z` (`publish`) never
+    # matches; that tag is also created with the run's GITHUB_TOKEN, whose events start no
+    # workflow. scripts/tests/release-assets.sh checks every workflow against both tags.
     tags:
       - "v*.*.*"
 
@@ -12,6 +15,10 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # The signed plugins are a release of their own on the same commit (owner, 2026-10-04): v1.9.0
+  # listed 69 `.rdplug` files before the installers. The plugin index stays in the application
+  # release, where installations look for it, and points here.
+  PLUGIN_RELEASE_TAG: plugins-${{ github.ref_name }}
 
 # Runner images are named rather than `-latest`, for the reason in ci.yml (RD-120-67): here the
 # image also sets the glibc floor of the shipped Linux binary, which must not move by itself.
@@ -22,9 +29,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-web
         with:
-          node-version: 24
+          pnpm: false
       - run: scripts/build-extension.sh
       # The stores get these ZIPs after the release, in `extension-stores` (RD-170-10).
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -35,23 +42,22 @@ jobs:
 
   plugins:
     runs-on: ubuntu-24.04
-    # The toolchain the step below installs, as in the binary jobs (RD-180-12); without it
-    # rust-toolchain.toml's `stable` would build the components and the packager.
-    env:
-      RUSTUP_TOOLCHAIN: 1.98.0
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
       # rd-api and its `#[derive(RustEmbed)]`.
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.98.0
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: release-plugins
-      - run: cargo install cargo-component --version 0.21.1 --locked
+      # Prebuilt through cargo-binstall, as in ci.yml's `components` job whose cache this run
+      # reads, instead of a source build at every release (RD-191-09).
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-component@0.21.1
       # For the import check scripts/build-plugins.sh runs on every component it builds, and the
       # one below over all of them.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
@@ -92,8 +98,8 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.98.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.98.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+          key: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-
       - name: Build plugin components
         shell: bash
         run: scripts/build-plugins.sh --components-only
@@ -145,7 +151,9 @@ jobs:
       # RD-140-01: the signed plugin repository index, over exactly the packages above. It names
       # each package by the digest of these bytes, so it can be built nowhere else. `verify`
       # checks it against the root this build embeds, which also catches a secret that is not
-      # the repository key. Until the secret exists the release carries no index.
+      # the repository key. Until the secret exists the release carries no index. Its URLs are
+      # absolute, into the plugin release; the index itself is an asset of the application
+      # release, so `releases/latest/download/rdownloader-plugin-index.json` keeps finding it.
       - name: Build and sign the plugin index
         env:
           RDOWNLOADER_REPOSITORY_SIGNING_KEY: ${{ secrets.RDOWNLOADER_REPOSITORY_SIGNING_KEY }}
@@ -158,7 +166,7 @@ jobs:
           mkdir -p dist/plugin-index
           target/release-test/rd-pack plugin index build dist/plugins \
             --out dist/plugin-index/rdownloader-plugin-index.json \
-            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${PLUGIN_RELEASE_TAG}/" \
             --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json \
             --notes dist/plugin-notes
           target/release-test/rd-pack plugin index verify \
@@ -191,11 +199,6 @@ jobs:
   # waits for Linux alone and not for Windows and macOS (RD-150-10). Both jobs run the same steps,
   # written once here and taken over by the YAML anchor `binary-steps`.
   linux-binaries:
-    # RD-180-12: the toolchain every release binary is built with. rust-toolchain.toml names the
-    # channel `stable`, which is whatever the runner has, and outranks the 1.98.0 the step below
-    # installs; RUSTUP_TOOLCHAIN outranks the file. `binaries` sets the same.
-    env:
-      RUSTUP_TOOLCHAIN: 1.98.0
     strategy:
       fail-fast: false
       matrix:
@@ -213,21 +216,12 @@ jobs:
     timeout-minutes: 90
     steps: &binary-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The version is the `packageManager` pin in web/package.json (RD-150-14).
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: web/package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: ./.github/actions/setup-web
       # With RUSTUP_TOOLCHAIN set this is the toolchain cargo builds with, targets included; before
       # it, rust-toolchain.toml's `stable` was, and 1.5.0's release failed on a target installed
       # here but missing there ("can't find crate for `std`" for x86_64-apple-darwin).
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.98.0
           targets: ${{ matrix.target }}
       # The environment repro.yml rebuilds the Linux x86_64 binaries in, from the same script:
       # SOURCE_DATE_EPOCH and the stamp VERSION.txt and the About page carry from the tag's
@@ -324,8 +318,6 @@ jobs:
           retention-days: 3
 
   binaries:
-    env:
-      RUSTUP_TOOLCHAIN: 1.98.0
     strategy:
       fail-fast: false
       matrix:
@@ -445,15 +437,7 @@ jobs:
           name: release-packages
           path: packages
       - name: Install WiX
-        shell: pwsh
-        run: |
-          dotnet tool install --global wix --version 5.0.2
-          if ($LASTEXITCODE -ne 0) { throw "installing wix failed" }
-          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
-          $env:PATH = "$tools;$env:PATH"
-          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          wix extension add --global WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
-          if ($LASTEXITCODE -ne 0) { throw "adding the WiX extensions failed" }
+        uses: ./.github/actions/install-wix
       - name: Unpack the release zip
         shell: pwsh
         run: Expand-Archive -Path packages/rdownloader-windows-x86_64.zip -DestinationPath stage
@@ -496,9 +480,11 @@ jobs:
           path: release-assets
           merge-multiple: true
       # The archives without their plugins are `packages`' input, not something to publish; the
-      # packager came along with every other artifact and is not one either.
-      - name: Drop the intermediate archives
-        run: rm -f release-assets/*.unpacked.* release-assets/rd-pack
+      # packager came along with every other artifact and is not one either, nor a build record
+      # of docker/build-push-action (switched off in the container jobs). The signed plugins go
+      # to plugin-assets/, the plugin release's files.
+      - name: Separate the plugins and drop the intermediate files
+        run: scripts/release-assets.sh split release-assets plugin-assets
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
@@ -507,17 +493,18 @@ jobs:
           output-file: release-assets/rdownloader.spdx.json
           upload-artifact: false
           upload-release-assets: false
+      # One SHA256SUMS per release, over its own files: `sha256sum --check` works on a full
+      # download of either, and the update manifest and the package channels read the
+      # application's.
       - name: Generate SHA-256 checksums
-        working-directory: release-assets
+        run: scripts/release-assets.sh sums release-assets plugin-assets
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign checksum manifests with Sigstore
         shell: bash
         run: |
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print0 \
-            | sort --zero-terminated \
-            | xargs --null sha256sum > SHA256SUMS
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      - name: Sign checksum manifest with Sigstore
-        working-directory: release-assets
-        run: cosign sign-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json --yes
+          for directory in release-assets plugin-assets; do
+            (cd "${directory}" && cosign sign-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json --yes)
+          done
       # RD-180-01: the signed update manifest of this release, built from the SHA256SUMS above,
       # the files beside it and the version's CHANGELOG section: rdownloader-update-stable.json on
       # a plain vX.Y.Z tag, rdownloader-update-beta.json on a vX.Y.Z-beta.N pre-release. `verify`
@@ -548,6 +535,31 @@ jobs:
           for manifest in release-assets/rdownloader-update-*.json; do
             "${RUNNER_TEMP}/rd-pack" update manifest verify "${manifest}" --assets release-assets
           done
+      # The plugin release first, so the index the application release brings never names a file
+      # that is not there yet. Never `latest` — that stays the application release, where the
+      # stable update manifest and the plugin index are found — and a pre-release with a beta.
+      # The action creates the tag `plugins-vX.Y.Z` on this commit with the run's token, which
+      # starts no workflow, and release.yml's tag pattern does not match it either.
+      - name: Write the plugin release's text
+        id: plugin-release
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "name=rDownloader plugins ${REF_NAME#v}" >> "${GITHUB_OUTPUT}"
+          cat > "${RUNNER_TEMP}/plugin-release.md" <<EOF
+          The signed plugin packages of rDownloader ${REF_NAME#v}. The application, its installers and the plugin index are in the release [${REF_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${REF_NAME}); a running rDownloader installs and updates these plugins through that index (Settings > Plugins).
+          EOF
+      - name: Publish the plugin release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ env.PLUGIN_RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.plugin-release.outputs.name }}
+          body_path: ${{ runner.temp }}/plugin-release.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: false
+          files: plugin-assets/*
       # A vX.Y.Z-beta.N tag is a pre-release: GitHub's `latest` then stays on the newest plain
       # release, which is where the stable update manifest and the plugin index are found.
       - name: Publish GitHub release
@@ -931,10 +943,10 @@ jobs:
           else
             echo "submit=true" >> "${GITHUB_OUTPUT}"
           fi
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-web
         if: steps.gate.outputs.submit == 'true'
         with:
-          node-version: 24
+          pnpm: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: steps.gate.outputs.submit == 'true'
         with:
@@ -974,6 +986,11 @@ jobs:
     needs: [plugins, linux-binaries]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
+    # docker/build-push-action uploads a build record as a workflow artifact by default, and
+    # `publish` downloads every artifact of the run: v1.9.0 published it as a `.dockerbuild`
+    # asset. The job summary stays.
+    env:
+      DOCKER_BUILD_RECORD_UPLOAD: false
     permissions:
       contents: read
     steps:
@@ -1017,6 +1034,9 @@ jobs:
     needs: [plugins, linux-binaries, container-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # No build record artifact, as in `container-arm64`.
+    env:
+      DOCKER_BUILD_RECORD_UPLOAD: false
     permissions:
       contents: read
       packages: write

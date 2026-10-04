@@ -2,13 +2,14 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { usePagedRecords } from '@/composables/usePagedRecords'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { BundleCreated, BundlePreview, LogLevel, LogRecord, LogRecordsPage } from '@/api/types'
 
 /** Records one read asks for; the server caps a page at 500. */
 const LOG_PAGE_SIZE = 200
 
-export interface LogFilters {
+interface LogFilters {
   /**
    * This level and the more severe ones; `'all'` means every level. A sentinel rather than an
    * empty string: the select offering it refuses an item whose value is `''`.
@@ -44,7 +45,6 @@ function emptyFilters(): LogFilters {
  * reloads the preview rather than retrying blindly — the person has to look again.
  */
 export const useLogsStore = defineStore('logs', () => {
-  const records = ref<LogRecord[]>([])
   const filters = reactive<LogFilters>(emptyFilters())
   const fullPage = ref(false)
   const total = ref(0)
@@ -53,10 +53,6 @@ export const useLogsStore = defineStore('logs', () => {
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
-  const fetching = ref(false)
-  const settled = ref(false)
-  /** The first fetch alone shows the loading surface (`design.md`). */
-  const loading = computed(() => !settled.value)
 
   const preview = ref<BundlePreview | null>(null)
   const selected = ref<string[]>([])
@@ -80,36 +76,18 @@ export const useLogsStore = defineStore('logs', () => {
     total.value = page.total
     dropped.value = page.dropped
     retention.value = page.retention
-    error.value = null
   }
 
-  async function refresh(): Promise<void> {
-    fetching.value = true
-    const response = await api.GET('/api/v1/diagnostics/logs', { params: { query: query() } })
-    if (response.data) {
-      records.value = response.data.records
-      take(response.data)
-    } else {
-      error.value = responseError(response)
-    }
-    fetching.value = false
-    settled.value = true
-  }
-
-  /** Appends the page behind the oldest record shown. */
-  async function loadOlder(): Promise<void> {
-    const oldest = records.value.at(-1)
-    if (!oldest || fetching.value) return
-    fetching.value = true
-    const response = await api.GET('/api/v1/diagnostics/logs', { params: { query: query(oldest.id) } })
-    if (response.data) {
-      records.value = [...records.value, ...response.data.records]
-      take(response.data)
-    } else {
-      error.value = responseError(response)
-    }
-    fetching.value = false
-  }
+  /**
+   * The first page under the current filter and the older ones behind it; a refresh drops an
+   * older page still on its way, which belonged to the filter before (WEB-07). The first fetch
+   * alone shows the loading surface (`design.md`).
+   */
+  const { records, fetching, settled, loading, refresh, loadOlder } = usePagedRecords<LogRecord, LogRecordsPage>(
+    beforeId => api.GET('/api/v1/diagnostics/logs', { params: { query: query(beforeId) } }),
+    take,
+    error
+  )
 
   function clearFilters(): void {
     Object.assign(filters, emptyFilters())

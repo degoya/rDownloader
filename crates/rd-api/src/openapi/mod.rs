@@ -160,3 +160,43 @@ mod secret_boundary_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod paging_tests {
+    /// A paged list says `X-Total-Count` in the document, not only on the wire, so a client
+    /// generated from it can read the header (audit 1.9.1, RA-API-03). Found by its
+    /// `PageQuery` parameters, so a seventh paged list is held to the same.
+    #[test]
+    fn every_paged_list_declares_its_total_count_header() {
+        let document = serde_json::to_value(super::document()).expect("serialize OpenAPI");
+        let paths = document["paths"].as_object().expect("paths");
+        let mut paged = 0;
+        for (path, item) in paths {
+            let Some(get) = item.get("get") else {
+                continue;
+            };
+            // `PageQuery` and nothing else: the audit, the logs and a subscription's items page
+            // with a cursor or a body of their own.
+            let takes_a_window = get["parameters"].as_array().is_some_and(|parameters| {
+                let mut names: Vec<&str> = parameters
+                    .iter()
+                    .filter(|parameter| parameter["in"] == "query")
+                    .filter_map(|parameter| parameter["name"].as_str())
+                    .collect();
+                names.sort_unstable();
+                names == ["limit", "offset"]
+            });
+            if !takes_a_window {
+                continue;
+            }
+            paged += 1;
+            assert!(
+                get["responses"]["200"]["headers"]
+                    .get("x-total-count")
+                    .is_some(),
+                "GET {path} pages but does not declare X-Total-Count"
+            );
+        }
+        assert_eq!(paged, 6, "the paged lists of API-15");
+    }
+}

@@ -35,7 +35,6 @@
     "asset_not_wanted": "Datei passt nicht zu Plattform, Architektur oder Namensmuster"
   },
   "form": {
-    "add": "Abonnement hinzufügen",
     "edit": "Abonnement bearbeiten",
     "name": "Name",
     "url": "Adresse",

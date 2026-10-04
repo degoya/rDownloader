@@ -101,6 +101,9 @@ impl TrustStore {
     }
 
     /// Withdraws one exact artefact by its digest, leaving its signing key trusted.
+    ///
+    /// [`crate::trust_store_for`] revokes every document of its role listed in
+    /// [`crate::REVOKED_DOCUMENTS`] this way (DB-06).
     pub fn revoke_digest(&self, digest: [u8; 32]) -> Result<()> {
         self.write()?.revoked_digests.insert(digest);
         Ok(())

@@ -106,9 +106,10 @@ defineExpose({ focusRow, revealRow, scrollToKey, windowed })
 </script>
 
 <template>
+  <!-- The gutter stays reserved while windowed, so a column header above lines up (RD-191-11). -->
   <div
     ref="viewport"
-    :class="windowed ? 'min-h-0 overflow-y-auto' : ''"
+    :class="windowed ? 'min-h-0 overflow-y-auto [scrollbar-gutter:stable]' : ''"
     :style="windowed ? { maxHeight: props.maxHeight } : undefined"
     @scroll="onScroll"
     @focusin="onFocusIn"

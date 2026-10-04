@@ -10,6 +10,7 @@
 //! noticed and so an answer carrying no `code` can still be classified; it is never forwarded
 //! to a log or an interface. What travels is `code`, which is stable and documented.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 /// The two fields every answer carries beside its own payload.
@@ -104,29 +105,25 @@ fn from_message(message: Option<&str>) -> Kind {
     }
 }
 
-/// Maps an HTTP status for the cases where there is no envelope to read at all.
+/// Maps an HTTP status for the cases where there is no envelope to read at all: the mapping
+/// every plugin shares (RD-191-07), with this provider family's defaults.
 #[must_use]
 pub fn from_http_status(status: u16, retry_after: Option<u64>) -> Option<Kind> {
-    match status {
-        200..=299 => None,
-        401 | 403 => Some(Kind::AccountInvalid),
-        404 | 410 => Some(Kind::Offline),
-        429 => Some(Kind::RateLimited(Some(retry_after.unwrap_or(60)))),
-        500..=599 => Some(Kind::Transient(Some(BUSY_SECONDS))),
-        _ => Some(Kind::Permanent),
-    }
-}
-
-/// Reads a `Retry-After` header stated in seconds. A date-shaped one is ignored rather than
-/// guessed at: a wrong wait is worse than the bucket's own default.
-#[must_use]
-pub fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
-    value.and_then(|value| value.trim().parse::<u64>().ok())
+    plugin_common::http_status(status, retry_after)
+        .err()
+        .map(|refusal| match refusal {
+            HttpRefusal::Unauthorized => Kind::AccountInvalid,
+            HttpRefusal::Gone => Kind::Permanent,
+            HttpRefusal::Unavailable => Kind::Offline,
+            HttpRefusal::RateLimited(wait) => Kind::RateLimited(Some(wait.unwrap_or(60))),
+            HttpRefusal::ServerError(wait) => Kind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
+            HttpRefusal::Other(_) => Kind::Permanent,
+        })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Envelope, Kind, QUOTA_SECONDS, classify, from_http_status, retry_after_seconds};
+    use super::{BUSY_SECONDS, Envelope, Kind, QUOTA_SECONDS, classify, from_http_status};
 
     fn envelope(body: &str) -> Envelope {
         serde_json::from_str(body).expect("an envelope")
@@ -184,13 +181,31 @@ mod tests {
         assert_eq!(classify(None, None, None), Kind::Permanent);
     }
 
+    /// The statuses no envelope explains map the way every plugin maps them (RD-191-07): a 404
+    /// or 410 is final (owner, 2026-10-04), a legal block is retried, and a stated wait is kept
+    /// on a rate limit and an outage alike.
     #[test]
-    fn a_retry_after_in_seconds_is_read_and_a_date_shaped_one_is_not() {
-        assert_eq!(retry_after_seconds(Some(" 120 ")), Some(120));
+    fn a_bare_status_follows_the_shared_mapping() {
+        assert_eq!(from_http_status(204, None), None);
+        assert_eq!(from_http_status(404, None), Some(Kind::Permanent));
+        assert_eq!(from_http_status(410, None), Some(Kind::Permanent));
+        assert_eq!(from_http_status(451, None), Some(Kind::Offline));
         assert_eq!(
-            retry_after_seconds(Some("Wed, 21 Oct 2026 07:28:00 GMT")),
-            None
+            from_http_status(429, Some(120)),
+            Some(Kind::RateLimited(Some(120)))
         );
-        assert_eq!(retry_after_seconds(None), None);
+        assert_eq!(
+            from_http_status(429, None),
+            Some(Kind::RateLimited(Some(60)))
+        );
+        assert_eq!(
+            from_http_status(503, None),
+            Some(Kind::Transient(Some(BUSY_SECONDS)))
+        );
+        assert_eq!(
+            from_http_status(503, Some(30)),
+            Some(Kind::Transient(Some(30)))
+        );
+        assert_eq!(from_http_status(418, None), Some(Kind::Permanent));
     }
 }

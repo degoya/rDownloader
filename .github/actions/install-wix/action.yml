@@ -1,0 +1,17 @@
+name: Install WiX
+description: >
+  WiX 5.0.2 as a .NET global tool with the UI and Util extensions, on PATH for every later step
+  (RD-180-05; RD-191-09: kept twice until then). WiX 5 because 6 and later ask for their
+  maintenance-fee EULA. Windows only.
+runs:
+  using: composite
+  steps:
+    - shell: pwsh
+      run: |
+        dotnet tool install --global wix --version 5.0.2
+        if ($LASTEXITCODE -ne 0) { throw "installing wix failed" }
+        $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+        $env:PATH = "$tools;$env:PATH"
+        $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+        wix extension add --global WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+        if ($LASTEXITCODE -ne 0) { throw "adding the WiX extensions failed" }

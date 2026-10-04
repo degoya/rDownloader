@@ -80,7 +80,18 @@ fn an_outage_waits_and_a_missing_file_does_not() {
 
     let gone = failure_from(404, None, &envelope("")).expect("a refusal");
     assert_eq!(gone.code, messages::FILE_NOT_FOUND.0);
+    // Final, the shared mapping's answer for a missing file (owner, 2026-10-04): nothing to
+    // wait for, and nothing to retry.
     assert_eq!(gone.kind, FailureKind::Permanent);
+    let deleted = failure_from(410, None, &envelope("")).expect("a refusal");
+    assert_eq!(deleted.kind, FailureKind::Permanent);
+    // A legal block is retried.
+    let blocked = failure_from(451, None, &envelope("")).expect("a refusal");
+    assert_eq!(blocked.kind, FailureKind::Offline);
+
+    // A stated wait on an outage is taken (it used to be ignored for a `5xx`).
+    let stated = failure_from(503, Some(40), &envelope("")).expect("a refusal");
+    assert_eq!(stated.kind, FailureKind::Transient(Some(40)));
 }
 
 /// A status nothing explains still has to arrive as something a person can read, and the number
@@ -94,12 +105,15 @@ fn a_status_no_document_explains_carries_the_number_and_nothing_else() {
 }
 
 /// A wrong wait is worse than the bucket's own default, which is at least one somebody can
-/// reason about — so a date-shaped header, a negative one and an absurd one are all ignored.
+/// reason about — so a date-shaped header, a negative one and a zero are ignored, and a wait
+/// past the host's one-day ceiling is that ceiling (the shared reader, RD-191-07).
 #[test]
 fn only_a_retry_after_stated_in_plausible_seconds_is_believed() {
     assert_eq!(retry_after_seconds(Some("120")), Some(120));
     assert_eq!(retry_after_seconds(Some(" 30 ")), Some(30));
-    for bad in ["Wed, 21 Oct 2026 07:28:00 GMT", "-5", "0", "999999", "soon"] {
+    assert_eq!(retry_after_seconds(Some("7200")), Some(7200));
+    assert_eq!(retry_after_seconds(Some("999999")), Some(86_400));
+    for bad in ["Wed, 21 Oct 2026 07:28:00 GMT", "-5", "0", "soon"] {
         assert_eq!(retry_after_seconds(Some(bad)), None, "{bad}");
     }
     assert_eq!(retry_after_seconds(None), None);

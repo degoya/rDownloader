@@ -31,7 +31,7 @@ export interface VirtualRow {
   class?: string
 }
 
-export interface RenderedRow<T extends VirtualRow> {
+interface RenderedRow<T extends VirtualRow> {
   row: T
   index: number
 }
@@ -42,7 +42,7 @@ const DEFAULT_OVERSCAN = 6
 /** Stands in until the viewport has a measurable height — first paint, and jsdom, which never has one. */
 const FALLBACK_VIEWPORT = 800
 
-export interface VirtualRowsOptions {
+interface VirtualRowsOptions {
   /** Row count from which windowing starts. */
   threshold?: Ref<number>
   /** Rows kept above and below the visible range, so a scroll does not chase the renderer. */

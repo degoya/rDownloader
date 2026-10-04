@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { api, responseError, resultMessage } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { Download, DownloadBulkAction, DownloadPackage, DownloadRates } from '@/api/types'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
 import { MIB } from '@/utils/format'
@@ -12,7 +12,6 @@ import {
   appendTransferRateHistory,
   type TransferRateHistoryPoint
 } from '@/utils/transferRates'
-import { withBase } from '@/basePath'
 
 import { applyPostprocessProgress, applyTorrentStats, createQueueAnnouncer } from './transfersEvents'
 import { useTransferFigures } from './transfersFigures'
@@ -57,7 +56,6 @@ export const useTransfersStore = defineStore('transfers', () => {
   /** Seconds until the queue is through at the current rate; `null` when no honest figure exists. */
   const queueEta = ref<number | null>(null)
   const speedHistory = ref<TransferRateHistoryPoint[]>([])
-  let releaseEvents: (() => void) | null = null
   /** Monotonic ticket so only the newest `refresh()` may apply its result (see `refresh`). */
   let refreshTicket = 0
   /** True while a refresh is awaiting the network; event bursts wait rather than pile up. */
@@ -122,7 +120,7 @@ export const useTransfersStore = defineStore('transfers', () => {
       error.value = loadError
     } finally {
       // Whatever happened, the in-flight flag comes down: a rejection that left it set parked
-      // every later event behind `scheduleRefresh`, and the queue froze until a reload.
+      // every later event behind the event debounce, and the queue froze until a reload.
       if (ticket === refreshTicket) {
         refreshing = false
         pending.value = false
@@ -199,13 +197,9 @@ export const useTransfersStore = defineStore('transfers', () => {
   }
 
   async function remove(id: string): Promise<boolean> {
-    const response = await fetch(withBase(`/api/v1/downloads/${encodeURIComponent(id)}`), {
-      method: 'DELETE',
-      credentials: 'include'
-    })
-    const payload: unknown = await response.json().catch(() => null)
-    if (!response.ok) {
-      error.value = payloadError(payload)
+    const response = await api.DELETE('/api/v1/downloads/{id}', { params: { path: { id } } })
+    if (!response.data) {
+      error.value = payloadError(response.error)
       return false
     }
     downloads.value = downloads.value.filter(download => download.id !== id)
@@ -222,8 +216,9 @@ export const useTransfersStore = defineStore('transfers', () => {
    * nothing that knew they belonged together (RD-107-07). The rule is now one server-side
    * decision, and what it refused to touch comes back with a reason.
    *
-   * Addressed by hand rather than through the generated client so the endpoint works before
-   * the API contract is regenerated; `remove()` above does the same.
+   * Through the client like every request (WEB-02): a dropped connection is a coded refusal, and
+   * `clearing` comes down in `finally` — it stood for good after a network error, and every
+   * later clear returned at once.
    *
    * `everything` is only sent from its own confirmation, so it carries `confirmed` — the server
    * refuses that scope without it — and the answer to "delete partial files as well".
@@ -234,24 +229,22 @@ export const useTransfersStore = defineStore('transfers', () => {
     notice.value = null
     error.value = null
     const body = scope === 'everything' ? { scope, confirmed: true, delete_partial: deletePartial } : { scope }
-    const response = await fetch(withBase('/api/v1/packages/clear'), {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    const payload: unknown = await response.json().catch(() => null)
-    clearing.value = false
-    if (!response.ok) {
-      // The refresh has to come first: on success it clears `error`, so a message set before
-      // it would be wiped and the refusal would read as a completed clear.
-      await refresh()
-      error.value = payloadError(payload)
-      return
+    let result: ClearResult | undefined
+    try {
+      const response = await api.POST('/api/v1/packages/clear', { body })
+      if (!response.data) {
+        // The refresh has to come first: on success it clears `error`, so a message set before
+        // it would be wiped and the refusal would read as a completed clear.
+        await refresh()
+        error.value = payloadError(response.error)
+        return
+      }
+      result = response.data
+    } finally {
+      clearing.value = false
     }
-    const result = payload as ClearResult | null
-    const removed = result?.removed ?? 0
-    const skipped = result?.skipped ?? []
+    const removed = result.removed
+    const skipped = result.skipped
     await refresh()
     if (!removed && !skipped.length) {
       notice.value = t('downloads.notices.nothing_to_clear')
@@ -401,7 +394,6 @@ export const useTransfersStore = defineStore('transfers', () => {
   const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
     usePackageActions({ error, notice, refresh })
 
-  let refreshTimer: number | null = null
   let historyTimer: number | null = null
 
   function sampleSpeedHistory(): void {
@@ -411,29 +403,23 @@ export const useTransfersStore = defineStore('transfers', () => {
     })
   }
 
-  /// Coalesces bursts of events into one refresh per 400 ms.
-  function scheduleRefresh(): void {
-    if (refreshTimer !== null) return
-    refreshTimer = window.setTimeout(() => {
-      refreshTimer = null
-      // Re-arm instead of stacking a second request on top of one already in flight; a burst
-      // of events would otherwise multiply into parallel round trips.
-      if (refreshing) return scheduleRefresh()
-      void refresh()
-    }, 400)
-  }
+  /** Coalesces bursts of events into one refresh per 400 ms. */
+  const events = debouncedEventRefresh(
+    ['download.progress', 'download.state', 'package.state', 'usenet.changed'],
+    refresh,
+    {
+      delayMs: 400,
+      busy: () => refreshing,
+      handlers: {
+        // Aggregate torrent counters are pushed; the detail panel pulls peers and pieces.
+        'torrent.stats': applyTorrentStats,
+        'postprocess.progress': (event: MessageEvent<string>) => applyPostprocessProgress(packages, event)
+      }
+    }
+  )
 
   function connectEvents(): void {
-    if (releaseEvents) return
-    releaseEvents = subscribeEvents({
-      'download.progress': scheduleRefresh,
-      'download.state': scheduleRefresh,
-      'package.state': scheduleRefresh,
-      'usenet.changed': scheduleRefresh,
-      // Aggregate torrent counters are pushed; the detail panel pulls peers and pieces.
-      'torrent.stats': applyTorrentStats,
-      'postprocess.progress': (event: MessageEvent<string>) => applyPostprocessProgress(packages, event)
-    })
+    events.connect()
     // The former 3s safety-net poll is gone: the shared stream reconnects with backoff and
     // refreshes on every state event, so the extra round trips only crowded the connection pool.
     if (historyTimer === null) {
@@ -443,8 +429,7 @@ export const useTransfersStore = defineStore('transfers', () => {
   }
 
   function disconnectEvents(): void {
-    releaseEvents?.()
-    releaseEvents = null
+    events.disconnect()
     if (historyTimer !== null) {
       window.clearInterval(historyTimer)
       historyTimer = null

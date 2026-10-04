@@ -114,7 +114,8 @@ async fn an_embed_link_is_resolved_through_the_file_page() {
     assert_eq!(host.request(0).url.as_str(), FILE_PAGE_URL);
 }
 
-/// The site's 404 page is the file's absence, reported as such - no widget is spent on it.
+/// The site's 404 page is the file's absence, reported as such - final, not retried (owner,
+/// 2026-10-04) - and no widget is spent on it.
 #[tokio::test]
 async fn a_deleted_file_is_reported_by_code() {
     let host = MockHost::new(vec![html(404, ERROR_PAGE)], Some("unused"));
@@ -125,7 +126,7 @@ async fn a_deleted_file_is_reported_by_code() {
         .await
         .expect_err("a deleted file fails");
 
-    assert_eq!(failure.category, FailureKind::Offline);
+    assert_eq!(failure.category, FailureKind::Permanent);
     assert_eq!(
         failure.code.as_deref(),
         Some("krakenfiles.file_unavailable")
@@ -149,6 +150,28 @@ async fn the_gone_notice_counts_whatever_the_status() {
         failure.code.as_deref(),
         Some("krakenfiles.file_unavailable")
     );
+}
+
+/// KrakenFiles takes no account: a 403 on the file page - Cloudflare's answer - is an HTTP
+/// error, not a refused account the person would be sent to fix (RA-PLG-01).
+#[tokio::test]
+async fn a_refused_file_page_is_no_refused_account() {
+    for status in [401_u16, 403] {
+        let host = MockHost::new(
+            vec![html(status, "<html><body>Just a moment</body></html>")],
+            Some("unused"),
+        );
+        let resolver = KrakenfilesResolver::new(host.clone());
+
+        let failure = resolver
+            .resolve(resolve_request(CANONICAL_LINK))
+            .await
+            .expect_err("a refused page fails");
+
+        assert_eq!(failure.category, FailureKind::Permanent, "{status}");
+        assert_eq!(failure.code.as_deref(), Some("krakenfiles.http_error"));
+        assert_eq!(host.captcha_count(), 0);
+    }
 }
 
 /// "captcha not valid" is tried once more from the top - a fresh page, token and challenge -

@@ -28,6 +28,8 @@ const props = defineProps<{
   disabled: boolean
   isWithdrawn: (plugin: { id: string, version: string }) => boolean
   lifecycle: PluginLifecycle | undefined
+  /** The switch for all plugins is on (RD-191-10). */
+  automaticForAll?: boolean
   releaseNotes: ReleaseNote[]
   supersededOpen: boolean
   diagnosticsOpen: boolean
@@ -166,6 +168,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
         <PluginVersionPanel
           v-if="lifecycle"
           :lifecycle="lifecycle"
+          :automatic-for-all="automaticForAll"
           :versions="choosableVersions"
           :release-notes="releaseNotes"
           @done="outcome => emit('versionDone', outcome)"

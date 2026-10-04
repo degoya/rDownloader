@@ -26,39 +26,13 @@ TARBALL="$ROOT/artifacts/rdownloader-linux-x86_64.tar.gz"
 
 cd "$ROOT"
 
-skip_web=0
-# The cargo profile (RD-150-20): `release` for anything published, `release-test` for the owner's
-# test packages — the same optimisation without the single code unit and LTO, much faster to
-# build. VERSION.txt names the profile, so a test package cannot pass for a release one.
-profile="${RD_PACKAGE_PROFILE:-release}"
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --skip-web) skip_web=1 ;;
-        --profile) profile="${2:?--profile needs a name}"; shift ;;
-        --profile=*) profile="${1#--profile=}" ;;
-        *) echo "unknown argument: $1" >&2; exit 2 ;;
-    esac
-    shift
-done
-case "$profile" in
-    release|release-test) ;;
-    *) echo "unknown profile: $profile (release or release-test)" >&2; exit 2 ;;
-esac
+# shellcheck source=lib/package.sh
+source "$ROOT/scripts/lib/package.sh"
+rd_package_args "$@"
+rd_package_version
+echo "==> packaging rDownloader $version for linux (profile: $profile, jobs: $JOBS)"
 
-version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
-echo "==> packaging rDownloader ${version:?version not found in Cargo.toml} for linux (profile: $profile, jobs: $JOBS)"
-
-if [[ "$skip_web" -eq 0 ]]; then
-    echo "==> type-checking and building the web UI"
-    # `run build` was `vue-tsc --build --force && vite build` until RD-120-25.
-    # The type check is now its own script, so it has to be named here to keep the
-    # release chain checking exactly what it checked before.
-    pnpm --dir web run typecheck:full
-    pnpm --dir web run build
-elif ! scripts/web-dist-stale.sh; then
-    echo "--skip-web was given but web/dist is not current; drop the flag" >&2
-    exit 1
-fi
+rd_package_web
 
 echo "==> building the binaries"
 # shellcheck source=lib/version-file.sh
@@ -82,33 +56,7 @@ rd_write_version_file "$OUT" "$version" "linux x86_64" "$profile"
 install -m 755 scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
     scripts/linux/start-capture.sh scripts/linux/stop-capture.sh "$OUT/"
 
-if compgen -G "dist/plugins/*.rdplug" > /dev/null; then
-    rm -f "$OUT"/plugins/*.rdplug
-    install -m 644 dist/plugins/*.rdplug "$OUT/plugins/"
-    # The examples are not bundled (RD-150-20); a signed one from before then may still sit in
-    # dist/plugins until the next build-plugins.sh run removes it.
-    rm -f "$OUT"/plugins/example-*.rdplug
-    echo "    plugins: $(ls -1 "$OUT"/plugins/*.rdplug | wc -l)"
-    # A package silently short of a plugin looks fine until somebody misses the feature. The
-    # expected number is simply how many plugin directories carry a manifest.
-    # Not simply every manifest: a plugin demanding a newer application version than this
-    # build cannot be packaged yet, and build-plugins.sh owns that rule.
-    expected="$("$ROOT/scripts/build-plugins.sh" --list-packageable | wc -l)"
-    actual="$(ls -1 "$OUT"/plugins/*.rdplug | wc -l)"
-    if [[ "$expected" -ne "$actual" ]]; then
-        echo "!! $actual packaged, but $expected plugins are packageable (build-plugins.sh --list-packageable)." >&2
-        echo "   run scripts/build-plugins.sh — a missing one is usually never built here." >&2
-        exit 1
-    fi
-else
-    echo "    plugins: dist/plugins holds no .rdplug — leaving the packaged set as it is" >&2
-fi
-# A package without plugins starts with no hoster, no account provider and no intake at all,
-# and nothing says why (1.5 test package, 2026-09-27): refused, not shipped.
-if ! compgen -G "$OUT/plugins/*.rdplug" > /dev/null; then
-    echo "!! no signed plugin in $OUT/plugins — run scripts/build-plugins.sh first" >&2
-    exit 1
-fi
+rd_package_plugins "$OUT"
 
 if [[ ! -d "$OUT/vendor" ]]; then
     echo "    vendor: $OUT/vendor is missing; the package will have no helper binaries" >&2

@@ -1,5 +1,7 @@
+// The client reaches back to `@/i18n` through its server messages; both sides only use the
+// other inside functions, so the cycle resolves.
+import { api } from '@/api/client'
 import { i18n, type AppLocale } from '@/i18n'
-import { withBase } from '@/basePath'
 
 /**
  * Translations shipped inside installed plugin packages.
@@ -38,9 +40,9 @@ let signedIn = false
 
 async function fetchMessages(locale: string): Promise<PluginMessages | null> {
   try {
-    const response = await fetch(withBase(`/api/v1/plugins/i18n/${locale}`), { credentials: 'include' })
-    if (!response.ok) return null
-    return (await response.json()) as PluginMessages
+    // Through the client, so the request runs its middleware like every other (WEB-03).
+    const response = await api.GET('/api/v1/plugins/i18n/{locale}', { params: { path: { locale } } })
+    return (response.data as PluginMessages | undefined) ?? null
   } catch {
     // Offline or the backend is not reachable yet; plugin strings fall back to the
     // English text the server sends with each message.

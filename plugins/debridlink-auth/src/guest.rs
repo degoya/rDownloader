@@ -72,6 +72,10 @@ impl Guest for Component {
                 FailureKind::Permanent,
             ));
         };
+        // The device code, not the user code: this is what the next poll is made with, and it
+        // is never shown to anybody. The interval the provider asked for rides with it, since
+        // nothing else survives until the next poll.
+        let state = flow::flow_state(&code);
         // The address goes back as the provider gave it. The host refuses one outside the
         // domains this manifest declares, which is what stops a plugin sending somebody to a
         // sign-in page of its own choosing.
@@ -79,28 +83,27 @@ impl Guest for Component {
             verification_url: code.verification_url,
             user_code: Some(code.user_code),
             expires_in_seconds: code.expires_in,
-            // The device code, not the user code: this is what the next poll is made with,
-            // and it is never shown to anybody.
-            flow_state: Some(code.device_code),
+            flow_state: Some(state),
         }))
     }
 
     fn poll(account_id: String, flow_state: Option<String>) -> Result<AuthState, Failure> {
         // Without the device code there is nothing to poll with. Failing says so once instead
         // of asking the provider a question it cannot answer, for ever.
-        let Some(device_code) = flow_state.filter(|code| !code.is_empty()) else {
+        let Some(state) = flow_state.filter(|state| !state.is_empty()) else {
             return Ok(AuthState::Failed(refuse(
                 "flow_expired",
                 "the sign-in has no code to continue with",
                 FailureKind::AuthRequired,
             )));
         };
+        let (device_code, interval) = flow::read_flow_state(&state);
         let response = http::http_request(
             "POST",
             TOKEN_ENDPOINT,
             &form(&[
                 ("client_id", flow::CLIENT_ID),
-                ("code", &device_code),
+                ("code", device_code),
                 ("grant_type", "http://oauth.net/grant_type/device/1.0"),
             ]),
             &[RequestHeader {
@@ -110,14 +113,14 @@ impl Guest for Component {
             &[],
         )?;
         let body = String::from_utf8_lossy(&response.body);
-        match flow::poll(&body) {
+        match flow::poll(response.status, &body, interval) {
             flow::PollOutcome::Authorized(token) => {
                 // Stored before `Authorized` is returned: the host takes that answer to mean
                 // the credential is already kept, so saying it first would be a lie.
                 credentials::store_token(&account_id, &token)?;
                 Ok(AuthState::Authorized)
             }
-            flow::PollOutcome::Pending(interval) => Ok(AuthState::Pending(interval.unwrap_or(5))),
+            flow::PollOutcome::Pending(seconds) => Ok(AuthState::Pending(seconds)),
             // The provider's own code survives; its prose does not. `sanitize_error`
             // drops anything that is not code-shaped whole rather than filtering it, because
             // filtering an answer that echoed a credential would keep its digits.

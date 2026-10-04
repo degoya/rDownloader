@@ -2,7 +2,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 
 import CollectorIntakeModal from '@/components/CollectorIntakeModal.vue'
 
-export interface IntakeResult {
+interface IntakeResult {
   text: string
   packageName: string | null
   password: string | null

@@ -111,8 +111,26 @@ impl SchedulerHandle {
         spec: PackageSpec,
         files: Vec<FileSpec>,
     ) -> Result<(DownloadPackage, Vec<DownloadFile>)> {
+        self.enqueue_package_with_torrents(spec, files, Vec::new())
+            .await
+    }
+
+    /// [`Self::enqueue_package`], carrying the reviewed torrent state -- file tree and
+    /// selection -- of the files whose source is named in `torrent_states`.
+    ///
+    /// Written before the row can start (audit 1.9.1, API-07). The LinkGrabber used to write
+    /// the selection after the whole package was enqueued, and a dispatcher pass in between
+    /// started the torrent with the default selection, which its runner then persisted over
+    /// the reviewed one. A file with a state is therefore created paused, gets its state, and
+    /// only then joins the queue -- unless the package was asked to start paused anyway.
+    pub async fn enqueue_package_with_torrents(
+        &self,
+        spec: PackageSpec,
+        files: Vec<FileSpec>,
+        torrent_states: Vec<(Url, rd_core::TorrentJobState)>,
+    ) -> Result<(DownloadPackage, Vec<DownloadFile>)> {
         anyhow::ensure!(!files.is_empty(), "package contains no files");
-        write_package(&self.database, spec, files).await
+        write_package(&self.database, spec, files, torrent_states).await
     }
 }
 
@@ -122,6 +140,7 @@ async fn write_package(
     database: &Database,
     spec: PackageSpec,
     files: Vec<FileSpec>,
+    mut torrent_states: Vec<(Url, rd_core::TorrentJobState)>,
 ) -> Result<(DownloadPackage, Vec<DownloadFile>)> {
     let package_id = PackageId::new();
     let destination = rd_files::package_directory(&spec.destination, &spec.name);
@@ -166,6 +185,10 @@ async fn write_package(
     }
     let mut created = Vec::with_capacity(files.len());
     for file in files {
+        let torrent_state = torrent_states
+            .iter()
+            .position(|(source, _)| *source == file.source)
+            .map(|index| torrent_states.swap_remove(index).1);
         let new_download = NewDownload {
             id: rd_core::DownloadId::new(),
             package_id,
@@ -189,7 +212,9 @@ async fn write_package(
                 // A mirror waits for the member that is downloading, whatever
                 // the package's own start mode says.
                 DownloadState::Skipped
-            } else if spec.start_paused {
+            } else if spec.start_paused || torrent_state.is_some() {
+                // A torrent waits for its reviewed selection; see
+                // `SchedulerHandle::enqueue_package_with_torrents`.
                 DownloadState::Paused
             } else {
                 DownloadState::Queued
@@ -222,6 +247,28 @@ async fn write_package(
             }
             None => database.create_download(new_download).await,
         };
+        let (created_file, joins_queue) = match (created_file, torrent_state) {
+            (Ok(download), Some(state)) => (
+                store_torrent_state(database, download, state).await,
+                !spec.start_paused,
+            ),
+            (created_file, _) => (created_file, false),
+        };
+        if joins_queue {
+            // The row is paused and holds its reviewed selection; a stop here leaves it
+            // exactly so, never queued with the default one (`crates/rd-core/recovery-matrix.md`).
+            rd_core::failpoint!("scheduler.after_torrent_selection", || {
+                anyhow::anyhow!(
+                    "crash point: the torrent selection is written and the row is not queued"
+                )
+            });
+        }
+        let created_file = match created_file {
+            Ok(download) if joins_queue && download.state == DownloadState::Paused => {
+                join_queue(database, download).await
+            }
+            other => other,
+        };
         match created_file {
             Ok(download) => created.push(download),
             // A package holding part of its file set is worse than no package at all:
@@ -235,6 +282,53 @@ async fn write_package(
         }
     }
     Ok((package, created))
+}
+
+/// Writes a torrent row's reviewed state while the row is still paused.
+///
+/// On a failure the row is removed again, so the caller's rollback sees only the rows that
+/// were completely written.
+async fn store_torrent_state(
+    database: &Database,
+    download: DownloadFile,
+    state: rd_core::TorrentJobState,
+) -> Result<DownloadFile> {
+    match database
+        .set_download_torrent_state(download.id, state)
+        .await
+    {
+        Ok(()) => Ok(download),
+        Err(error) => {
+            remove_unfinished_row(database, &download).await;
+            Err(error)
+        }
+    }
+}
+
+/// Lets a torrent row whose selection is stored join the queue; on a failure the row is
+/// removed again, as in [`store_torrent_state`].
+///
+/// Only a row still paused since it was written moves: a pause or resume that came in
+/// between is not overwritten from the snapshot, and the move announces no transition of its
+/// own, as a row created queued announces none (re-audit 1.9.1, RA-TR-08, RA-API-06).
+async fn join_queue(database: &Database, download: DownloadFile) -> Result<DownloadFile> {
+    match database.join_queue(download.id, download.updated_at).await {
+        Ok(queued) => Ok(queued),
+        Err(error) => {
+            remove_unfinished_row(database, &download).await;
+            Err(error)
+        }
+    }
+}
+
+async fn remove_unfinished_row(database: &Database, download: &DownloadFile) {
+    if let Err(error) = database.delete_download(download.id).await {
+        tracing::warn!(
+            %error,
+            download = %download.id,
+            "a torrent row that never joined the queue could not be removed"
+        );
+    }
 }
 
 /// Undoes a half-written package. Every file this call created is removed, and the package

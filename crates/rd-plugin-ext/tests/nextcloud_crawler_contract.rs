@@ -414,9 +414,9 @@ async fn a_share_of_one_file_is_handed_back_as_that_file() {
 /// A share nested deeper than the plugin walks stops at its own limit rather than following
 /// a stranger's tree to the bottom.
 ///
-/// The limit belongs to the plugin (`walk::MAX_DEPTH`), and the point of asserting it here
-/// rather than in the plugin's own tests is that the *component* obeys it: a guest that
-/// ignored its own bookkeeping would make a request per level for ever.
+/// The limit belongs to the shared walk (`plugin_common::walk::MAX_DEPTH`), and the point of
+/// asserting it here rather than in the plugin's own tests is that the *component* obeys it: a
+/// guest that ignored its own bookkeeping would make a request per level for ever.
 #[tokio::test]
 async fn a_tree_deeper_than_the_limit_stops_at_the_limit() {
     let bytes = component();
@@ -779,9 +779,10 @@ async fn an_address_that_is_not_a_share_is_handed_on_without_a_request() {
 
 /// How many folders one crawl of this plugin reads, and how many files it hands back.
 ///
-/// The numbers belong to `plugins/nextcloud-crawler/src/walk.rs` (`MAX_FOLDERS`, `MAX_FILES`)
-/// and are repeated here rather than imported: a contract test asserts what the component
-/// does, and a constant shared with the code under test would move with it.
+/// The numbers belong to the walk every folder crawler shares, `plugin_common::walk`
+/// (`MAX_FOLDERS`, `MAX_FILES`), and are repeated here rather than imported: a contract test
+/// asserts what the component does, and a constant shared with the code under test would move with
+/// it.
 const MAX_FOLDERS: usize = 100;
 const MAX_FILES: usize = 500;
 

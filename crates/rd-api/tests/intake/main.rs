@@ -21,6 +21,7 @@ mod hotfolder_poll;
 mod media_manifest;
 mod mirrors;
 mod nzb_paused;
+mod nzb_remote_job;
 mod replay_consent;
 mod replay_restart;
 mod source_sets;

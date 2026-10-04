@@ -15,9 +15,14 @@ pub(crate) fn json_result(value: &impl Serialize) -> McpToolResult {
     Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-/// Converts an [`ApiError`] into an `is_error` tool result, preserving the stable code.
+/// Converts an [`ApiError`] into an `is_error` tool result, preserving the stable code and the
+/// parameters the code's text names (a limit, a version), exactly as the REST body carries them.
 pub(crate) fn api_error(error: ApiError) -> CallToolResult {
-    let body = serde_json::json!({ "error": error.message(), "code": error.code() });
+    let message = error.into_message();
+    let mut body = serde_json::json!({ "error": message.message, "code": message.code });
+    if !message.params.is_empty() {
+        body["params"] = serde_json::json!(message.params);
+    }
     CallToolResult::error(vec![ContentBlock::text(body.to_string())])
 }
 
@@ -91,4 +96,44 @@ pub(crate) fn from_definition<T: serde::de::DeserializeOwned>(
     let body = without_credentials(body)?;
     serde_json::from_value(serde_json::Value::Object(body))
         .map_err(|error| ApiError::bad_request("request.body_invalid", error.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use rmcp::model::ContentBlock;
+
+    use super::api_error;
+    use crate::ApiError;
+
+    fn body_of(error: ApiError) -> serde_json::Value {
+        let result = api_error(error);
+        assert_eq!(result.is_error, Some(true));
+        match &result.content[0] {
+            ContentBlock::Text(content) => {
+                serde_json::from_str(&content.text).expect("a JSON error body")
+            }
+            _ => panic!("a text block"),
+        }
+    }
+
+    #[test]
+    fn an_error_keeps_its_code_and_params() {
+        let body = body_of(
+            ApiError::bad_request("request.bulk_range", "Between 1 and 500 ids")
+                .with_param("max", 500),
+        );
+        assert_eq!(body["code"], "request.bulk_range");
+        assert_eq!(body["error"], "Between 1 and 500 ids");
+        assert_eq!(body["params"]["max"], "500");
+    }
+
+    #[test]
+    fn an_error_without_params_has_no_params_field() {
+        let body = body_of(ApiError::not_found(
+            "package.not_found",
+            "Package not found",
+        ));
+        assert_eq!(body["code"], "package.not_found");
+        assert!(body.get("params").is_none(), "{body}");
+    }
 }

@@ -16,7 +16,7 @@ import type {
 import { i18n } from '@/i18n'
 
 /** Where a torrent's file tree is being reviewed. */
-export type TorrentScope = 'candidate' | 'download'
+type TorrentScope = 'candidate' | 'download'
 
 const t = (key: string, named: Record<string, unknown> = {}): string => i18n.global.t(key, named)
 

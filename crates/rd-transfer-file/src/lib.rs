@@ -17,6 +17,8 @@
 //! Nor does it belong to either runner: `rd-sftp` depending on `rd-ftp` would compile, but it
 //! says the wrong thing about what these two crates are to each other.
 
+mod remote;
+
 use std::path::Path;
 use std::time::Duration;
 
@@ -29,14 +31,24 @@ use rd_scheduler::RunOutcome;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
 
+pub use remote::{
+    DirectoryLister, ListedEntry, LiveRemoteSettings, SharedRemoteSettings, credential_for, join,
+    walk,
+};
+
 /// How much is read from the remote source at a time.
 const CHUNK_BYTES: usize = 64 * 1024;
 
-/// How many bytes are written before the queue row is updated again.
+/// How many bytes are written before the staging file is synced and the queue row updated.
 ///
-/// One database write per megabyte rather than one per read: the checkpoint that matters for
-/// a resume is the file on disk, and the row only has to be roughly current.
-const PROGRESS_INTERVAL_BYTES: u64 = 1024 * 1024;
+/// The checkpoint that matters for a resume is the file on disk, so it is synced before the
+/// row is told: the row never claims bytes the disk may not hold after a power cut (audit
+/// 1.9.1, TR-17). The same rhythm as the HTTP engine's checkpoints, 8 MiB or two seconds,
+/// so a fast line does not pay for a sync per megabyte and a slow one still shows progress.
+const CHECKPOINT_BYTES: u64 = 8 * 1024 * 1024;
+
+/// The longest the row waits for a checkpoint while bytes are arriving.
+const CHECKPOINT_INTERVAL: Duration = Duration::from_secs(2);
 
 /// What ended the read loop.
 pub enum TransferEnd {
@@ -197,6 +209,7 @@ impl<'a> Staging<'a> {
         let mut buffer = vec![0u8; CHUNK_BYTES];
         let mut written = self.committed;
         let mut last_reported = self.committed;
+        let mut reported_at = tokio::time::Instant::now();
         loop {
             // Also checked ahead of the select, which picks at random between two ready
             // branches: a transfer that has been stopped should not write another chunk.
@@ -218,8 +231,17 @@ impl<'a> Staging<'a> {
             bandwidth.acquire(read).await?;
             sink.write_all(&buffer[..read]).await?;
             written += read as u64;
-            if written.saturating_sub(last_reported) >= PROGRESS_INTERVAL_BYTES {
+            if written.saturating_sub(last_reported) >= CHECKPOINT_BYTES
+                || reported_at.elapsed() >= CHECKPOINT_INTERVAL
+            {
+                sink.sync_data().await.context(self.labels.flush_part)?;
+                // Durable on disk, not yet in the row: the next run resumes at the length of
+                // the part file, whatever the row says.
+                rd_core::failpoint!("transfer_file.before_progress_recorded", || {
+                    anyhow::anyhow!("crash point: transfer_file.before_progress_recorded")
+                });
                 last_reported = written;
+                reported_at = tokio::time::Instant::now();
                 self.database
                     .set_download_progress(self.file.id, written, Some(self.size))
                     .await?;
@@ -234,13 +256,16 @@ impl<'a> Staging<'a> {
         // leaves a file the queue calls Completed whose tail is still only in page cache.
         sink.sync_all().await.context(self.labels.flush_part)?;
         drop(sink);
-        if matches!(end, TransferEnd::Stopped) {
-            return Ok(RunOutcome::Stopped);
-        }
+        // Recorded on a stop too: the checkpoint cadence leaves the row up to 8 MiB behind the
+        // part file, and a paused row showed that lag, and the traffic odometer undercounted
+        // it, until the transfer was resumed (re-audit 1.9.1, RA-TR-05).
         let on_disk = rd_files::existing_bytes(self.part_path).await;
         self.database
             .set_download_progress(self.file.id, on_disk, Some(self.size))
             .await?;
+        if matches!(end, TransferEnd::Stopped) {
+            return Ok(RunOutcome::Stopped);
+        }
         if on_disk != self.size {
             // Short *or* long, both mean the bytes on disk are not the file. Short is an
             // early end of the data connection; long is a server that acknowledged the
@@ -270,222 +295,4 @@ impl<'a> Staging<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-    use rd_core::{DownloadFile, DownloadKind, DownloadState, StorageRootId};
-    use rd_db::{Database, NewDownload, NewPackage};
-    use rd_files::StorageRoot;
-    use rd_scheduler::RunOutcome;
-    use tokio::io::AsyncWriteExt;
-
-    use super::{Labels, Resume, Staging, TransferEnd};
-
-    /// The labels are the caller's; any pair of constants exercises the shared code.
-    const LABELS: Labels = Labels {
-        length_mismatch: "test.length_mismatch",
-        length_mismatch_message: "The transfer did not deliver the expected number of bytes",
-        stalled: "the test server stopped sending data",
-        open_part: "open the partial test download",
-        flush_part: "flush the test download",
-    };
-
-    struct Fixture {
-        _directory: tempfile::TempDir,
-        database: Database,
-        root: StorageRoot,
-        file: DownloadFile,
-        part_path: std::path::PathBuf,
-    }
-
-    impl Fixture {
-        async fn start() -> Self {
-            let directory = tempfile::tempdir().expect("tempdir");
-            let database = Database::open(directory.path().join("staging.sqlite3"))
-                .await
-                .expect("database");
-            let destination = directory.path().join("downloads");
-            tokio::fs::create_dir_all(&destination).await.expect("dir");
-            let root = StorageRoot::create(
-                StorageRootId::new(),
-                "download destination".to_owned(),
-                destination,
-            )
-            .await
-            .expect("root");
-            let package_id = rd_core::PackageId::new();
-            database
-                .create_package(NewPackage {
-                    id: package_id,
-                    name: "staging".to_owned(),
-                    destination: root.path().to_string_lossy().into_owned(),
-                    category_id: None,
-                    priority: rd_core::DownloadPriority::Normal,
-                    postprocess_level: None,
-                    script: None,
-                    enrichment: Vec::new(),
-                })
-                .await
-                .expect("package");
-            let file = database
-                .create_download(NewDownload {
-                    id: rd_core::DownloadId::new(),
-                    package_id,
-                    source: "ftp://127.0.0.1/pub/movie.bin".parse().expect("url"),
-                    file_name: "movie.bin".to_owned(),
-                    total_bytes: None,
-                    expected_checksum: None,
-                    account_id: None,
-                    proxy_profile_id: None,
-                    auth_profile: rd_core::AuthProfileSelection::Auto,
-                    initial_state: DownloadState::Queued,
-                    kind: DownloadKind::Ftp,
-                    media: None,
-                    remote_credential_id: None,
-                    mirror_group: None,
-                    replay: None,
-                    enrichment: Vec::new(),
-                    secret_fragment: None,
-                })
-                .await
-                .expect("download");
-            let part_path = rd_files::part_path(&root, file.id)
-                .await
-                .expect("part path");
-            Self {
-                _directory: directory,
-                database,
-                root,
-                file,
-                part_path,
-            }
-        }
-
-        async fn staging(&self, size: u64) -> Staging<'_> {
-            Staging::open(
-                &self.database,
-                &self.file,
-                &self.root,
-                &self.part_path,
-                size,
-                LABELS,
-            )
-            .await
-        }
-
-        fn final_path(&self) -> std::path::PathBuf {
-            self.root.path().join("movie.bin")
-        }
-    }
-
-    /// Writes `bytes` into the staging file and hands back the open handle, the way a
-    /// finished read loop leaves it.
-    async fn part_with(fixture: &Fixture, bytes: &[u8]) -> tokio::fs::File {
-        let staging = fixture.staging(0).await;
-        let mut sink = staging.open_part().await.expect("open part");
-        sink.write_all(bytes).await.expect("write");
-        sink
-    }
-
-    #[tokio::test]
-    async fn a_different_version_refuses_the_resume() {
-        let fixture = Fixture::start().await;
-        let fresh = fixture.staging(1000).await;
-        assert!(matches!(
-            fresh
-                .plan_resume_validated(Some("\"v1\"".to_owned()), None)
-                .await
-                .expect("plan"),
-            Resume::Fresh
-        ));
-        let sink = part_with(&fixture, &[7u8; 500]).await;
-        sink.sync_all().await.expect("sync");
-
-        // Same size, same time, another object behind the same key: appending its bytes to
-        // the old ones would publish a file that is neither.
-        let staging = fixture.staging(1000).await;
-        assert!(matches!(
-            staging
-                .plan_resume_validated(Some("\"v2\"".to_owned()), None)
-                .await
-                .expect("plan"),
-            Resume::Refused
-        ));
-        assert!(matches!(
-            staging
-                .plan_resume_validated(Some("\"v1\"".to_owned()), None)
-                .await
-                .expect("plan"),
-            Resume::Continue
-        ));
-    }
-
-    #[tokio::test]
-    async fn a_short_delivery_is_refused_and_the_partial_file_is_kept() {
-        let fixture = Fixture::start().await;
-        let sink = part_with(&fixture, &[7u8; 900]).await;
-
-        let staging = fixture.staging(1000).await;
-        let outcome = staging
-            .finish(sink, TransferEnd::Complete)
-            .await
-            .expect("finish");
-
-        match outcome {
-            RunOutcome::Failed(failure) => {
-                assert_eq!(failure.code.as_deref(), Some(LABELS.length_mismatch));
-            }
-            other => panic!("a short delivery must be refused, got {other:?}"),
-        }
-        // Refusing must not throw away what was downloaded, and must not publish it.
-        assert!(fixture.part_path.exists());
-        assert!(!fixture.final_path().exists());
-    }
-
-    #[tokio::test]
-    async fn a_long_delivery_is_refused_rather_than_promoted() {
-        let fixture = Fixture::start().await;
-        // The defect this pins: a server that acknowledges a resume offset and then streams
-        // from byte zero appends a second copy behind the part already on disk. Accepting
-        // anything that merely reaches the announced size publishes that as the payload.
-        let sink = part_with(&fixture, &[7u8; 1400]).await;
-
-        let staging = fixture.staging(1000).await;
-        let outcome = staging
-            .finish(sink, TransferEnd::Complete)
-            .await
-            .expect("finish");
-
-        match outcome {
-            RunOutcome::Failed(failure) => {
-                assert_eq!(failure.code.as_deref(), Some(LABELS.length_mismatch));
-            }
-            other => panic!("a long delivery must be refused, got {other:?}"),
-        }
-        assert!(fixture.part_path.exists());
-        assert!(!fixture.final_path().exists());
-    }
-
-    #[tokio::test]
-    async fn a_complete_delivery_is_synced_before_it_is_promoted() {
-        let fixture = Fixture::start().await;
-        let payload = vec![7u8; 1000];
-        // Deliberately not flushed here: `finish` owns the sync, and the rename that
-        // publishes the file must not happen before it. Renaming first would publish a
-        // file whose tail is still in a buffer this process has not handed to the kernel.
-        let sink = part_with(&fixture, &payload).await;
-
-        let staging = fixture.staging(1000).await;
-        let outcome = staging
-            .finish(sink, TransferEnd::Complete)
-            .await
-            .expect("finish");
-
-        match outcome {
-            RunOutcome::Completed { final_name } => assert_eq!(final_name, "movie.bin"),
-            other => panic!("a complete delivery must be promoted, got {other:?}"),
-        }
-        let published = tokio::fs::read(fixture.final_path()).await.expect("final");
-        assert_eq!(published, payload);
-        // The staging file must not survive a completed transfer.
-        assert!(!fixture.part_path.exists());
-    }
-}
+mod tests;

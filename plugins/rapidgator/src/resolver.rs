@@ -178,30 +178,32 @@ fn file_query(token: &str, file_id: &str) -> Vec<Header> {
 }
 
 /// `GET file/info`. `Ok(Some(_))` is online with metadata, `Ok(None)` a confirmed offline file
-/// (a 404 is trusted on this endpoint), `Err` anything else.
+/// (a 404 is trusted on this endpoint), `Err` anything else. Read by its code: an HTTP 404 or
+/// 410 is `Permanent` and a `status` 404 `Offline`, and both are the file gone.
 async fn file_info_status<H: PluginHost>(
     host: &H,
     token: &str,
     file_id: &str,
 ) -> Result<Option<api::FileEntry>, Failure> {
-    match api_call::<H, api::FileInfoResult>(host, "file/info", file_query(token, file_id), true)
-        .await
-    {
-        Ok(result) => result.file.map(Some).ok_or_else(invalid_response),
-        Err(failure) if failure.kind == FailureKind::Offline => Ok(None),
+    match file_info(host, token, file_id).await {
+        Ok(file) => Ok(Some(file)),
+        Err(failure) if failure.code.as_deref() == Some(messages::FILE_OFFLINE.0) => Ok(None),
         Err(failure) => Err(failure),
     }
 }
 
-/// As [`file_info_status`], but an offline file fails: `resolve` cannot hand one back.
+/// `GET file/info` for `resolve`, which cannot hand an offline file back: the refusal travels
+/// in the class it was given — an HTTP 404 or 410 final (owner, 2026-10-04), the API's own
+/// `status` 404 `Offline` as JD reads it.
 async fn file_info<H: PluginHost>(
     host: &H,
     token: &str,
     file_id: &str,
 ) -> Result<api::FileEntry, Failure> {
-    file_info_status(host, token, file_id)
+    api_call::<H, api::FileInfoResult>(host, "file/info", file_query(token, file_id), true)
         .await?
-        .ok_or_else(|| coded(FailureKind::Offline, messages::FILE_OFFLINE))
+        .file
+        .ok_or_else(invalid_response)
 }
 
 /// `GET file/download` — the raw `download_url` string.
@@ -242,7 +244,12 @@ async fn api_call<H: PluginHost, T: DeserializeOwned>(
     let envelope: api::Envelope<T> = match serde_json::from_slice(&response.body) {
         Ok(envelope) => envelope,
         Err(_) => {
-            api::ensure_http_status(response.status, trust_404).map_err(convert_failure)?;
+            api::ensure_http_status(
+                response.status,
+                trust_404,
+                plugin_common::retry_after(&response.headers),
+            )
+            .map_err(convert_failure)?;
             return Err(invalid_response());
         }
     };

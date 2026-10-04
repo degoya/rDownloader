@@ -93,11 +93,12 @@ fn progress(state: auth::exports::rdownloader::plugin::auth::AuthState) -> AuthP
         AuthState::UserAction(prompt) => AuthProgress::UserAction {
             verification_url: prompt.verification_url,
             user_code: prompt.user_code,
-            expires_in_seconds: prompt.expires_in_seconds,
+            // Held to a day at the boundary, like the wait below (RA-HOST-02).
+            expires_in_seconds: prompt.expires_in_seconds.map(rd_core::clamp_retry_after),
             flow_state: prompt.flow_state,
         },
         AuthState::Pending(seconds) => AuthProgress::Pending {
-            retry_after_seconds: seconds,
+            retry_after_seconds: rd_core::clamp_retry_after(seconds),
         },
         AuthState::Failed(failure) => AuthProgress::Failed {
             message: failure.message,
@@ -233,5 +234,36 @@ impl auth::rdownloader::plugin::credentials::Host for PluginStoreState {
         host.store_flow_secret(account_id, &name, &value)
             .await
             .map_err(crate::component::to_wit_failure)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AuthProgress, auth, progress};
+
+    /// RA-HOST-02: the plugin's sign-in window and wait are held to a day; `now + u64::MAX`
+    /// seconds was a panic in whoever stored them.
+    #[test]
+    fn a_plugin_window_and_wait_are_held_to_a_day() {
+        use auth::exports::rdownloader::plugin::auth::{AuthState, UserPrompt};
+        let day = rd_core::MAX_RETRY_AFTER_SECONDS;
+        assert_eq!(
+            progress(AuthState::Pending(u64::MAX)),
+            AuthProgress::Pending {
+                retry_after_seconds: day
+            }
+        );
+        let AuthProgress::UserAction {
+            expires_in_seconds, ..
+        } = progress(AuthState::UserAction(UserPrompt {
+            verification_url: "https://example.test/device".to_owned(),
+            user_code: Some("ABCD".to_owned()),
+            expires_in_seconds: Some(u64::MAX),
+            flow_state: None,
+        }))
+        else {
+            panic!("a prompt stays a prompt");
+        };
+        assert_eq!(expires_in_seconds, Some(day));
     }
 }

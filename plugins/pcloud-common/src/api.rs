@@ -98,13 +98,11 @@ pub fn result_of(body: &[u8]) -> Option<u64> {
 /// How long pCloud asked to be left alone, when it said.
 ///
 /// Read from the `Retry-After` response header, which is the only place a number appears; the
-/// rate-limit document itself carries a sentence and no interval.
+/// rate-limit document itself carries a sentence and no interval. The header is read by the
+/// shared reader (RD-191-07): `0` and a date are `None`, a wait is clamped to one day.
 #[must_use]
 pub fn retry_after(headers: &[(String, String)]) -> Option<u64> {
-    headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-        .and_then(|(_, value)| value.trim().parse::<u64>().ok())
+    plugin_common::retry_after(headers)
 }
 
 #[cfg(test)]
@@ -162,6 +160,10 @@ mod tests {
         assert_eq!(
             retry_after(&[("retry-after".to_owned(), "soon".to_owned())]),
             None
+        );
+        assert_eq!(
+            retry_after(&[("Retry-After".to_owned(), "31536000".to_owned())]),
+            Some(86_400)
         );
     }
 }

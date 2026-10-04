@@ -11,6 +11,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{Indexer, IndexerId, IndexerListStyle, IndexerSearch};
 use rd_db::{NewIndexer, StoreErrorKind};
 use serde::Deserialize;
@@ -54,15 +55,14 @@ fn indexer_input(
     request: &IndexerRequest,
     secret_ref: Option<String>,
 ) -> Result<NewIndexer, ApiError> {
-    let name = request.name.trim();
-    if name.is_empty() || name.chars().count() > MAX_NAME {
-        return Err(ApiError::bad_request(
-            "indexer.name_invalid",
-            "An indexer needs a name",
-        ));
-    }
+    let name = required_text(
+        &request.name,
+        TextLimit::Chars(MAX_NAME),
+        "indexer.name_invalid",
+        "An indexer needs a name",
+    )?;
     Ok(NewIndexer {
-        name: name.to_owned(),
+        name,
         url: indexer_url(&request.url)?,
         secret_ref,
         categories: crate::subscription_handlers::sanitize_source_categories(&request.categories)?,
@@ -76,14 +76,13 @@ fn indexer_input(
 /// The same rule a subscription's address follows. The person typed it, so it may be on their
 /// own network -- an NZBHydra or Prowlarr on the NAS is the common setup.
 pub(crate) fn indexer_url(raw: &str) -> Result<url::Url, ApiError> {
-    let raw = raw.trim();
-    if raw.is_empty() || raw.len() > MAX_URL {
-        return Err(ApiError::bad_request(
-            "indexer.url_invalid",
-            "An indexer needs an address",
-        ));
-    }
-    let url = url::Url::parse(raw)
+    let raw = required_text(
+        raw,
+        TextLimit::Bytes(MAX_URL),
+        "indexer.url_invalid",
+        "An indexer needs an address",
+    )?;
+    let url = url::Url::parse(&raw)
         .map_err(|_| ApiError::bad_request("indexer.url_invalid", "Address is not a URL"))?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
         return Err(ApiError::bad_request(

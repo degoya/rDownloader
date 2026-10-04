@@ -176,8 +176,10 @@ async fn check_one<H: PluginHost>(host: &H, url: &str, auth: Option<&str>) -> Li
             url: url.to_owned(),
             // Only "the provider says this file is gone" is offline. Every other refusal --
             // a spent allowance, an outage, an unknown token -- says nothing about the file,
-            // and reporting those as offline would delete rows that are perfectly good.
-            status: if failure.kind == FailureKind::Offline {
+            // and reporting those as offline would delete rows that are perfectly good. Read
+            // by its code: a 404 or 410 is `Permanent`, the `not_found` word `Offline`, and
+            // both say the same about the file.
+            status: if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) {
                 LinkStatus::Offline
             } else {
                 LinkStatus::Unknown

@@ -23,7 +23,7 @@ export interface SettingsSection {
   descriptionKey: string
 }
 
-export interface SettingsSectionGroup {
+interface SettingsSectionGroup {
   /** Stable id used by tests and navigation keys. */
   value: string
   /** i18n key under `settings.groups`. */
@@ -129,6 +129,11 @@ export interface SettingsSubTab {
   icon: string
   /** The tab edits the settings document, so the page's save bar belongs under it. */
   saveBar?: true
+  /**
+   * The tab shows values of the settings document without editing them; like a `saveBar` tab it
+   * waits for the document rather than showing its placeholders (RA-WEB-05).
+   */
+  showsDocument?: true
 }
 
 /**
@@ -162,7 +167,7 @@ export const SETTINGS_SUB_TABS = {
     { value: 'proxy', labelKey: 'settings.subtabs.security.proxy', icon: 'i-lucide-shield', saveBar: true }
   ],
   system: [
-    { value: 'status', labelKey: 'settings.subtabs.system.status', icon: 'i-lucide-activity' },
+    { value: 'status', labelKey: 'settings.subtabs.system.status', icon: 'i-lucide-activity', showsDocument: true },
     { value: 'updates', labelKey: 'settings.subtabs.system.updates', icon: 'i-lucide-refresh-cw', saveBar: true },
     { value: 'retention', labelKey: 'settings.subtabs.system.retention', icon: 'i-lucide-archive', saveBar: true }
   ]

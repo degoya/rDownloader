@@ -1001,6 +1001,7 @@ dependencies = [
 name = "box-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -2342,6 +2343,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 name = "dropbox-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -3318,6 +3320,7 @@ dependencies = [
 name = "google-drive-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -4812,6 +4815,7 @@ checksum = "7ebb8d8732c6a6df3d8f032a82911cfc747e00efb95cc46e8d0acd5b5b88570c"
 name = "mediafire-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde_json",
  "url",
 ]
@@ -4822,6 +4826,7 @@ version = "1.2.2"
 dependencies = [
  "aes 0.9.3",
  "base64 0.23.1",
+ "plugin-common",
  "serde_json",
 ]
 
@@ -5900,6 +5905,7 @@ dependencies = [
 name = "pcloud-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -6283,6 +6289,7 @@ dependencies = [
 name = "premiumize-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -6720,7 +6727,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -6785,14 +6792,13 @@ dependencies = [
 
 [[package]]
 name = "rd-api-access"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
  "base64 0.23.1",
  "chrono",
  "dunce",
- "hex",
  "rand 0.10.3",
  "rd-api-core",
  "rd-authn",
@@ -6806,7 +6812,6 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tokio",
  "tracing",
  "url",
@@ -6817,7 +6822,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-admin"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6826,7 +6831,6 @@ dependencies = [
  "base64 0.23.1",
  "chacha20poly1305",
  "chrono",
- "futures-util",
  "rand 0.10.3",
  "rd-api-core",
  "rd-authn",
@@ -6862,12 +6866,11 @@ dependencies = [
 
 [[package]]
 name = "rd-api-compat"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
  "chrono",
- "hex",
  "rd-api-core",
  "rd-api-intake",
  "rd-api-queue",
@@ -6876,7 +6879,6 @@ dependencies = [
  "rd-core",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tokio",
  "tracing",
  "url",
@@ -6884,7 +6886,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-core"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6933,7 +6935,6 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "sqlx",
  "tempfile",
  "tokio",
@@ -6948,13 +6949,12 @@ dependencies = [
 
 [[package]]
 name = "rd-api-intake"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
  "base64 0.23.1",
  "chrono",
- "hex",
  "percent-encoding",
  "rd-api-core",
  "rd-automation",
@@ -6979,7 +6979,6 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tokio",
  "tracing",
  "url",
@@ -6989,7 +6988,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-mcp"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -7012,7 +7011,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-queue"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -7043,11 +7042,12 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
  "chrono",
+ "hex",
  "hmac 0.13.0",
  "openidconnect",
  "rand 0.10.3",
@@ -7055,6 +7055,7 @@ dependencies = [
  "serde_json",
  "sha1 0.11.0",
  "sha2 0.11.0",
+ "subtle",
  "thiserror 2.0.21",
  "url",
  "utoipa",
@@ -7063,7 +7064,7 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "chrono",
  "rd-core",
@@ -7076,7 +7077,7 @@ dependencies = [
 
 [[package]]
 name = "rd-autostart"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "directories",
@@ -7086,7 +7087,7 @@ dependencies = [
 
 [[package]]
 name = "rd-backup"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7124,7 +7125,7 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -7147,7 +7148,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7186,7 +7187,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7222,7 +7223,7 @@ dependencies = [
 
 [[package]]
 name = "rd-db"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -7248,7 +7249,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7269,7 +7270,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7293,7 +7294,7 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "crc32fast",
@@ -7315,7 +7316,7 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7339,7 +7340,7 @@ dependencies = [
 
 [[package]]
 name = "rd-gallery"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7354,7 +7355,7 @@ dependencies = [
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7372,7 +7373,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7408,7 +7409,7 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7422,7 +7423,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7448,7 +7449,7 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7469,7 +7470,7 @@ dependencies = [
 
 [[package]]
 name = "rd-object-storage"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7502,7 +7503,7 @@ dependencies = [
 
 [[package]]
 name = "rd-pack"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7533,13 +7534,13 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-plugin-alldebrid-auth"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -7575,6 +7576,7 @@ name = "rd-plugin-box-crawler"
 version = "1.2.2"
 dependencies = [
  "box-common",
+ "plugin-common",
  "serde",
  "serde_json",
  "wit-bindgen 0.62.0",
@@ -7600,16 +7602,13 @@ name = "rd-plugin-ddownload"
 version = "1.2.2"
 dependencies = [
  "async-trait",
- "chrono",
  "plugin-common",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
  "serde",
- "serde_json",
  "tokio",
  "url",
- "uuid",
  "xfs-common",
 ]
 
@@ -7626,13 +7625,13 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-plugin-debridlink-auth"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -7640,6 +7639,7 @@ dependencies = [
 name = "rd-plugin-directory-index-crawler"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -7670,6 +7670,7 @@ name = "rd-plugin-dropbox-crawler"
 version = "1.2.2"
 dependencies = [
  "dropbox-common",
+ "plugin-common",
  "serde_json",
  "wit-bindgen 0.62.0",
 ]
@@ -7706,7 +7707,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7745,7 +7746,6 @@ dependencies = [
  "rd-plugin-api",
  "tokio",
  "url",
- "uuid",
  "xfs-common",
 ]
 
@@ -7770,6 +7770,7 @@ name = "rd-plugin-google-drive-crawler"
 version = "1.2.2"
 dependencies = [
  "google-drive-common",
+ "plugin-common",
  "serde",
  "serde_json",
  "wit-bindgen 0.62.0",
@@ -7799,7 +7800,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7817,6 +7818,7 @@ dependencies = [
  "rd-limits",
  "rd-plugin-api",
  "rd-plugin-hitfile",
+ "rd-plugin-host",
  "rd-plugin-krakenfiles",
  "rd-plugin-mediafire",
  "rd-plugin-turbobit",
@@ -7856,10 +7858,8 @@ dependencies = [
  "rd-core",
  "rd-plugin-api",
  "serde",
- "serde_json",
  "tokio",
  "url",
- "uuid",
  "xfs-common",
 ]
 
@@ -7876,7 +7876,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -7909,7 +7908,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -7941,6 +7939,7 @@ name = "rd-plugin-mediafire-crawler"
 version = "1.2.2"
 dependencies = [
  "mediafire-common",
+ "plugin-common",
  "serde_json",
  "wit-bindgen 0.62.0",
 ]
@@ -7959,7 +7958,9 @@ dependencies = [
 name = "rd-plugin-mega-auth"
 version = "1.2.2"
 dependencies = [
+ "mega-common",
  "num-bigint 0.5.1",
+ "serde_json",
  "wit-bindgen 0.62.0",
 ]
 
@@ -7977,6 +7978,7 @@ dependencies = [
 name = "rd-plugin-metadata-enricher"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -7991,6 +7993,7 @@ dependencies = [
 name = "rd-plugin-nextcloud-crawler"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8007,7 +8010,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -8030,16 +8032,16 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-plugin-offcloud-cloud"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8064,6 +8066,7 @@ name = "rd-plugin-onedrive-crawler"
 version = "1.2.2"
 dependencies = [
  "onedrive-common",
+ "plugin-common",
  "serde",
  "serde_json",
  "wit-bindgen 0.62.0",
@@ -8090,7 +8093,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -8112,6 +8114,7 @@ name = "rd-plugin-pcloud-crawler"
 version = "1.2.2"
 dependencies = [
  "pcloud-common",
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8161,7 +8164,6 @@ name = "rd-plugin-premiumize"
 version = "1.2.2"
 dependencies = [
  "async-trait",
- "chrono",
  "plugin-common",
  "plugin-guest",
  "premiumize-common",
@@ -8172,13 +8174,13 @@ dependencies = [
  "serde_path_to_error",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-plugin-premiumize-auth"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8186,6 +8188,7 @@ dependencies = [
 name = "rd-plugin-premiumize-crawler"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "premiumize-common",
  "wit-bindgen 0.62.0",
 ]
@@ -8194,10 +8197,11 @@ dependencies = [
 name = "rd-plugin-premiumize-transfers"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "premiumize-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8213,7 +8217,6 @@ dependencies = [
  "rd-plugin-api",
  "serde",
  "serde_json",
- "tokio",
  "url",
 ]
 
@@ -8230,10 +8233,11 @@ dependencies = [
 name = "rd-plugin-putio-transfers"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "putio-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8250,7 +8254,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -8266,13 +8269,13 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
 name = "rd-plugin-realdebrid-auth"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8280,9 +8283,10 @@ dependencies = [
 name = "rd-plugin-realdebrid-torrents"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8313,6 +8317,7 @@ dependencies = [
 name = "rd-plugin-seedr-jobs"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "seedr-common",
  "serde_json",
  "wit-bindgen 0.62.0",
@@ -8359,6 +8364,7 @@ dependencies = [
 name = "rd-plugin-torbox-auth"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
  "wit-bindgen 0.62.0",
@@ -8369,15 +8375,16 @@ name = "rd-plugin-torbox-jobs"
 version = "1.2.2"
 dependencies = [
  "md-5",
+ "plugin-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
  "wit-bindgen 0.62.0",
 ]
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8439,13 +8446,12 @@ dependencies = [
  "rd-plugin-api",
  "tokio",
  "url",
- "uuid",
  "xfs-common",
 ]
 
 [[package]]
 name = "rd-postprocess"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8464,7 +8470,7 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8490,14 +8496,13 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.23.1",
  "chrono",
  "chrono-tz",
- "rand 0.10.3",
  "rcgen",
  "rd-captcha",
  "rd-core",
@@ -8525,13 +8530,14 @@ dependencies = [
 
 [[package]]
 name = "rd-secrets"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "chacha20poly1305",
  "keyring",
  "rand 0.10.3",
+ "rd-files",
  "secrecy",
  "serde",
  "serde_json",
@@ -8542,7 +8548,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8566,7 +8572,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8580,7 +8586,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8600,7 +8606,7 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8620,7 +8626,7 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8643,7 +8649,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -8672,7 +8678,7 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8699,7 +8705,7 @@ dependencies = [
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "rd-core",
@@ -8710,11 +8716,12 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]
 name = "rd-update"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8743,7 +8750,7 @@ dependencies = [
 
 [[package]]
 name = "rd-usenet"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8772,7 +8779,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8782,13 +8789,12 @@ dependencies = [
  "rd-core",
  "reqwest",
  "tokio",
- "tokio-util",
  "url",
 ]
 
 [[package]]
 name = "rdownloader"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -8798,7 +8804,6 @@ dependencies = [
  "embed-resource",
  "hex",
  "rd-api",
- "rd-authn",
  "rd-autostart",
  "rd-backup",
  "rd-collector",
@@ -9616,9 +9621,10 @@ dependencies = [
 name = "seedr-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
- "sha1 0.11.0",
+ "torrent-common",
 ]
 
 [[package]]
@@ -10925,6 +10931,14 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
+
+[[package]]
+name = "torrent-common"
+version = "1.2.2"
+dependencies = [
+ "plugin-common",
+ "sha1 0.11.0",
+]
 
 [[package]]
 name = "tower"
@@ -12628,6 +12642,7 @@ dependencies = [
 name = "xfs-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
  "url",

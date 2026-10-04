@@ -174,5 +174,18 @@
     "title": "Ungespeicherte Änderungen verwerfen?",
     "description": "Einige Änderungen sind noch nicht gespeichert. Wenn du die Seite jetzt verlässt, gehen sie verloren.",
     "discard": "Verwerfen"
+  },
+  "queue_columns": {
+    "aria": "Spalten",
+    "name": "Name",
+    "state": "Status",
+    "progress": "Fortschritt",
+    "size": "Größe",
+    "meta_downloads": "Kategorie · Konto",
+    "meta_linkgrabber": "Hoster · Variante",
+    "resize": "Breite der Spalte „{column}“",
+    "resize_hint": "Ziehen oder mit den Pfeiltasten ändern (Umschalt für größere Schritte); Doppelklick oder Enter setzt sie zurück",
+    "menu": "Spalten",
+    "reset_all": "Alle Spaltenbreiten zurücksetzen"
   }
 }

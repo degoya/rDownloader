@@ -137,7 +137,11 @@
     "extract_failed": "Fallo al extraer",
     "actions_aria": "Acciones del paquete",
     "priority_value": "Prioridad: {priority}",
-    "storage_aria": "Colisiones y duplicados"
+    "storage_aria": "Colisiones y duplicados",
+    "hand_over": "Entregar a un proveedor",
+    "hand_over_hint": "El proveedor descarga el NZB de este paquete de Usenet por su cuenta; los archivos terminados vuelven al LinkGrabber como enlaces. El paquete se queda aquí.",
+    "handed_over": "Entregado a {provider}",
+    "handed_over_hint": "Abrir trabajos remotos"
   },
   "transfer": {
     "actions_aria": "Acciones del archivo",
@@ -179,7 +183,8 @@
         "internal": "Apunta a tu propio equipo o a una red que esta lista de fuentes no puede alcanzar."
       },
       "unsupported_hint": "Las fuentes cuyo protocolo este servicio no puede descargar se muestran, pero no se usan."
-    }
+    },
+    "next_attempt": "Siguiente intento a las {time}"
   },
   "summary": {
     "eyebrow": "Estado de la cola",

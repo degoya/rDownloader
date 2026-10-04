@@ -91,7 +91,7 @@ impl ExternalRunner for TorrentRunner {
                 return Ok(RunOutcome::Failed(Failure::coded(
                     FailureKind::Permanent,
                     "torrent.source_invalid",
-                    error.to_string(),
+                    format!("{error:#}"),
                 )));
             }
         };
@@ -141,6 +141,8 @@ impl ExternalRunner for TorrentRunner {
             result = handle.wait_until_initialized() => {
                 if let Err(error) = result {
                     let _ = session.delete(id_or_hash, false).await;
+                    // Out of the session, so out of the registry too (audit 1.9.1, TR-10).
+                    self.service.inner.registry.write().await.forget(file.id);
                     return Ok(RunOutcome::Failed(Failure::coded(
                         FailureKind::Transient { retry_after_seconds: Some(300) },
                         "torrent.init_failed",
@@ -187,6 +189,7 @@ impl ExternalRunner for TorrentRunner {
                 result = handle.wait_until_completed() => {
                     if let Err(error) = result {
                         let _ = session.delete(id_or_hash, false).await;
+                        self.service.inner.registry.write().await.forget(file.id);
                         return Ok(RunOutcome::Failed(Failure::coded(
                             FailureKind::Transient { retry_after_seconds: Some(300) },
                             "torrent.transfer_failed",
@@ -199,6 +202,7 @@ impl ExternalRunner for TorrentRunner {
                     let stats = handle.stats();
                     if let Some(error) = stats.error {
                         let _ = session.delete(id_or_hash, false).await;
+                        self.service.inner.registry.write().await.forget(file.id);
                         return Ok(RunOutcome::Failed(Failure::coded(
                             FailureKind::Transient { retry_after_seconds: Some(300) },
                             "torrent.transfer_failed",

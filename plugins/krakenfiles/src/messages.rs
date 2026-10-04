@@ -3,7 +3,8 @@
 //! Each `(code, message)` pair exists exactly once so both targets report identical text. The
 //! catalogue in `locales/*.json` carries the translations under the same codes.
 
-/// The file page answered 404, or `/json/<id>` answered an empty array: deleted, or never there.
+/// The file page answered 404 (`Permanent`) or carried the site's notice (`Offline`), or
+/// `/json/<id>` answered an empty array: deleted, or never there.
 pub(crate) const FILE_UNAVAILABLE: (&str, &str) = (
     "krakenfiles.file_unavailable",
     "KrakenFiles file has been deleted or never existed",

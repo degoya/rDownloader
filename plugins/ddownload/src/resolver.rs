@@ -26,7 +26,7 @@ mod direct_link_tests;
 
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LabelPart,
-    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved,
+    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, file_name_from_disposition,
 };
 use url::Url;
 
@@ -34,8 +34,8 @@ use xfs_common::api::DirectLinkSkip;
 
 use self::api::{
     AccountResult, DirectLink, FileInfo, MATCH_HOSTS, api_request, api_request_with_key, coded,
-    convert_envelope_error, ensure_http_status, file_code, file_name_from_disposition, invalid_url,
-    is_html, parse_json, range_probe,
+    convert_envelope_error, ensure_http_status, file_code, invalid_url, is_html, parse_json,
+    range_probe,
 };
 use crate::{messages, page};
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
@@ -11,7 +11,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
@@ -64,6 +64,8 @@ async function loadCollisionPolicies(): Promise<void> {
   const answer = await listCollisionPolicies()
   if (answer.ok) collisionPolicies.value = Object.fromEntries(answer.data.categories.map(entry => [entry.id, entry.policy]))
 }
+/** What the service takes as a category colour; the hex field holds to it (RA-WEB-02). */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 const form = reactive<CreateCategory>({
   name: '',
   color: '#38BDF8',
@@ -165,24 +167,10 @@ const deletePar2 = computed({
   set: (value: string) => { form.delete_par2 = value === INHERIT_LEVEL ? null : value === 'on' }
 })
 
-/** The live subscription and the timer that coalesces a burst of plugin events into one read. */
-let releaseEvents: (() => void) | null = null
-let stepsTimer: number | null = null
-
 onMounted(() => {
   void loadCollisionPolicies()
   void postprocess.loadScripts()
   void postprocess.loadPluginSteps()
-  releaseEvents = subscribeEvents({ 'postprocess_catalog.changed': scheduleStepReload })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (stepsTimer !== null) {
-    window.clearTimeout(stepsTimer)
-    stepsTimer = null
-  }
 })
 
 /**
@@ -207,13 +195,7 @@ onUnmounted(() => {
  * package emits more than one event. No notice is raised — `design.md` has no pattern for
  * announcing that data caught up.
  */
-function scheduleStepReload(): void {
-  if (stepsTimer !== null) return
-  stepsTimer = window.setTimeout(() => {
-    stepsTimer = null
-    void postprocess.loadPluginSteps(true)
-  }, 300)
-}
+useDebouncedEventRefresh(['postprocess_catalog.changed'], () => postprocess.loadPluginSteps(true))
 
 watch(() => props.roots, (list) => {
   if (!form.storage_root_id && list[0]) form.storage_root_id = list[0].id
@@ -484,7 +466,41 @@ async function remove(category: Category): Promise<void> {
             <UInput v-model="form.relative_path" class="w-full font-mono" :placeholder="t('routing.category.path_placeholder')" icon="i-lucide-corner-down-right" />
           </UFormField>
           <UFormField :label="t('routing.category.color_label')" :description="t('routing.category.color_description')">
-            <input v-model="form.color" type="color" class="h-8 w-16 bg-transparent" :aria-label="t('routing.category.color_label')">
+            <!--
+              The picker has no keyboard operation and names no value, so the colour is also a
+              field of its own: typed exactly, reached by Tab, refused by the form unless it is a
+              whole #rrggbb. The picker only ever sees a whole colour (RA-WEB-02).
+            -->
+            <div class="flex items-center gap-2">
+              <UPopover>
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  :aria-label="t('routing.category.color_pick', { color: form.color })"
+                  data-testid="category-color"
+                >
+                  <span class="size-4 shrink-0 border border-muted" :style="{ backgroundColor: form.color }" />
+                </UButton>
+                <template #content>
+                  <UColorPicker
+                    :model-value="HEX_COLOR.test(form.color) ? form.color : undefined"
+                    class="p-2"
+                    @update:model-value="(value?: string) => { if (value) form.color = value }"
+                  />
+                </template>
+              </UPopover>
+              <UInput
+                v-model="form.color"
+                required
+                pattern="#[0-9a-fA-F]{6}"
+                maxlength="7"
+                class="w-32 font-mono"
+                placeholder="#38BDF8"
+                :title="t('routing.category.color_format')"
+                :aria-label="t('routing.category.color_hex')"
+                data-testid="category-color-hex"
+              />
+            </div>
           </UFormField>
           <UFormField :label="t('routing.category.postprocess_level')" :description="t('routing.category.postprocess_level_description')">
             <USelect v-model="level" :items="levelItems" value-key="value" icon="i-lucide-workflow" class="w-full" />

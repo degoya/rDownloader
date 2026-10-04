@@ -310,6 +310,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
             only("/api/v1/remote-jobs/{id}", "DELETE"),
             any("/api/v1/remote-jobs/{id}/choice"),
             any("/api/v1/accounts/{id}/remote-jobs"),
+            // An NZB import handed to a provider is a remote job too (RD-191-13); the longer
+            // prefix takes it from the NZB import row below.
+            any("/api/v1/nzb/imports/{id}/remote-job"),
+            // And the NZB behind a queued package, from the Downloads view; the longer prefix
+            // takes it from the packages row.
+            any("/api/v1/packages/{id}/remote-job"),
         ],
     ),
     covered(
@@ -809,6 +815,14 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Plugin updates and repository offers",
         "Settings > Plugins",
         &[any("/api/v1/plugins/updates")],
+    ),
+    // The switch for all plugins (RD-191-10). Unlike one plugin's version choice, which sits
+    // with installing, it was asked for with its tools: it grants nothing an update could not
+    // already get from a plugin set to automatic, and new permissions still wait for a click.
+    covered(
+        "Automatic updates for all plugins",
+        "Settings > Plugins",
+        &[any("/api/v1/plugins/updates/settings")],
     ),
     covered(
         "Plugin message catalogues",

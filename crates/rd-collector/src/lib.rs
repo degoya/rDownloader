@@ -11,7 +11,7 @@ mod nzb;
 mod rsdf;
 mod textlist;
 
-pub use categories::{CategoryContext, select_category};
+pub use categories::{CategoryContext, CategoryRules, select_category};
 pub use container::ContainerFormat;
 pub use dlc::{
     DLCRYPT_DEST_TYPE, DlcContainer, DlcDocument, DlcFile, DlcPackage, MAX_DLC_BYTES, decrypt_dlc,
@@ -22,7 +22,7 @@ pub use links::{canonical_url, extract_urls};
 pub use mirror_separations::MirrorSeparations;
 pub use mirrors::{MirrorInput, group_mirrors, language_of, quality_of};
 pub use nzb::{
-    MAX_NZB_BYTES, NzbDocument, NzbFile, NzbSegment, looks_like_file_name, parse_nzb,
+    MAX_NZB_BYTES, NzbDocument, NzbFile, NzbSegment, looks_like_file_name, parse_nzb, render_nzb,
     subject_file_name,
 };
 pub use rsdf::{MAX_RSDF_BYTES, decode_rsdf};

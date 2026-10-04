@@ -61,7 +61,9 @@ if [[ -n "$cargo_home" ]]; then
     cargo_home="$(cd "$cargo_home" && pwd -P)"
     echo "CARGO_HOME=$cargo_home"
 fi
-version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' "$src/Cargo.toml" | sed -n 's/^version = "\(.*\)"/\1/p' | head -n 1)"
+# shellcheck source=lib/workspace-version.sh
+source "$here/lib/workspace-version.sh"
+version="$(rd_workspace_version < "$src/Cargo.toml")"
 if [[ -n "$release_tag" ]]; then
     # In the checkout, whose git rd_build_stamp asks; a stamp already exported is not taken over.
     commit="$(

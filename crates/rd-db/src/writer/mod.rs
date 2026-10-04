@@ -76,6 +76,7 @@ impl Writer {
                 command @ (WriterCommand::CreatePackage { .. }
                 | WriterCommand::CreateDownload { .. }
                 | WriterCommand::TransitionDownload { .. }
+                | WriterCommand::JoinQueue { .. }
                 | WriterCommand::BlockDownload { .. }
                 | WriterCommand::DeleteDownload { .. }
                 | WriterCommand::DeleteEmptyPackage { .. }
@@ -86,6 +87,8 @@ impl Writer {
                 | WriterCommand::SetDownloadTorrentState { .. }
                 | WriterCommand::PrepareTransfer { .. }
                 | WriterCommand::RecordFailure { .. }
+                | WriterCommand::ScheduleAutoRetry { .. }
+                | WriterCommand::RequeueFailed { .. }
                 | WriterCommand::CompleteDownload { .. }
                 | WriterCommand::RenameDownload { .. }
                 | WriterCommand::SetFileName { .. }
@@ -149,6 +152,7 @@ impl Writer {
                 | WriterCommand::RecordNzbImportFailure { .. }
                 | WriterCommand::UpdateNzbImport { .. }
                 | WriterCommand::DeleteNzbImport { .. }
+                | WriterCommand::MarkNzbImportRemoteJob { .. }
                 | WriterCommand::ForgetNzbImportHistory { .. }
                 | WriterCommand::SetNzbSegmentState { .. }
                 | WriterCommand::EnqueueNzbImport { .. }
@@ -370,13 +374,23 @@ impl Writer {
 /// on any busy install, growing for the life of the service.
 const EVENT_RETENTION_DAYS: i64 = 30;
 
+/// Rows one event purge removes at most, so a sweep over a month of backlog never holds the
+/// writer for long (DB-09).
+pub(crate) const EVENT_PURGE_BATCH: i64 = 2_000;
+
+/// Deletes at most [`EVENT_PURGE_BATCH`] events past their retention, oldest first, through
+/// `events_occurred_idx`.
 async fn purge_old_events(connection: &mut sqlx::SqliteConnection) -> Result<u64> {
     let cutoff = chrono::Utc::now() - chrono::Duration::days(EVENT_RETENTION_DAYS);
-    let result = sqlx::query("DELETE FROM events WHERE occurred_at < ?")
-        .bind(cutoff)
-        .execute(connection)
-        .await
-        .context("purge old events")?;
+    let result = sqlx::query(
+        "DELETE FROM events WHERE rowid IN (SELECT rowid FROM events WHERE occurred_at < ? \
+         ORDER BY occurred_at LIMIT ?)",
+    )
+    .bind(cutoff)
+    .bind(EVENT_PURGE_BATCH)
+    .execute(connection)
+    .await
+    .context("purge old events")?;
     Ok(result.rows_affected())
 }
 
@@ -430,20 +444,4 @@ pub(crate) async fn insert_event(
         .execute(&mut **tx)
         .await?;
     Ok(())
-}
-
-/// Serialised `DownloadKind` for TEXT columns.
-pub(crate) fn kind_string(kind: rd_core::DownloadKind) -> String {
-    serde_json::to_string(&kind)
-        .unwrap_or_default()
-        .trim_matches('"')
-        .to_owned()
-}
-
-/// Serialised `PostprocessLevel` for TEXT columns.
-pub(crate) fn level_string(level: rd_core::PostprocessLevel) -> String {
-    serde_json::to_string(&level)
-        .unwrap_or_default()
-        .trim_matches('"')
-        .to_owned()
 }

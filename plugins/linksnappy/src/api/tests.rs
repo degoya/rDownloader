@@ -303,19 +303,25 @@ fn merge_hosters_flattens_domains_and_lowercase_aliases_dedupes_and_sorts() {
 
 #[test]
 fn ensure_http_status_maps_common_statuses() {
-    assert!(ensure_http_status(200).is_ok());
-    let unauthorized = ensure_http_status(401).expect_err("401");
+    assert!(ensure_http_status(200, None).is_ok());
+    let unauthorized = ensure_http_status(401, None).expect_err("401");
     assert!(matches!(unauthorized.kind, ErrorKind::AccountInvalid));
     assert_eq!(unauthorized.code, messages::BAD_CREDENTIALS.0);
-    let not_found = ensure_http_status(404).expect_err("404");
-    assert!(matches!(not_found.kind, ErrorKind::Offline));
-    let caching = ensure_http_status(425).expect_err("425");
+    let not_found = ensure_http_status(404, None).expect_err("404");
+    assert!(matches!(not_found.kind, ErrorKind::Permanent));
+    let deleted = ensure_http_status(410, None).expect_err("410");
+    assert!(matches!(deleted.kind, ErrorKind::Permanent));
+    let caching = ensure_http_status(425, None).expect_err("425");
     assert!(matches!(caching.kind, ErrorKind::Transient(Some(60))));
-    let rate_limited = ensure_http_status(429).expect_err("429");
+    let rate_limited = ensure_http_status(429, None).expect_err("429");
     assert!(matches!(rate_limited.kind, ErrorKind::RateLimited(None)));
-    let server_error = ensure_http_status(503).expect_err("503");
+    let waited = ensure_http_status(429, Some(120)).expect_err("429");
+    assert!(matches!(waited.kind, ErrorKind::RateLimited(Some(120))));
+    let removed = ensure_http_status(451, None).expect_err("451");
+    assert!(matches!(removed.kind, ErrorKind::Offline));
+    let server_error = ensure_http_status(503, None).expect_err("503");
     assert!(matches!(server_error.kind, ErrorKind::Transient(None)));
-    let other = ensure_http_status(418).expect_err("418");
+    let other = ensure_http_status(418, None).expect_err("418");
     assert!(matches!(other.kind, ErrorKind::Permanent));
     assert_eq!(other.code, messages::HTTP_ERROR);
 }

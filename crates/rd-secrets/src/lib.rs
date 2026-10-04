@@ -203,7 +203,41 @@ impl SecretStore {
         tokio::fs::rename(&temporary, &destination)
             .await
             .context("commit encrypted secret")?;
+        // The rename is only durable once the folder is (DB-08): a power loss right after it
+        // could otherwise bring back the old value, or none, under a reference already recorded.
+        sync_directory(&self.root).await;
         Ok(())
+    }
+
+    /// Every reference the vault holds a value for, or a temporary a stopped write left behind
+    /// under (DB-03), in no particular order. The master key is not one.
+    ///
+    /// # Errors
+    ///
+    /// When the folder cannot be read.
+    pub async fn stored_references(&self) -> Result<Vec<String>> {
+        let mut entries = tokio::fs::read_dir(self.root.as_path())
+            .await
+            .context("read the secret directory")?;
+        let mut references = std::collections::BTreeSet::new();
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .context("read the secret directory")?
+        {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+            let id = name.strip_suffix(".secret").or_else(|| {
+                name.strip_prefix('.')
+                    .and_then(|rest| rest.strip_suffix(".tmp"))
+            });
+            if let Some(id) = id.and_then(|id| Uuid::parse_str(id).ok()) {
+                references.insert(format!("{REFERENCE_PREFIX}{id}"));
+            }
+        }
+        Ok(references.into_iter().collect())
     }
 
     fn secret_path(&self, id: Uuid) -> PathBuf {
@@ -222,11 +256,39 @@ async fn remove_if_present(path: &std::path::Path) -> std::io::Result<()> {
     }
 }
 
+/// Every vault reference written anywhere in `text` -- a column of its own or a field of a JSON
+/// document -- in the canonical spelling [`SecretStore::put`] hands out.
+#[must_use]
+pub fn references_in(text: &str) -> Vec<String> {
+    const UUID_LENGTH: usize = 36;
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(REFERENCE_PREFIX) {
+        let after = &rest[start + REFERENCE_PREFIX.len()..];
+        if let Some(id) = after
+            .get(..UUID_LENGTH)
+            .and_then(|candidate| Uuid::parse_str(candidate).ok())
+        {
+            found.push(format!("{REFERENCE_PREFIX}{id}"));
+        }
+        rest = after;
+    }
+    found
+}
+
+/// The id of a reference, in the one spelling [`SecretStore::new_reference`] produces: lower
+/// case and hyphenated (RA-DB-07). `Uuid::parse_str` also takes the simple, braced and URN
+/// forms and upper case, which [`references_in`] does not find as written; a value stored under
+/// one of them would look orphaned to the sweep at start and be removed.
 fn parse_reference(reference: &str) -> Result<Uuid> {
     let value = reference
         .strip_prefix(REFERENCE_PREFIX)
         .context("unsupported secret reference")?;
-    Uuid::parse_str(value).context("invalid secret reference")
+    let id = Uuid::parse_str(value).context("invalid secret reference")?;
+    if id.to_string() != value {
+        bail!("secret reference not in its canonical form");
+    }
+    Ok(id)
 }
 
 async fn load_or_create_master_key(root: &std::path::Path, os_keyring: bool) -> Result<[u8; 32]> {
@@ -248,8 +310,19 @@ async fn load_or_create_master_key(root: &std::path::Path, os_keyring: bool) -> 
             .is_ok();
     if !stored_in_keyring {
         write_private(&fallback, &key).await?;
+        // A key file that vanished with a power loss after secrets were written under it would
+        // leave all of them undecryptable (DB-08).
+        sync_directory(root).await;
     }
     Ok(key)
+}
+
+/// Makes a new or renamed entry in `directory` durable ([`rd_files::durable::sync_directory`]),
+/// off the runtime's threads.
+async fn sync_directory(directory: &std::path::Path) {
+    let directory = directory.to_path_buf();
+    let _ =
+        tokio::task::spawn_blocking(move || rd_files::durable::sync_directory(&directory)).await;
 }
 
 fn load_keyring_key() -> Result<Option<[u8; 32]>> {
@@ -315,7 +388,68 @@ async fn write_private(path: &std::path::Path, content: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SecretStore, write_private};
+    use super::{SecretStore, references_in, write_private};
+
+    #[test]
+    fn references_are_found_in_columns_and_documents() {
+        let column = "vault://0199a000-0000-7000-8000-000000000001";
+        let document = r#"{"secret_ref":"vault://0199a000-0000-7000-8000-000000000002","x":"vault://not-a-uuid"}"#;
+        assert_eq!(references_in(column), vec![column.to_owned()]);
+        assert_eq!(
+            references_in(document),
+            vec!["vault://0199a000-0000-7000-8000-000000000002".to_owned()]
+        );
+        assert!(references_in("no reference here").is_empty());
+    }
+
+    /// RA-DB-07: only the spelling `new_reference` produces is a reference. Every other form
+    /// of the same id would be stored under it and then missed by `references_in`.
+    #[tokio::test]
+    async fn a_reference_in_another_spelling_of_its_id_is_refused() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let store = SecretStore::open(directory.path().to_owned())
+            .await
+            .expect("store");
+        let canonical = SecretStore::new_reference();
+        let id = canonical.trim_start_matches("vault://");
+        for other in [
+            format!("vault://{}", id.to_uppercase()),
+            format!("vault://{}", id.replace('-', "")),
+            format!("vault://{{{id}}}"),
+            format!("vault://urn:uuid:{id}"),
+        ] {
+            assert!(
+                store
+                    .put_at(&other, secrecy::SecretString::from("value".to_owned()))
+                    .await
+                    .is_err(),
+                "{other} is refused"
+            );
+            assert!(store.get(&other).await.is_err(), "{other} reads nothing");
+        }
+        assert!(store.stored_references().await.expect("list").is_empty());
+        store
+            .put_at(&canonical, secrecy::SecretString::from("value".to_owned()))
+            .await
+            .expect("the canonical form is stored");
+        assert_eq!(references_in(&canonical), vec![canonical.clone()]);
+    }
+
+    /// The listing names what `put` wrote and a stopped write's temporary, never the master key.
+    #[tokio::test]
+    async fn stored_references_list_values_and_temporaries() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let store = SecretStore::open(directory.path().to_owned())
+            .await
+            .expect("store");
+        let written = store.put_string("value".to_owned()).await.expect("put");
+        let stopped = SecretStore::new_reference();
+        let id = stopped.trim_start_matches("vault://");
+        std::fs::write(directory.path().join(format!(".{id}.tmp")), b"x").expect("temporary");
+        let mut expected = vec![written, stopped];
+        expected.sort();
+        assert_eq!(store.stored_references().await.expect("list"), expected);
+    }
     use secrecy::ExposeSecret;
 
     /// `open` keeps its master key beside the vault and nowhere else. Where an OS keyring is

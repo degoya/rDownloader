@@ -8,7 +8,7 @@ use rd_postprocess::{Par2Error, is_main_par2, par2_set, verify_set};
 
 use crate::{
     Inner,
-    steps::{Outcome, checkpoint, checkpoint_coded, find_step, path_string, truncate},
+    steps::{Outcome, checkpoint, checkpoint_coded, codes, find_step, path_string, truncate},
 };
 
 /// Stable code for a recovery set that cannot close the gap it measured.
@@ -87,17 +87,25 @@ pub(crate) async fn run(
         match verify_set(&candidates, directory).await {
             Ok(report) => {
                 answered = true;
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::Par2,
                     &source,
                     PostprocessState::Completed,
                     None,
-                    Some(format!(
-                        "repaired={} damaged={} missing={}",
-                        report.repaired, report.damaged_files, report.missing_files
-                    )),
+                    Outcome::new(
+                        codes::PAR2_REPAIRED,
+                        &[
+                            ("repaired", report.repaired.to_string()),
+                            ("damaged", report.damaged_files.to_string()),
+                            ("missing", report.missing_files.to_string()),
+                        ],
+                        format!(
+                            "repaired={} damaged={} missing={}",
+                            report.repaired, report.damaged_files, report.missing_files
+                        ),
+                    ),
                 )
                 .await?;
             }
@@ -135,14 +143,14 @@ pub(crate) async fn run(
                     .await?;
                     continue;
                 }
-                checkpoint(
+                checkpoint_coded(
                     inner,
                     owner,
                     PostprocessKind::Par2,
                     &source,
                     PostprocessState::Failed,
                     None,
-                    Some(truncate(par2_message(&error, candidates.len()))),
+                    Outcome::detailed(codes::PAR2_FAILED, par2_message(&error, candidates.len())),
                 )
                 .await?;
             }
@@ -203,28 +211,35 @@ pub(crate) async fn delete_sets(
                 // Already gone is the outcome we wanted, not a failure.
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => {
-                    checkpoint(
+                    checkpoint_coded(
                         inner,
                         owner,
                         PostprocessKind::DeletePar2,
                         &source,
                         PostprocessState::Failed,
                         None,
-                        Some(truncate(format!("{}: {error}", path.display()))),
+                        Outcome::detailed(
+                            codes::DELETE_FAILED,
+                            format!("{}: {error}", path.display()),
+                        ),
                     )
                     .await?;
                     return Ok(());
                 }
             }
         }
-        checkpoint(
+        checkpoint_coded(
             inner,
             owner,
             PostprocessKind::DeletePar2,
             &source,
             PostprocessState::Completed,
             None,
-            Some(format!("removed={removed}")),
+            Outcome::new(
+                codes::PAR2_REMOVED,
+                &[("count", removed.to_string())],
+                format!("removed={removed}"),
+            ),
         )
         .await?;
     }

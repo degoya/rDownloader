@@ -3,17 +3,12 @@
 
 use crate::ApiError;
 
+/// The longest name of a stored entry with a credential.
+pub const MAX_NAME_CHARS: usize = 100;
+
+/// `400 request.name_length` unless the name is between 1 and [`MAX_NAME_CHARS`] characters.
 pub fn validate_name(value: &str) -> Result<(), ApiError> {
-    let length = value.trim().chars().count();
-    if !(1..=100).contains(&length) {
-        return Err(ApiError::bad_request(
-            "request.name_length",
-            "Name must be between 1 and 100 characters long",
-        )
-        .with_param("min", 1)
-        .with_param("max", 100));
-    }
-    Ok(())
+    crate::input_checks::name_length(value, "request.name_length", MAX_NAME_CHARS)
 }
 
 pub fn validate_secret_value(

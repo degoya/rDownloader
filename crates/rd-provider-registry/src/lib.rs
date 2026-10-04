@@ -11,9 +11,13 @@
 //! enum is stored in `accounts.credential_mode` and travels over REST, and duplicating it one
 //! layer up would mean two places to keep in step about which credential a password reaches.
 
+mod host_pattern;
+
 use std::sync::{PoisonError, RwLock};
 
 use url::Url;
+
+pub use host_pattern::{WildcardApex, host_key, host_pattern_matches};
 
 /// Whether a provider resolves links for its own domains (`Hoster`) or resolves links for
 /// other hosters' domains on behalf of the account (`Multihoster`).
@@ -378,13 +382,12 @@ pub fn fragment_is_secret(url: &Url) -> bool {
     let Some(raw_host) = url.host_str() else {
         return false;
     };
-    let host = raw_host.strip_prefix("www.").unwrap_or(raw_host);
-    let host = host.to_ascii_lowercase();
+    let host = host_key(raw_host);
     SECRET_FRAGMENT_HOSTS
         .read()
         .unwrap_or_else(PoisonError::into_inner)
         .iter()
-        .any(|pattern| domain_matches(pattern, &host))
+        .any(|pattern| slot_domain_matches(pattern, &host))
 }
 
 /// The dynamic table, poisoning and all.
@@ -506,8 +509,8 @@ pub fn by_slug(slug: &str) -> Option<ProviderSpec> {
 /// URL this way: they resolve links for other providers' domains, not their own.
 #[must_use]
 pub fn provider_for_url(url: &Url) -> Option<ProviderSpec> {
-    let raw_host = url.host_str()?;
-    let host = raw_host.strip_prefix("www.").unwrap_or(raw_host);
+    let host = host_key(url.host_str()?);
+    let host = host.as_str();
     all().into_iter().find(|spec| {
         spec.kind == ProviderKind::Hoster
             && (spec.match_hosts.iter().any(|value| value == host)
@@ -520,6 +523,9 @@ pub fn provider_for_url(url: &Url) -> Option<ProviderSpec> {
 /// Ownership only: a provider with two modes owns both of its references regardless of which
 /// one the account currently uses. Narrowing that to the account's active mode is the caller's
 /// job, because only the caller knows the account (see `rd_plugin_host`'s `named_secret`).
+///
+/// Only tests ask it this way (RD-191-06, PLUG-15); the service decides through the account.
+#[cfg(any(test, feature = "test-support"))]
 #[must_use]
 pub fn secret_reference_allowed(slug: &str, reference: &str) -> bool {
     by_slug(slug).is_some_and(|spec| spec.secret_slot(reference).is_some())
@@ -562,17 +568,15 @@ pub fn secret_reach_allowed(reference: &str, reach: &str) -> bool {
 /// Whether a slot's host entry admits `host`: exactly, or as a sub-domain of a `*.suffix`
 /// entry -- never the bare suffix, which is the reading the sandbox applies to `net_http`.
 fn slot_domain_matches(pattern: &str, host: &str) -> bool {
-    match pattern.strip_prefix("*.") {
-        Some(suffix) => host.ends_with(&format!(".{suffix}")),
-        None => host == pattern,
-    }
+    host_pattern_matches(pattern, host, WildcardApex::Excluded)
 }
 
 /// Whether the slot entry `slot` covers every host the reach pattern `reach` covers.
 fn pattern_covers(slot: &str, reach: &str) -> bool {
     match (slot.strip_prefix("*."), reach.strip_prefix("*.")) {
         (_, None) => reach != "*" && slot_domain_matches(slot, reach),
-        (Some(slot), Some(reach)) => reach == slot || reach.ends_with(&format!(".{slot}")),
+        // `*.x` covers `*.x` and `*.a.x`: the reach's suffix is the slot's or below it.
+        (Some(_), Some(reach)) => host_pattern_matches(slot, reach, WildcardApex::Included),
         (None, Some(_)) => false,
     }
 }
@@ -584,14 +588,7 @@ pub fn request_domain_allowed(host: &str) -> bool {
     all()
         .iter()
         .flat_map(|spec| spec.request_domains.iter())
-        .any(|pattern| domain_matches(pattern, host))
-}
-
-fn domain_matches(pattern: &str, host: &str) -> bool {
-    match pattern.strip_prefix('*') {
-        Some(suffix) => host.ends_with(suffix),
-        None => host == pattern,
-    }
+        .any(|pattern| host_pattern_matches(pattern, host, WildcardApex::Excluded))
 }
 
 /// The base URL whose domain (and subdomains) should receive `slug`'s account cookies.

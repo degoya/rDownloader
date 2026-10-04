@@ -19,12 +19,10 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Result;
 use chrono::Utc;
 use rd_core::{
-    Failure, RemoteCredential, RemoteCredentialId, RemoteListing, RemoteSettings, RemoteTarget,
-    SshHostKey,
+    Failure, RemoteCredential, RemoteCredentialId, RemoteListing, RemoteTarget, SshHostKey,
 };
 use rd_db::Database;
 use rd_secrets::SecretStore;
-use tokio::sync::RwLock;
 
 pub use error::{
     AGENT_UNAVAILABLE, AUTH_FAILED, CONNECT_FAILED, FILE_CHANGED, KEY_INVALID, LISTING_TOO_LARGE,
@@ -34,7 +32,7 @@ pub use hostkey::{HOST_KEY_CHANGED, HOST_KEY_UNKNOWN, HOST_KEY_UNSUPPORTED};
 pub use runner::SftpRunner;
 
 /// Live remote settings shared between the API handlers and the runner.
-pub type SharedRemoteSettings = Arc<RwLock<RemoteSettings>>;
+pub use rd_transfer_file::SharedRemoteSettings;
 
 /// What a link turned out to be.
 pub enum Probed {
@@ -47,7 +45,7 @@ pub enum Probed {
 pub struct SftpService {
     database: Database,
     secrets: SecretStore,
-    settings: SharedRemoteSettings,
+    settings: rd_transfer_file::LiveRemoteSettings,
 }
 
 impl SftpService {
@@ -56,7 +54,7 @@ impl SftpService {
         Self {
             database,
             secrets,
-            settings,
+            settings: rd_transfer_file::LiveRemoteSettings::new(settings),
         }
     }
 
@@ -65,19 +63,16 @@ impl SftpService {
     }
 
     pub(crate) fn max_parallel(&self) -> usize {
-        self.settings.try_read().map_or(2, |settings| {
-            settings.sanitized().remote_max_parallel as usize
-        })
+        self.settings.max_parallel()
     }
 
     pub(crate) fn timeout(&self) -> Duration {
-        self.settings
-            .try_read()
-            .map_or_else(|_| Duration::from_secs(60), |s| s.sanitized().timeout())
+        self.settings.timeout()
     }
 
     fn auto_trust(&self) -> bool {
         self.settings
+            .settings()
             .try_read()
             .is_ok_and(|settings| settings.remote_ssh_auto_trust)
     }
@@ -91,10 +86,7 @@ impl SftpService {
         target: &RemoteTarget,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<Result<client::Connection, Failure>> {
-        let credential = match pinned {
-            Some(id) => self.database.remote_credential(id).await?,
-            None => self.database.match_remote_credential(target).await?,
-        };
+        let credential = rd_transfer_file::credential_for(&self.database, pinned, target).await?;
         let Some(credential) = credential else {
             return Ok(Err(error::no_credential(&target.host)));
         };
@@ -172,10 +164,7 @@ impl SftpService {
         pinned: Option<RemoteCredentialId>,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<(Probed, Option<RemoteCredentialId>)> {
-        let credential = match pinned {
-            Some(id) => self.database.remote_credential(id).await?,
-            None => self.database.match_remote_credential(target).await?,
-        };
+        let credential = rd_transfer_file::credential_for(&self.database, pinned, target).await?;
         let Some(credential) = credential else {
             return Ok((Probed::Failed(error::no_credential(&target.host)), None));
         };

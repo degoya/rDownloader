@@ -136,6 +136,19 @@ export const uiStubs = {
       '<div v-bind="$attrs" :data-state="shown ? \'open\' : \'closed\'"><div @click="toggle"><slot :open="shown" /></div>'
       + '<div v-if="shown" data-collapsible-content><slot name="content" /></div></div>'
   },
+  /**
+   * Every column's header and cell slot, the way the real table hands them `row.original`, with
+   * the table's `ui.base` and each column's `meta.class` where the real one puts them; a column
+   * without a slot shows its `header` and its `accessorKey` value.
+   */
+  UTable: {
+    props: ['data', 'columns', 'ui'],
+    template:
+      '<table v-bind="$attrs" :class="ui?.base"><thead><tr><th v-for="column in columns" :key="column.id ?? column.accessorKey" :class="column.meta?.class?.th">'
+      + '<slot :name="`${column.id ?? column.accessorKey}-header`">{{ typeof column.header === \'string\' ? column.header : \'\' }}</slot></th></tr></thead>'
+      + '<tbody><tr v-for="(item, index) in data" :key="index" data-row><td v-for="column in columns" :key="column.id ?? column.accessorKey" :class="column.meta?.class?.td">'
+      + '<slot :name="`${column.id ?? column.accessorKey}-cell`" :row="{ original: item }">{{ column.accessorKey ? item[column.accessorKey] : \'\' }}</slot></td></tr></tbody></table>'
+  },
   UDashboardNavbar: passthrough,
   UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
   UDashboardSidebarCollapse: true,
@@ -263,7 +276,7 @@ export function createTestI18n(messages: Record<string, unknown> = {}, locale = 
   })
 }
 
-export interface MountOptions {
+interface MountOptions {
   /** Locale catalogues besides `common`, keyed by their namespace (`settings`, `network`, …). */
   messages?: Record<string, unknown>
   props?: Record<string, unknown>

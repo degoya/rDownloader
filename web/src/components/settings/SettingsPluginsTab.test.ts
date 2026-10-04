@@ -13,8 +13,10 @@
  * type and checks that nothing changes except the row's length, which is the whole point of
  * choosing a shape that wraps.
  */
+import { useFileUpload } from '@nuxt/ui/composables/useFileUpload'
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, toRef } from 'vue'
 
 import commonCatalogue from '@/locales/en/common.json'
 import pluginsCatalogue from '@/locales/en/plugins.json'
@@ -183,6 +185,7 @@ function serveInventory(installed: ReturnType<typeof plugin>[], revocations: Rev
   get.mockImplementation(async (path: string) => {
     if (path === '/api/v1/plugins') return { data: { installed, incompatible: [] } }
     if (path === '/api/v1/plugins/revocations') return { data: revocations }
+    if (path === '/api/v1/plugins/keys') return { data: [] }
     return { data: { disabled_plugins: [] } }
   })
 }
@@ -200,12 +203,9 @@ function mount(
   return mountComponent(SettingsPluginsTab, { messages, stubs: { ...CHILD_STUBS, ...stubs } })
 }
 
-/** The plain `fetch` the trusted-key list and every removal go out over. */
-let requests: ReturnType<typeof vi.fn>
-
-function stubFetch(response: { ok: boolean, status: number, json: () => Promise<unknown> }): void {
-  requests = vi.fn(async () => response)
-  vi.stubGlobal('fetch', requests)
+/** How often the trusted-key list was read. */
+function keyReads(): number {
+  return get.mock.calls.filter(([path]) => path === '/api/v1/plugins/keys').length
 }
 
 function resetMocks(): void {
@@ -225,7 +225,6 @@ function resetMocks(): void {
   pluginEvent = null
   subscribedNames = []
   trustEvent = null
-  stubFetch({ ok: true, status: 200, json: async () => [] })
 }
 
 describe('SettingsPluginsTab group filter', () => {
@@ -460,8 +459,10 @@ describe('SettingsPluginsTab superseded versions', () => {
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     // Destructive, and therefore confirmed the way `design.md` requires of every such action.
     expect(confirmed.mock.calls[0]?.[0]).toMatchObject({ destructive: true, confirmIcon: 'i-lucide-trash-2' })
-    const deletes = requests.mock.calls.filter(call => (call[1] as { method?: string })?.method === 'DELETE')
-    expect(deletes.map(call => call[0])).toEqual(['/api/v1/plugins/com.example.resolver.2/0.9.0'])
+    expect(remove.mock.calls).toEqual([[
+      '/api/v1/plugins/{id}/{version}',
+      { params: { path: { id: 'com.example.resolver.2', version: '0.9.0' } } }
+    ]])
   })
 
   it('shows the reason when the service refuses to remove a version still in use', async () => {
@@ -472,11 +473,7 @@ describe('SettingsPluginsTab superseded versions', () => {
       .replace('{names}', 'archive.bin')
     expect(refusal).toContain('archive.bin')
     serveInventory(inventoryWithLeftover())
-    stubFetch({
-      ok: false,
-      status: 409,
-      json: async () => ({ code: 'plugin.version_in_use', params: { count: '1', names: 'archive.bin' } })
-    })
+    remove.mockResolvedValue({ error: { code: 'plugin.version_in_use', params: { count: '1', names: 'archive.bin' } } })
     serverMessage.mockReturnValue({ code: 'plugin.version_in_use' })
     translated.mockReturnValue(refusal)
 
@@ -691,7 +688,7 @@ describe('SettingsPluginsTab reacting to the plugin events', () => {
 
     await waitFor(() => expect(cardTitles().length).toBe(12))
     expect(within(cardFor('resolver plugin 2')).queryByText(pluginsCatalogue.card.withdrawn_badge)).toBeNull()
-    const keyReadsBefore = requests.mock.calls.length
+    const keyReadsBefore = keyReads()
 
     // The withdrawal happened elsewhere; this tab is only told that something changed. It
     // arrives on the trust event and not on `plugin.changed`, because its payload names a
@@ -706,7 +703,7 @@ describe('SettingsPluginsTab reacting to the plugin events', () => {
     )
     // And the trust store with it: a revoked key still listed as trusted is the one thing this
     // list must never claim.
-    expect(requests.mock.calls.length).toBeGreaterThan(keyReadsBefore)
+    expect(keyReads()).toBeGreaterThan(keyReadsBefore)
   })
 
   it('re-reads the inventory on plugin.changed', async () => {
@@ -788,6 +785,7 @@ describe('SettingsPluginsTab diagnostics accordion', () => {
       if (path === '/api/v1/plugins') return { data: { installed: [BUSY, QUIET], incompatible: [] } }
       if (path === '/api/v1/plugins/revocations') return { data: [] }
       if (path === '/api/v1/plugins/{id}/executions') return { data: entries }
+      if (path === '/api/v1/plugins/keys') return { data: [] }
       return { data: { disabled_plugins: [] } }
     })
   }
@@ -850,6 +848,7 @@ describe('SettingsPluginsTab diagnostics accordion', () => {
       if (path === '/api/v1/plugins/{id}/executions') {
         return await new Promise<{ data: unknown[] }>(resolve => { held.release = resolve })
       }
+      if (path === '/api/v1/plugins/keys') return { data: [] }
       return { data: { disabled_plugins: [] } }
     })
 
@@ -866,5 +865,61 @@ describe('SettingsPluginsTab diagnostics accordion', () => {
 
     await waitFor(() => expect(within(cardFor('resolver plugin 1')).getByText(ENTRY.operation)).toBeTruthy())
     expect(within(cardFor('resolver plugin 1')).queryByText(commonCatalogue.data.loading)).toBeNull()
+  })
+})
+
+/**
+ * The package field on the "add" tab (RA-WEB-01). A browser reports a `.rdplug` with an empty
+ * MIME type, and the drop zone refused every item whose type was not in `accept`'s MIME list,
+ * so a dropped package was turned away although the label invites the drop. The field names
+ * the extension alone now, and the service checks what it is sent.
+ *
+ * `UFileUpload` itself needs a Nuxt build, so the stand-in runs its real drop logic — Nuxt UI's
+ * own `useFileUpload` — on the `accept` the tab hands it.
+ */
+const FILE_UPLOAD_DROP_ZONE = defineComponent({
+  props: { modelValue: { type: Object, default: null }, accept: { type: String, default: '*' } },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const { dropzoneRef } = useFileUpload({
+      accept: toRef(props, 'accept'),
+      onUpdate: files => emit('update:modelValue', files[0] ?? null)
+    })
+    return { dropzoneRef }
+  },
+  template: '<div ref="dropzoneRef" data-plugin-drop-zone />'
+})
+
+describe('SettingsPluginsTab package upload', () => {
+  beforeEach(resetMocks)
+
+  it('takes a dropped .rdplug whose type the browser left empty, and previews it', async () => {
+    serveInventory(inventoryFor(INSTALLED_TYPES))
+    const sources: unknown[] = []
+    mountComponent(SettingsPluginsTab, {
+      messages: { plugins: pluginsCatalogue },
+      props: { subTab: 'add' },
+      stubs: {
+        ...CHILD_STUBS,
+        UFileUpload: FILE_UPLOAD_DROP_ZONE,
+        PluginInstallPreviewModal: {
+          props: ['source'],
+          watch: { source(value: unknown) { if (value) sources.push(value) } },
+          template: '<div />'
+        }
+      }
+    })
+    const submit = await screen.findByRole('button', { name: pluginsCatalogue.install.submit }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'resolver.rdplug', { type: '' })
+    const zone = document.querySelector('[data-plugin-drop-zone]') as HTMLElement
+    const dataTransfer = { items: [{ kind: 'file', type: '' }], files: [file], dropEffect: 'none' }
+    await fireEvent.dragEnter(zone, { dataTransfer })
+    await fireEvent.drop(zone, { dataTransfer })
+
+    await waitFor(() => expect(submit.disabled).toBe(false))
+    await fireEvent.click(submit)
+    expect(sources).toEqual([{ kind: 'upload', file }])
   })
 })

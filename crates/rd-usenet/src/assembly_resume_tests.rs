@@ -49,14 +49,17 @@ async fn resumes_only_crc_verified_contiguous_synced_ranges() {
     part.write_all(&[1, 2]).await.expect("confirmed bytes");
     part.sync_data().await.expect("sync confirmed bytes");
     database
-        .checkpoint_nzb_assembly_segment(
+        .checkpoint_nzb_assembly_segments(
             file.id,
-            file.segments[0].id,
             "file.bin".to_owned(),
             4,
-            1,
-            2,
-            crc32fast::hash(&[1, 2]),
+            vec![rd_db::AssembledSegment {
+                segment_id: file.segments[0].id,
+                part_begin: 1,
+                part_end: 2,
+                crc32: crc32fast::hash(&[1, 2]),
+                attempts: 0,
+            }],
         )
         .await
         .expect("segment checkpoint");
@@ -82,14 +85,17 @@ async fn resumes_only_crc_verified_contiguous_synced_ranges() {
         .await
         .expect("complete file");
     database
-        .checkpoint_nzb_assembly_segment(
+        .checkpoint_nzb_assembly_segments(
             file.id,
-            file.segments[1].id,
             "file.bin".to_owned(),
             4,
-            3,
-            4,
-            crc32fast::hash(&[3, 4]),
+            vec![rd_db::AssembledSegment {
+                segment_id: file.segments[1].id,
+                part_begin: 3,
+                part_end: 4,
+                crc32: crc32fast::hash(&[3, 4]),
+                attempts: 0,
+            }],
         )
         .await
         .expect("second segment checkpoint");
@@ -180,14 +186,17 @@ async fn a_proven_range_behind_a_gap_is_kept() {
         .await
         .expect("part file with a hole");
     database
-        .checkpoint_nzb_assembly_segment(
+        .checkpoint_nzb_assembly_segments(
             file.id,
-            file.segments[1].id,
             "file.bin".to_owned(),
             4,
-            3,
-            4,
-            crc32fast::hash(&[3, 4]),
+            vec![rd_db::AssembledSegment {
+                segment_id: file.segments[1].id,
+                part_begin: 3,
+                part_end: 4,
+                crc32: crc32fast::hash(&[3, 4]),
+                attempts: 0,
+            }],
         )
         .await
         .expect("second segment checkpoint");

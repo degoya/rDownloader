@@ -100,5 +100,24 @@ ads.example.org</pre>
         </UFormField>
       </div>
     </section>
+
+    <section data-settings-anchor="routing.nzb_hand_over" class="border border-muted bg-default p-5">
+      <div class="space-y-4">
+        <div>
+          <SectionHeader
+            :eyebrow="t('settings.collector.nzb_hand_over.eyebrow')"
+            :title="t('settings.collector.nzb_hand_over.title')"
+            :description="t('settings.collector.nzb_hand_over.description')"
+            level="sub"
+          />
+        </div>
+        <UFormField :label="t('settings.collector.nzb_hand_over.linkgrabber.label')" :description="t('settings.collector.nzb_hand_over.linkgrabber.description')" orientation="horizontal" class="border-t border-muted pt-4">
+          <USwitch v-model="settings.nzb_hand_over_linkgrabber_enabled" />
+        </UFormField>
+        <UFormField :label="t('settings.collector.nzb_hand_over.downloads.label')" :description="t('settings.collector.nzb_hand_over.downloads.description')" orientation="horizontal" class="border-t border-muted pt-4">
+          <USwitch v-model="settings.nzb_hand_over_downloads_enabled" />
+        </UFormField>
+      </div>
+    </section>
   </div>
 </template>

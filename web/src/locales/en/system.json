@@ -649,7 +649,6 @@
       "deb_file": "The repository carries releases only. A beta, or a package installed from a download, is installed from the file: sudo apt install ./<file>.deb",
       "rpm_file": "The repository carries releases only. A beta, or a package installed from a download, is installed from the file: sudo dnf install ./<file>.rpm"
     },
-    "notice": "Update available",
     "notice_version": "{version} available",
     "notice_installing": "Updating to {version}",
     "notice_updated": "Updated to {version}",

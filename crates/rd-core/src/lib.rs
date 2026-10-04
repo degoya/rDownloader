@@ -38,6 +38,7 @@ mod storage;
 mod stream;
 mod stream_schedule;
 mod subscription;
+mod timing;
 mod toolpath;
 mod torrent;
 mod trace;
@@ -45,6 +46,8 @@ mod transform;
 mod usenet;
 
 pub use address::{AddressScope, address_scope};
+// The host allowlist matcher lives in the registry, which `rd-core` depends on; re-exported so
+// the crates above find it beside `address_scope` (RD-191-06, PLUG-17).
 pub use audit::{
     AUDIT_RETENTION_DAYS_RANGE, AUDIT_RETENTION_RECORDS_RANGE, AUDIT_TOKEN_USE_INTERVAL_SECONDS,
     AuditAction, AuditActorKind, AuditOutcome, AuditRetentionSettings,
@@ -141,6 +144,7 @@ pub use postprocess::{
     PostprocessStage, PostprocessStatus, is_par2_index, is_par2_volume, par2_volume_belongs_to,
     par2_volume_blocks,
 };
+pub use rd_provider_registry::{WildcardApex, host_pattern_matches};
 pub use recording::{
     MAX_RECONNECTS, MAX_SEGMENTS, MAX_SPLIT_MINUTES, MIN_SPLIT_MEGABYTES, MIN_SPLIT_MINUTES,
     RecordingPolicy, RecordingSegment, RecordingState, RemuxTarget, SegmentEnd, SidecarOutcome,
@@ -178,7 +182,8 @@ pub use settings::{
     PostprocessSettings, ServiceSwitches,
 };
 pub use source_identity::{
-    SourceIdentity, SourceIdentityKind, magnet_info_hash, normalized_url as normalized_source_url,
+    SourceIdentity, SourceIdentityKind, host_key, magnet_info_hash,
+    normalized_url as normalized_source_url,
 };
 pub use source_set::{
     CODE_INTERNAL_ADDRESS, CODE_NO_USABLE_SOURCE, CODE_PIECE_MISMATCH, CODE_SOURCE_SIZE_MISMATCH,
@@ -205,6 +210,9 @@ pub use subscription::{
     SubscriptionItemCounts, SubscriptionItemPage, SubscriptionItemState, SubscriptionKind,
     SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun,
     SubscriptionSettings, SubscriptionView,
+};
+pub use timing::{
+    MAX_RETRY_AFTER_SECONDS, RETRY_JITTER_PERCENT, clamp_retry_after, exponential_backoff, jitter,
 };
 pub use toolpath::{
     ManagedTool, ManagedToolResolver, ManagedToolSettings, ResolvedTool, ToolLease, ToolSource,
@@ -236,9 +244,9 @@ pub use transform::{
     TransformKey,
 };
 pub use usenet::{
-    NZB_CONTENT_TYPES, NZB_PROVIDER, NzbFileStatus, NzbImport, NzbImportState, NzbSegmentState,
-    NzbSegmentStatus, PostprocessKind, PostprocessState, PostprocessStep, UsenetServer,
-    provider_for_media_type,
+    NZB_CONTENT_TYPES, NZB_PROVIDER, NzbFileStatus, NzbHandOver, NzbImport, NzbImportState,
+    NzbSegmentState, NzbSegmentStatus, PostprocessKind, PostprocessState, PostprocessStep,
+    UsenetServer, provider_for_media_type,
 };
 
 /// Maximum representable byte count in persistent storage.

@@ -16,7 +16,6 @@ url.workspace = true
 async-trait.workspace = true
 rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
-uuid.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

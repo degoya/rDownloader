@@ -45,6 +45,14 @@ impl FailureKind {
         )
     }
 
+    /// Whether the hoster imposed a limit rather than an attempt going wrong: a rate or daily
+    /// limit, or an IP block. Waiting one out is no attempt and does not spend the retry
+    /// budget (RD-191-12).
+    #[must_use]
+    pub const fn is_limit(&self) -> bool {
+        matches!(self, Self::RateLimited { .. } | Self::IpBlocked { .. })
+    }
+
     /// Optional delay supplied by the remote side.
     #[must_use]
     pub fn retry_after(&self) -> Option<Duration> {

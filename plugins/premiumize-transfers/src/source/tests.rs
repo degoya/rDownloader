@@ -16,6 +16,20 @@ fn both_spellings_of_one_info_hash_are_one_key() {
     );
 }
 
+/// PLUG-07: an empty pair (`&&`) used to end the read here, so a perfectly good magnet was
+/// keyed by its whole address instead of its info hash — and the same torrent pasted tidily
+/// became a second transfer. It is skipped now, as everywhere else.
+#[test]
+fn an_empty_pair_does_not_hide_the_info_hash() {
+    assert_eq!(
+        magnet_key(
+            "magnet:?dn=Example.Release&&xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
+        )
+        .as_deref(),
+        Some(KEY)
+    );
+}
+
 /// A magnet naming something other than a BitTorrent hash is still a magnet Premiumize may
 /// take, so it gets a key of its own rather than being refused.
 #[test]

@@ -20,7 +20,7 @@ interface EventEnvelope {
 }
 
 /** Result of answering or declining a captcha, with the translated server message. */
-export interface CaptchaOutcome {
+interface CaptchaOutcome {
   ok: boolean
   message: string
 }

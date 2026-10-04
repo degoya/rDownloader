@@ -33,14 +33,14 @@ pub use probe::Probed;
 pub use runner::FtpRunner;
 
 /// Live FTP settings shared between the API handlers and the runner.
-pub type SharedRemoteSettings = Arc<RwLock<RemoteSettings>>;
+pub use rd_transfer_file::SharedRemoteSettings;
 
 /// Everything the probe and the runner need to reach a server.
 #[derive(Clone)]
 pub struct FtpService {
     database: Database,
     secrets: SecretStore,
-    settings: SharedRemoteSettings,
+    settings: rd_transfer_file::LiveRemoteSettings,
     network: SharedNetworkDefaults,
 }
 
@@ -55,7 +55,7 @@ impl FtpService {
         Self {
             database,
             secrets,
-            settings,
+            settings: rd_transfer_file::LiveRemoteSettings::new(settings),
             network,
         }
     }
@@ -66,16 +66,11 @@ impl FtpService {
 
     /// Concurrent FTP transfers; read live so a settings change applies without a restart.
     pub(crate) fn max_parallel(&self) -> usize {
-        self.settings
-            .try_read()
-            .map(|settings| settings.sanitized().remote_max_parallel as usize)
-            .unwrap_or(2)
+        self.settings.max_parallel()
     }
 
     pub(crate) fn timeout(&self) -> Duration {
-        self.settings
-            .try_read()
-            .map_or_else(|_| Duration::from_secs(60), |s| s.sanitized().timeout())
+        self.settings.timeout()
     }
 
     /// The stored login for a target: the one pinned on the job, or the best match.
@@ -84,10 +79,7 @@ impl FtpService {
         pinned: Option<RemoteCredentialId>,
         target: &RemoteTarget,
     ) -> Result<Result<RemoteCredential, Failure>> {
-        let credential = match pinned {
-            Some(id) => self.database.remote_credential(id).await?,
-            None => self.database.match_remote_credential(target).await?,
-        };
+        let credential = rd_transfer_file::credential_for(&self.database, pinned, target).await?;
         Ok(probe::require_credential(credential, target))
     }
 

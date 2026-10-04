@@ -101,19 +101,7 @@ pub(crate) async fn begin(
     purpose: FlowPurpose,
     return_to: &str,
 ) -> Result<Started, ApiError> {
-    match state.auth.throttle_check(client).await {
-        rd_authn::Decision::Locked { retry_after } => {
-            return Err(ApiError::too_many_requests(
-                "auth.too_many_attempts",
-                "Too many failed sign-in attempts from this address",
-            )
-            .with_param("seconds", retry_after.as_secs().max(1).to_string()));
-        }
-        rd_authn::Decision::Proceed { delay } if !delay.is_zero() => {
-            tokio::time::sleep(delay).await;
-        }
-        rd_authn::Decision::Proceed { .. } => {}
-    }
+    state.auth.gate(client).await?;
     let Some(config) = oidc_client::config(state).await? else {
         return Err(not_configured());
     };

@@ -27,6 +27,7 @@
 //! names are read permissively for that reason, and a field this build does not recognise costs
 //! nothing.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 
 pub use plugin_common::FailureKind;
@@ -92,10 +93,6 @@ const BUSY_SECONDS: u64 = 300;
 /// count towards the very cap that refused them, so asking again at once only extends it.
 const RATE_LIMIT_SECONDS: u64 = 60;
 
-/// The longest `Retry-After` that is believed. A header from a proxy could otherwise park a
-/// job for days.
-const MAX_RETRY_AFTER_SECONDS: u64 = 3600;
-
 fn failure(kind: FailureKind, (code, message): (&'static str, &str)) -> ApiFailure {
     ApiFailure {
         kind,
@@ -142,25 +139,29 @@ fn classify(status: u16, retry_after_seconds: Option<u64>, envelope: &ErrorEnvel
         envelope.reason().as_deref(),
         Some("premium_required" | "upgrade_required" | "not_premium")
     );
-    match status {
-        401 | 403 => failure(FailureKind::AccountInvalid, messages::AUTH_INVALID),
-        402 => failure(FailureKind::Unsupported, messages::PLAN_REQUIRED),
-        404 | 410 => failure(FailureKind::Permanent, messages::FILE_NOT_FOUND),
-        429 => failure(
-            FailureKind::RateLimited(Some(retry_after_seconds.unwrap_or(RATE_LIMIT_SECONDS))),
+    if status == 402 {
+        return failure(FailureKind::Unsupported, messages::PLAN_REQUIRED);
+    }
+    // Every other status is classified by `plugin_common::http_status`, the one mapping every
+    // plugin shares (RD-191-07); a missing file is final there (owner, 2026-10-04), a legal
+    // block offline and retried, as everywhere else.
+    match plugin_common::http_status(status, retry_after_seconds) {
+        Ok(()) if plan_refused => failure(FailureKind::Unsupported, messages::PLAN_REQUIRED),
+        Ok(()) => failure(FailureKind::Permanent, messages::API_ERROR),
+        Err(HttpRefusal::Unauthorized) => {
+            failure(FailureKind::AccountInvalid, messages::AUTH_INVALID)
+        }
+        Err(HttpRefusal::Gone) => failure(FailureKind::Permanent, messages::FILE_NOT_FOUND),
+        Err(HttpRefusal::Unavailable) => failure(FailureKind::Offline, messages::FILE_NOT_FOUND),
+        Err(HttpRefusal::RateLimited(wait)) => failure(
+            FailureKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
             messages::RATE_LIMITED,
         ),
-        500..=599 => failure(
-            FailureKind::Transient(Some(BUSY_SECONDS)),
+        Err(HttpRefusal::ServerError(wait)) => failure(
+            FailureKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
             messages::SERVER_ERROR,
         ),
-        status if (200..=299).contains(&status) && plan_refused => {
-            failure(FailureKind::Unsupported, messages::PLAN_REQUIRED)
-        }
-        status if (200..=299).contains(&status) => {
-            failure(FailureKind::Permanent, messages::API_ERROR)
-        }
-        other => ApiFailure {
+        Err(HttpRefusal::Other(other)) => ApiFailure {
             kind: FailureKind::Permanent,
             code: messages::HTTP_ERROR.0,
             message: messages::http_error(other),
@@ -169,16 +170,11 @@ fn classify(status: u16, retry_after_seconds: Option<u64>, envelope: &ErrorEnvel
     }
 }
 
-/// Reads a `Retry-After` stated in seconds.
-///
-/// A date-shaped one is ignored rather than guessed at, and so is one further away than an
-/// hour: a wrong wait is worse than the bucket's own default, which is at least a wait somebody
-/// can reason about.
-#[must_use]
-pub fn retry_after_seconds(header: Option<&str>) -> Option<u64> {
-    let seconds: u64 = header?.trim().parse().ok()?;
-    (seconds > 0 && seconds <= MAX_RETRY_AFTER_SECONDS).then_some(seconds)
-}
+// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
+// and `0` are `None`, so the bucket's own default applies. A wait further away than a day is
+// clamped to the host's ceiling of one day rather than ignored, as this plugin's own reader
+// did past an hour: a provider that asks for two hours means at least that.
+pub use plugin_common::retry_after_seconds;
 
 #[cfg(test)]
 #[path = "api/tests.rs"]

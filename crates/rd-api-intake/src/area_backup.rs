@@ -17,6 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 use axum::{Json, extract::State};
 use chrono::{DateTime, Utc};
+use rd_api_core::input_checks::BundleHeader;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -24,23 +25,6 @@ use crate::{ApiError, AppState};
 
 const BUNDLE_FORMAT: &str = "rdownloader-area-bundle";
 const BUNDLE_VERSION: u32 = 1;
-
-/// The most entries one section of a bundle may carry.
-///
-/// Every entry costs one trip through the serialized database writer, and the request body limit
-/// allows 65 MiB of them — enough for tens of thousands. Importing such a bundle holds the single
-/// writer for minutes, and every running download's progress write queues up behind it. The cap is
-/// checked before the first write, so an oversized bundle is refused rather than half-applied; 500
-/// is far beyond any bundle this application exports.
-const MAX_SECTION_ENTRIES: usize = 500;
-
-/// Refuses a section long enough to monopolise the writer.
-fn check_section(len: usize) -> Result<(), ApiError> {
-    if len > MAX_SECTION_ENTRIES {
-        return Err(crate::error_codes::bulk_range(MAX_SECTION_ENTRIES));
-    }
-    Ok(())
-}
 
 /// One subscription, with its destination category named rather than referenced.
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -188,21 +172,19 @@ pub struct ImportAreaSummary {
     pub skipped: u32,
 }
 
+/// What an area bundle says about itself; an older version is still read.
+const BUNDLE_HEADER: BundleHeader = BundleHeader {
+    format: BUNDLE_FORMAT,
+    version: BUNDLE_VERSION,
+    reads_older: true,
+    format_code: "backup.format_unsupported",
+    format_message: "This file is not an rDownloader area bundle",
+    version_code: "backup.version_unsupported",
+    version_message: "This bundle was written by a newer version",
+};
+
 fn validate_header(bundle: &AreaBundle) -> Result<(), ApiError> {
-    if bundle.format != BUNDLE_FORMAT {
-        return Err(ApiError::bad_request(
-            "backup.format_unsupported",
-            "This file is not an rDownloader area bundle",
-        ));
-    }
-    if bundle.version > BUNDLE_VERSION {
-        return Err(ApiError::bad_request(
-            "backup.version_unsupported",
-            "This bundle was written by a newer version",
-        )
-        .with_param("version", bundle.version));
-    }
-    Ok(())
+    BUNDLE_HEADER.check(&bundle.format, bundle.version)
 }
 
 /// Refused rather than treated as an empty import: a stream file dropped on the subscriptions
@@ -273,7 +255,7 @@ pub async fn import_subscriptions(
     let entries = bundle
         .subscriptions
         .ok_or_else(|| section_missing("subscriptions"))?;
-    check_section(entries.len())?;
+    crate::error_codes::validate_bundle_section(entries.len())?;
     let categories = state.database.list_categories().await?;
     // A set, not a list: the scan runs once per entry, so a linear one made the whole import
     // quadratic in the number of names already stored.
@@ -402,8 +384,8 @@ pub async fn import_streams(
     }
     let channel_entries = bundle.stream_channels.unwrap_or_default();
     let schedule_entries = bundle.stream_schedules.unwrap_or_default();
-    check_section(channel_entries.len())?;
-    check_section(schedule_entries.len())?;
+    crate::error_codes::validate_bundle_section(channel_entries.len())?;
+    crate::error_codes::validate_bundle_section(schedule_entries.len())?;
     let categories = state.database.list_categories().await?;
     // Keyed by name because both uses are lookups by name: the duplicate check here, and the
     // channel a schedule attaches to below. As a list both were linear scans inside a loop.
@@ -490,15 +472,12 @@ pub async fn export_automations(
 ) -> Result<Json<AreaBundle>, ApiError> {
     let categories = state.database.list_categories().await?;
     let targets = state.database.list_notification_targets().await?;
+    let automations = state.database.list_automations().await?;
+    let mut definitions =
+        rd_api_core::automation_service::current_definitions(&state.database, &automations).await?;
     let mut entries = Vec::new();
-    for automation in state.database.list_automations().await? {
-        let Some(definition) = state
-            .database
-            .automation_versions(automation.id)
-            .await?
-            .into_iter()
-            .find(|version| version.version == automation.version)
-        else {
+    for automation in automations {
+        let Some(definition) = definitions.remove(&automation.id) else {
             continue;
         };
         let actions = definition
@@ -547,7 +526,7 @@ pub async fn import_automations(
     let entries = bundle
         .automations
         .ok_or_else(|| section_missing("automations"))?;
-    check_section(entries.len())?;
+    crate::error_codes::validate_bundle_section(entries.len())?;
     let categories = state.database.list_categories().await?;
     let targets = state.database.list_notification_targets().await?;
     // Same reason as the subscriptions import: one scan per entry against every stored name.

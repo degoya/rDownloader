@@ -280,3 +280,56 @@ async fn a_block_survives_a_restart_when_automatic_resume_is_off() {
         .expect("root");
     assert_eq!(entry["blocked"], true, "{capacity}");
 }
+
+/// The NZB enqueue over REST (and MCP, which calls the same handler) stops at the free-space
+/// threshold like every other intake; it used to queue onto a full root (audit 1.9.1, API-08).
+#[tokio::test]
+async fn an_nzb_import_is_not_queued_onto_a_blocked_root() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let full = directory.path().join("full");
+    let harness = common::test_harness(directory.path()).await;
+    let router = &harness.router;
+
+    let full_id = create_root(router, "full", &full).await;
+    let category = create_category(router, "usenet", &full_id).await;
+    set_threshold(router, &full_id, &full, Some(UNREACHABLE_THRESHOLD)).await;
+    wait_for_blocked(router, &full_id, true).await;
+
+    let import = harness
+        .database
+        .add_nzb_import(rd_db::NewNzbImport {
+            name: "held.nzb".to_owned(),
+            sha256: "ab".repeat(32),
+            category_id: Some(category.parse().expect("category id")),
+            priority: None,
+            import_mode: rd_core::ImportMode::Review,
+            source: rd_core::IngressSource::Manual,
+            source_path: None,
+            password: None,
+            announce_arrival: false,
+            files: vec![rd_db::NewNzbFile {
+                subject: "held.bin".to_owned(),
+                poster: "poster".to_owned(),
+                groups: vec!["alt.binaries.test".to_owned()],
+                segments: vec![rd_db::NewNzbSegment {
+                    number: 1,
+                    bytes: 128,
+                    message_id: "held-1@example.test".to_owned(),
+                }],
+            }],
+        })
+        .await
+        .expect("import");
+
+    let (status, refused) = common::post_json(
+        router,
+        &format!("/api/v1/nzb/imports/{}/enqueue", import.id),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(refused["code"], "storage.capacity_blocked");
+    // Refused before anything was written: the import is still waiting for review.
+    let (_, imports) = common::get_json(router, "/api/v1/nzb/imports").await;
+    assert_eq!(imports[0]["state"], "imported", "{imports}");
+}

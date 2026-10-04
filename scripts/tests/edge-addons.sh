@@ -65,6 +65,7 @@ export EDGE_API_URL="https://edge.test/"
 export EDGE_POLL_SECONDS=0 EDGE_POLL_TRIES=3
 KEY="edge-api-key-never-printed"
 CLIENT="client-id-never-printed"
+# shellcheck disable=SC2034  # read inside the eval of expect_true()
 PRODUCT="https://edge.test/v1/products/prod-42"
 
 reset() {

@@ -10,7 +10,7 @@ function appName(): string {
   return i18n.global.t('common.app.name')
 }
 
-export interface TitleState {
+interface TitleState {
   /** The setting: `false` leaves the tab at the application name whatever the queue does. */
   enabled: boolean
   /** Transfers actually moving — resolving, downloading, verifying, repairing, extracting. */

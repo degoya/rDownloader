@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# What only tests need, kept out of the service (RD-191-06, PLUG-15).
+test-support = []
+
 [dependencies]
 serde.workspace = true
 url.workspace = true

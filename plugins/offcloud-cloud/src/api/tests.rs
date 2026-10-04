@@ -1,8 +1,8 @@
 use super::{
     ErrorEnvelope, ErrorKind, Stage, StatusEnvelope, classify_error, classify_not_available,
     ensure_http_status, error_envelope, explore_files, failure_from, form_body, is_safe_request_id,
-    name_from_url, permille, place, remove_body, retry_after_seconds, sanitize_error, stage_of,
-    status_detail, status_word,
+    name_from_url, permille, place, remove_body, sanitize_error, stage_of, status_detail,
+    status_word,
 };
 use crate::messages;
 
@@ -290,7 +290,7 @@ fn a_status_decides_when_no_document_explains_itself() {
     );
     assert_eq!(
         ensure_http_status(404, None).expect_err("refused").kind,
-        ErrorKind::Offline
+        ErrorKind::Permanent
     );
     assert_eq!(
         ensure_http_status(429, Some(120))
@@ -308,12 +308,17 @@ fn a_status_decides_when_no_document_explains_itself() {
     );
 }
 
+/// A takedown is gone, and an outage that names its length is waited out that long — the
+/// mapping every plugin shares (RD-191-07).
 #[test]
-fn a_retry_after_is_read_in_seconds_and_a_date_is_ignored() {
-    assert_eq!(retry_after_seconds(Some(" 120 ")), Some(120));
+fn a_takedown_is_gone_and_a_stated_outage_is_waited_out() {
     assert_eq!(
-        retry_after_seconds(Some("Wed, 21 Oct 2026 07:28:00 GMT")),
-        None
+        ensure_http_status(451, None).expect_err("refused").kind,
+        ErrorKind::Offline
+    );
+    assert_eq!(
+        ensure_http_status(503, Some(40)).expect_err("refused").kind,
+        ErrorKind::Transient(Some(40))
     );
 }
 

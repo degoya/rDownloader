@@ -2,7 +2,7 @@ import { useLocalStorage } from '@vueuse/core'
 import type { Ref } from 'vue'
 
 /** The lists that carry a "Show metadata" switch. */
-export type MetadataView = 'downloads' | 'linkgrabber'
+type MetadataView = 'downloads' | 'linkgrabber'
 
 /**
  * Whether a list shows the enricher chips under its names (RD-150-19).

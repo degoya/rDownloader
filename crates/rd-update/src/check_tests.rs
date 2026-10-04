@@ -253,6 +253,14 @@ async fn an_artifact_outside_the_release_downloads_refuses_the_manifest() {
 }
 
 #[test]
+fn the_beta_channel_reads_sixty_releases() {
+    // Two releases per version since 1.9.1 (the application's and `plugins-vX.Y.Z`): sixty keep
+    // thirty versions in view (RD-191-09 RA-TOOL-06). That they fit the cap is a const assertion.
+    let sources = Sources::official();
+    assert_eq!(sources.releases.query(), Some("per_page=60"));
+}
+
+#[test]
 fn floors_only_rise() {
     let mut floors = Floors::default();
     floors.raise(Channel::Beta, 5);

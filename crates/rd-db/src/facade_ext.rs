@@ -387,10 +387,8 @@ impl Database {
             tracing::warn!(%error, %package_id, "the archive password of a queued NZB could not be put in the vault");
         }
         let mut package = self
-            .list_packages()
+            .get_package(package_id)
             .await?
-            .into_iter()
-            .find(|package| package.id == package_id)
             .ok_or_else(|| anyhow::anyhow!("queued package not found"))?;
         self.reveal_archive_passwords(std::slice::from_mut(&mut package))
             .await;
@@ -402,6 +400,42 @@ impl Database {
         let mut imports = nzb_store::list_imports(&self.readers).await?;
         self.reveal_archive_passwords(&mut imports).await;
         Ok(imports)
+    }
+
+    /// One NZB import with its archive password, or `None`.
+    pub async fn get_nzb_import(
+        &self,
+        id: rd_core::NzbImportId,
+    ) -> Result<Option<rd_core::NzbImport>> {
+        let Some(mut import) = nzb_store::get_import(&self.readers, id).await? else {
+            return Ok(None);
+        };
+        self.reveal_archive_passwords(std::slice::from_mut(&mut import))
+            .await;
+        Ok(Some(import))
+    }
+
+    /// Records that an NZB import was handed to a remote job (RD-191-13): from the LinkGrabber
+    /// (`expected` = `Imported`) or behind a queued package (`Enqueued`). Refused as
+    /// `WrongState` when the import has moved on from `expected`.
+    pub async fn mark_nzb_import_remote_job(
+        &self,
+        id: rd_core::NzbImportId,
+        remote_job_id: rd_core::RemoteJobId,
+        expected: rd_core::NzbImportState,
+    ) -> Result<rd_core::NzbImport> {
+        let mut updated = writer::request(&self.writer, |reply| {
+            WriterCommand::MarkNzbImportRemoteJob {
+                id,
+                remote_job_id,
+                expected,
+                reply,
+            }
+        })
+        .await?;
+        self.reveal_archive_passwords(std::slice::from_mut(&mut updated))
+            .await;
+        Ok(updated)
     }
 
     /// Lists files and persistent article states for one NZB import.
@@ -494,33 +528,6 @@ impl Database {
             missing,
             reply,
         })
-        .await
-    }
-
-    /// Confirms a synced yEnc byte range and its file-level assembly metadata atomically.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn checkpoint_nzb_assembly_segment(
-        &self,
-        file_id: rd_core::NzbFileId,
-        segment_id: rd_core::NzbSegmentId,
-        name: String,
-        declared_size: u64,
-        part_begin: u64,
-        part_end: u64,
-        crc32: u32,
-    ) -> Result<()> {
-        self.checkpoint_nzb_assembly_segments(
-            file_id,
-            name,
-            declared_size,
-            vec![crate::AssembledSegment {
-                segment_id,
-                part_begin,
-                part_end,
-                crc32,
-                attempts: 0,
-            }],
-        )
         .await
     }
 
@@ -891,16 +898,25 @@ impl Database {
         .await
     }
 
-    /// Deletes persisted events past their retention.
+    /// Deletes persisted events past their retention, in bounded batches with a yield between
+    /// them so the writer serves queue mutations in the gaps (DB-09).
     ///
     /// Nothing reads this table today; it is kept as the only record of what happened before
     /// the process started, and the sweep is what keeps that from becoming the largest table
-    /// in the file.
+    /// in the file. Run at start and by the diagnostics sweep.
     pub async fn purge_old_events(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::PurgeOldEvents {
-            reply,
-        })
-        .await
+        let mut removed = 0;
+        loop {
+            let batch = writer::request(&self.writer, |reply| WriterCommand::PurgeOldEvents {
+                reply,
+            })
+            .await?;
+            removed += batch;
+            if batch < crate::writer::EVENT_PURGE_BATCH.unsigned_abs() {
+                return Ok(removed);
+            }
+            tokio::task::yield_now().await;
+        }
     }
 
     /// Notes that a machine token was used, at most once a minute.

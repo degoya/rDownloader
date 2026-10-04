@@ -2,6 +2,7 @@
 //! why the parsing lives in [`crate::page`] rather than in either adapter.
 
 use super::*;
+use plugin_common::file_name_from_disposition;
 
 const FILE_PAGE: &str = r#"<html><head><title>Nitroflare - release.rar</title></head><body>
 <div id="CountDownTimer" data-timer="45" style="display:none"></div>
@@ -152,6 +153,12 @@ fn file_names_come_from_the_disposition_then_the_url() {
         Some("release.rar")
     );
     assert_eq!(file_name_from_disposition("attachment").as_deref(), None);
+    // The shared parser keeps a `;` inside quotes, which the copy here used to cut at
+    // (RD-191-07, PLUG-10).
+    assert_eq!(
+        file_name_from_disposition("attachment; filename=\"a; b.rar\"").as_deref(),
+        Some("a; b.rar")
+    );
     let url: url::Url = "https://cdn7.nitroflare.com/d/tok/release.rar"
         .parse()
         .expect("URL");

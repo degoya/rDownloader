@@ -4,6 +4,7 @@ mod archive_names;
 mod capacity;
 mod checksum;
 mod child_process;
+pub mod durable;
 mod link;
 mod long_path;
 mod moves;

@@ -119,13 +119,8 @@ fn call(
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
     let response = http::http_request(method, url, query, &headers(content_type), body)?;
-    let retry_after = status::retry_after_seconds(
-        response
-            .headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-            .map(|(_, value)| value.as_str()),
-    );
+    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
+    let retry_after = plugin_common::retry_after(&response.headers);
     let envelope: status::Envelope = serde_json::from_slice(&response.body).unwrap_or_default();
     if envelope.status.is_some() && !envelope.is_success() {
         return Err(from_refusal(api::refusal(

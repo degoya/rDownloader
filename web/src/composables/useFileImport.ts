@@ -7,7 +7,6 @@ import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
 import { useFileImportModal, type FileImportEntry } from '@/composables/useNzbImportModal'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore, type NzbBatchResult, type NzbImportResult } from '@/stores/nzbImports'
-import { withBase } from '@/basePath'
 
 /**
  * Taking dropped or chosen files into the LinkGrabber (RD-106-11).
@@ -57,13 +56,31 @@ export function useFileImport(categories: Ref<Category[]>) {
         ? await nzb.importMany(nzbEntries, options)
         : { created: [], duplicates: [], errors: [] }
       const containers = [
-        ...await Promise.all(torrentEntries.map(entry => importTorrent(entry, options))),
-        ...await Promise.all(containerEntries.map(entry => importContainer(entry, options)))
+        ...await eachFile(torrentEntries, entry => importTorrent(entry, options)),
+        ...await eachFile(containerEntries, entry => importContainer(entry, options))
       ]
       reportFileBatch(batch, containers)
     } finally {
       importing.value = false
     }
+  }
+
+  /**
+   * One result per file, whatever the others did: a single rejection in a `Promise.all` threw away
+   * the outcome of every other file of the batch, uploaded or not (WEB-02).
+   */
+  async function eachFile(
+    entries: FileImportEntry[],
+    run: (entry: FileImportEntry) => Promise<ContainerImportResult>
+  ): Promise<ContainerImportResult[]> {
+    const settled = await Promise.allSettled(entries.map(run))
+    return settled.map((result, index) => result.status === 'fulfilled'
+      ? result.value
+      : { status: 'error', name: entries[index]!.file.name, message: errorMessage(errorText(result.reason)) })
+  }
+
+  function errorText(reason: unknown): string | undefined {
+    return reason instanceof Error ? reason.message : undefined
   }
 
   function isTorrent(file: File): boolean {
@@ -97,18 +114,14 @@ export function useFileImport(categories: Ref<Category[]>) {
     if (entry.name.trim()) body.append('name', entry.name.trim())
     if (options.categoryId) body.append('category_id', options.categoryId)
     body.append('priority', options.priority)
-    const response = await fetch(withBase('/api/v1/torrents/import'), {
-      method: 'POST',
-      credentials: 'include',
-      body
-    })
-    const payload: unknown = await response.json().catch(() => null)
-    if (!response.ok) {
-      return { status: 'error', name: entry.file.name, message: errorMessage(payload) }
+    // Multipart goes through the client too; `openapi-fetch` passes a `FormData` body as it is.
+    const response = await api.POST('/api/v1/torrents/import', { body: body as never })
+    if (!response.data) {
+      return { status: 'error', name: entry.file.name, message: errorMessage(response.error) }
     }
     await collector.refresh()
     return {
-      status: torrentResponseIsDuplicate(payload) ? 'duplicate' : 'created',
+      status: torrentResponseIsDuplicate(response.data) ? 'duplicate' : 'created',
       name: entry.name.trim() || entry.file.name.replace(/\.torrent$/i, '')
     }
   }
@@ -144,18 +157,13 @@ export function useFileImport(categories: Ref<Category[]>) {
     if (entry.name.trim()) body.append('name', entry.name.trim())
     if (options.categoryId) body.append('category_id', options.categoryId)
     body.append('priority', options.priority)
-    const response = await fetch(withBase('/api/v1/containers/import'), {
-      method: 'POST',
-      credentials: 'include',
-      body
-    })
-    const payload: unknown = await response.json().catch(() => null)
+    const response = await api.POST('/api/v1/containers/import', { body: body as never })
     const name = entry.name.trim() || entry.file.name.replace(/\.[^.]+$/, '')
-    if (!response.ok) {
-      return { status: 'error', name: entry.file.name, message: errorMessage(payload) }
+    if (!response.data) {
+      return { status: 'error', name: entry.file.name, message: errorMessage(response.error) }
     }
     await collector.refresh()
-    return { status: 'created', name, links: dlcLinkCount(payload) }
+    return { status: 'created', name, links: dlcLinkCount(response.data) }
   }
 
   function dlcLinkCount(value: unknown): number {

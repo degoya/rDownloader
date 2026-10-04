@@ -11,7 +11,6 @@ use rd_core::{
     ReplayBlockReason, ReplayBodyKind, ReplayMethod, derive_approved_origins,
     is_allowed_captured_header, is_credential_header, signed_url_expiry,
 };
-use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::ApiError;
@@ -259,7 +258,7 @@ fn sanitize_body(
         kind,
         content_type: essence,
         byte_len: u32::try_from(decoded.len()).unwrap_or(u32::MAX),
-        sha256: hex::encode(Sha256::digest(&decoded)),
+        sha256: rd_authn::sha256_hex(&decoded),
         field_names,
         stored: refusal.is_none(),
     };

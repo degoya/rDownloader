@@ -211,17 +211,6 @@ impl PluginRepositoryService {
         Ok(updates)
     }
 
-    /// The updates the refresh installs on its own: policy *automatic*, and no permission the
-    /// installed version lacks. Everything else waits for a click.
-    pub async fn automatic_updates(&self) -> anyhow::Result<Vec<Update>> {
-        Ok(self
-            .updates()
-            .await?
-            .into_iter()
-            .filter(Update::installs_itself)
-            .collect())
-    }
-
     /// Downloads one offered package and proves it is the one the index describes: its size,
     /// then its content digest, before anything else reads it — and then that the entry tells
     /// the truth about it (see [`described_by`]).

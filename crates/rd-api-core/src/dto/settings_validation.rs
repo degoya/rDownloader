@@ -28,12 +28,7 @@ impl SettingsResponse {
         self.media_hosts = self
             .media_hosts
             .iter()
-            .map(|host| {
-                host.trim()
-                    .trim_start_matches("www.")
-                    .trim_end_matches('/')
-                    .to_ascii_lowercase()
-            })
+            .map(|host| rd_core::host_key(host.trim().trim_end_matches('/')))
             .filter(|host| !host.is_empty())
             .collect();
         if let Some(bad) = self.media_hosts.iter().find(|host| {
@@ -101,12 +96,7 @@ impl SettingsResponse {
         self.gallery_hosts = self
             .gallery_hosts
             .iter()
-            .map(|host| {
-                host.trim()
-                    .trim_start_matches("www.")
-                    .trim_end_matches('/')
-                    .to_ascii_lowercase()
-            })
+            .map(|host| rd_core::host_key(host.trim().trim_end_matches('/')))
             .filter(|host| !host.is_empty())
             .collect();
         if let Some(bad) = self.gallery_hosts.iter().find(|host| {
@@ -322,6 +312,31 @@ impl SettingsResponse {
                 ),
             )
             .with_param("max", rd_scheduler::MAX_CONFIGURABLE_RETRIES));
+        }
+        if !(rd_scheduler::MIN_AUTO_RETRY_INTERVAL_HOURS
+            ..=rd_scheduler::MAX_AUTO_RETRY_INTERVAL_HOURS)
+            .contains(&self.auto_retry_interval_hours)
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.auto_retry_interval_invalid",
+                format!(
+                    "The interval of the automatic retry must be between {} and {} hours",
+                    rd_scheduler::MIN_AUTO_RETRY_INTERVAL_HOURS,
+                    rd_scheduler::MAX_AUTO_RETRY_INTERVAL_HOURS
+                ),
+            )
+            .with_param("min", rd_scheduler::MIN_AUTO_RETRY_INTERVAL_HOURS)
+            .with_param("max", rd_scheduler::MAX_AUTO_RETRY_INTERVAL_HOURS));
+        }
+        if self.auto_retry_max_rounds > rd_scheduler::MAX_AUTO_RETRY_ROUNDS {
+            return Err(crate::ApiError::bad_request(
+                "settings.auto_retry_rounds_too_high",
+                format!(
+                    "The automatic retry may run at most {} rounds per download",
+                    rd_scheduler::MAX_AUTO_RETRY_ROUNDS
+                ),
+            )
+            .with_param("max", rd_scheduler::MAX_AUTO_RETRY_ROUNDS));
         }
         if !(1..=1440).contains(&self.reconnect_min_interval_minutes) {
             return Err(crate::ApiError::bad_request(
@@ -587,5 +602,59 @@ mod tests {
             error_code(&mut settings).as_deref(),
             Some("settings.malware_scan_timeout_invalid")
         );
+    }
+
+    /// RD-191-12: the automatic retry's interval and rounds, each with its own stable code.
+    #[test]
+    fn the_automatic_retry_settings_are_checked_before_they_are_stored() {
+        let code = |settings: SettingsResponse| {
+            let mut settings = settings;
+            settings
+                .validate_postprocess()
+                .err()
+                .map(|error| error.code().to_owned())
+        };
+        let defaults = SettingsResponse::default();
+        assert!(!defaults.auto_retry_failed);
+        assert_eq!(defaults.auto_retry_interval_hours, 6);
+        assert_eq!(defaults.auto_retry_max_rounds, 3);
+        assert_eq!(code(defaults), None);
+        for (hours, expected) in [
+            (0, Some("settings.auto_retry_interval_invalid")),
+            (1, None),
+            (24, None),
+            (25, Some("settings.auto_retry_interval_invalid")),
+        ] {
+            let settings = SettingsResponse {
+                auto_retry_failed: true,
+                auto_retry_interval_hours: hours,
+                ..SettingsResponse::default()
+            };
+            assert_eq!(code(settings).as_deref(), expected, "{hours} hours");
+        }
+        for (rounds, expected) in [
+            (0, None),
+            (100, None),
+            (101, Some("settings.auto_retry_rounds_too_high")),
+        ] {
+            let settings = SettingsResponse {
+                auto_retry_max_rounds: rounds,
+                ..SettingsResponse::default()
+            };
+            assert_eq!(code(settings).as_deref(), expected, "{rounds} rounds");
+        }
+    }
+
+    /// RA-IN-06: media and gallery hosts are stored in `rd_core::host_key`'s form.
+    #[test]
+    fn media_and_gallery_hosts_are_stored_as_host_keys() {
+        let mut settings = SettingsResponse {
+            media_hosts: vec!["WWW.Example.COM./".to_owned(), "  ".to_owned()],
+            gallery_hosts: vec!["www.Pixiv.net".to_owned()],
+            ..SettingsResponse::default()
+        };
+        settings.validate_media(4096).expect("valid hosts");
+        assert_eq!(settings.media_hosts, ["example.com"]);
+        assert_eq!(settings.gallery_hosts, ["pixiv.net"]);
     }
 }

@@ -10,8 +10,7 @@ use async_trait::async_trait;
 use url::Url;
 
 use rd_core::{
-    BacklogPolicy, DownloadPriority, Subscription, SubscriptionFilters, SubscriptionId,
-    SubscriptionKind, SubscriptionMode,
+    BacklogPolicy, Subscription, SubscriptionFilters, SubscriptionKind, SubscriptionMode,
 };
 
 use super::{ClaimedAddresses, RuleAdapter};
@@ -94,38 +93,11 @@ impl ClaimedAddresses for BoardRule {
 
 fn subscription(every_release: bool, filters: SubscriptionFilters) -> Subscription {
     Subscription {
-        id: SubscriptionId::new(),
-        name: "The Expanse".to_owned(),
-        url: LISTING.parse().expect("url"),
-        kind: SubscriptionKind::SiteRule,
-        enabled: true,
         mode: SubscriptionMode::AutoQueue,
-        category_id: None,
-        priority: DownloadPriority::default(),
-        interval_seconds: 3_600,
         filters,
         backlog: BacklogPolicy::ReviewAll,
-        category_map: Vec::new(),
-        source_categories: Vec::new(),
-        primed: true,
-        last_run_at: None,
-        next_run_at: None,
-        consecutive_failures: 0,
-        last_error: None,
-        etag: None,
-        last_modified: None,
-        secret_ref: None,
-        has_secret: false,
         every_release,
-        view: rd_core::SubscriptionView::List,
-        autoplay: false,
-        card_ratio: rd_core::SubscriptionCardRatio::TwoOne,
-        schedule: None,
-        script_arguments: Vec::new(),
-        indexer_search: rd_core::IndexerSearch::default(),
-        git_release: rd_core::GitReleaseOptions::default(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        ..crate::test_support::subscription("The Expanse", SubscriptionKind::SiteRule, LISTING)
     }
 }
 

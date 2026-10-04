@@ -88,19 +88,9 @@ pub fn segments(path: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Percent-encodes one query value.
-#[must_use]
-pub fn percent_encode(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
-            encoded.push(byte as char);
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    encoded
-}
+// One percent-encoder for every plugin (RD-191-07): RFC 3986's unreserved set and nothing else,
+// which reads the same in a query, a form body and a path segment.
+pub use plugin_common::percent_encode;
 
 /// Percent-decodes one query value, or `None` when it is not valid UTF-8.
 ///

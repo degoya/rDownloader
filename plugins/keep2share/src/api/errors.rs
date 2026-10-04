@@ -3,6 +3,7 @@
 //! same classification, for the same reason — see plugin-common.md). Re-exported wholesale via
 //! `api.rs`'s `pub(crate) use errors::*;`, so every caller keeps addressing these as `api::X`.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -213,29 +214,33 @@ fn download_wait_seconds(time_remaining: Option<&str>) -> u64 {
         .unwrap_or(900)
 }
 
-/// Maps a bare HTTP status whose body did not parse as an [`ErrorProbe`] at all. Plugin-common's
-/// stated HTTP conventions (401/403 -> `AccountInvalid`, 404/410/451 -> `Offline`, 429 ->
-/// `RateLimited`, 5xx -> `Transient`), plus JD's own `checkResponseCodeErrors` 400 case (a
-/// 5-minute retry — JD: "This may happen after any request even if the request itself is done
-/// right").
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        400 => Err(coded(
+/// Maps a bare HTTP status whose body did not parse as an [`ErrorProbe`] at all.
+///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07): 401/403 -> `AccountInvalid`, 404/410 -> `Permanent`, 451 -> `Offline`, 429 ->
+/// `RateLimited` with the response's `Retry-After`, 5xx -> `Transient`. Checked before it, because Keep2Share
+/// documents it: JD's own `checkResponseCodeErrors` 400 case, a 5-minute retry ("This may
+/// happen after any request even if the request itself is done right").
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    if status == 400 {
+        return Err(coded(
             ErrorKind::Transient(Some(300)),
             messages::SERVER_ERROR,
-        )),
-        401 | 403 => Err(coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS)),
-        404 | 410 | 451 => Err(coded(ErrorKind::Offline, messages::FILE_OFFLINE)),
-        429 => Err(coded(ErrorKind::RateLimited(None), messages::FLOOD)),
-        500..=599 => Err(coded(ErrorKind::Transient(None), messages::SERVER_ERROR)),
-        other => Err(ApiFailure {
+        ));
+    }
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
+        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => coded(ErrorKind::RateLimited(wait), messages::FLOOD),
+        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]

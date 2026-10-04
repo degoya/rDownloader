@@ -2,6 +2,7 @@
  * The vocabulary the transfers store and its modules share: which states count as what, the
  * shapes of a package change and a clear, and the translation shorthand (RD-140-27).
  */
+import type { components } from '@/api/schema'
 import type { DownloadPriority, PackageUpdateRequest, PostprocessLevel } from '@/api/types'
 import { i18n } from '@/i18n'
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
@@ -14,19 +15,12 @@ export interface DownloadSelection {
 }
 
 /** `everything` also removes working packages, stopping them first (RD-180-21). */
-export type ClearScope = 'completed' | 'failed' | 'all' | 'everything'
+export type ClearScope = components['schemas']['PackageClearScope']
 
 /** A package the server refused to clear, with the stable code saying why. */
-export interface ClearSkip {
-  package_id: string
-  name: string
-  code: string
-}
+export type ClearSkip = components['schemas']['PackageClearSkip']
 
-export interface ClearResult {
-  removed: number
-  skipped: ClearSkip[]
-}
+export type ClearResult = components['schemas']['PackageClearResponse']
 
 export interface PackageChange {
   categoryId?: string | null

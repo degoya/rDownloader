@@ -129,7 +129,8 @@ impl DownloadEngine {
                 Ok(Ok(read)) => read,
                 Ok(Err(error)) => {
                     commit(&part, checkpoints.as_ref(), chunk.id, position).await?;
-                    return Err(network_failed(&error.to_string()));
+                    // With its causes, which say why the stream broke (RA-TR-04).
+                    return Err(network_failed(&rd_core::error_with_causes(&error)));
                 }
                 Err(_) => {
                     commit(&part, checkpoints.as_ref(), chunk.id, position).await?;

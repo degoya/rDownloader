@@ -16,13 +16,13 @@ export const MAX_QUERY_CHARS = 200
 /** `MAX_INDEXER_AGE_DAYS` there. */
 export const MAX_AGE_DAYS = 10_000
 /** `MAX_SEARCH_LIMIT` in `crates/rd-subscription/src/search.rs`. */
-export const MAX_LIMIT = 500
+const MAX_LIMIT = 500
 /** The page sizes offered; the server's own default is 100. */
 export const LIMITS = [50, 100, 250, MAX_LIMIT] as const
 export const DEFAULT_LIMIT = 100
 
 /** The server's code for what is wrong with a search term, or `null` when it may be sent. */
-export type QueryProblem = 'indexer.query_too_short' | 'indexer.query_too_long' | 'indexer.query_invalid'
+type QueryProblem = 'indexer.query_too_short' | 'indexer.query_too_long' | 'indexer.query_invalid'
 
 /**
  * What is wrong with `query`: empty is fine (the newest releases), otherwise it needs three

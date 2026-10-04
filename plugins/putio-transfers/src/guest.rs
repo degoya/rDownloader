@@ -101,17 +101,17 @@ fn call(
     let envelope = ErrorEnvelope::of(&response.body);
     // The clock is asked for only when it is needed: `now-unix-seconds` is a host call, and a
     // rate-limit header is on the one answer in a thousand that is a rate limit.
+    // A standard `Retry-After` is read too (clamped to a day by the shared reader), for the
+    // answer whose own window is missing or which the clocks disagree on.
+    let stated = plugin_common::retry_after(&response.headers);
     let reset = if response.status == 429 {
         api::rate_limit_wait(
-            response
-                .headers
-                .iter()
-                .find(|(name, _)| name.eq_ignore_ascii_case("x-ratelimit-reset"))
-                .map(|(_, value)| value.as_str()),
+            plugin_common::http::header(&response.headers, "x-ratelimit-reset"),
             host::now_unix_seconds(),
         )
+        .or(stated)
     } else {
-        None
+        stated
     };
     match api::failure_from(response.status, reset, &envelope) {
         Some(failure) => Err(from_api(failure)),

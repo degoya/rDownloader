@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { hostPattern, isLoopback, normalizeServer, ping, sendsTokenInClear, submitLinks } from '../src/api.js'
+import { hostPattern, isLoopback, normalizeServer, ping, request, sendsTokenInClear, submitLinks } from '../src/api.js'
 
 test('normalises server urls', () => {
   assert.equal(normalizeServer(''), 'http://127.0.0.1:8710')
@@ -60,4 +60,32 @@ test('maps failures to codes', async () => {
   const network = await ping({ server: '', token: '' }, offline)
   assert.equal(network.ok, false)
   assert.equal(network.status, 0)
+})
+
+test('one request for the capture surface: the caller\'s headers merge over the defaults (EXT-14)', async () => {
+  // `handover-api.js` kept its own copy of this and dropped whatever headers its caller passed.
+  const seen = []
+  const fetchImpl = async (url, init) => {
+    seen.push({ url, init })
+    return { ok: true, status: 200, json: async () => ({ code: 'capture.ok' }) }
+  }
+  const config = { server: 'nas.local:8710', token: 'abc' }
+
+  const json = await request(config, '/api/v1/capture/x', { method: 'POST', body: '{}', headers: { 'x-trace': '1' } }, fetchImpl)
+  assert.deepEqual(json, { ok: true, status: 200, code: 'capture.ok', message: null, payload: { code: 'capture.ok' } })
+  assert.equal(seen[0].url, 'http://nas.local:8710/api/v1/capture/x')
+  assert.deepEqual(seen[0].init.headers, { authorization: 'Bearer abc', 'content-type': 'application/json', 'x-trace': '1' })
+
+  // A form sets its own type, boundary included; a type here would break it.
+  await request(config, '/api/v1/capture/file', { method: 'POST', body: new FormData() }, fetchImpl)
+  assert.deepEqual(seen[1].init.headers, { authorization: 'Bearer abc' })
+})
+
+test('the request reports a refusal and a lost connection in one shape', async () => {
+  const refused = async () => ({ ok: false, status: 401, json: async () => { throw new Error('no body') } })
+  assert.deepEqual(await request({ server: '', token: '' }, '/p', {}, refused),
+    { ok: false, status: 401, code: 'auth.unauthorized', message: 'HTTP 401', payload: null })
+  const offline = async () => { throw new Error('connection refused') }
+  assert.deepEqual(await request({ server: '', token: '' }, '/p', {}, offline),
+    { ok: false, status: 0, code: 'network', message: 'connection refused', payload: null })
 })

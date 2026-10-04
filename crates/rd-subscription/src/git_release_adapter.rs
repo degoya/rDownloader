@@ -44,8 +44,9 @@ pub const MAX_CHECKSUM_DOCUMENTS: usize = 4;
 const GITHUB_API_VERSION: &str = "2022-11-28";
 /// Shortest pause after a refusal: a header that says "now" must not cause a retry loop.
 const MIN_PAUSE_SECONDS: i64 = 60;
-/// Longest pause a header can impose, so a malformed one cannot park a subscription for good.
-const MAX_PAUSE_SECONDS: i64 = 24 * 60 * 60;
+/// Longest pause a header can impose, so a malformed one cannot park a subscription for good:
+/// the shared `Retry-After` ceiling (re-audit 1.9.1, RA-TR-08).
+const MAX_PAUSE_SECONDS: i64 = rd_core::MAX_RETRY_AFTER_SECONDS as i64;
 
 /// What an API request returned.
 #[derive(Clone, Debug, Default)]

@@ -46,6 +46,17 @@ export function filterHeaders(headers) {
   return result
 }
 
+/**
+ * The value of one header in a `webRequest` header list, by its lowercase name, or `null`. The
+ * download and the file handover both read the response this way (EXT-14).
+ */
+export function headerValue(headers, name) {
+  for (const header of headers ?? []) {
+    if (String(header?.name ?? '').toLowerCase() === name) return String(header?.value ?? '')
+  }
+  return null
+}
+
 function originOf(url) {
   try {
     return new URL(String(url)).origin

@@ -252,3 +252,88 @@ async fn invalid_format_and_version_are_rejected() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(error["code"], "routing.backup_version_unsupported");
 }
+
+/// A bundle naming the same rule twice creates it once (audit 1.9.1, API-12): the names the
+/// import has just created count as existing for the entries after them.
+#[tokio::test]
+async fn a_rule_named_twice_in_one_bundle_is_created_once() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    seed_routing(&harness, directory.path()).await;
+    let rule = serde_json::json!({
+        "name": "Video files",
+        "priority": 5,
+        "extension": "avi",
+        "category_name": "Movies",
+        "enabled": true
+    });
+    let bundle = serde_json::json!({
+        "format": "rdownloader-routing-bundle",
+        "version": 1,
+        "exported_at": "2026-01-01T00:00:00Z",
+        "app_version": "0.0.0",
+        "categories": [],
+        "rules": [rule.clone(), rule]
+    });
+    let (status, summary) = import(&harness.router, bundle).await;
+    assert_eq!(status, StatusCode::OK, "{summary}");
+    assert_eq!(summary["rules_created"], 1);
+    assert_eq!(summary["rules_skipped"], 1);
+    let named = harness
+        .database
+        .list_category_rules()
+        .await
+        .expect("rules")
+        .into_iter()
+        .filter(|rule| rule.name == "Video files")
+        .count();
+    assert_eq!(named, 1);
+}
+
+/// A section longer than the bundle cap is refused before anything is written (API-12).
+#[tokio::test]
+async fn an_oversized_bundle_is_refused_before_any_write() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    seed_routing(&harness, directory.path()).await;
+    let max = rd_api_core::error_codes::MAX_BUNDLE_SECTION_ENTRIES;
+    let rules: Vec<serde_json::Value> = (0..=max)
+        .map(|index| {
+            serde_json::json!({
+                "name": format!("Rule {index}"),
+                "priority": 1,
+                "extension": "avi",
+                "category_name": "Movies",
+                "enabled": true
+            })
+        })
+        .collect();
+    let bundle = serde_json::json!({
+        "format": "rdownloader-routing-bundle",
+        "version": 1,
+        "exported_at": "2026-01-01T00:00:00Z",
+        "app_version": "0.0.0",
+        "categories": [{
+            "name": "Series",
+            "color": "#00AA00",
+            "storage_root_name": "Primary",
+            "relative_path": "series",
+            "is_default": false
+        }],
+        "rules": rules
+    });
+    let (status, error) = import(&harness.router, bundle).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{error}");
+    assert_eq!(error["code"], "request.bulk_range");
+    assert_eq!(error["params"]["max"], max.to_string());
+    assert_eq!(
+        harness
+            .database
+            .list_categories()
+            .await
+            .expect("categories")
+            .len(),
+        1,
+        "the category ahead of the oversized rules was not created"
+    );
+}

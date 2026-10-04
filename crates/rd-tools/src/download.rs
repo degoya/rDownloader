@@ -73,7 +73,7 @@ async fn fetch_bytes(client: &reqwest::Client, entry: &ToolEntry) -> Result<Vec<
             .await
             .map_err(|error| ToolError::DownloadFailed {
                 name: entry.name.clone(),
-                reason: error.to_string(),
+                reason: rd_core::error_with_causes(&error),
             })?;
     if !response.status().is_success() {
         return Err(ToolError::DownloadFailed {
@@ -87,7 +87,7 @@ async fn fetch_bytes(client: &reqwest::Client, entry: &ToolEntry) -> Result<Vec<
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|error| ToolError::DownloadFailed {
             name: entry.name.clone(),
-            reason: error.to_string(),
+            reason: rd_core::error_with_causes(&error),
         })?;
         if collected.len() as u64 + chunk.len() as u64 > limit {
             return Err(ToolError::DownloadFailed {
@@ -146,7 +146,7 @@ async fn unpack(entry: &ToolEntry, payload: Vec<u8>, staging: &Path) -> Result<(
             .map_err(|error| ToolError::Other(error.into()))?
             .map_err(|error| ToolError::DownloadFailed {
                 name: name.clone(),
-                reason: error.to_string(),
+                reason: format!("{error:#}"),
             })?;
             if written.is_empty() {
                 return Err(ToolError::DownloadFailed {

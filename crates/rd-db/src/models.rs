@@ -322,6 +322,21 @@ pub(crate) async fn list_packages(pool: &SqlitePool) -> Result<Vec<DownloadPacka
     .collect()
 }
 
+/// One package by id, read the way [`list_packages`] reads every one.
+pub(crate) async fn get_package(
+    pool: &SqlitePool,
+    id: rd_core::PackageId,
+) -> Result<Option<DownloadPackage>> {
+    sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} WHERE packages.id = ?"
+    )))
+    .bind(id.to_string())
+    .fetch_optional(pool)
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
+}
+
 pub(crate) async fn list_downloads(pool: &SqlitePool) -> Result<Vec<DownloadFile>> {
     sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
         "{DOWNLOAD_COLUMNS} {PACKAGE_ORDER}, downloads.position ASC, downloads.created_at ASC"
@@ -374,6 +389,49 @@ pub(crate) async fn downloads_blocked_by(
     .collect()
 }
 
+/// The rows the dispatcher may start, `queued` and `retry_wait`, in queue order.
+///
+/// Through `downloads_state_idx`: the dispatcher asks twice a second, and an idle queue of
+/// finished downloads answered with the whole table, JSON blobs included (audit 1.9.1, TR-08).
+/// Whether a retry is due is the caller's to judge against its own clock.
+pub(crate) async fn startable_downloads(pool: &SqlitePool) -> Result<Vec<DownloadFile>> {
+    sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
+        "{DOWNLOAD_COLUMNS} WHERE downloads.state IN (?, ?) \
+         {PACKAGE_ORDER}, downloads.position ASC, downloads.created_at ASC"
+    )))
+    .bind(DownloadState::Queued.to_string())
+    .bind(DownloadState::RetryWait.to_string())
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
+}
+
+/// The `failed` rows in queue order, for the automatic retry (RD-191-12); through the same
+/// state index as [`startable_downloads`].
+pub(crate) async fn failed_downloads(pool: &SqlitePool) -> Result<Vec<DownloadFile>> {
+    sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
+        "{DOWNLOAD_COLUMNS} WHERE downloads.state = ? \
+         {PACKAGE_ORDER}, downloads.position ASC, downloads.created_at ASC"
+    )))
+    .bind(DownloadState::Failed.to_string())
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
+}
+
+/// The committed bytes of every download together, summed by SQLite.
+pub(crate) async fn committed_bytes_total(pool: &SqlitePool) -> Result<u64> {
+    let total =
+        sqlx::query_scalar::<_, i64>("SELECT COALESCE(SUM(committed_bytes), 0) FROM downloads")
+            .fetch_one(pool)
+            .await?;
+    Ok(u64::try_from(total).unwrap_or(0))
+}
+
 pub(crate) async fn get_download(
     pool: &SqlitePool,
     id: DownloadId,
@@ -398,12 +456,26 @@ pub(crate) async fn get_download_from_connection(
         .transpose()
 }
 
-const DOWNLOAD_COLUMNS: &str = "SELECT downloads.id, downloads.package_id, downloads.source_url, downloads.file_name, downloads.state, downloads.total_bytes, downloads.committed_bytes, downloads.retry_count, downloads.next_retry_at, \
-     downloads.checksum_algorithm, downloads.checksum_value, downloads.computed_checksum_algorithm, downloads.computed_checksum_value, downloads.last_error_json, downloads.account_id, downloads.proxy_profile_id, downloads.auth_profile_id, downloads.auth_profile_pinned, downloads.position, downloads.kind, downloads.nzb_file_id, downloads.media_json, downloads.recording_json, downloads.remote_credential_id, downloads.mirror_group, downloads.recovery, downloads.enrichment_json, downloads.created_at, downloads.updated_at \
-     FROM downloads JOIN packages ON packages.id = downloads.package_id";
+/// The columns a `DownloadRow` reads, once for both queries below (DB-12). Qualified, so the
+/// list also reads right beside the join; SQLite names each result column without the table.
+macro_rules! download_columns {
+    () => {
+        "downloads.id, downloads.package_id, downloads.source_url, downloads.file_name, downloads.state, downloads.total_bytes, downloads.committed_bytes, downloads.retry_count, downloads.next_retry_at, \
+         downloads.checksum_algorithm, downloads.checksum_value, downloads.computed_checksum_algorithm, downloads.computed_checksum_value, downloads.last_error_json, downloads.account_id, downloads.proxy_profile_id, downloads.auth_profile_id, downloads.auth_profile_pinned, downloads.position, downloads.kind, downloads.nzb_file_id, downloads.media_json, downloads.recording_json, downloads.remote_credential_id, downloads.mirror_group, downloads.recovery, downloads.enrichment_json, downloads.created_at, downloads.updated_at"
+    };
+}
 
-const GET_DOWNLOAD: &str = "SELECT id, package_id, source_url, file_name, state, total_bytes, committed_bytes, retry_count, next_retry_at, \
-     checksum_algorithm, checksum_value, computed_checksum_algorithm, computed_checksum_value, last_error_json, account_id, proxy_profile_id, auth_profile_id, auth_profile_pinned, position, kind, nzb_file_id, media_json, recording_json, remote_credential_id, mirror_group, recovery, enrichment_json, created_at, updated_at FROM downloads WHERE id = ?";
+const DOWNLOAD_COLUMNS: &str = concat!(
+    "SELECT ",
+    download_columns!(),
+    " FROM downloads JOIN packages ON packages.id = downloads.package_id"
+);
+
+const GET_DOWNLOAD: &str = concat!(
+    "SELECT ",
+    download_columns!(),
+    " FROM downloads WHERE id = ?"
+);
 
 /// The finished provider-chunk MACs of one download, and which description wrote them.
 ///

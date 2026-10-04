@@ -400,7 +400,7 @@ impl MediaSettings {
     /// Whether `host` (any casing, optional `www.`) belongs to the media provider.
     #[must_use]
     pub fn handles_host(&self, host: &str) -> bool {
-        let host = host.trim_start_matches("www.").to_ascii_lowercase();
+        let host = crate::host_key(host);
         self.media_hosts
             .iter()
             .any(|entry| host == *entry || host.ends_with(&format!(".{entry}")))
@@ -492,6 +492,8 @@ mod tests {
     fn host_matching_ignores_www_and_case() {
         let settings = MediaSettings::default();
         assert!(settings.handles_host("www.YouTube.com"));
+        // The one host form (RA-IN-06): a trailing dot is the same host.
+        assert!(settings.handles_host("WWW.YouTube.com."));
         assert!(settings.handles_host("youtu.be"));
         assert!(settings.handles_host("dumpert.nl"));
         assert!(!settings.handles_host("notyoutube.com"));

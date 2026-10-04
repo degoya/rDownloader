@@ -16,7 +16,7 @@ export interface PackageEditResult {
   renameFolder: boolean
 }
 
-export interface PackageEditOptions {
+interface PackageEditOptions {
   name: string
   hasPassword: boolean
   /** The stored archive password, shown for editing (RD-104-04). */

@@ -90,6 +90,8 @@ fn the_refusals_are_told_apart_by_what_a_person_has_to_do() {
 
     let gone =
         failure_from(404, None, &envelope(r#"{"error_type":"NOT_FOUND"}"#)).expect("a refusal");
+    // Final, the shared mapping's answer for a missing file (owner, 2026-10-04); the check
+    // reads the code, so the link is still reported offline.
     assert_eq!(gone.kind, FailureKind::Permanent);
     assert_eq!(gone.code, messages::FILE_NOT_FOUND.0);
 

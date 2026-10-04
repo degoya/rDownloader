@@ -90,6 +90,30 @@ rd_scope_reverse_deps() {
     printf '%s\n' "${names[@]}"
 }
 
+# --- files outside crates/ that Rust tests read (RD-191-09) ---------------------------------
+#
+# The table: scripts/lib/rust-test-inputs.map, whose header states the rules. Relative to the
+# checkout root, like every path here.
+RD_RUST_INPUTS_MAP="${RD_RUST_INPUTS_MAP:-scripts/lib/rust-test-inputs.map}"
+
+# The packages whose tests read one of the changed paths on stdin, one per line, sorted; nothing
+# for a path no row names. A row of `-` names none. Pure bash matching, as rd_api_test_demands.
+rd_scope_input_packages() {
+    local path row pattern names name rows=()
+    [[ -f "$RD_RUST_INPUTS_MAP" ]] || return 0
+    mapfile -t rows < <(grep -vE '^[[:space:]]*(#|$)' "$RD_RUST_INPUTS_MAP")
+    while read -r path; do
+        [[ -n "$path" ]] || continue
+        for row in "${rows[@]}"; do
+            read -r pattern names <<< "$row"
+            [[ "$path" =~ $pattern ]] || continue
+            for name in $names; do
+                [[ "$name" == - ]] || printf '%s\n' "$name"
+            done
+        done
+    done | LC_ALL=C sort -u
+}
+
 # --- Cargo.toml and Cargo.lock (RD-130-17) --------------------------------------------------
 #
 # The first path on stdin that governs the whole build and has no narrower answer: the
@@ -151,12 +175,18 @@ rd_plugin_linked_crates() {
 # --- deferral -------------------------------------------------------------------------------
 #
 # Which of the three deferrable classes a path belongs to, or `no` for anything else. The
-# classes come straight from the job: text, translations, and appearance without behaviour.
+# classes come straight from the job: text, translations, and appearance without behaviour. A
+# path a Rust test reads (rd_scope_input_packages) is never deferrable, whatever its class: a
+# catalogue rd-diagnostics compiles in is not a translation only (RD-191-09).
 #
 #   $1  the boundary commit, for reading the pre-change version of a .vue/.css file
 #   $2  the path
 rd_defer_class() {
     local boundary="$1" path="$2"
+    if [[ -n "$(rd_scope_input_packages <<< "$path")" ]]; then
+        printf 'no\n'
+        return 0
+    fi
     case "$path" in
         docs/*|*.md)              printf 'docs\n'; return 0 ;;
         web/src/locales/*)        printf 'locales\n'; return 0 ;;

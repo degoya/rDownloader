@@ -313,6 +313,144 @@ async fn the_refresh_installs_only_automatic_updates_that_ask_for_nothing_new() 
     assert_eq!(lifecycle["restart_required"], true, "{lifecycle}");
 }
 
+/// RD-191-10: with the switch for all plugins on, the refresh installs the update of a plugin
+/// whose own policy is manual, still not one that asks for a new permission, and the plugin's
+/// own policy is never written; switched off, that policy applies again.
+#[tokio::test]
+async fn the_switch_for_all_plugins_installs_updates_of_manual_plugins() {
+    use rd_plugin_host::repository::{UpdatePolicy, UpdatePolicySource};
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let repository = rd_plugin_host::generate_signing_key();
+    let author = rd_plugin_host::generate_signing_key();
+    harness
+        .state
+        .plugins
+        .verifier()
+        .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
+        .expect("trust the author");
+    for id in [MANUAL, WIDER] {
+        harness
+            .state
+            .plugins
+            .install_bytes(update_fixture(&author, id, "1.0.0", r#""example.test""#))
+            .await
+            .expect("install 1.0.0");
+    }
+    let fetcher = std::sync::Arc::new(MapFetcher::default());
+    let mut state = harness.state.clone();
+    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+        harness.database.clone(),
+        directory.path().join("plugin-repositories"),
+        state.plugins.clone(),
+        fetcher.clone(),
+        None,
+    );
+    let source = rd_api::VersionChoicePolicy::new(harness.database.clone());
+    state
+        .plugin_repositories
+        .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
+            harness.database.clone(),
+        )));
+    let router = rd_api::router(state);
+
+    let (status, body) = get_json(&router, "/api/v1/plugins/updates/settings").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["automatic_updates"], false, "off unless switched on");
+    assert_eq!(source.policy(MANUAL).await, UpdatePolicy::Manual);
+    let switch = |on: bool| {
+        put_json(
+            &router,
+            "/api/v1/plugins/updates/settings",
+            serde_json::json!({ "automatic_updates": on }),
+        )
+    };
+    let (status, body) = switch(true).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["automatic_updates"], true, "{body}");
+    assert_eq!(source.policy(MANUAL).await, UpdatePolicy::Automatic);
+
+    fetcher.serve(GOOD_INDEX, signed_index(&repository, 1, &[]));
+    add_repository(&router, GOOD_INDEX, &repository.public_base64).await;
+    let manual = update_fixture(&author, MANUAL, "1.1.0", r#""example.test""#);
+    let wider = update_fixture(
+        &author,
+        WIDER,
+        "1.1.0",
+        r#""example.test", "more.example.test""#,
+    );
+    for (id, bytes) in [(MANUAL, &manual), (WIDER, &wider)] {
+        fetcher.serve(&package_url(id, "1.1.0"), bytes.clone());
+    }
+    fetcher.serve(
+        GOOD_INDEX,
+        signed_index(
+            &repository,
+            2,
+            &[
+                (MANUAL, "1.1.0", manual.as_slice()),
+                (WIDER, "1.1.0", wider.as_slice()),
+            ],
+        ),
+    );
+    let (status, body) = post_json(
+        &router,
+        "/api/v1/plugins/repositories/refresh",
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    let installed = |id: &str| {
+        directory
+            .path()
+            .join("plugins")
+            .join(id)
+            .join("1.1.0")
+            .is_dir()
+    };
+    assert!(
+        installed(MANUAL),
+        "the switch for all plugins did not install the update"
+    );
+    assert!(
+        !installed(WIDER),
+        "an update with a new domain installed itself under the switch for all plugins"
+    );
+
+    // The inventory says the switch is on; each plugin's own policy is still the stored one.
+    let (status, inventory) = get_json(&router, "/api/v1/plugins").await;
+    assert_eq!(status, StatusCode::OK, "{inventory}");
+    assert_eq!(inventory["automatic_updates_global"], true, "{inventory}");
+    for entry in inventory["lifecycle"].as_array().expect("lifecycle") {
+        assert_eq!(entry["update_policy"], "manual", "{entry}");
+    }
+
+    let (status, body) = switch(false).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(source.policy(MANUAL).await, UpdatePolicy::Manual);
+    let (_, inventory) = get_json(&router, "/api/v1/plugins").await;
+    assert_eq!(inventory["automatic_updates_global"], false, "{inventory}");
+
+    // Both switches are on the record, newest first.
+    let records = harness
+        .database
+        .query_audit_records(&rd_db::AuditQuery {
+            action: Some(rd_core::AuditAction::SettingsChanged),
+            target_kind: Some("plugin_updates".to_owned()),
+            limit: 10,
+            ..rd_db::AuditQuery::default()
+        })
+        .await
+        .expect("audit");
+    let recorded: Vec<Option<&str>> = records
+        .iter()
+        .map(|record| record.details.get("automatic_updates").map(String::as_str))
+        .collect();
+    assert_eq!(recorded, [Some("false"), Some("true")]);
+}
+
 /// RD-190-19: an automatic update that cannot be fetched is announced as `plugin_update_failed`,
 /// one that waits for a click as `plugin_update_available`, and the next refresh, which finds
 /// both again, announces neither a second time.

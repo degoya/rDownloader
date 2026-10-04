@@ -5,83 +5,17 @@
 //! `LIST` formatting, so a line that parses as neither is skipped rather than guessed at.
 
 use chrono::{DateTime, Utc};
-use rd_core::{
-    ByteCount, ListingLimit, MAX_REMOTE_DEPTH, MAX_REMOTE_ENTRIES, RemoteEntry, RemoteListing,
-    is_safe_relative_path,
-};
+use rd_core::{ByteCount, RemoteEntry, RemoteListing};
+use rd_transfer_file::{DirectoryLister, ListedEntry};
 use suppaftp::list::{File, ListParser};
 
 use crate::client::Connection;
 
-/// Walks `root` recursively and returns everything below it.
-///
-/// Recursion is bounded on two axes, and hitting either records *why* the walk stopped
-/// instead of returning a silently short list: a directory loop through symlinks would
-/// otherwise never terminate, and a large archive mirror would produce a listing no review
-/// UI can render.
+/// Walks `root` recursively and returns everything below it, through the walk FTP shares with
+/// SFTP (`rd_transfer_file::walk`): bounded on entry count and depth, breadth first.
 pub async fn walk(connection: &mut Connection, root: &str) -> anyhow::Result<RemoteListing> {
-    let mut entries: Vec<RemoteEntry> = Vec::new();
-    let mut truncated = None;
-    // Breadth first, so a shallow wide tree is complete before depth is spent.
-    let mut queue: Vec<(String, usize)> = vec![(String::new(), 0)];
-
-    while let Some((relative, depth)) = queue.pop() {
-        if entries.len() >= MAX_REMOTE_ENTRIES {
-            truncated = Some(ListingLimit::EntryCount);
-            break;
-        }
-        let absolute = join(root, &relative);
-        let (lines, dialect) = match connection.mlsd(Some(&absolute)).await {
-            Ok(lines) => (lines, Dialect::Mlsd),
-            // Not every server implements MLSD; LIST is the universal fallback.
-            Err(_) => (connection.list(Some(&absolute)).await?, Dialect::List),
-        };
-        for line in lines {
-            let Some(file) = parse(&line, dialect) else {
-                continue;
-            };
-            let name = file.name();
-            // `.` and `..` are listed by some servers and would walk the tree upwards.
-            if name.is_empty() || name == "." || name == ".." {
-                continue;
-            }
-            let path = if relative.is_empty() {
-                name.to_owned()
-            } else {
-                format!("{relative}/{name}")
-            };
-            // A server may name anything at all; a path that would escape the destination
-            // never reaches the review, let alone the disk.
-            if !is_safe_relative_path(&path) {
-                tracing::warn!(depth, "skipping unsafe remote path in FTP listing");
-                continue;
-            }
-            if entries.len() >= MAX_REMOTE_ENTRIES {
-                truncated = Some(ListingLimit::EntryCount);
-                break;
-            }
-            // A symlink's target is resolved by the server on access; following it here
-            // would double-count a tree or leave the root entirely.
-            let is_dir = file.is_directory();
-            entries.push(RemoteEntry {
-                path: path.clone(),
-                is_dir,
-                size: (!is_dir)
-                    .then(|| ByteCount::new(file.size() as u64).ok())
-                    .flatten(),
-                modified: modified_at(&file),
-                etag: None,
-            });
-            if is_dir && !file.is_symlink() {
-                if depth + 1 > MAX_REMOTE_DEPTH {
-                    truncated = Some(ListingLimit::Depth);
-                } else {
-                    queue.push((path, depth + 1));
-                }
-            }
-        }
-    }
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    let (entries, truncated) =
+        rd_transfer_file::walk(&mut FtpLister(connection), root, "ftp").await?;
     Ok(RemoteListing {
         root: root.to_owned(),
         single_file: false,
@@ -89,6 +23,41 @@ pub async fn walk(connection: &mut Connection, root: &str) -> anyhow::Result<Rem
         truncated,
         supports_resume: false,
     })
+}
+
+/// One FTP directory read: `MLSD` where the server has it, `LIST` otherwise.
+struct FtpLister<'a>(&'a mut Connection);
+
+impl DirectoryLister for FtpLister<'_> {
+    async fn list(&mut self, absolute: &str) -> anyhow::Result<Option<Vec<ListedEntry>>> {
+        let (lines, dialect) = match self.0.mlsd(Some(absolute)).await {
+            Ok(lines) => (lines, Dialect::Mlsd),
+            // Not every server implements MLSD; LIST is the universal fallback.
+            Err(_) => (self.0.list(Some(absolute)).await?, Dialect::List),
+        };
+        Ok(Some(
+            lines
+                .iter()
+                .filter_map(|line| parse(line, dialect))
+                .map(|file| {
+                    let is_dir = file.is_directory();
+                    ListedEntry {
+                        name: file.name().to_owned(),
+                        entry: RemoteEntry {
+                            path: String::new(),
+                            is_dir,
+                            size: (!is_dir)
+                                .then(|| ByteCount::new(file.size() as u64).ok())
+                                .flatten(),
+                            modified: modified_at(&file),
+                            etag: None,
+                        },
+                        descend: is_dir && !file.is_symlink(),
+                    }
+                })
+                .collect(),
+        ))
+    }
 }
 
 /// Which command produced a batch of lines.
@@ -139,17 +108,9 @@ fn modified_at(file: &File) -> Option<DateTime<Utc>> {
     DateTime::<Utc>::from(file.modified()).into()
 }
 
-/// Joins a listing-relative path onto the absolute root.
-fn join(root: &str, relative: &str) -> String {
-    if relative.is_empty() {
-        return root.to_owned();
-    }
-    format!("{}/{relative}", root.trim_end_matches('/'))
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Dialect, join, parse};
+    use super::{Dialect, parse};
 
     #[test]
     fn posix_and_dos_lines_both_parse() {
@@ -212,13 +173,5 @@ mod tests {
         assert!(parse("total 12", Dialect::List).is_none());
         assert!(parse("", Dialect::List).is_none());
         assert!(parse("   ", Dialect::Mlsd).is_none());
-    }
-
-    #[test]
-    fn paths_join_without_doubling_separators() {
-        assert_eq!(join("/pub", ""), "/pub");
-        assert_eq!(join("/pub", "a/b.bin"), "/pub/a/b.bin");
-        assert_eq!(join("/pub/", "a.bin"), "/pub/a.bin");
-        assert_eq!(join("/", "a.bin"), "/a.bin");
     }
 }

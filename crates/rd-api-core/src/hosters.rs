@@ -110,10 +110,9 @@ pub fn supports(hosters: &[String], url: &Url) -> bool {
     let Some(host) = url.host_str() else {
         return false;
     };
-    let host = host
-        .strip_prefix("www.")
-        .unwrap_or(host)
-        .to_ascii_lowercase();
+    // The shared host form (audit 1.9.1, INTAKE-11), so a catalogue match and a host block
+    // agree on what the link's host is.
+    let host = rd_core::host_key(host);
     hosters.iter().any(|hoster| {
         let hoster = hoster.to_ascii_lowercase();
         host == hoster || host.ends_with(&format!(".{hoster}"))

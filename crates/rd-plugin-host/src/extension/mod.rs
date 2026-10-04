@@ -122,6 +122,9 @@ fn linker_for(
             &mut linker,
             |state| state,
         )?;
+        // The same `read-at` once more, with the store in hand, so a read pays for the work
+        // the bytes cost the guest (PLUG-01).
+        source::add_metered_read_to_linker(&mut linker)?;
     }
     // Two grants no extension type needed before the crawler: a folder behind a sign-in is
     // reached with the account's cookies, and a share behind a challenge with the captcha
@@ -248,7 +251,9 @@ impl ExtensionRuntime {
         granted_secret: Option<String>,
         only_host: Option<&str>,
     ) -> Result<Store<PluginStoreState>> {
-        self.store_reaching(account, granted_secret, self.reachable(only_host))
+        let mut store = self.store_reaching(account, granted_secret, self.reachable(only_host))?;
+        store.data_mut().own_network = self.narrowed_to_supplied(only_host);
+        Ok(store)
     }
 
     /// A store that reaches exactly `domains`.
@@ -292,6 +297,20 @@ impl ExtensionRuntime {
         crawl_host(self.manifest.capabilities.domains(), url)
     }
 
+    /// Whether the reach is the manifest's `*` narrowed to an address the person supplied —
+    /// the one case a request may reach their own network (RA-HOST-01). A manifest that named
+    /// its domains keeps to public addresses even when narrowed to one of them: a name its
+    /// author chose could be pointed at the LAN as easily as at the author's server.
+    fn narrowed_to_supplied(&self, only_host: Option<&str>) -> bool {
+        only_host.is_some()
+            && self
+                .manifest
+                .capabilities
+                .domains()
+                .iter()
+                .any(|domain| domain == "*")
+    }
+
     /// The domains one invocation may reach: the manifest's list, or the single host an
     /// invocation was pointed at, whichever is narrower.
     fn reachable(&self, only_host: Option<&str>) -> Vec<String> {
@@ -309,14 +328,16 @@ impl ExtensionRuntime {
         only_host: Option<&str>,
         source: SourceState,
     ) -> Result<Store<PluginStoreState>> {
-        self.sandbox.create_source_store(
+        let mut store = self.sandbox.create_source_store(
             self.reachable(only_host),
             self.host.clone(),
             identity(account),
             granted_secret,
             self.writes(),
             source,
-        )
+        )?;
+        store.data_mut().own_network = self.narrowed_to_supplied(only_host);
+        Ok(store)
     }
 }
 

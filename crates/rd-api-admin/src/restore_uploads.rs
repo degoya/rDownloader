@@ -127,8 +127,10 @@ pub async fn append_restore_upload(
     State(state): State<AppState>,
     UrlPath(id): UrlPath<String>,
     Query(query): Query<RestoreUploadChunkQuery>,
+    headers: axum::http::HeaderMap,
     bytes: Bytes,
 ) -> Result<Json<RestoreUploadResponse>, ApiError> {
+    rd_api_core::input_checks::require_media_type(&headers, "application/octet-stream")?;
     let path = upload_path(&state, &id)?;
     let length = bytes.len() as u64;
     refuse_oversized_chunk(length)?;

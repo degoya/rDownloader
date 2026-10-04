@@ -25,6 +25,7 @@ passed=0
 ok() { echo "ok   $1"; passed=$((passed + 1)); }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 judge() { python3 "$SOAK" evaluate --samples "$1" --budgets "${2:-$BUDGETS}" --shutdown-seconds 2 \
     > "$SCRATCH/out" 2>&1 && status=0 || status=$?; }
 has() { grep -qF -- "$1" "$SCRATCH/out"; }

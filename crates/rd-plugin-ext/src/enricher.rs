@@ -186,12 +186,16 @@ fn claims(patterns: &[String], url: &url::Url) -> bool {
     let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
         return false;
     };
+    // A claim is a site: `youtube.com` and `*.youtube.com` both stand for the domain and every
+    // name below it (RD-191-06, PLUG-17: the one matcher, with the apex included).
     patterns.iter().any(|pattern| {
         let pattern = pattern.to_ascii_lowercase();
-        match pattern.strip_prefix("*.") {
-            Some(suffix) => host == suffix || host.ends_with(&format!(".{suffix}")),
-            None => host == pattern || host.ends_with(&format!(".{pattern}")),
-        }
+        let site = if pattern.starts_with("*.") {
+            pattern
+        } else {
+            format!("*.{pattern}")
+        };
+        rd_core::host_pattern_matches(&site, &host, rd_core::WildcardApex::Included)
     })
 }
 

@@ -30,6 +30,9 @@ pub type Decision = Result<(), FilterReason>;
 /// `primed` is false only for the very first poll of a subscription; the backlog policy
 /// applies exactly then and never again, because after that everything reaching this
 /// function is genuinely new.
+///
+/// For one item; a poll judging many items against the same filters prepares them once with
+/// [`PreparedFilters`].
 pub fn evaluate(
     item: &CandidateItem,
     filters: &SubscriptionFilters,
@@ -37,10 +40,78 @@ pub fn evaluate(
     primed: bool,
     now: DateTime<Utc>,
 ) -> Decision {
-    if !primed {
-        backlog_decision(item, backlog, now)?;
+    PreparedFilters::new(filters).evaluate(item, backlog, primed, now)
+}
+
+/// A subscription's filters with every title pattern prepared once -- an expression compiled,
+/// a text lowercased -- rather than once per item of a poll (audit 1.9.1, INTAKE-10).
+pub struct PreparedFilters<'a> {
+    filters: &'a SubscriptionFilters,
+    title_contains: Vec<TitlePattern>,
+    title_excludes: Vec<TitlePattern>,
+}
+
+impl<'a> PreparedFilters<'a> {
+    #[must_use]
+    pub fn new(filters: &'a SubscriptionFilters) -> Self {
+        let prepare = |patterns: &[String]| -> Vec<TitlePattern> {
+            patterns
+                .iter()
+                .map(String::as_str)
+                .map(TitlePattern::new)
+                .collect()
+        };
+        Self {
+            filters,
+            title_contains: prepare(&filters.title_contains),
+            title_excludes: prepare(&filters.title_excludes),
+        }
     }
-    filter_decision(item, filters)
+
+    /// [`evaluate`] against the prepared filters.
+    pub fn evaluate(
+        &self,
+        item: &CandidateItem,
+        backlog: BacklogPolicy,
+        primed: bool,
+        now: DateTime<Utc>,
+    ) -> Decision {
+        if !primed {
+            backlog_decision(item, backlog, now)?;
+        }
+        filter_decision(item, self)
+    }
+}
+
+/// One title pattern, as the title filters read it.
+enum TitlePattern {
+    /// Written in slashes; `None` when it does not compile, which matches nothing.
+    Expression(Option<regex::Regex>),
+    /// Plain text, lowercased; empty matches nothing.
+    Text(String),
+}
+
+impl TitlePattern {
+    fn new(pattern: &str) -> Self {
+        match as_expression(pattern) {
+            Some(expression) => Self::Expression(
+                regex::RegexBuilder::new(expression)
+                    .case_insensitive(true)
+                    .build()
+                    .ok(),
+            ),
+            None => Self::Text(pattern.to_lowercase()),
+        }
+    }
+
+    fn matches(&self, title_lowercase: &str) -> bool {
+        match self {
+            Self::Expression(expression) => expression
+                .as_ref()
+                .is_some_and(|expression| expression.is_match(title_lowercase)),
+            Self::Text(text) => !text.is_empty() && title_lowercase.contains(text.as_str()),
+        }
+    }
 }
 
 /// The first poll's verdict on an item that already existed.
@@ -79,15 +150,10 @@ fn backlog_decision(item: &CandidateItem, backlog: BacklogPolicy, now: DateTime<
 ///
 /// An expression that does not compile matches nothing and says so to the caller, rather than
 /// falling back to text: somebody who wrote slashes meant an expression.
+#[cfg(test)]
 #[must_use]
 pub fn title_matches(pattern: &str, title_lowercase: &str) -> bool {
-    match as_expression(pattern) {
-        Some(expression) => regex::RegexBuilder::new(expression)
-            .case_insensitive(true)
-            .build()
-            .is_ok_and(|expression| expression.is_match(title_lowercase)),
-        None => !pattern.is_empty() && title_lowercase.contains(&pattern.to_lowercase()),
-    }
+    TitlePattern::new(pattern).matches(title_lowercase)
 }
 
 /// The expression inside `/…/`, if the pattern is written that way.
@@ -98,23 +164,24 @@ pub fn as_expression(pattern: &str) -> Option<&str> {
     (!inner.is_empty()).then_some(inner)
 }
 
-fn filter_decision(item: &CandidateItem, filters: &SubscriptionFilters) -> Decision {
+fn filter_decision(item: &CandidateItem, prepared: &PreparedFilters<'_>) -> Decision {
+    let filters = prepared.filters;
     let title = item.title.to_lowercase();
 
-    if !filters.title_contains.is_empty()
-        && !filters
+    if !prepared.title_contains.is_empty()
+        && !prepared
             .title_contains
             .iter()
-            .any(|pattern| title_matches(pattern, &title))
+            .any(|pattern| pattern.matches(&title))
     {
         return Err(FilterReason::TitleNotIncluded);
     }
     // Checked after the inclusion list so an exclusion always wins: "everything with
     // 'review' except the sponsored ones" is the shape people actually write.
-    if filters
+    if prepared
         .title_excludes
         .iter()
-        .any(|pattern| title_matches(pattern, &title))
+        .any(|pattern| pattern.matches(&title))
     {
         return Err(FilterReason::TitleExcluded);
     }

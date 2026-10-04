@@ -23,6 +23,13 @@ impl Writer {
             WriterCommand::TransitionDownload { id, next, reply } => {
                 send(reply, self.transition_download(id, next).await);
             }
+            WriterCommand::JoinQueue {
+                id,
+                created_at,
+                reply,
+            } => {
+                send(reply, self.join_queue(id, created_at).await);
+            }
             WriterCommand::BlockDownload { id, reason, reply } => {
                 send(reply, self.block_download(id, reason).await);
             }
@@ -100,6 +107,16 @@ impl Writer {
                 reply,
             } => {
                 send(reply, self.record_failure(id, failure, retry_at).await);
+            }
+            WriterCommand::ScheduleAutoRetry { id, at, reply } => {
+                send(reply, self.schedule_auto_retry(id, at).await);
+            }
+            WriterCommand::RequeueFailed {
+                id,
+                auto_retry,
+                reply,
+            } => {
+                send(reply, self.requeue_failed(id, auto_retry).await);
             }
             WriterCommand::CompleteDownload {
                 id,

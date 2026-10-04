@@ -335,9 +335,9 @@ async fn the_listing_is_a_get_with_the_accept_a_negotiating_server_needs() {
 /// A tree deeper than the plugin walks stops at its own limit rather than following a
 /// stranger's directory structure to the bottom.
 ///
-/// The limit belongs to the plugin (`walk::MAX_DEPTH`), and asserting it against the
-/// component rather than in the plugin's own tests is the point: a guest that ignored its
-/// own bookkeeping would make a request per level for ever, and every one of those requests
+/// The limit belongs to the shared walk (`plugin_common::walk::MAX_DEPTH`), and asserting it
+/// against the component rather than in the plugin's own tests is the point: a guest that ignored
+/// its own bookkeeping would make a request per level for ever, and every one of those requests
 /// looks perfectly reasonable on its own.
 #[tokio::test]
 async fn a_tree_deeper_than_the_limit_stops_at_the_limit() {
@@ -624,9 +624,10 @@ fn the_manifest_declares_this_crawler_generic_so_it_is_asked_last() {
 
 /// How many directories one crawl of this plugin reads, and how many files it hands back.
 ///
-/// The numbers belong to `plugins/directory-index-crawler/src/walk.rs` (`MAX_DIRECTORIES`,
-/// `MAX_FILES`) and are repeated here rather than imported: a contract test asserts what the
-/// component does, and a constant shared with the code under test would move with it.
+/// The numbers belong to the walk every folder crawler shares, `plugin_common::walk`
+/// (`MAX_FOLDERS`, `MAX_FILES`), and are repeated here rather than imported: a contract test
+/// asserts what the component does, and a constant shared with the code under test would move with
+/// it.
 const MAX_DIRECTORIES: usize = 100;
 const MAX_FILES: usize = 500;
 

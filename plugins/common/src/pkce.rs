@@ -40,70 +40,11 @@ pub fn challenge(verifier: &str) -> String {
     base64_url(&sha256(verifier.as_bytes()))
 }
 
-/// Percent-encodes everything outside the unreserved set, so a value cannot end the query it
-/// sits in. Applied to every value this plugin puts into an authorization URL.
-#[must_use]
-pub fn percent_encode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                out.push(byte as char);
-            }
-            other => out.push_str(&format!("%{other:02X}")),
-        }
-    }
-    out
-}
-
-/// The string value of a JSON field, without pulling in a parser for five fields.
-#[must_use]
-pub fn string_field(body: &str, name: &str) -> Option<String> {
-    let mut rest = value_after(body, name)?.strip_prefix('"')?;
-    let mut out = String::new();
-    loop {
-        let mut chars = rest.chars();
-        let character = chars.next()?;
-        rest = chars.as_str();
-        match character {
-            '"' => return Some(out),
-            '\\' => {
-                let mut escaped = rest.chars();
-                match escaped.next()? {
-                    'n' => out.push('\n'),
-                    't' => out.push('\t'),
-                    'r' => out.push('\r'),
-                    other => out.push(other),
-                }
-                rest = escaped.as_str();
-            }
-            other => out.push(other),
-        }
-    }
-}
-
-/// The numeric value of a JSON field.
-#[must_use]
-pub fn number_field(body: &str, name: &str) -> Option<u64> {
-    let rest = value_after(body, name)?;
-    let end = rest
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(rest.len());
-    rest[..end].parse().ok()
-}
-
-fn value_after<'a>(body: &'a str, name: &str) -> Option<&'a str> {
-    let needle = format!("\"{name}\"");
-    let mut from = 0;
-    while let Some(at) = body[from..].find(&needle) {
-        let after = &body[from + at + needle.len()..];
-        if let Some(value) = after.trim_start().strip_prefix(':') {
-            return Some(value.trim_start());
-        }
-        from += at + needle.len();
-    }
-    None
-}
+// The readers and the encoder an OAuth exchange needs live in `crate::json` and
+// `crate::encode` now, which every plugin shares (RD-191-07); they stay reachable here under the
+// names the OAuth plugins have always used.
+pub use crate::encode::percent_encode;
+pub use crate::json::{number_field, string_field};
 
 /// base64url without padding, as RFC 7636 requires for a challenge.
 fn base64_url(bytes: &[u8]) -> String {
@@ -269,18 +210,5 @@ mod tests {
         let mut second = [0u8; VERIFIER_BYTES];
         second[VERIFIER_BYTES - 1] = 1;
         assert_ne!(verifier(&first), verifier(&second));
-    }
-
-    #[test]
-    fn a_value_cannot_break_out_of_the_query_it_sits_in() {
-        assert_eq!(percent_encode("a&b=c d"), "a%26b%3Dc%20d");
-    }
-
-    #[test]
-    fn json_fields_are_read_without_a_parser() {
-        let body = r#"{"access_token":"a b","expires_in":3600,"error":"invalid_grant"}"#;
-        assert_eq!(string_field(body, "access_token").as_deref(), Some("a b"));
-        assert_eq!(number_field(body, "expires_in"), Some(3600));
-        assert_eq!(string_field(body, "refresh_token"), None);
     }
 }

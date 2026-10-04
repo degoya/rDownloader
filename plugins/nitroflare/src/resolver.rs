@@ -252,7 +252,11 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
 }
 
 pub(crate) fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    api::ensure_http_status(response.status).map_err(convert_failure)
+    api::ensure_http_status(
+        response.status,
+        plugin_common::retry_after(&response.headers),
+    )
+    .map_err(convert_failure)
 }
 
 pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {

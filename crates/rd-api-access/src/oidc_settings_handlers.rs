@@ -23,6 +23,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_api_core::oidc_client::{self, LinkedIdentity, ProviderConfig};
 use rd_authn::oidc::{self, FlowPurpose};
 use serde::{Deserialize, Serialize};
@@ -190,13 +191,12 @@ pub async fn put_oidc_settings(
             "The issuer has to be an https address, or http on this machine",
         ));
     }
-    let client_id = request.client_id.trim().to_owned();
-    if client_id.is_empty() || client_id.len() > 255 {
-        return Err(ApiError::bad_request(
-            "auth.oidc_client_id_invalid",
-            "The client ID is required",
-        ));
-    }
+    let client_id = required_text(
+        &request.client_id,
+        TextLimit::Bytes(255),
+        "auth.oidc_client_id_invalid",
+        "The client ID is required",
+    )?;
     let display_name = request
         .display_name
         .trim()

@@ -13,9 +13,11 @@
 //! ([`crate::lease`]) and the compatibility verdict ([`crate::compat`]). All three callers
 //! already depend on it, and it depends on none of them.
 //!
-//! What is *not* here: the loop. Each runner reads a different thing out of its process —
-//! yt-dlp's progress lines, gallery-dl's stored paths, streamlink's growing file — and folding
-//! those into one callback would hide the differences rather than remove them.
+//! What is *not* here: what the loop does with a line. Each runner reads a different thing out
+//! of its process — yt-dlp's progress lines, gallery-dl's stored paths, streamlink's growing
+//! file — and folding those into one callback would hide the differences rather than remove
+//! them. The reading itself is here ([`ToolProcess::next_line`]): the select between the next
+//! line, a stop and a time limit was the same in every copy (audit 1.9.1, TR-13).
 //!
 //! There are two shapes, not one. [`ToolProcess`] is the long-running download that is followed
 //! until it ends; [`run_to_output`] is the short question — `yt-dlp -J`, `streamlink --json`,
@@ -23,14 +25,15 @@
 //! stdin, `kill_on_drop` and console-window wiring and nothing else, so they are two functions
 //! over one set of rules rather than one function with a mode flag.
 
-use std::{path::PathBuf, process::Output, process::Stdio, time::Duration};
+use std::{future::Future, path::PathBuf, process::Output, process::Stdio, time::Duration};
 
 use anyhow::{Context, Result};
 use rd_core::{Failure, FailureKind, ToolLease};
 use rd_files::NoConsoleWindow as _;
 use tokio::{
+    io::{AsyncBufReadExt, BufReader, Lines},
     process::{Child, ChildStdout, Command},
-    time::error::Elapsed,
+    time::{Instant, error::Elapsed},
 };
 
 /// How often a running external tool's progress is written to the queue row.
@@ -116,7 +119,33 @@ pub enum Stdout {
 pub struct ToolProcess {
     child: Child,
     stdout: Option<ChildStdout>,
+    lines: Option<Lines<BufReader<ChildStdout>>>,
     stderr: tokio::task::JoinHandle<String>,
+    deadline: Option<Instant>,
+}
+
+/// What [`ToolProcess::next_line`] found.
+#[derive(Debug, Eq, PartialEq)]
+pub enum ToolLine {
+    /// One line of stdout, without its line ending.
+    Line(String),
+    /// stdout is closed: the tool is done talking, [`ToolProcess::wait`] tells how it ended.
+    End,
+    /// The stop the caller handed in fired first; the process is killed.
+    Stopped,
+    /// The time limit of [`ToolProcess::with_deadline`] passed first; the process is killed.
+    TimedOut,
+}
+
+/// How [`ToolProcess::wait_or_stop`] ended.
+#[derive(Debug)]
+pub enum ToolEnd {
+    /// The process exited by itself.
+    Exited(std::process::ExitStatus),
+    /// The stop the caller handed in fired first; the process is killed.
+    Stopped,
+    /// The time limit of [`ToolProcess::with_deadline`] passed first; the process is killed.
+    TimedOut,
 }
 
 impl ToolProcess {
@@ -160,8 +189,67 @@ impl ToolProcess {
         Ok(Self {
             child,
             stdout,
+            lines: None,
             stderr,
+            deadline: None,
         })
+    }
+
+    /// Gives the run a time limit, counted from now: once it has passed, [`Self::next_line`] and
+    /// [`Self::wait_or_stop`] kill the process and answer `TimedOut`. A tool that hangs — a
+    /// network share that stopped answering, a prompt nobody sees — otherwise holds its job
+    /// and its slot for good.
+    #[must_use]
+    pub fn with_deadline(mut self, limit: Duration) -> Self {
+        self.deadline = Some(Instant::now() + limit);
+        self
+    }
+
+    /// The next line of stdout, or why there is none.
+    ///
+    /// `stop` is typically `cancellation.cancelled()`; whichever of the line, `stop` and the
+    /// deadline comes first decides, and the last two kill the process before answering.
+    /// Errors when stdout was [`Stdout::Discarded`] or taken with [`Self::take_stdout`].
+    pub async fn next_line(&mut self, stop: impl Future<Output = ()>) -> Result<ToolLine> {
+        if self.lines.is_none() {
+            let stdout = self
+                .stdout
+                .take()
+                .context("the tool's stdout is not read")?;
+            self.lines = Some(BufReader::new(stdout).lines());
+        }
+        let Some(lines) = self.lines.as_mut() else {
+            return Ok(ToolLine::End);
+        };
+        let deadline = self.deadline;
+        tokio::select! {
+            () = stop => {
+                let _ = self.child.kill().await;
+                Ok(ToolLine::Stopped)
+            }
+            () = expiry(deadline) => {
+                let _ = self.child.kill().await;
+                Ok(ToolLine::TimedOut)
+            }
+            line = lines.next_line() => Ok(line?.map_or(ToolLine::End, ToolLine::Line)),
+        }
+    }
+
+    /// Waits for the process to end, unless `stop` fires or the deadline passes first; both
+    /// kill it.
+    pub async fn wait_or_stop(&mut self, stop: impl Future<Output = ()>) -> Result<ToolEnd> {
+        let deadline = self.deadline;
+        tokio::select! {
+            () = stop => {
+                let _ = self.child.kill().await;
+                Ok(ToolEnd::Stopped)
+            }
+            () = expiry(deadline) => {
+                let _ = self.child.kill().await;
+                Ok(ToolEnd::TimedOut)
+            }
+            status = self.child.wait() => Ok(ToolEnd::Exited(status?)),
+        }
     }
 
     /// The child's stdout, once. `None` for [`Stdout::Discarded`], and on the second call.
@@ -192,6 +280,14 @@ impl ToolProcess {
     /// change how the run is reported, which is why this returns a `String` and not a `Result`.
     pub async fn stderr(self) -> String {
         self.stderr.await.unwrap_or_default()
+    }
+}
+
+/// Resolves at `deadline`, or never without one.
+async fn expiry(deadline: Option<Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline).await,
+        None => std::future::pending().await,
     }
 }
 

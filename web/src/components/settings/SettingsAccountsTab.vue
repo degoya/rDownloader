@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
@@ -20,7 +20,7 @@ import AccountSignInFlow from '@/components/settings/AccountSignInFlow.vue'
 import { isOpenFlow, useAuthFlows } from '@/composables/useAuthFlows'
 import { useBrowserSessions } from '@/composables/useBrowserSessions'
 import { useConfirm } from '@/composables/useConfirm'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { providerText as pluginProviderText } from '@/i18n/plugins'
@@ -280,15 +280,6 @@ async function connectAccount(account: Account): Promise<void> {
   if (failure) error.value = failure
 }
 
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (providerTimer !== null) {
-    window.clearTimeout(providerTimer)
-    providerTimer = null
-  }
-})
-
 /** Nothing is typed for a cookie-only provider, nor for an account that signs in with a code. */
 const showSecretInput = computed(
   () => selectedProvider.value?.credentials !== 'cookies' && !signsInWithCode(accountForm.credential_mode)
@@ -318,21 +309,12 @@ const secretPlaceholder = computed(() => {
 })
 const cookiesPlaceholder = computed(() => editingAccountId.value ? t('network.account.cookies_keep') : t('network.account.cookies_placeholder'))
 const credentialHint = computed(() => credentialText('hint', accountForm.provider))
-/** The live subscription and the timer that coalesces a burst of plugin events into one read. */
-let releaseEvents: (() => void) | null = null
-let providerTimer: number | null = null
-
 onMounted(() => {
   void refreshProviders().finally(() => { providersLoading.value = false })
   void load(refresh).then(() => {
     // A flow may have been running when the page was last closed; picking it up is what
     // makes closing the browser mid-sign-in cost nothing.
     void Promise.all(accounts.value.map(account => authFlows.load(account.id)))
-  })
-  releaseEvents = subscribeEvents({
-    'plugin_catalog.changed': scheduleProviderReload,
-    // Every step a sign-in takes is recorded as an account change (RD-150-09).
-    'account.changed': authFlows.onAccountEvent
   })
 })
 
@@ -362,13 +344,10 @@ onMounted(() => {
  * previous catalogue standing and is recorded the way this tab's other failures are. No notice
  * is raised — `design.md` has no pattern for announcing that data caught up.
  */
-function scheduleProviderReload(): void {
-  if (providerTimer !== null) return
-  providerTimer = window.setTimeout(() => {
-    providerTimer = null
-    void refreshProviders()
-  }, 300)
-}
+useDebouncedEventRefresh(['plugin_catalog.changed'], refreshProviders, {
+  // Every step a sign-in takes is recorded as an account change (RD-150-09).
+  handlers: { 'account.changed': authFlows.onAccountEvent }
+})
 
 async function refreshProviders(): Promise<void> {
   const response = await api.GET('/api/v1/providers')

@@ -93,10 +93,7 @@ fn form_headers() -> Vec<RequestHeader> {
 
 /// The `Retry-After` a provider sent, if it sent one.
 fn retry_after(headers: &[(String, String)]) -> Option<String> {
-    headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-        .map(|(_, value)| value.clone())
+    plugin_common::http::header(headers, "retry-after").map(str::to_owned)
 }
 
 /// One exchange at the token endpoint: the device grant, with whatever `code` stands for this
@@ -279,9 +276,7 @@ impl Guest for Component {
             return Err(refuse(
                 "rate_limited",
                 "the provider asked for fewer requests before a sign-in can start".to_owned(),
-                FailureKind::RateLimited(
-                    retry_after(&response.headers).and_then(|value| value.trim().parse().ok()),
-                ),
+                FailureKind::RateLimited(plugin_common::retry_after(&response.headers)),
             ));
         }
         let Some(code) = flow::read_device_code(&body) else {

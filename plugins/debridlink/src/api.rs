@@ -55,6 +55,7 @@
 //!   intentionally left in the generic fallback bucket rather than growing the code surface
 //!   further; they still surface with their raw key via `api_code`.
 
+use plugin_common::HttpRefusal;
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -250,41 +251,36 @@ pub(crate) fn error_from_status(success: bool, error: Option<&str>) -> Option<Ap
     Some(classify_error(error.unwrap_or("unknown")))
 }
 
+fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
+    ApiFailure {
+        kind,
+        code,
+        message: message.to_owned(),
+        params: Vec::new(),
+    }
+}
+
 /// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-pub(crate) fn ensure_http_status(status: u16) -> Result<(), ApiFailure> {
-    match status {
-        200..=299 => Ok(()),
-        401 | 403 => Err(ApiFailure {
-            kind: ErrorKind::AccountInvalid,
-            code: messages::AUTH_INVALID.0,
-            message: messages::AUTH_INVALID.1.to_owned(),
-            params: Vec::new(),
-        }),
-        404 | 410 | 451 => Err(ApiFailure {
-            kind: ErrorKind::Offline,
-            code: messages::FILE_OFFLINE.0,
-            message: messages::FILE_OFFLINE.1.to_owned(),
-            params: Vec::new(),
-        }),
-        429 => Err(ApiFailure {
-            kind: ErrorKind::RateLimited(None),
-            code: messages::RATE_LIMITED.0,
-            message: messages::RATE_LIMITED.1.to_owned(),
-            params: Vec::new(),
-        }),
-        500..=599 => Err(ApiFailure {
-            kind: ErrorKind::Transient(None),
-            code: messages::SERVER_ERROR.0,
-            message: messages::SERVER_ERROR.1.to_owned(),
-            params: Vec::new(),
-        }),
-        other => Err(ApiFailure {
+///
+/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
+/// (RD-191-07); this only names each in Debrid-Link's codes. `retry_after` is the response's
+/// `Retry-After`, which a `429` or a `5xx` now carries into the wait.
+pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
+    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
+        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_OFFLINE),
+        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_OFFLINE),
+        HttpRefusal::RateLimited(wait) => {
+            plain(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
+        }
+        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
+        HttpRefusal::Other(other) => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::HTTP_ERROR,
             message: messages::http_error(other),
             params: vec![("status", other.to_string())],
-        }),
-    }
+        },
+    })
 }
 
 #[cfg(test)]
@@ -447,5 +443,26 @@ mod tests {
         assert_eq!(account_name(None, Some("a@test")), Some("a@test"));
         assert_eq!(account_name(None, None), None);
         assert_eq!(account_name(Some(""), Some("")), None);
+    }
+
+    /// The shared mapping (RD-191-07): a `429` carries the provider's wait, `451` is offline.
+    #[test]
+    fn ensure_http_status_uses_the_shared_mapping() {
+        assert!(ensure_http_status(200, None).is_ok());
+        assert!(matches!(
+            ensure_http_status(429, Some(45)).expect_err("429").kind,
+            ErrorKind::RateLimited(Some(45))
+        ));
+        assert!(matches!(
+            ensure_http_status(451, None).expect_err("451").kind,
+            ErrorKind::Offline
+        ));
+        assert!(matches!(
+            ensure_http_status(503, Some(20)).expect_err("503").kind,
+            ErrorKind::Transient(Some(20))
+        ));
+        let other = ensure_http_status(418, None).expect_err("418");
+        assert!(matches!(other.kind, ErrorKind::Permanent));
+        assert_eq!(other.code, messages::HTTP_ERROR);
     }
 }

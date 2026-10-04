@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000013f"
 name = "Premiumize transfers"
-version = "0.2.5"
+version = "0.2.6"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -23,6 +23,9 @@ slug = "premiumize_transfers"
 # The provider whose account these jobs run on. The host looks the account up; this plugin
 # never learns which one it is, and never sees its key.
 claims = ["premiumize"]
+# The container formats this provider takes, read by the host without compiling the plugin:
+# the LinkGrabber offers an NZB only to accounts whose plugin names `nzb` here (RD-191-13).
+containers = ["torrent", "nzb", "dlc", "rsdf"]
 
 [metadata]
 description = "Runs magnets, containers and plain addresses as transfers on a Premiumize.me account."
@@ -37,7 +40,8 @@ min_app_version = "1.2.0"
 memory_bytes = 33554432
 # Every call makes at most two requests and returns on the provider's next answer -- the
 # waiting belongs to the host. The one memory-shaped operation is reading a container in
-# order to name its upload, which `container::MAX_CONTAINER_BYTES` bounds at four megabytes.
+# order to name its upload, which `container::MAX_CONTAINER_BYTES` bounds at four MiB -- half
+# the torrent plugins' eight, see that constant for why.
 fuel = 500000000
 timeout_milliseconds = 15000
 max_response_bytes = 8388608

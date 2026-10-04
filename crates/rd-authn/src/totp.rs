@@ -16,6 +16,8 @@
 use hmac::{Hmac, KeyInit as _, Mac};
 use sha1::Sha1;
 
+use crate::digest::constant_time_eq;
+
 /// Seconds per code. Fixed by what authenticator apps assume.
 pub const STEP_SECONDS: u64 = 30;
 /// Digits per code.
@@ -96,17 +98,6 @@ pub fn accepted_step(secret: &[u8], candidate: &str, unix_seconds: u64) -> Optio
         matched = hit.then_some(step).or(matched);
     }
     matched
-}
-
-fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    let mut difference = 0_u8;
-    for (a, b) in left.iter().zip(right) {
-        difference |= a ^ b;
-    }
-    difference == 0
 }
 
 /// RFC 4648 base32 without padding — the encoding authenticator apps read.

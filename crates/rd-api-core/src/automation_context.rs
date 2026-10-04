@@ -17,6 +17,20 @@ pub(crate) struct EventMatch {
     pub package_id: Option<PackageId>,
 }
 
+/// Whether [`classify`] can find a trigger in an event of this kind at all; asked before
+/// anything is read for it.
+pub(crate) fn may_trigger(event: &EventEnvelope) -> bool {
+    matches!(
+        event.kind,
+        EventKind::CollectorIntake
+            | EventKind::DownloadState
+            | EventKind::PackageState
+            | EventKind::PostprocessProgress
+            | EventKind::StorageCapacity
+            | EventKind::SubscriptionChanged
+    )
+}
+
 /// Classifies an event, loading only what the context actually needs.
 pub(crate) async fn classify(
     database: &rd_db::Database,
@@ -77,12 +91,11 @@ async fn download(
     if triggers.is_empty() {
         return Ok(None);
     }
-    let Some(file) = database
-        .list_downloads()
-        .await?
-        .into_iter()
-        .find(|file| file.id.to_string() == id)
-    else {
+    // One row, not the table: this runs for every state change of every download (DB-05).
+    let Ok(id) = id.parse() else {
+        return Ok(None);
+    };
+    let Some(file) = database.get_download(id).await? else {
         return Ok(None);
     };
     let mut context = EventContext::default();
@@ -117,15 +130,10 @@ async fn package(
     database: &rd_db::Database,
     event: &EventEnvelope,
 ) -> anyhow::Result<Option<EventMatch>> {
-    let Some(id) = text(event, "package_id") else {
+    let Some(id) = text(event, "package_id").and_then(|id| id.parse().ok()) else {
         return Ok(None);
     };
-    let Some(package) = database
-        .list_packages()
-        .await?
-        .into_iter()
-        .find(|package| package.id.to_string() == id)
-    else {
+    let Some(package) = database.get_package(id).await? else {
         return Ok(None);
     };
     let trigger = match package.state {
@@ -138,10 +146,9 @@ async fn package(
     context.set(Field::State, package.state.to_string());
     context.set(Field::Kind, format!("{:?}", package.kind).to_lowercase());
     let total: u64 = database
-        .list_downloads()
+        .downloads_for_package(package.id)
         .await?
         .iter()
-        .filter(|file| file.package_id == package.id)
         .map(|file| file.total_bytes.map_or(0, rd_core::ByteCount::get))
         .sum();
     if total > 0 {
@@ -208,23 +215,13 @@ pub(crate) async fn package_context(
     let Some(package_id) = package_id else {
         return Ok(context);
     };
-    let Some(package) = database
-        .list_packages()
-        .await?
-        .into_iter()
-        .find(|package| package.id == package_id)
-    else {
+    let Some(package) = database.get_package(package_id).await? else {
         anyhow::bail!("package not found");
     };
     context.set(Field::Name, package.name.clone());
     context.set(Field::State, package.state.to_string());
     context.set(Field::Kind, format!("{:?}", package.kind).to_lowercase());
-    let files: Vec<_> = database
-        .list_downloads()
-        .await?
-        .into_iter()
-        .filter(|file| file.package_id == package_id)
-        .collect();
+    let files = database.downloads_for_package(package_id).await?;
     let total: u64 = files
         .iter()
         .map(|file| file.total_bytes.map_or(0, rd_core::ByteCount::get))
@@ -261,10 +258,8 @@ async fn add_category(
         return Ok(());
     };
     let Some(category_id) = database
-        .list_packages()
+        .get_package(package_id)
         .await?
-        .into_iter()
-        .find(|package| package.id == package_id)
         .and_then(|package| package.category_id)
     else {
         return Ok(());

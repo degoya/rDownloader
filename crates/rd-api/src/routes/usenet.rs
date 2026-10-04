@@ -6,7 +6,7 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, usenet_handlers};
+use crate::{AppState, nzb_remote_job_handlers, usenet_handlers};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -22,6 +22,17 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/nzb/imports/{id}/enqueue",
             post(usenet_handlers::enqueue_nzb_import),
+        )
+        // The other way out of the LinkGrabber for an NZB: to a provider's account rather than
+        // the queue (RD-191-13).
+        .route(
+            "/api/v1/nzb/imports/{id}/remote-job",
+            post(nzb_remote_job_handlers::submit_nzb_import_remote_job),
+        )
+        // The same for the NZB behind a package in the Downloads view, in any of its states.
+        .route(
+            "/api/v1/packages/{id}/remote-job",
+            post(nzb_remote_job_handlers::submit_package_remote_job),
         )
         .route(
             "/api/v1/usenet/servers",
@@ -49,5 +60,7 @@ pub(crate) fn routes() -> Router<AppState> {
     usenet_handlers::list_nzb_files,
     usenet_handlers::list_postprocess_steps,
     usenet_handlers::enqueue_nzb_import,
+    nzb_remote_job_handlers::submit_nzb_import_remote_job,
+    nzb_remote_job_handlers::submit_package_remote_job,
 ))]
 pub(crate) struct Doc;

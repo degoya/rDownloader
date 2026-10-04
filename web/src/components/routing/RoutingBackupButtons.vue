@@ -6,7 +6,8 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { RoutingBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
-import { chosenFile, downloadJson, openFilePicker } from '@/utils/jsonFile'
+import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
+import { downloadJson } from '@/utils/jsonFile'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -14,7 +15,6 @@ const toast = useToast()
 const confirm = useConfirm()
 const exporting = ref(false)
 const importing = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
 
 type ExportPart = 'all' | 'categories' | 'rules'
 
@@ -29,34 +29,25 @@ async function exportRouting(part: ExportPart): Promise<void> {
   exporting.value = true
   const response = await api.GET('/api/v1/routing/export', { params: { query: { part } } })
   exporting.value = false
-  if (!response.data) {
-    toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
-    return
-  }
+  if (!response.data) return fail(responseError(response))
   const suffix = part === 'all' ? '' : `-${part}`
   downloadJson(response.data, `routing${suffix}`)
   toast.add({ title: t('routing.backup.export_success'), color: 'success', icon: 'i-lucide-file-check-2' })
 }
 
-function chooseFile(): void {
-  openFilePicker(fileInput.value)
+function fail(message: string): void {
+  toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
 }
 
-async function selectFile(event: Event): Promise<void> {
-  const file = chosenFile(event)
-  if (!file) return
-  let bundle: RoutingBundle
-  try {
-    const parsed: unknown = JSON.parse(await file.text())
-    if (!isRoutingBundle(parsed)) {
-      toast.add({ title: t('routing.backup.invalid_file'), color: 'error', icon: 'i-lucide-circle-alert' })
-      return
-    }
-    bundle = parsed
-  } catch {
-    toast.add({ title: t('routing.backup.invalid_file'), color: 'error', icon: 'i-lucide-circle-alert' })
-    return
-  }
+/** The same import as `AreaBackupButtons`, in the routing bundle's own format (WEB-09). */
+const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<RoutingBundle>({
+  check: parsed => isRoutingBundle(parsed) ? parsed : new JsonRefusal(t('routing.backup.invalid_file')),
+  unreadable: () => t('routing.backup.invalid_file'),
+  refuse: fail,
+  take: importRouting
+})
+
+async function importRouting(bundle: RoutingBundle): Promise<void> {
   const accepted = await confirm({
     title: t('routing.backup.confirm_title'),
     description: t('routing.backup.confirm_description', {
@@ -70,10 +61,7 @@ async function selectFile(event: Event): Promise<void> {
   importing.value = true
   const response = await api.POST('/api/v1/routing/import', { body: bundle })
   importing.value = false
-  if (!response.data) {
-    toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
-    return
-  }
+  if (!response.data) return fail(responseError(response))
   const summary = response.data
   toast.add({
     title: t('routing.backup.import_success'),

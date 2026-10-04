@@ -419,3 +419,62 @@ async fn the_pool_builds_the_guard_into_a_client_with_a_policy() {
         .expect("reached");
     assert_eq!(reached.load(Ordering::SeqCst), 1);
 }
+
+/// RA-HOST-01, owner 2026-10-04: loopback may be permitted for an address the person entered,
+/// but nothing else local comes with it — link-local carries the cloud metadata endpoint.
+#[test]
+fn loopback_can_be_permitted_without_the_rest_of_this_machine() {
+    let entered = AddressPolicy::new(true).with_loopback();
+    for loopback in ["127.0.0.1", "127.13.0.9", "::1", "::ffff:127.0.0.1"] {
+        assert!(entered.permits(ip(loopback)), "{loopback}");
+        assert!(
+            !AddressPolicy::new(true).permits(ip(loopback)),
+            "{loopback}"
+        );
+    }
+    for local in ["169.254.169.254", "0.0.0.0", "fe80::1", "::"] {
+        assert!(!entered.permits(ip(local)), "{local}");
+    }
+    // The service's own address stays refused even with loopback permitted.
+    let listen = SocketAddr::from(([127, 0, 0, 1], 8710));
+    assert!(
+        !entered
+            .clone()
+            .listening_on(Some(listen))
+            .permits(ip("127.0.0.1"))
+    );
+}
+
+/// A redirect to one of the service's own ports is refused on any host, since a name is
+/// judged by the resolver, which never sees the port.
+#[test]
+fn a_redirect_to_a_refused_port_is_refused_on_any_host() {
+    let policy = AddressPolicy::new(true)
+        .with_loopback()
+        .refusing_redirects_to(&[8710, 9666]);
+    assert!(
+        policy
+            .hop_refusal(&url("http://localhost:8710/api/v1/settings"))
+            .is_some()
+    );
+    assert!(
+        policy
+            .hop_refusal(&url("http://127.0.0.1:9666/flash/add"))
+            .is_some()
+    );
+    assert!(
+        policy
+            .hop_refusal(&url("https://files.example:8710/x"))
+            .is_some()
+    );
+    assert!(
+        policy
+            .hop_refusal(&url("http://localhost:2586/alerts"))
+            .is_none()
+    );
+    assert!(
+        policy
+            .hop_refusal(&url("https://files.example/x"))
+            .is_none()
+    );
+}

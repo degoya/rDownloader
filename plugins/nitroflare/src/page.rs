@@ -205,17 +205,6 @@ pub(crate) fn is_provider_host(host: &str) -> bool {
     host == PRIMARY || host.ends_with(&format!(".{PRIMARY}"))
 }
 
-/// The `filename=` parameter of a `Content-Disposition` header value.
-#[must_use]
-pub(crate) fn file_name_from_disposition(value: &str) -> Option<String> {
-    value.split(';').find_map(|part| {
-        let (name, value) = part.trim().split_once('=')?;
-        name.eq_ignore_ascii_case("filename")
-            .then(|| value.trim_matches(['\'', '"']).to_owned())
-            .filter(|value| !value.is_empty())
-    })
-}
-
 /// The file name a Nitroflare direct link ends with, used when the transfer carries no
 /// `Content-Disposition`.
 #[must_use]

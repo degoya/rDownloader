@@ -14,6 +14,47 @@ use tokio_util::sync::CancellationToken;
 /// the file on disk, the row only feeds the progress bar.
 const PROGRESS_INTERVAL_BYTES: u64 = 1024 * 1024;
 
+/// The per-megabyte progress writes one transfer attempt started (RD-191-06, PLUG-19).
+///
+/// They run beside the guest so a slow write cannot pace the transfer, which also means one
+/// can still be on its way when the attempt ends; landing after the final write, it put an
+/// older count back into the row. The runner waits for them before it writes the outcome.
+#[derive(Default)]
+struct ProgressWrites {
+    pending: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
+}
+
+impl ProgressWrites {
+    fn spawn(&self, write: impl std::future::Future<Output = ()> + Send + 'static) {
+        let handle = tokio::spawn(write);
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.retain(|handle| !handle.is_finished());
+            pending.push(handle);
+        }
+    }
+
+    /// Waits for every write started so far.
+    async fn settle(&self) {
+        let pending = self
+            .pending
+            .lock()
+            .map(|mut pending| std::mem::take(&mut *pending))
+            .unwrap_or_default();
+        for handle in pending {
+            if let Err(error) = handle.await {
+                tracing::warn!(error = %error, "a plugin transfer progress write did not finish");
+            }
+        }
+    }
+}
+
+/// Logs a write whose failure must not end the transfer but must not vanish either.
+fn logged(result: Result<()>, what: &'static str) {
+    if let Err(error) = result {
+        tracing::warn!(error = %error, "could not {what}");
+    }
+}
+
 /// Carries queue rows whose protocol comes from an installed backend.
 pub struct PluginTransferRunner {
     backends: crate::TransferBackends,
@@ -139,7 +180,7 @@ impl ExternalRunner for PluginTransferRunner {
         let credential_ref = file.remote_credential_id.map(|id| id.to_string());
         // The probe writes nothing, but it runs against a real store so a backend cannot
         // tell the two calls apart and keep state between them.
-        let probe_state = self.state(
+        let (probe_state, _) = self.state(
             &backend,
             file.id,
             TransferTarget {
@@ -177,7 +218,7 @@ impl ExternalRunner for PluginTransferRunner {
         // file sized to the whole payload up front made a stopped transfer continue from its end,
         // with nothing but zeros behind the bytes that had arrived (RD-180-12).
         let part = PartFile::open(part_path.clone(), None).await?;
-        let state = self.state(
+        let (state, progress_writes) = self.state(
             &backend,
             file.id,
             TransferTarget {
@@ -202,7 +243,10 @@ impl ExternalRunner for PluginTransferRunner {
         let plugin_id = manifest.id.to_string();
         let version = manifest.version.clone();
 
-        match backend.run(state, job).await {
+        let outcome = backend.run(state, job).await;
+        // Before anything below writes the row, so no progress write lands after it.
+        progress_writes.settle().await;
+        match outcome {
             Ok(TransferOutcome::Stopped {
                 committed,
                 checkpoint,
@@ -214,10 +258,12 @@ impl ExternalRunner for PluginTransferRunner {
                 });
                 self.persist(file, &plugin_id, &version, Some(checkpoint))
                     .await;
-                let _ = self
-                    .database
-                    .set_download_progress(file.id, committed, remote.size)
-                    .await;
+                logged(
+                    self.database
+                        .set_download_progress(file.id, committed, remote.size)
+                        .await,
+                    "record a stopped plugin transfer's progress",
+                );
                 Ok(RunOutcome::Stopped)
             }
             Ok(TransferOutcome::Complete { committed, .. }) => {
@@ -244,11 +290,16 @@ impl ExternalRunner for PluginTransferRunner {
                 // Promoting behind an open handle is a sharing violation on Windows and a
                 // silent write into an already published file everywhere else.
                 part.finalize(&final_path).await?;
-                let _ = self.database.clear_plugin_transfer(file.id).await;
-                let _ = self
-                    .database
-                    .set_download_progress(file.id, committed, remote.size)
-                    .await;
+                logged(
+                    self.database.clear_plugin_transfer(file.id).await,
+                    "clear a finished plugin transfer's checkpoint",
+                );
+                logged(
+                    self.database
+                        .set_download_progress(file.id, committed, remote.size)
+                        .await,
+                    "record a finished plugin transfer's progress",
+                );
                 Ok(RunOutcome::Completed { final_name: name })
             }
             Err(failure) => {
@@ -267,9 +318,11 @@ impl PluginTransferRunner {
         target: TransferTarget,
         cancellation: &CancellationToken,
         limits: &RunLimits,
-    ) -> TransferState {
+    ) -> (TransferState, Arc<ProgressWrites>) {
         let committed = target.committed;
         let database = self.database.clone();
+        let writes = Arc::new(ProgressWrites::default());
+        let spawner = Arc::clone(&writes);
         let reported = Arc::new(std::sync::atomic::AtomicU64::new(committed));
         // One row update per megabyte and never on the guest's thread: the resume-relevant
         // state is the file on disk, so a slow write here must not pace the transfer.
@@ -280,8 +333,11 @@ impl PluginTransferRunner {
             }
             reported.store(committed, std::sync::atomic::Ordering::Relaxed);
             let database = database.clone();
-            tokio::spawn(async move {
-                let _ = database.set_download_progress(file, committed, total).await;
+            spawner.spawn(async move {
+                logged(
+                    database.set_download_progress(file, committed, total).await,
+                    "record a plugin transfer's progress",
+                );
             });
         });
         let state = TransferState::new(
@@ -292,11 +348,12 @@ impl PluginTransferRunner {
             Arc::clone(&self.tls),
             progress,
         );
-        if self.backends.allows_local_targets() {
+        let state = if self.backends.allows_local_targets() {
             state.allowing_local_targets()
         } else {
             state
-        }
+        };
+        (state, writes)
     }
 
     async fn validate_resume(
@@ -306,16 +363,18 @@ impl PluginTransferRunner {
         committed: u64,
     ) -> Option<Failure> {
         if committed == 0 {
-            let _ = self
-                .database
-                .prepare_transfer(
-                    file.id,
-                    remote.size,
-                    None,
-                    remote.last_modified.clone(),
-                    Vec::new(),
-                )
-                .await;
+            logged(
+                self.database
+                    .prepare_transfer(
+                        file.id,
+                        remote.size,
+                        None,
+                        remote.last_modified.clone(),
+                        Vec::new(),
+                    )
+                    .await,
+                "record a new plugin transfer's validators",
+            );
             return None;
         }
         let stored = self.database.load_transfer(file.id).await.ok()?;
@@ -352,5 +411,33 @@ impl PluginTransferRunner {
         {
             tracing::warn!(error = %error, "could not persist the plugin transfer checkpoint");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    use super::ProgressWrites;
+
+    /// PLUG-19: a progress write still on its way when the attempt ends is waited for, so the
+    /// outcome written after it is the last word in the row.
+    #[tokio::test]
+    async fn settling_waits_for_every_progress_write_started() {
+        let writes = ProgressWrites::default();
+        let landed = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&landed);
+        writes.spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            flag.store(true, Ordering::SeqCst);
+        });
+
+        writes.settle().await;
+
+        assert!(landed.load(Ordering::SeqCst));
+        assert!(writes.pending.lock().expect("lock").is_empty());
     }
 }

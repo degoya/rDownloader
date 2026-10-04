@@ -24,8 +24,8 @@
 //   logged or written to storage here.
 // - The browser's copy is removed only after rDownloader said it took the file.
 
-import { normalizeServer } from './api.js'
-import { baseName, staysInBrowser } from './intercept.js'
+import { request } from './api.js'
+import { baseName, headerValue, staysInBrowser } from './intercept.js'
 import { toNetscape } from './session.js'
 
 /** The `storage.local` key holding the hosts a person allowed. */
@@ -150,23 +150,10 @@ export async function readAddressCookies(api, url) {
   }
 }
 
-async function readResult(response) {
-  let payload = null
-  try {
-    payload = await response.json()
-  } catch {
-    payload = null
-  }
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      code: payload?.code ?? (response.status === 401 ? 'auth.unauthorized' : 'http'),
-      message: payload?.error ?? `HTTP ${response.status}`,
-      kind: null
-    }
-  }
-  return { ok: true, status: response.status, code: null, message: null, kind: payload?.kind ?? null }
+/** The answer of an upload, with the kind of intake the service made of it. */
+function fileResult(result) {
+  if (!result.ok) return { ok: false, status: result.status, code: result.code, message: result.message, kind: null }
+  return { ok: true, status: result.status, code: null, message: null, kind: result.payload?.kind ?? null }
 }
 
 /** Posts copied bytes as an upload. Result shape: { ok, status, code, message, kind }. */
@@ -174,16 +161,7 @@ export async function submitFileBytes(config, { bytes, fileName }, fetchImpl = f
   const form = new FormData()
   form.append('file', bytes instanceof Blob ? bytes : new Blob([bytes]), fileName || 'download')
   if (fileName) form.append('file_name', fileName)
-  try {
-    const response = await fetchImpl(`${normalizeServer(config.server)}/api/v1/capture/file`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${config.token ?? ''}` },
-      body: form
-    })
-    return await readResult(response)
-  } catch (error) {
-    return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error), kind: null }
-  }
+  return fileResult(await request(config, '/api/v1/capture/file', { method: 'POST', body: form }, fetchImpl))
 }
 
 /** Posts an address with its cookies for the service's one fetch. Same result shape. */
@@ -197,23 +175,7 @@ export async function submitFileAddress(config, { url, cookies, referrer, userAg
   if (referrer) body.referrer = String(referrer)
   if (userAgent) body.user_agent = String(userAgent)
   if (fileName) body.file_name = String(fileName)
-  try {
-    const response = await fetchImpl(`${normalizeServer(config.server)}/api/v1/capture/file`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${config.token ?? ''}` },
-      body: JSON.stringify(body)
-    })
-    return await readResult(response)
-  } catch (error) {
-    return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error), kind: null }
-  }
-}
-
-function headerValue(headers, name) {
-  for (const header of headers ?? []) {
-    if (String(header?.name ?? '').toLowerCase() === name) return String(header?.value ?? '')
-  }
-  return null
+  return fileResult(await request(config, '/api/v1/capture/file', { method: 'POST', body: JSON.stringify(body) }, fetchImpl))
 }
 
 /** The file name a response names, else the last segment of its address. */

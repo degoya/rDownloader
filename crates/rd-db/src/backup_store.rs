@@ -65,9 +65,11 @@ pub struct ReplacementStreamChannel {
 ///
 /// The archive is deliberately *not* part of it: item history is not configuration, and
 /// restoring a bundle onto another machine must not make that machine believe it has
-/// already downloaded things it has not. A restored subscription therefore starts unprimed
-/// and applies its backlog policy afresh — which is the safe direction, because the policy
-/// defaults to "nothing that already exists".
+/// already downloaded things it has not. A subscription the installation does not hold yet
+/// therefore starts unprimed and applies its backlog policy afresh — which is the safe
+/// direction, because the policy defaults to "nothing that already exists". One it holds under
+/// the same id keeps its archive, its runs and its priming, as an edit in the view does
+/// (RA-DB-04): the archive is what stops it from queueing the whole feed again.
 #[derive(Clone, Debug)]
 pub struct ReplacementSubscription {
     pub id: rd_core::SubscriptionId,
@@ -149,10 +151,19 @@ pub struct ConfigReplacement {
     pub indexers: Vec<ReplacementIndexer>,
 }
 
+/// What a replacement changed beyond the tables it wrote.
+#[derive(Debug, Default)]
+pub(crate) struct ReplacementOutcome {
+    pub(crate) events: Vec<EventEnvelope>,
+    /// Vault references of sign-ins whose account the bundle no longer names: their rows went
+    /// with the account, so nothing points at the values any more.
+    pub(crate) released_secrets: Vec<String>,
+}
+
 pub(crate) async fn replace_all(
     connection: &mut SqliteConnection,
     mut replacement: ConfigReplacement,
-) -> Result<Vec<EventEnvelope>> {
+) -> Result<ReplacementOutcome> {
     // A bundle predates the single-default invariant or was hand-edited: repair it rather than
     // refuse the restore, so an import can never leave the install without a default root.
     crate::config_store::normalize_storage_root_defaults(&mut replacement.storage_roots);
@@ -168,16 +179,22 @@ pub(crate) async fn replace_all(
     sqlx::query("PRAGMA defer_foreign_keys = ON")
         .execute(&mut *tx)
         .await?;
+    // Accounts and stream channels own state that is not configuration -- sign-ins with their
+    // vaulted tokens, remote jobs, recording schedules and their runs -- through `ON DELETE
+    // CASCADE`, and deferring the foreign keys defers the check, never the cascade (DB-01). So
+    // only the rows the bundle no longer names are deleted, taking their children with them;
+    // the others are updated in place below and keep theirs.
+    let released_secrets = drop_unnamed_accounts(&mut tx, &replacement.accounts).await?;
+    drop_unnamed_stream_channels(&mut tx, &replacement.stream_channels).await?;
+    // Subscriptions the same way (RA-DB-04): their archive is the once-only guarantee, so a
+    // named one keeps it; a dropped one's archive passwords reach the sweep through the
+    // `subscription_items` delete trigger, and `Database::replace_config` sweeps them.
+    drop_unnamed_subscriptions(&mut tx, &replacement.subscriptions).await?;
     for table in [
         "indexers",
         "auth_profiles",
-        "accounts",
         "usenet_servers",
         "proxy_profiles",
-        "stream_channels",
-        "subscription_runs",
-        "subscription_items",
-        "subscriptions",
         "hotfolders",
         "category_rules",
         "categories",
@@ -303,7 +320,11 @@ pub(crate) async fn replace_all(
         sqlx::query(
             "INSERT INTO stream_channels (id, url, name, quality, category_id, enabled, \
              last_live_at, last_error, recording_json, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET url = excluded.url, name = excluded.name, \
+             quality = excluded.quality, category_id = excluded.category_id, \
+             enabled = excluded.enabled, recording_json = excluded.recording_json, \
+             updated_at = excluded.updated_at",
         )
         .bind(value.id.to_string())
         .bind(value.url)
@@ -324,7 +345,28 @@ pub(crate) async fn replace_all(
              source_categories_json, every_release, view, autoplay, card_ratio, schedule, \
              script_arguments_json, indexer_search_json, git_release_json, primed, \
              consecutive_failures, secret_ref, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name, url = excluded.url, \
+             kind = excluded.kind, enabled = excluded.enabled, mode = excluded.mode, \
+             category_id = excluded.category_id, priority = excluded.priority, \
+             interval_seconds = excluded.interval_seconds, filters_json = excluded.filters_json, \
+             backlog_json = excluded.backlog_json, \
+             category_map_json = excluded.category_map_json, \
+             source_categories_json = excluded.source_categories_json, \
+             every_release = excluded.every_release, view = excluded.view, \
+             autoplay = excluded.autoplay, card_ratio = excluded.card_ratio, \
+             script_arguments_json = excluded.script_arguments_json, \
+             indexer_search_json = excluded.indexer_search_json, \
+             git_release_json = excluded.git_release_json, secret_ref = excluded.secret_ref, \
+             etag = CASE WHEN subscriptions.url IS excluded.url \
+               AND subscriptions.git_release_json IS excluded.git_release_json \
+               THEN subscriptions.etag ELSE NULL END, \
+             last_modified = CASE WHEN subscriptions.url IS excluded.url \
+               AND subscriptions.git_release_json IS excluded.git_release_json \
+               THEN subscriptions.last_modified ELSE NULL END, \
+             next_run_at = CASE WHEN subscriptions.schedule IS excluded.schedule \
+               THEN subscriptions.next_run_at ELSE NULL END, \
+             schedule = excluded.schedule, updated_at = excluded.updated_at",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -424,7 +466,12 @@ pub(crate) async fn replace_all(
         sqlx::query(
             "INSERT INTO accounts (id, provider, label, username, credential_mode, secret_ref, \
              cookie_ref, proxy_profile_id, enabled, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET label = excluded.label, \
+             username = excluded.username, credential_mode = excluded.credential_mode, \
+             secret_ref = excluded.secret_ref, cookie_ref = excluded.cookie_ref, \
+             proxy_profile_id = excluded.proxy_profile_id, enabled = excluded.enabled, \
+             updated_at = excluded.updated_at",
         )
         .bind(value.id.to_string())
         .bind(value.provider)
@@ -481,7 +528,85 @@ pub(crate) async fn replace_all(
         insert_event(&mut tx, event).await?;
     }
     tx.commit().await?;
-    Ok(events)
+    Ok(ReplacementOutcome {
+        events,
+        released_secrets,
+    })
+}
+
+/// Deletes the accounts the bundle does not name -- or names for another provider, whose
+/// sign-in and remote jobs would mean nothing to the new one -- and answers the vault
+/// references their sign-ins held, which the cascade leaves without an owner.
+async fn drop_unnamed_accounts(
+    tx: &mut SqliteConnection,
+    kept: &[ReplacementAccount],
+) -> Result<Vec<String>> {
+    let existing: Vec<(String, String)> = sqlx::query_as("SELECT id, provider FROM accounts")
+        .fetch_all(&mut *tx)
+        .await?;
+    let mut released = Vec::new();
+    for (id, provider) in existing {
+        let id: AccountId = id.parse()?;
+        if kept
+            .iter()
+            .any(|account| account.id == id && account.provider == provider)
+        {
+            continue;
+        }
+        released.extend(crate::auth_flow_store::sign_in_references(&mut *tx, id).await?);
+        sqlx::query("DELETE FROM accounts WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+    }
+    Ok(released)
+}
+
+/// Deletes the stream channels the bundle does not name; their schedules and runs go with them.
+async fn drop_unnamed_stream_channels(
+    tx: &mut SqliteConnection,
+    kept: &[ReplacementStreamChannel],
+) -> Result<()> {
+    let existing: Vec<String> = sqlx::query_scalar("SELECT id FROM stream_channels")
+        .fetch_all(&mut *tx)
+        .await?;
+    for id in existing {
+        if kept.iter().any(|channel| channel.id.to_string() == id) {
+            continue;
+        }
+        sqlx::query("DELETE FROM stream_channels WHERE id = ?")
+            .bind(&id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Deletes the subscriptions the bundle does not name, their archive and runs first so the
+/// archive's delete trigger hands every archive password to the sweep.
+async fn drop_unnamed_subscriptions(
+    tx: &mut SqliteConnection,
+    kept: &[ReplacementSubscription],
+) -> Result<()> {
+    let existing: Vec<String> = sqlx::query_scalar("SELECT id FROM subscriptions")
+        .fetch_all(&mut *tx)
+        .await?;
+    for id in existing {
+        if kept
+            .iter()
+            .any(|subscription| subscription.id.to_string() == id)
+        {
+            continue;
+        }
+        for statement in [
+            "DELETE FROM subscription_items WHERE subscription_id = ?",
+            "DELETE FROM subscription_runs WHERE subscription_id = ?",
+            "DELETE FROM subscriptions WHERE id = ?",
+        ] {
+            sqlx::query(statement).bind(&id).execute(&mut *tx).await?;
+        }
+    }
+    Ok(())
 }
 
 fn replacement_events() -> Vec<EventEnvelope> {

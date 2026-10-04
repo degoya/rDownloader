@@ -132,7 +132,7 @@
   },
   "retries": {
     "label": "Retries per file",
-    "description": "Attempts after transient errors before a download counts as failed (0–100)"
+    "description": "Attempts after transient errors before a download counts as failed (0–100). Waiting out a hoster’s limit or IP block does not count."
   },
   "import_history": {
     "label": "Keep import history",
@@ -489,6 +489,19 @@
       "enabled": {
         "label": "Show cover images",
         "description": "On by default. While it is off, the details of a hit stay visible and only the pictures are left unloaded, so the indexer is not told which hits are on screen."
+      }
+    },
+    "nzb_hand_over": {
+      "eyebrow": "NZB",
+      "title": "Hand to provider",
+      "description": "An NZB can be handed to an account whose provider takes NZB files (such as TorBox or Premiumize): from the LinkGrabber before it is queued, or from the Downloads, for instance when a package failed. The provider fetches the NZB from Usenet itself; the finished files come back into the LinkGrabber as links.",
+      "linkgrabber": {
+        "label": "Show the hand-over in the LinkGrabber",
+        "description": "On by default. The menu in each NZB row and the entry in the selection bar appear only while you have an account with a provider that takes NZB files (TorBox, Premiumize). An import already handed over keeps its badge."
+      },
+      "downloads": {
+        "label": "Show the hand-over in the Downloads",
+        "description": "On by default. The entry in the menu of a package that came from an NZB appears in any state of the package, failed included, but only while you have an account with a provider that takes NZB files (TorBox, Premiumize). A package already handed over keeps its badge."
       }
     }
   },
@@ -945,5 +958,13 @@
       "updates": "Updates",
       "retention": "Retention"
     }
+  },
+  "auto_retry": {
+    "label": "Retry failed downloads automatically",
+    "description": "A download that failed on a limit, an IP block, an unreachable server or a file reported offline goes back into the queue after a while. A deleted link, a refused account or a wrong checksum does not.",
+    "interval_label": "Interval",
+    "interval_description": "Hours between the failure and the next attempt (1–24).",
+    "rounds_label": "Rounds per download",
+    "rounds_description": "How often a download goes back into the queue at most; 0 means no limit (0–100)."
   }
 }

@@ -161,27 +161,24 @@ async fn file_info_status<H: PluginHost>(
     host: &H,
     link: &str,
 ) -> Result<Option<api::FileInfoResponse>, Failure> {
-    let response = raw_call(host, "/file/info.cgi", api::link_body(link)).await?;
-    if response.status == 404 {
-        return Ok(None);
+    match file_info(host, link).await {
+        Ok(info) => Ok(Some(info)),
+        Err(failure) if failure.code.as_deref() == Some(messages::FILE_OFFLINE.0) => Ok(None),
+        Err(failure) => Err(failure),
     }
+}
+
+/// `file/info.cgi` for `resolve`, which cannot hand an offline file back. A `404` or `410` is
+/// the file deleted and final (`Permanent`, owner 2026-10-04); the API's own "not found" word
+/// keeps its class. Both carry `FILE_OFFLINE`, which is what the check reads.
+async fn file_info<H: PluginHost>(host: &H, link: &str) -> Result<api::FileInfoResponse, Failure> {
+    let response = raw_call(host, "/file/info.cgi", api::link_body(link)).await?;
     ensure_http_status(&response)?;
     let info: api::FileInfoResponse = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(info.status.as_deref(), info.message.as_deref()) {
-        return if matches!(failure.kind, api::ErrorKind::Offline) {
-            Ok(None)
-        } else {
-            Err(convert_failure(failure))
-        };
+        return Err(convert_failure(failure));
     }
-    Ok(Some(info))
-}
-
-/// As [`file_info_status`], but an offline file fails: `resolve` cannot hand one back.
-async fn file_info<H: PluginHost>(host: &H, link: &str) -> Result<api::FileInfoResponse, Failure> {
-    file_info_status(host, link)
-        .await?
-        .ok_or_else(|| coded(FailureKind::Offline, messages::FILE_OFFLINE))
+    Ok(info)
 }
 
 async fn call<H: PluginHost>(host: &H, path: &str, body: Vec<u8>) -> Result<HttpResponse, Failure> {
@@ -223,7 +220,11 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
 }
 
 fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    api::ensure_http_status(response.status).map_err(convert_failure)
+    api::ensure_http_status(
+        response.status,
+        plugin_common::retry_after(&response.headers),
+    )
+    .map_err(convert_failure)
 }
 
 pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {

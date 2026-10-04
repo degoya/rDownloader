@@ -7,10 +7,10 @@
  * kept rather than by the glyph that replaced it, because an icon that lost its accessible
  * name is a regression that looks like a success.
  */
-import { screen, within } from '@testing-library/vue'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { fireEvent, screen, within } from '@testing-library/vue'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { DownloadPackage } from '@/api/types'
+import type { DownloadPackage, PostprocessStep } from '@/api/types'
 import { i18n } from '@/i18n'
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
@@ -54,8 +54,9 @@ function group(overrides: Partial<DownloadPackage> = {}): DownloadPackage {
   } as unknown as DownloadPackage
 }
 
-function renderGroup(value: DownloadPackage, props: Record<string, unknown> = {}) {
+function renderGroup(value: DownloadPackage, props: Record<string, unknown> = {}, plugins: unknown[] = []) {
   return mountComponent(PackageGroup, {
+    plugins,
     messages: { downloads, common },
     props: {
       package: value,
@@ -343,5 +344,42 @@ describe('PackageGroup link actions', () => {
     const labels = (files: Record<string, unknown>[]) => itemsFor(files).map(item => item.label)
     expect(labels([media('a', 'https://video.example/v/1'), media('b', 'https://video.example/v/2')])).not.toContain(common.actions.open_source_page)
     expect(labels([{ id: 'c', file_name: 'c.bin', state: 'queued', committed_bytes: '0', total_bytes: '1' }])).not.toContain(common.actions.open_source_page)
+  })
+})
+
+describe('PackageGroup failed post-processing', () => {
+  const reason = 'Extraction failed: CRC error in Some.Release.part03.rar — the archive is damaged, '
+    + 'a repair with the PAR2 volumes did not have enough recovery blocks to restore it'
+  const failedStep = {
+    kind: 'extract_rar',
+    state: 'failed',
+    source_path: '/downloads/Some Release/Some.Release.part01.rar',
+    message: reason,
+    owner_id: 'package-1',
+    position: 1,
+    updated_at: '2026-10-04T10:00:00Z'
+  } as unknown as PostprocessStep
+
+  // RD-191-11: the badge said that it failed and nothing about why; the reason sat one menu away.
+  it('opens the steps from the failed badge and shows the reason whole', async () => {
+    const loadPostprocess = vi.fn(async () => [failedStep])
+    renderGroup(
+      group({ state: 'failed', extraction_result: 'failed' } as unknown as Partial<DownloadPackage>),
+      {},
+      [{ install: (app: { provide: (key: string, value: unknown) => void }) => app.provide('loadPostprocess', loadPostprocess) }]
+    )
+    const badge = screen.getByRole('button', { name: downloads.package.extract_failed })
+    expect(badge.getAttribute('aria-expanded')).toBe('false')
+
+    await fireEvent.click(badge)
+    expect(loadPostprocess).toHaveBeenCalledWith('package-1')
+    expect(badge.getAttribute('aria-expanded')).toBe('true')
+    const message = await screen.findByText(reason)
+    expect(message.className).not.toContain('truncate')
+    expect(message.className).toContain('whitespace-pre-line')
+
+    await fireEvent.click(badge)
+    expect(badge.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText(reason)).toBeNull()
   })
 })

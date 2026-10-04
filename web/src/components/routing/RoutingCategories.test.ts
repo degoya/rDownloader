@@ -124,6 +124,26 @@ describe('RoutingCategories', () => {
     expect(screen.queryByText(common.editing)).toBeNull()
   })
 
+  /**
+   * The colour picker has no keyboard operation and named no value (RA-WEB-02): the colour is a
+   * field of its own as well, refused unless it is the `#rrggbb` the service takes, and the
+   * picker's button says which colour is set.
+   */
+  it('takes the colour as an exact hex value from the keyboard and names it on the picker', async () => {
+    mount()
+    const pick = (color: string) => routing.category.color_pick.replace('{color}', color)
+    expect(screen.getByRole('button', { name: pick('#38BDF8') })).toBeTruthy()
+    const hex = screen.getByRole('textbox', { name: routing.category.color_hex }) as HTMLInputElement
+    expect(hex.value).toBe('#38BDF8')
+
+    await fireEvent.update(hex, '#12ab9')
+    expect(hex.validity.patternMismatch).toBe(true)
+
+    await fireEvent.update(hex, '#12AB9F')
+    expect(hex.validity.valid).toBe(true)
+    expect(screen.getByRole('button', { name: pick('#12AB9F') })).toBeTruthy()
+  })
+
   it('titles the list column and counts its rows', () => {
     mount()
 

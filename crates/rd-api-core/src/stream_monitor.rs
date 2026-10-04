@@ -225,11 +225,18 @@ impl StreamMonitorService {
             match rd_stream::probe_stream(&streamlink.path, &channel.url).await {
                 Ok(probe) if probe.live => {
                     errors.remove(&channel.id);
-                    let _ = self
+                    if let Err(error) = self
                         .inner
                         .database
                         .touch_stream_channel(channel.id, Some(chrono::Utc::now()), None)
-                        .await;
+                        .await
+                    {
+                        tracing::warn!(
+                            channel = %channel.name,
+                            error = %format!("{error:#}"),
+                            "stream channel state could not be stored"
+                        );
+                    }
                     match start_recording(
                         &self.inner.database,
                         &self.inner.scheduler,
@@ -243,8 +250,8 @@ impl StreamMonitorService {
                     {
                         Err(error) => {
                             tracing::warn!(channel = %channel.name, %error, "recording could not be started");
-                            if let Some((run, _)) = &active {
-                                let _ = self
+                            if let Some((run, _)) = &active
+                                && let Err(store_error) = self
                                     .inner
                                     .database
                                     .set_stream_run_state(
@@ -254,7 +261,13 @@ impl StreamMonitorService {
                                         None,
                                         Some(rd_core::redact_text(&error.to_string())),
                                     )
-                                    .await;
+                                    .await
+                            {
+                                tracing::warn!(
+                                    channel = %channel.name,
+                                    error = %format!("{store_error:#}"),
+                                    "scheduled recording state could not be stored"
+                                );
                             }
                         }
                         Ok(package) => {
@@ -265,16 +278,24 @@ impl StreamMonitorService {
                                 // provider did not offer.
                                 let replay_used =
                                     schedule.replay_from_start && probe.replay_available;
-                                let download_id =
-                                    self.inner.database.list_downloads().await.ok().and_then(
-                                        |files| {
-                                            files
-                                                .into_iter()
-                                                .find(|file| file.package_id == package.id)
-                                                .map(|file| file.id)
-                                        },
-                                    );
-                                let _ = self
+                                // One package, one file: read just that package's rows.
+                                let download_id = match self
+                                    .inner
+                                    .database
+                                    .downloads_for_package(package.id)
+                                    .await
+                                {
+                                    Ok(files) => files.first().map(|file| file.id),
+                                    Err(error) => {
+                                        tracing::warn!(
+                                            channel = %channel.name,
+                                            error = %format!("{error:#}"),
+                                            "recording download could not be read back"
+                                        );
+                                        None
+                                    }
+                                };
+                                if let Err(error) = self
                                     .inner
                                     .database
                                     .set_stream_run_state(
@@ -284,26 +305,47 @@ impl StreamMonitorService {
                                         Some(replay_used),
                                         None,
                                     )
-                                    .await;
+                                    .await
+                                {
+                                    tracing::warn!(
+                                        channel = %channel.name,
+                                        error = %format!("{error:#}"),
+                                        "scheduled recording state could not be stored"
+                                    );
+                                }
                             }
                         }
                     }
                 }
                 Ok(_) => {
                     errors.remove(&channel.id);
-                    let _ = self
+                    if let Err(error) = self
                         .inner
                         .database
                         .touch_stream_channel(channel.id, None, None)
-                        .await;
+                        .await
+                    {
+                        tracing::warn!(
+                            channel = %channel.name,
+                            error = %format!("{error:#}"),
+                            "stream channel state could not be stored"
+                        );
+                    }
                 }
                 Err(error) => {
                     *errors.entry(channel.id).or_default() += 1;
-                    let _ = self
+                    if let Err(store_error) = self
                         .inner
                         .database
                         .touch_stream_channel(channel.id, None, Some(error.to_string()))
-                        .await;
+                        .await
+                    {
+                        tracing::warn!(
+                            channel = %channel.name,
+                            error = %format!("{store_error:#}"),
+                            "stream channel state could not be stored"
+                        );
+                    }
                 }
             }
         }

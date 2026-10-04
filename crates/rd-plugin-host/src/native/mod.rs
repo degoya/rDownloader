@@ -30,6 +30,7 @@ pub use expand::{
 };
 pub(crate) use granted::GrantedHost;
 use host::NativeHost;
+pub(crate) use host::{with_own_network, with_response_allowance};
 pub use transfer_auth::{provider_download_authorization, provider_download_carries_credential};
 
 /// The resolver chain: the installed resolver components, on the application's own host.
@@ -80,6 +81,9 @@ impl Chain {
 }
 
 impl ResolverService {
+    /// The service, with `own` as the listeners no plugin request may reach (RA-HOST-01). They
+    /// are also published for the decisions made without a host in hand, such as whether a
+    /// notification target may be saved.
     #[must_use]
     pub fn new(
         database: rd_db::Database,
@@ -87,14 +91,19 @@ impl ResolverService {
         secrets: rd_secrets::SecretStore,
         network_defaults: SharedNetworkDefaults,
         captcha: Option<Arc<dyn rd_plugin_api::CaptchaSolver>>,
+        own: crate::OwnEndpoints,
     ) -> Self {
-        let host: Arc<dyn ResolverHost> = Arc::new(NativeHost::new(
-            database.clone(),
-            clients,
-            secrets,
-            network_defaults,
-            captcha,
-        ));
+        crate::own_endpoints::publish(&own);
+        let host: Arc<dyn ResolverHost> = Arc::new(
+            NativeHost::new(
+                database.clone(),
+                clients,
+                secrets,
+                network_defaults,
+                captcha,
+            )
+            .with_own_endpoints(own),
+        );
         Self {
             database,
             // Nothing is compiled in (RD-150-18): the chain is the installed resolver
@@ -825,6 +834,7 @@ credentials = "api_key"
             secrets,
             Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
             None,
+            crate::OwnEndpoints::default(),
         )
     }
 

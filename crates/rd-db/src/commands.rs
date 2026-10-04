@@ -16,10 +16,14 @@ use crate::{
 
 pub(crate) type Reply<T> = oneshot::Sender<Result<T>>;
 
+/// What deleting an account releases: its own secret and sign-in references, and the ones its
+/// sign-in held.
+pub(crate) type ReleasedAccountRefs = ((Option<String>, Option<String>), Vec<String>);
+
 pub(crate) enum WriterCommand {
     ReplaceConfig {
         replacement: crate::backup_store::ConfigReplacement,
-        reply: Reply<()>,
+        reply: Reply<Vec<String>>,
     },
     CreatePackage {
         package: NewPackage,
@@ -67,6 +71,12 @@ pub(crate) enum WriterCommand {
     TransitionDownload {
         id: DownloadId,
         next: DownloadState,
+        reply: Reply<DownloadFile>,
+    },
+    /// Queues a row its enqueue wrote paused, unless somebody touched it since `created_at`.
+    JoinQueue {
+        id: DownloadId,
+        created_at: DateTime<Utc>,
         reply: Reply<DownloadFile>,
     },
     /// Blocks a download and records why, so a release path can tell the causes apart.
@@ -141,7 +151,8 @@ pub(crate) enum WriterCommand {
     /// Creates or advances an authentication flow (RD-090-13).
     UpsertAuthFlow {
         input: Box<crate::auth_flow_store::UpsertAuthFlow>,
-        reply: Reply<rd_core::AuthFlow>,
+        /// The flow, and the vault references the row let go of.
+        reply: Reply<(rd_core::AuthFlow, Vec<String>)>,
     },
     /// Records the expiry and refresh reference a renewal produced (RD-103-00).
     SetAuthFlowRenewal {
@@ -150,7 +161,8 @@ pub(crate) enum WriterCommand {
         refresh_ref: Option<String>,
         /// `None` leaves whatever is stored alone; the token only moves when a caller says so.
         access_ref: Option<String>,
-        reply: Reply<()>,
+        /// The key reference a new token dropped.
+        reply: Reply<Option<String>>,
     },
     /// Records a sign-in's session beside the account's own credential (RD-120-30).
     SetAuthFlowSession {
@@ -173,10 +185,10 @@ pub(crate) enum WriterCommand {
         next_poll_at: chrono::DateTime<chrono::Utc>,
         reply: Reply<()>,
     },
-    /// Removes an authentication flow.
+    /// Removes an authentication flow; answers the vault references it and its parts held.
     DeleteAuthFlow {
         account_id: rd_core::AccountId,
-        reply: Reply<()>,
+        reply: Reply<Vec<String>>,
     },
     /// Hands back the flow waiting for an OAuth callback and forgets its state in the same write.
     TakeAuthFlowCallback {
@@ -351,6 +363,19 @@ pub(crate) enum WriterCommand {
         retry_at: Option<DateTime<Utc>>,
         reply: Reply<DownloadFile>,
     },
+    /// When the automatic retry takes a failed download up again (RD-191-12).
+    ScheduleAutoRetry {
+        id: DownloadId,
+        at: Option<DateTime<Utc>>,
+        reply: Reply<bool>,
+    },
+    /// A failed download back to `queued` with a fresh retry budget: a round of the automatic
+    /// retry (counted) or a person's resume.
+    RequeueFailed {
+        id: DownloadId,
+        auto_retry: bool,
+        reply: Reply<Option<DownloadFile>>,
+    },
     CompleteDownload {
         id: DownloadId,
         final_name: String,
@@ -516,7 +541,8 @@ pub(crate) enum WriterCommand {
     },
     DeleteAccount {
         id: rd_core::AccountId,
-        reply: Reply<(Option<String>, Option<String>)>,
+        /// The account's own references, and the ones its sign-in held.
+        reply: Reply<ReleasedAccountRefs>,
     },
     CreateProxyProfile {
         input: NewProxyProfile,
@@ -690,6 +716,12 @@ pub(crate) enum WriterCommand {
     DeleteNzbImport {
         id: rd_core::NzbImportId,
         reply: Reply<()>,
+    },
+    MarkNzbImportRemoteJob {
+        id: rd_core::NzbImportId,
+        remote_job_id: rd_core::RemoteJobId,
+        expected: rd_core::NzbImportState,
+        reply: Reply<rd_core::NzbImport>,
     },
     ForgetNzbImportHistory {
         package_id: rd_core::PackageId,

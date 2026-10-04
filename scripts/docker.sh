@@ -59,7 +59,9 @@ build)
     fi
     # shellcheck source=lib/version-file.sh
     source "$ROOT/scripts/lib/version-file.sh"
-    version="$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
+    # shellcheck source=lib/workspace-version.sh
+    source "$ROOT/scripts/lib/workspace-version.sh"
+    version="$(rd_workspace_version < Cargo.toml)"
     rd_build_stamp "${version:?version not found in Cargo.toml}"
     echo "==> building $TAG (cargo -j $JOBS, commit $RD_BUILD_COMMIT)"
     docker build \

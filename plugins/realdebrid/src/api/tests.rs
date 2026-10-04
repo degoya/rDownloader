@@ -212,7 +212,15 @@ fn ensure_http_status_maps_the_statuses_the_envelope_does_not_explain() {
     ));
     assert!(matches!(
         ensure_http_status(410, None).expect_err("410").kind,
+        ErrorKind::Permanent
+    ));
+    assert!(matches!(
+        ensure_http_status(451, None).expect_err("451").kind,
         ErrorKind::Offline
+    ));
+    assert!(matches!(
+        ensure_http_status(503, Some(20)).expect_err("503").kind,
+        ErrorKind::Transient(Some(20))
     ));
     let odd = ensure_http_status(418, None).expect_err("418");
     assert_eq!(odd.code, messages::HTTP_ERROR);
@@ -227,6 +235,9 @@ fn retry_after_reads_seconds_and_ignores_a_date() {
         None
     );
     assert_eq!(retry_after_seconds(None), None);
+    // The shared reader: `0` is no wait at all, a year is a day.
+    assert_eq!(retry_after_seconds(Some("0")), None);
+    assert_eq!(retry_after_seconds(Some("31536000")), Some(86_400));
 }
 
 #[test]

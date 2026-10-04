@@ -82,7 +82,8 @@ function toggleOutput(key: string): void {
           <UButton size="xs" color="neutral" variant="link" class="px-0" :icon="openOutput.has(stepKey(step)) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" :label="openOutput.has(stepKey(step)) ? t('downloads.postprocess.hide_output') : t('downloads.postprocess.show_output')" @click="toggleOutput(stepKey(step))" />
           <pre v-if="openOutput.has(stepKey(step))" class="max-h-64 overflow-auto whitespace-pre-wrap text-xs" :class="step.state === 'failed' ? 'text-error' : 'text-muted'">{{ step.message }}</pre>
         </template>
-        <p v-else-if="step.message || step.code" class="truncate" :class="step.state === 'failed' ? 'text-error' : 'text-muted'" :title="stepMessage(step)">{{ stepMessage(step) }}</p>
+        <!-- A failed step's reason is the answer the reader came for: wrapped in full, never cut. -->
+        <p v-else-if="step.message || step.code" :class="step.state === 'failed' ? 'whitespace-pre-line break-words text-error' : 'truncate text-muted'" :title="step.state === 'failed' ? undefined : stepMessage(step)">{{ stepMessage(step) }}</p>
       </div>
       <span class="numeric text-[11px] text-muted">{{ new Date(step.updated_at).toLocaleTimeString() }}</span>
     </div>

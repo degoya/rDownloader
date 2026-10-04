@@ -21,18 +21,20 @@ vi.mock('@/api/client', () => ({
  * could report a package it had left alone.
  */
 describe('transfers store: clearing the download list', () => {
-  const fetchMock = vi.fn()
-
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.mocked(api.POST).mockReset()
     vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
-    fetchMock.mockReset()
-    vi.stubGlobal('fetch', fetchMock)
   })
 
   function respond(body: unknown, ok = true): void {
-    fetchMock.mockResolvedValue({ ok, json: () => Promise.resolve(body) })
+    vi.mocked(api.POST).mockResolvedValue((ok ? { data: body } : { error: body }) as never)
+  }
+
+  function clearBodies(): unknown[] {
+    return (vi.mocked(api.POST).mock.calls as unknown as [string, unknown][])
+      .filter(([path]) => path === '/api/v1/packages/clear')
+      .map(([, init]) => (init as { body: unknown }).body)
   }
 
   it('asks the server once, for packages, instead of deleting rows one by one', async () => {
@@ -41,13 +43,9 @@ describe('transfers store: clearing the download list', () => {
 
     await store.clear('completed')
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(String(url)).toContain('/api/v1/packages/clear')
-    expect(init.method).toBe('POST')
-    expect(JSON.parse(String(init.body))).toEqual({ scope: 'completed' })
-    // The old path cancelled active rows through the typed client before deleting them.
-    expect(api.POST).not.toHaveBeenCalled()
+    // The old path cancelled active rows and deleted them one by one; one request is the rule.
+    expect(api.POST).toHaveBeenCalledTimes(1)
+    expect(clearBodies()).toEqual([{ scope: 'completed' }])
   })
 
   it('sends the entire-list clear confirmed, with the answer about partial files', async () => {
@@ -57,8 +55,7 @@ describe('transfers store: clearing the download list', () => {
     await store.clear('everything', true)
     await store.clear('everything')
 
-    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)))
-    expect(bodies).toEqual([
+    expect(clearBodies()).toEqual([
       { scope: 'everything', confirmed: true, delete_partial: true },
       { scope: 'everything', confirmed: true, delete_partial: false }
     ])
@@ -104,6 +101,25 @@ describe('transfers store: clearing the download list', () => {
 
     // The refusal is read through its code, so it arrives in the reader's language.
     expect(store.error).toBe('Files in this package are still running or waiting')
+  })
+
+  it('is ready for the next clear after a request that never arrived (WEB-02)', async () => {
+    // The client answers a dropped connection as a coded refusal; before, a raw `fetch` threw
+    // past the reset and `clearing` stood for good, so every later clear returned at once.
+    respond({ error: 'The service could not be reached', code: 'network.unreachable' }, false)
+    const store = useTransfersStore()
+
+    await store.clear('completed')
+    expect(store.clearing).toBe(false)
+    expect(store.error).not.toBeNull()
+
+    vi.mocked(api.POST).mockRejectedValueOnce(new Error('aborted'))
+    await expect(store.clear('completed')).rejects.toThrow('aborted')
+    expect(store.clearing).toBe(false)
+
+    respond({ removed: 1, skipped: [] })
+    await store.clear('completed')
+    expect(clearBodies()).toHaveLength(3)
   })
 
   it('removes packages without forcing unless the caller says so', async () => {

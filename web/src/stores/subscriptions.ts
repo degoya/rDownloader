@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import { subscribeEvents } from '@/composables/useEventStream'
+import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useLatestFetch } from '@/composables/useLatestFetch'
 import type {
   IndexerCaps,
   Subscription,
@@ -21,7 +22,7 @@ import { useSubscriptionItems } from './subscriptionsItems'
 export type { SubscriptionItemFilter } from './subscriptionsItems'
 
 /** What the server said when a check finished (RD-106-09). */
-export interface FinishedPoll {
+interface FinishedPoll {
   subscriptionId: string
   found: number
   accepted: number
@@ -44,24 +45,12 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
   const busy = ref(false)
-  /** True while the subscription list is being fetched — `busy` covers the write actions. */
-  const fetching = ref(false)
-  /** True once the first fetch has settled, so "no subscriptions" is only said when it is true. */
-  const settled = ref(false)
   /**
-   * What a view shows in place of an empty list while the **first** fetch is on its way
-   * (RD-104-07).
-   *
-   * Not `fetching.value || !settled.value` (RD-106-19): `fetching` goes true on every
-   * `refresh()`, and a refresh also runs on the poll timer and after every check, so an empty
-   * list kept trading its empty state for the loading skeleton and back — the reported
-   * flicker. `design.md` promises that surface for the first fetch alone. `settled` is set
-   * even when that first fetch failed, which is what we want: `loading` turns false, and
-   * `DataState` renders the error it prefers over the empty state instead. `fetching` itself is
-   * untouched: it still guards the scheduled refresh, and `busy`/`pollingIds` still drive the
-   * buttons.
+   * The list's fetch (`busy` and `pollingIds` drive the buttons). `loading` is the first fetch
+   * alone (RD-106-19): a refresh also runs after every check, and an empty list kept trading its
+   * empty state for the loading surface. Only the newest refresh lands (WEB-06).
    */
-  const loading = computed(() => !settled.value)
+  const { fetching, loading, run } = useLatestFetch()
   /**
    * The subscriptions whose "check now" request is in flight (RD-106-09).
    *
@@ -75,25 +64,18 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   /** The last check that finished, as the event stream reported it. */
   const lastPoll = ref<FinishedPoll | null>(null)
 
-  let releaseEvents: (() => void) | null = null
-  let refreshTimer: number | null = null
-
   async function refresh(): Promise<void> {
-    fetching.value = true
     try {
-      const response = await api.GET('/api/v1/subscriptions')
-      if (!response.data) {
-        error.value = responseError(response)
-        return
-      }
-      error.value = null
-      subscriptions.value = response.data
+      await run(() => api.GET('/api/v1/subscriptions'), (response) => {
+        if (!response.data) {
+          error.value = responseError(response)
+          return
+        }
+        error.value = null
+        subscriptions.value = response.data
+      })
     } catch {
       error.value = responseError(undefined)
-    } finally {
-      // `scheduleRefresh` waits for this flag; left set by a rejection it would wait forever.
-      fetching.value = false
-      settled.value = true
     }
   }
 
@@ -191,15 +173,10 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   }
 
   /** Re-reads the list, at most once per burst of events. */
-  function scheduleRefresh(): void {
-    if (refreshTimer !== null) return
-    refreshTimer = window.setTimeout(() => {
-      refreshTimer = null
-      // Re-arm rather than stacking a second request on one already in flight.
-      if (fetching.value) return scheduleRefresh()
-      void refresh()
-    }, 300)
-  }
+  const events = debouncedEventRefresh([], refresh, {
+    busy: () => fetching.value,
+    handlers: { 'subscription.changed': onChanged }
+  })
 
   /**
    * What the bus says about subscriptions (RD-106-09).
@@ -244,22 +221,10 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
       if (runs.value[id]) void loadRuns(id)
     }
     noteChange({ lost: !payload, wroteRowsFor })
-    scheduleRefresh()
+    events.schedule()
   }
 
-  function connectEvents(): void {
-    if (releaseEvents) return
-    releaseEvents = subscribeEvents({ 'subscription.changed': onChanged })
-  }
-
-  function disconnectEvents(): void {
-    releaseEvents?.()
-    releaseEvents = null
-    if (refreshTimer !== null) {
-      window.clearTimeout(refreshTimer)
-      refreshTimer = null
-    }
-  }
+  const { connect: connectEvents, disconnect: disconnectEvents } = events
 
   /** One item's decision, without the reload; the callers below decide when to re-read. */
   async function putItemState(id: string, state: SubscriptionItemState): Promise<boolean> {

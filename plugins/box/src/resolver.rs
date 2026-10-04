@@ -206,9 +206,8 @@ async fn call<H: PluginHost>(
         return Ok(response);
     }
     let code = reason::of(&response.body);
-    let retry = response
-        .header("retry-after")
-        .and_then(|value| value.trim().parse::<u64>().ok());
+    // The shared reader (RD-191-07): clamped to a day, `0` and a date ignored.
+    let retry = plugin_common::retry_after(&response.headers);
     // Box repeats the status inside the document; the header is what is read, because a
     // document is a thing the answer carried and the status is the answer itself.
     let ((stable, message), kind) = api::classify(response.status, code.as_deref(), retry, shared);

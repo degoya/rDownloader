@@ -120,6 +120,19 @@ fn a_retry_after_date_is_not_guessed_at() {
     assert_eq!(retry_after(&headers), None);
 }
 
+/// A zero is no wait and a year is the host's one-day ceiling (RD-191-07); a useless MEGA
+/// header leaves the standard one to answer.
+#[test]
+fn a_zero_or_absurd_wait_is_not_taken_at_its_word() {
+    let zero = vec![
+        ("X-Mega-Time-Left".to_owned(), "0".to_owned()),
+        ("Retry-After".to_owned(), "20".to_owned()),
+    ];
+    assert_eq!(retry_after(&zero), Some(20));
+    let year = vec![("X-Mega-Time-Left".to_owned(), "31536000".to_owned())];
+    assert_eq!(retry_after(&year), Some(86_400));
+}
+
 #[test]
 fn a_refusal_with_no_such_header_asks_for_no_particular_wait() {
     assert_eq!(

@@ -15,7 +15,7 @@ import { getCurrentScope, onScopeDispose, readonly, ref, type Ref } from 'vue'
 
 import { translateServerMessage } from '@/i18n/server'
 
-export type ConnectionState = 'connected' | 'disconnected'
+type ConnectionState = 'connected' | 'disconnected'
 
 /** How long a reported loss has to stand before the interface shows it. */
 export const GRACE_MS = 1_500

@@ -62,6 +62,17 @@ pub(crate) struct IdsParams {
     pub ids: Vec<String>,
 }
 
+/// The optional page window of a list tool that answers with the route's whole list (API-15).
+#[derive(Default, Deserialize, schemars::JsonSchema)]
+pub(crate) struct PageParams {
+    /// Rows to return at most (1-1000); without limit and offset the whole list comes back.
+    #[serde(default)]
+    pub limit: Option<u32>,
+    /// Rows to skip first; alone it returns everything after them.
+    #[serde(default)]
+    pub offset: Option<u32>,
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct ListCandidatesParams {
     /// Only the links of this LinkGrabber package.

@@ -398,18 +398,47 @@ pub fn selects(options: &GitReleaseOptions, name: &str) -> bool {
 }
 
 /// Whether `pattern` (`*`, `?`) matches the whole of `name_lowercase`, ignoring case.
+///
+/// Matched directly rather than through a regular expression built and compiled for every
+/// asset of every release (audit 1.9.1, INTAKE-10). The semantics are the ones that expression
+/// had: `*` is any run of characters and `?` any one character, a line break excepted, and
+/// everything else stands for itself.
 #[must_use]
 pub fn glob_matches(pattern: &str, name_lowercase: &str) -> bool {
-    let mut expression = String::from("^");
-    for character in pattern.trim().to_lowercase().chars() {
-        match character {
-            '*' => expression.push_str(".*"),
-            '?' => expression.push('.'),
-            other => expression.push_str(&regex::escape(&other.to_string())),
+    let pattern: Vec<char> = pattern.trim().to_lowercase().chars().collect();
+    let name: Vec<char> = name_lowercase.chars().collect();
+    let (mut at_pattern, mut at_name) = (0, 0);
+    // The last `*` seen and the first name character it does not cover yet: where a failed
+    // literal goes back to, letting that star take one character more.
+    let mut star: Option<(usize, usize)> = None;
+    while at_name < name.len() {
+        let current = name[at_name];
+        match pattern.get(at_pattern).copied() {
+            Some('*') => {
+                star = Some((at_pattern, at_name));
+                at_pattern += 1;
+            }
+            Some('?') if current != '\n' => {
+                at_pattern += 1;
+                at_name += 1;
+            }
+            Some(literal) if literal != '*' && literal != '?' && literal == current => {
+                at_pattern += 1;
+                at_name += 1;
+            }
+            _ => match star {
+                Some((star_at, covered)) if name[covered] != '\n' => {
+                    star = Some((star_at, covered + 1));
+                    at_pattern = star_at + 1;
+                    at_name = covered + 1;
+                }
+                _ => return false,
+            },
         }
     }
-    expression.push('$');
-    regex::Regex::new(&expression).is_ok_and(|expression| expression.is_match(name_lowercase))
+    pattern[at_pattern..]
+        .iter()
+        .all(|character| *character == '*')
 }
 
 /// Whether `token` stands in `name` as a word of its own — not inside a longer one. A token

@@ -201,7 +201,12 @@ impl NotificationService {
                 () = self.inner.shutdown.cancelled() => return,
                 event = events.recv() => match event {
                     Ok(event) => event,
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    // Not silent any more (audit 1.9.1, INTAKE-04): the skipped events are
+                    // notifications nobody gets, and the log is where that shows.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
+                        tracing::warn!(missed, "event bus lagged; notifications for the skipped events were not queued");
+                        continue;
+                    }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
                 },
             };
@@ -272,14 +277,11 @@ impl NotificationService {
                 let Some(id) = event.payload.get("package_id").and_then(|v| v.as_str()) else {
                     return Ok(None);
                 };
-                let Some(package) = self
-                    .inner
-                    .database
-                    .list_packages()
-                    .await?
-                    .into_iter()
-                    .find(|package| package.id.to_string() == id)
-                else {
+                // An id that does not parse names no row, exactly as it matched none before.
+                let Ok(package_id) = id.parse::<rd_core::PackageId>() else {
+                    return Ok(None);
+                };
+                let Some(package) = self.inner.database.get_package(package_id).await? else {
                     return Ok(None);
                 };
                 let kind = match package.state {

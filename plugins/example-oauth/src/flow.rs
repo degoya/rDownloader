@@ -111,8 +111,7 @@ pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> 
             Some("slow_down" | "authorization_pending")
         )
     {
-        let seconds = retry_after
-            .and_then(|value| value.trim().parse::<u64>().ok())
+        let seconds = plugin_common::retry_after_seconds(retry_after)
             .or_else(|| pkce::number_field(body, "retry_after"))
             .or_else(|| pkce::number_field(body, "interval"));
         return TokenAnswer::Busy(seconds);
@@ -252,6 +251,16 @@ mod tests {
             TokenAnswer::Busy(Some(5))
         );
         assert_eq!(read_token_answer(429, None, "{}"), TokenAnswer::Busy(None));
+        // The header is read by the reader every plugin shares (RD-191-07): `0` is no wait, so
+        // the body's figure answers, and a year is the host's one-day ceiling.
+        assert_eq!(
+            read_token_answer(429, Some("0"), r#"{"interval":5}"#),
+            TokenAnswer::Busy(Some(5))
+        );
+        assert_eq!(
+            read_token_answer(429, Some("31536000"), "{}"),
+            TokenAnswer::Busy(Some(86_400))
+        );
     }
 
     #[test]

@@ -13,12 +13,12 @@ impl Writer {
             WriterCommand::ReplaceConfig { replacement, reply } => {
                 let result =
                     crate::backup_store::replace_all(&mut self.connection, replacement).await;
-                if let Ok(events) = &result {
-                    for event in events {
+                if let Ok(outcome) = &result {
+                    for event in &outcome.events {
                         let _ = self.events.send(event.clone());
                     }
                 }
-                send(reply, result.map(|_| ()));
+                send(reply, result.map(|outcome| outcome.released_secrets));
             }
             WriterCommand::SetSetting { key, value, reply } => {
                 send(reply, self.set_setting(&key, &value).await);

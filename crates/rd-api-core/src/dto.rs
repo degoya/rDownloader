@@ -250,6 +250,30 @@ pub struct CreateDownloadRequest {
     pub account_id: Option<rd_core::AccountId>,
     pub proxy_profile_id: Option<rd_core::ProxyProfileId>,
     pub priority: Option<rd_core::DownloadPriority>,
+    /// Create the download paused instead of queued (API-09). The row is written in that
+    /// state, so the scheduler never gets the chance to start it first; resume it as any
+    /// other paused download. Absent means `false`.
+    #[serde(default)]
+    pub paused: bool,
+}
+
+/// The optional page window of a growing list (API-15): downloads, packages, LinkGrabber
+/// batches, links and packages, NZB imports.
+///
+/// Without either parameter the list comes back whole and unchanged. With one, the answer is
+/// the same array cut from the list's own order, and the `X-Total-Count` header names the
+/// length of the whole list; an offset past the end is an empty page. A `limit` outside
+/// 1 to [`crate::list_bounds::MAX_PAGE_LIMIT`], or a value that is no number, is refused as
+/// `request.page_limit` (read by [`crate::list_bounds::Page`]) rather than clamped, so a client never mistakes a shortened page for the end of the list. The rows are
+/// still read whole and sliced in the handler: the answer is bounded, the load is not.
+#[derive(Clone, Copy, Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct PageQuery {
+    /// Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+    /// `X-Total-Count`.
+    pub limit: Option<u32>,
+    /// Rows to skip first; alone it returns everything after them.
+    pub offset: Option<u32>,
 }
 
 /// Text or URL intake for the LinkGrabber.

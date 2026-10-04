@@ -2,7 +2,7 @@ import { useOverlay } from '@nuxt/ui/composables'
 
 import PackageStorageModal from '@/components/storage/PackageStorageModal.vue'
 
-export interface PackageStorageOptions {
+interface PackageStorageOptions {
   packageId: string
   packageName: string
   downloads: { id: string, file_name: string, state: string }[]

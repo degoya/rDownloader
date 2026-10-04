@@ -24,7 +24,7 @@ use super::{
         MoveCandidatesParams, ReorderMembersParams, UpdateCandidateParams, body, public,
     },
 };
-use crate::{ApiError, candidate_handlers, collector_handlers as collector};
+use crate::{ApiError, candidate_handlers, collector_handlers as collector, dto::PageQuery};
 
 /// One LinkGrabber link, with what the candidate tools need to act on it.
 ///
@@ -113,8 +113,12 @@ impl RdMcpServer {
                 .as_deref()
                 .map(parse_id::<rd_core::BatchId>)
                 .transpose()?;
-            let Json(mut rows) =
-                candidate_handlers::list_candidates(State(self.state.clone())).await?;
+            // The whole list: the filters below run before this tool's own page is cut.
+            let (_, Json(mut rows)) = candidate_handlers::list_candidates(
+                State(self.state.clone()),
+                rd_api_core::list_bounds::Page(PageQuery::default()),
+            )
+            .await?;
             rows.retain(|candidate| {
                 package_id.is_none_or(|id| candidate.package_id == Some(id))
                     && batch_id.is_none_or(|id| candidate.batch_id == id)
@@ -153,8 +157,8 @@ impl RdMcpServer {
             Ok(ids) => ids,
             Err(error) => return Ok(api_error(error)),
         };
-        if ids.is_empty() || ids.len() > 500 {
-            return Ok(api_error(crate::error_codes::bulk_range(500)));
+        if let Err(error) = rd_api_core::list_bounds::validate_bulk(ids.len()) {
+            return Ok(api_error(error));
         }
         let mut outcome = PerIdResult {
             done: Vec::new(),

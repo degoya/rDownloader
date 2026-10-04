@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError, resultMessage } from '@/api/client'
@@ -12,8 +12,7 @@ import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
-import { subscribeEvents } from '@/composables/useEventStream'
-import { withBase } from '@/basePath'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import SectionHeader from '@/components/SectionHeader.vue'
 import PluginCard from './PluginCard.vue'
 import PluginBundledList from './PluginBundledList.vue'
@@ -37,6 +36,8 @@ const plugins = ref<InstalledPlugin[]>([])
 const incompatible = ref<IncompatiblePlugin[]>([])
 /** Per plugin id: which version runs, which is under test, how updates arrive (RD-140-02). */
 const lifecycles = ref<PluginLifecycle[]>([])
+/** The switch for all plugins (RD-191-10): every card's own switch then reads on and locked. */
+const automaticForAll = ref(false)
 /** Per plugin id: the release notes the repository indexes delivered, newest first. */
 const releaseNotes = ref<Map<string, ReleaseNote[]>>(new Map())
 
@@ -141,27 +142,10 @@ const { revocations, pendingWithdrawal, withdrawalReason, withdrawing, isWithdra
   usePluginWithdrawals({ message, error })
 const { executions, openDiagnostics, diagnosticsLoading, toggleDiagnostics } = usePluginDiagnostics(error)
 
-/** The live subscription and the timer that coalesces a burst of plugin events into one reload. */
-let releaseEvents: (() => void) | null = null
-let reloadTimer: number | null = null
-
 onMounted(() => {
   void inventoryState.load(refresh)
   void keyState.load(refreshKeys)
   void revocationState.load(refreshRevocations)
-  releaseEvents = subscribeEvents({
-    'plugin.changed': scheduleReload,
-    'plugin_trust.changed': scheduleReload
-  })
-})
-
-onUnmounted(() => {
-  releaseEvents?.()
-  releaseEvents = null
-  if (reloadTimer !== null) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
 })
 
 /**
@@ -206,13 +190,7 @@ onUnmounted(() => {
  * The failures are recorded the way `withdraw()` records them instead. No notice is raised —
  * `design.md` has no pattern for announcing that data caught up.
  */
-function scheduleReload(): void {
-  if (reloadTimer !== null) return
-  reloadTimer = window.setTimeout(() => {
-    reloadTimer = null
-    void reloadFromEvent()
-  }, 300)
-}
+useDebouncedEventRefresh(['plugin.changed', 'plugin_trust.changed'], reloadFromEvent)
 
 async function reloadFromEvent(): Promise<void> {
   // In parallel and without short-circuiting: a failed key read must not stop the withdrawals
@@ -236,6 +214,7 @@ async function refresh(): Promise<string | null> {
     plugins.value = inventory.data.installed
     incompatible.value = inventory.data.incompatible
     lifecycles.value = inventory.data.lifecycle ?? []
+    automaticForAll.value = inventory.data.automatic_updates_global === true
   } else error.value = responseError(inventory)
   // Release notes come from the repository indexes; without a loaded index there are none,
   // and the version panel shows no notes section rather than an empty one.
@@ -252,19 +231,23 @@ async function refresh(): Promise<string | null> {
 async function removeVersion(plugin: { id: string, version: string }): Promise<void> {
   error.value = null
   message.value = null
-  try {
-    // Through `withBase` like every other request here: served under a path prefix, a
-    // hand-built absolute path leaves the application.
-    const path = withBase(`/api/v1/plugins/${encodeURIComponent(plugin.id)}/${encodeURIComponent(plugin.version)}`)
-    const response = await fetch(path, { method: 'DELETE', credentials: 'same-origin' })
-    const payload: unknown = await response.json()
-    const serverMessage = serverMessageFrom(payload)
-    if (response.ok) message.value = serverMessage ? translateServerMessage(serverMessage) : null
-    else error.value = serverMessage ? translateServerMessage(serverMessage) : null
-    await refresh()
-  } catch (reason: unknown) {
-    error.value = reason instanceof Error ? reason.message : t('plugins.install.network_error')
-  }
+  const response = await api.DELETE('/api/v1/plugins/{id}/{version}', {
+    params: { path: { id: plugin.id, version: plugin.version } }
+  })
+  showAnswer(response)
+  await refresh()
+}
+
+/**
+ * The coded message of a removal's answer, in the success or the error line. Through the client
+ * like every request (WEB-03): a raw `fetch` here noticed neither a lapsed session nor a dropped
+ * connection.
+ */
+function showAnswer(response: { data?: unknown, error?: unknown }): void {
+  const serverMessage = serverMessageFrom(response.data ?? response.error)
+  const text = serverMessage ? translateServerMessage(serverMessage) : null
+  if (response.data) message.value = text
+  else error.value = text
 }
 
 /** Asks first: removing a plugin deletes it from disk, and re-adding means re-installing it. */
@@ -326,21 +309,12 @@ async function setEnabled(plugin: InstalledPlugin, enabled: boolean): Promise<vo
 }
 
 async function refreshKeys(): Promise<string | null> {
-  try {
-    const response = await fetch(withBase('/api/v1/plugins/keys'), { credentials: 'same-origin' })
-    // A failed key fetch used to leave "no trusted keys" standing, which is the one claim a
-    // trust store must never make wrongly.
-    if (!response.ok) return t('common.data.load_failed')
-    trustedKeys.value = (await response.json()) as TrustedKey[]
-    return null
-  } catch {
-    return t('common.data.load_failed')
-  }
-}
-
-function selectPackage(event: Event): void {
-  const target = event.target
-  packageFile.value = target instanceof HTMLInputElement ? target.files?.item(0) ?? null : null
+  const response = await api.GET('/api/v1/plugins/keys')
+  // A failed key fetch used to leave "no trusted keys" standing, which is the one claim a
+  // trust store must never make wrongly.
+  if (!response.data) return t('common.data.load_failed')
+  trustedKeys.value = response.data
+  return null
 }
 
 /**
@@ -365,19 +339,9 @@ async function onInstalled(text: string): Promise<void> {
 
 async function revokeKey(keyId: string): Promise<void> {
   error.value = null
-  try {
-    const response = await fetch(withBase(`/api/v1/plugins/keys/${encodeURIComponent(keyId)}`), {
-      method: 'DELETE',
-      credentials: 'same-origin'
-    })
-    const payload: unknown = await response.json()
-    const serverMessage = serverMessageFrom(payload)
-    if (response.ok) message.value = serverMessage ? translateServerMessage(serverMessage) : null
-    else error.value = serverMessage ? translateServerMessage(serverMessage) : null
-    await refreshKeys()
-  } catch (reason: unknown) {
-    error.value = reason instanceof Error ? reason.message : t('plugins.install.network_error')
-  }
+  const response = await api.DELETE('/api/v1/plugins/keys/{key_id}', { params: { path: { key_id: keyId } } })
+  showAnswer(response)
+  await refreshKeys()
 }
 </script>
 
@@ -440,6 +404,7 @@ async function revokeKey(keyId: string): Promise<void> {
                 :disabled="isDisabled(plugin)"
                 :is-withdrawn="isWithdrawn"
                 :lifecycle="lifecycleOf(plugin.id)"
+                :automatic-for-all="automaticForAll"
                 :release-notes="releaseNotes.get(String(plugin.id)) ?? []"
                 :superseded-open="openSuperseded === plugin.id"
                 :diagnostics-open="openDiagnostics === plugin.id"
@@ -487,7 +452,20 @@ async function revokeKey(keyId: string): Promise<void> {
           <section class="border border-muted bg-default p-5">
             <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
               <UFormField data-settings-anchor="plugins.install" class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
-                <input class="mt-2 block w-full border border-muted bg-elevated px-3 py-2 text-sm text-toned file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-primary" type="file" accept=".rdplug,application/octet-stream" @change="selectPackage">
+                <!--
+                  The extension alone: a MIME type here becomes the drop zone's only allowed type,
+                  and a browser reports a .rdplug with none, so a dropped package was refused. The
+                  service checks what it is sent (RA-WEB-01).
+                -->
+                <UFileUpload
+                  v-model="packageFile"
+                  accept=".rdplug"
+                  icon="i-lucide-package"
+                  :label="t('plugins.install.drop')"
+                  layout="list"
+                  class="mt-2 w-full"
+                  data-testid="plugin-package"
+                />
               </UFormField>
               <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
             </form>
@@ -498,7 +476,7 @@ async function revokeKey(keyId: string): Promise<void> {
       </template>
 
       <template #updates>
-        <PluginUpdatesList ref="updatesList" @installed="onInstalled" />
+        <PluginUpdatesList ref="updatesList" @installed="onInstalled" @automatic-changed="value => (automaticForAll = value)" />
       </template>
 
       <template #repositories>

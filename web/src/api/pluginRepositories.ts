@@ -1,155 +1,63 @@
 /**
  * The plugin repository routes and the install preview (RD-140-01).
  *
- * Plain `fetch` like the package upload beside them, for two reasons: the preview and the
- * upload install send the `.rdplug` bytes as the body, which the generated client does not
- * model, and every answer has to keep its coded message — a `409` that asks for a key to be
- * confirmed carries the fingerprint in its parameters, and that is the one thing the person has
- * to see before anything is trusted.
+ * Addressed by hand through the coded `call`, for two reasons: the preview and the upload
+ * install send the `.rdplug` bytes as the body, which the generated client does not model, and
+ * every answer has to keep its coded message — a `409` that asks for a key to be confirmed
+ * carries the fingerprint in its parameters, and that is the one thing the person has to see
+ * before anything is trusted.
+ *
+ * The shapes are the generated schema's (WEB-04): written out by hand they would drift from the
+ * service without `vue-tsc` noticing. `Refine` only puts back the closed sets the schema writes
+ * as a bare `string`.
  */
-import { withBase } from '@/basePath'
-import { serverMessageFrom, type ServerMessage } from '@/i18n/server'
+import { call, type Answer, type CallPath } from './call'
+import type { components } from './schema'
 
-export interface PluginRepository {
-  id: string
-  kind: 'official' | 'third_party'
-  name: string
-  url: string
-  key_id: string | null
-  fingerprint: string | null
-  enabled: boolean
-  sequence: number | null
-  issued_at: string | null
-  expires_at: string | null
-  last_checked_at: string | null
-  last_success_at: string | null
-  /** Stable code of the last check's failure. */
-  last_error: string | null
-}
+type Schemas = components['schemas']
 
-export interface PluginRepositories {
-  repositories: PluginRepository[]
-  refresh_hours: number
-}
+/** A schema shape with some of its fields narrowed to what the service actually sends. */
+export type Refine<T, R> = Omit<T, keyof R> & R
 
-export interface PluginPublisher {
-  key_id: string
-  fingerprint: string
-  author: string
-}
+export type PluginRepository = Refine<Schemas['PluginRepositoryResponse'], { kind: 'official' | 'third_party' }>
+export type PluginRepositories = Refine<Schemas['PluginRepositoriesResponse'], { repositories: PluginRepository[] }>
+export type PluginPermissions = Schemas['PluginPermissionsResponse']
 
-export interface PluginPermissions {
-  granted: string[]
-  http_domains: string[]
-  stream_hosts: string[]
-}
+type PluginCompatibility = 'compatible' | 'contract_unsupported' | 'app_too_old' | 'withdrawn'
 
-export interface PluginIndexPackage {
-  plugin_id: string
-  name: string
-  version: string
-  plugin_type: string
-  api_version: string
-  min_app_version: string | null
-  package_digest: string
-  size: number
-  publisher: PluginPublisher
-  permissions: PluginPermissions
-  release_notes: string | null
-}
+export type PluginOffer = Refine<Schemas['PluginOfferResponse'], { compatibility: PluginCompatibility }>
 
-export type PluginCompatibility = 'compatible' | 'contract_unsupported' | 'app_too_old' | 'withdrawn'
+/**
+ * `adds_permissions`: asks for a permission the installed version lacks and waits for a click
+ * whatever the policy; `added_permissions` lists them, empty when it does not (RD-160-09).
+ */
+export type PluginUpdate = Refine<Schemas['PluginUpdateResponse'], { offer: PluginOffer, policy: Schemas['PluginUpdatePolicy'] }>
 
-export interface PluginOffer {
-  repository_id: string
-  repository_name: string
-  official: boolean
-  package: PluginIndexPackage
-  compatibility: PluginCompatibility
-  installed_version: string | null
-}
-
-export interface PluginUpdate {
-  offer: PluginOffer
-  installed_version: string
-  policy: 'manual' | 'automatic'
-  /** Asks for a permission the installed version lacks; waits for a click whatever the policy. */
-  adds_permissions: boolean
-  /** Those permissions, one list each; empty lists when `adds_permissions` is false (RD-160-09). */
-  added_permissions: PluginPermissions
-}
-
-export interface PluginOffers {
+/** `installed`: every offered version of a plugin installed here, for the release-notes history. */
+export type PluginOffers = Refine<Schemas['PluginOffersResponse'], {
   updates: PluginUpdate[]
   available: PluginOffer[]
-  /** Every offered version of a plugin installed here, for the release-notes history. */
-  installed?: PluginOffer[]
-}
+  installed: PluginOffer[]
+}>
 
-export type PluginKeyStatus = 'trusted' | 'untrusted' | 'mismatch' | 'withdrawn' | 'unsigned'
+type PluginKeyStatus = 'trusted' | 'untrusted' | 'mismatch' | 'withdrawn' | 'unsigned'
 
-export interface PluginPreview {
-  plugin_id: string
-  name: string
-  version: string
-  plugin_type: string
-  api_version: string
-  min_app_version: string | null
-  description: string
-  homepage: string | null
-  license: string | null
-  package_digest: string
-  size: number
-  publisher: PluginPublisher | null
-  permissions: PluginPermissions
-  key_status: PluginKeyStatus
-  withdrawn: boolean
-  incompatible: string | null
-  installable: boolean
-  installed_versions: string[]
-  /**
-   * What the package asks for beyond the newest installed version (RD-160-09); `null` when no
-   * version of the plugin is installed, so every permission is new.
-   */
-  added_permissions: { installed_version: string, permissions: PluginPermissions } | null
-  source: { repository_id: string, repository_name: string, official: boolean } | null
-  release_notes: string | null
-}
+/**
+ * `added_permissions`: what the package asks for beyond the newest installed version
+ * (RD-160-09); `null` when no version of the plugin is installed, so every permission is new.
+ */
+export type PluginPreview = Refine<Schemas['PluginPreviewResponse'], { key_status: PluginKeyStatus }>
 
 /** Where a previewed package comes from: a file the person picked, or a repository's offer. */
 export type PreviewSource =
   | { kind: 'upload', file: Blob }
   | { kind: 'repository', repositoryId: string, pluginId: string, version: string }
 
-/** The body of a successful answer, or the coded message of a refusal (`null` without one). */
-export type Answer<T> =
-  | { ok: true, data: T }
-  | { ok: false, status: number, message: ServerMessage | null }
-
-export async function call<T>(method: string, path: string, body?: Blob | object): Promise<Answer<T>> {
-  const init: RequestInit = { method, credentials: 'same-origin' }
-  if (body instanceof Blob) {
-    init.headers = { 'Content-Type': 'application/octet-stream' }
-    init.body = body
-  } else if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' }
-    init.body = JSON.stringify(body)
-  }
-  try {
-    const response = await fetch(withBase(path), init)
-    const payload: unknown = await response.json().catch(() => null)
-    if (response.ok) return { ok: true, data: payload as T }
-    return { ok: false, status: response.status, message: serverMessageFrom(payload) }
-  } catch {
-    return { ok: false, status: 0, message: null }
-  }
-}
-
-function query(trustFingerprint?: string): string {
+function query(trustFingerprint?: string): '' | `?${string}` {
   return trustFingerprint ? `?trust_fingerprint=${encodeURIComponent(trustFingerprint)}` : ''
 }
 
-function repositoryPath(id: string, action = ''): string {
+function repositoryPath(id: string, action: '' | '/preview' | '/install' = ''): CallPath {
   return `/api/v1/plugins/repositories/${encodeURIComponent(id)}${action}`
 }
 
@@ -173,6 +81,15 @@ export const setRefreshHours = (hours: number) =>
   call<PluginRepositories>('PUT', '/api/v1/plugins/repositories/settings', { refresh_hours: hours })
 
 export const listOffers = () => call<PluginOffers>('GET', '/api/v1/plugins/updates')
+
+/** Whether every installed plugin installs its updates itself (RD-191-10). */
+export type PluginUpdateSettings = Schemas['PluginUpdateSettingsResponse']
+
+export const getUpdateSettings = () =>
+  call<PluginUpdateSettings>('GET', '/api/v1/plugins/updates/settings')
+
+export const setUpdateSettings = (automatic: boolean) =>
+  call<PluginUpdateSettings>('PUT', '/api/v1/plugins/updates/settings', { automatic_updates: automatic })
 
 /** Release notes a repository index delivered for one version of a plugin. */
 export interface ReleaseNote {

@@ -33,7 +33,8 @@ PUBLIC_REPO="${RD_PUBLIC_REPO:-degoya/rDownloader}"
 PUBLIC_CI_TIMEOUT="${RD_PUBLIC_CI_TIMEOUT:-900}"
 PUBLIC_CI_CEILING="${RD_PUBLIC_CI_CEILING:-21600}"
 PUBLIC_CI_POLL="${RD_PUBLIC_CI_POLL:-60}"
-# Every platform ci.yml checks.
+# Every platform ci.yml checks; read by the scripts that source this file.
+# shellcheck disable=SC2034
 RD_PUBLIC_CI_ALL="linux,windows,macos"
 
 rd_public_ci_gh_ready() {

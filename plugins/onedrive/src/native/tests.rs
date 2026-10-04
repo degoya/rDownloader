@@ -39,6 +39,8 @@ struct MockGraph {
     requests: Mutex<Vec<String>>,
     authorizations: Mutex<Vec<String>>,
     has_token: bool,
+    /// The `Retry-After` every answer carries.
+    retry_after: Mutex<&'static str>,
 }
 
 impl MockGraph {
@@ -57,6 +59,7 @@ impl MockGraph {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: true,
+            retry_after: Mutex::new("90"),
         })
     }
 
@@ -73,6 +76,7 @@ impl MockGraph {
             requests: Mutex::new(Vec::new()),
             authorizations: Mutex::new(Vec::new()),
             has_token: true,
+            retry_after: Mutex::new("90"),
         };
         mock.has_token = false;
         Arc::new(mock)
@@ -118,7 +122,7 @@ impl ResolverHost for MockGraph {
             final_url: request.url.clone(),
             headers: vec![rd_plugin_api::ResolvedHeader {
                 name: "Retry-After".to_owned(),
-                value: "90".to_owned(),
+                value: (*self.retry_after.lock().expect("retry-after")).to_owned(),
             }],
             body: answer.body.clone().into_bytes(),
         })
@@ -295,6 +299,27 @@ async fn a_throttle_carries_the_retry_after_graph_sent() {
             retry_after_seconds: Some(90)
         }
     );
+}
+
+/// Graph's `Retry-After` is read the way every plugin reads it (RA-PLG-03): a `0` is no stated
+/// wait rather than an immediate retry, and a year is clamped to a day.
+#[tokio::test]
+async fn a_stated_wait_is_read_the_shared_way() {
+    for (stated, expected) in [("0", None), ("31536000", Some(86_400))] {
+        let host = MockGraph::with_item(
+            429,
+            r#"{"error":{"code":"activityLimitReached","message":"throttled"}}"#,
+        );
+        *host.retry_after.lock().expect("retry-after") = stated;
+        let failure = resolve(host, SHARE_LINK).await.expect_err("a throttle");
+        assert_eq!(
+            failure.category,
+            FailureKind::RateLimited {
+                retry_after_seconds: expected
+            },
+            "{stated}"
+        );
+    }
 }
 
 /// A folder pasted at the resolver says it is a folder, rather than "this item has no bytes",

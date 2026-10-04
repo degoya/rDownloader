@@ -67,13 +67,9 @@ fn check(account_id: &str) -> Result<AuthState, Failure> {
         ],
         &[],
     )?;
-    let retry_after = flow::retry_after_seconds(
-        response
-            .headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-            .map(|(_, value)| value.as_str()),
-    );
+    // Seconds only, clamped to the host's one-day ceiling; `0` and a date are no wait at all,
+    // and `read` falls back on its own default (RD-191-07).
+    let retry_after = plugin_common::retry_after(&response.headers);
     Ok(
         match flow::read(response.status, retry_after, &response.body) {
             // Nothing is stored. The credential this confirms is the one the person typed, and

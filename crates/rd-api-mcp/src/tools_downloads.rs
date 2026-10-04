@@ -35,7 +35,7 @@ struct AddDownloadsResult {
 #[tool_router(router = downloads_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Add direct HTTP(S) or magnet downloads to the queue. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply."
+        description = "Add direct HTTP(S) or magnet downloads to the queue. With start_paused they are created paused -- the scheduler never starts them -- and wait for control_downloads resume. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply."
     )]
     pub async fn add_downloads(
         &self,
@@ -64,17 +64,15 @@ impl RdMcpServer {
                 account_id,
                 proxy_profile_id: None,
                 priority: params.priority.map(Into::into),
+                // Written paused in the same row write; pausing afterwards left the scheduler
+                // a moment to start the file first (API-09).
+                paused: start_paused,
             };
             match crate::download_handlers::create_download_inner(&self.state, request).await {
-                Ok(file) => {
-                    if start_paused {
-                        let _ = self.state.scheduler.pause(file.id).await;
-                    }
-                    created.push(AddedDownload {
-                        url,
-                        download: file.into(),
-                    });
-                }
+                Ok(file) => created.push(AddedDownload {
+                    url,
+                    download: file.into(),
+                }),
                 Err(error) => failed.push(FailedDownload {
                     url,
                     error: error.message().to_owned(),
@@ -229,8 +227,8 @@ impl RdMcpServer {
             Ok(ids) => ids,
             Err(error) => return Ok(api_error(error)),
         };
-        if ids.is_empty() || ids.len() > 500 {
-            return Ok(api_error(crate::error_codes::bulk_range(500)));
+        if let Err(error) = rd_api_core::list_bounds::validate_bulk(ids.len()) {
+            return Ok(api_error(error));
         }
         let result = async {
             let removed = crate::package_handlers::remove_packages(

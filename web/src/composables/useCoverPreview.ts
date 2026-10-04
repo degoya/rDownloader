@@ -29,7 +29,7 @@ const pinned = ref<symbol | null>(null)
 /** The single open row: whatever is being pointed at, else whatever was pinned. */
 const openRow = computed<symbol | null>(() => transient.value ?? pinned.value)
 
-export interface CoverPreview {
+interface CoverPreview {
   /** True for exactly one row in the application at a time. */
   open: ComputedRef<boolean>
   /** The pointer entered (`true`) or left (`false`) this row's trigger. */

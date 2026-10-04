@@ -3,6 +3,7 @@
 mod archive_password;
 mod auth_flow_store;
 mod auth_profile_store;
+mod auto_retry_store;
 mod automation_store;
 mod backup_ledger_store;
 mod backup_store;
@@ -74,6 +75,7 @@ mod stream_store;
 mod subscription_store;
 mod torrent_store;
 mod usenet_store;
+mod vault_sweep;
 mod writer;
 mod writer_jobs;
 mod writer_pins;
@@ -108,6 +110,7 @@ pub use audit_store::{
 };
 pub use auth_flow_store::UpsertAuthFlow;
 pub use auth_profile_store::{NewAuthProfile, UpdateAuthProfile};
+pub use auto_retry_store::{AutoRetryCandidate, RetryCounters};
 pub use automation_store::{NewAutomation, NewRun};
 pub use backup_ledger_store::{
     BACKUP_VERIFICATIONS_KEPT, BackupArchive, BackupRunDestination, BackupRunDestinationEnd,
@@ -164,7 +167,8 @@ pub use remote_job_store::{AdvanceRemoteJob, ClaimRemoteJob};
 pub use remote_store::{HostKeyVerdict, NewRemoteCredential, UpdateRemoteCredential};
 pub use replay_store::{REFRESH_WINDOW_HOURS, REPLAY_REFRESH_MAX};
 pub use service_settings::{
-    SERVICE_SETTINGS_KEY, parse_service_settings, service_setting_field_of,
+    SERVICE_SETTINGS_KEY, SettingsFieldError, parse_service_settings,
+    parse_service_settings_per_field, service_setting_field_of,
 };
 pub use session_store::TOUCH_INTERVAL_SECONDS as SESSION_TOUCH_INTERVAL_SECONDS;
 pub use site_rule_checks_store::{NewSiteRuleCheck, SiteRuleCheck};
@@ -317,13 +321,19 @@ impl Database {
     }
 
     /// Atomically replaces every server-side configuration table while preserving supplied ids.
+    ///
+    /// An account or stream channel whose id the bundle names again keeps its sign-in, remote
+    /// jobs and recording schedules (DB-01), a subscription its archive, runs and priming
+    /// (RA-DB-04); the sign-ins of accounts it no longer names leave the vault with them.
     pub async fn replace_config(&self, replacement: ConfigReplacement) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReplaceConfig {
+        let released = writer::request(&self.writer, |reply| WriterCommand::ReplaceConfig {
             replacement,
             reply,
         })
         .await?;
-        // The subscriptions' archives went, and their archive passwords with them (RD-190-04).
+        self.forget_secrets(released).await;
+        // The archives of the subscriptions it no longer names went, and their archive
+        // passwords with them (RD-190-04).
         self.sweep_archive_passwords().await;
         Ok(())
     }
@@ -377,6 +387,21 @@ impl Database {
         writer::request(&self.writer, |reply| WriterCommand::TransitionDownload {
             id,
             next,
+            reply,
+        })
+        .await
+    }
+
+    /// Queues a row an enqueue wrote paused, unless it was touched after `created_at`; answers
+    /// the row as it is afterwards. See `Writer::join_queue` for why it is no transition.
+    pub async fn join_queue(
+        &self,
+        id: DownloadId,
+        created_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<DownloadFile> {
+        writer::request(&self.writer, |reply| WriterCommand::JoinQueue {
+            id,
+            created_at,
             reply,
         })
         .await
@@ -976,6 +1001,27 @@ impl Database {
         models::downloads_for_package(&self.readers, package_id).await
     }
 
+    /// The `queued` and `retry_wait` rows in queue order, for the dispatcher (audit 1.9.1,
+    /// TR-08); whether a retry is due is left to the caller's clock.
+    pub async fn startable_downloads(&self) -> Result<Vec<DownloadFile>> {
+        models::startable_downloads(&self.readers).await
+    }
+
+    /// The committed bytes of every download together — the traffic budget's odometer —
+    /// without loading the rows.
+    pub async fn committed_bytes_total(&self) -> Result<u64> {
+        models::committed_bytes_total(&self.readers).await
+    }
+
+    /// One package without its archive password (only `has_password`), or `None`.
+    ///
+    /// For a caller that wants one package: [`Self::list_packages`] reads the whole table, and
+    /// about twenty call sites filtered it for a single id (audit 1.9.1, DB-04). The password
+    /// stays behind [`Self::package_password`], like in the list.
+    pub async fn get_package(&self, id: rd_core::PackageId) -> Result<Option<DownloadPackage>> {
+        models::get_package(&self.readers, id).await
+    }
+
     /// Loads one file.
     pub async fn get_download(&self, id: DownloadId) -> Result<Option<DownloadFile>> {
         models::get_download(&self.readers, id).await
@@ -1034,11 +1080,13 @@ impl Database {
         &self,
         id: rd_core::AccountId,
     ) -> Result<(Option<String>, Option<String>)> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteAccount {
-            id,
-            reply,
+        let (references, sign_in) = writer::request(&self.writer, |reply| {
+            WriterCommand::DeleteAccount { id, reply }
         })
-        .await
+        .await?;
+        // The sign-in's rows went with the account (cascade); its tokens go with them (DB-02).
+        self.forget_secrets(sign_in).await;
+        Ok(references)
     }
 
     /// Loads opaque account secret references for replacement without exposing values.
@@ -1054,11 +1102,16 @@ impl Database {
         &self,
         input: crate::auth_flow_store::UpsertAuthFlow,
     ) -> Result<rd_core::AuthFlow> {
-        writer::request(&self.writer, |reply| WriterCommand::UpsertAuthFlow {
-            input: Box::new(input),
-            reply,
-        })
-        .await
+        let (flow, released) =
+            writer::request(&self.writer, |reply| WriterCommand::UpsertAuthFlow {
+                input: Box::new(input),
+                reply,
+            })
+            .await?;
+        // A restarted sign-in writes no references; the previous one's tokens leave the vault
+        // once nothing points at them (DB-02).
+        self.forget_secrets(released).await;
+        Ok(flow)
     }
 
     /// Records what a renewal produced: the expiry, the refresh reference (RD-103-00) and,
@@ -1075,14 +1128,17 @@ impl Database {
         refresh_ref: Option<String>,
         access_ref: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowRenewal {
-            account_id,
-            token_expires_at,
-            refresh_ref,
-            access_ref,
-            reply,
-        })
-        .await
+        let dropped_key =
+            writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowRenewal {
+                account_id,
+                token_expires_at,
+                refresh_ref,
+                access_ref,
+                reply,
+            })
+            .await?;
+        self.forget_secrets(dropped_key.into_iter().collect()).await;
+        Ok(())
     }
 
     /// Records the session a sign-in stored beside the account's own credential: the token
@@ -1133,13 +1189,16 @@ impl Database {
         crate::auth_flow_store::part(&self.readers, account_id, name).await
     }
 
-    /// Removes the authentication flow of one account.
+    /// Removes the authentication flow of one account, and from the vault the tokens and
+    /// parts it held (DB-02).
     pub async fn delete_auth_flow(&self, account_id: rd_core::AccountId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteAuthFlow {
+        let released = writer::request(&self.writer, |reply| WriterCommand::DeleteAuthFlow {
             account_id,
             reply,
         })
-        .await
+        .await?;
+        self.forget_secrets(released).await;
+        Ok(())
     }
 
     /// The authentication flow of one account, if it has one.
@@ -1288,6 +1347,14 @@ impl Database {
     /// Lists public account metadata without secret references or values.
     pub async fn list_accounts(&self) -> Result<Vec<rd_core::Account>> {
         network_store::list_accounts(&self.readers).await
+    }
+
+    /// One account's public metadata, or `None` when the id names none.
+    ///
+    /// For a caller that wants one account: [`Self::list_accounts`] reads every row, and 14
+    /// call sites filtered it for a single id (audit 1.9.1, DB-04).
+    pub async fn get_account(&self, id: rd_core::AccountId) -> Result<Option<rd_core::Account>> {
+        network_store::get_account(&self.readers, id).await
     }
 
     /// Lists every managed tool version this installation installed itself (RD-102-02).
@@ -1582,6 +1649,19 @@ where
 /// Stores a serde enum as the bare string its JSON form quotes (`"queued"` -> `queued`).
 pub(crate) fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
     Ok(serde_json::to_string(&value)?.trim_matches('"').to_owned())
+}
+
+/// An instant as the audit, log, collision and storage-operation tables store it: RFC 3339 in
+/// UTC with milliseconds, so the text sorts the way the instants do.
+pub(crate) fn timestamp(value: &chrono::DateTime<chrono::Utc>) -> String {
+    value.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+}
+
+/// Reads back an instant [`timestamp`] stored.
+pub(crate) fn parse_time(value: &str) -> Result<chrono::DateTime<chrono::Utc>> {
+    Ok(chrono::DateTime::parse_from_rfc3339(value)
+        .context("parse stored timestamp")?
+        .with_timezone(&chrono::Utc))
 }
 
 /// Reads back a value [`enum_string`] stored.

@@ -5,7 +5,7 @@ use serde_json::json;
 use super::{
     ApiFailure, CachedEntry, ErrorEnvelope, ErrorKind, JobEntry, Stage, boundary, cached_entries,
     check_cached_path, classify_error, control_body, download_address, ensure_http_status,
-    failure_from, is_safe_remote_id, multipart, permille, place, retry_after_seconds, stage_of,
+    failure_from, is_safe_remote_id, multipart, permille, place, stage_of,
 };
 use crate::{messages, source::Kind};
 
@@ -132,18 +132,38 @@ fn an_http_status_no_word_explains_is_mapped_on_its_own() {
     assert!(ensure_http_status(204, None).is_ok());
     for (status, kind) in [
         (401_u16, ErrorKind::AccountInvalid),
-        (404, ErrorKind::Offline),
+        // A 404 or 410 is the job gone for good (owner, 2026-10-04).
+        (404, ErrorKind::Permanent),
+        (410, ErrorKind::Permanent),
         (429, ErrorKind::RateLimited(Some(60))),
         (503, ErrorKind::Transient(Some(300))),
+        // A legal block is retried.
+        (451, ErrorKind::Offline),
     ] {
         let refusal = ensure_http_status(status, None).expect_err("a refusal");
         assert_eq!(refusal.kind, kind, "{status}");
     }
-    assert_eq!(retry_after_seconds(Some(" 90 ")), Some(90));
-    // A date-shaped header is ignored rather than guessed at.
+    // ... and still says TorBox refused the request, not that the job is gone (RA-PLG-04).
     assert_eq!(
-        retry_after_seconds(Some("Wed, 21 Oct 2026 07:28:00 GMT")),
-        None
+        ensure_http_status(451, None).expect_err("a refusal").code,
+        messages::REQUEST_REFUSED.0
+    );
+    assert_eq!(
+        ensure_http_status(404, None).expect_err("a refusal").code,
+        messages::JOB_GONE.0
+    );
+    // A wait the provider states is kept, on a rate limit and on an outage alike.
+    assert_eq!(
+        ensure_http_status(429, Some(90))
+            .expect_err("a refusal")
+            .kind,
+        ErrorKind::RateLimited(Some(90))
+    );
+    assert_eq!(
+        ensure_http_status(503, Some(45))
+            .expect_err("a refusal")
+            .kind,
+        ErrorKind::Transient(Some(45))
     );
 }
 

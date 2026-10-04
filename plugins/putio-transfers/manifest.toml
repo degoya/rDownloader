@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000152"
 name = "Put.io transfers"
-version = "0.1.8"
+version = "0.1.9"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -25,6 +25,9 @@ slug = "putio_transfers"
 # The provider whose account these jobs run on. The host looks the account up; this plugin
 # never learns which one it is, and never sees its token.
 claims = ["putio"]
+# The container formats this provider takes, read by the host without compiling the plugin:
+# the LinkGrabber offers an NZB only to accounts whose plugin names `nzb` here (RD-191-13).
+containers = ["torrent"]
 
 [metadata]
 description = "Runs magnets and torrent files as transfers on a Put.io account."

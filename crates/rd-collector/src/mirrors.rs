@@ -311,7 +311,8 @@ fn matched_facets(facets: &[(MirrorFacet, String)], mirror: &CandidateMirror, ur
         .count()
 }
 
-/// The hoster a link is read as: the host without a leading `www.`.
+/// The hoster a link is read as: the shared [`rd_core::host_key`] of its host, without a
+/// trailing dot or a leading `www.` (audit 1.9.1, INTAKE-11).
 ///
 /// The same reduction `hosterOf` makes in the interface, so a preference set there matches
 /// what is compared here. An address that does not parse has no hoster rather than a made-up
@@ -320,8 +321,7 @@ fn matched_facets(facets: &[(MirrorFacet, String)], mirror: &CandidateMirror, ur
 pub fn hoster_of(url: &str) -> String {
     url::Url::parse(url)
         .ok()
-        .and_then(|parsed| parsed.host_str().map(str::to_ascii_lowercase))
-        .map(|host| host.strip_prefix("www.").unwrap_or(&host).to_owned())
+        .and_then(|parsed| parsed.host_str().map(rd_core::host_key))
         .unwrap_or_default()
 }
 

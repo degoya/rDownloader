@@ -137,4 +137,25 @@ describe('audit store', () => {
       expect(store).not.toHaveProperty(name)
     }
   })
+
+  it('drops an older page still on its way when the filter is refreshed (WEB-07)', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
+    const store = useAuditStore()
+    await store.refresh()
+
+    // The older page of the old filter is slow; the refresh under the new filter answers first.
+    let answerOlder: (value: unknown) => void = () => {}
+    vi.mocked(api.GET).mockImplementationOnce((() => new Promise(resolve => { answerOlder = resolve })) as never)
+    const older = store.loadOlder()
+    const filtered = { ...PAGE, records: [PAGE.records[0]], total: 1 }
+    vi.mocked(api.GET).mockResolvedValueOnce({ data: filtered } as never)
+    store.filters.action = 'login_failed'
+    await store.refresh()
+
+    answerOlder({ data: { ...PAGE, records: [{ ...PAGE.records[1], id: 0 }] } })
+    await older
+
+    expect(store.records.map(record => record.id)).toEqual([2])
+    expect(store.fetching).toBe(false)
+  })
 })

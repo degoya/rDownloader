@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.9.0"
+    "version": "1.9.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -4986,10 +4986,45 @@
         "tags": [
           "collector"
         ],
+        "summary": "Every capture batch, newest first; `limit`/`offset` cut a page out of that order (API-15).",
         "operationId": "list_batches",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5000,6 +5035,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       },
@@ -5037,10 +5075,45 @@
         "tags": [
           "collector"
         ],
+        "summary": "Every link not yet enqueued, in package and link order; `limit`/`offset` cut a page out of\nthat order (API-15).",
         "operationId": "list_candidates",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5051,6 +5124,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       },
@@ -6202,10 +6278,45 @@
         "tags": [
           "collector"
         ],
+        "summary": "Every LinkGrabber package in its list order; `limit`/`offset` cut a page out (API-15).",
         "operationId": "list_collector_packages",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6216,6 +6327,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       }
@@ -6852,10 +6966,45 @@
         "tags": [
           "downloads"
         ],
+        "summary": "Every download in creation order; `limit`/`offset` cut a page out of that order (API-15).",
         "operationId": "list_downloads",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6866,6 +7015,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       },
@@ -9435,10 +9587,45 @@
         "tags": [
           "collector"
         ],
+        "summary": "The NZB imports waiting for review; `limit`/`offset` cut a page out of the list's order\n(API-15).",
         "operationId": "list_nzb_imports",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9449,6 +9636,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       },
@@ -9700,6 +9890,63 @@
         }
       }
     },
+    "/api/v1/nzb/imports/{id}/remote-job": {
+      "post": {
+        "tags": [
+          "usenet"
+        ],
+        "summary": "Hands an NZB import still in the LinkGrabber to one account's provider as a remote job.",
+        "description": "Refused before anything leaves the machine when the import failed or is queued, when the\naccount does not exist, has no remote-job plugin or one that takes no NZB, and when the\nwritten-out NZB exceeds the 16 MiB a remote job's container may carry.",
+        "operationId": "submit_nzb_import_remote_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/NzbImportId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NzbImportRemoteJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NzbImportRemoteJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The account's provider runs no remote jobs or takes no NZB"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "The import failed or is already queued"
+          },
+          "413": {
+            "description": "The NZB exceeds 16 MiB"
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
     "/api/v1/oauth/callback": {
       "get": {
         "tags": [
@@ -9908,10 +10155,45 @@
         "tags": [
           "downloads"
         ],
+        "summary": "Every package in the queue's order; `limit`/`offset` cut a page out of it (API-15).",
         "operationId": "list_packages",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9922,6 +10204,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       }
@@ -10401,6 +10686,60 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/packages/{id}/remote-job": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Hands the NZB behind a package in the Downloads view to one account's provider as a remote\njob (RD-191-13).",
+        "description": "Whatever state the package is in -- a failed package above all, whose articles the own\nservers no longer had. The package stays where it is, and the import behind it carries the\nmark the Downloads view shows. Refused with `package.remote_job_no_nzb` for a package that\ncame from no NZB, or whose import history was dropped; the account and size refusals are\nthose of the LinkGrabber's route.",
+        "operationId": "submit_package_remote_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PackageId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NzbImportRemoteJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NzbImportRemoteJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The package has no NZB behind it, or the account's provider runs no remote jobs or takes no NZB"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "413": {
+            "description": "The NZB exceeds 16 MiB"
+          },
+          "502": {
+            "description": "Bad Gateway"
           }
         }
       }
@@ -11218,6 +11557,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PluginOffersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/updates/settings": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "operationId": "get_plugin_update_settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginUpdateSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Switches automatic updates for every installed plugin on or off.",
+        "description": "The per-plugin policies are left as they are; the repository refresh reads this switch\nfirst, the next refresh installs what it now allows.",
+        "operationId": "set_plugin_update_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginUpdateSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginUpdateSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
@@ -12461,8 +12860,19 @@
           "configuration"
         ],
         "summary": "The provider slugs an installed `remote-job` plugin runs jobs on.",
-        "description": "The form that offers accounts needs this, and it needs it from the manifests rather than\nfrom a list somebody maintains: a provider exists exactly as long as its plugin does\n(`rd-provider-registry` fills itself from installed manifests alone), so a hard-coded list\nwould be wrong the moment a plugin is added or removed. It is the `claims` of every\ninstalled, signature-checked `remote-job` manifest -- the keys `RemoteJobRunners` routes\nby -- read without compiling a component (RD-120-51): answering from the runners made the\nfirst open of the page after a start wait for every component to compile.\n\nThis does **not** replace `remote_job.no_plugin`. A plugin can be removed between the\nmoment the form is drawn and the moment somebody presses the button, and then the refusal\non submit is still the right answer -- it just becomes rare instead of routine\n(RD-120-23).",
+        "description": "The form that offers accounts needs this, and it needs it from the manifests rather than\nfrom a list somebody maintains: a provider exists exactly as long as its plugin does\n(`rd-provider-registry` fills itself from installed manifests alone), so a hard-coded list\nwould be wrong the moment a plugin is added or removed. It is the `claims` of every\ninstalled, signature-checked `remote-job` manifest -- the keys `RemoteJobRunners` routes\nby -- read without compiling a component (RD-120-51): answering from the runners made the\nfirst open of the page after a start wait for every component to compile.\n\nThis does **not** replace `remote_job.no_plugin`. A plugin can be removed between the\nmoment the form is drawn and the moment somebody presses the button, and then the refusal\non submit is still the right answer -- it just becomes rare instead of routine\n(RD-120-23).\n\nWith `container` the list narrows to the providers whose plugin declares it takes that\ncontainer format (`[extension] containers`, RD-191-13) -- `nzb` is what the LinkGrabber asks,\nto offer an NZB import only to accounts that can run it. Without it the answer is unchanged.",
         "operationId": "list_remote_job_providers",
+        "parameters": [
+          {
+            "name": "container",
+            "in": "query",
+            "description": "A container format -- `torrent`, `nzb`, `dlc` or `rsdf`. Only the providers whose plugin\ndeclares it are listed; a format no plugin declares lists none.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -21570,6 +21980,10 @@
               "null"
             ]
           },
+          "paused": {
+            "type": "boolean",
+            "description": "Create the download paused instead of queued (API-09). The row is written in that\nstate, so the scheduler never gets the chance to start it first; resume it as any\nother paused download. Absent means `false`."
+          },
           "priority": {
             "oneOf": [
               {
@@ -27339,6 +27753,23 @@
           }
         }
       },
+      "NzbHandOver": {
+        "type": "object",
+        "description": "Where an NZB import went when it was handed to a provider instead of the queue.",
+        "required": [
+          "remote_job_id",
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId",
+            "description": "The account whose provider runs the job; the LinkGrabber names the provider by it."
+          },
+          "remote_job_id": {
+            "$ref": "#/components/schemas/RemoteJobId"
+          }
+        }
+      },
       "NzbImport": {
         "type": "object",
         "description": "Summary stored after a bounded, entity-free NZB parse.",
@@ -27383,6 +27814,17 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "handed_over": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NzbHandOver",
+                "description": "The remote job this NZB was handed to (RD-191-13), while that job's row exists.\n\nThe import stays in the LinkGrabber after the hand-over, marked, so it is not queued a\nsecond time by accident; removing the job from the remote-job list clears the mark."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "has_password": {
             "type": "boolean",
@@ -27455,6 +27897,41 @@
       "NzbImportId": {
         "type": "string",
         "format": "uuid"
+      },
+      "NzbImportRemoteJobRequest": {
+        "type": "object",
+        "description": "Which account's provider an NZB import goes to.",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId",
+            "description": "A remote-job account whose provider takes NZB files\n(`GET /api/v1/remote-jobs/providers?container=nzb`)."
+          }
+        }
+      },
+      "NzbImportRemoteJobResponse": {
+        "type": "object",
+        "description": "What handing an NZB import over produced.",
+        "required": [
+          "import",
+          "job",
+          "already_running"
+        ],
+        "properties": {
+          "already_running": {
+            "type": "boolean",
+            "description": "True when the account already had a job for this NZB. Nothing was written and nothing\nwas sent -- the duplicate guard answering, not a failure."
+          },
+          "import": {
+            "$ref": "#/components/schemas/NzbImport",
+            "description": "The import, now carrying `handed_over`."
+          },
+          "job": {
+            "$ref": "#/components/schemas/RemoteJob"
+          }
+        }
       },
       "NzbImportState": {
         "type": "string",
@@ -28689,9 +29166,14 @@
         "required": [
           "installed",
           "incompatible",
-          "lifecycle"
+          "lifecycle",
+          "automatic_updates_global"
         ],
         "properties": {
+          "automatic_updates_global": {
+            "type": "boolean",
+            "description": "Whether the switch for all plugins is on (RD-191-10): every installed plugin then updates\nas if set to automatic, whatever its own `update_policy` says."
+          },
           "incompatible": {
             "type": "array",
             "items": {
@@ -28758,7 +29240,8 @@
             "description": "The version under test: only a download started with it runs it."
           },
           "update_policy": {
-            "$ref": "#/components/schemas/PluginUpdatePolicy"
+            "$ref": "#/components/schemas/PluginUpdatePolicy",
+            "description": "The plugin's own stored policy. The switch for all plugins\n(`automatic_updates_global` on the inventory) overrides a manual one without changing it."
           }
         }
       },
@@ -29241,6 +29724,31 @@
           "policy": {
             "type": "string",
             "description": "`manual` or `automatic`."
+          }
+        }
+      },
+      "PluginUpdateSettingsRequest": {
+        "type": "object",
+        "description": "Body of `PUT /api/v1/plugins/updates/settings`.",
+        "required": [
+          "automatic_updates"
+        ],
+        "properties": {
+          "automatic_updates": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PluginUpdateSettingsResponse": {
+        "type": "object",
+        "description": "Whether every installed plugin updates itself (RD-191-10).",
+        "required": [
+          "automatic_updates"
+        ],
+        "properties": {
+          "automatic_updates": {
+            "type": "boolean",
+            "description": "On: every installed plugin, and every plugin installed later, updates as if set to\nautomatic. Off: each plugin's own policy applies. Either way an update that asks for a\nnew permission waits for a click, and an installed update runs from the next start."
           }
         }
       },
@@ -32744,6 +33252,25 @@
             "description": "Keep a finished package that still holds a file which did not complete.",
             "default": true
           },
+          "auto_retry_failed": {
+            "type": "boolean",
+            "description": "Put failed downloads back into the queue on a timer when their failure may pass by\nitself: a limit, an IP block, a server or network that was down, a file reported\noffline (RD-191-12).",
+            "default": false
+          },
+          "auto_retry_interval_hours": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Hours between a download failing and its automatic retry (1–24).",
+            "default": 6,
+            "minimum": 0
+          },
+          "auto_retry_max_rounds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Automatic retry rounds per download (0–100); `0` is no limit.",
+            "default": 3,
+            "minimum": 0
+          },
           "bandwidth_default_profile_id": {
             "oneOf": [
               {
@@ -33022,7 +33549,7 @@
           "max_retries": {
             "type": "integer",
             "format": "int32",
-            "description": "Retries per file before a retryable failure becomes final (0–100).",
+            "description": "Retries per file before a retryable failure becomes final (0–100). Waiting out a limit\nthe hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of\nthem; at most 48 such waits in a row (RD-191-12).",
             "default": 8,
             "minimum": 0
           },
@@ -33170,6 +33697,16 @@
             "description": "NZB files downloaded at once, 1 to 8; `0` is automatic - as many as keep every\nconnection busy (RD-130-22). All of them together take one `max_active_files` slot.",
             "default": 0,
             "minimum": 0
+          },
+          "nzb_hand_over_downloads_enabled": {
+            "type": "boolean",
+            "description": "The same offer in the Downloads view, in the menu of a package that came from an NZB\n(RD-191-13). A switch of its own (owner, 2026-10-04): handing over a failed package is a\ndifferent habit from handing over before the queue.",
+            "default": true
+          },
+          "nzb_hand_over_linkgrabber_enabled": {
+            "type": "boolean",
+            "description": "Whether the LinkGrabber offers to hand an NZB import to a remote-job provider: the menu\nin each NZB row and the entry in the selection bar (RD-191-13).\n\nOn by default, because it is offered only where an account takes NZB files. It is a\ndisplay choice and nothing more: the badge of an import already handed over stays, and\nthe REST route and the MCP tool keep working, so switching it off cannot strand a job.",
+            "default": true
           },
           "otlp_enabled": {
             "type": "boolean",

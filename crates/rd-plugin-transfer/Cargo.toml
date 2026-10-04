@@ -29,5 +29,7 @@ workspace = true
 
 [dev-dependencies]
 rd-limits = { path = "../rd-limits" }
+# The contract tests load the built example backend (`artifact`, RD-191-06 PLUG-15).
+rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 tempfile.workspace = true
 toml.workspace = true

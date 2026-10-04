@@ -9,7 +9,7 @@ export interface ApiResult<T> {
   error?: unknown
 }
 
-export interface EditableList<T, Body> {
+interface EditableList<T, Body> {
   /** The row being edited, or `null` while the form creates a new one. */
   editingId: Ref<string | null>
   /** True while a save or a delete is in flight. */

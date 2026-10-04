@@ -8,9 +8,10 @@
 //! fails, loops or blocks then cannot affect the download that triggered it — which is the
 //! property that makes it safe to let people write their own.
 
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use rd_automation::{Run, RunState, Trigger};
+use rd_automation::{Automation, AutomationVersion, Run, RunState, Trigger};
+use rd_core::AutomationId;
 use tokio_util::sync::CancellationToken;
 
 use crate::automation_actions::{ActionContext, execute};
@@ -20,6 +21,47 @@ const SWEEP: Duration = Duration::from_secs(5);
 
 /// Newest runs returned by the history endpoint by default.
 pub const DEFAULT_HISTORY: u32 = 100;
+
+/// The definition in force of each of `automations`, keyed by automation (audit 1.9.1, API-11).
+///
+/// The list routes and the area export used to ask for every automation's whole version history
+/// in turn. The enabled ones now come from one query, the engine's own; a disabled automation,
+/// or one changed between the two reads, still costs one lookup of its versions, because the
+/// store has no unfiltered form of that join. An automation without a stored definition is
+/// absent from the map.
+///
+/// # Errors
+///
+/// The store's error.
+pub async fn current_definitions(
+    database: &rd_db::Database,
+    automations: &[Automation],
+) -> anyhow::Result<HashMap<AutomationId, AutomationVersion>> {
+    let mut definitions: HashMap<AutomationId, AutomationVersion> = database
+        .active_automation_versions()
+        .await?
+        .into_iter()
+        .map(|version| (version.automation_id, version))
+        .collect();
+    for automation in automations {
+        if definitions
+            .get(&automation.id)
+            .is_some_and(|version| version.version == automation.version)
+        {
+            continue;
+        }
+        definitions.remove(&automation.id);
+        if let Some(version) = database
+            .automation_versions(automation.id)
+            .await?
+            .into_iter()
+            .find(|version| version.version == automation.version)
+        {
+            definitions.insert(automation.id, version);
+        }
+    }
+    Ok(definitions)
+}
 
 /// How much of a failure message is kept in the history.
 const MAX_MESSAGE_CHARS: usize = 300;
@@ -102,18 +144,35 @@ impl AutomationService {
             Ok(count) => tracing::info!(count, "re-queued interrupted automation runs"),
             Err(error) => tracing::warn!(%error, "automation recovery failed"),
         }
-        let mut events = self.inner.context.database.subscribe();
+        let database = self.inner.context.database.clone();
+        let mut events = database.subscribe();
+        let mut last = None;
         loop {
             tokio::select! {
                 () = self.inner.shutdown.cancelled() => return,
                 received = events.recv() => match received {
                     Ok(event) => {
-                        if let Err(error) = self.queue_for(&event).await {
-                            tracing::warn!(%error, "automation intake failed");
-                        }
+                        last = Some(event.id);
+                        self.intake(&event).await;
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
-                        tracing::warn!(missed, "automation engine fell behind the event bus");
+                        // The bus keeps the recent events beside its channel (RD-110-23): what
+                        // the channel dropped in a burst is taken from there, with a receiver
+                        // from the same step, so no trigger is lost to the burst (DB-05).
+                        match last.map(|after| database.resume(after)) {
+                            Some((rd_db::Replay::Events(replayed), receiver)) => {
+                                events = receiver;
+                                for event in replayed {
+                                    last = Some(event.id);
+                                    self.intake(&event).await;
+                                }
+                            }
+                            _ => tracing::error!(
+                                missed,
+                                code = "automation.events_missed",
+                                "the automation engine fell behind the event bus; the triggers of the missed events did not fire"
+                            ),
+                        }
                     }
                     Err(_) => return,
                 }
@@ -121,13 +180,28 @@ impl AutomationService {
         }
     }
 
+    async fn intake(&self, event: &rd_core::EventEnvelope) {
+        if let Err(error) = self.queue_for(event).await {
+            tracing::warn!(%error, "automation intake failed");
+        }
+    }
+
     /// Queues a run for every enabled automation the event satisfies.
     async fn queue_for(&self, event: &rd_core::EventEnvelope) -> anyhow::Result<()> {
         let database = &self.inner.context.database;
+        // Most events are none an automation hangs off, and most installations have none
+        // switched on: neither costs more than this one read (DB-05).
+        if !crate::automation_context::may_trigger(event) {
+            return Ok(());
+        }
+        let versions = database.active_automation_versions().await?;
+        if versions.is_empty() {
+            return Ok(());
+        }
         let Some(matched) = crate::automation_context::classify(database, event).await? else {
             return Ok(());
         };
-        for version in database.active_automation_versions().await? {
+        for version in versions {
             if !matched.triggers.contains(&version.trigger) {
                 continue;
             }

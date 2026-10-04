@@ -7,6 +7,7 @@ import type { Account, Category, Download, DownloadPriority, DownloadSummary, Pr
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import DirectAddForm from '@/components/DirectAddForm.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
+import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
 import TransferCard from '@/components/TransferCard.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import DataState from '@/components/DataState.vue'
@@ -23,10 +24,12 @@ import { useClearEverythingConfirm } from '@/composables/useClearEverythingConfi
 import { useConfirm } from '@/composables/useConfirm'
 import { copyText } from '@/composables/useCopy'
 import { useCopyLinks } from '@/composables/useCopyLinks'
+import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { useOpenSections } from '@/composables/useOpenSections'
-import type { VirtualRow } from '@/composables/useVirtualRows'
+import { DEFAULT_THRESHOLD, type VirtualRow } from '@/composables/useVirtualRows'
 import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
 import { usePackageStorage } from '@/composables/usePackageStorage'
+import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
 import { packageRowKey, useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
 import { useRename } from '@/composables/useRename'
@@ -47,6 +50,8 @@ const confirmClearEverything = useClearEverythingConfirm()
 const editPackage = usePackageEdit()
 const openPackageStorage = usePackageStorage()
 const copyLinks = useCopyLinks()
+// The NZB behind a package to a remote-job provider, in any state of the package (RD-191-13).
+const nzbHandOver = useNzbHandOver('downloads')
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 /** The state filter and the name search, both in the address (RD-190-21). */
@@ -133,6 +138,9 @@ const selection = useQueueSelection(groups, computed(() => transfers.downloads),
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
 usePublishedSelection(selection.size)
 
+/** The data columns' widths, set on the container of the header row and the rows (RD-191-11). */
+const columns = useQueueColumns('downloads')
+
 const queueList = ref<{
   focusRow: (key: string) => Promise<boolean>
   revealRow: (key: string) => Promise<boolean>
@@ -191,8 +199,28 @@ async function copyPath(path: string): Promise<void> {
  */
 const BUSY_STATES = [...ACTIVE, 'queued', 'retry_wait', 'paused', 'seeding']
 
+/**
+ * Every download by its package, the filter notwithstanding: a package action acts on all its
+ * files. Built once per refresh — each package row asked twice per render, and scanned the whole
+ * queue each time (WEB-08).
+ */
+const downloadsByPackage = computed(() => {
+  const byPackage = new Map<string, typeof transfers.downloads>()
+  for (const download of transfers.downloads) {
+    if (!download.package_id) continue
+    const bucket = byPackage.get(download.package_id)
+    if (bucket) bucket.push(download)
+    else byPackage.set(download.package_id, [download])
+  }
+  return byPackage
+})
+
+function packageDownloads(id: string): typeof transfers.downloads {
+  return downloadsByPackage.value.get(id) ?? []
+}
+
 function busyPackageCount(ids: string[]): number {
-  return ids.filter(id => transfers.downloads.some(item => item.package_id === id && BUSY_STATES.includes(item.state))).length
+  return ids.filter(id => packageDownloads(id).some(item => BUSY_STATES.includes(item.state))).length
 }
 
 async function deletePackage(id: string): Promise<void> {
@@ -298,14 +326,14 @@ async function bulkAction(action: 'pause' | 'resume' | 'cancel'): Promise<void> 
 
 function canControlPackage(id: string, action: 'pause' | 'resume'): boolean {
   const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-  return transfers.downloads.some(download => download.package_id === id && states.includes(download.state))
+  return packageDownloads(id).some(download => states.includes(download.state))
 }
 
 async function controlPackage(id: string, action: 'pause' | 'resume'): Promise<void> {
   if (packageControlBusy.value[id]) return
   const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-  const ids = transfers.downloads
-    .filter(download => download.package_id === id && states.includes(download.state))
+  const ids = packageDownloads(id)
+    .filter(download => states.includes(download.state))
     .map(download => download.id)
   if (!ids.length) return
 
@@ -342,7 +370,8 @@ async function bulkRemove(): Promise<void> {
  * silently skipping it reads as the action having worked.
  */
 async function resetDownloads(ids: string[]): Promise<void> {
-  const targets = transfers.downloads.filter(download => ids.includes(download.id) && RESETTABLE_STATES.includes(download.state))
+  const wanted = new Set(ids)
+  const targets = transfers.downloads.filter(download => wanted.has(download.id) && RESETTABLE_STATES.includes(download.state))
   if (!targets.length) {
     transfers.notice = t('downloads.notices.nothing_to_reset')
     return
@@ -652,6 +681,16 @@ async function removeDownload(id: string): Promise<void> {
             The capture-phase handlers read the shift key before the checkbox reports its new
             value, which is what turns a pick into a range (RD-106-12).
           -->
+          <div :style="columns.style.value">
+          <QueueColumnHeader
+            :widths="columns.widths.value"
+            :meta-label="t('common.queue_columns.meta_downloads')"
+            :gutter="rows.length > DEFAULT_THRESHOLD"
+            :customized="columns.customized.value"
+            @resize="columns.setWidth"
+            @reset="columns.reset"
+            @reset-all="columns.resetAll"
+          />
           <VirtualRowList
             ref="queueList"
             :rows="rows"
@@ -675,6 +714,8 @@ async function removeDownload(id: string): Promise<void> {
                 :can-pause="canControlPackage(row.group.package.id, 'pause')"
                 :can-resume="canControlPackage(row.group.package.id, 'resume')"
                 :control-busy="packageControlBusy[row.group.package.id] ?? null"
+                :remote-targets="nzbHandOver.targets.value"
+                :handed-over-to="nzbHandOver.packageHandedOverTo(row.group.package)"
                 @select="selection.pickPackage"
                 @toggle="openPackages.toggle"
                 @category="(id, categoryId) => changePackages([id], { categoryId })"
@@ -691,6 +732,7 @@ async function removeDownload(id: string): Promise<void> {
                 @delete-package="deletePackage"
                 @copy-path="copyPath"
                 @copy-links="copyPackageLinks"
+                @hand-over="(_id: string, accountId: string) => void nzbHandOver.handOverPackage(row.group.package, accountId)"
               />
               <TransferCard
                 v-else
@@ -717,6 +759,7 @@ async function removeDownload(id: string): Promise<void> {
               />
             </template>
           </VirtualRowList>
+          </div>
         </section>
 
         <!-- The queue has files, the filter or the search hides all of them: say so, and offer the way back. -->

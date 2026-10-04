@@ -290,17 +290,6 @@ pub(crate) fn url_file_name(url: &url::Url) -> Option<String> {
     (!name.is_empty()).then(|| name.to_owned())
 }
 
-/// The `filename=` parameter of a `Content-Disposition` header value.
-#[must_use]
-pub(crate) fn file_name_from_disposition(value: &str) -> Option<String> {
-    value.split(';').find_map(|part| {
-        let (name, value) = part.trim().split_once('=')?;
-        name.eq_ignore_ascii_case("filename")
-            .then(|| value.trim_matches(['\'', '"']).to_owned())
-            .filter(|value| !value.is_empty())
-    })
-}
-
 /// Explains why a page carried none of the markers the flow needs, for the failure message.
 #[must_use]
 pub(crate) fn diagnose(html: &str) -> String {

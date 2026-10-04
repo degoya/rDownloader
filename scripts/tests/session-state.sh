@@ -27,6 +27,7 @@ passed=0
 ok() { echo "ok   $1"; passed=$((passed + 1)); }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 run() {
     RD_REPO="$REPO" RD_RUN_ROOT="$RUNS" RD_LOCK_FILE="$SCRATCH/no.lock" RD_GH_REPO=o/r \
         CARGO_TARGET_DIR="$SCRATCH/target" PATH="$BIN:$PATH" "$SCRIPT" "$@" > "$SCRATCH/out" 2>&1 \

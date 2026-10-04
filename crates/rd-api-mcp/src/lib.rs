@@ -64,8 +64,8 @@ use rd_api_access::{audit_dto, audit_handlers};
 use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
     data_reset_handlers, diagnostics_dto, diagnostics_handlers, notify_handlers, plugin_bundled,
-    plugin_handlers, plugin_repository_handlers, settings_handlers, stats_handlers, tools_handlers,
-    update_handlers,
+    plugin_handlers, plugin_repository_handlers, plugin_update_policy, settings_handlers,
+    stats_handlers, tools_handlers, update_handlers,
 };
 use rd_api_core::{
     ApiError, AppState, audit, auth, client, container_upload, dto, error_codes, hosters,
@@ -79,9 +79,10 @@ use rd_api_intake::{
 };
 use rd_api_queue::{
     bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, download_handlers,
-    download_sources, duplicates, media_handlers, metrics, package_clear, package_handlers,
-    power_handlers, queue_pause_handlers, reconnect_handlers, remote_job_handlers,
-    storage_handlers, torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
+    download_sources, duplicates, media_handlers, metrics, nzb_remote_job_handlers, package_clear,
+    package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
+    remote_job_handlers, storage_handlers, torrent_control, torrent_handlers, torrent_trackers,
+    usenet_handlers,
 };
 
 // Public for the coverage table in `rd-api`, which holds them against the assembled document.
@@ -263,42 +264,44 @@ fn refusal(required: Scope, tool: &str) -> rmcp::ErrorData {
 }
 
 impl RdMcpServer {
-    /// The scopes the caller of this request carries.
+    /// The scopes the caller of this request carries, and who is making the call with which
+    /// trace -- resolved once per tool call (audit 1.9.1, API-14).
     ///
     /// rmcp injects the originating `http::request::Parts` into the request context, which is
     /// the only place the credential is visible: the session factory that builds this server
-    /// never sees a request, so the scopes cannot be resolved once per session.
-    async fn granted(&self, context: &RequestContext<RoleServer>) -> Vec<Scope> {
+    /// never sees a request, so the scopes cannot be resolved once per session. The transport
+    /// gate (`auth::require_api_token`) already resolved them for this very request and left
+    /// them in the parts' extensions; they are read from there, and looked up only for a
+    /// request that did not pass the gate, which the router does not let happen.
+    async fn caller(
+        &self,
+        context: &RequestContext<RoleServer>,
+    ) -> (Vec<Scope>, crate::audit::AuditContext) {
         let Some(parts) = context.extensions.get::<axum::http::request::Parts>() else {
             // No HTTP parts means this is not the streamable-HTTP transport the service is
             // mounted on. Nothing to authorise against, so nothing is granted.
-            return Vec::new();
+            return (
+                Vec::new(),
+                crate::audit::AuditContext {
+                    actor: crate::audit::Actor::system(),
+                    trace: None,
+                },
+            );
         };
-        let from_this_machine = crate::client::from_this_machine(&parts.extensions, &parts.headers);
-        crate::auth::granted_scopes(&self.state, &parts.headers, from_this_machine).await
-    }
-
-    /// Who is making this tool call, and which trace it belongs to.
-    ///
-    /// Same source as [`Self::granted`] and for the same reason: the session factory never
-    /// sees a request, so both have to be resolved per call from the injected parts.
-    async fn audit_context(
-        &self,
-        context: &RequestContext<RoleServer>,
-    ) -> crate::audit::AuditContext {
-        let Some(parts) = context.extensions.get::<axum::http::request::Parts>() else {
-            return crate::audit::AuditContext {
-                actor: crate::audit::Actor::system(),
-                trace: None,
-            };
+        let trace = parts.extensions.get::<rd_core::TraceContext>().copied();
+        let resolved = parts
+            .extensions
+            .get::<crate::auth::Granted>()
+            .zip(parts.extensions.get::<crate::audit::Actor>());
+        let (scopes, actor) = match resolved {
+            Some((granted, actor)) => (granted.scopes().to_vec(), actor.clone()),
+            None => {
+                let from_this_machine =
+                    crate::client::from_this_machine(&parts.extensions, &parts.headers);
+                crate::auth::credential(&self.state, &parts.headers, from_this_machine).await
+            }
         };
-        let from_this_machine = crate::client::from_this_machine(&parts.extensions, &parts.headers);
-        let (_scopes, actor) =
-            crate::auth::credential(&self.state, &parts.headers, from_this_machine).await;
-        crate::audit::AuditContext {
-            actor,
-            trace: parts.extensions.get::<rd_core::TraceContext>().copied(),
-        }
+        (scopes, crate::audit::AuditContext { actor, trace })
     }
 
     /// The permission check and the call itself, before the mask.
@@ -317,7 +320,7 @@ impl RdMcpServer {
                 })),
             ));
         };
-        let granted = self.granted(&context).await;
+        let (granted, audit) = self.caller(&context).await;
         if !granted.contains(&required) {
             return Err(refusal(required, &request.name));
         }
@@ -326,7 +329,6 @@ impl RdMcpServer {
         {
             return Err(refusal(extra, &request.name));
         }
-        let audit = self.audit_context(&context).await;
         let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
         // Scoped rather than passed: the generated tool methods take only their parameters,
         // and the credential is visible here and nowhere below (RD-110-03).

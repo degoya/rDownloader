@@ -161,11 +161,26 @@ fn the_refusals_are_told_apart_by_what_a_person_has_to_do() {
 
     let gone =
         failure_from(404, None, &envelope(r#"{"error_type":"NOT_FOUND"}"#)).expect("a refusal");
-    assert_eq!(gone.kind, ErrorKind::Offline);
+    // Final: a transfer that is not there does not come back (owner, 2026-10-04).
+    assert_eq!(gone.kind, ErrorKind::Permanent);
     assert_eq!(gone.code, messages::TRANSFER_GONE.0);
 
     let busy = failure_from(502, None, &envelope("")).expect("a refusal");
     assert_eq!(busy.kind, ErrorKind::Transient(Some(300)));
+}
+
+/// The statuses no word explains map the way every plugin maps them (RD-191-07): a `451` legal
+/// block is offline and retried, and a `503` that names a wait is waited out that long.
+#[test]
+fn bare_statuses_follow_the_shared_mapping() {
+    let takedown = failure_from(451, None, &envelope("")).expect("a refusal");
+    assert_eq!(takedown.kind, ErrorKind::Offline);
+    assert_eq!(takedown.code, messages::TRANSFER_GONE.0);
+    let busy = failure_from(503, Some(30), &envelope("")).expect("a refusal");
+    assert_eq!(busy.kind, ErrorKind::Transient(Some(30)));
+    let odd = failure_from(418, None, &envelope("")).expect("a refusal");
+    assert_eq!(odd.kind, ErrorKind::Permanent);
+    assert_eq!(odd.code, messages::HTTP_ERROR.0);
 }
 
 /// A full account is not "Put.io said no": it is one thing the person can actually fix, and it

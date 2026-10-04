@@ -3,7 +3,7 @@ name: Reproducibility
 # RD-180-12: the Linux x86_64 release binaries built twice, independently, from the same tag and
 # compared byte for byte with each other and with the ones the release published. Two jobs on two
 # fresh runners, each with its own checkout path, its own cargo home and no cache at all, so
-# nothing one build left behind can reach the other; the same toolchain (1.98.0), `--locked`, the
+# nothing one build left behind can reach the other; the same toolchain (1.98.1), `--locked`, the
 # time of the tag's commit as SOURCE_DATE_EPOCH and the build paths remapped. Equal SHA-256 across
 # all three is the green; a mismatch runs diffoscope and uploads its report.
 # How to read a result and the known sources of difference: docs/reproducible-builds.md in the
@@ -46,7 +46,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  RUSTUP_TOOLCHAIN: 1.98.0
+  RUSTUP_TOOLCHAIN: 1.98.1
   TARGET: x86_64-unknown-linux-gnu
   # A tag push's run names its tag as the branch.
   TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
@@ -98,7 +98,7 @@ jobs:
           node-version: 24
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          toolchain: 1.98.0
+          toolchain: 1.98.1
           targets: x86_64-unknown-linux-gnu
       # The script release.yml's binary jobs run, from the tag being rebuilt: SOURCE_DATE_EPOCH
       # and the About page's stamp from the commit, the paths remapped for the target only.

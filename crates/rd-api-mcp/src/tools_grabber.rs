@@ -16,11 +16,11 @@ use super::{
     error::{McpToolResult, api_error, parse_id, respond},
     params_config::IdParams,
     params_handling::{
-        EnqueueNzbParams, EntryKindParam, EntryRefParam, IdBodyParams, ReorderCollectorParams,
-        body, public,
+        EnqueueNzbParams, EntryKindParam, EntryRefParam, IdBodyParams, PageParams,
+        ReorderCollectorParams, body, public,
     },
 };
-use crate::{ApiError, collector_handlers as collector, nzb_handlers};
+use crate::{ApiError, collector_handlers as collector, dto::PageQuery, nzb_handlers};
 
 fn entry(reference: &EntryRefParam) -> serde_json::Value {
     serde_json::json!({
@@ -124,13 +124,41 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the NZB imports waiting in the LinkGrabber for review: name, size, file count, category, priority and state, with the ids the other nzb_import tools take."
+        description = "List the NZB imports waiting in the LinkGrabber for review: name, size, file count, category, priority and state, with the ids the other nzb_import tools take. Without limit and offset the whole list comes back as an array; with them (limit 1-1000) one page of the same list in the same order, as {items, total, truncated} like the other list tools, total being the length of the whole list."
     )]
-    pub async fn list_nzb_imports(&self) -> McpToolResult {
+    pub async fn list_nzb_imports(
+        &self,
+        Parameters(params): Parameters<PageParams>,
+    ) -> McpToolResult {
+        let page = PageQuery {
+            limit: params.limit,
+            offset: params.offset,
+        };
+        let windowed = page.limit.is_some() || page.offset.is_some();
         respond(
-            nzb_handlers::list_nzb_imports(State(self.state.clone()))
-                .await
-                .and_then(|Json(imports)| public(&imports)),
+            nzb_handlers::list_nzb_imports(
+                State(self.state.clone()),
+                rd_api_core::list_bounds::Page(page),
+            )
+            .await
+            .and_then(|(headers, Json(imports))| {
+                if !windowed {
+                    return public(&imports);
+                }
+                // The REST answer names the whole list's length in a header, which a tool
+                // result has no place for; it goes into the answer instead (audit 1.9.1, API-15).
+                let total = headers
+                    .get(rd_api_core::list_bounds::TOTAL_COUNT_HEADER)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .unwrap_or(imports.len());
+                let skipped = usize::try_from(page.offset.unwrap_or(0)).unwrap_or(usize::MAX);
+                public(&crate::params::PagedList {
+                    truncated: skipped.saturating_add(imports.len()) < total,
+                    items: imports,
+                    total,
+                })
+            }),
         )
     }
 

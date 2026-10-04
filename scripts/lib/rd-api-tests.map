@@ -101,6 +101,8 @@
 ^crates/rd-api(-[a-z]+)?/src/routes/security\.rs$                                         auth mfa passkeys sessions api_tokens reverse_proxy oidc
 # The host allowlist and the proxy contract it lives in (security review 2026-09-28, finding 3).
 ^crates/rd-authn/src/(host|proxy)\.rs$                                                     + host_check reverse_proxy
+# Whether a state-changing request came from another site's page (audit 1.9.1, API-01).
+^crates/rd-authn/src/origin\.rs$                                                          + cross_site
 ^crates/rd-api(-[a-z]+)?/src/session_handlers\.rs$                                        sessions auth reverse_proxy oidc
 ^crates/rd-api(-[a-z]+)?/src/stream_standing\.rs$                                         stream_revocation event_resume
 ^crates/rd-db/src/(session_store|capture_store)\.rs$                                      + stream_revocation
@@ -116,7 +118,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(update_handlers|update_service|update_install_service|update_service/[a-z_]+)\.rs$   updates
 ^crates/rd-api(-[a-z]+)?/src/capture_agents\.rs$                                         updates
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)\.rs$                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
-^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)\.rs$                         nzb_paused container_json indexers compat_sabnzbd
+^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)\.rs$                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd
+^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers\.rs$                                nzb_remote_job
 
 # --- the secret canaries (RD-170-06): what takes, stores, logs, seals or hands back a credential.
 # Added to whatever the rows above select; they still decide the rest of each path.
@@ -150,4 +153,7 @@
 ^crates/rd-core/src/toolpath\.rs$                                                         managed_tools
 ^crates/rd-update/                                                                        updates
 ^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
-^crates/rd-core/src/usenet\.rs$                                                           nzb_paused container_json indexers compat_sabnzbd mcp
+^crates/rd-core/src/usenet\.rs$                                                           nzb_paused nzb_remote_job container_json indexers compat_sabnzbd mcp
+
+# --- files outside crates/ the suites read (RD-191-09, scripts/lib/rust-test-inputs.map) --------
+^testfile/                                                                                mcp container_json

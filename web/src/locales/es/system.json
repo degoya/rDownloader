@@ -649,7 +649,6 @@
       "deb_file": "El repositorio solo contiene versiones estables. Una beta, o un paquete instalado desde una descarga, se instala desde el archivo: sudo apt install ./<archivo>.deb",
       "rpm_file": "El repositorio solo contiene versiones estables. Una beta, o un paquete instalado desde una descarga, se instala desde el archivo: sudo dnf install ./<archivo>.rpm"
     },
-    "notice": "Actualización disponible",
     "notice_version": "{version} disponible",
     "notice_installing": "Actualizando a {version}",
     "notice_updated": "Actualizado a {version}",

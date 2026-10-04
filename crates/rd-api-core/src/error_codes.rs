@@ -51,6 +51,28 @@ pub fn bulk_range(max: usize) -> ApiError {
     .with_param("max", max)
 }
 
+/// The most entries one section of an import bundle (an area bundle, the routing bundle) may
+/// carry.
+///
+/// Every entry costs one trip through the serialized database writer, and the request body limit
+/// allows 65 MiB of them — enough for tens of thousands. Importing such a bundle holds the single
+/// writer for minutes, and every running download's progress write queues up behind it. The cap is
+/// checked before the first write, so an oversized bundle is refused rather than half-applied; 500
+/// is far beyond any bundle this application exports.
+pub const MAX_BUNDLE_SECTION_ENTRIES: usize = 500;
+
+/// `400` for a bundle section longer than [`MAX_BUNDLE_SECTION_ENTRIES`]; an empty one is fine.
+///
+/// # Errors
+///
+/// [`bulk_range`] with [`MAX_BUNDLE_SECTION_ENTRIES`] for a longer section.
+pub fn validate_bundle_section(len: usize) -> Result<(), ApiError> {
+    if len > MAX_BUNDLE_SECTION_ENTRIES {
+        return Err(bulk_range(MAX_BUNDLE_SECTION_ENTRIES));
+    }
+    Ok(())
+}
+
 /// The longest list a reorder accepts.
 ///
 /// A reorder carries the whole order of a list, so it cannot be sent in batches the way a bulk
