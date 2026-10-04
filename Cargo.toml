@@ -265,7 +265,7 @@ toml = "1"
 tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tray-icon = "0.25"
+tray-icon = "0.26"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
 utoipa = { version = "6", features = ["axum_extras", "chrono", "uuid"] }
