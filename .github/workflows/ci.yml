@@ -46,14 +46,10 @@ env:
 # moves pin and comment together; scripts/check-actions-pinned.sh refuses an unpinned `uses:`.
 
 jobs:
-  # What this run has to check (RD-191-09 T02). Everything, except on a push to `main`: a release
-  # pushes there the tree its chain already had checked as `ci/<version>` — one fresh commit per
-  # release, so the commit is new and the tree is not — and this ran it all again, macOS included,
-  # for 61 minutes. scripts/ci-tree-greens.sh names the runner images no successful run of this
-  # very tree covers; the platform jobs take those, and with none left only `components` runs,
-  # whose cache release.yml reads. The jobs that run once per run, not per image (`ONCE`), are
-  # asked the same way and run only when no successful run of the tree passed them (RA-TOOL-05).
-  # A tree nobody checked, or a GitHub that does not answer, gets everything.
+  # What this run has to check (RD-191-09 T02): everything, except on a push to `main`, which
+  # carries a tree the release chain already had checked; there only the runner images and `ONCE`
+  # jobs no successful run of this very tree covered run (scripts/ci-gate.sh). A tree nobody
+  # checked, or a GitHub that does not answer, gets everything.
   gate:
     runs-on: ubuntu-24.04
     permissions:
@@ -74,34 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REQUESTED: ${{ inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]' }}
           ONCE: '["docker","s3-live","clamav-live","supply-chain","scripts"]'
-        run: |
-          set -euo pipefail
-          platforms="${REQUESTED}"
-          jobs="${ONCE}"
-          warm='[]'
-          if [[ "${GITHUB_EVENT_NAME}" == push && "${GITHUB_REF}" == refs/heads/main ]]; then
-            mapfile -t images < <(jq -r '.[]' <<< "${REQUESTED}")
-            mapfile -t once < <(jq -r '.[]' <<< "${ONCE}")
-            mapfile -t answer < <(scripts/ci-tree-greens.sh "${GITHUB_REPOSITORY}" "$(git rev-parse 'HEAD^{tree}')" "${images[@]}" -- "${once[@]}")
-            platforms="${answer[0]:-${REQUESTED}}"
-            jobs="${answer[1]:-${ONCE}}"
-            # The Linux and Windows images left out above build for main's cache instead
-            # (`warm-cache`); macOS is checked at a release candidate only and keeps none.
-            warm="$(jq -c --argjson run "${platforms}" \
-              '[.[] | select(startswith("macos") | not) | select(. as $image | $run | index($image) | not)]' \
-              <<< "${REQUESTED}")"
-          fi
-          check=true
-          if [[ "${platforms}" == "[]" ]]; then check=false; fi
-          echo "platforms: ${platforms}"
-          echo "jobs: ${jobs}"
-          echo "warm: ${warm}"
-          {
-            echo "platforms=${platforms}"
-            echo "check=${check}"
-            echo "jobs=${jobs}"
-            echo "warm=${warm}"
-          } >> "${GITHUB_OUTPUT}"
+        run: scripts/ci-gate.sh
 
   web:
     needs: gate
@@ -154,9 +123,9 @@ jobs:
     # crash matrix ran past 90 minutes twice in 1.8 (runs 36734111741, 36743221728) and was
     # cancelled in the matrix step, not hung; the matrix is its own job since, `crash-matrix`.
     timeout-minutes: 120
-    # `crash-matrix` builds with the same linkers and caches: its env and setup steps are this
-    # job's, by YAML alias.
-    env: &rust-env
+    # `crash-matrix` and `warm-cache` build with the same linkers and caches: ci-crash-matrix.yml
+    # and ci-warm-cache.yml repeat this env and the setup steps, and a change here goes there too.
+    env:
       # mold instead of GNU ld on Linux (installed below): the test build links ~40 binaries of
       # up to half a gigabyte each, and mold does it in a fraction of the time and memory. The
       # variable names the Linux target only, so the other two runners never see it.
@@ -169,21 +138,16 @@ jobs:
       # held 1.9 GB of the repository's 10 GB. Swatinem/rust-cache alone, saved from main.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # A debug test build of this workspace does not fit on a hosted runner as it comes: every
-      # rd-api integration binary links the whole dependency graph at ~550 MB, and there are 55
-      # of them. The first run on GitHub (2026-09-25) filled the Ubuntu runner's disk and the
-      # runner died writing its own log (RD-120-67). The Windows image has room to spare.
-      - &free-runner-disk
-        name: Free runner disk
+      # A debug test build does not fit on a hosted runner as it comes: every rd-api integration
+      # binary links the whole dependency graph at ~550 MB (RD-120-67). Windows has room to spare.
+      - name: Free runner disk
         if: runner.os != 'Windows'
         uses: ./.github/actions/free-runner-disk
-      - &install-mold
-        name: Install mold
+      - name: Install mold
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
       # rust-embed compiles web/dist into rd-api; the `web` job built it once for every system.
-      - &web-dist
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: web-dist
           path: web/dist
@@ -203,8 +167,7 @@ jobs:
         with:
           shared-key: rust-tests
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - &nextest
-        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: nextest@0.9.146
       - run: cargo fmt --all --check
@@ -255,8 +218,7 @@ jobs:
       # What the runner had when a step failed, if it is still alive to say so. A linker that
       # failed prints "No space left on device" or "ld terminated with signal 9 [Killed]" just
       # under "linking with cc failed"; these lines say which limit it was near.
-      - &disk-after-failure
-        name: Disk and memory after a failure
+      - name: Disk and memory after a failure
         if: failure()
         shell: bash
         run: |
@@ -269,256 +231,8 @@ jobs:
       - name: Object storage without the optional connectors
         if: runner.os == 'Linux'
         run: cargo nextest run --no-fail-fast -p rd-object-storage --no-default-features
-      - name: Check Unix launcher syntax
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            bash -n scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
-              scripts/linux/start-capture.sh scripts/linux/stop-capture.sh
-          else
-            bash -n scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command \
-              scripts/macos/start-capture.command scripts/macos/stop-capture.command
-          fi
-      - name: Check Windows launcher arguments
-        if: runner.os == 'Windows'
-        shell: pwsh
-        # The launcher pauses at the end when started by a double click; unattended it must not.
-        env:
-          RDOWNLOADER_NO_PAUSE: "1"
-        run: |
-          cmd /c scripts\windows\start-rdownloader.bat invalid-mode
-          if ($LASTEXITCODE -ne 2) { throw "start script accepted an invalid mode" }
-          cmd /c scripts\windows\stop-rdownloader.bat invalid-mode
-          if ($LASTEXITCODE -ne 2) { throw "stop script accepted an invalid mode" }
-          # The capture-only launcher reaches the capture agent and nothing else: without the EXE
-          # next to it, it names rdownloader-capture.exe as missing and never the server.
-          $out = cmd /c scripts\windows\start-capture.bat 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 1 -or $out -notmatch 'rdownloader-capture\.exe was not found' -or $out -match 'rdownloader\.exe was not found') { throw "capture launcher: $out" }
-          # The runner ends a pwsh step with `exit $LASTEXITCODE`, which would turn the expected
-          # refusal (2) into a failed step.
-          exit 0
-      - name: Build and validate macOS NZB helper app
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          helper_dir="$(mktemp -d)"
-          osacompile -o "${helper_dir}/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
-          cp resources/macos/capture-helper-Info.plist "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-          plutil -lint "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-      # One debug build of both binaries for this smoke and, on macOS, the Homebrew formula below:
-      # no job of this workflow builds a macOS binary otherwise (`rust` only lints there), so
-      # there is no artefact to take instead (RD-191-09 T08).
-      - name: Smoke-test portable Unix server launcher
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          packages=(-p rdownloader)
-          if [[ "${{ runner.os }}" == "macOS" ]]; then packages+=(-p rd-capture); fi
-          cargo build --locked "${packages[@]}"
-          portable_dir="$(mktemp -d)"
-          cp target/debug/rdownloader "${portable_dir}/"
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh "${portable_dir}/"
-            start_script="${portable_dir}/start-rdownloader.sh"
-            stop_script="${portable_dir}/stop-rdownloader.sh"
-          else
-            cp scripts/macos/start-rdownloader.command scripts/macos/stop-rdownloader.command "${portable_dir}/"
-            start_script="${portable_dir}/start-rdownloader.command"
-            stop_script="${portable_dir}/stop-rdownloader.command"
-          fi
-          "${start_script}" server
-          trap '"${stop_script}" server' EXIT
-          curl --fail --silent --show-error --retry 10 --retry-delay 1 \
-            http://127.0.0.1:8710/api/v1/health
-          "${stop_script}" server
-          trap - EXIT
-      # RD-180-06: the Homebrew formula as the tap gets it, rendered by scripts/package-managers.sh
-      # — but over an archive in the release layout made from this tree's debug build instead of
-      # a published release, so what is tested is this tree's formula. Install from a local tap,
-      # `brew test`, the service through `brew services` up to /api/v1/health, uninstall. The
-      # capture agent's formula is installed and tested too, never started: the runner has no
-      # login session for its tray. The tap is rendered as rdownloader-ci's, so its dependency on
-      # <owner>/rdownloader/rdownloader names this local tap instead of cloning the published one.
-      - name: Install through the Homebrew formula
-        if: runner.os == 'macOS'
-        shell: bash
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: "1"
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_ANALYTICS: "1"
-        run: |
-          set -euo pipefail
-          version="$(scripts/set-version.sh)"
-          arch="$(uname -m)"
-          [[ "${arch}" == arm64 ]] && arch=aarch64
-          fixture="${RUNNER_TEMP}/brew-fixture"
-          mkdir -p "${fixture}/stage/plugins"
-          cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md "${fixture}/stage/"
-          osacompile -o "${fixture}/stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
-          COPYFILE_DISABLE=1 tar --directory "${fixture}/stage" --create --gzip \
-            --file "${fixture}/rdownloader-macos-${arch}.tar.gz" .
-          # The generator wants every archive of a release; the others are never downloaded here.
-          (cd "${fixture}" && shasum -a 256 "./rdownloader-macos-${arch}.tar.gz") > "${fixture}/SHA256SUMS"
-          for other in macos-x86_64.tar.gz macos-aarch64.tar.gz linux-x86_64.tar.gz linux-aarch64.tar.gz windows-x86_64.zip; do
-            grep -q "rdownloader-${other}" "${fixture}/SHA256SUMS" \
-              || printf '%064d  ./rdownloader-%s\n' 0 "${other}" >> "${fixture}/SHA256SUMS"
-          done
-          scripts/package-managers.sh "${version}" "${fixture}/SHA256SUMS" "${fixture}/out" \
-            --repository rdownloader-ci/rDownloader --base-url "file://${fixture}"
-          brew tap-new --no-git rdownloader-ci/rdownloader
-          cp "${fixture}/out/rdownloader.rb" "${fixture}/out/rdownloader-capture.rb" \
-            "$(brew --repository rdownloader-ci/rdownloader)/Formula/"
-          brew install rdownloader-ci/rdownloader/rdownloader
-          brew test rdownloader-ci/rdownloader/rdownloader
-          brew install rdownloader-ci/rdownloader/rdownloader-capture
-          brew test rdownloader-ci/rdownloader/rdownloader-capture
-          log="$(brew --prefix)/var/log/rdownloader.log"
-          brew services start rdownloader
-          trap 'brew services stop rdownloader || true; cat "${log}" || true' EXIT
-          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused \
-            http://127.0.0.1:8710/api/v1/health
-          test -f "$(brew --prefix)/var/rdownloader/data/rdownloader.sqlite3"
-          brew services stop rdownloader
-          trap - EXIT
-          brew uninstall rdownloader-capture rdownloader
-      - name: Smoke-test Windows executables
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cargo build --locked -p rdownloader -p rd-capture
-          & target/debug/rdownloader.exe --version
-          & target/debug/rdownloader-capture.exe --version
-      - name: Smoke-test portable Windows server launcher
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $portableDir = Join-Path $env:RUNNER_TEMP "rdownloader-portable"
-          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
-          Copy-Item target/debug/rdownloader.exe $portableDir
-          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat $portableDir
-          Push-Location $portableDir
-          try {
-            cmd /c start-rdownloader.bat server
-            if ($LASTEXITCODE -ne 0) { throw "portable start script failed" }
-            $healthy = $false
-            for ($attempt = 0; $attempt -lt 10; $attempt++) {
-              try {
-                Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
-                $healthy = $true
-                break
-              } catch {
-                Start-Sleep -Seconds 1
-              }
-            }
-            if (-not $healthy) { throw "portable server health check failed" }
-            # RD-180-02: the launcher stops the server over its API, not by ending the process.
-            $stopped = cmd /c stop-rdownloader.bat server 2>&1 | Out-String
-            if ($stopped -notmatch 'stopped gracefully') { throw "no graceful stop: $stopped" }
-          } finally {
-            cmd /c stop-rdownloader.bat server
-          }
-          Pop-Location
-      # RD-180-06: the Scoop manifest the same way as the Homebrew formula on macOS, over a zip
-      # in the release layout from this tree's debug build, served on loopback. Three steps
-      # because the generator is bash and Scoop is PowerShell.
-      - name: Pack a release-layout zip for the Scoop manifest
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $fixture = Join-Path $env:RUNNER_TEMP 'scoop-fixture'
-          $stage = Join-Path $fixture 'stage'
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item target/debug/rdownloader.exe,target/debug/rdownloader-capture.exe $stage
-          Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat,scripts/windows/start-capture.bat,scripts/windows/stop-capture.bat $stage
-          Copy-Item LICENSE, README.md $stage
-          Compress-Archive -Path "$stage/*" -DestinationPath (Join-Path $fixture 'rdownloader-windows-x86_64.zip')
-      - name: Render the Scoop manifest
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture="${RUNNER_TEMP}/scoop-fixture"
-          (cd "${fixture}" && sha256sum ./rdownloader-windows-x86_64.zip) > "${fixture}/SHA256SUMS"
-          # The generator wants every archive of a release; the others are never downloaded here.
-          for other in macos-x86_64 macos-aarch64 linux-x86_64 linux-aarch64; do
-            printf '%064d  ./rdownloader-%s.tar.gz\n' 0 "${other}" >> "${fixture}/SHA256SUMS"
-          done
-          scripts/package-managers.sh "$(scripts/set-version.sh)" "${fixture}/SHA256SUMS" \
-            "${fixture}/out" --base-url http://127.0.0.1:8765
-      - name: Install through the Scoop manifest
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          RDOWNLOADER_NO_PAUSE: "1"
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $fixture = Join-Path $env:RUNNER_TEMP 'scoop-fixture'
-          $server = Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1' -WorkingDirectory $fixture -PassThru -WindowStyle Hidden
-          try {
-            Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
-            $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
-            scoop install (Join-Path $fixture 'out\rdownloader.json')
-            if ($LASTEXITCODE -ne 0) { throw "scoop install failed" }
-            $version = (rdownloader --version | Out-String)
-            if ($version -notmatch [regex]::Escape((Get-Content (Join-Path $fixture 'out\rdownloader.json') | ConvertFrom-Json).version)) { throw "rdownloader --version: $version" }
-            start-rdownloader server
-            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader failed" }
-            try {
-              $healthy = $false
-              for ($attempt = 0; $attempt -lt 30; $attempt++) {
-                try {
-                  Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null
-                  $healthy = $true
-                  break
-                } catch {
-                  Start-Sleep -Seconds 1
-                }
-              }
-              if (-not $healthy) { throw "the Scoop install's server did not answer" }
-            } finally {
-              stop-rdownloader server
-            }
-            # `persist`: the database is in Scoop's persist folder, where an update finds it.
-            if (-not (Test-Path "$env:USERPROFILE\scoop\persist\rdownloader\data\rdownloader.sqlite3")) { throw "the database is not in the persist folder" }
-            # The login entries and the URL handler store Scoop's `current` junction, not this
-            # version's folder, which `scoop update` leaves behind and `scoop cleanup` deletes.
-            # Started from the version folder: the shims already run the executables through
-            # `current`, and the registration would pass without the mapping.
-            $appVersion = (Get-Content (Join-Path $fixture 'out\rdownloader.json') | ConvertFrom-Json).version
-            $versionDir = "$env:USERPROFILE\scoop\apps\rdownloader\$appVersion"
-            $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-            # `autostart install` wants a paired agent; pairing stores the token and asks nobody.
-            '0123456789abcdef0123456789abcdef' | & "$versionDir\rdownloader-capture.exe" configure --token-stdin
-            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture configure failed" }
-            foreach ($entry in @(@('rdownloader.exe', 'rDownloader Service'), @('rdownloader-capture.exe', 'rDownloader Capture'))) {
-              $exe, $name = $entry
-              & "$versionDir\$exe" autostart install
-              if ($LASTEXITCODE -ne 0) { throw "$exe autostart install failed" }
-              # The Run value starts a VBScript wrapper; the executable is in the .cmd beside it.
-              $value = (Get-ItemProperty $runKey).$name
-              if (-not ($value -match '"([^"]+\.vbs)"')) { throw "unexpected Run value ${name}: $value" }
-              $wrapper = Get-Content ([IO.Path]::ChangeExtension($Matches[1], '.cmd')) -Raw
-              if ($wrapper -notlike "*\apps\rdownloader\current\$exe*") { throw "$exe autostart registered a versioned path: $wrapper" }
-              & "$versionDir\$exe" autostart remove
-              if ($LASTEXITCODE -ne 0) { throw "$exe autostart remove failed" }
-              if ($null -ne (Get-ItemProperty $runKey).$name) { throw "$exe autostart remove left the Run value" }
-            }
-            & "$versionDir\rdownloader-capture.exe" scheme install
-            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme install failed" }
-            $handler = (Get-ItemProperty 'HKCU:\Software\Classes\rdownloader\shell\open\command').'(default)'
-            if ($handler -notlike '*\apps\rdownloader\current\rdownloader-capture.exe*') { throw "the URL handler registered a versioned path: $handler" }
-            & "$versionDir\rdownloader-capture.exe" scheme remove
-            if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme remove failed" }
-            scoop uninstall rdownloader
-            if ($LASTEXITCODE -ne 0) { throw "scoop uninstall failed" }
-          } finally {
-            Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
-          }
-          exit 0
+      - name: Platform smoke tests
+        uses: ./.github/actions/platform-smoke
       # A prebuilt binary instead of a source build in every run. install-action has no manifest
       # of its own for sqlx-cli or cargo-component and hands both to cargo-binstall, which takes
       # the signed build from cargo-quickinstall (default features: a superset of the
@@ -537,10 +251,8 @@ jobs:
           DATABASE_URL: "sqlite::memory:"
         run: cargo sqlx prepare --check --workspace
 
-  # The crash matrix (RD-140-04, axis A), beside `rust` rather than after its tests: on Windows the
-  # two in one job ran past 90 minutes. Its cases only exist with the feature on, and the feature
-  # is deliberately off everywhere else so the shipped build has no crash points compiled into it
-  # at all. Linux and Windows of the `platforms` input; macOS is not tested, as in `rust`.
+  # The crash and restart matrix, beside `rust`: ci-crash-matrix.yml. Linux and Windows of the
+  # `platforms` input; macOS is not tested, as in `rust`.
   crash-matrix:
     needs: [gate, web]
     # A dispatch for macOS alone leaves this job nothing to run; skipped, not an empty matrix.
@@ -551,57 +263,14 @@ jobs:
         os: ${{ fromJSON(needs.gate.outputs.platforms) }}
         exclude:
           - os: macos-15
-    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    timeout-minutes: 90
-    env: *rust-env
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - *free-runner-disk
-      - *install-mold
-      - *web-dist
-      - uses: ./.github/actions/setup-rust
-      # `rust` saves the cache both jobs restore; two writers of one key would race.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: false
-      - *nextest
-      # `-P ci` like `rust`'s tests: this job builds no components, and since RD-150-18 a
-      # scheduler test runs on the real Rapidgator and DDownload components (`on_real_components`).
-      # The runs are scripts/lib/crash-matrix.list's, the list check.sh reads too (RD-191-09).
-      - name: Crash and restart matrix
-        shell: bash
-        run: |
-          source scripts/lib/crash-matrix.sh
-          mapfile -t runs < <(rd_crash_matrix_runs)
-          python="$(command -v python3 || command -v python)"
-          failed=0
-          for line in "${runs[@]}"; do
-            read -r -a run <<< "${line}"
-            # A run that fails before writing its report must not leave the previous run's.
-            rm -f target/nextest/ci/junit.xml
-            cargo nextest run -P ci --no-fail-fast "${run[@]}" || failed=1
-            # Flaky cases as warnings, as in `rust` (RD-191-09).
-            "${python}" scripts/lib/junit-flaky.py target/nextest/ci/junit.xml
-          done
-          exit "${failed}"
-      - *disk-after-failure
+    uses: ./.github/workflows/ci-crash-matrix.yml
+    with:
+      os: ${{ matrix.os }}
 
-  # Keeps main's Rust cache current when the gate leaves platforms out (RD-1100-13). The caches
-  # are saved from main only and every ci/* run restores main's; a release pushes to main a tree
-  # that is green already, `rust` then does not run there, and nothing would renew the cache after
-  # a toolchain or Cargo.lock change — the next wave's run would start cold (Linux 45 min against
-  # 31 with main's cache, 2026-10-04). This builds what `rust` builds, clippy and every test
-  # executable through scripts/ci-rust-tests.sh, runs nothing, and saves. Linux and Windows only:
-  # macOS is checked at a release candidate and keeps no cache.
-  #
-  # Expected sizes, against the repository's 10 GB (to be measured after the first runs): the
-  # `rust-tests` cache ~2.5 GB on Linux (2,503 MB restored on 2026-10-04) and about as much again
-  # on Windows, `components` and the two `docker` legs ~1 GB each, the component and Docker layer
-  # caches a few hundred MB — about 8 GB, all of it main's, where sccache and every ci/* branch's
-  # own copies made 10.39 GB before.
+  # Keeps main's Rust cache current when the gate leaves platforms out (RD-1100-13): builds what
+  # `rust` builds, runs nothing, saves: ci-warm-cache.yml.
   warm-cache:
     needs: gate
     if: needs.gate.outputs.warm != '[]' && needs.gate.outputs.warm != ''
@@ -609,234 +278,23 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.gate.outputs.warm) }}
-    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    timeout-minutes: 120
-    env: *rust-env
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - *free-runner-disk
-      - *install-mold
-      # rust-embed wants web/dist to exist; nothing here serves it, so no `web` job for it.
-      - name: Placeholder web interface
-        shell: bash
-        run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
-      - uses: ./.github/actions/setup-rust
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - *nextest
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - name: Test executables, built and not run
-        shell: bash
-        env:
-          CARGO_BUILD_JOBS: 2
-        run: scripts/ci-rust-tests.sh --no-run
+    uses: ./.github/workflows/ci-warm-cache.yml
+    with:
+      os: ${{ matrix.os }}
 
+  # The plugin components, contract tests, packaging and SDK scaffolds: ci-components.yml.
   components:
-    runs-on: ubuntu-24.04
     permissions:
       contents: read
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
-      # rd-api and its `#[derive(RustEmbed)]`.
-      # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's 30 at
-      # ~175 MB each), a debug rd-pack and eleven scaffold builds in a second target dir:
-      # the same disk the `rust` job ran out of (RD-120-67).
-      - name: Free runner disk
-        uses: ./.github/actions/free-runner-disk
-      - uses: ./.github/actions/setup-rust
-        with:
-          targets: wasm32-unknown-unknown,wasm32-wasip1
-      # Saved from main only, as in `rust`.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      # Prebuilt, through cargo-binstall like sqlx-cli above.
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: cargo-component@0.21.1
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: wasm-tools@1.261.0
-      # Components are built only when their content changed (RD-150-10). The key is what goes
-      # into a component: toolchain, cargo-component, the registry half of Cargo.lock and the root
-      # Cargo.toml (`deps`), and every plugin's source hash (`sources`); a miss on `sources`
-      # restores the newest set with the same `deps`, and the build below rebuilds only what its
-      # stamps call stale or missing. release.yml reads the same cache, as it is left on `main`.
-      - name: Work out the component cache key
-        id: component-key
-        shell: bash
-        run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
-            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
-      - name: Collect the bundled plugins
-        id: plugins
-        shell: bash
-        run: |
-          # Every plugins/ directory with a manifest.toml is a plugin and built here; xfs-common
-          # has none because it is a shared library. Deriving the list means adding a plugin
-          # is one directory, not five identical loops to keep in step.
-          names=$(find plugins -mindepth 2 -maxdepth 2 -name manifest.toml -printf '%h\n' \
-            | xargs -n1 basename | sort | tr '\n' ' ')
-          echo "names=${names}" >> "$GITHUB_OUTPUT"
-          echo "building: ${names}"
-          # Building proves a plugin compiles; packaging additionally checks its
-          # `min_app_version` against this build, and a plugin written for the release being
-          # prepared cannot be packaged until the version bump. scripts/build-plugins.sh owns
-          # that rule so it lives in one place and clears itself at the bump. The examples
-          # (`plugins/example-*`) are not bundled (RD-150-20), but packaged and checked here
-          # all the same, so they stay current.
-          packageable=$(scripts/build-plugins.sh --list-packageable | sort | tr '\n' ' ')
-          examples=$(scripts/build-plugins.sh --list-examples | sort | tr '\n' ' ')
-          echo "packageable=${packageable}" >> "$GITHUB_OUTPUT"
-          echo "examples=${examples}" >> "$GITHUB_OUTPUT"
-          echo "packaging: ${packageable}"
-          echo "examples: ${examples}"
-      - name: Build plugin components
-        shell: bash
-        # Through the script, not a bare `cargo component build`: it stamps each component with
-        # the hash of its sources (RD-120-58), and the contract tests below refuse a component
-        # without a stamp as stale. It also runs the import check on each one. Without names it
-        # builds what is missing or stale — after a cache hit, only what changed.
-        run: scripts/build-plugins.sh --components-only
-      - name: Reject accidental WASI capabilities
-        shell: bash
-        # Reads the component's import section with wasm-tools instead of scanning the bytes.
-        # The byte scan this replaces could not tell an import from a string, so a plugin whose
-        # data section merely contained the text "wasi:" was rejected as importing it.
-        run: |
-          components=()
-          for plugin in ${{ steps.plugins.outputs.names }}; do
-            components+=("target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm")
-          done
-          scripts/check-plugin-imports.sh "${components[@]}" \
-            || { echo "::error::a plugin imports outside rdownloader:plugin"; exit 1; }
-      - name: Plugin contract tests
-        shell: bash
-        # Run here rather than in the `rust` job: they drive the bundled plugins as real
-        # components, which only exist once the step above has built them. The `rust` job
-        # leaves them out by name, with the `no-components` profile, and this is the run that
-        # makes that acceptable. rd-plugin-host is in the list because two of its tests load a
-        # component too — until RD-108-16 they skipped themselves here and passed quietly
-        # there, so they ran nowhere at all. The second line is the same rule for unit tests in
-        # other crates: they load components since no resolver is compiled in (RD-150-18), and
-        # the profile leaves them out by their `on_real_components` ending.
-        run: |
-          cargo nextest run --locked --no-fail-fast -p rd-plugin-transfer -p rd-plugin-ext -p rd-plugin-host
-          cargo nextest run --locked --no-fail-fast -p rd-scheduler --lib -E 'test(/on_real_components$/)'
-      # The packager, `rd-pack` (RD-150-20): the `plugin` commands of `rdownloader` without the
-      # service. In the dev profile, so it reuses the plugin host the contract tests above built;
-      # built once and called by path, because the scaffold step below moves CARGO_TARGET_DIR and
-      # `cargo run` there would build it a second time.
-      - name: Build the packager
-        run: cargo build --locked -p rd-pack
-      - name: Package unsigned development plugins as a smoke test
-        shell: bash
-        run: |
-          mkdir -p dist/plugins
-          for plugin in ${{ steps.plugins.outputs.packageable }} ${{ steps.plugins.outputs.examples }}; do
-            target/debug/rd-pack plugin package --development \
-              --manifest "plugins/${plugin}/manifest.toml" \
-              --component "target/wasm32-unknown-unknown/release/rd_plugin_${plugin//-/_}.wasm" \
-              --locales "plugins/${plugin}/locales" \
-              --output "dist/plugins/${plugin}.rdplug"
-            target/debug/rd-pack plugin verify --development-mode "dist/plugins/${plugin}.rdplug"
-          done
-      - name: The SDK templates carry the current contract
-        shell: bash
-        run: |
-          # The templates ship their own copy so a scaffold builds without this repository.
-          # A copy that drifts hands third parties a contract this core no longer speaks.
-          for template in sdk/templates/*/wit/rdownloader.wit; do
-            diff -u crates/rd-plugin-api/wit/rdownloader.wit "${template}" \
-              || { echo "::error::${template} is out of date"; exit 1; }
-          done
-      - name: Every world has a template, and the reference reads the whole contract
-        shell: bash
-        # RD-160-04: a world added to the WIT without a template, or a template left behind by
-        # a world that went, fails here rather than in a third party's first scaffold. The
-        # reference generator reads the WIT strictly, so a construct it does not know yet is a
-        # failure instead of a reference that silently leaves part of the contract out.
-        run: |
-          scripts/check-sdk-templates.sh
-          scripts/wit-reference.sh --check
-      - name: A scaffolded plugin builds outside the repository
-        shell: bash
-        run: |
-          # In /tmp on purpose: outside the workspace, with no path dependencies to fall back
-          # on, which is the only way to prove a third party can build one.
-          #
-          # Every type, not a sample. This job used to build three — `resolver` as the
-          # plainest world, `oauth` and `crawler` as the two with logic of their own — on the
-          # reasoning that the unit test in `crates/rd-pack/src/plugin.rs` covers
-          # the rest. It covers that a template exists, names its type and carries the
-          # current contract; it does not compile the template's code against that contract,
-          # and the `auth` scaffold was broken by a contract change on the day it was
-          # written without anything here noticing. The scaffolds share one target directory, so the dependency
-          # graph is built once and each further world costs one crate. The list is the template
-          # directories themselves (RD-160-04), and the step above holds them to the WIT's worlds.
-          packager="${GITHUB_WORKSPACE}/target/debug/rd-pack"
-          CARGO_TARGET_DIR="$(mktemp -d)/scaffold-target"
-          export CARGO_TARGET_DIR
-          for template in sdk/templates/*/; do
-            world=$(basename "${template}")
-            out=$(mktemp -d)/scaffolded
-            "${packager}" plugin new --type "${world}" --out "${out}"
-            (cd "${out}" && cargo component build --release --target wasm32-unknown-unknown)
-            # The scaffold's own unit tests, on the host target: a third party runs these
-            # before touching anything, so they have to pass in a fresh scaffold.
-            if grep -rq '#\[test\]' "${out}/src"; then
-              (cd "${out}" && cargo test)
-            fi
-            "${packager}" plugin package \
-              --manifest "${out}/manifest.toml" \
-              --component "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm" \
-              --locales "${out}/locales" \
-              --key "${out}/plugin-signing.key" \
-              --output "${out}/scaffolded.rdplug"
-            scripts/check-plugin-imports.sh \
-              "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm"
-            "${packager}" plugin conformance --json \
-              --trusted-key "scaffolded-release-v1=$(sed -n 's/^public_key = "\(.*\)"/\1/p' "${out}/manifest.toml")" \
-              --no-default-plugin-key \
-              "${out}/scaffolded.rdplug"
-          done
-      - name: Conformance for every bundled plugin
-        shell: bash
-        run: |
-          for plugin in ${{ steps.plugins.outputs.names }}; do
-            target/debug/rd-pack plugin conformance --development-mode --json \
-              "dist/plugins/${plugin}.rdplug"
-          done
-      - name: Keep Dockerfile COPY satisfied on pull requests
-        run: mkdir -p dist/plugins && touch dist/plugins/.keep
+    uses: ./.github/workflows/ci-components.yml
 
   # The S3 connector against a real MinIO (RD-150-04): the multipart upload with its checksums,
   # listing, a download and a resume on MinIO's own ETags, and a wrong secret refused as such —
   # what the in-process fixture of crates/rd-object-storage/tests/s3.rs can only imitate. The
   # tests are `#[ignore]` and fail without RD_S3_LIVE_*, so only this job runs them.
-  #
-  # MinIO is started as a step, not as a `services:` container: the official image needs
-  # `server /data` as its command, which `services:` cannot pass, and MinIO no longer publishes
-  # it on Docker Hub (the registry answers UNAUTHORIZED for minio/minio, 2026-09-28). The last
-  # Bitnami build, frozen as bitnamilegacy/minio and starting the server on its own, is pinned
-  # by digest; readiness is MinIO's /minio/health/live, polled from the runner. The credentials
-  # are the throw-away container's own.
+  # MinIO is started as a step, not as a `services:` container (scripts/ci-services.sh says why).
   s3-live:
     needs: gate
     if: contains(fromJSON(needs.gate.outputs.jobs), 's3-live')
@@ -859,44 +317,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Start MinIO
         shell: bash
-        run: |
-          set -euo pipefail
-          docker run --detach --name minio --publish 127.0.0.1:9000:9000 \
-            --env MINIO_ROOT_USER="${RD_S3_LIVE_ACCESS_KEY}" \
-            --env MINIO_ROOT_PASSWORD="${RD_S3_LIVE_SECRET}" \
-            "${MINIO_IMAGE}"
-      - name: Install mold
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
-      - uses: ./.github/actions/setup-rust
-      # `rust`'s cache, read only (RD-1100-13): a job of its own key saved one more cache per ref.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: false
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+        run: scripts/ci-services.sh minio-start
+      - uses: ./.github/actions/rust-tests-cache
       - name: Build the live S3 tests
         run: cargo nextest run --locked --no-run -p rd-object-storage --test s3_live
-      # The build gave MinIO its time; this waits for the rest, then makes the bucket with a
-      # signed CreateBucket (curl's own SigV4), since object_store creates none.
       - name: Wait for MinIO and create the bucket
         shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 60); do
-            curl --silent --fail --output /dev/null "${RD_S3_LIVE_ENDPOINT}/minio/health/live" && break
-            if [[ ${attempt} -eq 60 ]]; then
-              echo "::error::MinIO did not answer /minio/health/live within 60 s"
-              docker logs minio
-              exit 1
-            fi
-            sleep 1
-          done
-          curl --silent --show-error --fail -X PUT --data-binary '' \
-            --aws-sigv4 "aws:amz:${RD_S3_LIVE_REGION}:s3" \
-            --user "${RD_S3_LIVE_ACCESS_KEY}:${RD_S3_LIVE_SECRET}" \
-            "${RD_S3_LIVE_ENDPOINT}/${RD_S3_LIVE_BUCKET}"
+        run: scripts/ci-services.sh minio-ready
       - name: Live S3 tests against MinIO
         run: >-
           cargo nextest run --locked -p rd-object-storage --test s3_live
@@ -909,10 +336,7 @@ jobs:
   # and an EICAR package stopped by the whole pipeline — what the stand-in clamd of
   # crates/rd-extract/src/fake_clamd.rs can only imitate. The tests are `#[ignore]` and fail
   # without RD_CLAMD_LIVE_ADDRESS, so only this job runs them.
-  #
-  # The official image, pinned by its index digest (1.5.4, 2026-10-02), ships a signature database
-  # and starts clamd on 3310 by itself; freshclam updating it at start is not waited for. Readiness
-  # is clamd's own PING, polled from the runner once the build has given it its time.
+  # The official image, pinned by its index digest (1.5.4, 2026-10-02), ships a signature database.
   clamav-live:
     needs: gate
     if: contains(fromJSON(needs.gate.outputs.jobs), 'clamav-live')
@@ -932,31 +356,12 @@ jobs:
       RD_CLAMD_LIVE_ADDRESS: 127.0.0.1:3310
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install mold
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
-      - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: false
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+      - uses: ./.github/actions/rust-tests-cache
       - name: Build the live clamd tests
         run: cargo nextest run --locked --no-run -p rd-extract --test clamd_live
       - name: Wait for clamd
         shell: bash
-        run: |
-          set -euo pipefail
-          for _ in $(seq 1 180); do
-            answer="$( (exec 3<>/dev/tcp/127.0.0.1/3310 && printf 'zPING\0' >&3 \
-              && timeout 5 head -c 4 <&3) 2>/dev/null || true)"
-            [[ "${answer}" == "PONG" ]] && exit 0
-            sleep 1
-          done
-          echo "::error::clamd did not answer PING within 180 s"
-          docker logs "${{ job.services.clamav.id }}" || true
-          exit 1
+        run: scripts/ci-services.sh clamd-ready "${{ job.services.clamav.id }}"
       - name: Live clamd tests
         run: >-
           cargo nextest run --locked -p rd-extract --test clamd_live
@@ -972,10 +377,8 @@ jobs:
   # code unit, which cost 15-19 minutes per leg (RD-191-09); release.yml still builds and ships
   # `release`.
   #
-  # The arm64 leg is also the only run that starts a Linux aarch64 binary (RD-190-12): before it,
-  # the aarch64 tarball and the arm64 image were built and shipped but never started. Both legs
-  # start the optimised binary through the portable launchers to /api/v1/health before the image
-  # is built; on x86_64 that repeats `rust`'s debug-build check with it.
+  # Both legs start the binary through the portable launchers before the image is built; the arm64
+  # leg is the only run that starts a Linux aarch64 binary (RD-190-12).
   #
   # It waits for `web` alone (RD-150-10). It builds its own binary and takes nothing from `rust`
   # or `components`; waiting for the whole `rust` matrix made it start after Windows, and the
@@ -1011,19 +414,7 @@ jobs:
         run: cargo build --locked --profile release-test -p rdownloader
       - name: Smoke-test the portable Linux launchers
         shell: bash
-        run: |
-          set -euo pipefail
-          file target/release-test/rdownloader
-          portable_dir="$(mktemp -d)"
-          cp target/release-test/rdownloader scripts/linux/start-rdownloader.sh \
-            scripts/linux/stop-rdownloader.sh "${portable_dir}/"
-          "${portable_dir}/start-rdownloader.sh" server
-          trap '"${portable_dir}/stop-rdownloader.sh" server' EXIT
-          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused \
-            http://127.0.0.1:8710/api/v1/health
-          echo
-          "${portable_dir}/stop-rdownloader.sh" server
-          trap - EXIT
+        run: scripts/ci-platform-smoke.sh optimised
       - name: Lay out the binary for the build context
         run: |
           mkdir -p dist/docker/linux-${{ matrix.arch }}
@@ -1071,19 +462,11 @@ jobs:
         with:
           command: check
           command-arguments: -D unmatched-skip -D unnecessary-skip
-      # The tree is public, so a secret in it is published. The known fixture findings are
-      # allowlisted in .gitleaks.toml (RD-130-23), which gitleaks reads from the scanned root.
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.30.1
           GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
-        run: |
-          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -fsSL -o "$RUNNER_TEMP/$archive" \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
-          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
-          "$RUNNER_TEMP/gitleaks" dir . --no-banner --redact --exit-code 1
+        run: scripts/ci-tools.sh gitleaks
 
   # The scripts and the workflows themselves (RD-191-09 T03): bash -n and shellcheck at severity
   # `warning` over every tracked shell script, and actionlint over the workflows with shellcheck
@@ -1105,21 +488,7 @@ jobs:
           SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-        run: |
-          set -euo pipefail
-          bin="${RUNNER_TEMP}/lint-bin"
-          mkdir -p "${bin}"
-          archive="${RUNNER_TEMP}/shellcheck.tar.xz"
-          curl -fsSL -o "${archive}" \
-            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
-          echo "${SHELLCHECK_SHA256}  ${archive}" | sha256sum --check --strict
-          tar -xJf "${archive}" -C "${bin}" --strip-components=1 "shellcheck-v${SHELLCHECK_VERSION}/shellcheck"
-          archive="${RUNNER_TEMP}/actionlint.tar.gz"
-          curl -fsSL -o "${archive}" \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum --check --strict
-          tar -xzf "${archive}" -C "${bin}" actionlint
-          echo "${bin}" >> "${GITHUB_PATH}"
+        run: scripts/ci-tools.sh linters
       - name: bash -n, shellcheck and actionlint
         shell: bash
         run: |

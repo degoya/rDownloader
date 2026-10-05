@@ -31,8 +31,9 @@ on:
   workflow_dispatch:
 
 env:
-  # The rDownloader release whose `plugin index build` runs here. `--notes` needs 1.6.0 or later.
-  RDOWNLOADER_VERSION: 1.6.0
+  # The rDownloader release whose `plugin index build` runs here: the release this SDK was
+  # published with (`scripts/set-version.sh` writes it). `--notes` needs 1.6.0 or later.
+  RDOWNLOADER_VERSION: 1.10.1
   # The key id your index names. Choose it once: people approve your key under this id, and a
   # different id or key later means they remove and add the repository again.
   KEY_ID: example-repository-v1
@@ -59,15 +60,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      # Actions are pinned to a commit, the tag beside it, so a moved tag cannot change what runs
+      # with your repository key in the job.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install the rDownloader release binary
-        # The archive stores its entries as `./<name>`, so the member is named that way.
+        # The archive stores its entries as `./<name>`, so the member is named that way. The
+        # binary reads the repository key, so the archive has to be the one the release lists
+        # in its SHA256SUMS (entries named `./<file>` too).
         run: |
-          curl --fail --silent --show-error --location \
-            --output rdownloader.tar.gz \
-            "https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}/rdownloader-linux-x86_64.tar.gz"
-          tar --extract --gzip --file rdownloader.tar.gz ./rdownloader
+          release="https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}"
+          curl --fail --silent --show-error --location --remote-name \
+            "${release}/rdownloader-linux-x86_64.tar.gz"
+          curl --fail --silent --show-error --location --remote-name "${release}/SHA256SUMS"
+          grep '  \./rdownloader-linux-x86_64\.tar\.gz$' SHA256SUMS | sha256sum --check --strict -
+          tar --extract --gzip --file rdownloader-linux-x86_64.tar.gz ./rdownloader
           sudo install --mode 0755 rdownloader /usr/local/bin/rdownloader
           rdownloader --version
 
@@ -124,7 +131,7 @@ jobs:
             --valid-days "${VALID_DAYS}" \
             "${extra[@]}"
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
 
@@ -139,4 +146,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

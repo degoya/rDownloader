@@ -69,7 +69,7 @@ async function toggleNotifications(value: boolean): Promise<void> {
         level="page"
       />
     </header>
-    <section data-settings-anchor="interface.appearance" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="interface.appearance">
       <SectionHeader
         :eyebrow="t('settings.appearance.eyebrow')"
         :title="t('settings.appearance.title')"
@@ -101,7 +101,7 @@ async function toggleNotifications(value: boolean): Promise<void> {
         </template>
         <USwitch v-model="notificationsModel" :disabled="!notifications.supported" />
       </UFormField>
-    </section>
+    </UCard>
 
   </div>
 </template>

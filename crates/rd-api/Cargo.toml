@@ -12,6 +12,7 @@ failpoints = ["rd-api-admin/failpoints"]
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+base64.workspace = true
 futures-util.workspace = true
 mime_guess.workspace = true
 rd-api-access = { path = "../rd-api-access" }
@@ -35,6 +36,7 @@ rd-torrent = { path = "../rd-torrent" }
 rust-embed.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tower = { version = "0.5", features = ["util"] }
@@ -46,7 +48,6 @@ utoipa.workspace = true
 workspace = true
 
 [dev-dependencies]
-base64.workspace = true
 chrono.workspace = true
 dunce.workspace = true
 hex.workspace = true
@@ -67,7 +68,6 @@ rd-stream = { path = "../rd-stream" }
 rd-update = { path = "../rd-update" }
 regex.workspace = true
 secrecy.workspace = true
-sha2.workspace = true
 sqlx.workspace = true
 tempfile.workspace = true
 tracing-subscriber.workspace = true

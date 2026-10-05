@@ -44,195 +44,21 @@ export — has nothing to archive and exits 0.
 """
 
 import os
-import posixpath
 import re
-import subprocess
 import sys
-import urllib.parse
 
-JOBS = "docs/roadmap/jobs"
-ARCHIVE = f"{JOBS}/archive"
-FINISHED_WORDS = ("Implemented", "Blocked/No-Go")
-STATUS_WORDS = ("Blocked/No-Go", "In progress", "Implemented", "Partial", "Open")
-STATUS_PREFIX = "- **Status:**"
-EXCLUDED_PREFIXES = ("crates/rd-db/migrations/", "plugins/")
-EXCLUDED_FILES = ("docs/ideas_and_infos.md",)
+# The two modules beside this one would otherwise leave a __pycache__ in the checkout.
+sys.dont_write_bytecode = True
+from archive_jobs_links import rewrite_references  # noqa: E402
+from archive_jobs_status import (  # noqa: E402
+    ARCHIVE, JOBS, bad_status_files, due_files, git, misplaced_files, status_line, status_word,
+)
+
 ARCHIVE_HEADER = """# rDownloader Roadmap Jobs — Archive
 
 The finished job files, moved here by `scripts/archive-jobs.sh`. What is still open is in
 [the index](../README.md).
 """
-
-INLINE = re.compile(r"(\]\(\s*<?)([^)\s>]+)")
-REFERENCE = re.compile(r"^(\s{0,3}\[[^\]]+\]:\s*<?)(\S+?)(?=>?(?:\s|$))")
-HTML = re.compile(r"(\b(?:href|src)\s*=\s*[\"'])([^\"']+)", re.IGNORECASE)
-SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
-WORKING_FILE = re.compile(r"^(\d)(\d{1,2})(\d)-00-.*\.md$")
-
-
-def git(repo, *args):
-    return subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, check=True).stdout
-
-
-def status_line(text):
-    return next((l.strip() for l in text.splitlines() if l.strip().startswith(STATUS_PREFIX)), None)
-
-
-def status_word(line):
-    value = line[len(STATUS_PREFIX):].strip()
-    return next((w for w in STATUS_WORDS if value.startswith(w)), value.split(" ")[0])
-
-
-def status_word_problem(name, text):
-    """Why the status line of the job file `name` is unusable, or None when it is fine. A word
-    must stand alone: `Openish` is not `Open`, `Open (…)`, `Open / …` and `Open, …` are."""
-    line = status_line(text)
-    if line is None:
-        if WORKING_FILE.match(name) or name == "README.md":
-            return None
-        return f"no `{STATUS_PREFIX}` line"
-    value = line[len(STATUS_PREFIX):].strip()
-    for word in STATUS_WORDS:
-        rest = value[len(word):] if value.startswith(word) else None
-        if rest is not None and not (rest[:1].isalnum() or rest[:1] == "_"):
-            return None
-    written = re.split(r"[\s(,;:]", value, maxsplit=1)[0]
-    return f"status word `{written}` is not one of {', '.join(f'`{w}`' for w in sorted(STATUS_WORDS))}"
-
-
-def bad_status_files(repo):
-    """(path, problem) for every job file here or in archive/ with an unusable status line."""
-    bad = []
-    for directory in (JOBS, ARCHIVE):
-        if not os.path.isdir(os.path.join(repo, directory)):
-            continue
-        for name in sorted(os.listdir(os.path.join(repo, directory))):
-            path = os.path.join(repo, directory, name)
-            if not name.endswith(".md") or not os.path.isfile(path):
-                continue
-            problem = status_word_problem(name, open(path, encoding="utf-8").read())
-            if problem:
-                bad.append((f"{directory}/{name}", problem))
-    return bad
-
-
-def due_files(repo, release):
-    """(name, reason) for every file of docs/roadmap/jobs/ that belongs in the archive."""
-    tags = set(git(repo, "tag", "-l", "v*").split())
-    due = []
-    for name in sorted(os.listdir(os.path.join(repo, JOBS))):
-        path = os.path.join(repo, JOBS, name)
-        if not name.endswith(".md") or name == "README.md" or not os.path.isfile(path):
-            continue
-        line = status_line(open(path, encoding="utf-8").read())
-        if line is not None:
-            if status_word(line) in FINISHED_WORDS:
-                due.append((name, status_word(line)))
-            continue
-        m = WORKING_FILE.match(name)
-        if m:
-            version = ".".join(m.groups())
-            if f"v{version}" in tags or version == release:
-                due.append((name, f"working file of {version}"))
-    return due
-
-
-def misplaced_files(repo):
-    """(name, word) for every file of archive/ whose status says it is not finished."""
-    directory = os.path.join(repo, ARCHIVE)
-    if not os.path.isdir(directory):
-        return []
-    misplaced = []
-    for name in sorted(os.listdir(directory)):
-        if not name.endswith(".md") or name == "README.md":
-            continue
-        line = status_line(open(os.path.join(directory, name), encoding="utf-8").read())
-        if line is not None and status_word(line) not in FINISHED_WORDS:
-            misplaced.append((name, status_word(line)))
-    return misplaced
-
-
-# ---------------------------------------------------------------------------------------------
-# Links
-# ---------------------------------------------------------------------------------------------
-
-def rewrite_references(repo, moved):
-    old2new = {f"{JOBS}/{n}": f"{ARCHIVE}/{n}" for n in moved}
-    new2old = {v: k for k, v in old2new.items()}
-
-    def existed(path):
-        if path in old2new:
-            return True
-        if path in new2old:
-            return False
-        return os.path.exists(os.path.join(repo, path))
-
-    def fix(page, target):
-        if SCHEME.match(target) or target.startswith(("#", "/")):
-            return target
-        page_old = new2old.get(page, page)
-        cut = min([i for i in (target.find("#"), target.find("?")) if i != -1] or [len(target)])
-        path, suffix = target[:cut], target[cut:]
-        if not path:
-            return target
-        decoded = urllib.parse.unquote(path)
-        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(page_old), decoded))
-        if not existed(resolved):
-            return target
-        resolved_new = old2new.get(resolved, resolved)
-        if page_old == page and resolved == resolved_new:
-            return target
-        rel = posixpath.relpath(resolved_new, posixpath.dirname(page))
-        if path.startswith("./") and not rel.startswith("../"):
-            rel = "./" + rel
-        if decoded.endswith("/") and not rel.endswith("/"):
-            rel += "/"
-        if decoded != path:
-            rel = urllib.parse.quote(rel)
-        counts["links"] += rel != path
-        return rel + suffix
-
-    alternatives = "|".join(re.escape(n) for n in sorted(moved, key=len, reverse=True))
-    mention = re.compile(r"(roadmap/jobs/)(" + alternatives + r")(?![\w-])")
-    ids = {n.split("-")[0] + "-" + n.split("-")[1] for n in moved if re.match(r"^\d{3,4}-\d{2}-", n)}
-    glob = re.compile(r"(roadmap/jobs/)(\d{3,4}-\d{2})(-\*\.md)")
-    counts = {"links": 0, "mentions": 0, "files": 0}
-
-    def mentioned(m):
-        counts["mentions"] += 1
-        return m.group(1) + "archive/" + m.group(2)
-
-    def globbed(m):
-        if m.group(2) not in ids:
-            return m.group(0)
-        counts["mentions"] += 1
-        return m.group(1) + "archive/" + m.group(2) + m.group(3)
-
-    for page in git(repo, "ls-files", "-co", "--exclude-standard").splitlines():
-        full = os.path.join(repo, page)
-        if page in EXCLUDED_FILES or page.startswith(EXCLUDED_PREFIXES) or not os.path.isfile(full):
-            continue
-        try:
-            text = open(full, encoding="utf-8").read()
-        except UnicodeDecodeError:
-            continue
-        original = text
-        if page.endswith(".md"):
-            out, fence = [], False
-            for line in text.split("\n"):
-                if line.lstrip().startswith(("```", "~~~")):
-                    fence = not fence
-                elif not fence:
-                    line = INLINE.sub(lambda m: m.group(1) + fix(page, m.group(2)), line)
-                    line = HTML.sub(lambda m: m.group(1) + fix(page, m.group(2)), line)
-                    line = REFERENCE.sub(lambda m: m.group(1) + fix(page, m.group(2)), line)
-                out.append(line)
-            text = "\n".join(out)
-        text = glob.sub(globbed, mention.sub(mentioned, text))
-        if text != original:
-            open(full, "w", encoding="utf-8").write(text)
-            counts["files"] += 1
-    return counts
 
 
 # ---------------------------------------------------------------------------------------------

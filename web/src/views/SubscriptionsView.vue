@@ -241,7 +241,7 @@ function rowActions(subscription: Subscription) {
             <AreaBackupButtons area="subscriptions" @imported="store.refresh()" />
           </template>
           <template #list>
-            <section class="border border-muted bg-default p-5">
+            <UCard as="section">
               <DataState :loading="store.loading" :empty="!store.error && !store.subscriptions.length" variant="inline" :rows="3">
                 <p class="text-sm text-muted">{{ t('subscriptions.list.empty') }}</p>
               </DataState>
@@ -305,7 +305,7 @@ function rowActions(subscription: Subscription) {
                   />
                 </li>
               </ul>
-            </section>
+            </UCard>
           </template>
         </FormListLayout>
       </div>

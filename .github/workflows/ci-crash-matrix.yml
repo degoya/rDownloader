@@ -1,0 +1,67 @@
+name: CI crash matrix
+
+# The crash and restart matrix (RD-140-04, axis A) for one runner image, called by ci.yml's
+# `crash-matrix` job once per Linux and Windows image of its `platforms` (RD-1101-07 split it off;
+# the job is unchanged). Beside `rust` rather than after its tests: on Windows the two in one job
+# ran past 90 minutes. Its cases only exist with the feature on, and the feature is deliberately
+# off everywhere else so the shipped build has no crash points compiled into it at all.
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: The runner image, one leg of the caller's matrix
+        required: true
+        type: string
+
+# As in ci.yml: nothing by default, the job names what it needs.
+permissions: {}
+
+env:
+  # ci.yml's, which a called workflow does not inherit; the Rust cache's key includes it.
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  crash-matrix:
+    runs-on: ${{ inputs.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 90
+    env:
+      # ci.yml's `rust` job's linkers (its env says why), and so the same key for its cache: mold
+      # on Linux, the toolchain's LLVM linker on Windows.
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free runner disk
+        if: runner.os != 'Windows'
+        uses: ./.github/actions/free-runner-disk
+      - name: Install mold
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-dist
+          path: web/dist
+      - uses: ./.github/actions/setup-rust
+      # `rust` saves the cache both jobs restore; two writers of one key would race.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: false
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest@0.9.146
+      # `-P ci` like `rust`'s tests: this job builds no components, and since RD-150-18 a
+      # scheduler test runs on the real Rapidgator and DDownload components (`on_real_components`).
+      # The runs are scripts/lib/crash-matrix.list's, the list check.sh reads too (RD-191-09).
+      - name: Crash and restart matrix
+        shell: bash
+        run: source scripts/lib/crash-matrix.sh && rd_crash_matrix_ci
+      - name: Disk and memory after a failure
+        if: failure()
+        shell: bash
+        run: |
+          df -h . || true
+          du -sh target 2> /dev/null || true
+          free -m 2> /dev/null || vm_stat 2> /dev/null || true

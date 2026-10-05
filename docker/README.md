@@ -101,6 +101,10 @@ id -g   # -> PGID
 The entrypoint starts as root, adopts those ids, and drops to that user with `gosu` before the
 service starts. This is the same convention Sonarr, Radarr and the linuxserver images use.
 
+Both have to be numeric ids greater than 0; anything else stops the container before an id is
+changed, with the reason in `docker logs`. `PUID=0` or `PGID=0` would run the service as root, so
+it starts only together with `RDOWNLOADER_ALLOW_ROOT=1`, when that is what you mean.
+
 Two consequences worth knowing:
 
 - **Mounted folders are not chowned recursively.** `/config` is taken over outright, because it
@@ -371,6 +375,7 @@ scripts/docker-smoke.sh rdownloader:local
 | Environment and paths sane? | `docker exec rdownloader rdownloader doctor` |
 | No hoster resolvers | Startup log says `no bundled plugin packages found` — rebuild with plugins |
 | Downloads fail with permission errors | `PUID`/`PGID` do not match the folder owner on the host |
+| Container exits with `PUID=… is not a numeric id` or `would run the service as root` | Set `PUID`/`PGID` to the numbers `id -u`/`id -g` print; root only with `RDOWNLOADER_ALLOW_ROOT=1` |
 | A storage root is badged NOT PERSISTENT | The path is not mounted — add a volume for it |
 | Media downloads fail | *Settings → Tools*; try a newer yt-dlp in `/config/vendor` |
 | Schedules fire at the wrong time | `TZ` is unset, so the container runs on UTC |

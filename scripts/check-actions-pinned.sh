@@ -8,8 +8,12 @@
 # Local actions (`./…`) are part of this tree and pass; a `docker://` image passes only with a
 # `@sha256:` digest. Comment lines are not read. Reads files only; check.sh runs it every time.
 #
+# sdk/ci/ holds the workflows third parties copy into their plugin repositories; they run with
+# those authors' signing keys, so they are held to the same rule (audit K3). Dependabot does not
+# read them: their pins move by hand, to the commits the workflows here use.
+#
 # Usage:
-#   scripts/check-actions-pinned.sh                 # .github/workflows/ and .github/actions/
+#   scripts/check-actions-pinned.sh                 # .github/workflows/, .github/actions/, sdk/ci/
 #   scripts/check-actions-pinned.sh <file.yml>...   # these files
 #
 set -euo pipefail
@@ -20,7 +24,7 @@ files=("$@")
 if [[ ${#files[@]} -eq 0 ]]; then
     cd "$ROOT"
     mapfile -t files < <(git ls-files '.github/workflows/*.yml' '.github/workflows/*.yaml' \
-        '.github/actions/*/action.yml' '.github/actions/*/action.yaml')
+        '.github/actions/*/action.yml' '.github/actions/*/action.yaml' 'sdk/ci/*.yml')
 fi
 [[ ${#files[@]} -gt 0 ]] || { echo "no workflow files to check" >&2; exit 2; }
 

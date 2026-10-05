@@ -1,5 +1,5 @@
 /**
- * The statistics view (RD-110-01): the figures it draws come from the server's folded
+ * The statistics tab (RD-110-01, RD-1101-05): the figures it draws come from the server's folded
  * buckets, the range buttons ask for another range, and an empty range says so instead of
  * drawing zeros as if they were data.
  */
@@ -24,7 +24,7 @@ vi.mock('@/api/client', () => ({
 }))
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 
-const { default: StatsView } = await import('./StatsView.vue')
+const { default: StatsTab } = await import('./StatsTab.vue')
 
 const FIGURES = { completed: 0, failed: 0, retries: 0, bytes: 0, seconds: 0 }
 
@@ -66,15 +66,10 @@ const EMPTY_DAY = {
 }
 
 function mount() {
-  return mountComponent(StatsView, {
-    messages: { stats },
-    stubs: {
-      UDashboardNavbar: { template: '<div><slot /><slot name="right" /></div>' }
-    }
-  })
+  return mountComponent(StatsTab, { messages: { stats } })
 }
 
-describe('StatsView', () => {
+describe('StatsTab', () => {
   beforeEach(() => {
     get.mockReset()
     get.mockImplementation(async (path: string, options?: unknown) => {

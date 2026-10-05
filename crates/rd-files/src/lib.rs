@@ -2,6 +2,7 @@
 
 mod archive_names;
 mod capacity;
+mod capped_read;
 mod checksum;
 mod child_process;
 pub mod durable;
@@ -27,6 +28,7 @@ pub use archive_names::{ArchiveKind, ArchiveVolume, parse_archive_volume, strip_
 pub use capacity::{
     CapacityService, CapacityShortfall, CapacityVerdict, RootLimit, StorageTarget, available_space,
 };
+pub use capped_read::read_text_capped;
 pub use checksum::{ComputedChecksum, checksum_range, compute_checksum, has_par2_magic};
 pub use child_process::{
     CREATE_NO_WINDOW, NoConsoleWindow, RCLONE_VARIABLES, TOOL_VARIABLES, kept_variables, read_tail,

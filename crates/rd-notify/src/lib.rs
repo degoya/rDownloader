@@ -5,10 +5,12 @@
 //! worker is the service's job, so the policy stays testable without a database.
 
 mod delivery;
+mod executable;
 mod model;
 mod retry;
 
 pub use delivery::{Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TargetConfig, send};
+pub use executable::{EXECUTABLE_SEAL, ExecutableNeedsAdmin, check_executable, seal_executable};
 pub use model::{
     Delivery, DeliveryState, NotificationEvent, NotificationRule, NotificationTarget, Severity,
     TargetKind,

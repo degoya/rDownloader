@@ -368,6 +368,40 @@ async fn a_config_token_cannot_change_what_the_service_executes() {
     }
 }
 
+/// The reconnect — a script run and the addresses asked for the public address — and the files
+/// the service reads wherever they are cost `api:admin` too (audit 2026-10-05, S8 and S9).
+#[tokio::test]
+async fn a_config_token_cannot_change_the_reconnect_or_the_files_the_service_reads() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(&harness.database, "config-only", &[Scope::Config.as_str()]).await;
+
+    let (status, settings) = get_with_bearer(&harness.router, "/api/v1/settings", &bearer).await;
+    assert_eq!(status, StatusCode::OK, "reading settings costs api:config");
+
+    for (field, value) in [
+        ("reconnect_enabled", serde_json::json!(true)),
+        ("reconnect_script", serde_json::json!("reconnect.sh")),
+        (
+            "reconnect_ip_check_urls",
+            serde_json::json!(["http://127.0.0.1:8710/api/v1/settings"]),
+        ),
+        ("passwords_file", serde_json::json!("/etc/shadow")),
+        ("excluded_domains_file", serde_json::json!("/dev/zero")),
+    ] {
+        assert_ne!(
+            settings[field], value,
+            "{field} already holds the probe value"
+        );
+        let mut changed = settings.clone();
+        changed[field] = value;
+        let (status, body) = put_settings(&harness.router, &bearer, &changed).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
+        assert_eq!(body["code"], "auth.scope_insufficient", "{field}");
+        assert_eq!(body["params"]["setting"], field, "{field}");
+    }
+}
+
 async fn put_settings(
     router: &axum::Router,
     bearer: &str,

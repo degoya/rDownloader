@@ -12,7 +12,7 @@ pub async fn store_admin_password(
     password: &str,
 ) -> Result<(), ApiError> {
     validate_password(password)?;
-    let hash = hash_password(password)?;
+    let hash = hash_password(password).await?;
     database
         .set_setting(PASSWORD_SETTING.to_owned(), serde_json::Value::String(hash))
         .await?;
@@ -33,27 +33,67 @@ pub async fn admin_password_matches(
     let Some(value) = database.get_setting(PASSWORD_SETTING).await? else {
         return Ok(false);
     };
-    Ok(value
-        .as_str()
-        .and_then(|encoded| PasswordHash::new(encoded).ok())
-        .is_some_and(|parsed| {
+    let Some(encoded) = value.as_str().map(str::to_owned) else {
+        return Ok(false);
+    };
+    let password = password.to_owned();
+    on_argon2_pool(move || {
+        PasswordHash::new(&encoded).is_ok_and(|parsed| {
             Argon2::default()
                 .verify_password(password.as_bytes(), &parsed)
                 .is_ok()
-        }))
+        })
+    })
+    .await
 }
 
 /// Argon2id over a fresh 16-byte salt, in the PHC string form the setting stores.
-pub(super) fn hash_password(password: &str) -> Result<String, ApiError> {
+pub(super) async fn hash_password(password: &str) -> Result<String, ApiError> {
     let mut salt_bytes = [0_u8; 16];
     rand::rng().fill_bytes(&mut salt_bytes);
-    Ok(Argon2::default()
-        .hash_password_with_salt(password.as_bytes(), &salt_bytes)
-        .map_err(|error| {
-            tracing::error!(%error, "failed to hash password");
-            ApiError::bad_request("auth.password_hash_failed", "Password could not be hashed")
-        })?
-        .to_string())
+    let password = password.to_owned();
+    on_argon2_pool(move || {
+        Argon2::default()
+            .hash_password_with_salt(password.as_bytes(), &salt_bytes)
+            .map(|hash| hash.to_string())
+    })
+    .await?
+    .map_err(|error| {
+        tracing::error!(%error, "failed to hash password");
+        ApiError::bad_request("auth.password_hash_failed", "Password could not be hashed")
+    })
+}
+
+/// How many Argon2 computations run at once, service-wide.
+///
+/// Each one is tens of milliseconds of one core and 19 MiB. On the async workers, as many
+/// parallel sign-in attempts as cores stalled every other request and event stream, and the
+/// sign-in route needs no credential to be asked (audit 2026-10-05, S10). Two keep a sign-in
+/// prompt while an attack queues behind them, and leave the other cores to everything else.
+pub(super) const ARGON2_CONCURRENCY: usize = 2;
+
+static ARGON2_PERMITS: tokio::sync::Semaphore =
+    tokio::sync::Semaphore::const_new(ARGON2_CONCURRENCY);
+
+/// Runs one Argon2 computation on the blocking pool, at most [`ARGON2_CONCURRENCY`] at once.
+///
+/// The permit moves into the blocking task, so a caller that goes away while it waits for the
+/// result does not free a slot the computation still holds.
+pub(super) async fn on_argon2_pool<T: Send + 'static>(
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, ApiError> {
+    let permit = ARGON2_PERMITS
+        .acquire()
+        .await
+        .map_err(|error| anyhow::anyhow!("password hashing is shut down: {error}"))?;
+    let result = tokio::task::spawn_blocking(move || {
+        let outcome = work();
+        drop(permit);
+        outcome
+    })
+    .await
+    .map_err(|error| anyhow::anyhow!("password hashing task failed: {error}"))?;
+    Ok(result)
 }
 
 /// The refusal of a second setup, whichever check caught it.

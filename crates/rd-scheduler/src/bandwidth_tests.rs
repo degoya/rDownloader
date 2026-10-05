@@ -103,3 +103,13 @@ fn another_profile_is_measured_on_its_own_budget() {
             .is_some()
     );
 }
+
+/// Audit Q2: only a stored number is an odometer; anything else reads as none, so the reload
+/// leaves the counters' own last sample alone instead of charging the whole odometer.
+#[test]
+fn only_a_stored_number_is_a_budget_baseline() {
+    assert_eq!(super::baseline_of(&serde_json::json!(4096)), Some(4096));
+    assert_eq!(super::baseline_of(&serde_json::json!("4096")), None);
+    assert_eq!(super::baseline_of(&serde_json::json!(-1)), None);
+    assert_eq!(super::baseline_of(&serde_json::Value::Null), None);
+}

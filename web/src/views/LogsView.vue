@@ -97,34 +97,36 @@ onMounted(() => {
     <template #body>
       <p class="mb-4 text-sm leading-6 text-muted">{{ t('logs.intro') }}</p>
 
-      <form class="mb-4 grid gap-3 border border-muted bg-default p-4 md:grid-cols-6" @submit.prevent="store.refresh()">
-        <UFormField :label="t('logs.filters.level')">
-          <USelect v-model="store.filters.level" :items="levelItems" value-key="value" class="w-full" data-testid="log-level" />
-        </UFormField>
-        <UFormField :label="t('logs.filters.component')">
-          <UInput v-model="store.filters.component" :placeholder="t('logs.filters.component_placeholder')" class="w-full" data-testid="log-component" />
-        </UFormField>
-        <UFormField :label="t('logs.filters.code')">
-          <UInput v-model="store.filters.code" class="w-full" data-testid="log-code" />
-        </UFormField>
-        <UFormField :label="t('logs.filters.correlation')">
-          <UInput v-model="store.filters.correlationId" class="w-full" data-testid="log-correlation" />
-        </UFormField>
-        <UFormField :label="t('logs.filters.search')" class="md:col-span-2">
-          <UInput v-model="store.filters.search" icon="i-lucide-search" class="w-full" data-testid="log-search" />
-        </UFormField>
-        <div class="flex flex-wrap gap-2 md:col-span-6">
-          <UButton type="submit" icon="i-lucide-filter" :label="t('logs.filters.apply')" :loading="store.fetching" />
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
-            :label="t('logs.filters.clear')"
-            @click="store.clearFilters(); store.refresh()"
-          />
-        </div>
-      </form>
+      <UCard class="mb-4">
+        <form class="grid gap-3 md:grid-cols-6" @submit.prevent="store.refresh()">
+          <UFormField :label="t('logs.filters.level')">
+            <USelect v-model="store.filters.level" :items="levelItems" value-key="value" class="w-full" data-testid="log-level" />
+          </UFormField>
+          <UFormField :label="t('logs.filters.component')">
+            <UInput v-model="store.filters.component" :placeholder="t('logs.filters.component_placeholder')" class="w-full" data-testid="log-component" />
+          </UFormField>
+          <UFormField :label="t('logs.filters.code')">
+            <UInput v-model="store.filters.code" class="w-full" data-testid="log-code" />
+          </UFormField>
+          <UFormField :label="t('logs.filters.correlation')">
+            <UInput v-model="store.filters.correlationId" class="w-full" data-testid="log-correlation" />
+          </UFormField>
+          <UFormField :label="t('logs.filters.search')" class="md:col-span-2">
+            <UInput v-model="store.filters.search" icon="i-lucide-search" class="w-full" data-testid="log-search" />
+          </UFormField>
+          <div class="flex flex-wrap gap-2 md:col-span-6">
+            <UButton type="submit" icon="i-lucide-filter" :label="t('logs.filters.apply')" :loading="store.fetching" />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              :label="t('logs.filters.clear')"
+              @click="store.clearFilters(); store.refresh()"
+            />
+          </div>
+        </form>
+      </UCard>
 
       <UAlert
         v-if="store.dropped > 0"
@@ -197,7 +199,7 @@ onMounted(() => {
         />
       </div>
 
-      <section class="mt-8 border border-muted bg-default p-5" data-testid="diagnostic-bundle">
+      <UCard as="section" class="mt-8" data-testid="diagnostic-bundle">
         <SectionHeader :eyebrow="t('logs.bundle.eyebrow')" :title="t('logs.bundle.title')" :description="t('logs.bundle.intro')" />
         <div class="mt-4 flex flex-wrap gap-2">
           <UButton
@@ -262,7 +264,7 @@ onMounted(() => {
             download
           />
         </div>
-      </section>
+      </UCard>
     </template>
   </UDashboardPanel>
 </template>

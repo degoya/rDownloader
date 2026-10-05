@@ -468,7 +468,8 @@ pub(crate) async fn carry_enrichment_for_source(
             .fetch_optional(&mut *connection)
             .await?
             .flatten();
-    let merged = merge_enrichment(&crate::models::parse_enrichment(stored.as_deref()), fields);
+    let stored = crate::models::parse_enrichment(stored.as_deref(), "packages", &package_id);
+    let merged = merge_enrichment(&stored, fields);
     sqlx::query("UPDATE packages SET enrichment_json = ? WHERE id = ?")
         .bind(encode_enrichment(&merged)?)
         .bind(&package_id)

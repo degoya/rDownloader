@@ -183,7 +183,7 @@ async function remove(rule: CategoryRule): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="routing.rules" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="routing.rules">
     <FormListLayout :list-title="t('routing.rule.title')" :count="rules.length">
       <template #form>
         <SectionHeader
@@ -243,7 +243,7 @@ async function remove(rule: CategoryRule): Promise<void> {
       <template #list>
         <div class="divide-y divide-muted border border-muted">
           <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
-            <span class="size-2 shrink-0" :class="rule.enabled ? 'bg-success' : 'bg-muted'" />
+            <span class="size-2 shrink-0" :class="rule.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" />
             <span class="numeric w-8 shrink-0 text-xs text-primary">{{ rule.priority }}</span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm text-highlighted">{{ rule.name }} <span class="text-muted">→ {{ categoryName(rule.category_id) }}</span></p>
@@ -261,5 +261,5 @@ async function remove(rule: CategoryRule): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

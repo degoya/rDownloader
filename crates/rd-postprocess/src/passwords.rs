@@ -2,8 +2,14 @@ use std::path::Path;
 
 const MAX_PASSWORDS: usize = 10_000;
 
+/// The most of the file that is read: ten thousand passwords fit many times over. A path that
+/// names something without an end — a device, a huge log — must not fill the memory (audit
+/// 2026-10-05, S9).
+const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
+
 /// Loads one password per line (trimmed, deduplicated, blank lines ignored).
-/// A missing file yields an empty list.
+/// A missing file yields an empty list, and so does anything that is not a regular file; of a
+/// file longer than [`MAX_FILE_BYTES`] the complete lines within it are read.
 ///
 /// Trimming is deliberate and confined to this function: a line-based file cannot express a
 /// leading or trailing space, and every editor that writes one writes it by accident. A password
@@ -11,7 +17,7 @@ const MAX_PASSWORDS: usize = 10_000;
 /// (`password_candidates`, RD-107-11).
 #[must_use]
 pub fn load_password_file(path: &Path) -> Vec<String> {
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = rd_files::read_text_capped(path, MAX_FILE_BYTES) else {
         return Vec::new();
     };
     let mut seen = std::collections::HashSet::new();
@@ -92,5 +98,13 @@ mod tests {
         std::fs::write(&path, " one \n\ntwo\none\n").expect("write");
         assert_eq!(load_password_file(&path), ["one", "two"]);
         assert!(load_password_file(&temp.path().join("missing.txt")).is_empty());
+    }
+
+    /// A path the settings point at a device is no list (audit 2026-10-05, S9): read as one,
+    /// `/dev/zero` never ends and fills the memory.
+    #[cfg(unix)]
+    #[test]
+    fn a_device_is_no_password_list() {
+        assert!(load_password_file(std::path::Path::new("/dev/zero")).is_empty());
     }
 }

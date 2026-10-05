@@ -19,7 +19,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section data-settings-anchor="plugins.keys" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="plugins.keys">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.keys.eyebrow')" :title="t('plugins.keys.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ keys.length }}</UBadge>
@@ -38,5 +38,5 @@ const { t } = useI18n()
         <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.keys.empty') }}</p>
       </DataState>
     </div>
-  </section>
+  </UCard>
 </template>

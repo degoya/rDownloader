@@ -339,6 +339,18 @@ describe('the navigation entries', () => {
     expect(entry?.getAttribute('data-icon')).toBe('i-lucide-cloud-cog')
   })
 
+  it('has one entry for statistics and history, where the statistics were (RD-1101-05)', async () => {
+    const { router } = mountLayout()
+    await router.isReady()
+
+    const links = [...screen.getByTestId('menu').querySelectorAll(':scope > a')]
+    const hrefs = links.map(link => link.getAttribute('href'))
+    expect(hrefs).not.toContain('/history')
+    expect(hrefs.slice(hrefs.indexOf('/automation'), hrefs.indexOf('/automation') + 3)).toEqual(['/automation', '/stats', '/logs'])
+    const entry = links.find(link => link.getAttribute('href') === '/stats')
+    expect(entry?.textContent?.trim()).toBe(i18n.global.t('nav.stats_history'))
+  })
+
   it('lists the settings pages under the six rubrics of the shared table, in its order', async () => {
     const { router } = mountLayout()
     await router.isReady()

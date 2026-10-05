@@ -1,0 +1,21 @@
+name: Rust with the test cache
+description: >
+  The setup of a job that builds a few tests against the `rust` job's dependencies (`s3-live`,
+  `clamav-live`; RD-1101-07 moved the four steps here from ci.yml, unchanged): mold on Linux, the
+  workspace toolchain, `rust`'s cache read only and nextest. Read only (RD-1100-13): a job of its
+  own key saved one more cache per ref. The caller sets `rust`'s two linker variables in its env,
+  so Swatinem/rust-cache, which keys a cache by every CARGO*/RUST* variable, restores `rust-tests`.
+runs:
+  using: composite
+  steps:
+    - name: Install mold
+      shell: bash
+      run: sudo apt-get update -q && sudo apt-get install -y -q mold
+    - uses: ./.github/actions/setup-rust
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        shared-key: rust-tests
+        save-if: false
+    - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      with:
+        tool: nextest@0.9.146

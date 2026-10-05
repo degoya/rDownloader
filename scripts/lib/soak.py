@@ -3,7 +3,7 @@
 that keeps dropping out, sampled all along and judged against `scripts/soak-budgets.toml`.
 
     soak.py run --binary PATH [--duration 5m] [--budgets FILE] [--out DIR]
-    soak.py evaluate --samples samples.csv [--budgets FILE] [--shutdown-seconds S]
+    soak.py evaluate --samples samples.csv [--budgets FILE] [--shutdown-seconds S] [--platform P]
     soak.py serve-fixture [--port N] [--rate-mib R] [--outage-every S --outage-for S]
 
 `run` starts the service with a throwaway data directory, signs in, keeps `queue_depth` downloads
@@ -11,7 +11,9 @@ queued, verifies every completed file against the bytes the fixture served, remo
 samples the process every `sample_seconds`: resident memory, open files, threads, database size
 with WAL, completed bytes. It writes `samples.csv`, `summary.json` and `server.log` to `--out` and
 exits 1 naming each exceeded budget, 2 when the run itself could not be carried out. `evaluate`
-judges a samples file again (the self-test, and a budget changed after a run).
+judges a samples file again (the self-test, and a budget changed after a run); `--platform` picks
+the `[budgets.<platform>]` table to apply, by default this machine's (a Windows run's samples are
+judged on Linux with `--platform windows`).
 
 Standard library only (Python 3.11 for tomllib). On Linux the process is read from /proc; on
 other systems `psutil` is required.
@@ -173,6 +175,12 @@ def run(args: argparse.Namespace) -> int:
     sample_every = float(settings["sample_seconds"])
     queue_depth = int(settings["queue_depth"])
     sizes = [int(size * MIB) for size in fixture_config["sizes_mib"]]
+    # A budget typo is refused before the run, not after two hours of it.
+    try:
+        soak_budgets.resolve(config["budgets"], soak_budgets.current_platform())
+    except ValueError as error:
+        print(f"!! {error}", file=sys.stderr)
+        return 2
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     # The throwaway data directory sits next to the results, so a run writes nowhere else.
@@ -340,9 +348,11 @@ def judge(samples, config, shutdown_seconds, fixture_stats, failures, out: Path)
                                   float(evaluation["window_percent"]))
     if shutdown_seconds is not None:
         metrics["shutdown_seconds"] = shutdown_seconds
-    verdicts = soak_budgets.evaluate(metrics, config["budgets"])
+    budgets_for = soak_budgets.current_platform()
+    verdicts = soak_budgets.evaluate(metrics, config["budgets"], budgets_for)
     summary = {
         "platform": f"{platform.system()} {platform.machine()}",
+        "budgets_for": budgets_for,
         "samples": len(samples),
         "duration_s": samples[-1]["elapsed_s"] if samples else 0,
         "fixture": fixture_stats,
@@ -351,10 +361,10 @@ def judge(samples, config, shutdown_seconds, fixture_stats, failures, out: Path)
         "failures": failures[:50],
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    return report(verdicts, failures, fixture_stats)
+    return report(verdicts, failures, budgets_for, fixture_stats)
 
 
-def report(verdicts, failures, fixture_stats=None) -> int:
+def report(verdicts, failures, budgets_for: str, fixture_stats=None) -> int:
     print()
     if fixture_stats:
         print(f"    fixture: {fixture_stats['requests']} requests, {fixture_stats['ranged']} resumed"
@@ -365,9 +375,10 @@ def report(verdicts, failures, fixture_stats=None) -> int:
         print(f"    - {failure}")
     broken = [verdict.metric for verdict in verdicts if not verdict.passed]
     if broken:
-        print(f"==> soak failed: over budget: {', '.join(broken)}", file=sys.stderr)
+        print(f"==> soak failed: over budget: {', '.join(broken)} ({budgets_for} budgets)",
+              file=sys.stderr)
         return 1
-    print("==> soak passed: every budget held")
+    print(f"==> soak passed: every budget held ({budgets_for} budgets)")
     return 0
 
 
@@ -380,11 +391,11 @@ def evaluate(args: argparse.Namespace) -> int:
     if args.shutdown_seconds is not None:
         metrics["shutdown_seconds"] = args.shutdown_seconds
     try:
-        verdicts = soak_budgets.evaluate(metrics, config["budgets"])
+        verdicts = soak_budgets.evaluate(metrics, config["budgets"], args.platform)
     except ValueError as error:
         print(f"!! {error}", file=sys.stderr)
         return 2
-    return report(verdicts, [])
+    return report(verdicts, [], args.platform)
 
 
 def serve_fixture(args: argparse.Namespace) -> int:
@@ -412,6 +423,8 @@ def main() -> int:
     evaluate_parser.add_argument("--samples", required=True)
     evaluate_parser.add_argument("--budgets", default=str(DEFAULT_BUDGETS))
     evaluate_parser.add_argument("--shutdown-seconds", type=float)
+    evaluate_parser.add_argument("--platform", default=soak_budgets.current_platform(),
+                                 help="whose [budgets.<platform>] table applies")
     fixture_parser = commands.add_parser("serve-fixture")
     fixture_parser.add_argument("--port", type=int, default=0)
     fixture_parser.add_argument("--rate-mib", type=float, default=0)

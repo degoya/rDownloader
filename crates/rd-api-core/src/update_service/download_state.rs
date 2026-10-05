@@ -34,11 +34,16 @@ impl UpdateService {
             self.record_download(version, artifact, "ready", artifact.size, None);
             return Ok(file);
         }
-        let fetcher = self.fetcher()?;
+        // A fetcher that cannot be had fails the download like any other refusal: returned
+        // early, it left the status at "downloading" for good and logged nothing (audit Q2).
         let received = |bytes: u64| self.record_received(version, bytes);
-        let outcome =
-            rd_update::download_verified_with(fetcher.as_ref(), artifact, &directory, &received)
-                .await;
+        let outcome = match self.fetcher() {
+            Ok(fetcher) => {
+                rd_update::download_verified_with(fetcher.as_ref(), artifact, &directory, &received)
+                    .await
+            }
+            Err(error) => Err(error),
+        };
         match &outcome {
             Ok(_) => self.record_download(version, artifact, "ready", artifact.size, None),
             Err(error) => {
@@ -64,6 +69,8 @@ impl UpdateService {
         if !running {
             self.record_download(version, artifact, "downloading", 0, None);
             let (service, version, artifact) = (self.clone(), version.to_owned(), artifact.clone());
+            // Nothing is lost here: `fetch_artifact` logs a failure and records it for
+            // `download_status`, which is where the interface reads it.
             tokio::spawn(async move {
                 let _ = service.fetch_artifact(&version, &artifact).await;
             });

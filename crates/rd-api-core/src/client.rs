@@ -33,20 +33,31 @@ impl FromRequestParts<AppState> for ClientAddress {
             // out of any real address's counters instead of borrowing loopback's.
             .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
         let proxy = state.proxy.read().await.clone();
-        let header = |name: &str| {
-            parts
-                .headers
-                .get(name)
-                .and_then(|value| value.to_str().ok())
-        };
+        let forwarded_for = header_lines(&parts.headers, rd_authn::client_ip::X_FORWARDED_FOR);
+        let forwarded = header_lines(&parts.headers, rd_authn::client_ip::FORWARDED);
         let resolved = rd_authn::resolve_client_address(
             peer,
-            header(rd_authn::client_ip::X_FORWARDED_FOR),
-            header(rd_authn::client_ip::FORWARDED),
+            forwarded_for.as_deref(),
+            forwarded.as_deref(),
             proxy.trusted(),
         );
         Ok(Self(resolved.address))
     }
+}
+
+/// Every line of a list header joined in order, as one comma-separated value.
+///
+/// A proxy may append a line of its own instead of extending the one it received (HAProxy's
+/// `option forwardfor` does), and RFC 9110 makes the two forms equivalent. Reading only the
+/// first line then read the client's own claim and dropped the proxy's record of it, so the
+/// client chose its address (audit 2026-10-05, S7).
+fn header_lines(headers: &HeaderMap, name: &str) -> Option<String> {
+    let lines: Vec<&str> = headers
+        .get_all(name)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .collect();
+    (!lines.is_empty()).then(|| lines.join(", "))
 }
 
 /// The address the service's listener is bound to, attached to every request by `rd_api::serve`.
@@ -275,6 +286,38 @@ mod tests {
             &bound("192.168.1.5", "192.168.1.5:8710"),
             &forwarded
         ));
+    }
+
+    /// Audit 2026-10-05, S7: a proxy that appends its own `X-Forwarded-For` line after the
+    /// client's must still be the one believed, and the same holds for `Forwarded`.
+    #[test]
+    fn every_forwarded_header_line_is_read_in_order() {
+        use axum::http::{HeaderMap, HeaderValue};
+        let proxies = [rd_authn::Cidr::parse("10.0.0.0/8").expect("range")];
+        let peer: std::net::IpAddr = "10.0.0.1".parse().expect("peer");
+        let client: std::net::IpAddr = "203.0.113.9".parse().expect("client");
+
+        let mut headers = HeaderMap::new();
+        headers.append("x-forwarded-for", HeaderValue::from_static("198.51.100.7"));
+        headers.append("x-forwarded-for", HeaderValue::from_static("203.0.113.9"));
+        headers.append("forwarded", HeaderValue::from_static("for=198.51.100.7"));
+        headers.append("forwarded", HeaderValue::from_static("for=203.0.113.9"));
+        let forwarded_for = super::header_lines(&headers, "x-forwarded-for");
+        assert_eq!(forwarded_for.as_deref(), Some("198.51.100.7, 203.0.113.9"));
+        let resolved =
+            rd_authn::resolve_client_address(peer, forwarded_for.as_deref(), None, &proxies);
+        assert_eq!(
+            resolved.address, client,
+            "the client's own line was believed"
+        );
+        let forwarded = super::header_lines(&headers, "forwarded");
+        let resolved = rd_authn::resolve_client_address(peer, None, forwarded.as_deref(), &proxies);
+        assert_eq!(
+            resolved.address, client,
+            "the client's own line was believed"
+        );
+
+        assert_eq!(super::header_lines(&HeaderMap::new(), "forwarded"), None);
     }
 
     /// The bug this guards against: a sibling path that merely starts with the same letters.

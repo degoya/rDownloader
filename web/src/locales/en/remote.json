@@ -76,7 +76,8 @@
     "truncated_entries": "Only the first {limit} entries are shown. Narrow the link to a subfolder to see the rest.",
     "truncated_depth": "Subfolders deeper than {limit} levels were not read.",
     "select_all": "Select all",
-    "select_none": "Select none"
+    "select_none": "Select none",
+    "toggle_folder": "Expand or collapse folder {name}"
   },
   "settings": {
     "title": "Transfer limits",

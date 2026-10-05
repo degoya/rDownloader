@@ -236,7 +236,7 @@ defineExpose({ edit, reset })
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <UCard as="section">
     <SectionHeader
       class="mb-4"
       :eyebrow="t('subscriptions.title')"
@@ -424,5 +424,5 @@ defineExpose({ edit, reset })
         @cancel="reset"
       />
     </form>
-  </section>
+  </UCard>
 </template>

@@ -105,11 +105,51 @@ async fn the_application_shell_points_at_the_mount_point() {
     let harness = test_harness(directory.path()).await;
     mount_under(&harness, "http://rd.example.test/downloads", &[]).await;
 
-    let (status, body) = get(&harness.router, "/downloads/queue").await;
-    assert_eq!(status, StatusCode::OK);
+    let request = Request::builder()
+        .method("GET")
+        .uri("/downloads/queue")
+        .header(header::HOST, "127.0.0.1:8710")
+        .body(Body::empty())
+        .expect("request");
+    let response = harness
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let policy = response
+        .headers()
+        .get(header::CONTENT_SECURITY_POLICY)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    let body = String::from_utf8_lossy(&bytes).into_owned();
     assert!(
         body.contains("window.__RD_BASE__=\"/downloads\""),
         "the shell did not tell the application where it is mounted"
+    );
+    // The policy allows exactly that inline script, by the hash of its bytes (audit
+    // 2026-10-05, S5); a mismatch would leave the mounted interface blank.
+    let script = body
+        .split("<script>")
+        .nth(1)
+        .and_then(|rest| rest.split("</script>").next())
+        .expect("the inline script");
+    let hash = {
+        use base64::Engine;
+        use sha2::Digest;
+        base64::engine::general_purpose::STANDARD.encode(sha2::Sha256::digest(script))
+    };
+    assert!(
+        policy.contains(&format!("script-src 'self' 'sha256-{hash}';")),
+        "{policy}"
     );
     assert!(
         !body.contains("src=\"/assets/"),

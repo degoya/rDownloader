@@ -83,7 +83,7 @@ async function checkNow(): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="system.updates" class="border border-muted bg-default p-5" data-testid="update-settings">
+  <UCard as="section" data-settings-anchor="system.updates" data-testid="update-settings">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <SectionHeader
         :eyebrow="t('system.updates.eyebrow')"
@@ -162,5 +162,5 @@ async function checkNow(): Promise<void> {
     </div>
 
     <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available ?? null" :kind="status.install_kind" />
-  </section>
+  </UCard>
 </template>

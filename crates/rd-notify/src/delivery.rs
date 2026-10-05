@@ -6,12 +6,12 @@
 //! in the process list. What comes back is truncated and redacted before it is stored.
 
 use anyhow::{Context, Result};
-use hmac::{Hmac, KeyInit as _, Mac};
 use rd_files::NoConsoleWindow as _;
 use secrecy::ExposeSecret;
-use sha2::Sha256;
 
 use crate::model::{NotificationTarget, TargetKind};
+
+mod webhook;
 
 /// Header carrying the HMAC of the body, so a receiver can verify the call came from here.
 pub const SIGNATURE_HEADER: &str = "X-RDownloader-Signature";
@@ -45,7 +45,7 @@ pub struct TargetConfig {
     pub tls: Option<String>,
     /// SMTP: port; `None` picks 587 for STARTTLS, 465 for implicit TLS, 25 for none.
     pub port: Option<u16>,
-    /// Apprise: absolute path of the executable; empty = vendor folders and `PATH`.
+    /// Apprise: executable path, run once an administrator sealed it; empty = vendor and `PATH`.
     pub executable: Option<String>,
     /// Plugin: which installed notification destination delivers this target.
     pub plugin_id: Option<String>,
@@ -114,11 +114,14 @@ fn excerpt(value: String) -> String {
 
 /// Delivers one message; `secret` is the resolved vault value, if the target has one.
 ///
+/// `reach` is the address rule a webhook keeps to (audit 2026-10-05, S2): the service's rule for
+/// an address the person entered, `rd_plugin_host::entered_address_policy`.
+///
 /// `vendor_directory` is the tool folder configured under Settings → Tools. Apprise is looked
 /// up there first, like every other helper binary (RD-120-62); `None` leaves the built-in
 /// vendor folders and `PATH`.
 pub async fn send(
-    http: &reqwest::Client,
+    reach: &rd_http::AddressPolicy,
     target: &NotificationTarget,
     config: &TargetConfig,
     message: &Message,
@@ -126,9 +129,11 @@ pub async fn send(
     vendor_directory: Option<&str>,
 ) -> Attempt {
     let result = match target.kind {
-        TargetKind::Webhook => send_webhook(http, target, message, secret).await,
+        TargetKind::Webhook => webhook::send(reach, target, message, secret).await,
         TargetKind::Smtp => send_smtp(target, config, message, secret).await,
-        TargetKind::Apprise => send_apprise(config, message, secret, vendor_directory).await,
+        TargetKind::Apprise => {
+            send_apprise(target, config, message, secret, vendor_directory).await
+        }
         // Never reached in practice: the service dispatches plugin targets before it gets
         // here. Answering rather than panicking means a target whose kind was changed while
         // a delivery was in flight fails once instead of taking the worker down.
@@ -143,41 +148,6 @@ pub async fn send(
         // A transport error (DNS, TLS, connection refused) is worth another attempt.
         Err(error) => Attempt::failed(None, error.to_string(), true),
     }
-}
-
-async fn send_webhook(
-    http: &reqwest::Client,
-    target: &NotificationTarget,
-    message: &Message,
-    secret: Option<&secrecy::SecretString>,
-) -> Result<Attempt> {
-    let body = serde_json::to_vec(&message.payload)?;
-    let mut request = http
-        .post(&target.endpoint)
-        .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .header(IDEMPOTENCY_HEADER, &message.idempotency_key);
-    if let Some(secret) = secret {
-        request = request.header(SIGNATURE_HEADER, sign(secret.expose_secret(), &body));
-    }
-    let response = request.body(body).send().await?;
-    let status = response.status();
-    let text = response.text().await.unwrap_or_default();
-    if status.is_success() {
-        return Ok(Attempt::ok(Some(status.as_u16())));
-    }
-    // 4xx other than 408/429 means the request itself is wrong; repeating it will not help.
-    let retryable = status.is_server_error()
-        || status == reqwest::StatusCode::REQUEST_TIMEOUT
-        || status == reqwest::StatusCode::TOO_MANY_REQUESTS;
-    Ok(Attempt::failed(Some(status.as_u16()), text, retryable))
-}
-
-/// `sha256=<hex>` over the exact body that is sent, the shape most receivers expect.
-fn sign(secret: &str, body: &[u8]) -> String {
-    let mut mac =
-        <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
-    mac.update(body);
-    format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
 }
 
 async fn send_smtp(
@@ -228,13 +198,15 @@ async fn send_smtp(
 }
 
 async fn send_apprise(
+    target: &NotificationTarget,
     config: &TargetConfig,
     message: &Message,
     secret: Option<&secrecy::SecretString>,
     vendor_directory: Option<&str>,
 ) -> Result<Attempt> {
     let secret = secret.context("apprise target URL is not stored")?;
-    let tool = rd_core::locate_tool(config.executable.as_deref(), vendor_directory, "apprise")
+    let explicit = crate::executable::runnable_executable(target, config)?;
+    let tool = rd_core::locate_tool(explicit, vendor_directory, "apprise")
         .context("apprise is not installed or not configured")?;
     let mut command = tokio::process::Command::new(&tool.path);
     // Like the downloaders, apprise gets the allowlist and its network settings, not the
@@ -292,7 +264,7 @@ async fn run_apprise(
 
 #[cfg(test)]
 mod tests {
-    use super::{excerpt, sign};
+    use super::excerpt;
 
     /// A hung apprise is killed at its limit and the attempt fails retryably, instead of
     /// holding its target `in_flight` for good (audit 1.9.1, INTAKE-05).
@@ -375,12 +347,12 @@ mod tests {
             payload: serde_json::json!({}),
         };
         let secret = secrecy::SecretString::from("tgram://token/chat");
-        let http = reqwest::Client::new();
+        let reach = rd_http::AddressPolicy::new(false);
         let folder = vendor.path().to_string_lossy().into_owned();
 
         // Without the setting the stand-in is out of reach, whatever else the machine has.
         send(
-            &http,
+            &reach,
             &target,
             &TargetConfig::default(),
             &message,
@@ -391,7 +363,7 @@ mod tests {
         assert!(!received.exists(), "the stand-in ran without the setting");
 
         let attempt = send(
-            &http,
+            &reach,
             &target,
             &TargetConfig::default(),
             &message,
@@ -461,7 +433,7 @@ mod tests {
         let folder = vendor.path().to_string_lossy().into_owned();
 
         let attempt = send(
-            &reqwest::Client::new(),
+            &rd_http::AddressPolicy::new(false),
             &target,
             &TargetConfig::default(),
             &message,
@@ -473,17 +445,6 @@ mod tests {
         let excerpt = attempt.excerpt.expect("stderr kept");
         assert!(excerpt.contains("Unparseable URL"), "{excerpt}");
         assert!(!excerpt.contains("sekrit"), "{excerpt}");
-    }
-
-    #[test]
-    fn the_signature_is_a_stable_hmac_over_the_exact_body() {
-        let first = sign("topsecret", b"{\"a\":1}");
-        assert_eq!(first, sign("topsecret", b"{\"a\":1}"));
-        assert!(first.starts_with("sha256="));
-        assert_ne!(first, sign("other", b"{\"a\":1}"));
-        assert_ne!(first, sign("topsecret", b"{\"a\":2}"));
-        // The secret itself is nowhere in the header value.
-        assert!(!first.contains("topsecret"));
     }
 
     #[test]

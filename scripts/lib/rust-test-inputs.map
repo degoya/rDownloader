@@ -35,6 +35,7 @@
 ^sdk/templates/                             rd-pack rd-plugin-ext
 # Scripts whose behaviour a Rust test pins.
 ^scripts/build-plugins\.sh$                 rdownloader rd-plugin-host
+^scripts/lib/plugin-(stamp|drift)\.sh$      rdownloader rd-plugin-host
 ^scripts/i18n-key\.sh$                      rdownloader
 ^scripts/migration-pin\.sh$                 rd-db
 ^scripts/check-capture-linux-tree\.sh$      rd-capture

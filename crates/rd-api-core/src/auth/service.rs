@@ -75,7 +75,7 @@ impl AuthService {
             return Err(setup_completed());
         }
         validate_password(password)?;
-        let hash = hash_password(password)?;
+        let hash = hash_password(password).await?;
         if !state
             .database
             .insert_setting_if_absent(PASSWORD_SETTING.to_owned(), serde_json::Value::String(hash))
@@ -96,14 +96,20 @@ impl AuthService {
         store_admin_password(&state.database, password).await
     }
 
+    /// Runs `apply` on the limiter, created on first use.
+    fn with_throttle<T>(&self, apply: impl FnOnce(&mut rd_authn::LoginThrottle) -> T) -> T {
+        let mut guard = self
+            .throttle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        apply(guard.get_or_insert_with(|| {
+            rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
+        }))
+    }
+
     /// What the limiter says about an attempt from `client`.
     pub async fn throttle_check(&self, client: std::net::IpAddr) -> rd_authn::Decision {
-        let mut guard = self.throttle.write().await;
-        guard
-            .get_or_insert_with(|| {
-                rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
-            })
-            .check(client, Instant::now())
+        self.with_throttle(|throttle| throttle.check(client, Instant::now()))
     }
 
     /// The limiter's gate for one attempt from `client`, asked once (audit 1.9.1, API-10).
@@ -113,43 +119,41 @@ impl AuthService {
     /// through this, so none of them can honour the lockout and forget the delay -- the copies
     /// this replaces asked the limiter twice and each spelled the refusal out again.
     ///
+    /// The limiter is asked again after the wait, and that second answer admits the attempt:
+    /// the returned [`LoginAttempt`] counts against the address until it is dropped. Asked only
+    /// before the wait, parallel attempts all slept through the lockout the first of them
+    /// caused, and all reached the password check (audit 2026-10-05, S4).
+    ///
     /// # Errors
     ///
     /// `429 auth.too_many_attempts` with the `seconds` parameter.
-    pub async fn gate(&self, client: std::net::IpAddr) -> Result<(), ApiError> {
-        match self.throttle_check(client).await {
+    pub async fn gate(&self, client: std::net::IpAddr) -> Result<LoginAttempt, ApiError> {
+        if let rd_authn::Decision::Proceed { delay } = self.throttle_check(client).await
+            && !delay.is_zero()
+        {
+            // Paid by everyone while an attack is running, and capped low enough that it
+            // stays a nuisance rather than an outage.
+            tokio::time::sleep(delay).await;
+        }
+        match self.with_throttle(|throttle| throttle.admit(client, Instant::now())) {
             rd_authn::Decision::Locked { retry_after } => Err(ApiError::too_many_requests(
                 "auth.too_many_attempts",
                 "Too many failed sign-in attempts from this address",
             )
             .with_param("seconds", retry_after.as_secs().max(1).to_string())),
-            rd_authn::Decision::Proceed { delay } => {
-                if !delay.is_zero() {
-                    // Paid by everyone while an attack is running, and capped low enough that
-                    // it stays a nuisance rather than an outage.
-                    tokio::time::sleep(delay).await;
-                }
-                Ok(())
-            }
+            rd_authn::Decision::Proceed { .. } => Ok(LoginAttempt {
+                throttle: self.throttle.clone(),
+                client,
+            }),
         }
     }
 
     pub(super) async fn record_login_failure(&self, client: std::net::IpAddr) {
-        let mut guard = self.throttle.write().await;
-        guard
-            .get_or_insert_with(|| {
-                rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
-            })
-            .record_failure(client, Instant::now());
+        self.with_throttle(|throttle| throttle.record_failure(client, Instant::now()));
     }
 
     pub(super) async fn record_login_success(&self, client: std::net::IpAddr) {
-        let mut guard = self.throttle.write().await;
-        guard
-            .get_or_insert_with(|| {
-                rd_authn::LoginThrottle::new(rd_authn::ThrottleSettings::default())
-            })
-            .record_success(client, Instant::now());
+        self.with_throttle(|throttle| throttle.record_success(client, Instant::now()));
     }
 
     /// Forgets every failure the limiter counted, every address's lockout included.
@@ -158,7 +162,10 @@ impl AuthService {
     /// usually locked their own address out trying, and a new password they cannot try for a
     /// quarter of an hour would be no way back in. One account, so the whole limiter.
     pub async fn reset_throttle(&self) {
-        *self.throttle.write().await = None;
+        *self
+            .throttle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
 
     /// Records a failed sign-in against the limiter.

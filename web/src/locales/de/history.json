@@ -1,5 +1,4 @@
 {
-  "title": "Downloadverlauf",
   "intro": "Alles, was fertig ist oder endgültig fehlgeschlagen ist – auch nachdem das Paket aus der Liste entfernt oder automatisch aufgeräumt wurde. Adressen stehen hier ohne Passwörter und Token; Archivpasswörter werden nie gespeichert.",
   "filters": {
     "search": "Suche",

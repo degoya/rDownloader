@@ -5,16 +5,21 @@
 #
 # Sourced, never run. Every function exits the calling script on a refusal, with the reason.
 
-# Sets GITLEAKS_BIN: $GITLEAKS, else `gitleaks` on PATH, else the copy the inventory downloaded.
+# Sets GITLEAKS_BIN: $GITLEAKS, else `gitleaks` on PATH, and nothing else. A fallback to a fixed
+# path under /tmp let whatever binary sat there — stale, or planted by another user of the
+# machine — decide whether secrets reach the public export (audit K7). A GITLEAKS that names no
+# executable is refused rather than replaced by the one on PATH.
 rd_public_find_gitleaks() {
     GITLEAKS_BIN="${GITLEAKS:-}"
+    if [[ -n "$GITLEAKS_BIN" && ! -x "$GITLEAKS_BIN" ]]; then
+        echo "GITLEAKS=$GITLEAKS_BIN is not an executable file." >&2
+        echo "Nothing is exported without the secret scan." >&2
+        exit 1
+    fi
     if [[ -z "$GITLEAKS_BIN" ]]; then
         GITLEAKS_BIN="$(command -v gitleaks || true)"
     fi
-    if [[ -z "$GITLEAKS_BIN" && -x /tmp/claude-1000/public-inventory/gitleaks ]]; then
-        GITLEAKS_BIN=/tmp/claude-1000/public-inventory/gitleaks
-    fi
-    if [[ -z "$GITLEAKS_BIN" || ! -x "$GITLEAKS_BIN" ]]; then
+    if [[ -z "$GITLEAKS_BIN" ]]; then
         echo "gitleaks not found: put it on PATH or name it with GITLEAKS=<path>." >&2
         echo "Nothing is exported without the secret scan. Releases: https://github.com/gitleaks/gitleaks/releases" >&2
         exit 1

@@ -265,7 +265,7 @@ async function remove(target: NotificationTarget): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="notifications.targets" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="notifications.targets">
     <FormListLayout :list-title="t('notifications.target.title')" :count="targets.length">
       <template #form>
         <SectionHeader
@@ -371,5 +371,5 @@ async function remove(target: NotificationTarget): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

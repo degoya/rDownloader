@@ -188,7 +188,14 @@ impl TryFrom<ChannelRow> for StreamChannel {
             recording: row
                 .recording_json
                 .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
+                .and_then(|value| {
+                    crate::json_column::lenient(
+                        serde_json::from_str(value),
+                        "stream_channels",
+                        "recording_json",
+                        &row.id,
+                    )
+                })
                 .unwrap_or_default(),
             created_at: row.created_at,
         })

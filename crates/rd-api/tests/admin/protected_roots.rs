@@ -1,7 +1,8 @@
 //! A storage root may not reach a directory the service runs things from (security review
 //! 2026-09-28, finding 4) however it arrives: a settings import and a full restore refuse it
 //! like create and update do (`crates/rd-api/tests/queue/storage_roots.rs`), with the same
-//! `storage_root.protected_directory`, and change nothing.
+//! `storage_root.protected_directory`, and change nothing. A hotfolder keeps out of the same
+//! directories (audit 2026-10-05, S9).
 
 use axum::http::StatusCode;
 use rd_backup::restore::cutover::Layout;
@@ -117,4 +118,63 @@ async fn a_restore_may_not_map_a_root_onto_a_protected_directory() {
         0,
         "no copy stayed behind"
     );
+}
+
+/// A hotfolder on this machine keeps out of the protected directories as well (audit
+/// 2026-10-05, S9): it moves what lands in it, and is created when it does not exist. The
+/// refusal comes before the folder is created.
+#[tokio::test]
+async fn a_hotfolder_may_not_reach_a_protected_directory() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let base = directory.path();
+    let harness = common::test_harness(base).await;
+    let hotfolder = |path: &std::path::Path| {
+        json!({
+            "name": "Inbox",
+            "executor": { "kind": "daemon" },
+            "path": path.display().to_string(),
+            "recursive": false,
+            "category_id": null,
+            "import_mode": "review",
+            "processed_path": "processed",
+            "failed_path": "failed",
+            "enabled": false,
+        })
+    };
+
+    // The harness keeps its scripts in `<dir>/scripts` and its plugins in `<dir>/plugins`.
+    for (path, kind) in [
+        (base.join("scripts/inbox"), "scripts"),
+        (base.join("plugins"), "plugins"),
+        (base.to_path_buf(), "scripts"),
+    ] {
+        let (status, body) =
+            common::post_json(&harness.router, "/api/v1/hotfolders", hotfolder(&path)).await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "{}: {body}",
+            path.display()
+        );
+        assert_eq!(body["code"], "hotfolder.protected_directory", "{body}");
+        assert_eq!(body["params"]["directory"], kind, "{body}");
+    }
+    assert!(
+        !base.join("scripts/inbox").exists(),
+        "a refused folder was created"
+    );
+    assert!(
+        harness
+            .database
+            .list_hotfolders()
+            .await
+            .expect("hotfolders")
+            .is_empty()
+    );
+
+    let watch = base.join("watch");
+    let (status, body) =
+        common::post_json(&harness.router, "/api/v1/hotfolders", hotfolder(&watch)).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert!(watch.is_dir());
 }

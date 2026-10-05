@@ -231,7 +231,7 @@ fn single(
         page_url: metadata
             .webpage_url
             .as_deref()
-            .and_then(|value| Url::parse(value).ok())
+            .and_then(web_page)
             .unwrap_or_else(|| url.clone()),
         variants,
         selected,
@@ -257,7 +257,7 @@ fn playlist_entry(
     let page = entry
         .webpage_url
         .or(entry.url)
-        .and_then(|value| Url::parse(&value).ok())
+        .and_then(|value| web_page(&value))
         .or_else(|| {
             entry
                 .id
@@ -360,6 +360,16 @@ fn tool_failure(detail: String) -> Failure {
     )
     .with_param("detail", detail)
 }
+
+/// A reported page address the interface may use as a link: http(s) only (audit K9).
+fn web_page(value: &str) -> Option<Url> {
+    let page = Url::parse(value).ok()?;
+    matches!(page.scheme(), "http" | "https").then_some(page)
+}
+
+#[cfg(test)]
+#[path = "probe_page_tests.rs"]
+mod page_tests;
 
 #[cfg(test)]
 mod error_tests {

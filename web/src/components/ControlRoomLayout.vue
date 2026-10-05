@@ -85,8 +85,6 @@ function setOpenGroups(value: unknown): void {
 }
 const items = computed<NavigationMenuItem[][]>(() => [[
   { label: t('nav.downloads'), icon: 'i-lucide-arrow-down-to-line', to: '/downloads', ...(downloadsBadge.value ? { badge: downloadsBadge.value } : {}) },
-  // What left the queue, right below it (RD-1100-04).
-  { label: t('nav.history'), icon: 'i-lucide-history', to: '/history' },
   { label: t('nav.linkgrabber'), icon: 'i-lucide-magnet', to: '/linkgrabber', ...(grabberCount.value ? { badge: String(grabberCount.value) } : {}) },
   { label: t('nav.streams'), icon: 'i-lucide-radio', to: '/streams', ...(streams.channels.length ? { badge: String(streams.channels.length) } : {}) },
   { label: t('nav.subscriptions'), icon: 'i-lucide-rss', to: '/subscriptions' },
@@ -94,7 +92,8 @@ const items = computed<NavigationMenuItem[][]>(() => [[
   // watch and answer, like a subscription's hits, and not a setting (RD-110-29).
   { label: t('nav.remote_jobs'), icon: 'i-lucide-cloud-cog', to: '/remote-jobs' },
   { label: t('nav.automation'), icon: 'i-lucide-workflow', to: '/automation' },
-  { label: t('nav.stats'), icon: 'i-lucide-chart-column', to: '/stats' },
+  // The history is the page's second tab (RD-1101-05), so its address counts as this entry.
+  { label: t('nav.stats_history'), icon: 'i-lucide-chart-column', to: '/stats' },
   { label: t('nav.logs'), icon: 'i-lucide-scroll-text', to: '/logs' },
   { label: t('nav.audit'), icon: 'i-lucide-shield-check', to: '/audit' }
 ], [

@@ -99,7 +99,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="network.auth_profiles" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="network.auth_profiles">
     <div v-if="awaitingApproval.length" class="mb-4 border border-warning bg-warning/5 p-4">
       <p class="text-sm font-medium text-highlighted">{{ t('settings.auth_profiles.approval_title') }}</p>
       <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.auth_profiles.approval_description') }}</p>
@@ -221,5 +221,5 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

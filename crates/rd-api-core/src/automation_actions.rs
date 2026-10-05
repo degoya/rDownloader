@@ -15,7 +15,6 @@ pub(crate) struct ActionContext {
     pub secrets: rd_secrets::SecretStore,
     pub scheduler: rd_scheduler::SchedulerHandle,
     pub extraction: rd_extract::ExtractionService,
-    pub http: reqwest::Client,
 }
 
 /// Runs one action. `Err` is retryable; the caller decides when to give up.
@@ -178,7 +177,7 @@ async fn webhook(
         serde_json::from_value(target.config.clone()).unwrap_or_default();
     let vendor = crate::notify_service::vendor_directory(&context.database).await;
     let attempt = rd_notify::send(
-        &context.http,
+        &crate::notify_service::webhook_reach(&target),
         &target,
         &config,
         &message,

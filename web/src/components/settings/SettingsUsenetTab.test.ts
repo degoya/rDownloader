@@ -206,3 +206,20 @@ describe('SettingsUsenetTab form (RD-150-11)', () => {
       .toEqual([en.form.save_changes, common.actions.cancel_edit])
   })
 })
+
+/** RD-1101-10: the dot beside a server is colour only, so the switched-off state is a word too. */
+describe('SettingsUsenetTab server state', () => {
+  it('names a disabled server in text and keeps the colour dot out of the accessibility tree', async () => {
+    SERVERS[2]!.enabled = false
+    try {
+      await mount()
+      const backup = screen.getByText('Backup').closest('article') as HTMLElement
+      expect(within(backup).getByText(en.chain.disabled)).toBeTruthy()
+      const block = screen.getByText('Block').closest('article') as HTMLElement
+      expect(within(block).queryByText(en.chain.disabled)).toBeNull()
+      expect(backup.querySelector('span.size-2')?.getAttribute('aria-hidden')).toBe('true')
+    } finally {
+      SERVERS[2]!.enabled = true
+    }
+  })
+})

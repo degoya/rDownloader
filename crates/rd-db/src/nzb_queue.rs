@@ -204,7 +204,14 @@ async fn enable_all_par(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>) -> Result<
             .await?;
     Ok(stored
         .as_deref()
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .and_then(|value| {
+            crate::json_column::lenient::<serde_json::Value>(
+                serde_json::from_str(value),
+                "settings",
+                "value_json",
+                "service.settings",
+            )
+        })
         .and_then(|blob| crate::service_setting_field_of::<bool>(&blob, "enable_all_par"))
         .unwrap_or(false))
 }
@@ -376,7 +383,7 @@ pub(crate) async fn settle_par2_verdicts(
     .into_iter()
     .map(|(id, state, recovery, last_error)| VerdictRow {
         awaiting: (state == "verifying")
-            .then(|| awaiting_missing(last_error.as_deref()))
+            .then(|| awaiting_missing(&id, last_error.as_deref()))
             .flatten(),
         id,
         state,
@@ -483,8 +490,13 @@ pub(crate) async fn packages_awaiting_par2_verdict(
 }
 
 /// The number of missing segments a stored failure is holding a verdict open for.
-fn awaiting_missing(last_error_json: Option<&str>) -> Option<usize> {
-    let failure: rd_core::Failure = serde_json::from_str(last_error_json?).ok()?;
+fn awaiting_missing(id: &str, last_error_json: Option<&str>) -> Option<usize> {
+    let failure: rd_core::Failure = crate::json_column::lenient(
+        serde_json::from_str(last_error_json?),
+        "downloads",
+        "last_error_json",
+        id,
+    )?;
     if failure.code.as_deref() != Some(AWAITING_PAR2) {
         return None;
     }

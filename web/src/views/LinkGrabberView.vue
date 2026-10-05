@@ -377,7 +377,7 @@ const navbarMenu = computed(() => [[
         <div v-if="rows.length" :style="columns.style.value">
         <QueueColumnHeader
           :widths="columns.widths.value"
-          :meta-label="t('common.queue_columns.meta_linkgrabber')"
+          view="linkgrabber"
           :gutter="rows.length > DEFAULT_THRESHOLD"
           :customized="columns.customized.value"
           @resize="columns.setWidth"

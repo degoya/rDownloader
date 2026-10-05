@@ -30,7 +30,6 @@ struct Inner {
     database: rd_db::Database,
     secrets: rd_secrets::SecretStore,
     power: rd_power::PowerService,
-    http: reqwest::Client,
     /// Where the notification-destination plugins are installed, and the host they reach the
     /// outside world through.
     plugins: rd_plugin_host::PluginInstaller,
@@ -69,10 +68,6 @@ impl NotificationService {
                 plugins,
                 plugin_host,
                 notifiers: tokio::sync::OnceCell::new(),
-                http: reqwest::Client::builder()
-                    .timeout(Duration::from_secs(30))
-                    .build()
-                    .unwrap_or_default(),
                 in_flight: Mutex::new(HashSet::new()),
                 shutdown: CancellationToken::new(),
             }),
@@ -175,7 +170,7 @@ impl NotificationService {
         let secret = self.resolve_secret(target).await;
         let vendor = vendor_directory(&self.inner.database).await;
         rd_notify::send(
-            &self.inner.http,
+            &webhook_reach(target),
             target,
             &config,
             &message,
@@ -230,6 +225,17 @@ fn plugin_failure(error: &anyhow::Error) -> Attempt {
         .downcast_ref::<rd_core::Failure>()
         .is_none_or(|failure| failure.category.is_retryable());
     Attempt::could_not_deliver(error.to_string(), retryable)
+}
+
+/// The address rule a webhook to `target` keeps to (audit 2026-10-05, S2): an address the
+/// person entered, so their own network and a receiver on this machine are reachable, while
+/// link-local and rDownloader's own listeners are not — the rule a plugin destination keeps to.
+/// An endpoint that is no URL gets no loopback; its send fails on the address anyway.
+pub(crate) fn webhook_reach(target: &NotificationTarget) -> rd_http::AddressPolicy {
+    url::Url::parse(target.endpoint.trim()).map_or_else(
+        |_| rd_http::AddressPolicy::new(true),
+        |url| rd_plugin_host::entered_address_policy(&url),
+    )
 }
 
 /// The vendor folder configured under Settings → Tools, which the apprise lookup searches

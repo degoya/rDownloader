@@ -1,0 +1,281 @@
+name: Release channels
+
+# What follows a published release out of the repository, called by release.yml's `channels` job
+# once `publish` is done (RD-1101-07 split the three jobs off; each is unchanged): the package
+# managers (Homebrew tap, Scoop bucket, winget, AUR), the apt and dnf repositories and the
+# extension stores. Only the newest plain vX.Y.Z tag moves any of them, so a re-run of an old tag
+# or a pre-release cannot move one back, and each job continues on error: the release is out by
+# then, and nothing here may fail it. Each job gets the secrets it reads and nothing else.
+on:
+  workflow_call:
+    secrets:
+      HOMEBREW_TAP_DEPLOY_KEY: {required: false}
+      SCOOP_BUCKET_DEPLOY_KEY: {required: false}
+      WINGET_TOKEN: {required: false}
+      AUR_SSH_KEY: {required: false}
+      PACKAGES_DEPLOY_KEY: {required: false}
+      PACKAGES_GPG_KEY: {required: false}
+      CWS_CLIENT_ID: {required: false}
+      CWS_CLIENT_SECRET: {required: false}
+      CWS_REFRESH_TOKEN: {required: false}
+      AMO_JWT_ISSUER: {required: false}
+      AMO_JWT_SECRET: {required: false}
+      EDGE_CLIENT_ID: {required: false}
+      EDGE_API_KEY: {required: false}
+
+# As in release.yml: read-only by default; every job names its own.
+permissions:
+  contents: read
+
+env:
+  # release.yml's, which a called workflow does not inherit.
+  CARGO_TERM_COLOR: always
+  PLUGIN_RELEASE_TAG: plugins-${{ github.ref_name }}
+
+jobs:
+  # RD-180-06: the Homebrew tap and the Scoop bucket follow the release — the two formulas
+  # (rdownloader and its capture agent's login service) and the manifest rendered by
+  # scripts/package-managers.sh from the published SHA256SUMS, each with its repository's README,
+  # pushed to <owner>/homebrew-rdownloader and <owner>/scoop-rdownloader.
+  # Each repository has a write deploy key of its own, whose private half is a secret here
+  # (HOMEBREW_TAP_DEPLOY_KEY, SCOOP_BUCKET_DEPLOY_KEY); actions/checkout clones with it and leaves
+  # the SSH remote for the push, so each channel pushes with its own key only. A channel whose
+  # secret is missing (a fork) is skipped with a warning, the other still runs. The release is out
+  # by then, so nothing here may fail it: the job continues on error, and the bucket is still
+  # pushed when the tap failed. Only the newest plain vX.Y.Z tag is pushed, as with the image's
+  # `:latest`, so a re-run of an old tag or a pre-release cannot move the channels back.
+  # The same job submits the winget manifests (RD-180-07) as a pull request to
+  # microsoft/winget-pkgs with komac, from the fork <account>/winget-pkgs of the classic token in
+  # WINGET_TOKEN (scope public_repo), and pushes the AUR package rdownloader-bin (RD-180-08) to
+  # ssh://aur@aur.archlinux.org/rdownloader-bin.git with the key in AUR_SSH_KEY, against the AUR's
+  # published host key; the AUR push also needs the repository variable AUR_ENABLED set to true,
+  # which stays off until the AUR account exists, and a PKGBUILD that names its maintainer.
+  package-managers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # A secret cannot be tested in `if:`, so this step says which channels have their key.
+      - name: Decide which channels move
+        id: gate
+        shell: bash
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_ENABLED: ${{ vars.AUR_ENABLED }}
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-channels.sh gate
+      - name: Render the formulas, the manifests, the PKGBUILD and their READMEs
+        id: render
+        if: >-
+          steps.gate.outputs.tap == 'true' || steps.gate.outputs.bucket == 'true' ||
+          steps.gate.outputs.winget == 'true' || steps.gate.outputs.aur == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release download "${REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern SHA256SUMS --dir release
+          scripts/package-managers.sh "${REF_NAME}" release/SHA256SUMS rendered --repository "${GITHUB_REPOSITORY}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        with:
+          repository: ${{ github.repository_owner }}/homebrew-rdownloader
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+      # The capture agent's formula rides in the same commit: the push below adds everything.
+      - name: Stage the capture agent's formula
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        shell: bash
+        run: |
+          mkdir -p tap/Formula
+          cp rendered/rdownloader-capture.rb tap/Formula/rdownloader-capture.rb
+      - name: Push the formulas to the Homebrew tap
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.tap == 'true' }}
+        shell: bash
+        env:
+          CHECKOUT: tap
+          RENDERED: rendered/rdownloader.rb
+          TARGET: Formula/rdownloader.rb
+          README: rendered/homebrew-README.md
+          REF_NAME: ${{ github.ref_name }}
+        # The key stays where actions/checkout put it, in that checkout's SSH configuration;
+        # nothing here reads or prints it.
+        run: scripts/release-channels.sh push
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.bucket == 'true' }}
+        with:
+          repository: ${{ github.repository_owner }}/scoop-rdownloader
+          ssh-key: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
+          path: bucket
+      - name: Push the manifest to the Scoop bucket
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.bucket == 'true' }}
+        shell: bash
+        env:
+          CHECKOUT: bucket
+          RENDERED: rendered/rdownloader.json
+          TARGET: bucket/rdownloader.json
+          README: rendered/scoop-README.md
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-channels.sh push
+      # komac opens the pull request from the fork <account>/winget-pkgs of the token's account,
+      # which must exist (komac 2.16 creates none); the token reaches komac as GITHUB_TOKEN and gh
+      # as GH_TOKEN, never on a command line. komac starts its branch in the fork at
+      # microsoft/winget-pkgs' newest commit, and GitHub refused that ref in 1.8.1 ("Ref cannot be
+      # created", the fork ~1500 commits behind; RD-190-10). So the fork is synced first with
+      # GitHub's own merge-upstream, and a refused branch — nothing is created then — is tried
+      # again after a pause, synced again; any other failure is not, so no pull request doubles.
+      - name: Submit the manifests to winget-pkgs
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.winget == 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          KOMAC_VERSION: 2.16.0
+          KOMAC_SHA256: 7d2707fa6210f2789a3702de49fbd150b736dbf426ee0b9bc8e098736f9fd82d
+          KOMAC_CREATED_WITH: rDownloader release workflow
+          KOMAC_CREATED_WITH_URL: https://github.com/${{ github.repository }}/blob/main/.github/workflows/release.yml
+        run: scripts/release-channels.sh winget
+      # The AUR accepts only its own host key; the fingerprint is the one aur.archlinux.org
+      # publishes. The key file lives in the runner's temporary folder and is never printed.
+      - name: Push the package to the AUR
+        if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.aur == 'true' }}
+        shell: bash
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_HOST_FINGERPRINT: SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-channels.sh aur
+
+  # RD-180-10: the apt and dnf repositories follow the release. The release's .deb and .rpm
+  # packages (whatever their asset names) go into <owner>/rdownloader-packages, whose `main` GitHub
+  # Pages serves as <owner>.github.io/rdownloader-packages; scripts/package-repo.sh files them into
+  # the pool, drops what is beyond the newest two per package and architecture, signs the rpms
+  # and both indexes with the key of the secret PACKAGES_GPG_KEY (ASCII-armored, no passphrase)
+  # and renders rdownloader.sources, rdownloader.repo, the public key and the README. The key must
+  # be the one PACKAGES_KEY_FINGERPRINT names, so a wrong secret signs nothing. The push uses the
+  # repository's write deploy key, the secret PACKAGES_DEPLOY_KEY. The clone is by hand, not
+  # actions/checkout, because the repository starts empty. `main` is replaced by one commit each
+  # time: the pool is the archive, not the history, and a history of every package ever published
+  # would outgrow the repository. Without either secret, or without
+  # packages on the release, the job warns and the repositories stay; it continues on error, and
+  # only the newest plain vX.Y.Z tag moves them, as with the tap and the bucket.
+  package-repository:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      PACKAGES_KEY_FINGERPRINT: 47562DABFCFC3F17C78567CE395FA7C2B11721D1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Decide whether the repositories move
+        id: gate
+        shell: bash
+        env:
+          PACKAGES_DEPLOY_KEY: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+          PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-repositories.sh gate
+      - name: Download the release's deb and rpm packages
+        id: download
+        if: steps.gate.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-repositories.sh download
+      - name: Install the repository tools
+        if: steps.download.outputs.found == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends apt-utils rpm createrepo-c
+      # GitHub's published SSH host key, pinned as actions/checkout pins it. Cloning an empty
+      # repository succeeds with a warning, and the first push creates `main`.
+      - name: Clone the packages repository
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          PACKAGES_DEPLOY_KEY: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+          OWNER: ${{ github.repository_owner }}
+        run: scripts/release-repositories.sh clone
+      # The key goes from the secret into a keyring of this run only; nothing prints it.
+      - name: Update and sign the repositories
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
+          OWNER: ${{ github.repository_owner }}
+        run: scripts/release-repositories.sh sign
+      - name: Push the repositories
+        if: steps.download.outputs.found == 'true'
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-repositories.sh push
+
+  # RD-170-10: the extension follows the release into the stores — the Chrome ZIP is uploaded
+  # to the Chrome Web Store and submitted for review (scripts/chrome-webstore.sh, API v2, secrets
+  # CWS_CLIENT_ID/CWS_CLIENT_SECRET/CWS_REFRESH_TOKEN, repository variable CWS_PUBLISHER_ID), the
+  # Firefox build to the AMO listing (scripts/firefox-amo.sh submit, secrets AMO_JWT_ISSUER/
+  # AMO_JWT_SECRET), and the same Chrome ZIP to Microsoft Edge Add-ons for certification
+  # (RD-190-11: scripts/edge-addons.sh, API v1.1, secrets EDGE_CLIENT_ID/EDGE_API_KEY, repository
+  # variable EDGE_PRODUCT_ID). All publish after the stores' own review; none returns a file for the
+  # release. Each script warns and succeeds when its credentials are missing or its store refuses,
+  # and the job continues on error on top of that: the release is out by then. Only the newest
+  # plain vX.Y.Z tag is submitted, as with the tap and the bucket, so a re-run of an old tag or a
+  # pre-release cannot reach a store.
+  extension-stores:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Decide whether the stores get this release
+        id: gate
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/release-channels.sh stores-gate
+      - uses: ./.github/actions/setup-web
+        if: steps.gate.outputs.submit == 'true'
+        with:
+          pnpm: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.gate.outputs.submit == 'true'
+        with:
+          name: browser-extensions
+          path: browser-extensions
+      - name: Submit the Chrome extension to the Chrome Web Store
+        if: steps.gate.outputs.submit == 'true'
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: scripts/chrome-webstore.sh publish browser-extensions/rdownloader-chrome.zip
+      # web-ext signs from a directory, so the Firefox ZIP is unpacked first.
+      - name: Submit the Firefox extension to the AMO listing
+        if: ${{ !cancelled() && steps.gate.outputs.submit == 'true' }}
+        shell: bash
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          unzip -q browser-extensions/rdownloader-firefox.zip -d firefox
+          scripts/firefox-amo.sh submit firefox
+      - name: Submit the Chrome extension to Microsoft Edge Add-ons
+        if: ${{ !cancelled() && steps.gate.outputs.submit == 'true' }}
+        env:
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+        run: scripts/edge-addons.sh publish browser-extensions/rdownloader-chrome.zip

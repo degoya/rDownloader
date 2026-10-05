@@ -76,7 +76,7 @@ expect "on development itself: the last green" "$c1" "$(rd_scope_boundary develo
 
 # --- the release chain's pre-bump green ---------------------------------------------------------
 git checkout -q -b release
-mkdir -p web extension
+mkdir -p web extension sdk/ci
 cat > Cargo.toml <<'EOF'
 [workspace]
 members = ["crates/*"]
@@ -97,12 +97,16 @@ EOF
 printf '{\n  "name": "web",\n  "version": "1.0.0",\n  "private": true\n}\n' > web/package.json
 printf '{\n  "name": "ext",\n  "version": "1.0.0"\n}\n' > extension/manifest.base.json
 printf '{\n  "info": {\n    "title": "rd-api",\n    "version": "1.0.0"\n  },\n  "paths": {}\n}\n' > web/openapi.json
+for workflow in plugin repository; do
+    printf 'env:\n  RDOWNLOADER_VERSION: 1.0.0\n' > "sdk/ci/$workflow.yml"
+done
 git add -A
 git commit -qm "release base"
 tree="$(git rev-parse 'HEAD^{tree}')"
 bump() {
     sed -i 's/^version = "1\.0\.0"/version = "1.1.0"/' Cargo.toml Cargo.lock
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' web/package.json extension/manifest.base.json web/openapi.json
+    sed -i 's/RDOWNLOADER_VERSION: 1\.0\.0/RDOWNLOADER_VERSION: 1.1.0/' sdk/ci/plugin.yml sdk/ci/repository.yml
 }
 reset() { git checkout -q -- . && git clean -qfd; }
 
@@ -134,9 +138,14 @@ beta_bump() {
     sed -i 's/^version = "1\.0\.0"/version = "1.1.0-beta.1"/' Cargo.toml Cargo.lock
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0-beta.1"/' web/package.json web/openapi.json
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' extension/manifest.base.json
+    sed -i 's/RDOWNLOADER_VERSION: 1\.0\.0/RDOWNLOADER_VERSION: 1.1.0-beta.1/' sdk/ci/plugin.yml sdk/ci/repository.yml
 }
 beta_bump
 expect "a bump to a beta, the browser manifest without the suffix: skip" "$tree" "$(rd_prebump_full_green "$repo")"
+reset
+bump
+sed -i 's/RDOWNLOADER_VERSION: 1\.1\.0/RDOWNLOADER_VERSION: 1.5.2/' sdk/ci/plugin.yml
+expect "a bump with an SDK pin at another version: run" "" "$(rd_prebump_full_green "$repo")"
 reset
 beta_bump
 sed -i 's/^version = "1\.1\.0-beta\.1"/version = "1.1.0"/' Cargo.lock

@@ -477,6 +477,20 @@ describe('LinkGrabberView', () => {
     expect(row?.querySelector('.queue-row')).not.toBeNull()
   })
 
+  // The header names what a link row shows, not what a download shows (RD-1101-08).
+  it('heads its links with the LinkGrabber\'s own column labels', async () => {
+    seedCollector(1, 2)
+    const { getByTestId } = mountView()
+    await nextTick()
+
+    const header = getByTestId('queue-column-header')
+    expect(header.querySelector('.queue-cell-state')?.textContent?.trim()).toBe('Link state')
+    expect(header.querySelector('.queue-cell-progress')?.textContent?.trim()).toBe('')
+    expect(header.querySelector('.queue-cell-meta')?.textContent?.trim()).toBe('Hoster · Variant')
+    expect(header.textContent).not.toContain('Progress')
+    expect(header.querySelector('[role="separator"][data-column="progress"]')).toBeNull()
+  })
+
   it('measures what a collector of a few thousand links costs', { timeout: 120_000 }, async () => {
     seedCollector(200, 15)
     const started = performance.now()

@@ -113,7 +113,7 @@
       "nothing": "Nothing to pause or resume."
     },
     "toggle_sidebar": "Collapse or expand the sidebar",
-    "go_stats": "Go to Statistics",
+    "go_stats": "Go to Statistics & history",
     "go_logs": "Go to Logs",
     "go_audit": "Go to the audit log",
     "open_search": "Open search",
@@ -182,6 +182,7 @@
     "resize": "Width of the “{column}” column",
     "resize_hint": "Drag, or use the arrow keys (Shift for larger steps); double-click or Enter resets it",
     "menu": "Columns",
-    "reset_all": "Reset all column widths"
+    "reset_all": "Reset all column widths",
+    "state_linkgrabber": "Link state"
   }
 }

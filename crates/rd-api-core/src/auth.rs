@@ -12,7 +12,6 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
-use tokio::sync::RwLock;
 
 use crate::{ApiError, AppState, scope_policy};
 
@@ -90,7 +89,35 @@ pub struct AuthService {
     disabled: std::sync::Arc<AtomicBool>,
     /// Mirrors `SettingsResponse::session_idle_hours` and `session_max_hours`.
     limits: std::sync::Arc<LiveLimits>,
-    throttle: std::sync::Arc<RwLock<Option<rd_authn::LoginThrottle>>>,
+    /// A plain mutex: no caller holds it across an `.await`, and a [`LoginAttempt`] has to
+    /// release its slot from `Drop`, where nothing can be awaited.
+    throttle: SharedThrottle,
+}
+
+type SharedThrottle = std::sync::Arc<std::sync::Mutex<Option<rd_authn::LoginThrottle>>>;
+
+/// One sign-in attempt [`AuthService::gate`] let in (audit 2026-10-05, S4).
+///
+/// While it is held the attempt counts against its address as though it had already failed, so
+/// parallel attempts cannot all pass the gate before the first failure is counted. Hold it until
+/// the verdict is recorded; dropping it hands the slot back.
+#[must_use = "an attempt dropped at once is not counted while its credential is checked"]
+pub struct LoginAttempt {
+    throttle: SharedThrottle,
+    client: std::net::IpAddr,
+}
+
+impl Drop for LoginAttempt {
+    fn drop(&mut self) {
+        let mut guard = self
+            .throttle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // A reset in between left nothing to hand back to.
+        if let Some(throttle) = guard.as_mut() {
+            throttle.release(self.client);
+        }
+    }
 }
 
 #[cfg(test)]

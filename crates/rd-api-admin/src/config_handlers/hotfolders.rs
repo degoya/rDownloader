@@ -46,6 +46,8 @@ pub(super) async fn validated_hotfolder(
                 "Daemon hotfolder path must be absolute",
             ));
         }
+        // Before the folder is created: a refused path must not be left behind as a directory.
+        refuse_protected_hotfolder(&path, &protected_directories(state, None).await)?;
         tokio::fs::create_dir_all(path)
             .await
             .map_err(anyhow::Error::new)?;

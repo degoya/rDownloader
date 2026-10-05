@@ -330,11 +330,23 @@ The SPA has these primary sections:
    post-processing.
 2. **LinkGrabber:** Link, NZB, and torrent review; checks; grouping; and queueing.
 3. **Streams:** Immediate recording and persistent channel monitoring.
-4. **Statistics:** The persistent transfer figures over a chosen range — stat tiles, bytes per
-   hour or day as bars, and the range by kind and by provider — plus the metrics endpoint. The
-   range switch is a group of pressed buttons in the navbar rather than a select: four values,
-   all visible, one click each. Bars, not a line: a bucket is a sum over an hour or a day, and a
-   line would invite reading a slope between two sums.
+4. **Statistics & history:** One page, one sidebar entry and the digit `7`, with two tabs
+   (RD-1101-05; the owner wanted fewer entries in the navigation). The tabs are the settings
+   sub-tabs' shape: `UTabs` in `pill`, the tab in the address as `?tab=` (none for the first, so
+   `/stats` stays plain), a push per change, an unknown value shows the first tab; `/history`
+   redirects to `/stats?tab=history`. Each tab is a chunk loaded when first shown, and only the
+   shown one is mounted. A tab's own controls stand in the tab, not in the navbar, so each tab
+   is whole on its own.
+   - *Statistics* (first tab): the persistent transfer figures over a chosen range — stat tiles,
+     bytes per hour or day as bars, and the range by kind and by provider — plus the metrics
+     endpoint. The range switch is a group of pressed buttons beside the tab's heading rather
+     than a select: four values, all visible, one click each. Bars, not a line: a bucket is a sum
+     over an hour or a day, and a line would invite reading a slope between two sums.
+   - *History* (second tab): every package that completed or failed for good, kept after it
+     left the queue (RD-1100-04). The audit log's row conventions — filters above, the count of
+     the matches, details behind the chevron pair — with paging by "Load more", a row action
+     that adds the entry's sources back into the LinkGrabber, *Refresh* beside the introduction,
+     and the shared clear control with its count and confirmation beside the list title.
 5. **Remote jobs:** The jobs running at a provider — submitted, watched, answered and ended
    here. Beside the subscriptions, not under the accounts: a job somebody has to watch and
    answer is not a setting (RD-110-29).
@@ -346,13 +358,7 @@ The SPA has these primary sections:
    details behind the chevron pair. The page offers **no destructive control at all** — there is
    no route that could serve one, and a button that suggested otherwise would be a lie in the
    interface; the export sits beside the filters, because the file *is* the filter.
-7. **History:** Every package that completed or failed for good, kept after it left the queue
-   (RD-1100-04). Right below Downloads in the sidebar, because it answers what the queue no
-   longer can. The audit log's row conventions — filters above, the count of the matches,
-   details behind the chevron pair — with paging by "Load more", a row action that adds the
-   entry's sources back into the LinkGrabber, and the shared clear control with its count and
-   confirmation beside the list title.
-8. **Settings:** Twenty-five directly addressable pages in six rubrics, the same in the
+7. **Settings:** Twenty-five directly addressable pages in six rubrics, the same in the
    sidebar and on the entry page at `/settings`: General (General, Interface, Desktop client),
    Downloads (Storage & rules, Hotfolders, Bandwidth, Unattended operation, Post-processing),
    Sources & protocols (Accounts, Captcha & solver, Site rules, Usenet, BitTorrent, Media,
@@ -381,6 +387,18 @@ and other initial data are loaded once.
   scale from `#fff2f1` to `#41110f`.
 - **Shape:** A small global radius of `0.3rem`; functional, compact surfaces rather than large
   decorative card radii.
+- **Cards are soft cards** (RD-1101-09; the owner: the cards had the page's own colour and only an
+  outline). A card on a page — every settings card, the views' cards and framed forms, the
+  overview's link cards — is a `UCard`, whose default variant the theme config in
+  `web/vite.config.ts` sets to `soft`: it stands off the page by its `bg-elevated/50` ground, not
+  by a border. A card section is `<UCard as="section">` with its anchor and test id on the root and
+  its content in the default slot; layout classes for the content go to `:ui="{ body: … }"`,
+  placement classes (`mt-6`, `xl:col-span-2`) stay on the root. A card nested in a card names
+  `variant="outline"` (the installed plugins' `PluginCard.vue`), so it stands off its soft parent.
+  Not cards, and so not soft: rows and list containers (queue rows, table and log lists, the
+  torrent file, peer and tracker lists), dashed empty states, inner boxes of a card or a modal
+  (previews, code samples, the statistics chart), the row of hairline-divided fact tiles, and the
+  sign-in and setup-wizard panels, which float over the signal grid with their own shadow.
 - **Motif:** A subtle 28 px signal grid for loading and introductory surfaces; transfer stripes
   indicate activity without replacing text.
 - **Themes:** Light, dark, and system. Components use semantic Nuxt UI tokens so that contrast and
@@ -407,13 +425,15 @@ prevent columns from shifting during live updates.
 - Forms expose loading, success, and error states. Self-saving settings areas remain separate from
   the shared settings document. Areas that *fetch* expose the same three, under the rule below.
 - Full-page refresh is not the normal update path; SSE or local store updates keep views current.
-- Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `H` History, `2` LinkGrabber,
-  `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics, `8` Logs,
+- Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `2` LinkGrabber,
+  `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics & history
+  (`H` its History tab), `8` Logs,
   `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause (ending a timed pause while one holds), and `?` help. A new navigation entry takes the
   number of its place and renumbers what follows, so the keys keep reading top to bottom. With
   all ten digits taken, an entry added later takes a free letter of its name instead (`H`
-  History, below Downloads, RD-1100-04): no view loses the digit people learned, and the catalogue
-  still lists the keys in sidebar order.
+  History, RD-1100-04): no view loses the digit people learned, and the catalogue still lists the
+  keys in sidebar order. Since the history became the second tab under `7` (RD-1101-05) `H` keeps
+  opening it and is listed right after `7`.
   A key that belongs to one page (`K` removes the completed packages, only on Downloads,
   RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
   the page hands its action in while it is mounted; the key runs that action with its
@@ -484,7 +504,7 @@ prevent columns from shifting during live updates.
   page fails a test until it has its row; a new card is found once it has an anchor and a row.
 - **A settings page with more than five cards is split into sub-tabs** (RD-180-15; the owner:
   "put its parts into separate tabs so it's clearer … so everything stays clear even as settings
-  grow"). Count what a reader scrolls past: every bordered card once, cards side by side each
+  grow"). Count what a reader scrolls past: every card once, cards side by side each
   once, a row of tiles once, and a form-and-list editor (`FormListLayout`) twice — two cards
   beside each other, one above the other on a narrow screen. Five or fewer stay one scroll; the
   sixth card is the moment to split, not the tenth. The tabs are topics a reader comes with —
@@ -1248,7 +1268,9 @@ recognised as drifting.
     group is `team` or the scene suffix `-GROUP`, and a title with spaces has none.
   - **Same actions, same confirmations.** Queue and dismiss are one component
     (`SubscriptionItemActions.vue`) in both views, and the header with *Queue all* / *Dismiss all*
-    and their confirmations is the group's, not the view's. The card's *Details* opens **one**
+    and their confirmations is the group's, not the view's — one component
+    (`IndexerReviewBulkActions.vue`) in the header and again in the footer under every open group
+    with hits, whether or not it has pages (RD-1101-01). The card's *Details* opens **one**
     panel under the slider with the same `SubscriptionItemDetails` the row expands.
   - **One height.** Each band — release name, subtitle, chips, actions — keeps its size with or
     without content (the text part is a fixed `12rem`), so a card without cover, size or group
@@ -1263,10 +1285,13 @@ recognised as drifting.
     keeps its bar. The slider counts all the subscription's hits, reads them fifty at a time
     while the page shown or the next one reaches past what it has, and holds a pulsing place for
     a card still on its way. Only the current page is rendered, so a long archive costs a longer
-    array, not more cards. Past ten pages the dots give way to a "Page 3 of 40" counter, and the
-    slider wraps from the first page to the last only once it holds everything — otherwise the
-    last page of a long archive would mean reading all of it first. Cards are at least 15 rem wide: a narrow window shows
-    fewer per page, never thinner ones.
+    array, not more cards. Past ten pages the dots give way to a "Page 3 of 40" counter. Cards are
+    at least 15 rem wide: a narrow window shows fewer per page, never thinner ones.
+  - **The slider ends where the hits end (RD-1101-01).** It never wraps, in either direction and
+    by no input — arrows, arrow keys, swipe or autoplay: a slider that went on from the first hit
+    after the last hid that the list was over. Previous is disabled on the first page, next on
+    the last page of the subscription's whole total, not of the hits read so far, so the end is
+    the true end; a hit that arrives later adds a page and enables next again.
   - **The picture has the subscription's ratio, not a height (RD-120-42).** Five ratios, chosen
     per subscription in the form beside *View* and *Autoplay* and offered only for cards: **1:1**
     (square covers), **3:2**, **16:9**, **4:3** and **2:1**, the default — the closest to the
@@ -1290,7 +1315,7 @@ recognised as drifting.
     `aria-roledescription` "carousel", each card a "card".
   - **Autoplay never takes the page away (WCAG 2.2.2).** A second per-subscription option, off by
     default and offered in the form only for cards. One fixed interval of **6 seconds**
-    (`CARD_AUTOPLAY_MS`), no setting for it. It wraps from the last page to the first. It has a
+    (`CARD_AUTOPLAY_MS`), no setting for it. It stops on the last page. It has a
     visible pause/resume control, and it holds while the pointer is over the slider, while
     anything in it except that control has focus, while the details panel is open and while the
     tab is hidden; a page turned by hand restarts the interval. Under `prefers-reduced-motion:
@@ -1565,8 +1590,11 @@ it, because a row that quietly loses a cell stops wrapping and starts overlappin
 **The data columns' widths are the viewer's; the name's floor is not** (RD-191-11). The download
 list and the LinkGrabber carry a column header — `QueueColumnHeader.vue`, one more `.queue-row`
 with the same nine cells, so a label sits over its cell at every tier and a hidden cell takes its
-label along; below 560 px, where there are no columns, it is not drawn. The start edge of state,
-progress, size and metadata is a resize handle: a pointer drag with pointer capture, and for the
+label along; below 560 px, where there are no columns, it is not drawn. The two lists share the
+grid, not what is in it, so each list names its own cells (RD-1101-08): the LinkGrabber says *Link
+state* and *Hoster · Variant* where the download list says *State* and *Category · Account*, and a
+cell a list leaves empty — the LinkGrabber's progress — is drawn without a label or a handle, and
+the list keeps no width for it. The start edge of each data column a list fills is a resize handle: a pointer drag with pointer capture, and for the
 keyboard a focusable `role="separator"` with `aria-orientation="vertical"` and the column width as
 `aria-valuenow`/`min`/`max`. The arrow keys move the edge the way a drag does — left widens, right
 narrows — by 8 px, Shift by 32 px; Enter and a double click put the column back, and the header's

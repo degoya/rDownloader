@@ -1,0 +1,31 @@
+name: Tool manifest
+
+# The signed tool manifest compiled into the release names third-party downloads by URL, and a
+# URL can die between two releases: 1.10.0 pinned BtbN daily FFmpeg builds, which BtbN deletes
+# after 14 days, and every managed FFmpeg install failed from then on (RD-1101-13). This asks
+# every URL of the embedded manifest once a week on the default branch, which in the public
+# repository is `main`, the last release, and whenever the manifest or the check changes. A
+# failure here is fixed by a re-signed manifest in the development repository.
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  push:
+    # A push filter without `branches` also matches tags; the release's tags start nothing here.
+    branches: ["**"]
+    paths:
+      - crates/rd-tools/resources/tools-manifest.json
+      - scripts/tools-manifest-check.sh
+      - .github/workflows/tools-manifest.yml
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  liveness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: scripts/tools-manifest-check.sh

@@ -38,7 +38,7 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <section data-settings-anchor="torrent.network_status" class="space-y-4 border border-muted bg-default p-5" data-testid="torrent-network-status">
+  <UCard as="section" data-settings-anchor="torrent.network_status" :ui="{ body: 'space-y-4' }" data-testid="torrent-network-status">
     <div class="flex items-start justify-between gap-4">
       <SectionHeader
         :eyebrow="t('settings.torrent.eyebrow')"
@@ -108,5 +108,5 @@ defineExpose({ reload: load })
         </dd>
       </dl>
     </template>
-  </section>
+  </UCard>
 </template>

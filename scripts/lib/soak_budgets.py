@@ -1,10 +1,12 @@
 """What a soak run's samples come to, and whether that stays inside the budgets (RD-180-12).
 
 A budget is `<metric>_max` or `<metric>_min` in the `[budgets]` table of
-`scripts/soak-budgets.toml`. Every budget must name a metric this module knows, so a typo is a
-refusal rather than a budget that never fails. A metric that should have been measured and was
-not (too few samples for a window) fails its budget; a metric that does not apply on this
-platform is left out of `metrics` and reported as skipped.
+`scripts/soak-budgets.toml`; a `[budgets.<platform>]` table (`linux`, `windows`, `darwin`, as
+`platform.system()` names them, lower-cased) overrides budgets for that platform alone. Every
+budget, in every table, must name a metric this module knows and every override table a known
+platform, so a typo is a refusal rather than a budget that never fails. A metric that should
+have been measured and was not (too few samples for a window) fails its budget; a metric that
+does not apply on this platform is left out of `metrics` and reported as skipped.
 
 Growth is the mean of the last window minus the mean of the first window after the warm-up: a
 leak shows as a level that keeps rising, not as the peak a busy moment reaches.
@@ -13,6 +15,7 @@ leak shows as a level that keeps rising, not as the peak a busy moment reaches.
 from __future__ import annotations
 
 import csv
+import platform
 from dataclasses import dataclass
 
 # The columns `soak.py` writes, in order.
@@ -38,7 +41,14 @@ METRICS = {
     "shutdown_seconds": "time the service took to stop after SIGTERM (s)",
 }
 
+# The platforms a `[budgets.<platform>]` table may name: `platform.system()`, lower-cased.
+PLATFORMS = ("linux", "windows", "darwin")
+
 MIN_WINDOW_SAMPLES = 3
+
+
+def current_platform() -> str:
+    return platform.system().lower()
 
 
 @dataclass
@@ -49,6 +59,8 @@ class Verdict:
     value: float | None
     passed: bool
     skipped: bool = False
+    # The platform whose `[budgets.<platform>]` table set this limit; None for `[budgets]`.
+    override: str | None = None
 
     def line(self) -> str:
         if self.skipped:
@@ -56,7 +68,9 @@ class Verdict:
         sign = "<=" if self.budget.endswith("_max") else ">="
         shown = "not measured" if self.value is None else f"{self.value:.2f}"
         word = "ok  " if self.passed else "FAIL"
-        return f"{word} {self.metric} = {shown} (budget {sign} {self.limit:g}; {METRICS[self.metric]})"
+        source = f" for {self.override}" if self.override else ""
+        return (f"{word} {self.metric} = {shown} (budget {sign} {self.limit:g}{source}; "
+                f"{METRICS[self.metric]})")
 
 
 def read_samples(path: str) -> list[dict[str, float]]:
@@ -132,21 +146,51 @@ def derive(samples: list[dict[str, float]], warmup_percent: float,
     return metrics
 
 
-def evaluate(metrics: dict[str, float | None], budgets: dict[str, float]) -> list[Verdict]:
-    verdicts = []
-    for budget, limit in budgets.items():
-        if budget.endswith("_max"):
-            metric, within = budget[:-4], (lambda v, lim: v <= lim)
-        elif budget.endswith("_min"):
-            metric, within = budget[:-4], (lambda v, lim: v >= lim)
+def _metric(budget: str) -> str:
+    if not budget.endswith(("_max", "_min")):
+        raise ValueError(f"budget {budget!r} ends in neither _max nor _min")
+    metric = budget[:-4]
+    if metric not in METRICS:
+        raise ValueError(f"budget {budget!r} names no known metric ({', '.join(METRICS)})")
+    return metric
+
+
+def resolve(table: dict, platform_name: str) -> dict[str, tuple[float, str | None]]:
+    """The budgets that apply on `platform_name`: `[budgets]` with the platform's own table
+    merged over it, each limit with the platform that set it (None for `[budgets]`). Every key of
+    every table is checked, so a typo in another platform's table is refused here too."""
+    if platform_name not in PLATFORMS:
+        raise ValueError(f"platform {platform_name!r} is none of {', '.join(PLATFORMS)}")
+    budgets: dict[str, tuple[float, str | None]] = {}
+    for key, value in table.items():
+        if isinstance(value, dict):
+            if key not in PLATFORMS:
+                raise ValueError(
+                    f"[budgets.{key}] names no known platform ({', '.join(PLATFORMS)})")
+            for budget in value:
+                _metric(budget)
         else:
-            raise ValueError(f"budget {budget!r} ends in neither _max nor _min")
-        if metric not in METRICS:
-            raise ValueError(f"budget {budget!r} names no known metric ({', '.join(METRICS)})")
+            _metric(key)
+            budgets[key] = (float(value), None)
+    for budget, limit in table.get(platform_name, {}).items():
+        budgets[budget] = (float(limit), platform_name)
+    return budgets
+
+
+def evaluate(metrics: dict[str, float | None], table: dict, platform_name: str) -> list[Verdict]:
+    verdicts = []
+    for budget, (limit, override) in resolve(table, platform_name).items():
+        metric = _metric(budget)
         if metric not in metrics:
-            verdicts.append(Verdict(budget, metric, float(limit), None, True, skipped=True))
+            verdicts.append(Verdict(budget, metric, limit, None, True, skipped=True,
+                                    override=override))
             continue
         value = metrics[metric]
-        passed = value is not None and within(value, float(limit))
-        verdicts.append(Verdict(budget, metric, float(limit), value, passed))
+        if value is None:
+            passed = False
+        elif budget.endswith("_max"):
+            passed = value <= limit
+        else:
+            passed = value >= limit
+        verdicts.append(Verdict(budget, metric, limit, value, passed, override=override))
     return verdicts

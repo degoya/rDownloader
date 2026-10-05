@@ -6,6 +6,7 @@ use super::*;
 mod defaults;
 
 use defaults::*;
+pub use defaults::{MAX_RETENTION_DAYS, MIN_HOURLY_DAYS, MIN_RETENTION_DAYS};
 
 /// Mutable local service settings exposed in version one.
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -506,10 +507,3 @@ pub struct SettingsResponse {
     #[serde(default = "default_history_retention_days")]
     pub history_retention_days: u32,
 }
-
-/// Bounds of the two retention settings, in days.
-pub const MIN_HOURLY_DAYS: u32 = 1;
-pub const MIN_RETENTION_DAYS: u32 = 7;
-pub const MAX_RETENTION_DAYS: u32 = 3650;
-pub(crate) const DEFAULT_HOURLY_DAYS: u32 = 30;
-pub(crate) const DEFAULT_RETENTION_DAYS: u32 = 365;

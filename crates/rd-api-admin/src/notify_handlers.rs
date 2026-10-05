@@ -139,19 +139,27 @@ pub async fn list_targets(
 #[utoipa::path(post, path = "/api/v1/notifications/targets", tag = "notifications", request_body = NotificationTargetRequest, responses((status = 201, body = rd_notify::NotificationTarget)))]
 pub async fn create_target(
     State(state): State<AppState>,
+    granted: Option<axum::Extension<crate::auth::Granted>>,
     Json(request): Json<NotificationTargetRequest>,
 ) -> Result<(StatusCode, Json<rd_notify::NotificationTarget>), ApiError> {
-    let target = save_target(&state, None, request).await?;
+    let target = save_target(&state, None, holds_admin(granted), request).await?;
     Ok((StatusCode::CREATED, Json(target)))
 }
 
 #[utoipa::path(put, path = "/api/v1/notifications/targets/{id}", tag = "notifications", params(("id" = rd_core::NotificationTargetId, Path)), request_body = NotificationTargetRequest, responses((status = 200, body = rd_notify::NotificationTarget), (status = 404)))]
 pub async fn update_target(
     State(state): State<AppState>,
+    granted: Option<axum::Extension<crate::auth::Granted>>,
     AxumPath(id): AxumPath<rd_core::NotificationTargetId>,
     Json(request): Json<NotificationTargetRequest>,
 ) -> Result<Json<rd_notify::NotificationTarget>, ApiError> {
-    Ok(Json(save_target(&state, Some(id), request).await?))
+    Ok(Json(
+        save_target(&state, Some(id), holds_admin(granted), request).await?,
+    ))
+}
+
+fn holds_admin(granted: Option<axum::Extension<crate::auth::Granted>>) -> bool {
+    granted.is_some_and(|axum::Extension(granted)| granted.holds(rd_core::Scope::Admin))
 }
 
 #[utoipa::path(delete, path = "/api/v1/notifications/targets/{id}", tag = "notifications", params(("id" = rd_core::NotificationTargetId, Path)), responses((status = 200, body = crate::dto::MessageResponse), (status = 404)))]
@@ -259,9 +267,16 @@ pub async fn list_deliveries(
     ))
 }
 
-async fn save_target(
+/// Saves a target on a caller's behalf, for the REST routes and the MCP tools alike.
+///
+/// `holds_admin` is the caller's own grant: setting or changing `config.executable`, the
+/// program an apprise target starts, costs `api:admin` like the program paths among the
+/// settings (`privileged_change`; audit 2026-10-05, S1). The MCP tools used to call the route
+/// handlers, which is why they pass it here rather than through a request extension.
+pub async fn save_target(
     state: &AppState,
     id: Option<rd_core::NotificationTargetId>,
+    holds_admin: bool,
     request: NotificationTargetRequest,
 ) -> Result<rd_notify::NotificationTarget, ApiError> {
     let name = required_text(
@@ -341,17 +356,42 @@ async fn save_target(
             ));
         }
     }
-    let secret_ref = match request.secret.as_deref().map(str::trim) {
-        Some(value) if !value.is_empty() => Some(state.secrets.put_string(value.to_owned()).await?),
-        _ => None,
-    };
-    let stale = state
+    let stored = state
         .database
         .list_notification_targets()
         .await?
         .into_iter()
-        .find(|target| Some(target.id) == id)
-        .and_then(|target| target.secret_ref);
+        .find(|target| Some(target.id) == id);
+    // Decided before the secret is written, so a refused save leaves no vault entry behind.
+    let approved = rd_notify::check_executable(
+        &request.config,
+        stored
+            .as_ref()
+            .map(|target| (&target.config, target.secret_ref.as_deref())),
+        holds_admin,
+    )
+    .map_err(|rd_notify::ExecutableNeedsAdmin| {
+        ApiError::forbidden(
+            "auth.scope_insufficient",
+            "Naming the program a notification target runs requires the administration scope",
+        )
+        .with_param("scope", rd_core::Scope::Admin.as_str())
+        .with_param("setting", "executable")
+    })?;
+    let secret_ref = match request.secret.as_deref().map(str::trim) {
+        Some(value) if !value.is_empty() => Some(state.secrets.put_string(value.to_owned()).await?),
+        _ => None,
+    };
+    let stale = stored.and_then(|target| target.secret_ref);
+    // The seal binds the path to the reference the target keeps after this save, as the store
+    // decides it; whatever the client sent under the seal's key is replaced.
+    let kept_ref = if request.clear_secret {
+        None
+    } else {
+        secret_ref.as_deref().or(stale.as_deref())
+    };
+    let mut config = request.config;
+    rd_notify::seal_executable(&mut config, approved, kept_ref);
     let saved = state
         .database
         .upsert_notification_target(
@@ -361,7 +401,7 @@ async fn save_target(
                 kind: request.kind,
                 enabled: request.enabled,
                 endpoint,
-                config: request.config,
+                config,
                 secret_ref: secret_ref.clone(),
                 clear_secret: request.clear_secret,
             },

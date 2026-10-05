@@ -138,8 +138,11 @@ impl SourceState {
 
     /// Renames one offered file, keeping the offered list in step.
     ///
-    /// `to` is a bare file name: anything carrying a separator, a `..`, or an existing name is
-    /// refused, so a plugin can reorganise the names inside its package and nothing else. A file
+    /// `to` is a bare file name the host would itself give a file: anything carrying a
+    /// separator, a `..`, an existing name, or anything [`rd_files::sanitize_file_name`] would
+    /// change (a Windows device name, `:`, a trailing dot; audit 2026-10-05, S22) is refused, so
+    /// a plugin can reorganise the names inside its package and nothing else. Refused rather
+    /// than sanitised: the plugin addresses the file by the name it asked for afterwards. A file
     /// in a folder of the package (`Film/film.mkv`, RD-170-16) keeps its folder. The list is
     /// updated because a later read still addresses files by the name it was given. The file
     /// system is touched off the async worker (PLUG-20).
@@ -151,6 +154,7 @@ impl SourceState {
             || to.contains('/')
             || to.contains('\\')
             || std::path::Path::new(to).components().count() != 1
+            || rd_files::sanitize_file_name(to) != to
         {
             return Err("a new name must be a plain file name".to_owned());
         }

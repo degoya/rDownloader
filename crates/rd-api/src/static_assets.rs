@@ -77,6 +77,15 @@ fn serve_with_base(uri: &axum::http::Uri, base: &str) -> Response {
     };
     let body = rewrite_for_base(served_as, asset.data.into_owned(), base);
     let mut response = ([(header::CONTENT_TYPE, mime.as_ref())], Body::from(body)).into_response();
+    if served_as == "index.html" {
+        let script = (!base.is_empty()).then(|| base_script(base));
+        let policy = crate::security_headers::interface_policy(script.as_deref());
+        if let Ok(value) = header::HeaderValue::from_str(&policy) {
+            response
+                .headers_mut()
+                .insert(header::CONTENT_SECURITY_POLICY, value);
+        }
+    }
     if requested == "sw.js" {
         // A cached service worker keeps serving an old shell after an update. Browsers
         // already bypass the HTTP cache for the worker script, but proxies do not.
@@ -126,6 +135,24 @@ mod tests {
         }
     }
 
+    /// The shell carries the interface's policy, with the mount-point script's hash when it has
+    /// one; an asset does not (audit 2026-10-05, S5).
+    #[tokio::test]
+    async fn the_shell_carries_the_content_security_policy() {
+        let policy = |path: &str, base: &str| {
+            serve_with_base(&path.parse().expect("URI"), base)
+                .headers()
+                .get(header::CONTENT_SECURITY_POLICY)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+        };
+        let root = policy("/", "").expect("the shell has a policy");
+        assert!(root.contains("script-src 'self';"), "{root}");
+        let mounted = policy("/queue", "/downloads").expect("the shell has a policy");
+        assert!(mounted.contains("script-src 'self' 'sha256-"), "{mounted}");
+        assert_eq!(policy("/favicon.svg", ""), None);
+    }
+
     #[tokio::test]
     async fn spa_routes_are_served_as_html() {
         let response = serve_with_base(&"/routing".parse().expect("URI"), "");
@@ -156,10 +183,7 @@ fn rewrite_for_base(name: &str, data: Vec<u8>, base: &str) -> Vec<u8> {
             // Injected before the module script so the application can read it during start-up
             // rather than after its router has already been built at the wrong base.
             let marker = "<script type=\"module\"";
-            let injected = format!(
-                "<script>window.__RD_BASE__={};</script>{marker}",
-                serde_json::to_string(base).unwrap_or_else(|_| "\"\"".to_owned())
-            );
+            let injected = format!("<script>{}</script>{marker}", base_script(base));
             html.replacen(marker, &injected, 1).into_bytes()
         }
         "manifest.webmanifest" => {
@@ -170,6 +194,15 @@ fn rewrite_for_base(name: &str, data: Vec<u8>, base: &str) -> Vec<u8> {
         }
         _ => data,
     }
+}
+
+/// The inline script that hands the mount point to the application. One function, because the
+/// shell's content security policy allows it by the hash of exactly these bytes.
+fn base_script(base: &str) -> String {
+    format!(
+        "window.__RD_BASE__={};",
+        serde_json::to_string(base).unwrap_or_else(|_| "\"\"".to_owned())
+    )
 }
 
 #[cfg(test)]

@@ -59,7 +59,7 @@ pub use native::{
     provider_download_authorization, provider_download_bearer,
     provider_download_carries_credential, provider_token_beside_the_flow,
 };
-pub use own_endpoints::{CLICK_N_LOAD_PORT, OwnEndpoints};
+pub use own_endpoints::{CLICK_N_LOAD_PORT, OwnEndpoints, entered_address_policy};
 pub use packager::{
     GeneratedKey, generate_signing_key, load_signing_key_pem, package_plugin, public_key_base64,
 };

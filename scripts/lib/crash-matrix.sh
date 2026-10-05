@@ -9,6 +9,7 @@
 #   source scripts/lib/crash-matrix.sh
 #   rd_crash_matrix_runs        # one line of nextest arguments per run, the shared run first
 #   rd_crash_matrix_triggers    # the crates that own crash points, one per line, sorted
+#   rd_crash_matrix_ci          # ci.yml's `crash-matrix` step: every run, each to its end
 
 RD_CRASH_MATRIX_LIST="${RD_CRASH_MATRIX_LIST:-scripts/lib/crash-matrix.list}"
 
@@ -50,4 +51,22 @@ rd_crash_matrix_triggers() {
             [[ "$entry" == rd-core/failpoints ]] || printf '%s\n' "${entry%/failpoints}"
         done < <(rd_crash_matrix_feature "$package")
     done < <(rd_crash_matrix_rows) | LC_ALL=C sort -u
+}
+
+# Every run under nextest's `ci` profile, as the `crash-matrix` job of ci.yml runs them: `-P ci`
+# like `rust`'s tests, since that job builds no components either, every run to its end, and the
+# flaky cases of each run's JUnit report as warnings (RD-191-09). Fails when any run failed.
+rd_crash_matrix_ci() {
+    local line python failed=0
+    local -a runs run
+    mapfile -t runs < <(rd_crash_matrix_runs)
+    python="$(command -v python3 || command -v python)"
+    for line in "${runs[@]}"; do
+        read -r -a run <<< "${line}"
+        # A run that fails before writing its report must not leave the previous run's.
+        rm -f target/nextest/ci/junit.xml
+        cargo nextest run -P ci --no-fail-fast "${run[@]}" || failed=1
+        "${python}" scripts/lib/junit-flaky.py target/nextest/ci/junit.xml
+    done
+    return "${failed}"
 }

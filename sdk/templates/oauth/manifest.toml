@@ -30,7 +30,7 @@ claims = ["example"]
 description = "Signs an account in to {{PLUGIN_NAME}} through the provider, by redirect or device code."
 author = "Your name"
 license = "MIT"
-min_app_version = "0.9.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

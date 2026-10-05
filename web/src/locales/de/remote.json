@@ -76,7 +76,8 @@
     "truncated_entries": "Es werden nur die ersten {limit} Einträge angezeigt. Grenze den Link auf einen Unterordner ein, um den Rest zu sehen.",
     "truncated_depth": "Unterordner tiefer als {limit} Ebenen wurden nicht gelesen.",
     "select_all": "Alle auswählen",
-    "select_none": "Auswahl aufheben"
+    "select_none": "Auswahl aufheben",
+    "toggle_folder": "Ordner {name} auf- oder zuklappen"
   },
   "settings": {
     "title": "Übertragungsgrenzen",

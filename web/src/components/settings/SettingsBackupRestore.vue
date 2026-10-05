@@ -164,7 +164,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         level="page"
       />
     </header>
-    <section data-settings-anchor="backup.export" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="backup.export">
       <SectionHeader
         :eyebrow="t('system.backup.export.eyebrow')"
         :title="t('system.backup.export.title')"
@@ -196,9 +196,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           :loading="exporting"
         />
       </form>
-    </section>
+    </UCard>
 
-    <section data-settings-anchor="backup.import" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="backup.import">
       <SectionHeader
         :eyebrow="t('system.backup.import.eyebrow')"
         :title="t('system.backup.import.title')"
@@ -240,7 +240,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           :loading="importing"
         />
       </form>
-    </section>
+    </UCard>
 
     <SettingsFullBackupCard />
     <SettingsFullRestoreCard />

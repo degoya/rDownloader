@@ -108,7 +108,7 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <UCard as="section">
     <SectionHeader
       :eyebrow="t('siterules.editor.eyebrow')"
       :title="props.editingId ? t('siterules.editor.title_edit', { name: draft.name || props.editingId }) : t('siterules.editor.title_new')"
@@ -350,5 +350,5 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
       />
       <p v-if="!complete" class="mt-2 text-xs text-muted">{{ t('siterules.editor.incomplete') }}</p>
     </form>
-  </section>
+  </UCard>
 </template>

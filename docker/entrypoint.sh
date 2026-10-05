@@ -16,6 +16,24 @@ if [ "$(id -u)" != "0" ]; then
     exec rdownloader "$@"
 fi
 
+# A numeric id above 0, or no start: `PUID=0` used to run the service as root without a word,
+# and a name or a negative number fails in usermod halfway through (audit K6). Root is a choice
+# made out loud, with RDOWNLOADER_ALLOW_ROOT=1.
+require_id() {
+    case "$2" in
+        '' | *[!0-9]*)
+            echo "entrypoint: $1=$2 is not a numeric id" >&2
+            exit 1
+            ;;
+    esac
+    if [ "$2" -eq 0 ] && [ "${RDOWNLOADER_ALLOW_ROOT:-0}" != "1" ]; then
+        echo "entrypoint: $1=0 would run the service as root; set RDOWNLOADER_ALLOW_ROOT=1 if that is meant" >&2
+        exit 1
+    fi
+}
+require_id PUID "$PUID"
+require_id PGID "$PGID"
+
 if [ "$PGID" != "$(id -g rdownloader)" ]; then
     groupmod -o -g "$PGID" rdownloader
 fi

@@ -1163,7 +1163,11 @@
     "torrent.move_target_exists": "Dort gibt es schon einen Ordner mit diesem Namen",
     "torrent.move_no_space": "Dort ist nicht genug Platz für die Dateien des Torrents",
     "torrent.move_failed": "Das Verschieben konnte nicht gestartet werden",
-    "torrent.move_started": "Die Dateien des Torrents werden verschoben"
+    "torrent.move_started": "Die Dateien des Torrents werden verschoben",
+    "sftp.no_username": "Der gespeicherte SFTP-Zugang nennt keinen Benutzernamen; trage einen ein",
+    "hotfolder.protected_directory": "Ein Hotfolder darf kein Verzeichnis sein, enthalten oder in einem liegen, aus dem der Dienst Programme, Skripte oder Plugins startet oder in dem er seine Daten hält ({directory}).",
+    "usenet.declared_size_implausible": "Die Artikel kündigen eine Datei mit {declared} Bytes an, weit mehr als die {listed} Bytes, die die NZB nennt; die Datei wurde nicht zusammengesetzt",
+    "usenet.gap_fill_no_space": "Nicht genug freier Speicher, um die Lücken der fehlenden Artikel zu füllen ({required} Bytes samt Reserve nötig, {free} frei); es wird später erneut versucht"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

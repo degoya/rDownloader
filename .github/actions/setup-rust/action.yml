@@ -5,7 +5,8 @@ description: >
   steps and 12 env blocks). rust-toolchain.toml names `stable`, which outranks the installed
   toolchain; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
   own day (1.99's deprecation of fetch_update, 2026-10-01). The version moves here, in
-  docs/development.md and in the component cache keys of ci.yml and release.yml together.
+  docs/development.md and in the component cache keys of ci-components.yml and
+  release-plugins.yml together.
 inputs:
   components:
     description: Comma-separated rustup components (rustfmt, clippy, …)

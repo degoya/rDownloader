@@ -329,7 +329,14 @@ pub(crate) async fn candidate_source_set(
             .fetch_optional(readers)
             .await?
             .flatten();
-    Ok(raw.and_then(|value| serde_json::from_str(&value).ok()))
+    Ok(raw.and_then(|value| {
+        crate::json_column::lenient(
+            serde_json::from_str(&value),
+            "link_candidates",
+            "source_set_json",
+            candidate_id,
+        )
+    }))
 }
 
 /// Holds candidates to an address reach: `local_network` when the document came from the

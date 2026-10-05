@@ -161,14 +161,14 @@ const systems = computed(() => [
       <template #status>
         <div>
           <div class="grid gap-3 lg:grid-cols-3">
-            <article v-for="system in systems" :key="system.icon" class="relative overflow-hidden border border-muted bg-default p-5">
+            <UCard v-for="system in systems" :key="system.icon" as="article" class="relative">
               <div class="mb-8 flex items-start justify-between">
                 <div class="grid size-10 place-items-center bg-elevated text-primary"><UIcon :name="system.icon" class="size-5" /></div>
                 <UBadge :color="system.color" variant="subtle">{{ system.status }}</UBadge>
               </div>
               <SectionHeader :eyebrow="system.eyebrow" :title="system.title" :description="system.description" />
               <div class="transfer-stripe absolute inset-x-0 bottom-0 h-1 opacity-50" />
-            </article>
+            </UCard>
           </div>
 
           <SettingsReadinessCard class="mt-6" />
@@ -187,7 +187,7 @@ const systems = computed(() => [
       </template>
       <template #retention>
         <div>
-          <section data-settings-anchor="system.logs" class="border border-muted bg-default p-5" data-testid="log-retention">
+          <UCard as="section" data-settings-anchor="system.logs" data-testid="log-retention">
             <div class="flex flex-wrap items-start justify-between gap-4">
               <SectionHeader
                 :eyebrow="t('settings.logs.eyebrow')"
@@ -211,9 +211,9 @@ const systems = computed(() => [
                 <UInput v-model.number="settings.log_retention_days" type="number" min="1" max="365" icon="i-lucide-calendar-days" class="mt-2 w-full" />
               </UFormField>
             </div>
-          </section>
+          </UCard>
 
-          <section data-settings-anchor="system.audit" class="mt-6 border border-muted bg-default p-5" data-testid="audit-retention">
+          <UCard as="section" data-settings-anchor="system.audit" class="mt-6" data-testid="audit-retention">
             <div class="flex flex-wrap items-start justify-between gap-4">
               <SectionHeader
                 :eyebrow="t('settings.audit.eyebrow')"
@@ -252,9 +252,9 @@ const systems = computed(() => [
               </div>
             </div>
             <SettingsDataResetButton class="mt-4" target="audit" :count="dataCounts.audit" @cleared="loadDataCounts()" />
-          </section>
+          </UCard>
 
-          <section data-settings-anchor="system.history" class="mt-6 border border-muted bg-default p-5" data-testid="history-retention">
+          <UCard as="section" data-settings-anchor="system.history" class="mt-6" data-testid="history-retention">
             <div class="flex flex-wrap items-start justify-between gap-4">
               <SectionHeader
                 :eyebrow="t('settings.history.eyebrow')"
@@ -266,7 +266,7 @@ const systems = computed(() => [
                 color="neutral"
                 variant="subtle"
                 :label="t('settings.history.open')"
-                to="/history"
+                to="/stats?tab=history"
               />
             </div>
             <div class="mt-4 grid gap-4">
@@ -277,9 +277,9 @@ const systems = computed(() => [
                 <UInput v-model.number="settings.history_retention_days" type="number" min="1" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
               </UFormField>
             </div>
-          </section>
+          </UCard>
 
-          <section data-settings-anchor="system.stats_retention" class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
+          <UCard as="section" data-settings-anchor="system.stats_retention" class="mt-6" data-testid="stats-retention">
             <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
@@ -294,7 +294,7 @@ const systems = computed(() => [
               </UFormField>
             </div>
             <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />
-          </section>
+          </UCard>
         </div>
       </template>
     </UTabs>

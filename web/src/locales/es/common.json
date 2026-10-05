@@ -113,7 +113,7 @@
       "nothing": "No hay nada que pausar o reanudar."
     },
     "toggle_sidebar": "Plegar o desplegar la barra lateral",
-    "go_stats": "Ir a Estadísticas",
+    "go_stats": "Ir a Estadísticas e historial",
     "go_logs": "Ir a Registros",
     "go_audit": "Ir a Auditoría",
     "open_search": "Abrir búsqueda",
@@ -182,6 +182,7 @@
     "resize": "Ancho de la columna «{column}»",
     "resize_hint": "Arrastra o usa las flechas (Mayús para pasos más grandes); doble clic o Intro la restablece",
     "menu": "Columnas",
-    "reset_all": "Restablecer todos los anchos de columna"
+    "reset_all": "Restablecer todos los anchos de columna",
+    "state_linkgrabber": "Estado del enlace"
   }
 }

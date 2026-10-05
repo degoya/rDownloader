@@ -165,6 +165,7 @@ impl ToolProcess {
     /// Only the last [`STDERR_TAIL`] bytes of stderr are kept; the rest is read and dropped.
     pub fn spawn(command: &mut Command, name: &str, stdout: Stdout) -> Result<Self> {
         rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
+        crate::workdir::isolate(command);
         command
             .stdin(Stdio::null())
             .stdout(match stdout {
@@ -310,7 +311,7 @@ async fn expiry(deadline: Option<Instant>) {
 /// stdin is the null device, because a tool that decides to prompt must fail rather than wait
 /// for a keystroke nobody will type, and `kill_on_drop` is on so a run abandoned at the timeout
 /// does not leave a process behind still doing the work nobody is waiting for any more. The
-/// environment is restricted as in [`ToolProcess::spawn`].
+/// environment and the working directory (`crate::workdir`) are those of [`ToolProcess::spawn`].
 ///
 /// **There is no stdout/stderr argument, and that is not an omission.**
 /// `tokio::process::Command::output` configures both as pipes *unconditionally*, overriding
@@ -323,6 +324,7 @@ pub async fn run_to_output(
     timeout: Duration,
 ) -> Result<std::io::Result<Output>, Elapsed> {
     rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
+    crate::workdir::isolate(command);
     command
         .stdin(Stdio::null())
         .kill_on_drop(true)

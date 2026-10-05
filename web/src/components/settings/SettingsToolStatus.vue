@@ -76,7 +76,7 @@ const incompatible = computed(() =>
 </script>
 
 <template>
-  <section data-settings-anchor="tools.status" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="tools.status">
     <SectionHeader
       :eyebrow="t('settings.vendor.eyebrow')"
       :title="t('settings.vendor.title')"
@@ -145,5 +145,5 @@ const incompatible = computed(() =>
     </div>
 
     <p class="mt-3 text-xs leading-5 text-muted">{{ t('settings.vendor.hint') }}</p>
-  </section>
+  </UCard>
 </template>

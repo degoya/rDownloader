@@ -460,6 +460,41 @@ mod tests {
         }
     }
 
+    /// BtbN keeps a daily build for 14 days and the last build of each month for two years, and
+    /// `latest` floats, so a BtbN entry is pinned to an `autobuild-<YYYY-MM-DD>-…` release dated
+    /// the last day of its month. 1.10.0 shipped a mid-month build that answered 404 three
+    /// weeks later (RD-1101-13). Whether the URL answers today is
+    /// `scripts/tools-manifest-check.sh`'s question, asked weekly in CI.
+    #[test]
+    fn every_btbn_entry_is_pinned_to_a_month_end_release() {
+        use chrono::{Datelike, NaiveDate};
+
+        const BTBN: &str = "https://github.com/BtbN/FFmpeg-Builds/releases/download/";
+        let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+        for entry in &manifest.tools {
+            let Some(release) = entry.url.strip_prefix(BTBN) else {
+                continue;
+            };
+            let date = release
+                .strip_prefix("autobuild-")
+                .and_then(|tag| tag.get(..10))
+                .and_then(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok());
+            let Some(date) = date else {
+                panic!(
+                    "{} on {} is not a dated autobuild: {}",
+                    entry.name, entry.platform, entry.url
+                );
+            };
+            assert!(
+                date.succ_opt()
+                    .is_some_and(|next| next.month() != date.month()),
+                "{} on {} is pinned to {date}, a daily build BtbN deletes after 14 days",
+                entry.name,
+                entry.platform
+            );
+        }
+    }
+
     /// What the shipped manifest actually covers, written down as a test so the support
     /// matrix in `docs/external-tools.md` cannot drift away from the document.
     #[test]

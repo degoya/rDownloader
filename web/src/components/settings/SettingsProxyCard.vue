@@ -50,7 +50,7 @@ const warning = computed(() => {
 </script>
 
 <template>
-  <section data-settings-anchor="security.reverse_proxy" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="security.reverse_proxy">
     <SectionHeader :eyebrow="t('system.proxy.eyebrow')" :title="t('system.proxy.title')" :description="t('system.proxy.description')" />
 
     <div class="mt-4 grid gap-4">
@@ -81,5 +81,5 @@ const warning = computed(() => {
       icon="i-lucide-triangle-alert"
       :description="warning"
     />
-  </section>
+  </UCard>
 </template>

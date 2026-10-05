@@ -9,6 +9,7 @@
  * card is a link, so the keyboard reaches it the way it reaches the sidebar.
  */
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 
 import SectionHeader from '@/components/SectionHeader.vue'
 import { SETTINGS_SECTION_GROUPS } from '@/settingsSections'
@@ -42,19 +43,21 @@ const { t } = useI18n()
           <h3 :id="`settings-group-${group.value}`" class="eyebrow mb-3">{{ t(group.labelKey) }}</h3>
           <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <li v-for="section in group.sections" :key="section.value">
-              <RouterLink
+              <UCard
+                :as="RouterLink"
                 :to="`/settings/${section.value}`"
-                class="flex h-full items-start gap-3 border border-muted bg-default p-4 transition-colors hover:border-primary hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                class="block h-full ring ring-transparent transition-colors hover:bg-elevated hover:ring-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                :ui="{ body: 'flex items-start gap-3 p-4 sm:p-4' }"
                 data-settings-card
               >
-                <span class="grid size-9 shrink-0 place-items-center bg-elevated text-primary" aria-hidden="true">
+                <span class="grid size-9 shrink-0 place-items-center bg-default text-primary" aria-hidden="true">
                   <UIcon :name="section.icon" class="size-5" />
                 </span>
                 <span class="min-w-0">
                   <span class="block text-sm font-semibold text-highlighted">{{ t(section.titleKey) }}</span>
                   <span class="mt-1 block text-xs leading-5 text-muted">{{ t(section.descriptionKey) }}</span>
                 </span>
-              </RouterLink>
+              </UCard>
             </li>
           </ul>
         </section>

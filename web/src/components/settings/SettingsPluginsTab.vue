@@ -310,7 +310,7 @@ async function revokeKey(keyId: string): Promise<void> {
     >
       <template #installed>
         <div class="space-y-6">
-          <section data-settings-anchor="plugins.installed" class="border border-muted bg-default p-5">
+          <UCard as="section" data-settings-anchor="plugins.installed">
             <div class="mb-4 flex items-center justify-between">
               <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
               <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>
@@ -362,7 +362,7 @@ async function revokeKey(keyId: string): Promise<void> {
                 <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.installed.empty') }}</p>
               </DataState>
             </div>
-          </section>
+          </UCard>
 
           <PluginIncompatibleList v-if="incompatible.length" :incompatible="incompatible" @remove="removeVersion" />
         </div>
@@ -370,7 +370,7 @@ async function revokeKey(keyId: string): Promise<void> {
 
       <template #add>
         <div class="space-y-6">
-          <section class="border border-muted bg-default p-5">
+          <UCard as="section">
             <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
               <UFormField data-settings-anchor="plugins.install" class="flex-1" :label="t('plugins.install.label')" :description="t('plugins.install.hint')">
                 <!--
@@ -390,7 +390,7 @@ async function revokeKey(keyId: string): Promise<void> {
               </UFormField>
               <UButton type="submit" icon="i-lucide-package-plus" :label="t('plugins.install.submit')" :disabled="!packageFile" />
             </form>
-          </section>
+          </UCard>
 
           <PluginBundledList ref="bundledList" @installed="onInstalled" />
         </div>

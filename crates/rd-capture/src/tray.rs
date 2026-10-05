@@ -22,7 +22,7 @@ use url::Url;
 
 use crate::{
     DesktopSinks,
-    activity::{Activity, QueueMenu, QueueRequest},
+    activity::{Activity, QueueEntries, QueueMenu, QueueRequest},
     cli::RunArgs,
     config, icon as badge,
     status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
@@ -327,12 +327,14 @@ struct TrayHandle {
     /// The menu itself, for the queue entries that come and go (RD-1100-06). A handle onto the
     /// same menu the icon shows: muda's menus are shared, not copied.
     menu: Menu,
-    /// "Pause all", for 30 minutes, for an hour; "Resume all"; and the separator below them.
-    /// Which of them the menu holds is `tray_state`'s decision, made from the summary.
+    /// "Start all"; "Pause all", for 30 minutes, for an hour; the greyed hint for an agent
+    /// paired without queue control; and the separator below them. Which of them the menu holds,
+    /// and which can be chosen, is `tray_state`'s decision, made from the summary.
+    start: MenuItem,
     pause_now: MenuItem,
     pause_half_hour: MenuItem,
     pause_hour: MenuItem,
-    resume: MenuItem,
+    pair_hint: MenuItem,
     queue_separator: PredefinedMenuItem,
     // Dropping this removes the icon from the tray. Kept named rather than `_tray` since the
     // icon and tooltip are now changed while it lives.
@@ -352,14 +354,16 @@ impl TrayHandle {
             .context("set the tray tooltip")
     }
 
-    /// Puts the queue entries the state named into the menu, before "Quit"; none at all for an
-    /// agent that may not control the queue.
+    /// Puts the queue entries the state named into the menu, before "Quit": greyed out with the
+    /// hint below them for an agent that may not control the queue, none at all before the
+    /// service has said which it is.
     fn show_queue(&self, queue: QueueMenu) {
-        let every: [&dyn IsMenuItem; 5] = [
+        let every: [&dyn IsMenuItem; 6] = [
+            &self.start,
             &self.pause_now,
             &self.pause_half_hour,
             &self.pause_hour,
-            &self.resume,
+            &self.pair_hint,
             &self.queue_separator,
         ];
         // Whatever is there goes first. Removing an entry the menu does not hold only reports
@@ -367,20 +371,28 @@ impl TrayHandle {
         for item in every {
             let _ = self.menu.remove(item);
         }
-        let shown = match queue {
+        let (entries, locked) = match queue {
             QueueMenu::Hidden => return,
-            QueueMenu::Pause => self.menu.insert_items(
+            QueueMenu::Locked => (QueueEntries::default(), true),
+            QueueMenu::Offered(entries) => (entries, false),
+        };
+        self.start.set_enabled(entries.start);
+        self.pause_now.set_enabled(entries.pause);
+        self.pause_half_hour.set_enabled(entries.timed_pause);
+        self.pause_hour.set_enabled(entries.timed_pause);
+        let shown = if locked {
+            self.menu.insert_items(&every, QUEUE_POSITION)
+        } else {
+            self.menu.insert_items(
                 &[
+                    &self.start,
                     &self.pause_now,
                     &self.pause_half_hour,
                     &self.pause_hour,
                     &self.queue_separator,
                 ],
                 QUEUE_POSITION,
-            ),
-            QueueMenu::Resume => self
-                .menu
-                .insert_items(&[&self.resume, &self.queue_separator], QUEUE_POSITION),
+            )
         };
         if let Err(error) = shown {
             tracing::warn!(%error, "the tray menu could not show its queue entries");
@@ -395,7 +407,7 @@ impl TrayHandle {
             Some(QueueRequest::Pause { minutes: Some(30) })
         } else if id == self.pause_hour.id() {
             Some(QueueRequest::Pause { minutes: Some(60) })
-        } else if id == self.resume.id() {
+        } else if id == self.start.id() {
             Some(QueueRequest::Resume)
         } else {
             None
@@ -427,11 +439,13 @@ impl TrayHandle {
             status_item,
             open_item: open,
             menu,
-            // Untranslated, like the rest of the menu (RD-092-05).
+            // Untranslated, like the rest of the menu (RD-092-05); the labels are the web
+            // interface's global control (RD-1101-06).
+            start: MenuItem::new("Start all", true, None),
             pause_now: MenuItem::new("Pause all", true, None),
             pause_half_hour: MenuItem::new("Pause for 30 minutes", true, None),
             pause_hour: MenuItem::new("Pause for 1 hour", true, None),
-            resume: MenuItem::new("Resume all", true, None),
+            pair_hint: MenuItem::new("Pair again to control the queue", false, None),
             queue_separator: PredefinedMenuItem::separator(),
             tray,
         };

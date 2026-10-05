@@ -14,8 +14,8 @@ use rd_core::{
 };
 use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 
-/// One file of a package as the history keeps it: name, size, state, source, code.
-type FileRow = (String, Option<i64>, i64, String, Option<String>);
+/// One file of a package as the history keeps it: id, source, sizes, state, failure.
+type FileRow = (String, String, Option<i64>, i64, String, Option<String>);
 
 use crate::{enum_string, parse_enum, parse_time, timestamp};
 
@@ -77,7 +77,7 @@ pub(crate) async fn record(
         return Ok(());
     };
     let files: Vec<FileRow> = sqlx::query_as(
-        "SELECT source_url, total_bytes, committed_bytes, state, last_error_json \
+        "SELECT id, source_url, total_bytes, committed_bytes, state, last_error_json \
          FROM downloads WHERE package_id = ? ORDER BY position ASC, created_at ASC",
     )
     .bind(package_id)
@@ -88,7 +88,7 @@ pub(crate) async fn record(
     let mut total_bytes = 0u64;
     let mut file_count = 0u32;
     let mut download_failure: Option<rd_core::Failure> = None;
-    for (source, total, committed, state, last_error) in &files {
+    for (id, source, total, committed, state, last_error) in &files {
         if let Ok(url) = url::Url::parse(source)
             && let Some(kept) = rd_core::history_source(&url)
             && sources.len() < HISTORY_MAX_SOURCES
@@ -104,9 +104,14 @@ pub(crate) async fn record(
         let bytes = total.unwrap_or_default().max(*committed);
         total_bytes = total_bytes.saturating_add(u64::try_from(bytes).unwrap_or_default());
         if download_failure.is_none() && state == "failed" {
-            download_failure = last_error
-                .as_deref()
-                .and_then(|json| serde_json::from_str(json).ok());
+            download_failure = last_error.as_deref().and_then(|json| {
+                crate::json_column::lenient(
+                    serde_json::from_str(json),
+                    "downloads",
+                    "last_error_json",
+                    id,
+                )
+            });
         }
     }
 
@@ -211,7 +216,14 @@ async fn failure_of(
     if let Some((code, params)) = step {
         let params: MessageParams = params
             .as_deref()
-            .and_then(|json| serde_json::from_str(json).ok())
+            .and_then(|json| {
+                crate::json_column::lenient(
+                    serde_json::from_str(json),
+                    "postprocess_steps",
+                    "params_json",
+                    format_args!("{package_id} {code}"),
+                )
+            })
             .unwrap_or_default();
         return Ok((code, params));
     }

@@ -110,6 +110,15 @@ pub(crate) fn current() -> OwnEndpoints {
         .clone()
 }
 
+/// The address rule for a request the service itself makes to an address the person entered —
+/// a webhook notification target (audit 2026-10-05, S2). The rule a plugin request to an entered
+/// address keeps to ([`OwnEndpoints::policy`]): their own network and this machine's loopback,
+/// never link-local and never one of the service's own listeners.
+#[must_use]
+pub fn entered_address_policy(url: &url::Url) -> rd_http::AddressPolicy {
+    current().policy(true, url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{CLICK_N_LOAD_PORT, OwnEndpoints};

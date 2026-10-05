@@ -36,7 +36,6 @@ async fn context(database: &rd_db::Database, directory: &std::path::Path) -> Act
         secrets,
         scheduler,
         extraction,
-        http: reqwest::Client::new(),
     }
 }
 

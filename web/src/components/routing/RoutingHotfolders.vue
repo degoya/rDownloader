@@ -187,7 +187,7 @@ async function remove(folder: HotFolder): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="hotfolders.list" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="hotfolders.list">
     <FormListLayout :list-title="t('routing.hotfolder.title')" :count="hotfolders.length">
       <template #form>
         <SectionHeader
@@ -255,12 +255,13 @@ async function remove(folder: HotFolder): Promise<void> {
         <div class="space-y-2">
           <div v-for="folder in hotfolders" :key="folder.id" class="border bg-default p-3" :class="editingId === folder.id ? 'border-primary' : 'border-muted'">
             <div class="flex items-center gap-3">
-              <span class="size-2 shrink-0" :class="folder.enabled ? 'bg-success' : 'bg-muted'" />
+              <span class="size-2 shrink-0" :class="folder.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-highlighted">{{ folder.name }}</p>
                 <p class="truncate font-mono text-[11px] text-muted">{{ folder.path }}</p>
               </div>
               <UBadge v-if="editingId === folder.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+              <UBadge v-if="!folder.enabled" color="neutral" variant="subtle">{{ t('routing.hotfolder.disabled_badge') }}</UBadge>
               <UBadge color="neutral" variant="outline">{{ folder.import_mode === 'enqueue' ? t('routing.hotfolder.mode_enqueue') : t('routing.hotfolder.mode_review') }}</UBadge>
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" @click="duplicate(folder)" />
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(folder)" />
@@ -275,5 +276,5 @@ async function remove(folder: HotFolder): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

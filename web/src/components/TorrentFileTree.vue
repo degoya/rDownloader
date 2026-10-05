@@ -295,6 +295,7 @@ function patternOf(node: TreeNode): string {
           variant="ghost"
           class="shrink-0"
           :aria-label="t('torrent.tree.toggle_folder', { name: row.node.name })"
+          :aria-expanded="!collapsed.has(row.node.key)"
           @click="toggleCollapse(row.node.key)"
         />
         <span v-else class="w-6 shrink-0" />

@@ -21,6 +21,7 @@ import type { About, AboutLink, ThirdPartyLicenses, ThirdPartyPackage } from '@/
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useFetchState } from '@/composables/useFetchState'
+import { safeHttpUrl } from '@/utils/safeUrl'
 
 type Ecosystem = 'rust' | 'npm'
 
@@ -127,7 +128,7 @@ const anyOpen = computed(() => open.rust || open.npm)
     <DataState :loading="loading" :error="loadError" :rows="5" />
 
     <template v-if="about">
-      <section data-settings-anchor="about.build" class="border border-muted bg-default p-5" data-testid="about-build">
+      <UCard as="section" data-settings-anchor="about.build" data-testid="about-build">
         <SectionHeader :eyebrow="t('settings.about.build.eyebrow')" :title="t('settings.about.build.title')" />
         <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
           <template v-for="fact in facts" :key="fact.key">
@@ -135,9 +136,9 @@ const anyOpen = computed(() => open.rust || open.npm)
             <dd class="numeric break-all text-sm text-highlighted" :data-fact="fact.key">{{ fact.value }}</dd>
           </template>
         </dl>
-      </section>
+      </UCard>
 
-      <section class="border border-muted bg-default p-5" data-testid="about-links">
+      <UCard as="section" data-testid="about-links">
         <SectionHeader :eyebrow="t('settings.about.links.eyebrow')" :title="t('settings.about.links.title')" />
         <ul class="mt-4 space-y-2">
           <li
@@ -149,7 +150,7 @@ const anyOpen = computed(() => open.rust || open.npm)
             <span class="min-w-48 text-toned">{{ t(LINK_LABELS[link.kind]) }}</span>
             <a
               v-if="link.published && link.url"
-              :href="link.url"
+              :href="safeHttpUrl(link.url)"
               target="_blank"
               rel="noopener noreferrer"
               class="break-all font-mono text-xs text-primary underline-offset-2 hover:underline"
@@ -160,18 +161,18 @@ const anyOpen = computed(() => open.rust || open.npm)
             </template>
           </li>
         </ul>
-      </section>
+      </UCard>
 
-      <section class="border border-muted bg-default p-5" data-testid="about-credits">
+      <UCard as="section" data-testid="about-credits">
         <SectionHeader :eyebrow="t('settings.about.credits.eyebrow')" :title="t('settings.about.credits.title')" />
         <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
           <dt class="eyebrow">{{ t('settings.about.credits.author') }}</dt>
           <dd class="text-sm text-highlighted">{{ about.authors.join(', ') }}</dd>
         </dl>
         <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
-      </section>
+      </UCard>
 
-      <section data-settings-anchor="about.licenses" class="border border-muted bg-default p-5" data-testid="about-licenses">
+      <UCard as="section" data-settings-anchor="about.licenses" data-testid="about-licenses">
         <SectionHeader :eyebrow="t('settings.about.licenses.eyebrow')" :title="t('settings.about.licenses.title')" />
 
         <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.own') }}</h3>
@@ -187,7 +188,7 @@ const anyOpen = computed(() => open.rust || open.npm)
             data-testid="about-tools"
           >
             <template #name-cell="{ row }">
-              <a :href="row.original.homepage" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</a>
+              <a :href="safeHttpUrl(row.original.homepage)" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</a>
             </template>
             <template #license-cell="{ row }"><span class="font-mono text-xs">{{ row.original.license }}</span></template>
             <template #file-cell="{ row }"><span class="font-mono text-xs text-muted">{{ row.original.file }}</span></template>
@@ -247,7 +248,7 @@ const anyOpen = computed(() => open.rust || open.npm)
             </div>
           </div>
         </template>
-      </section>
+      </UCard>
     </template>
   </div>
 </template>

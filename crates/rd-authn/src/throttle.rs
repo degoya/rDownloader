@@ -27,6 +27,22 @@
 //! A success resets both. The owner getting their password right clears whatever an attacker
 //! built up.
 //!
+//! ## What counts as one address
+//!
+//! An IPv4 address is one address. An IPv6 address is counted by its /64: that is the block a
+//! single subscriber, host or container is handed, and counting each of its 2^64 addresses
+//! apart let one client rotate through them and never build up a lockout (audit 2026-10-05,
+//! S4). An IPv4-mapped IPv6 address is its IPv4 address.
+//!
+//! ## Attempts in flight
+//!
+//! The counters only learn of a failure once the password check is over. Checked at the door
+//! alone, any number of parallel attempts from one address all passed before the first of them
+//! was counted. An admitted attempt therefore counts against its address as though it had
+//! already failed until its verdict is in ([`LoginThrottle::admit`], [`LoginThrottle::release`]):
+//! an address gets no more attempts at once than it has failures left before its next lockout,
+//! and at least one, so a lockout that ran out still leaves the next try.
+//!
 //! ## Why in memory
 //!
 //! Failures are not persisted. Persisting them would mean a disk write per failed attempt —
@@ -36,9 +52,15 @@
 
 use std::{
     collections::HashMap,
-    net::IpAddr,
+    net::{IpAddr, Ipv6Addr},
     time::{Duration, Instant},
 };
+
+use crate::cidr::unmap;
+
+/// How long an address whose every remaining attempt is in flight is asked to wait. Short:
+/// the attempts it waits for end in a second or so.
+const IN_FLIGHT_RETRY: Duration = Duration::from_secs(1);
 
 /// How aggressive the limiter is.
 #[derive(Clone, Copy, Debug)]
@@ -98,6 +120,8 @@ struct Attempts {
 pub struct LoginThrottle {
     settings: ThrottleSettings,
     by_address: HashMap<IpAddr, Attempts>,
+    /// Admitted attempts whose verdict is not in yet, by the same key as `by_address`.
+    in_flight: HashMap<IpAddr, u32>,
     global_failures: u32,
     global_last_seen: Option<Instant>,
 }
@@ -108,6 +132,7 @@ impl LoginThrottle {
         Self {
             settings,
             by_address: HashMap::new(),
+            in_flight: HashMap::new(),
             global_failures: 0,
             global_last_seen: None,
         }
@@ -119,6 +144,7 @@ impl LoginThrottle {
     /// sleeping through it.
     pub fn check(&mut self, address: IpAddr, now: Instant) -> Decision {
         self.expire(now);
+        let address = key(address);
         if let Some(attempts) = self.by_address.get(&address)
             && let Some(until) = attempts.locked_until
             && until > now
@@ -132,9 +158,55 @@ impl LoginThrottle {
         }
     }
 
+    /// [`Self::check`], and on `Proceed` the attempt is admitted: it counts against its address
+    /// until [`Self::release`] hands it back, whatever its verdict.
+    ///
+    /// Refused with a short `retry_after` when the address already has as many attempts in
+    /// flight as it has failures left before its next lockout. The `delay` of an admission is
+    /// the global one, which the caller has normally paid already, between its `check` and
+    /// this call.
+    pub fn admit(&mut self, address: IpAddr, now: Instant) -> Decision {
+        let decision = self.check(address, now);
+        if matches!(decision, Decision::Locked { .. }) {
+            return decision;
+        }
+        let address = key(address);
+        let failures = self
+            .by_address
+            .get(&address)
+            .map_or(0, |attempts| attempts.failures);
+        let allowed = self
+            .settings
+            .failures_before_lockout
+            .saturating_add(1)
+            .saturating_sub(failures)
+            .max(1);
+        let pending = self.in_flight.entry(address).or_insert(0);
+        if *pending >= allowed {
+            return Decision::Locked {
+                retry_after: IN_FLIGHT_RETRY,
+            };
+        }
+        *pending += 1;
+        decision
+    }
+
+    /// Hands back an attempt [`Self::admit`] let in. Its verdict, if it had one, was recorded
+    /// on its own.
+    pub fn release(&mut self, address: IpAddr) {
+        let address = key(address);
+        if let Some(pending) = self.in_flight.get_mut(&address) {
+            *pending = pending.saturating_sub(1);
+            if *pending == 0 {
+                self.in_flight.remove(&address);
+            }
+        }
+    }
+
     /// Records a failed attempt and returns what the *next* one would face.
     pub fn record_failure(&mut self, address: IpAddr, now: Instant) -> Decision {
         self.expire(now);
+        let address = key(address);
         let settings = self.settings;
         let attempts = self.by_address.entry(address).or_insert(Attempts {
             failures: 0,
@@ -155,7 +227,7 @@ impl LoginThrottle {
     /// Clears everything this address and the installation had built up.
     pub fn record_success(&mut self, address: IpAddr, now: Instant) {
         self.expire(now);
-        self.by_address.remove(&address);
+        self.by_address.remove(&key(address));
         self.global_failures = 0;
         self.global_last_seen = Some(now);
     }
@@ -200,6 +272,15 @@ impl LoginThrottle {
     }
 }
 
+/// The key `address` is counted under: an IPv6 address by its /64, anything else as itself.
+#[must_use]
+pub fn key(address: IpAddr) -> IpAddr {
+    match unmap(address) {
+        IpAddr::V6(v6) => IpAddr::V6(Ipv6Addr::from(u128::from(v6) & !u128::from(u64::MAX))),
+        v4 => v4,
+    }
+}
+
 /// Doubling backoff, capped.
 fn lockout_for(over_limit: u32, settings: &ThrottleSettings) -> Duration {
     let shift = over_limit.saturating_sub(1).min(20);
@@ -210,221 +291,5 @@ fn lockout_for(over_limit: u32, settings: &ThrottleSettings) -> Duration {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn address(value: &str) -> IpAddr {
-        value.parse().expect("address")
-    }
-
-    fn throttle() -> LoginThrottle {
-        LoginThrottle::new(ThrottleSettings::default())
-    }
-
-    #[test]
-    fn an_ordinary_mistyped_password_costs_nothing() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..2 {
-            throttle.record_failure(client, now);
-        }
-        assert_eq!(
-            throttle.check(client, now),
-            Decision::Proceed {
-                delay: Duration::ZERO
-            }
-        );
-    }
-
-    #[test]
-    fn sustained_guessing_from_one_address_is_locked_out() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..6 {
-            throttle.record_failure(client, now);
-        }
-        assert!(matches!(
-            throttle.check(client, now),
-            Decision::Locked { .. }
-        ));
-    }
-
-    /// The whole point: the attacker's lockout must not be the owner's.
-    #[test]
-    fn one_address_being_locked_out_does_not_lock_out_another() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let attacker = address("203.0.113.9");
-        let owner = address("192.168.1.20");
-        for _ in 0..20 {
-            throttle.record_failure(attacker, now);
-        }
-        assert!(matches!(
-            throttle.check(attacker, now),
-            Decision::Locked { .. }
-        ));
-        assert!(matches!(
-            throttle.check(owner, now),
-            Decision::Proceed { .. }
-        ));
-    }
-
-    /// The distributed case, and the reason the global counter exists at all.
-    #[test]
-    fn many_addresses_failing_once_each_still_slow_the_endpoint_down() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        for index in 0..40_u8 {
-            throttle.record_failure(address(&format!("203.0.113.{index}")), now);
-        }
-        let Decision::Proceed { delay } = throttle.check(address("198.51.100.1"), now) else {
-            panic!("the global counter must not lock anyone out");
-        };
-        assert!(delay > Duration::ZERO);
-    }
-
-    /// …and it must never be able to close the door, however long the attack runs.
-    #[test]
-    fn the_global_counter_can_never_refuse_an_attempt() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        for index in 0..2_000_u32 {
-            throttle.record_failure(
-                address(&format!(
-                    "10.{}.{}.{}",
-                    index / 65536,
-                    (index / 256) % 256,
-                    index % 256
-                )),
-                now,
-            );
-        }
-        match throttle.check(address("198.51.100.1"), now) {
-            Decision::Proceed { delay } => {
-                assert!(
-                    delay <= ThrottleSettings::default().max_global_delay,
-                    "the owner would wait {delay:?}"
-                );
-            }
-            Decision::Locked { .. } => panic!("an attacker locked the owner out"),
-        }
-    }
-
-    #[test]
-    fn the_lockout_lengthens_with_each_further_failure() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..6 {
-            throttle.record_failure(client, now);
-        }
-        let Decision::Locked { retry_after: first } = throttle.check(client, now) else {
-            panic!("expected a lockout");
-        };
-        throttle.record_failure(client, now);
-        let Decision::Locked {
-            retry_after: second,
-        } = throttle.check(client, now)
-        else {
-            panic!("expected a lockout");
-        };
-        assert!(second > first, "{second:?} should exceed {first:?}");
-    }
-
-    #[test]
-    fn the_lockout_is_capped() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..200 {
-            throttle.record_failure(client, now);
-        }
-        let Decision::Locked { retry_after } = throttle.check(client, now) else {
-            panic!("expected a lockout");
-        };
-        assert!(retry_after <= ThrottleSettings::default().max_lockout);
-    }
-
-    #[test]
-    fn a_lockout_ends_when_its_time_is_up() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..6 {
-            throttle.record_failure(client, now);
-        }
-        let later = now + Duration::from_secs(60 * 60);
-        assert!(matches!(
-            throttle.check(client, later),
-            Decision::Proceed { .. }
-        ));
-    }
-
-    /// Getting the password right clears what an attacker built up.
-    #[test]
-    fn a_success_resets_both_counters() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        let owner = address("192.168.1.20");
-        for index in 0..40_u8 {
-            throttle.record_failure(address(&format!("203.0.113.{index}")), now);
-        }
-        throttle.record_failure(owner, now);
-        throttle.record_success(owner, now);
-        assert_eq!(
-            throttle.check(owner, now),
-            Decision::Proceed {
-                delay: Duration::ZERO
-            }
-        );
-    }
-
-    /// An attacker cycling through addresses must not be able to grow the map without bound.
-    #[test]
-    fn quiet_addresses_are_forgotten() {
-        let mut throttle = throttle();
-        let now = Instant::now();
-        for index in 0..50_u8 {
-            throttle.record_failure(address(&format!("203.0.113.{index}")), now);
-        }
-        assert_eq!(throttle.tracked_addresses(), 50);
-        let much_later = now + Duration::from_secs(6 * 60 * 60);
-        throttle.check(address("198.51.100.1"), much_later);
-        assert_eq!(throttle.tracked_addresses(), 0);
-    }
-
-    /// …but an address still serving a lockout is kept, or the lockout would evaporate.
-    ///
-    /// Uses settings where a lockout outlasts the idle window, because with the defaults it
-    /// never can — and a test that cannot reach the branch it names is not testing it.
-    #[test]
-    fn an_address_serving_a_lockout_is_not_forgotten() {
-        let settings = ThrottleSettings {
-            failures_before_lockout: 1,
-            base_lockout: Duration::from_secs(60 * 60),
-            max_lockout: Duration::from_secs(24 * 60 * 60),
-            window: Duration::from_secs(60),
-            ..ThrottleSettings::default()
-        };
-        let mut throttle = LoginThrottle::new(settings);
-        let now = Instant::now();
-        let client = address("203.0.113.9");
-        for _ in 0..3 {
-            throttle.record_failure(client, now);
-        }
-
-        // Well past the idle window, and still inside the lockout.
-        let later = now + Duration::from_secs(10 * 60);
-        assert!(matches!(
-            throttle.check(client, later),
-            Decision::Locked { .. }
-        ));
-        assert_eq!(
-            throttle.tracked_addresses(),
-            1,
-            "the address was forgotten while it was still serving its lockout"
-        );
-    }
-}
+#[path = "throttle_tests.rs"]
+mod tests;

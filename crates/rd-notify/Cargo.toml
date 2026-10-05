@@ -13,6 +13,7 @@ hmac.workspace = true
 lettre.workspace = true
 rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
+rd-http = { path = "../rd-http" }
 reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true

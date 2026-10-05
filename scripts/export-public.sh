@@ -43,8 +43,7 @@
 # Environment:
 #   RD_PUBLIC_DIR     the local clone (default: ~/projects/rDownloader-public)
 #   RD_PUBLIC_REMOTE  where to clone it from when missing (default: git@github.com:degoya/rDownloader.git)
-#   GITLEAKS          the gitleaks binary (default: `gitleaks` on PATH, then
-#                     /tmp/claude-1000/public-inventory/gitleaks)
+#   GITLEAKS          the gitleaks binary (default: `gitleaks` on PATH; nothing else is looked for)
 #
 set -euo pipefail
 

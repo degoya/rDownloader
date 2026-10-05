@@ -299,6 +299,7 @@
     "poll_description": "Secondes entre deux passes de réconciliation sur tous les dossiers surveillés (5–3600). Les surveillances en cours adoptent la valeur immédiatement.",
     "poll_saved": "Intervalle d'interrogation enregistré",
     "poll_save": "Enregistrer l'intervalle",
-    "copy_path_hint": "Une copie a besoin de son propre dossier : modifiez le chemin avant de la créer."
+    "copy_path_hint": "Une copie a besoin de son propre dossier : modifiez le chemin avant de la créer.",
+    "disabled_badge": "INACTIF"
   }
 }

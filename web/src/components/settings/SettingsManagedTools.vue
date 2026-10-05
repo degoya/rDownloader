@@ -124,7 +124,7 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
 </script>
 
 <template>
-  <section data-settings-anchor="tools.managed" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="tools.managed">
     <SectionHeader
       :eyebrow="t('settings.managed_tools.eyebrow')"
       :title="t('settings.managed_tools.title')"
@@ -225,5 +225,5 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
     </div>
 
     <p class="mt-3 text-xs leading-5 text-muted">{{ t('settings.managed_tools.hint') }}</p>
-  </section>
+  </UCard>
 </template>

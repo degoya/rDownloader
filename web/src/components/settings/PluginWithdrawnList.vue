@@ -37,7 +37,7 @@ function revocationName(entry: PluginRevocation): string {
 </script>
 
 <template>
-  <section data-settings-anchor="plugins.withdrawn" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="plugins.withdrawn">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.withdrawn.eyebrow')" :title="t('plugins.withdrawn.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ revocations.length }}</UBadge>
@@ -74,5 +74,5 @@ function revocationName(entry: PluginRevocation): string {
         <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.withdrawn.empty') }}</p>
       </DataState>
     </div>
-  </section>
+  </UCard>
 </template>

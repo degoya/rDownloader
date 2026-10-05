@@ -22,6 +22,7 @@ mod full_restore;
 mod managed_tools;
 mod metrics;
 mod notifications;
+mod notifications_executable;
 mod plugin_auto_updates;
 mod plugin_bundled;
 mod plugin_bundled_removal;

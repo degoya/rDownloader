@@ -185,7 +185,7 @@ function lastError(repository: PluginRepository): string {
 </script>
 
 <template>
-  <section data-settings-anchor="plugins.repositories" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="plugins.repositories">
     <FormListLayout :list-title="t('plugins.repositories.title')" :count="repositories.length">
       <template #list-actions>
         <UButton
@@ -304,5 +304,5 @@ function lastError(repository: PluginRepository): string {
         </template>
       </template>
     </UModal>
-  </section>
+  </UCard>
 </template>

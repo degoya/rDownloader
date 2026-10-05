@@ -113,7 +113,7 @@
       "nothing": "Rien à mettre en pause ou à reprendre."
     },
     "toggle_sidebar": "Replier ou déplier la barre latérale",
-    "go_stats": "Aller aux statistiques",
+    "go_stats": "Aller aux statistiques et à l'historique",
     "go_logs": "Aller au journal",
     "go_audit": "Aller à l'audit",
     "open_search": "Ouvrir la recherche",
@@ -182,6 +182,7 @@
     "resize": "Largeur de la colonne « {column} »",
     "resize_hint": "Faites glisser ou utilisez les flèches (Maj pour des pas plus grands) ; un double-clic ou Entrée la rétablit",
     "menu": "Colonnes",
-    "reset_all": "Réinitialiser toutes les largeurs de colonne"
+    "reset_all": "Réinitialiser toutes les largeurs de colonne",
+    "state_linkgrabber": "État du lien"
   }
 }

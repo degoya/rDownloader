@@ -206,7 +206,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section data-settings-anchor="backup.full" class="border border-muted bg-default p-5 xl:col-span-2" data-testid="full-backup">
+  <UCard as="section" data-settings-anchor="backup.full" class="xl:col-span-2" data-testid="full-backup">
     <SectionHeader
       :eyebrow="t('system.backup.full.eyebrow')"
       :title="t('system.backup.full.title')"
@@ -325,5 +325,5 @@ onUnmounted(() => {
         </ul>
       </div>
     </template>
-  </section>
+  </UCard>
 </template>

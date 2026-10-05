@@ -4,6 +4,11 @@
 //! addresses asked are configurable and why the whole feature is off by default. A failed
 //! lookup is not an error: it only costs the ability to confirm the change, so the attempt
 //! falls back to trusting the script's exit code plus a short settling pause.
+//!
+//! A configured address keeps to the rule for an address the person entered (audit
+//! 2026-10-05, S8): their own network and a responder on this machine are fine, a link-local
+//! address and rDownloader's own listeners are not, every redirect hop is held to the same rule,
+//! and only the head of an answer is read.
 
 use std::time::Duration;
 
@@ -21,16 +26,20 @@ const LOOKUP_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 /// Given to a router that answered but has not settled, when the address cannot be read.
 const SETTLE_PAUSE: Duration = Duration::from_secs(10);
+/// How much of an answer is read. An address is at most 45 characters; a responder that sends
+/// more is not answering the question, and one that keeps sending must not fill the memory.
+const MAX_ANSWER_BYTES: usize = 1024;
+/// Redirects followed before a lookup gives up.
+const MAX_REDIRECTS: usize = 5;
 
 /// The current public address, or `None` if nobody could be asked.
 pub(crate) async fn public_address(configured: &[String]) -> Option<String> {
-    let client = reqwest::Client::builder()
-        .timeout(LOOKUP_TIMEOUT)
-        .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .ok()?;
     for endpoint in endpoints(configured) {
-        if let Some(address) = ask(&client, &endpoint).await {
+        let Ok(url) = url::Url::parse(&endpoint) else {
+            continue;
+        };
+        let policy = rd_plugin_host::entered_address_policy(&url);
+        if let Some(address) = ask(&policy, url).await {
             return Some(address);
         }
     }
@@ -75,9 +84,41 @@ fn endpoints(configured: &[String]) -> Vec<String> {
     }
 }
 
-async fn ask(client: &reqwest::Client, endpoint: &str) -> Option<String> {
-    let body = client.get(endpoint).send().await.ok()?.text().await.ok()?;
-    parse_address(&body)
+async fn ask(policy: &rd_http::AddressPolicy, url: url::Url) -> Option<String> {
+    // A literal address never reaches the guarded resolver, and a proxy resolves the name
+    // itself; both are judged here.
+    if let Err(rd_http::TargetRefusal::Refused(refused)) =
+        rd_http::check_target(policy, &rd_http::SystemLookup, &url).await
+    {
+        tracing::warn!(host = %refused.host, "an IP check address is refused by the address rule");
+        return None;
+    }
+    let response = client(policy)?.get(url).send().await.ok()?;
+    let head = crate::input_checks::read_body_prefix(response, MAX_ANSWER_BYTES)
+        .await
+        .ok()?;
+    parse_address(&String::from_utf8_lossy(&head))
+}
+
+/// A client for one lookup: names resolved through the guard at connect time, and every
+/// redirect hop held to the same rule.
+fn client(policy: &rd_http::AddressPolicy) -> Option<reqwest::Client> {
+    let hops = policy.clone();
+    reqwest::Client::builder()
+        .timeout(LOOKUP_TIMEOUT)
+        .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
+        .dns_resolver(rd_http::GuardedResolver::system(policy.clone()))
+        .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+            if attempt.previous().len() >= MAX_REDIRECTS {
+                return attempt.stop();
+            }
+            match hops.hop_refusal(attempt.url()) {
+                Some(refused) => attempt.error(refused),
+                None => attempt.follow(),
+            }
+        }))
+        .build()
+        .ok()
 }
 
 /// Keeps only an answer that is actually an address.
@@ -94,7 +135,88 @@ fn parse_address(body: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{DEFAULT_ENDPOINTS, endpoints, parse_address};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+    use super::{DEFAULT_ENDPOINTS, ask, endpoints, parse_address};
+
+    const ADDRESS_ANSWER: &[u8] =
+        b"HTTP/1.1 200 OK\r\ncontent-length: 11\r\nconnection: close\r\n\r\n203.0.113.7";
+
+    /// A responder on loopback that answers every connection with `answer` — followed by blank
+    /// chunks for as long as the caller reads, when `endless` — and counts its connections.
+    async fn responder(answer: Vec<u8>, endless: bool) -> (url::Url, Arc<AtomicUsize>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let address = listener.local_addr().expect("address");
+        let taken = Arc::new(AtomicUsize::new(0));
+        let count = Arc::clone(&taken);
+        let answer = Arc::new(answer);
+        tokio::spawn(async move {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                count.fetch_add(1, Ordering::SeqCst);
+                let answer = Arc::clone(&answer);
+                tokio::spawn(async move {
+                    let mut request = [0_u8; 4096];
+                    let _ = stream.read(&mut request).await;
+                    if stream.write_all(&answer).await.is_err() {
+                        return;
+                    }
+                    let chunk = format!("1000\r\n{}\r\n", " ".repeat(4096));
+                    while endless && stream.write_all(chunk.as_bytes()).await.is_ok() {}
+                });
+            }
+        });
+        let url = format!("http://{address}/ip").parse().expect("URL");
+        (url, taken)
+    }
+
+    /// The address rule holds (audit 2026-10-05, S8): without loopback the responder on this
+    /// machine is never connected to, with it — an entered address — it is asked.
+    #[tokio::test]
+    async fn a_refused_address_is_never_asked() {
+        let (url, taken) = responder(ADDRESS_ANSWER.to_vec(), false).await;
+        assert_eq!(
+            ask(&rd_http::AddressPolicy::new(true), url.clone()).await,
+            None
+        );
+        assert_eq!(taken.load(Ordering::SeqCst), 0);
+        let entered = rd_http::AddressPolicy::new(true).with_loopback();
+        assert_eq!(ask(&entered, url).await.as_deref(), Some("203.0.113.7"));
+        assert_eq!(taken.load(Ordering::SeqCst), 1);
+    }
+
+    /// A redirect to one of the service's own ports is not followed.
+    #[tokio::test]
+    async fn a_redirect_hop_is_held_to_the_rule() {
+        let (inner, reached) = responder(ADDRESS_ANSWER.to_vec(), false).await;
+        let redirect = format!(
+            "HTTP/1.1 302 Found\r\nlocation: {inner}\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+        );
+        let (outer, _) = responder(redirect.into_bytes(), false).await;
+        let policy = rd_http::AddressPolicy::new(true)
+            .with_loopback()
+            .refusing_redirects_to(&[inner.port().expect("port")]);
+        assert_eq!(ask(&policy, outer).await, None);
+        assert_eq!(reached.load(Ordering::SeqCst), 0);
+    }
+
+    /// An answer is read only as far as an address can reach: a responder that keeps sending
+    /// neither holds the lookup until its timeout nor fills the memory.
+    #[tokio::test]
+    async fn only_the_head_of_an_answer_is_read() {
+        let head = b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\nb\r\n203.0.113.7\r\n";
+        let (url, _) = responder(head.to_vec(), true).await;
+        let started = std::time::Instant::now();
+        let entered = rd_http::AddressPolicy::new(true).with_loopback();
+        assert_eq!(ask(&entered, url).await.as_deref(), Some("203.0.113.7"));
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    }
 
     #[test]
     fn an_address_survives_the_whitespace_around_it() {

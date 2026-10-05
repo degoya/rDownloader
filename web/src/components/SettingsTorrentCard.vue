@@ -88,7 +88,7 @@ const uploadLimitMiB = byteModel(
 </script>
 
 <template>
-  <section data-settings-anchor="torrent.settings" class="space-y-4 border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="torrent.settings" :ui="{ body: 'space-y-4' }">
     <div>
       <SectionHeader
         :eyebrow="t('settings.torrent.eyebrow')"
@@ -192,5 +192,5 @@ const uploadLimitMiB = byteModel(
       <USwitch v-model="settings.torrent_peer_addresses_visible" />
     </UFormField>
     <p class="text-xs leading-5 text-muted">{{ t('settings.torrent.restart_hint') }}</p>
-  </section>
+  </UCard>
 </template>

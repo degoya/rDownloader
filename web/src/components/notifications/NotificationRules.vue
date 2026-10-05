@@ -142,7 +142,7 @@ async function remove(rule: NotificationRule): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="notifications.rules" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="notifications.rules">
     <FormListLayout :list-title="t('notifications.rule.title')" :count="rules.length">
       <template #form>
         <SectionHeader
@@ -199,5 +199,5 @@ async function remove(rule: NotificationRule): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

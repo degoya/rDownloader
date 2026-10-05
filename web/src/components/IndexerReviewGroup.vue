@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Subscription, SubscriptionItem } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import IndexerReviewBulkActions from '@/components/IndexerReviewBulkActions.vue'
 import SubscriptionItemActions from '@/components/SubscriptionItemActions.vue'
 import SubscriptionItemRow from '@/components/SubscriptionItemRow.vue'
 import SubscriptionItemSlider from '@/components/SubscriptionItemSlider.vue'
@@ -95,24 +96,7 @@ function busy(itemId: string): boolean {
       <UBadge color="neutral" variant="subtle">
         {{ t('linkgrabber.indexers.group_hits', { count: props.total }, props.total) }}
       </UBadge>
-      <UButton
-        size="xs"
-        color="primary"
-        variant="soft"
-        icon="i-lucide-list-end"
-        :label="t('linkgrabber.indexers.queue_all')"
-        :loading="props.bulkBusy"
-        @click="emit('queueAll')"
-      />
-      <UButton
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-x"
-        :label="t('linkgrabber.indexers.dismiss_all')"
-        :disabled="props.bulkBusy"
-        @click="emit('dismissAll')"
-      />
+      <IndexerReviewBulkActions :busy="props.bulkBusy" @queue-all="emit('queueAll')" @dismiss-all="emit('dismissAll')" />
     </header>
 
     <div v-if="open" class="p-2">
@@ -160,8 +144,9 @@ function busy(itemId: string): boolean {
         </ul>
       </template>
     </div>
-    <!-- A long list scrolls the header's bulk actions away; they repeat here beside the pages.
-         The cards view has no pages (its slider loads more), but the actions repeat there too. -->
+    <!-- A long list scrolls the header's bulk actions away; they repeat here under every open
+         group with hits, whether or not it has pages (RD-1101-01): one page, several pages, or
+         the cards view, which has none because its slider loads more. -->
     <footer
       v-if="open && !props.loading && !props.error && props.items.length > 0"
       class="flex flex-wrap items-center gap-2 border-t border-muted p-2"
@@ -176,24 +161,7 @@ function busy(itemId: string): boolean {
         @update:page="emit('load', $event)"
       />
       <div class="ms-auto flex flex-wrap items-center gap-2">
-        <UButton
-          size="xs"
-          color="primary"
-          variant="soft"
-          icon="i-lucide-list-end"
-          :label="t('linkgrabber.indexers.queue_all')"
-          :loading="props.bulkBusy"
-          @click="emit('queueAll')"
-        />
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-x"
-          :label="t('linkgrabber.indexers.dismiss_all')"
-          :disabled="props.bulkBusy"
-          @click="emit('dismissAll')"
-        />
+        <IndexerReviewBulkActions :busy="props.bulkBusy" @queue-all="emit('queueAll')" @dismiss-all="emit('dismissAll')" />
       </div>
     </footer>
   </section>

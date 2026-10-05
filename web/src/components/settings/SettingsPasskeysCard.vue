@@ -130,7 +130,7 @@ function defaultLabel(): string {
 </script>
 
 <template>
-  <section data-settings-anchor="security.passkeys" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="security.passkeys">
     <SectionHeader :eyebrow="t('system.passkeys.eyebrow')" :title="t('system.passkeys.title')" :description="t('system.passkeys.description')" />
 
     <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
@@ -192,5 +192,5 @@ function defaultLabel(): string {
         @click="add"
       />
     </template>
-  </section>
+  </UCard>
 </template>

@@ -309,7 +309,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
           <div :style="columns.style.value">
           <QueueColumnHeader
             :widths="columns.widths.value"
-            :meta-label="t('common.queue_columns.meta_downloads')"
+            view="downloads"
             :gutter="rows.length > DEFAULT_THRESHOLD"
             :customized="columns.customized.value"
             @resize="columns.setWidth"

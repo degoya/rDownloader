@@ -15,6 +15,7 @@ mod openapi;
 mod routes;
 #[cfg(test)]
 mod scope_policy_tests;
+mod security_headers;
 mod static_assets;
 
 use std::net::SocketAddr;
@@ -259,8 +260,11 @@ pub fn router(state: AppState) -> Router {
     // The host check goes in front of everything, the mount point included: a request under a
     // name this service does not answer to is refused whatever path it asks for, the web
     // interface's own files among them (security review 2026-09-28, finding 3).
+    //
+    // The security headers wrap even that, so the refusal carries them too (audit 2026-10-05, S5).
     Router::new().fallback_service(
         tower::ServiceBuilder::new()
+            .layer(middleware::map_response(security_headers::add))
             .layer(middleware::from_fn_with_state(
                 state.clone(),
                 rd_api_core::host_check::require_known_host,

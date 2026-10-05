@@ -381,7 +381,10 @@ fn scaffold(args: &NewPluginArgs) -> Result<()> {
             public_key: &key.public_base64,
         },
     )?;
-    let key_path = args.out.join("plugin-signing.key");
+    // The ignore rules go in before the key does: a printed warning was the only guard, and
+    // `git add .` in a fresh plugin repository committed the private key (audit K1).
+    write_gitignore(&args.out)?;
+    let key_path = args.out.join(SIGNING_KEY_FILE);
     std::fs::write(&key_path, &key.private_pem)?;
     #[cfg(unix)]
     {
@@ -392,7 +395,7 @@ fn scaffold(args: &NewPluginArgs) -> Result<()> {
     println!("  id:      {id}");
     println!("  slug:    {slug}");
     println!(
-        "  key:     {} (keep this out of version control)",
+        "  key:     {} (listed in .gitignore; keep it out of version control)",
         key_path.display()
     );
     println!("next:");
@@ -420,6 +423,37 @@ fn sdk_templates() -> Result<PathBuf> {
         .flatten()
         .find(|path| path.is_dir())
         .context("could not find the SDK templates; run from a checkout of the repository")
+}
+
+/// The scaffold's private signing key, next to its manifest.
+const SIGNING_KEY_FILE: &str = "plugin-signing.key";
+
+/// What a scaffold keeps out of version control: the private key, the build output and the
+/// packages built from it.
+const IGNORED: [&str; 3] = [SIGNING_KEY_FILE, "target/", "*.rdplug"];
+
+/// Adds [`IGNORED`] to the scaffold's `.gitignore`, keeping whatever the template already put
+/// there.
+fn write_gitignore(directory: &std::path::Path) -> Result<()> {
+    let path = directory.join(".gitignore");
+    let mut text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => {
+            return Err(error).with_context(|| format!("read {}", path.display()));
+        }
+    };
+    for entry in IGNORED {
+        if text.lines().any(|line| line.trim() == entry) {
+            continue;
+        }
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(entry);
+        text.push('\n');
+    }
+    std::fs::write(&path, text).with_context(|| format!("write {}", path.display()))
 }
 
 /// What the template placeholders stand for.
@@ -463,7 +497,7 @@ fn copy_template(
 mod tests {
     use clap::ValueEnum;
 
-    use super::NewPluginType;
+    use super::{NewPluginArgs, NewPluginType};
 
     /// Every `--type` value has a template, and the template declares that very type.
     ///
@@ -522,5 +556,41 @@ mod tests {
             let copy = std::fs::read_to_string(&path).expect("template contract");
             assert_eq!(copy, contract, "{} is out of date", path.display());
         }
+    }
+
+    /// A fresh scaffold ignores its private key, its build output and its packages before the
+    /// key exists (audit K1): `git add .` in a new plugin repository committed the key.
+    #[test]
+    fn a_scaffold_ignores_its_signing_key() {
+        let root = std::env::temp_dir().join(format!("rd-pack-scaffold-{}", uuid::Uuid::now_v7()));
+        let out = root.join("probe");
+        super::scaffold(&NewPluginArgs {
+            plugin_type: NewPluginType::Resolver,
+            out: out.clone(),
+            name: None,
+        })
+        .expect("scaffold");
+        let ignore = std::fs::read_to_string(out.join(".gitignore")).expect("a .gitignore");
+        let lines: Vec<&str> = ignore.lines().collect();
+        assert!(
+            out.join("plugin-signing.key").is_file(),
+            "the scaffold's key"
+        );
+        for entry in ["plugin-signing.key", "target/", "*.rdplug"] {
+            assert!(lines.contains(&entry), "{entry} is not ignored: {ignore:?}");
+        }
+        std::fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A template's own `.gitignore` is kept, and an entry it already has is not repeated.
+    #[test]
+    fn the_scaffold_gitignore_keeps_what_the_template_wrote() {
+        let root = std::env::temp_dir().join(format!("rd-pack-gitignore-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&root).expect("directory");
+        std::fs::write(root.join(".gitignore"), "/notes\ntarget/").expect("template ignore");
+        super::write_gitignore(&root).expect("write");
+        let ignore = std::fs::read_to_string(root.join(".gitignore")).expect("read");
+        assert_eq!(ignore, "/notes\ntarget/\nplugin-signing.key\n*.rdplug\n");
+        std::fs::remove_dir_all(&root).expect("clean up");
     }
 }

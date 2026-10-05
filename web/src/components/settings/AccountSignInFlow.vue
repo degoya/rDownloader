@@ -6,6 +6,7 @@ import type { AuthFlow } from '@/api/types'
 import { isOpenFlow } from '@/composables/useAuthFlows'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import { safeHttpUrl } from '@/utils/safeUrl'
 
 /**
  * Where an account's sign-in stands (RD-090-13, RD-150-09).
@@ -43,7 +44,7 @@ const failure = computed(() => {
       <p class="text-xs leading-5 text-muted">{{ t('network.account.connect_instructions') }}</p>
       <a
         v-if="flow.verification_url"
-        :href="flow.verification_url"
+        :href="safeHttpUrl(flow.verification_url)"
         target="_blank"
         rel="noopener noreferrer"
         class="mt-2 block break-all font-mono text-sm text-highlighted underline"

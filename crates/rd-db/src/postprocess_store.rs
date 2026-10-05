@@ -316,6 +316,21 @@ impl TryFrom<StepRow> for PostprocessStep {
     type Error = anyhow::Error;
 
     fn try_from(row: StepRow) -> Result<Self> {
+        // A blob nobody can read is not worth failing a queue listing over: the English
+        // message is still there, and the code without its parameters still says what
+        // happened. A step has no id of its own; its owner and its file name it.
+        let params = row
+            .params_json
+            .as_deref()
+            .and_then(|value| {
+                crate::json_column::lenient(
+                    serde_json::from_str(value),
+                    "postprocess_steps",
+                    "params_json",
+                    format_args!("{} {}", row.owner_id, row.source_path),
+                )
+            })
+            .unwrap_or_default();
         Ok(Self {
             owner_id: row.owner_id,
             kind: parse_enum(&row.kind)?,
@@ -324,14 +339,7 @@ impl TryFrom<StepRow> for PostprocessStep {
             output_path: row.output_path,
             message: row.message,
             code: row.code,
-            // A blob nobody can read is not worth failing a queue listing over: the English
-            // message is still there, and the code without its parameters still says what
-            // happened.
-            params: row
-                .params_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
-                .unwrap_or_default(),
+            params,
             updated_at: row.updated_at,
             position: row.position,
             progress_percent: row

@@ -1,0 +1,72 @@
+name: CI warm cache
+
+# Keeps main's Rust cache current when the gate leaves platforms out (RD-1100-13). The caches
+# are saved from main only and every ci/* run restores main's; a release pushes to main a tree
+# that is green already, `rust` then does not run there, and nothing would renew the cache after
+# a toolchain or Cargo.lock change — the next wave's run would start cold (Linux 45 min against
+# 31 with main's cache, 2026-10-04). This builds what `rust` builds, clippy and every test
+# executable through scripts/ci-rust-tests.sh, runs nothing, and saves. Linux and Windows only:
+# macOS is checked at a release candidate and keeps no cache.
+#
+# Expected sizes, against the repository's 10 GB (to be measured after the first runs): the
+# `rust-tests` cache ~2.5 GB on Linux (2,503 MB restored on 2026-10-04) and about as much again
+# on Windows, `components` and the two `docker` legs ~1 GB each, the component and Docker layer
+# caches a few hundred MB — about 8 GB, all of it main's, where sccache and every ci/* branch's
+# own copies made 10.39 GB before.
+#
+# Called by ci.yml's `warm-cache` job once per image the gate left out (RD-1101-07 split it off;
+# the job is unchanged).
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: The runner image, one leg of the caller's matrix
+        required: true
+        type: string
+
+# As in ci.yml: nothing by default, the job names what it needs.
+permissions: {}
+
+env:
+  # ci.yml's, which a called workflow does not inherit; the Rust cache's key includes it.
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  warm-cache:
+    runs-on: ${{ inputs.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    env:
+      # ci.yml's `rust` job's linkers (its env says why), and so the same key for its cache: mold
+      # on Linux, the toolchain's LLVM linker on Windows.
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free runner disk
+        if: runner.os != 'Windows'
+        uses: ./.github/actions/free-runner-disk
+      - name: Install mold
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      # rust-embed wants web/dist to exist; nothing here serves it, so no `web` job for it.
+      - name: Placeholder web interface
+        shell: bash
+        run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: nextest@0.9.146
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Test executables, built and not run
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
+        run: scripts/ci-rust-tests.sh --no-run

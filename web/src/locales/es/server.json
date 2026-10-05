@@ -1163,7 +1163,11 @@
     "torrent.move_target_exists": "Ya existe una carpeta con ese nombre",
     "torrent.move_no_space": "No hay espacio libre suficiente para los archivos del torrent",
     "torrent.move_failed": "No se pudo iniciar el traslado",
-    "torrent.move_started": "Moviendo los archivos del torrent"
+    "torrent.move_started": "Moviendo los archivos del torrent",
+    "sftp.no_username": "El acceso SFTP guardado no indica ningún usuario; introduce un nombre de usuario",
+    "hotfolder.protected_directory": "Una carpeta vigilada no puede ser, contener ni estar dentro de un directorio desde el que el servicio ejecuta programas, scripts o plugins o en el que guarda sus datos ({directory}).",
+    "usenet.declared_size_implausible": "Los artículos anuncian un archivo de {declared} bytes, mucho más que los {listed} bytes que indica el NZB; el archivo no se ensambló",
+    "usenet.gap_fill_no_space": "No hay espacio libre suficiente para rellenar los huecos de los artículos que faltan (se necesitan {required} bytes incluida la reserva, {free} libres); se reintentará más tarde"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

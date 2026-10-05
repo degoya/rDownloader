@@ -31,7 +31,10 @@ export default defineConfig({
           neutral: 'slate',
           warning: 'amber',
           error: 'coral'
-        }
+        },
+        // A card stands off the page by its ground, not by an outline on the page's own colour
+        // (RD-1101-09); a card nested in another names `variant="outline"` itself.
+        card: { defaultVariants: { variant: 'soft' } }
       },
       icon: { clientBundle: iconClientBundle }
     })

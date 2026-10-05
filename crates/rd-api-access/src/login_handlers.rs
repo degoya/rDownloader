@@ -114,10 +114,14 @@ pub async fn login(
     // Checked before the password, and reported as a refusal rather than a wrong password:
     // telling a locked-out caller "invalid credentials" would leave them guessing at why a
     // password they know is right keeps failing.
-    if let Err(refusal) = state.auth.gate(client.0).await {
-        note_failed_login_audit(&state, client.0, "locked_out").await;
-        return Err(refusal);
-    }
+    // Held until the verdict is recorded: until then the attempt counts as a failure.
+    let _attempt = match state.auth.gate(client.0).await {
+        Ok(attempt) => attempt,
+        Err(refusal) => {
+            note_failed_login_audit(&state, client.0, "locked_out").await;
+            return Err(refusal);
+        }
+    };
     // Switched off after a proven sign-in through the identity provider (D3, RD-190-15). Refused
     // before the password is looked at, so the refusal says nothing about it; the password stays
     // the step-up credential everywhere else. Only `rdownloader auth password-login on`, on this

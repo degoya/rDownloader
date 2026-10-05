@@ -35,7 +35,7 @@ const COMPATIBILITY_OVERRIDE_TOOLS = ['yt-dlp', 'gallery-dl', 'streamlink', 'ffm
         level="page"
       />
     </header>
-    <section class="border border-muted bg-default p-5">
+    <UCard as="section">
       <SectionHeader :eyebrow="t('settings.vendor.directory.eyebrow')" :title="t('settings.vendor.directory.title')" level="sub" />
       <UFormField
         data-settings-anchor="tools.vendor_directory"
@@ -68,7 +68,7 @@ const COMPATIBILITY_OVERRIDE_TOOLS = ['yt-dlp', 'gallery-dl', 'streamlink', 'ffm
           :placeholder="t('settings.managed_tools.overrides_placeholder')"
         />
       </UFormField>
-    </section>
+    </UCard>
 
     <SettingsToolStatus />
     <SettingsManagedTools />

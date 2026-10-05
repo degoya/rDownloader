@@ -76,7 +76,8 @@
     "truncated_entries": "Solo se muestran las primeras {limit} entradas. Limite el enlace a una subcarpeta para ver el resto.",
     "truncated_depth": "No se leyeron las subcarpetas más allá de {limit} niveles.",
     "select_all": "Seleccionar todo",
-    "select_none": "No seleccionar nada"
+    "select_none": "No seleccionar nada",
+    "toggle_folder": "Expandir o contraer la carpeta {name}"
   },
   "settings": {
     "title": "Límites de transferencia",

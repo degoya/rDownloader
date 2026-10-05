@@ -25,7 +25,7 @@ const { t } = useI18n()
         level="page"
       />
     </header>
-    <section data-settings-anchor="services.switches" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="services.switches">
       <div class="flex flex-col gap-4">
         <div>
           <SectionHeader
@@ -73,6 +73,6 @@ const { t } = useI18n()
         </UFormField>
         <p class="text-xs leading-5 text-muted">{{ t('settings.services.hint') }}</p>
       </div>
-    </section>
+    </UCard>
   </div>
 </template>

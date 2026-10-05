@@ -119,7 +119,7 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 /// endpoints that receive what the service holds -- the trace export, the DLC decryption
 /// service -- are the third kind: pointing one elsewhere hands somebody else the data.
 fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Option<&'static str> {
-    let fields: [(&'static str, bool); 19] = [
+    let fields: [(&'static str, bool); 24] = [
         (
             "admin_login_disabled",
             current.admin_login_disabled != next.admin_login_disabled,
@@ -203,6 +203,30 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
                 || current.media_ffmpeg_executable != next.media_ffmpeg_executable
                 || current.gallery_executable != next.gallery_executable
                 || current.record_streamlink_executable != next.record_streamlink_executable,
+        ),
+        // The reconnect runs a script and then asks addresses of somebody's choosing what the
+        // public address is (audit 2026-10-05, S8): a program and a recipient at once.
+        (
+            "reconnect_enabled",
+            current.reconnect_enabled != next.reconnect_enabled,
+        ),
+        (
+            "reconnect_script",
+            current.reconnect_script != next.reconnect_script,
+        ),
+        (
+            "reconnect_ip_check_urls",
+            current.reconnect_ip_check_urls != next.reconnect_ip_check_urls,
+        ),
+        // Files the service reads wherever they are (audit 2026-10-05, S9): every line of the
+        // password list becomes an argument of the unpacker, which the process list shows.
+        (
+            "passwords_file",
+            current.passwords_file != next.passwords_file,
+        ),
+        (
+            "excluded_domains_file",
+            current.excluded_domains_file != next.excluded_domains_file,
         ),
     ];
     fields

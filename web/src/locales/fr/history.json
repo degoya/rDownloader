@@ -1,5 +1,4 @@
 {
-  "title": "Historique des téléchargements",
   "intro": "Tout ce qui s’est terminé ou a échoué définitivement, même après que le paquet a été retiré de la liste ou nettoyé automatiquement. Les adresses sont conservées sans mots de passe ni jetons ; les mots de passe d’archive ne sont jamais enregistrés.",
   "filters": {
     "search": "Rechercher",

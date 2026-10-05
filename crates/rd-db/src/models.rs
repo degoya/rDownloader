@@ -7,7 +7,7 @@ use rd_core::{
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::{error::StoreError, parse_id};
+use crate::{error::StoreError, json_column::lenient, parse_id};
 
 /// Fields required to create a package.
 #[derive(Clone, Debug)]
@@ -169,8 +169,20 @@ pub(crate) fn parse_kind(value: &str) -> rd_core::DownloadKind {
     })
 }
 
-pub(crate) fn parse_level(value: Option<&str>) -> Option<rd_core::PostprocessLevel> {
-    value.and_then(|text| serde_json::from_str(&format!("\"{text}\"")).ok())
+/// The `postprocess_level` column of `table`; an unknown level is logged and reads as none.
+pub(crate) fn parse_level(
+    value: Option<&str>,
+    table: &str,
+    row: impl std::fmt::Display,
+) -> Option<rd_core::PostprocessLevel> {
+    value.and_then(|text| {
+        lenient(
+            serde_json::from_str(&format!("\"{text}\"")),
+            table,
+            "postprocess_level",
+            row,
+        )
+    })
 }
 
 /// Reads an enrichment column back (RD-107-02).
@@ -178,9 +190,13 @@ pub(crate) fn parse_level(value: Option<&str>) -> Option<rd_core::PostprocessLev
 /// A column that cannot be parsed reads as "no fields" rather than failing the row: these are
 /// additions beside the core data, and a package that refuses to load because a plugin's
 /// field list is malformed would be a far worse outcome than a missing chip.
-pub(crate) fn parse_enrichment(value: Option<&str>) -> Vec<rd_core::EnrichmentField> {
+pub(crate) fn parse_enrichment(
+    value: Option<&str>,
+    table: &str,
+    row: impl std::fmt::Display,
+) -> Vec<rd_core::EnrichmentField> {
     value
-        .and_then(|text| serde_json::from_str(text).ok())
+        .and_then(|text| lenient(serde_json::from_str(text), table, "enrichment_json", row))
         .unwrap_or_default()
 }
 
@@ -206,7 +222,7 @@ impl TryFrom<PackageRow> for DownloadPackage {
             kind: parse_kind(&row.kind),
             nzb_import_id: row.nzb_import_id.as_deref().map(parse_id).transpose()?,
             completed_at: row.completed_at,
-            postprocess_level: parse_level(row.postprocess_level.as_deref()),
+            postprocess_level: parse_level(row.postprocess_level.as_deref(), "packages", &row.id),
             script: row.script,
             postprocess: rd_core::PostprocessStatus {
                 stage: row
@@ -222,7 +238,7 @@ impl TryFrom<PackageRow> for DownloadPackage {
                 .extraction_result
                 .as_deref()
                 .and_then(|value| value.parse().ok()),
-            enrichment: parse_enrichment(row.enrichment_json.as_deref()),
+            enrichment: parse_enrichment(row.enrichment_json.as_deref(), "packages", &row.id),
         })
     }
 }
@@ -274,10 +290,14 @@ impl TryFrom<DownloadRow> for DownloadFile {
                 .transpose()?,
             mirror_group: row.mirror_group,
             recovery: row.recovery,
-            recording: row
-                .recording_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok()),
+            recording: row.recording_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "downloads",
+                    "recording_json",
+                    &row.id,
+                )
+            }),
             auth_profile: rd_core::AuthProfileSelection::from_columns(
                 row.auth_profile_id.as_deref().map(parse_id).transpose()?,
                 row.auth_profile_pinned,
@@ -291,7 +311,7 @@ impl TryFrom<DownloadRow> for DownloadFile {
                 .map(serde_json::from_str)
                 .transpose()
                 .context("parse media selection")?,
-            enrichment: parse_enrichment(row.enrichment_json.as_deref()),
+            enrichment: parse_enrichment(row.enrichment_json.as_deref(), "downloads", &row.id),
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

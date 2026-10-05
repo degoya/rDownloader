@@ -128,4 +128,13 @@ describe('TorrentFileTree', () => {
     expect(screen.getByText('*.nfo')).toBeTruthy()
     expect(screen.getByText('2 of 3 files selected')).toBeTruthy()
   })
+
+  it('says on each folder toggle whether the folder is open (RD-1101-10)', async () => {
+    renderTree()
+    const toggle = screen.getByRole('button', { name: 'Expand or collapse extras' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    await fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('poster.jpg')).toBeNull()
+  })
 })

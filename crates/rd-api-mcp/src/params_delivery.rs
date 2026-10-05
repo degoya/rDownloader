@@ -111,11 +111,14 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
 pub(crate) struct CreateNotificationTargetParams {
     pub name: String,
     pub kind: TargetKindParam,
-    /// Webhook: the URL. SMTP: `host:port`. Apprise: the service scheme.
+    /// Webhook: the URL — the person's own network and this machine are fine, a link-local
+    /// address and rDownloader's own ports are refused at delivery, and a redirect is not
+    /// followed. SMTP: `host:port`. Apprise: the service scheme.
     pub endpoint: String,
     /// Settings without any secret: SMTP TLS mode, sender and recipients, webhook headers,
     /// `plugin_id` for a plugin destination and its `settings` object (name to value, as the
-    /// destination list declares them; ntfy's `priority_info`, for example).
+    /// destination list declares them; ntfy's `priority_info`, for example). Apprise:
+    /// `executable`, the program it runs, which needs `api:admin`.
     pub config: Option<serde_json::Map<String, serde_json::Value>>,
     pub enabled: Option<bool>,
 }
@@ -126,6 +129,8 @@ pub(crate) struct UpdateNotificationTargetParams {
     pub name: Option<String>,
     pub kind: Option<TargetKindParam>,
     pub endpoint: Option<String>,
+    /// Replaces the whole configuration. Setting or changing an apprise `executable` needs
+    /// `api:admin`.
     pub config: Option<serde_json::Map<String, serde_json::Value>>,
     pub enabled: Option<bool>,
 }

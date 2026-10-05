@@ -310,7 +310,7 @@ function proxyName(id: string | null | undefined): string {
         level="page"
       />
     </header>
-    <section data-settings-anchor="accounts.list" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="accounts.list">
       <FormListLayout :list-title="t('network.account.title')" :count="accounts.length">
         <template #form>
           <SectionHeader
@@ -476,6 +476,6 @@ function proxyName(id: string | null | undefined): string {
           </div>
         </template>
       </FormListLayout>
-    </section>
+    </UCard>
   </div>
 </template>

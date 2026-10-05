@@ -107,4 +107,13 @@ describe('remote file tree', () => {
     mount(listing({ truncated: 'entry_count' } as Partial<ResolvedRemoteListing>))
     expect(screen.getByText(/Only the first/)).toBeTruthy()
   })
+
+  it('names each folder toggle and says whether the folder is open (RD-1101-10)', async () => {
+    mount()
+    const toggle = screen.getByRole('button', { name: 'Expand or collapse folder extras' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    await fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('notes.txt')).toBeNull()
+  })
 })

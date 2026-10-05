@@ -290,7 +290,7 @@ function proxyName(id: string | null | undefined): string {
     </header>
     <FormListLayout>
       <template #form>
-        <section data-settings-anchor="usenet.server" class="border border-muted bg-default p-5">
+        <UCard as="section" data-settings-anchor="usenet.server">
           <SectionHeader :eyebrow="t('usenet.form.eyebrow')" :title="editingId ? t('usenet.form.title_edit') : t('usenet.form.title_add')" />
           <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
           <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" />
@@ -334,11 +334,11 @@ function proxyName(id: string | null | undefined): string {
               @cancel="list.reset"
             />
           </form>
-        </section>
+        </UCard>
       </template>
 
       <template #list>
-        <section data-settings-anchor="usenet.chain" class="border border-muted bg-default p-5">
+        <UCard as="section" data-settings-anchor="usenet.chain">
           <div class="mb-4 flex items-start justify-between gap-4">
             <div>
               <SectionHeader :eyebrow="t('usenet.chain.eyebrow')" :title="t('usenet.chain.title')" />
@@ -374,12 +374,13 @@ function proxyName(id: string | null | undefined): string {
                   />
                 </div>
                 <div class="min-w-0 flex-1 basis-40">
-                  <div class="flex items-center gap-2"><span class="size-2" :class="server.enabled ? 'bg-success' : 'bg-muted'" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
+                  <div class="flex items-center gap-2"><span class="size-2" :class="server.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
                   <p class="mt-1 truncate font-mono text-xs text-muted">{{ server.host }}:{{ server.port }}</p>
                   <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }} · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <UBadge v-if="editingId === server.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+                  <UBadge v-if="!server.enabled" color="neutral" variant="subtle">{{ t('usenet.chain.disabled') }}</UBadge>
                   <UBadge :color="server.tls ? 'success' : 'warning'" variant="subtle">{{ server.tls ? 'TLS' : 'PLAIN' }}</UBadge>
                   <UIcon v-if="server.has_password" name="i-lucide-key-round" class="text-primary" />
                   <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="testingId === server.id" @click="testServer(server.id)" />
@@ -403,7 +404,7 @@ function proxyName(id: string | null | undefined): string {
               <p class="signal-grid border border-dashed border-muted p-10 text-center text-sm text-muted">{{ t('usenet.chain.empty') }}</p>
             </DataState>
           </div>
-        </section>
+        </UCard>
       </template>
     </FormListLayout>
     <!-- The indexers the LinkGrabber searches (RD-180-19); the setup wizard asks for servers only. -->

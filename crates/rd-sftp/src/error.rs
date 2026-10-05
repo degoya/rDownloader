@@ -21,6 +21,8 @@ pub const LISTING_TOO_LARGE: &str = "sftp.listing_too_large";
 pub const UNSAFE_PATH: &str = "sftp.unsafe_path";
 /// No stored login matches the server the link points at.
 pub const NO_CREDENTIAL: &str = "sftp.no_credential";
+/// The stored login names no user to sign in as.
+pub const NO_USERNAME: &str = "sftp.no_username";
 
 /// Turns a transport-level `russh` error into a coded queue failure.
 ///
@@ -141,6 +143,16 @@ pub fn no_credential(host: &str) -> Failure {
         "No stored login matches this SFTP server",
     )
     .with_param("host", host)
+}
+
+/// The failure raised when a stored login names no user.
+#[must_use]
+pub fn no_username() -> Failure {
+    Failure::coded(
+        FailureKind::AuthRequired,
+        NO_USERNAME,
+        "The stored SFTP login names no user to sign in as",
+    )
 }
 
 #[cfg(test)]

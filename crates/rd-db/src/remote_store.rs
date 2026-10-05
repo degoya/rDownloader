@@ -312,10 +312,14 @@ pub(crate) async fn set_candidate_listing(
     let mut state = rd_core::RemoteCandidateState::resolved(listing);
     // A re-check of the same directory must not throw away what the user already
     // deselected; a listing of a different root is a different review.
-    if let Some(previous) = previous
-        .as_deref()
-        .and_then(|value| serde_json::from_str::<rd_core::RemoteCandidateState>(value).ok())
-        && previous.listing.root == state.listing.root
+    if let Some(previous) = previous.as_deref().and_then(|value| {
+        crate::json_column::lenient::<rd_core::RemoteCandidateState>(
+            serde_json::from_str(value),
+            "link_candidates",
+            "listing_json",
+            &id,
+        )
+    }) && previous.listing.root == state.listing.root
     {
         state.plan = previous.plan;
     }

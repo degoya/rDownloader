@@ -88,12 +88,23 @@ stale
 
 Hand-written text after.
 EOF
+# What check-sdk-templates.sh holds the templates to besides their worlds (RD-1101-17): the
+# workspace's version and wit-bindgen, the API versions the core accepts and the SDK pins.
+mkdir -p "$TREE/crates/rd-plugin-host/src" "$TREE/sdk/ci"
+printf '[workspace.package]\nversion = "1.10.0"\n\n[workspace.dependencies]\nwit-bindgen = "0.62"\n' \
+    > "$TREE/Cargo.toml"
+printf 'pub const SUPPORTED_API_VERSIONS: &[&str] = &["0.10.0"];\n' \
+    > "$TREE/crates/rd-plugin-host/src/manifest.rs"
+for workflow in plugin repository; do
+    printf 'env:\n  RDOWNLOADER_VERSION: 1.10.0\n' > "$TREE/sdk/ci/$workflow.yml"
+done
 for world in alpha beta; do
     mkdir -p "$TREE/sdk/templates/$world/wit" "$TREE/sdk/templates/$world/src"
     cp "$WIT" "$TREE/sdk/templates/$world/wit/rdownloader.wit"
-    printf '[package.metadata.component.target]\npath = "wit"\nworld = "%s-plugin"\n' "$world" \
+    printf '[dependencies]\nwit-bindgen = "0.62"\n\n[package.metadata.component.target]\npath = "wit"\nworld = "%s-plugin"\n' "$world" \
         > "$TREE/sdk/templates/$world/Cargo.toml"
-    printf 'plugin_type = "%s"\n' "$world" > "$TREE/sdk/templates/$world/manifest.toml"
+    printf 'api_version = "0.10.0"\nplugin_type = "%s"\n\n[metadata]\nmin_app_version = "1.9.0"\n' "$world" \
+        > "$TREE/sdk/templates/$world/manifest.toml"
     printf '# {{PLUGIN_NAME}}\n' > "$TREE/sdk/templates/$world/README.md"
     printf '#[test]\nfn works() {}\n' > "$TREE/sdk/templates/$world/src/lib.rs"
 done

@@ -1,8 +1,8 @@
 use chrono::{DateTime, TimeZone, Utc};
 
 use super::{
-    Activity, QueueMenu, Summary, TOOLTIP_LIMIT, describe, format_duration, format_rate, pause_end,
-    status_line, tooltip,
+    Activity, QueueEntries, QueueMenu, Summary, TOOLTIP_LIMIT, describe, format_duration,
+    format_rate, pause_end, status_line, tooltip,
 };
 
 fn summary(active: u32, queued: u32, failed: u32, committed: u64, total: u64) -> Summary {
@@ -49,15 +49,15 @@ fn nothing_running_says_so_and_leaves_the_icon_idle() {
         Activity {
             running: false,
             detail: "no transfers".to_owned(),
-            queue: QueueMenu::Hidden,
+            queue: QueueMenu::Locked,
         }
     );
 }
 
-/// An agent paired without queue control is offered nothing, whatever the queue does
-/// (RD-1100-06).
+/// An agent paired without queue control sees the entries greyed out with the pairing hint,
+/// whatever the queue does: hidden, they were never found (RD-1101-06).
 #[test]
-fn without_queue_control_the_menu_offers_no_queue_entry() {
+fn without_queue_control_the_menu_shows_the_entries_locked() {
     for figures in [
         summary(0, 0, 0, 0, 0),
         summary(3, 2, 0, 0, 0),
@@ -67,35 +67,59 @@ fn without_queue_control_the_menu_offers_no_queue_entry() {
             ..summary(0, 0, 0, 0, 0)
         },
     ] {
-        assert_eq!(describe(figures).queue, QueueMenu::Hidden, "{figures:?}");
+        assert_eq!(describe(figures).queue, QueueMenu::Locked, "{figures:?}");
     }
 }
 
-/// Pause while anything is waiting or moving, and on an empty queue; resume while a timed
-/// pause holds or everything left is paused.
+fn offered(start: bool, pause: bool, timed_pause: bool) -> QueueMenu {
+    QueueMenu::Offered(QueueEntries {
+        start,
+        pause,
+        timed_pause,
+    })
+}
+
+/// "Start all" while a timed pause holds or files are paused; "Pause all" while anything is
+/// downloading or waiting; the timed pauses whenever none holds, an empty queue included
+/// (RD-1101-06).
 #[test]
-fn the_queue_entries_follow_what_there_is_to_pause_or_resume() {
+fn each_queue_entry_is_enabled_while_it_would_do_something() {
     assert_eq!(
         describe(controlling(summary(0, 0, 0, 0, 0))).queue,
-        QueueMenu::Pause
+        offered(false, false, true),
+        "an empty queue can only be held for a while"
     );
     assert_eq!(
         describe(controlling(summary(1, 2, 0, 0, 0))).queue,
-        QueueMenu::Pause
+        offered(false, true, true)
     );
     let mut all_paused = controlling(summary(0, 0, 1, 0, 0));
     all_paused.paused = 3;
-    assert_eq!(describe(all_paused).queue, QueueMenu::Resume);
+    assert_eq!(
+        describe(all_paused).queue,
+        offered(true, false, true),
+        "a failed file is not started from the tray"
+    );
     let mut some_paused = controlling(summary(0, 2, 0, 0, 0));
     some_paused.paused = 3;
     assert_eq!(
         describe(some_paused).queue,
-        QueueMenu::Pause,
-        "something still waits"
+        offered(true, true, true),
+        "something waits and something is paused: both entries do something"
     );
     let mut timed = controlling(summary(0, 0, 0, 0, 0));
     timed.paused_until = Some(at(18, 30));
-    assert_eq!(describe(timed).queue, QueueMenu::Resume);
+    assert_eq!(
+        describe(timed).queue,
+        offered(true, false, false),
+        "a timed pause holds: only starting ends it"
+    );
+    let mut timed_with_new_links = controlling(summary(0, 4, 0, 0, 0));
+    timed_with_new_links.paused_until = Some(at(18, 30));
+    assert_eq!(
+        describe(timed_with_new_links).queue,
+        offered(true, false, false)
+    );
 }
 
 /// A timed pause leads the line, and paused files are counted like the others.
@@ -125,22 +149,22 @@ fn a_pause_end_is_a_clock_today_and_a_date_beyond() {
     );
 }
 
-/// A service without the pause fields still parses, and offers no queue entry.
+/// A service without the pause fields still parses, and offers no entry that could be chosen.
 #[test]
-fn a_service_without_the_pause_fields_offers_no_queue_entry() {
+fn a_service_without_the_pause_fields_offers_the_entries_locked() {
     let parsed: Summary = serde_json::from_str(
         r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100"}"#,
     )
     .expect("parse");
     assert_eq!(parsed.paused, 0);
     assert_eq!(parsed.paused_until, None);
-    assert_eq!(describe(parsed).queue, QueueMenu::Hidden);
+    assert_eq!(describe(parsed).queue, QueueMenu::Locked);
     let current: Summary = serde_json::from_str(
         r#"{"active":0,"queued":0,"failed":0,"committed_bytes":"0","total_bytes":"0","paused":1,"paused_until":"2026-10-04T18:30:00Z","queue_control":true}"#,
     )
     .expect("parse");
     assert_eq!(current.paused_until, Some(at(18, 30)));
-    assert_eq!(describe(current).queue, QueueMenu::Resume);
+    assert_eq!(describe(current).queue, offered(true, false, false));
 }
 
 #[test]

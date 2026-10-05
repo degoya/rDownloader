@@ -1,5 +1,4 @@
 {
-  "title": "Download history",
   "intro": "Everything that finished or failed for good — also after the package was removed from the list or cleaned up automatically. Addresses are kept without passwords or tokens; archive passwords are never stored.",
   "filters": {
     "search": "Search",

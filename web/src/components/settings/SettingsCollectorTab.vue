@@ -21,7 +21,7 @@ const FORMAT_KEYS = ['one_per_line', 'comments', 'www', 'subdomains'] as const
 
 <template>
   <div class="space-y-4">
-    <section data-settings-anchor="routing.collector" class="grid gap-4 border border-muted bg-default p-5 md:grid-cols-2">
+    <UCard as="section" data-settings-anchor="routing.collector" :ui="{ body: 'grid gap-4 md:grid-cols-2' }">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -52,8 +52,8 @@ example.com
 www.tracker.example
 ads.example.org</pre>
       </div>
-    </section>
-    <section data-settings-anchor="routing.dlc" class="border border-muted bg-default p-5">
+    </UCard>
+    <UCard as="section" data-settings-anchor="routing.dlc">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -83,9 +83,9 @@ ads.example.org</pre>
           />
         </UFormField>
       </div>
-    </section>
+    </UCard>
 
-    <section data-settings-anchor="routing.indexer_images" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="routing.indexer_images">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -99,9 +99,9 @@ ads.example.org</pre>
           <USwitch v-model="settings.subscription_item_images_enabled" />
         </UFormField>
       </div>
-    </section>
+    </UCard>
 
-    <section data-settings-anchor="routing.nzb_hand_over" class="border border-muted bg-default p-5">
+    <UCard as="section" data-settings-anchor="routing.nzb_hand_over">
       <div class="space-y-4">
         <div>
           <SectionHeader
@@ -118,6 +118,6 @@ ads.example.org</pre>
           <USwitch v-model="settings.nzb_hand_over_downloads_enabled" />
         </UFormField>
       </div>
-    </section>
+    </UCard>
   </div>
 </template>

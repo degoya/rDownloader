@@ -76,7 +76,8 @@
     "truncated_entries": "Seules les {limit} premières entrées sont affichées. Restreignez le lien à un sous-dossier pour voir le reste.",
     "truncated_depth": "Les sous-dossiers au-delà de {limit} niveaux n'ont pas été lus.",
     "select_all": "Tout sélectionner",
-    "select_none": "Tout désélectionner"
+    "select_none": "Tout désélectionner",
+    "toggle_folder": "Développer ou réduire le dossier {name}"
   },
   "settings": {
     "title": "Limites de transfert",

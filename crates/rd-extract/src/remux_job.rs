@@ -147,16 +147,42 @@ pub(crate) async fn run(
     }
 }
 
+/// The ffmpeg arguments that join the segments `list` names into `output`.
+///
+/// `-safe 0` because a segment is named after a stream title, which the demuxer's safe mode
+/// refuses for its characters alone; every name in the list is a bare file name in the
+/// recording's own folder (see `run`). What a segment holds is the provider's, though, and the
+/// concat demuxer probes each one: a playlist served as a segment would open its own inputs.
+/// `-protocol_whitelist file` keeps every input local - the concat demuxer and the demuxers
+/// below it hand the list on to what they open (RD-1101-16, audit S18).
+fn ffmpeg_arguments(list: &Path, output: &Path) -> Vec<std::ffi::OsString> {
+    let mut arguments: Vec<std::ffi::OsString> = [
+        "-nostdin",
+        "-y",
+        "-protocol_whitelist",
+        "file",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+    ]
+    .into_iter()
+    .map(std::ffi::OsString::from)
+    .collect();
+    arguments.push(list.as_os_str().to_owned());
+    // Stream copy: a recording must not be re-encoded, which would take hours and lose
+    // quality for nothing.
+    arguments.extend(["-c", "copy"].map(std::ffi::OsString::from));
+    arguments.push(output.as_os_str().to_owned());
+    arguments
+}
+
 async fn run_ffmpeg(ffmpeg: &Path, directory: &Path, list: &Path, output: &Path) -> Result<()> {
     let mut command = tokio::process::Command::new(ffmpeg);
     command
         .current_dir(directory)
-        .args(["-nostdin", "-y", "-f", "concat", "-safe", "0", "-i"])
-        .arg(list)
-        // Stream copy: a recording must not be re-encoded, which would take hours and lose
-        // quality for nothing.
-        .args(["-c", "copy"])
-        .arg(output)
+        .args(ffmpeg_arguments(list, output))
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
@@ -193,7 +219,7 @@ pub(crate) fn segments_of(state: &rd_core::RecordingState, directory: &Path) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::segments_of;
+    use super::{ffmpeg_arguments, segments_of};
     use chrono::Utc;
     use rd_core::{RecordingSegment, RecordingState, SegmentEnd};
 
@@ -239,5 +265,30 @@ mod tests {
     #[test]
     fn a_recording_with_no_segments_yields_nothing_to_join() {
         assert!(segments_of(&RecordingState::default(), std::path::Path::new("/tmp")).is_empty());
+    }
+
+    /// RD-1101-16 (audit S18): every input the join opens is a local file, and the whitelist
+    /// is an input option, so it stands before the `-i` it applies to.
+    #[test]
+    fn the_join_opens_local_files_only() {
+        let arguments: Vec<String> = ffmpeg_arguments(
+            std::path::Path::new("show.concat.txt"),
+            std::path::Path::new("show.mkv"),
+        )
+        .into_iter()
+        .map(|argument| argument.to_string_lossy().into_owned())
+        .collect();
+        let whitelist = arguments
+            .iter()
+            .position(|argument| argument == "-protocol_whitelist")
+            .expect("a protocol whitelist");
+        assert_eq!(arguments[whitelist + 1], "file");
+        let input = arguments
+            .iter()
+            .position(|argument| argument == "-i")
+            .expect("an input");
+        assert!(whitelist < input);
+        assert_eq!(arguments[input + 1], "show.concat.txt");
+        assert_eq!(arguments.last().map(String::as_str), Some("show.mkv"));
     }
 }

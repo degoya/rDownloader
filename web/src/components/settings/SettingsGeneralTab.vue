@@ -85,7 +85,7 @@ const uiPort = computed<number | null>({
         level="page"
       />
     </header>
-    <section class="grid gap-4 border border-muted bg-default p-5">
+    <UCard as="section" :ui="{ body: 'grid gap-4' }">
       <UFormField :label="t('settings.active_files.label')" :description="t('settings.active_files.description')">
         <UInput v-model.number="settings.max_active_files" type="number" min="1" max="32" icon="i-lucide-files" class="mt-2 w-full" />
       </UFormField>
@@ -193,6 +193,6 @@ const uiPort = computed<number | null>({
         </template>
         <USwitch v-model="settings.admin_login_disabled" />
       </UFormField>
-    </section>
+    </UCard>
   </div>
 </template>

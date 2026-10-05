@@ -143,8 +143,13 @@ for workflow in "$ROOT"/.github/workflows/*.yml; do
             "! starts_on_tag '$workflow' '$tag'"
     done
 done
+# The index is built by release-plugins.yml, which release.yml calls; a called workflow does not
+# inherit the caller's env, so both name the plugin release's tag, and alike (RD-1101-07).
+plugins_yml="$ROOT/.github/workflows/release-plugins.yml"
 expect "the index points into the plugin release" "1" \
-    "$(grep -cF 'releases/download/${PLUGIN_RELEASE_TAG}/' "$release_yml")"
+    "$(grep -cF 'releases/download/${PLUGIN_RELEASE_TAG}/' "$plugins_yml")"
+expect "release-plugins.yml names the plugin release's tag as release.yml does" \
+    "$(grep -E '^  PLUGIN_RELEASE_TAG: ' "$release_yml")" "$(grep -E '^  PLUGIN_RELEASE_TAG: ' "$plugins_yml")"
 expect "the plugin release is never latest" "1" "$(grep -c '^ *make_latest: false$' "$release_yml")"
 
 finish_tests "release-assets"

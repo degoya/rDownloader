@@ -409,7 +409,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       <p v-if="props.download.media" class="flex min-w-0 items-center gap-1.5">
         <UIcon :name="kindIcon" class="size-3.5 shrink-0" />
         <span class="shrink-0">{{ t('downloads.media.variant') }} <span class="font-mono text-toned">{{ props.download.media.variant_id }}</span></span>
-        <a :href="props.download.media.page_url" target="_blank" rel="noopener noreferrer" class="min-w-0 truncate font-mono hover:underline" :title="t('downloads.media.open_page')">{{ props.download.media.page_url }}</a>
+        <a :href="sourcePage ?? undefined" target="_blank" rel="noopener noreferrer" class="min-w-0 truncate font-mono hover:underline" :title="t('downloads.media.open_page')">{{ props.download.media.page_url }}</a>
       </p>
       <p v-if="props.destination" class="flex min-w-0 items-center gap-1 font-mono" :title="props.destination">
         <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" />

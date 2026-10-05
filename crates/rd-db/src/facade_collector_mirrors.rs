@@ -13,7 +13,14 @@ impl Database {
         Ok(self
             .get_setting(crate::MIRROR_PREFERENCE_KEY)
             .await?
-            .and_then(|value| serde_json::from_value(value).ok())
+            .and_then(|value| {
+                crate::json_column::lenient(
+                    serde_json::from_value(value),
+                    "settings",
+                    "value_json",
+                    crate::MIRROR_PREFERENCE_KEY,
+                )
+            })
             .unwrap_or_default())
     }
 

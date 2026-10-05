@@ -73,73 +73,75 @@ onMounted(() => {
     <template #body>
       <p class="mb-4 text-sm leading-6 text-muted">{{ t('audit.intro') }}</p>
 
-      <form class="mb-4 grid gap-3 border border-muted bg-default p-4 md:grid-cols-6" @submit.prevent="store.refresh()">
-        <UFormField :label="t('audit.filters.action')">
-          <USelect
-            v-model="store.filters.action"
-            :items="[{ value: 'all', label: t('audit.filters.any_action') }, ...store.actions.map(action => ({ value: action, label: actionLabel(action) }))]"
-            value-key="value"
-            class="w-full"
-            data-testid="audit-action"
-          />
-        </UFormField>
-        <UFormField :label="t('audit.filters.outcome')">
-          <USelect
-            v-model="store.filters.outcome"
-            :items="[
-              { value: 'all', label: t('audit.filters.any_outcome') },
-              { value: 'success', label: t('audit.outcomes.success') },
-              { value: 'failure', label: t('audit.outcomes.failure') }
-            ]"
-            value-key="value"
-            class="w-full"
-            data-testid="audit-outcome"
-          />
-        </UFormField>
-        <UFormField :label="t('audit.filters.actor_kind')">
-          <USelect
-            v-model="store.filters.actorKind"
-            :items="[{ value: 'all', label: t('audit.filters.any_actor') }, ...ACTOR_KINDS.map(kind => ({ value: kind, label: t(`audit.actors.${kind}`) }))]"
-            value-key="value"
-            class="w-full"
-            data-testid="audit-actor-kind"
-          />
-        </UFormField>
-        <UFormField :label="t('audit.filters.target_kind')">
-          <UInput v-model="store.filters.targetKind" :placeholder="t('audit.filters.target_placeholder')" class="w-full" data-testid="audit-target-kind" />
-        </UFormField>
-        <UFormField :label="t('audit.filters.target_id')">
-          <UInput v-model="store.filters.targetId" class="w-full" data-testid="audit-target-id" />
-        </UFormField>
-        <UFormField :label="t('audit.filters.trace')">
-          <UInput v-model="store.filters.traceId" class="w-full" data-testid="audit-trace" />
-        </UFormField>
-        <div class="flex flex-wrap gap-2 md:col-span-6">
-          <UButton type="submit" icon="i-lucide-filter" :label="t('audit.filters.apply')" :loading="store.fetching" />
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
-            :label="t('audit.filters.clear')"
-            @click="store.clearFilters(); store.refresh()"
-          />
-          <!-- Beside the filters rather than in the navbar: the file is the filter, and the
-               two controls belong where the reader decided what it contains. -->
-          <UButton
-            class="ml-auto"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-download"
-            :label="t('audit.export')"
-            :href="store.exportHref"
-            :to="store.exportHref"
-            external
-            download
-            data-testid="audit-export"
-          />
-        </div>
-      </form>
+      <UCard class="mb-4">
+        <form class="grid gap-3 md:grid-cols-6" @submit.prevent="store.refresh()">
+          <UFormField :label="t('audit.filters.action')">
+            <USelect
+              v-model="store.filters.action"
+              :items="[{ value: 'all', label: t('audit.filters.any_action') }, ...store.actions.map(action => ({ value: action, label: actionLabel(action) }))]"
+              value-key="value"
+              class="w-full"
+              data-testid="audit-action"
+            />
+          </UFormField>
+          <UFormField :label="t('audit.filters.outcome')">
+            <USelect
+              v-model="store.filters.outcome"
+              :items="[
+                { value: 'all', label: t('audit.filters.any_outcome') },
+                { value: 'success', label: t('audit.outcomes.success') },
+                { value: 'failure', label: t('audit.outcomes.failure') }
+              ]"
+              value-key="value"
+              class="w-full"
+              data-testid="audit-outcome"
+            />
+          </UFormField>
+          <UFormField :label="t('audit.filters.actor_kind')">
+            <USelect
+              v-model="store.filters.actorKind"
+              :items="[{ value: 'all', label: t('audit.filters.any_actor') }, ...ACTOR_KINDS.map(kind => ({ value: kind, label: t(`audit.actors.${kind}`) }))]"
+              value-key="value"
+              class="w-full"
+              data-testid="audit-actor-kind"
+            />
+          </UFormField>
+          <UFormField :label="t('audit.filters.target_kind')">
+            <UInput v-model="store.filters.targetKind" :placeholder="t('audit.filters.target_placeholder')" class="w-full" data-testid="audit-target-kind" />
+          </UFormField>
+          <UFormField :label="t('audit.filters.target_id')">
+            <UInput v-model="store.filters.targetId" class="w-full" data-testid="audit-target-id" />
+          </UFormField>
+          <UFormField :label="t('audit.filters.trace')">
+            <UInput v-model="store.filters.traceId" class="w-full" data-testid="audit-trace" />
+          </UFormField>
+          <div class="flex flex-wrap gap-2 md:col-span-6">
+            <UButton type="submit" icon="i-lucide-filter" :label="t('audit.filters.apply')" :loading="store.fetching" />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              :label="t('audit.filters.clear')"
+              @click="store.clearFilters(); store.refresh()"
+            />
+            <!-- Beside the filters rather than in the navbar: the file is the filter, and the
+                 two controls belong where the reader decided what it contains. -->
+            <UButton
+              class="ml-auto"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              :label="t('audit.export')"
+              :href="store.exportHref"
+              :to="store.exportHref"
+              external
+              download
+              data-testid="audit-export"
+            />
+          </div>
+        </form>
+      </UCard>
 
       <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-sm font-semibold text-highlighted">
@@ -201,9 +203,9 @@ onMounted(() => {
         <UButton size="xs" color="neutral" variant="outline" :label="t('audit.list.older')" :loading="store.fetching" @click="store.loadOlder()" />
       </div>
 
-      <section class="mt-8 border border-muted bg-default p-5">
+      <UCard as="section" class="mt-8">
         <SectionHeader :eyebrow="t('audit.append_only.eyebrow')" :title="t('audit.append_only.title')" :description="t('audit.append_only.description')" />
-      </section>
+      </UCard>
     </template>
   </UDashboardPanel>
 </template>

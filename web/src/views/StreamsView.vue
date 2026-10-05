@@ -220,7 +220,7 @@ const {
           <AreaBackupButtons area="streams" @imported="streams.refresh(); streams.refreshSchedules()" />
         </header>
 
-        <section class="border border-muted bg-default p-5">
+        <UCard as="section">
           <FormListLayout :list-title="t('streams.channels_title')" :count="channels.length">
             <template #form>
               <SectionHeader
@@ -299,9 +299,9 @@ const {
               </div>
             </template>
           </FormListLayout>
-        </section>
+        </UCard>
 
-        <section v-if="!loading" class="border border-muted bg-default p-5">
+        <UCard v-if="!loading" as="section">
           <!--
             A schedule needs a channel to record. Without one the picker is empty, the submit
             button is still live, and posting sends an empty channel id that the server rejects —
@@ -395,7 +395,7 @@ const {
               </div>
             </template>
           </FormListLayout>
-        </section>
+        </UCard>
       </div>
     </template>
   </UDashboardPanel>

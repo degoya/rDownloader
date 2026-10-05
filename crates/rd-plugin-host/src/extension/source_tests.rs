@@ -146,6 +146,43 @@ async fn rename_stays_inside_the_package_and_keeps_the_offered_list_in_step() {
     );
 }
 
+/// Audit 2026-10-05, S22: a new name is one the host would give a file itself. A Windows
+/// device name, a colon (an alternate data stream on NTFS) or a trailing dot is refused, and
+/// the file keeps its name.
+#[tokio::test]
+async fn rename_refuses_a_name_the_host_would_not_give_a_file() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    std::fs::write(directory.path().join("film.mkv"), b"x").expect("write");
+    let mut state = super::SourceState::new(
+        "handle".to_owned(),
+        directory.path().to_path_buf(),
+        vec!["film.mkv".to_owned()],
+    );
+    for name in [
+        "CON.mkv",
+        "conin$",
+        "COM1.mkv",
+        "film.mkv:stream",
+        "film<1>.mkv",
+        "film.",
+        "film.mkv ",
+        "line\nbreak.mkv",
+    ] {
+        assert!(
+            state.rename("handle", "film.mkv", name).await.is_err(),
+            "{name:?} must not be accepted as a new name"
+        );
+    }
+    assert!(directory.path().join("film.mkv").exists());
+    assert_eq!(state.files, vec!["film.mkv".to_owned()]);
+
+    state
+        .rename("handle", "film.mkv", "Film (2024).mkv")
+        .await
+        .expect("a name the sanitiser leaves alone is allowed");
+    assert!(directory.path().join("Film (2024).mkv").exists());
+}
+
 /// A file in a folder of the package is renamed where it is, not moved to the top.
 #[tokio::test]
 async fn a_nested_file_is_renamed_inside_its_own_folder() {

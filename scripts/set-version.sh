@@ -18,6 +18,13 @@
 # is the Cargo version at generation time. The bump writes that one field the way the generator
 # would, so the release does not need a compile to regenerate the document.
 #
+# The SDK's two workflows, sdk/ci/plugin.yml and sdk/ci/repository.yml, are the fifth and sixth:
+# their `RDOWNLOADER_VERSION` is the release a third party's CI downloads to package, check and
+# index with. It sat on 1.5.2, which knows plugin API 0.9.0 only, while every template declared
+# 0.10.0, so a copied workflow was red from its first run (audit K2). The SDK is exported with
+# the release, so the pin is the version being released; scripts/check-sdk-templates.sh holds
+# the templates' `api_version` to what this version accepts.
+#
 # Usage:
 #   scripts/set-version.sh            # print the current version
 #   scripts/set-version.sh --check    # every copy agrees with Cargo.toml, or exit 1 naming it
@@ -41,7 +48,7 @@ fi
 # Python on Windows ends its lines with CRLF; the CR would make every copy disagree.
 copies() {
     python3 - <<'PY' | tr -d '\r'
-import json
+import json, re
 for path, read in (
     ('web/package.json', lambda d: d['version']),
     ('extension/manifest.base.json', lambda d: d['version']),
@@ -49,6 +56,10 @@ for path, read in (
 ):
     with open(path) as handle:
         print(f'{path}\t{read(json.load(handle))}')
+for path in ('sdk/ci/plugin.yml', 'sdk/ci/repository.yml'):
+    with open(path) as handle:
+        pins = re.findall(r'^  RDOWNLOADER_VERSION: (\S+)$', handle.read(), re.MULTILINE)
+    print(f'{path}\t{pins[0] if len(pins) == 1 else "no single RDOWNLOADER_VERSION"}')
 PY
 }
 
@@ -123,6 +134,18 @@ updated, count = re.subn(
 if count != 1 or json.loads(updated)['info']['version'] != version:
     raise SystemExit('could not rewrite info.version in web/openapi.json')
 contract.write_text(updated)
+
+# The SDK workflows' release pin: one `RDOWNLOADER_VERSION:` under `env:` each.
+for workflow in (pathlib.Path('sdk/ci/plugin.yml'), pathlib.Path('sdk/ci/repository.yml')):
+    updated, count = re.subn(
+        r'^(  RDOWNLOADER_VERSION: )\S+$',
+        lambda match: f'{match.group(1)}{version}',
+        workflow.read_text(),
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise SystemExit(f'could not rewrite RDOWNLOADER_VERSION in {workflow}')
+    workflow.write_text(updated)
 PY
 
 # Workspace members carry `version.workspace = true`, so only the lock needs rewriting.
@@ -137,5 +160,5 @@ manifest_version="$(python3 -c 'import json;print(json.load(open("extension/mani
     || { echo "extension/manifest.base.json reports $manifest_version" >&2; exit 1; }
 
 "$0" --check > /dev/null || exit 1
-echo "==> Cargo.toml, web/package.json, extension/manifest.base.json, web/openapi.json and Cargo.lock now report $version"
+echo "==> Cargo.toml, web/package.json, extension/manifest.base.json, web/openapi.json, sdk/ci/*.yml and Cargo.lock now report $version"
 echo "    remember: CHANGELOG.md and docs/roadmap.md are written by hand"

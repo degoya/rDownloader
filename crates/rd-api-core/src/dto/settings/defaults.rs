@@ -2,6 +2,13 @@
 
 use super::*;
 
+/// Bounds of the two retention settings, in days.
+pub const MIN_HOURLY_DAYS: u32 = 1;
+pub const MIN_RETENTION_DAYS: u32 = 7;
+pub const MAX_RETENTION_DAYS: u32 = 3650;
+pub(crate) const DEFAULT_HOURLY_DAYS: u32 = 30;
+pub(crate) const DEFAULT_RETENTION_DAYS: u32 = 365;
+
 pub(super) fn default_stats_hourly_days() -> u32 {
     DEFAULT_HOURLY_DAYS
 }

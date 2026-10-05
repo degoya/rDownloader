@@ -436,3 +436,6 @@ mod indexer_key;
 
 #[path = "everything_pause.rs"]
 mod pause;
+
+#[path = "everything_notify_executable.rs"]
+mod notify_executable;

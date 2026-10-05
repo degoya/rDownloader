@@ -1,6 +1,7 @@
 //! NZB segment transport, yEnc decoding and server fallback.
 
 mod assembly_resume;
+mod bounds;
 mod checkpoints;
 mod config;
 mod error;
@@ -17,12 +18,16 @@ mod yenc;
 
 #[cfg(test)]
 mod assembly_resume_tests;
+#[cfg(test)]
+mod bounds_tests;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_restart_tests;
 #[cfg(test)]
 mod health_tests;
 #[cfg(test)]
 mod hopeless_tests;
+#[cfg(test)]
+mod nntp_line_tests;
 #[cfg(test)]
 mod out_of_order_tests;
 #[cfg(test)]

@@ -18,12 +18,15 @@ import { CARD_AUTOPLAY_MS as AUTOPLAY_MS, type CardRatio, DEFAULT_CARD_RATIO } f
  * (RD-130-13): `total` is how many there are, `items` the ones read so far, and the slider asks
  * for the next fifty with `more` while the page it shows, or the one after it, reaches past
  * what it has. Only the current page is ever rendered, so a long archive costs a longer array
- * and not more cards. Past `DOTS_MAX` pages the dots give way to a counter, and the slider
- * wraps from the first page to the last only once it holds everything, since the last page of
- * a long archive would otherwise mean reading all of it first.
+ * and not more cards. Past `DOTS_MAX` pages the dots give way to a counter.
  *
- * Autoplay, when the subscription asks for it, turns a page every `AUTOPLAY_MS` and wraps at
- * the end. It never takes the page away from somebody using it (WCAG 2.2.2): a visible pause
+ * The slider ends where the hits end (RD-1101-01): it never wraps, so the reader sees that the
+ * list is over instead of finding the first hit again. Previous is off on the first page, next
+ * on the last — the last of `total`, so the end is the true end, and a hit that arrives later
+ * adds a page and turns next back on.
+ *
+ * Autoplay, when the subscription asks for it, turns a page every `AUTOPLAY_MS` and stops on the
+ * last page. It never takes the page away from somebody using it (WCAG 2.2.2): a visible pause
  * control, and it holds while the pointer is over the slider, while anything in it has focus,
  * while the details panel is open and while the tab is hidden. Under
  * `prefers-reduced-motion: reduce` it does not run at all.
@@ -86,12 +89,13 @@ watch([page, perPage, () => props.items.length, count], () => {
   if (!complete.value && props.items.length < (page.value + 2) * perPage.value) emit('more')
 }, { immediate: true })
 
+const atStart = computed(() => page.value === 0)
+const atEnd = computed(() => page.value >= pageCount.value - 1)
+
 function go(target: number): void {
-  const pages = pageCount.value
-  page.value = ((target % pages) + pages) % pages
+  page.value = Math.min(Math.max(target, 0), pageCount.value - 1)
 }
 function previous(): void {
-  if (page.value === 0 && !complete.value) return
   go(page.value - 1)
 }
 function next(): void {
@@ -147,7 +151,7 @@ const running = computed(() =>
   && !focused.value
   && !hidden.value
   && selectedId.value === null
-  && pageCount.value > 1)
+  && !atEnd.value)
 
 let timer: ReturnType<typeof setTimeout> | null = null
 function stopTimer(): void {
@@ -237,7 +241,7 @@ const autoplayLabel = computed(() =>
         icon="i-lucide-arrow-left"
         class="shrink-0 rounded-full"
         :aria-label="t('linkgrabber.indexers.cards.previous')"
-        :disabled="pageCount < 2 || (page === 0 && !complete)"
+        :disabled="atStart"
         @click="previous"
       />
       <!-- Focusable so the arrow keys work before any card has been reached. -->
@@ -280,7 +284,7 @@ const autoplayLabel = computed(() =>
         icon="i-lucide-arrow-right"
         class="shrink-0 rounded-full"
         :aria-label="t('linkgrabber.indexers.cards.next')"
-        :disabled="pageCount < 2"
+        :disabled="atEnd"
         @click="next"
       />
     </div>

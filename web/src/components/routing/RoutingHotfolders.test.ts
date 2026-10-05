@@ -158,3 +158,19 @@ describe('RoutingHotfolders duplicate', () => {
     await waitFor(() => expect(screen.queryByText(routing.hotfolder.copy_path_hint)).toBeNull())
   })
 })
+
+/** RD-1101-10: the dot beside a folder is colour only, so the switched-off state is a word too. */
+describe('RoutingHotfolders state', () => {
+  it('names a disabled folder in text and keeps the colour dot out of the accessibility tree', () => {
+    mountComponent(RoutingHotfolders, {
+      messages: { routing },
+      props: { modelValue: [FOLDER, { ...FOLDER, id: 'folder-2', name: 'Paused', enabled: false }], settings: stored(30), categories: [] }
+    })
+
+    const paused = screen.getByText('Paused').closest('div.border') as HTMLElement
+    expect(within(paused).getByText(routing.hotfolder.disabled_badge)).toBeTruthy()
+    const active = screen.getByText('Inbox').closest('div.border') as HTMLElement
+    expect(within(active).queryByText(routing.hotfolder.disabled_badge)).toBeNull()
+    for (const dot of document.querySelectorAll('span.size-2')) expect(dot.getAttribute('aria-hidden')).toBe('true')
+  })
+})

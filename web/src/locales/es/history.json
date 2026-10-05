@@ -1,5 +1,4 @@
 {
-  "title": "Historial de descargas",
   "intro": "Todo lo que terminó o falló definitivamente, también después de quitar el paquete de la lista o de que se limpiara automáticamente. Las direcciones se guardan sin contraseñas ni tokens; las contraseñas de archivo nunca se guardan.",
   "filters": {
     "search": "Buscar",

@@ -38,16 +38,19 @@ export function keepFocusOnClose(event: Event): void {
  */
 export const PALETTE_FUSE = { fuseOptions: { keys: ['keywords'] } }
 
-/** The main views in sidebar order, with the digit that opens each (`shortcutDefinitions.ts`). */
+/**
+ * The main views in sidebar order, with the key that opens each (`shortcutDefinitions.ts`); the
+ * history, the statistics page's second tab (RD-1101-05), right after the page.
+ */
 export const MAIN_VIEWS = [
   { path: '/downloads', labelKey: 'nav.downloads', icon: 'i-lucide-arrow-down-to-line', key: '1' },
-  { path: '/history', labelKey: 'nav.history', icon: 'i-lucide-history', key: 'h' },
   { path: '/linkgrabber', labelKey: 'nav.linkgrabber', icon: 'i-lucide-magnet', key: '2' },
   { path: '/streams', labelKey: 'nav.streams', icon: 'i-lucide-radio', key: '3' },
   { path: '/subscriptions', labelKey: 'nav.subscriptions', icon: 'i-lucide-rss', key: '4' },
   { path: '/remote-jobs', labelKey: 'nav.remote_jobs', icon: 'i-lucide-cloud-cog', key: '5' },
   { path: '/automation', labelKey: 'nav.automation', icon: 'i-lucide-workflow', key: '6' },
-  { path: '/stats', labelKey: 'nav.stats', icon: 'i-lucide-chart-column', key: '7' },
+  { path: '/stats', labelKey: 'nav.stats_history', icon: 'i-lucide-chart-column', key: '7' },
+  { path: '/stats?tab=history', labelKey: 'nav.history', icon: 'i-lucide-history', key: 'h' },
   { path: '/logs', labelKey: 'nav.logs', icon: 'i-lucide-scroll-text', key: '8' },
   { path: '/audit', labelKey: 'nav.audit', icon: 'i-lucide-shield-check', key: '9' },
   { path: '/settings', labelKey: 'nav.settings', icon: 'i-lucide-sliders-horizontal', key: '0' }

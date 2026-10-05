@@ -8,6 +8,8 @@ import type { Category, CreateCategory, SortTemplates, StorageRoot } from '@/api
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import RoutingCategoryColor from '@/components/routing/RoutingCategoryColor.vue'
+import RoutingCategoryPluginSteps from '@/components/routing/RoutingCategoryPluginSteps.vue'
 import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
 import RoutingCategorySorting from '@/components/routing/RoutingCategorySorting.vue'
 import {
@@ -19,7 +21,6 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
-import { withPluginVersion } from '@/utils/pluginVersion'
 import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
@@ -75,8 +76,6 @@ async function loadCollisionPolicies(): Promise<void> {
   const answer = await listCollisionPolicies()
   if (answer.ok) collisionPolicies.value = Object.fromEntries(answer.data.categories.map(entry => [entry.id, entry.policy]))
 }
-/** What the service takes as a category colour; the hex field holds to it (RA-WEB-02). */
-const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 const {
   form, levelItems, scriptItems, level, script, uploadItems, upload, uploadRemote,
   recursiveItems, recursiveUnpack, subfolderItems, unpackToSubfolder, directUnpackItems, directUnpack,
@@ -189,12 +188,6 @@ async function savePostprocessExtras(
   return response.data
 }
 
-function toggleCategoryStep(pluginId: string, enabled: boolean): void {
-  pluginStepIds.value = enabled
-    ? [...pluginStepIds.value.filter(id => id !== pluginId), pluginId]
-    : pluginStepIds.value.filter(id => id !== pluginId)
-}
-
 async function submit(): Promise<void> {
   message.value = null
   const updating = editingId.value !== null
@@ -296,7 +289,7 @@ async function remove(category: Category): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="routing.categories" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="routing.categories">
     <FormListLayout :list-title="t('routing.category.title')" :count="categories.length">
       <template #form>
         <SectionHeader
@@ -317,43 +310,7 @@ async function remove(category: Category): Promise<void> {
           <UFormField :label="t('routing.category.path_label')" :description="t('routing.category.path_description')">
             <UInput v-model="form.relative_path" class="w-full font-mono" :placeholder="t('routing.category.path_placeholder')" icon="i-lucide-corner-down-right" />
           </UFormField>
-          <UFormField :label="t('routing.category.color_label')" :description="t('routing.category.color_description')">
-            <!--
-              The picker has no keyboard operation and names no value, so the colour is also a
-              field of its own: typed exactly, reached by Tab, refused by the form unless it is a
-              whole #rrggbb. The picker only ever sees a whole colour (RA-WEB-02).
-            -->
-            <div class="flex items-center gap-2">
-              <UPopover>
-                <UButton
-                  color="neutral"
-                  variant="outline"
-                  :aria-label="t('routing.category.color_pick', { color: form.color })"
-                  data-testid="category-color"
-                >
-                  <span class="size-4 shrink-0 border border-muted" :style="{ backgroundColor: form.color }" />
-                </UButton>
-                <template #content>
-                  <UColorPicker
-                    :model-value="HEX_COLOR.test(form.color) ? form.color : undefined"
-                    class="p-2"
-                    @update:model-value="(value?: string) => { if (value) form.color = value }"
-                  />
-                </template>
-              </UPopover>
-              <UInput
-                v-model="form.color"
-                required
-                pattern="#[0-9a-fA-F]{6}"
-                maxlength="7"
-                class="w-32 font-mono"
-                placeholder="#38BDF8"
-                :title="t('routing.category.color_format')"
-                :aria-label="t('routing.category.color_hex')"
-                data-testid="category-color-hex"
-              />
-            </div>
-          </UFormField>
+          <RoutingCategoryColor v-model="form.color" />
           <UFormField :label="t('routing.category.postprocess_level')" :description="t('routing.category.postprocess_level_description')">
             <USelect v-model="level" :items="levelItems" value-key="value" icon="i-lucide-workflow" class="w-full" />
           </UFormField>
@@ -412,28 +369,7 @@ async function remove(category: Category): Promise<void> {
             <USwitch v-model="sortingOn" :aria-label="t('routing.category.sorting_title')" data-testid="category-sorting-switch" />
           </UFormField>
           <RoutingCategorySorting v-if="sortingOn" v-model="sorting" />
-          <template v-if="postprocess.pluginSteps.length">
-            <UFormField
-              orientation="horizontal"
-              :label="t('routing.category.plugin_steps_override_label')"
-              :description="t('routing.category.plugin_steps_override_description')"
-            >
-              <USwitch v-model="pluginStepsOverride" :aria-label="t('routing.category.plugin_steps_override_label')" />
-            </UFormField>
-            <div v-if="pluginStepsOverride" class="space-y-2">
-              <div v-for="step in postprocess.pluginSteps" :key="step.plugin_id" class="flex items-center justify-between gap-5">
-                <p class="text-sm text-highlighted">{{ withPluginVersion(step.name, step.version) }}</p>
-                <USwitch
-                  :model-value="pluginStepIds.includes(step.plugin_id)"
-                  :aria-label="step.name"
-                  @update:model-value="(value: boolean) => toggleCategoryStep(step.plugin_id, value)"
-                />
-              </div>
-              <p v-if="!pluginStepIds.length" class="text-xs leading-5 text-muted">
-                {{ t('routing.category.plugin_steps_none_hint') }}
-              </p>
-            </div>
-          </template>
+          <RoutingCategoryPluginSteps v-model:override="pluginStepsOverride" v-model:step-ids="pluginStepIds" />
           <FormActions
             :editing="editingId !== null"
             :create-label="t('routing.category.create')"
@@ -500,5 +436,5 @@ async function remove(category: Category): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

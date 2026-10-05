@@ -11,8 +11,9 @@
 //! token may see — no names, no paths.
 //!
 //! The queue's pause comes with the same figures (RD-1100-06): when a timed pause ends, how many
-//! files are paused, and whether this agent was paired with the right to pause and resume. Which
-//! menu entries that makes is [`QueueMenu`], decided here for the same reason as the line.
+//! files are paused, and whether this agent was paired with the right to pause and start. Which
+//! menu entries that makes, and which of them can be chosen, is [`QueueMenu`], decided here for
+//! the same reason as the line.
 
 use chrono::{DateTime, TimeZone, Utc};
 
@@ -51,17 +52,30 @@ pub(crate) struct Summary {
     pub queue_control: bool,
 }
 
-/// The queue entries the tray menu offers (RD-1100-06).
+/// The queue entries the tray menu offers (RD-1100-06, RD-1101-06).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum QueueMenu {
-    /// None: the agent was not paired with queue control, or the service has not said yet. A
-    /// refused entry is worse than none -- the person clicks and nothing happens.
+    /// None: the service has not said yet what this agent may do.
     #[default]
     Hidden,
-    /// "Pause all", for 30 minutes or an hour.
-    Pause,
-    /// "Resume all": a timed pause holds, or everything left is paused.
-    Resume,
+    /// Every entry greyed out, with "Pair again to control the queue" below them: the agent was
+    /// paired without queue control. Hiding the entries left a person who paired without the box,
+    /// or before 1.10, with no way to learn that the tray can do this at all (RD-1101-06).
+    Locked,
+    /// The entries, each enabled exactly while it would do something.
+    Offered(QueueEntries),
+}
+
+/// Which queue entries can be chosen, for an agent paired with queue control.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct QueueEntries {
+    /// "Start all": a timed pause holds, or files are paused.
+    pub start: bool,
+    /// "Pause all": files are downloading or waiting, and no timed pause holds.
+    pub pause: bool,
+    /// "Pause for 30 minutes" and "Pause for 1 hour": no timed pause holds yet. Offered on an
+    /// empty queue too, where a timed pause still keeps new links waiting.
+    pub timed_pause: bool,
 }
 
 /// What the tray asks of the queue. The agent makes the request, because it holds the token
@@ -74,7 +88,7 @@ pub(crate) enum QueueMenu {
 pub(crate) enum QueueRequest {
     /// Pause everything; for `minutes`, or until resumed when `None`.
     Pause { minutes: Option<u32> },
-    /// Resume what a pause stopped.
+    /// "Start all": end a timed pause, or queue the paused files again.
     Resume,
 }
 
@@ -174,18 +188,21 @@ pub(crate) fn describe(summary: Summary) -> Activity {
 
 /// Which queue entries the menu offers for these figures.
 ///
-/// "Resume all" while a timed pause holds, and while everything that is left is paused; "pause"
-/// otherwise, including on an empty queue, where a timed pause still keeps new links waiting.
+/// The labels are the web interface's global control, "Start all" and "Pause all"; unlike the
+/// web's single toggle the tray lists both, so each is enabled on its own. "Start all" starts
+/// what a pause stopped -- failed files stay failed, restarting them is the web interface's
+/// decision (RD-1100-06). The summary counts downloading and queued files only, so "Pause all"
+/// stays greyed while nothing but resolving or verifying runs; the timed pauses still reach those.
 fn queue_menu(summary: &Summary) -> QueueMenu {
     if !summary.queue_control {
-        QueueMenu::Hidden
-    } else if summary.paused_until.is_some()
-        || (summary.active == 0 && summary.queued == 0 && summary.paused > 0)
-    {
-        QueueMenu::Resume
-    } else {
-        QueueMenu::Pause
+        return QueueMenu::Locked;
     }
+    let timed = summary.paused_until.is_some();
+    QueueMenu::Offered(QueueEntries {
+        start: timed || summary.paused > 0,
+        pause: !timed && (summary.active > 0 || summary.queued > 0),
+        timed_pause: !timed,
+    })
 }
 
 /// The end of a pause as the clock on the wall says it: `18:30` today, `Oct 5 18:30` on another

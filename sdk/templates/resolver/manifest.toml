@@ -29,7 +29,7 @@ domains = ["{{PLUGIN_SLUG}}.example", "*.{{PLUGIN_SLUG}}.example"]
 description = "Resolves {{PLUGIN_NAME}} links."
 author = "Your name"
 license = "MIT"
-min_app_version = "0.7.0"
+min_app_version = "1.9.0"
 
 [provider]
 slug = "{{PLUGIN_SLUG}}"

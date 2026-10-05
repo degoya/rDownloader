@@ -4,6 +4,10 @@
 # metric. The metrics are listed in scripts/lib/soak_budgets.py; a key naming none of them is
 # refused, so a typo cannot turn into a budget that never fails. Values are for the release
 # binary on a hosted Linux runner (ubuntu-24.04); raising one needs the run that shows why.
+# A `[budgets.<platform>]` table (linux, windows, darwin: Python's platform.system(),
+# lower-cased) overrides single budgets on that platform; its keys are checked the same way, and
+# the verdict names the platform whose limit applied. Growth budgets are the leak signal and stay
+# the same on every platform; only a peak that measures something else there gets its own value.
 # First measured locally (2026-09-30, 30 min): 131 MiB peak and no growth, 41 files, 58
 # threads, 14.8 MiB/s, 20 s longest stall, shutdown 0.12 s.
 
@@ -48,3 +52,11 @@ stall_seconds_max = 120
 failed_max = 0
 corrupt_max = 0
 shutdown_seconds_max = 30
+
+[budgets.windows]
+# On Windows the sampler counts process handles (psutil num_handles), not file descriptors:
+# every kernel object the process holds -- threads, events, the IOCP, registry keys, sockets --
+# so the Linux peak does not fit. The first two-hour run on windows-2025 (2026-10-05, run
+# 37242839180) peaked at 522 handles with a growth of -91.5 and 93 threads: no leak, a different
+# count. 1024 leaves about twice that; open_files_growth_max above still catches a leak.
+open_files_peak_max = 1024

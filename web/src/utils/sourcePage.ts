@@ -1,3 +1,5 @@
+import { safeHttpUrl } from '@/utils/safeUrl'
+
 /**
  * The page a link came from, when the data knows one and it is a web page: a captured browser
  * download's referrer, or the page a media link was extracted from. Anything that is not
@@ -6,13 +8,8 @@
  */
 export function sourcePageUrl(...candidates: readonly (string | null | undefined)[]): string | null {
   for (const candidate of candidates) {
-    if (!candidate) continue
-    try {
-      const url = new URL(candidate)
-      if (url.protocol === 'http:' || url.protocol === 'https:') return url.href
-    } catch {
-      // Not an address at all; the next candidate may be one.
-    }
+    const url = safeHttpUrl(candidate)
+    if (url) return new URL(url).href
   }
   return null
 }

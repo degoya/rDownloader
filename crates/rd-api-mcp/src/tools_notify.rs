@@ -37,7 +37,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification destination. Metadata only: a webhook secret, SMTP password or apprise URL is entered in the web UI, because no tool accepts one."
+        description = "Create a notification destination. Metadata only: a webhook secret, SMTP password or apprise URL is entered in the web UI, because no tool accepts one. `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); without it the call is refused with auth.scope_insufficient. Leave it out to use the apprise found in the vendor folder or on PATH."
     )]
     pub async fn create_notification_target(
         &self,
@@ -61,19 +61,14 @@ impl RdMcpServer {
                 secret: None,
                 clear_secret: false,
             };
-            Ok(
-                crate::notify_handlers::create_target(State(self.state.clone()), Json(request))
-                    .await?
-                    .1
-                    .0,
-            )
+            crate::notify_handlers::save_target(&self.state, None, holds_admin(), request).await
         }
         .await;
         respond(result)
     }
 
     #[tool(
-        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed."
+        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed. Setting or changing `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); a path an administrator stored may be passed back unchanged."
     )]
     pub async fn update_notification_target(
         &self,
@@ -107,13 +102,7 @@ impl RdMcpServer {
                 secret: None,
                 clear_secret: false,
             };
-            Ok(crate::notify_handlers::update_target(
-                State(self.state.clone()),
-                AxumPath(id),
-                Json(request),
-            )
-            .await?
-            .0)
+            crate::notify_handlers::save_target(&self.state, Some(id), holds_admin(), request).await
         }
         .await;
         respond(result)
@@ -254,4 +243,10 @@ impl RdMcpServer {
         .await;
         respond(result)
     }
+}
+
+/// Whether the caller of this tool call holds `api:admin`, which the program path of an apprise
+/// destination costs on top of the tools' `api:config` (audit 2026-10-05, S1).
+fn holds_admin() -> bool {
+    super::granted_now().contains(&rd_core::Scope::Admin)
 }

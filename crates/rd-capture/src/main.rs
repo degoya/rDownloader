@@ -362,7 +362,7 @@ async fn run(
 /// The tray's queue requests are made here too (RD-1100-06), and the summary is read again right
 /// after one, so the menu and the status line show its outcome without waiting for the next
 /// tick. A refused request is a log line: the summary that follows says what the agent may do,
-/// and a tray that may not pause stops offering it.
+/// and a tray that may not pause greys its entries out (RD-1101-06).
 async fn watch_activity(
     client: CaptureClient,
     cancellation: CancellationToken,

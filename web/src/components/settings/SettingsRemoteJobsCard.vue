@@ -194,7 +194,7 @@ onUnmounted(() => releaseEvents?.())
 </script>
 
 <template>
-  <section class="border border-muted bg-default p-5">
+  <UCard as="section">
     <div class="mb-4 flex items-start justify-between gap-3">
       <SectionHeader
         :eyebrow="t('remote_jobs.eyebrow')"
@@ -309,5 +309,5 @@ onUnmounted(() => releaseEvents?.())
         <p class="p-5 text-center text-sm text-muted">{{ t('remote_jobs.empty') }}</p>
       </DataState>
     </div>
-  </section>
+  </UCard>
 </template>

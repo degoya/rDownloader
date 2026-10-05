@@ -15,10 +15,6 @@ use secrecy::{ExposeSecret, SecretString};
 use crate::error;
 use crate::hostkey::{self, Observed, Rejection};
 
-/// Default SSH user when a credential names none; matches what `ssh` itself would do only
-/// loosely, so it is really a fallback for a misconfigured entry.
-const DEFAULT_USER: &str = "root";
-
 /// The `russh` callback side of host-key checking.
 ///
 /// It only records what it saw; the decision text is produced by the caller, because a
@@ -81,6 +77,10 @@ pub async fn connect(
     verdict: Arc<dyn Fn(&hostkey::OfferedKey) -> HostKeyVerdict + Send + Sync>,
 ) -> Result<Result<(Connection, hostkey::OfferedKey), Failure>> {
     let credential = spec.credential;
+    let user = match login_user(credential) {
+        Ok(user) => user,
+        Err(failure) => return Ok(Err(failure)),
+    };
     let observed: Observed = Arc::new(Mutex::new(None));
     let handler = HostKeyHandler {
         verdict,
@@ -148,7 +148,6 @@ pub async fn connect(
         )));
     };
 
-    let user = credential.username.as_deref().unwrap_or(DEFAULT_USER);
     if let Err(failure) = authenticate(&mut session, user, &spec).await? {
         return Ok(Err(failure));
     }
@@ -171,6 +170,19 @@ pub async fn connect(
         },
         offered,
     )))
+}
+
+/// The SSH user a credential signs in as.
+///
+/// A credential without one is refused before anything is sent (audit 2026-10-05, S23): the
+/// fallback to `root` offered the stored password or key to the one account a server guards
+/// most, and a misconfigured entry is better named than guessed at.
+fn login_user(credential: &RemoteCredential) -> Result<&str, Failure> {
+    credential
+        .username
+        .as_deref()
+        .filter(|user| !user.trim().is_empty())
+        .ok_or_else(error::no_username)
 }
 
 /// Runs the authentication method the credential asks for.
@@ -323,5 +335,47 @@ async fn socket_addresses(
                 .await?
                 .collect(),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+    use rd_core::{FailureKind, RemoteAuthMode, RemoteCredential, RemoteProtocol};
+
+    use super::login_user;
+
+    fn credential(username: Option<&str>) -> RemoteCredential {
+        RemoteCredential {
+            id: rd_core::RemoteCredentialId::new(),
+            name: "server".to_owned(),
+            protocol: RemoteProtocol::Sftp,
+            host: "sftp.example".to_owned(),
+            port: 22,
+            username: username.map(str::to_owned),
+            auth_mode: RemoteAuthMode::Password,
+            passive: true,
+            secret_ref: None,
+            key_ref: None,
+            passphrase_ref: None,
+            has_secret: true,
+            has_key: false,
+            has_passphrase: false,
+            enabled: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Audit 2026-10-05, S23: no user name is a refusal with its own code, never `root`.
+    #[test]
+    fn a_login_without_a_user_name_is_refused_rather_than_sent_as_root() {
+        for username in [None, Some(""), Some("  ")] {
+            let failure = login_user(&credential(username)).expect_err("refused");
+            assert_eq!(failure.code.as_deref(), Some(crate::error::NO_USERNAME));
+            assert_eq!(failure.category, FailureKind::AuthRequired);
+            assert!(!failure.category.is_retryable());
+        }
+        assert_eq!(login_user(&credential(Some("tester"))).ok(), Some("tester"));
     }
 }

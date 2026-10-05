@@ -183,19 +183,19 @@ function importFiles(): void {
  * The sidebar toggle is `b`, not a digit: it was `0` while the digits stopped at `7`, and `0`
  * now belongs to Settings as the last item in the list.
  *
- * The download history (RD-1100-04) came as an eleventh entry, right below Downloads, and takes
- * `h`: every view keeps the digit people already learned, and the list still reads in sidebar
- * order.
+ * The download history (RD-1100-04) came as an eleventh entry and took `h`, so every view kept
+ * the digit people had learned. Since RD-1101-05 it is the second tab of the statistics page,
+ * which `7` opens; `h` stays and opens that tab directly, listed right after `7`.
  */
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: '1', labelKeys: ['1'], descriptionKey: 'common.shortcuts.go_downloads', group: 'navigation', handler: guarded(goTo('/downloads')) },
-  { keys: 'h', labelKeys: ['h'], descriptionKey: 'common.shortcuts.go_history', group: 'navigation', handler: guarded(goTo('/history')) },
   { keys: '2', labelKeys: ['2'], descriptionKey: 'common.shortcuts.go_linkgrabber', group: 'navigation', handler: guarded(goTo('/linkgrabber')) },
   { keys: '3', labelKeys: ['3'], descriptionKey: 'common.shortcuts.go_streams', group: 'navigation', handler: guarded(goTo('/streams')) },
   { keys: '4', labelKeys: ['4'], descriptionKey: 'common.shortcuts.go_subscriptions', group: 'navigation', handler: guarded(goTo('/subscriptions')) },
   { keys: '5', labelKeys: ['5'], descriptionKey: 'common.shortcuts.go_remote_jobs', group: 'navigation', handler: guarded(goTo('/remote-jobs')) },
   { keys: '6', labelKeys: ['6'], descriptionKey: 'common.shortcuts.go_automation', group: 'navigation', handler: guarded(goTo('/automation')) },
   { keys: '7', labelKeys: ['7'], descriptionKey: 'common.shortcuts.go_stats', group: 'navigation', handler: guarded(goTo('/stats')) },
+  { keys: 'h', labelKeys: ['h'], descriptionKey: 'common.shortcuts.go_history', group: 'navigation', handler: guarded(goTo('/stats?tab=history')) },
   { keys: '8', labelKeys: ['8'], descriptionKey: 'common.shortcuts.go_logs', group: 'navigation', handler: guarded(goTo('/logs')) },
   { keys: '9', labelKeys: ['9'], descriptionKey: 'common.shortcuts.go_audit', group: 'navigation', handler: guarded(goTo('/audit')) },
   { keys: '0', labelKeys: ['0'], descriptionKey: 'common.shortcuts.go_settings', group: 'navigation', handler: guarded(goTo('/settings')) },

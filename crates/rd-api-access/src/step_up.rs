@@ -49,10 +49,13 @@ pub(crate) async fn require_step_up(
         note_refusal(state, audit, client, action, "session").await;
         return Err(refusal);
     }
-    if let Err(refusal) = state.auth.gate(client).await {
-        note_refusal(state, audit, client, action, "locked_out").await;
-        return Err(refusal);
-    }
+    let _attempt = match state.auth.gate(client).await {
+        Ok(attempt) => attempt,
+        Err(refusal) => {
+            note_refusal(state, audit, client, action, "locked_out").await;
+            return Err(refusal);
+        }
+    };
     if !state.auth.password_matches(state, password).await? {
         state.auth.note_failed_login(client).await;
         note_refusal(state, audit, client, action, "password").await;

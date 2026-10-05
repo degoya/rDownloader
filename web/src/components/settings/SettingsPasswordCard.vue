@@ -60,7 +60,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="security.password" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="security.password">
     <SectionHeader
       :eyebrow="t('system.password.eyebrow')"
       :title="t('system.password.title')"
@@ -97,5 +97,5 @@ async function submit(): Promise<void> {
       <p class="text-xs text-muted">{{ t('system.password.sessions_hint') }}</p>
       <p class="text-xs text-muted">{{ t('system.password.tokens_hint') }}</p>
     </div>
-  </section>
+  </UCard>
 </template>

@@ -109,7 +109,7 @@ defineExpose({ save, dirty })
 </script>
 
 <template>
-  <section data-settings-anchor="captcha.settings" id="captcha-settings" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="captcha.settings" id="captcha-settings">
     <div class="mb-4 flex items-start justify-between gap-4">
       <div>
         <SectionHeader
@@ -194,5 +194,5 @@ defineExpose({ save, dirty })
         @click="test"
       />
     </div>
-  </section>
+  </UCard>
 </template>

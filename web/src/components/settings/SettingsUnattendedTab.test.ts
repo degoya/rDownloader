@@ -7,6 +7,7 @@ import bandwidth from '@/locales/en/bandwidth.json'
 import common from '@/locales/en/common.json'
 import power from '@/locales/en/power.json'
 import settings from '@/locales/en/settings.json'
+import { uiStubs } from '@/test/mount'
 
 import SettingsUnattendedTab from './SettingsUnattendedTab.vue'
 
@@ -14,6 +15,7 @@ vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { bandwidth, common, power, settings } } })
 const components = {
+  UCard: uiStubs.UCard,
   UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
   USelect: { props: ['modelValue'], template: '<select />' },
   UInput: { props: ['modelValue'], template: '<input :value="modelValue" />' },

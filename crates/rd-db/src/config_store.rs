@@ -6,7 +6,10 @@ use rd_core::{
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::{enum_string, error::StoreError, parse_enum, parse_id, writer::insert_event};
+use crate::{
+    enum_string, error::StoreError, json_column::lenient, parse_enum, parse_id,
+    writer::insert_event,
+};
 
 #[derive(Clone, Debug)]
 pub struct NewStorageRoot {
@@ -485,13 +488,21 @@ impl TryFrom<CategoryRow> for Category {
             storage_root_id: parse_id(&row.storage_root_id)?,
             relative_path: row.relative_path,
             is_default: row.is_default,
-            postprocess_level: crate::models::parse_level(row.postprocess_level.as_deref()),
+            postprocess_level: crate::models::parse_level(
+                row.postprocess_level.as_deref(),
+                "categories",
+                &row.id,
+            ),
             script: row.script,
             // A malformed blob must not hide the whole category; fall back to inheriting.
-            cleanup_extensions: row
-                .cleanup_extensions
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok()),
+            cleanup_extensions: row.cleanup_extensions.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "cleanup_extensions",
+                    &row.id,
+                )
+            }),
             recursive_unpack: row.recursive_unpack,
             unpack_to_subfolder: row.unpack_to_subfolder,
             direct_unpack: row.direct_unpack,
@@ -502,19 +513,31 @@ impl TryFrom<CategoryRow> for Category {
             upload_enabled: row.upload_enabled,
             upload_remote: row.upload_remote,
             // A malformed blob must not hide the category; fall back to inheriting.
-            seeding: row
-                .seeding_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok()),
-            plugin_steps: row
-                .plugin_steps_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok()),
+            seeding: row.seeding_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "seeding_json",
+                    &row.id,
+                )
+            }),
+            plugin_steps: row.plugin_steps_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "plugin_steps_json",
+                    &row.id,
+                )
+            }),
             // A malformed blob means no sorting rather than a hidden category.
-            sorting: row
-                .sorting_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok()),
+            sorting: row.sorting_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "sorting_json",
+                    &row.id,
+                )
+            }),
         })
     }
 }

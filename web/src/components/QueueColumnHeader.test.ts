@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import type { SubscriptionItem } from '@/api/types'
-import { QUEUE_COLUMN_DEFAULTS, QUEUE_COLUMN_LIMITS, queueColumnsStorageKey, useQueueColumns } from '@/composables/useQueueColumns'
+import { QUEUE_COLUMN_DEFAULTS, QUEUE_COLUMN_LIMITS, queueColumnsStorageKey, useQueueColumns, type QueueColumnsView } from '@/composables/useQueueColumns'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
 
@@ -19,12 +19,13 @@ import SubscriptionItemRow from './SubscriptionItemRow.vue'
 
 /** What a view does: the composable's style on a container, the header inside it. */
 const Harness = defineComponent({
-  setup() {
-    const columns = useQueueColumns('downloads')
+  props: { view: { type: String as () => QueueColumnsView, default: 'downloads' } },
+  setup(props) {
+    const columns = useQueueColumns(props.view)
     return () => h('div', { 'data-testid': 'container', style: columns.style.value }, [
       h(QueueColumnHeader, {
         widths: columns.widths.value,
-        metaLabel: 'Category · Account',
+        view: props.view,
         customized: columns.customized.value,
         onResize: columns.setWidth,
         onReset: columns.reset,
@@ -34,8 +35,8 @@ const Harness = defineComponent({
   }
 })
 
-function renderHeader() {
-  return mountComponent(Harness)
+function renderHeader(view: QueueColumnsView = 'downloads') {
+  return mountComponent(Harness, { props: { view } })
 }
 
 function container(): HTMLElement {
@@ -56,8 +57,38 @@ describe('QueueColumnHeader', () => {
       expect(row.querySelector(`.queue-cell-${cell}`), cell).toBeTruthy()
     }
     expect(screen.getByText('Name')).toBeTruthy()
+    expect(screen.getByText('State')).toBeTruthy()
+    expect(screen.getByText('Progress')).toBeTruthy()
     expect(screen.getByText('Category · Account')).toBeTruthy()
     expect(screen.getAllByRole('separator')).toHaveLength(4)
+  })
+
+  // A LinkGrabber row puts a link's state, its size and its hoster or variant into the grid and
+  // leaves the progress cell empty; the header said "Progress" and "State" over it (RD-1101-08).
+  it('names the LinkGrabber\'s cells by what a link row shows, and leaves its empty one bare', () => {
+    renderHeader('linkgrabber')
+    const row = screen.getByTestId('queue-column-header').querySelector('.queue-row') as HTMLElement
+    for (const cell of ['handle', 'select', 'expand', 'name', 'state', 'progress', 'size', 'meta', 'actions']) {
+      expect(row.querySelector(`.queue-cell-${cell}`), cell).toBeTruthy()
+    }
+    const label = (cell: string) => row.querySelector(`.queue-cell-${cell}`)?.textContent?.trim()
+    expect(label('name')).toBe('Name')
+    expect(label('state')).toBe('Link state')
+    expect(label('progress')).toBe('')
+    expect(label('size')).toBe('Size')
+    expect(label('meta')).toBe('Hoster · Variant')
+    expect(row.textContent).not.toContain('Progress')
+    expect(row.textContent).not.toContain('Category · Account')
+    expect(screen.getAllByRole('separator').map(edge => edge.getAttribute('data-column'))).toEqual(['state', 'size', 'meta'])
+  })
+
+  it('keeps no width for the LinkGrabber\'s progress cell, not even a stored one', async () => {
+    localStorage.setItem(queueColumnsStorageKey('linkgrabber'), JSON.stringify({ progress: 300, size: 200 }))
+    renderHeader('linkgrabber')
+    expect(container().style.getPropertyValue('--queue-col-progress')).toBe('')
+    expect(container().style.getPropertyValue('--queue-col-size')).toBe('200px')
+    await fireEvent.keyDown(edge('Size'), { key: 'Enter' })
+    expect(localStorage.getItem(queueColumnsStorageKey('linkgrabber'))).toBeNull()
   })
 
   it('exposes each edge as a vertical separator with its width and limits', () => {

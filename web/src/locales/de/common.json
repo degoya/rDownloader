@@ -113,7 +113,7 @@
       "nothing": "Nichts zu pausieren oder fortzusetzen."
     },
     "toggle_sidebar": "Seitenleiste ein- oder ausklappen",
-    "go_stats": "Zu Statistik",
+    "go_stats": "Zu Statistik & Verlauf",
     "go_logs": "Zum Protokoll",
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
@@ -182,6 +182,7 @@
     "resize": "Breite der Spalte „{column}“",
     "resize_hint": "Ziehen oder mit den Pfeiltasten ändern (Umschalt für größere Schritte); Doppelklick oder Enter setzt sie zurück",
     "menu": "Spalten",
-    "reset_all": "Alle Spaltenbreiten zurücksetzen"
+    "reset_all": "Alle Spaltenbreiten zurücksetzen",
+    "state_linkgrabber": "Linkstatus"
   }
 }

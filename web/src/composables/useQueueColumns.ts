@@ -19,6 +19,16 @@ export type QueueColumnsView = 'downloads' | 'linkgrabber'
 
 export const QUEUE_COLUMNS: readonly QueueColumn[] = ['state', 'progress', 'size', 'meta']
 
+/**
+ * The columns a view labels and lets the viewer resize. Both lists keep all four cells so the
+ * grid keeps its shape, but a LinkGrabber link has no progress: that cell stays empty there, so
+ * it gets no label, no handle and no stored width (RD-1101-08).
+ */
+export const QUEUE_VIEW_COLUMNS: Readonly<Record<QueueColumnsView, readonly QueueColumn[]>> = {
+  downloads: QUEUE_COLUMNS,
+  linkgrabber: ['state', 'size', 'meta']
+}
+
 /** The widths `.queue-row` falls back to; changing one here means changing it in `main.css`. */
 export const QUEUE_COLUMN_DEFAULTS: Readonly<Record<QueueColumn, number>> = { state: 128, progress: 96, size: 144, meta: 176 }
 
@@ -52,6 +62,7 @@ function isColumn(name: string): name is QueueColumn {
 
 export function useQueueColumns(view: QueueColumnsView) {
   const storageKey = queueColumnsStorageKey(view)
+  const columns = QUEUE_VIEW_COLUMNS[view]
 
   function read(): Record<QueueColumn, number> {
     const widths = { ...QUEUE_COLUMN_DEFAULTS }
@@ -60,7 +71,7 @@ export function useQueueColumns(view: QueueColumnsView) {
       const stored: unknown = raw ? JSON.parse(raw) : null
       if (stored && typeof stored === 'object') {
         for (const [name, value] of Object.entries(stored)) {
-          if (isColumn(name) && typeof value === 'number') widths[name] = clampColumnWidth(name, value)
+          if (isColumn(name) && columns.includes(name) && typeof value === 'number') widths[name] = clampColumnWidth(name, value)
         }
       }
     } catch {
@@ -72,7 +83,7 @@ export function useQueueColumns(view: QueueColumnsView) {
   const widths = ref<Record<QueueColumn, number>>(read())
 
   function persist(): void {
-    const changed = Object.fromEntries(QUEUE_COLUMNS
+    const changed = Object.fromEntries(columns
       .filter(column => widths.value[column] !== QUEUE_COLUMN_DEFAULTS[column])
       .map(column => [column, widths.value[column]]))
     try {
@@ -103,11 +114,11 @@ export function useQueueColumns(view: QueueColumnsView) {
   }
 
   /** Whether any column differs from its default — what enables "reset all". */
-  const customized = computed(() => QUEUE_COLUMNS.some(column => widths.value[column] !== QUEUE_COLUMN_DEFAULTS[column]))
+  const customized = computed(() => columns.some(column => widths.value[column] !== QUEUE_COLUMN_DEFAULTS[column]))
 
   /** The custom properties for the container that holds the header row and the rows. */
   const style = computed<Record<string, string>>(() => Object.fromEntries(
-    QUEUE_COLUMNS.map(column => [`--queue-col-${column}`, `${widths.value[column]}px`])
+    columns.map(column => [`--queue-col-${column}`, `${widths.value[column]}px`])
   ))
 
   return { widths, setWidth, reset, resetAll, customized, style }

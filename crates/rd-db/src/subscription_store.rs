@@ -26,7 +26,7 @@ use rd_core::{
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::{error::StoreError, writer::insert_event};
+use crate::{error::StoreError, json_column::lenient, writer::insert_event};
 
 /// Editable fields of a subscription; `create` assigns the id and timestamps.
 #[derive(Clone, Debug)]
@@ -927,19 +927,40 @@ impl TryFrom<SubscriptionRow> for Subscription {
             backlog: row
                 .backlog_json
                 .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
+                .and_then(|value| {
+                    lenient(
+                        serde_json::from_str(value),
+                        "subscriptions",
+                        "backlog_json",
+                        &row.id,
+                    )
+                })
                 .unwrap_or_default(),
             category_map: row
                 .category_map_json
                 .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
+                .and_then(|value| {
+                    lenient(
+                        serde_json::from_str(value),
+                        "subscriptions",
+                        "category_map_json",
+                        &row.id,
+                    )
+                })
                 .unwrap_or_default(),
             // NULL for every row written before the column existed; empty means "everything",
             // so an older subscription keeps asking for exactly what it always did.
             source_categories: row
                 .source_categories_json
                 .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
+                .and_then(|value| {
+                    lenient(
+                        serde_json::from_str(value),
+                        "subscriptions",
+                        "source_categories_json",
+                        &row.id,
+                    )
+                })
                 .unwrap_or_default(),
             primed: row.primed != 0,
             last_run_at: row.last_run_at,
@@ -1065,7 +1086,14 @@ impl TryFrom<ItemRow> for SubscriptionItem {
             attributes: row
                 .attributes_json
                 .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok())
+                .and_then(|value| {
+                    lenient(
+                        serde_json::from_str(value),
+                        "subscription_items",
+                        "attributes_json",
+                        &row.id,
+                    )
+                })
                 .unwrap_or_default(),
             // In the vault (RD-190-04); revealed for the answers that show it.
             password: None,

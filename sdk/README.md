@@ -42,7 +42,8 @@ signed package in a repository of your own — the resolver's is
 reference's last part, *The contract*, is generated from the WIT by `scripts/wit-reference.sh`.
 CI scaffolds, builds, tests, packages and runs conformance on every one of them against the
 current contract, and `scripts/check-sdk-templates.sh` fails when a world of the contract has no
-scaffold.
+scaffold, or when a template's `wit-bindgen`, `api_version` or `min_app_version` (the first
+release that accepts that `api_version`) or the release the workflows in `ci/` pin disagree.
 
 The `stream-transform` scaffold is the one to read for a provider whose files are ciphertext:
 [Stream transforms](https://github.com/degoya/rDownloader/wiki/plugin-reference#stream-transforms)
@@ -70,7 +71,9 @@ The scaffold compiles, packages and passes conformance before you change a line 
 first failure you see is about your code and not about the setup. It brings its own copy of the
 WIT contract in `wit/`, so nothing about the build needs a checkout of rDownloader, and its own
 Ed25519 key pair in `plugin-signing.key`, which belongs in your secret store and not in version
-control.
+control. `plugin new` writes a `.gitignore` before the key, listing `plugin-signing.key`,
+`target/` and `*.rdplug`, so a first `git add .` in the scaffold leaves the key out; keep those
+lines when you edit the file.
 
 ```bash
 rdownloader plugin package --manifest manifest.toml \
@@ -235,15 +238,24 @@ imports, packages, verifies and runs conformance. Copy it into `.github/workflow
 `PLUGIN_SIGNING_KEY` as a repository secret holding the PEM text of `plugin-signing.key`, and
 put your crate name into `COMPONENT`. It downloads the rDownloader release named in
 `RDOWNLOADER_VERSION` for `plugin package`, `verify` and `conformance` — the binary embeds the
-built web interface, so it cannot be `cargo install`ed from the repository — and that version
-is the one you bump when you build against a newer contract.
+built web interface, so it cannot be `cargo install`ed from the repository — and checks the
+archive against the release's `SHA256SUMS` before it runs. The pin is the release this SDK came
+with, which accepts the scaffolds' `api_version`; it is the one you bump when you build against
+a newer contract.
+
+The workflow reads the repository and nothing more (`permissions: contents: read`), and its
+actions are pinned to commits. Only a push to the default branch or a tag signs: the signing key
+reaches that one step and no other, while a pull request — code nobody has merged yet — builds
+an unsigned development package and runs the same verification and conformance in
+development mode. Its artefact is `plugin` when signed and `plugin-unsigned` otherwise.
 
 `ci/repository.yml` publishes your own plugin repository on GitHub Pages: it collects the signed
 `.rdplug` files from your releases (or a `packages/` folder), builds and signs
 `rdownloader-plugin-index.json` over them with `plugin index build`, and deploys both. Set
 `REPOSITORY_SIGNING_KEY` as a repository secret holding the PEM text of a key made with
 `rdownloader plugin keygen --role repository`, choose your `KEY_ID`, and set Settings → Pages →
-Source to "GitHub Actions". An index expires after 90 days and is then refused, so the workflow
+Source to "GitHub Actions". It checks the release binary against `SHA256SUMS` and pins its
+actions to commits, like `ci/plugin.yml`. An index expires after 90 days and is then refused, so the workflow
 also re-signs once a month. Hosting, withdrawing a version and a lost key are in
 [Running a plugin repository](https://github.com/degoya/rDownloader/wiki/running-a-plugin-repository).
 

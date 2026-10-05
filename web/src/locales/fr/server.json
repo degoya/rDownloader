@@ -1163,7 +1163,11 @@
     "torrent.move_target_exists": "Un dossier de ce nom existe déjà",
     "torrent.move_no_space": "Il n'y a pas assez d'espace libre pour les fichiers du torrent",
     "torrent.move_failed": "Le déplacement n'a pas pu démarrer",
-    "torrent.move_started": "Déplacement des fichiers du torrent"
+    "torrent.move_started": "Déplacement des fichiers du torrent",
+    "sftp.no_username": "L'accès SFTP enregistré n'indique aucun utilisateur ; saisis un nom d'utilisateur",
+    "hotfolder.protected_directory": "Un dossier surveillé ne peut pas être, contenir ou se trouver dans un répertoire depuis lequel le service lance des programmes, des scripts ou des plugins, ou dans lequel il conserve ses données ({directory}).",
+    "usenet.declared_size_implausible": "Les articles annoncent un fichier de {declared} octets, bien plus que les {listed} octets indiqués par le NZB ; le fichier n'a pas été assemblé",
+    "usenet.gap_fill_no_space": "Pas assez d'espace libre pour combler les trous des articles manquants ({required} octets nécessaires réserve comprise, {free} libres) ; nouvel essai plus tard"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

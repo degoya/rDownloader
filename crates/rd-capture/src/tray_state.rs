@@ -41,7 +41,8 @@ pub(crate) enum IconKind {
 pub(crate) struct Surface {
     pub icon: IconKind,
     pub open_enabled: bool,
-    /// The queue entries: none, "pause", or "resume" (RD-1100-06).
+    /// The queue entries: none, greyed out with the pairing hint, or which of them can be chosen
+    /// (RD-1100-06, RD-1101-06).
     pub queue: QueueMenu,
     pub status_line: String,
     pub tooltip: String,

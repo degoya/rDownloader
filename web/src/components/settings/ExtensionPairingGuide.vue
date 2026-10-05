@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { BASE_PATH } from '@/basePath'
+import { serviceUrl } from '@/basePath'
 import { useExtensionConnection } from '@/composables/useExtensionConnection'
 
 /**
@@ -15,7 +15,7 @@ import { useExtensionConnection } from '@/composables/useExtensionConnection'
  */
 const { t } = useI18n()
 const { connected } = useExtensionConnection()
-const origin = `${window.location.origin}${BASE_PATH}`
+const origin = serviceUrl()
 </script>
 
 <template>

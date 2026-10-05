@@ -1,6 +1,7 @@
 //! The directories no storage root may reach (security review 2026-09-28, finding 4), and the
 //! refusal every way of writing a storage root shares: create and update, the settings import
-//! and a full restore.
+//! and a full restore. A hot folder on this machine keeps out of them as well (audit
+//! 2026-10-05, S9).
 
 use std::path::{Path, PathBuf};
 
@@ -62,6 +63,26 @@ pub(crate) fn refuse_protected(
         Some(directory) => Err(ApiError::bad_request(
             "storage_root.protected_directory",
             "A storage root may not be, contain or lie inside a directory the service runs \
+             programs, scripts or plugins from or keeps its data in",
+        )
+        .with_param("path", path.display())
+        .with_param("directory", directory.kind)),
+    }
+}
+
+/// Refuses a hot folder that would reach one of [`protected_directories`] (audit 2026-10-05,
+/// S9). A hot folder is created when it does not exist, takes the files that land in it and
+/// moves them into its processed and failed folders: on the data or the plugin directory it
+/// would carry away the service's own files.
+pub(crate) fn refuse_protected_hotfolder(
+    path: &Path,
+    protected: &[ProtectedDirectory],
+) -> Result<(), ApiError> {
+    match rd_files::protected_collision(path, protected) {
+        None => Ok(()),
+        Some(directory) => Err(ApiError::bad_request(
+            "hotfolder.protected_directory",
+            "A hotfolder may not be, contain or lie inside a directory the service runs \
              programs, scripts or plugins from or keeps its data in",
         )
         .with_param("path", path.display())

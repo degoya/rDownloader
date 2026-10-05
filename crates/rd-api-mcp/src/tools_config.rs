@@ -47,7 +47,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Update service settings with a partial patch of top-level keys (e.g. {\"speed_limit_bytes_per_second\": \"1000000\"}). Unknown keys are rejected; the merged result is validated and applied live. Returns the applied settings. Post-processing switches are keys of this document too, e.g. {\"direct_unpack\": true} unpacks a Usenet package's multi-volume RAR set while it still downloads (off by default; per category: update_category_postprocess)."
+        description = "Update service settings with a partial patch of top-level keys (e.g. {\"speed_limit_bytes_per_second\": \"1000000\"}). Unknown keys are rejected; the merged result is validated and applied live. Returns the applied settings. Post-processing switches are keys of this document too, e.g. {\"direct_unpack\": true} unpacks a Usenet package's multi-volume RAR set while it still downloads (off by default; per category: update_category_postprocess). Fields that decide who may sign in, what the service runs or reads, or where it sends data (executables and scripts, reconnect_enabled, reconnect_script, reconnect_ip_check_urls, passwords_file, excluded_domains_file, the trace, DLC and clamd endpoints) need api:admin; without it the change answers auth.scope_insufficient naming the field."
     )]
     pub async fn update_settings(
         &self,

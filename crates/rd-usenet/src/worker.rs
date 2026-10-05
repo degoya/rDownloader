@@ -229,7 +229,7 @@ pub(crate) async fn download_file_counted(
             // so the NNTP transport honours the same limits as every other transport.
             limits.bandwidth.acquire(decoded.data.len()).await?;
             deviations.observe(name.as_deref(), &decoded.metadata.name);
-            validate_metadata(&decoded, &mut name, &mut declared_size)?;
+            validate_metadata(&decoded, &mut name, &mut declared_size, nzb_file)?;
             let (part_begin, part_end) = decoded_part_range(&decoded, single_segment)?;
             written.claim(part_begin, part_end, &decoded, declared_size)?;
             output
@@ -294,18 +294,22 @@ pub(crate) async fn download_file_counted(
         }
         None => bail!("missing yEnc size"),
     };
+    // Again here, for a size a resumed file brought along rather than an article (RD-1101-16).
+    crate::bounds::check_declared_size(expected, nzb_file)?;
     // The file is as long as the articles said it is, whatever order they arrived in, and
-    // every byte no article covered is a hole where the missing article belongs. Written
-    // rather than left to the file system: a `.part` file resumed after a crash can hold the
-    // remains of an article that was interrupted mid-write, and those bytes are not zeros.
-    output.set_len(expected).await?;
+    // every byte no article covered is a hole where the missing article belongs.
     let holes = written.holes(expected);
     if missing == 0 && !holes.is_empty() {
         let bytes: u64 = holes.iter().map(|(begin, end)| end - begin + 1).sum();
         bail!("assembled yEnc size mismatch: {bytes} bytes of {expected} were never written");
     }
-    for (begin, end) in holes {
-        write_zeros(&mut output, begin, end).await?;
+    let gaps = crate::bounds::Gaps {
+        database,
+        staging,
+        shutdown,
+    };
+    if !gaps.fill(&mut output, expected, &holes).await? {
+        return Ok(FileOutcome::Cancelled);
     }
     output.sync_all().await?;
     drop(output);
@@ -415,19 +419,6 @@ impl Covered {
     }
 }
 
-/// Writes zeros over the 1-based inclusive range `begin..=end`.
-async fn write_zeros(output: &mut tokio::fs::File, begin: u64, end: u64) -> Result<()> {
-    static ZEROS: [u8; 64 * 1024] = [0; 64 * 1024];
-    output.seek(std::io::SeekFrom::Start(begin - 1)).await?;
-    let mut remaining = end - begin + 1;
-    while remaining > 0 {
-        let chunk = usize::try_from(remaining.min(ZEROS.len() as u64))?;
-        output.write_all(&ZEROS[..chunk]).await?;
-        remaining -= chunk as u64;
-    }
-    Ok(())
-}
-
 /// Where this article belongs in the file.
 ///
 /// A post without `=ypart` names no place, so it can only be a file of one article - which
@@ -486,7 +477,11 @@ fn validate_metadata(
     decoded: &crate::DecodedArticle,
     name: &mut Option<String>,
     declared_size: &mut Option<u64>,
+    file: &NzbFileStatus,
 ) -> Result<()> {
+    // Before the first byte is written, so a header that announces more than the NZB lists
+    // never sizes the file at all (RD-1101-16).
+    crate::bounds::check_declared_size(decoded.metadata.declared_size, file)?;
     if declared_size.is_some_and(|value| value != decoded.metadata.declared_size) {
         bail!("yEnc segments disagree on the declared file size");
     }

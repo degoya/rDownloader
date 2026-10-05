@@ -142,7 +142,7 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="transfers.object_storage" class="border border-muted bg-default p-5" data-testid="object-storage-card">
+  <UCard as="section" data-settings-anchor="transfers.object_storage" data-testid="object-storage-card">
     <SectionHeader
       :eyebrow="t('remote.object_storage.eyebrow')"
       :title="t('remote.object_storage.title')"
@@ -290,5 +290,5 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

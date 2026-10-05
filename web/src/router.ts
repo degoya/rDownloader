@@ -11,12 +11,14 @@ export const router = createRouter({
   routes: [
     { path: '/', redirect: '/downloads' },
     { path: '/downloads', name: 'downloads', component: () => import('./views/DownloadsView.vue') },
-    { path: '/history', name: 'history', component: () => import('./views/HistoryView.vue') },
     { path: '/linkgrabber', name: 'linkgrabber', component: () => import('./views/LinkGrabberView.vue') },
     { path: '/streams', name: 'streams', component: () => import('./views/StreamsView.vue') },
     { path: '/subscriptions', name: 'subscriptions', component: () => import('./views/SubscriptionsView.vue') },
     { path: '/automation', name: 'automation', component: () => import('./views/AutomationView.vue') },
-    { path: '/stats', name: 'stats', component: () => import('./views/StatsView.vue') },
+    // Statistics and history are one page with two tabs (RD-1101-05); the history's own address
+    // stays for bookmarks and lands on its tab.
+    { path: '/stats', name: 'stats', component: () => import('./views/StatsHistoryView.vue') },
+    { path: '/history', redirect: to => ({ path: '/stats', query: { ...to.query, tab: 'history' }, hash: to.hash }) },
     { path: '/logs', name: 'logs', component: () => import('./views/LogsView.vue') },
     { path: '/audit', name: 'audit', component: () => import('./views/AuditView.vue') },
     { path: '/remote-jobs', name: 'remote-jobs', component: () => import('./views/RemoteJobsView.vue') },

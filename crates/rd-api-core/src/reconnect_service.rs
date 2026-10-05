@@ -152,8 +152,17 @@ impl ReconnectService {
         let attempt = match outcome {
             Ok((old, new)) => {
                 app.scheduler.clear_host_blocks();
-                let requeued = app.scheduler.requeue_ip_blocked().await.unwrap_or_default();
-                tracing::info!(?old, ?new, requeued, "reconnected");
+                // The reconnect itself succeeded; a requeue that failed is said as such rather
+                // than as "requeued 0", which hid a database error (audit Q2).
+                match app.scheduler.requeue_ip_blocked().await {
+                    Ok(requeued) => tracing::info!(?old, ?new, requeued, "reconnected"),
+                    Err(error) => tracing::warn!(
+                        ?old,
+                        ?new,
+                        error = %format!("{error:#}"),
+                        "reconnected, but the downloads held back by the address block were not requeued"
+                    ),
+                }
                 ReconnectAttempt {
                     at: Utc::now(),
                     success: true,

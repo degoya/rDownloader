@@ -221,3 +221,105 @@ async fn the_uri_authority_stands_in_for_a_missing_host() {
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
     assert_eq!(body["code"], REFUSED);
 }
+
+/// The value of `name` in `headers`, as text.
+fn header_text<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
+    headers.get(name).and_then(|value| value.to_str().ok())
+}
+
+/// No page of another site can frame the interface, sniff an answer into another type or learn
+/// the interface's address from a `Referer` (audit 2026-10-05, S5). The shell carries the full
+/// content security policy, everything else the frame refusal.
+#[tokio::test]
+async fn every_answer_carries_the_security_headers() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+
+    for uri in [
+        "/",
+        "/queue",
+        "/favicon.svg",
+        "/api/v1/health",
+        "/api/v1/downloads",
+    ] {
+        let request = common::request_to("GET", uri)
+            .header(header::AUTHORIZATION, format!("Bearer {API_BEARER}"))
+            .body(Body::empty())
+            .expect("request");
+        let (status, headers, _) = common::send_raw(&harness.router, request).await;
+        assert_eq!(status, StatusCode::OK, "{uri}");
+        assert_eq!(
+            header_text(&headers, "x-content-type-options"),
+            Some("nosniff"),
+            "{uri}"
+        );
+        assert_eq!(
+            header_text(&headers, "referrer-policy"),
+            Some("same-origin"),
+            "{uri}"
+        );
+        assert_eq!(
+            header_text(&headers, "x-frame-options"),
+            Some("DENY"),
+            "{uri}"
+        );
+        let policy = header_text(&headers, "content-security-policy").unwrap_or_default();
+        assert!(policy.contains("frame-ancestors 'none'"), "{uri}: {policy}");
+        let shell = uri == "/" || uri == "/queue";
+        assert_eq!(
+            policy.contains("script-src 'self';"),
+            shell,
+            "{uri}: the shell, and only the shell, carries the full policy: {policy}"
+        );
+    }
+
+    // An error answer carries them too.
+    let request = common::request_to("GET", "/assets/does-not-exist.js")
+        .body(Body::empty())
+        .expect("request");
+    let (status, headers, _) = common::send_raw(&harness.router, request).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(header_text(&headers, "x-frame-options"), Some("DENY"));
+
+    // The host-refusal page keeps its own, stricter policy.
+    let request = axum::http::Request::builder()
+        .method("GET")
+        .uri("/")
+        .header(header::HOST, "attacker.example:8710")
+        .header(header::ACCEPT, "text/html")
+        .body(Body::empty())
+        .expect("request");
+    let (status, headers, _) = common::send_raw(&harness.router, request).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        header_text(&headers, "content-security-policy"),
+        Some("default-src 'none'; style-src 'unsafe-inline'")
+    );
+    assert_eq!(header_text(&headers, "x-frame-options"), Some("DENY"));
+}
+
+/// The headers leave the capture routes' cross-origin answers alone: the browser extension
+/// still reads them.
+#[tokio::test]
+async fn the_security_headers_leave_the_capture_cors_alone() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let request = common::request_to("OPTIONS", "/api/v1/capture/batches")
+        .header(header::ORIGIN, "chrome-extension://abcdefghijklmnop")
+        .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        .header(
+            header::ACCESS_CONTROL_REQUEST_HEADERS,
+            "authorization,content-type",
+        )
+        .body(Body::empty())
+        .expect("request");
+    let (_, headers, _) = common::send_raw(&harness.router, request).await;
+    assert_eq!(
+        header_text(&headers, "access-control-allow-origin"),
+        Some("*")
+    );
+    assert_eq!(
+        header_text(&headers, "x-content-type-options"),
+        Some("nosniff")
+    );
+}

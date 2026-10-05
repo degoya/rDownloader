@@ -14,16 +14,17 @@ ignore = [
   # buffer is `SharedRb<Heap<u8>>` (stream_tx.rs:129): `u8` has no `Drop`, so the path cannot
   # be taken. Remove once librqbit-utp moves to ringbuf >= 0.5.2.
   { id = "RUSTSEC-2026-0293", reason = "ringbuf only via librqbit-utp with u8 elements, which have no Drop; no patched librqbit-utp exists." },
-  # Marvin attack: a timing sidechannel in RSA *private key* operations, reached through
-  # russh's default `rsa` feature. Verifying an SSH host key is a public key operation and
-  # is unaffected. The only private key operation here is signing once per connection with a
-  # deliberately configured RSA client key, which gives an observer far too few samples to
-  # be useful. Disabling the feature removes the advisory but also drops ssh-rsa and
-  # rsa-sha2-* host keys, which are still common on default sshd installations, so the
-  # compatibility cost outweighs the exposure.
-  # openidconnect (RD-190-15) reaches the same rsa 0.9 to *verify* RS256/PS256 ID tokens — public
-  # key operations again; this service never signs or decrypts with RSA for a sign-in.
-  { id = "RUSTSEC-2023-0071", reason = "rsa via russh and openidconnect; Marvin targets private-key operations, which SSH host key verification and ID-token verification do not perform. No safe upgrade is available." },
+  # Marvin attack: a timing sidechannel in RSA *private key* operations; no rsa release is
+  # patched (0.9.10 and 0.10.0-rc.18 are both covered). rsa 0.9.10 comes from crypto-glue
+  # (webauthn-rs, passkeys) and openidconnect (RD-190-15), which only *verify* RS256/PS256
+  # signatures of attestations and ID tokens — public key operations. russh's default `rsa`
+  # feature pulls in rsa 0.10.0-rc.18: verifying an SSH host key is a public key operation as
+  # well, and the only private key operation here is signing once per connection with a
+  # deliberately configured RSA client key, which gives an observer far too few samples to be
+  # useful. Disabling that feature removes the advisory but also drops ssh-rsa and rsa-sha2-*
+  # host keys, which are still common on default sshd installations, so the compatibility cost
+  # outweighs the exposure.
+  { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via crypto-glue (webauthn-rs) and openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
 
   # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
   # real dependency: nothing here ever compiles it. (The nine GTK3 advisories themselves no
@@ -168,9 +169,10 @@ skip = [
   { crate = "ed25519:2", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
   { crate = "curve25519-dalek:4", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
   { crate = "itertools:0.10", reason = "openidconnect 4.0 (rd-authn)" },
-  # The wasm-tools line: wasmtime 49.0.1, the newest release, is on 0.258, the wit-bindgen 0.62
-  # proc macro the plugin crates compile with on 0.259 (RD-160-08). The service ships 0.258 only;
-  # 0.259 lives in the plugins' build. They leave when a wasmtime release moves to 0.259.
+  # The wasm-tools line: wasmtime 49.0.2, the newest release (2026-10-05), is on 0.258, the
+  # wit-bindgen 0.62 proc macro the plugin crates compile with on 0.259 (RD-160-08). The service
+  # ships 0.258 only; 0.259 lives in the plugins' build. They leave when a wasmtime release moves
+  # to 0.259.
   { crate = "wasmparser:0.258", reason = "wasmtime 49 (rd-plugin-host); wit-bindgen 0.62 uses 0.259" },
   { crate = "wasm-encoder:0.258", reason = "wasmtime-environ 49; wit-bindgen 0.62 uses 0.259" },
   { crate = "wasm-metadata:0.258", reason = "wit-component 0.258 (wasmtime 49); wit-bindgen 0.62 uses 0.259" },

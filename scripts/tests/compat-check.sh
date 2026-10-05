@@ -240,7 +240,7 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/crates/rd-plugin-api/wit"
 cp "$ROOT/scripts/compat-check.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/compat-check.py" "$ROOT/scripts/lib/release-tag.sh" \
+cp "$ROOT/scripts/lib/"{compat-check,compat_rest,compat_wit}.py "$ROOT/scripts/lib/release-tag.sh" \
     "$ROOT/scripts/lib/workspace-version.sh" "$TREE/scripts/lib/"
 cp "$FIXTURES/base.json" "$TREE/web/openapi.json"
 cp "$FIXTURES/base.wit" "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"

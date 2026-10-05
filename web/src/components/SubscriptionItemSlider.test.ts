@@ -54,38 +54,64 @@ afterEach(() => {
 })
 
 describe('SubscriptionItemSlider — paging', () => {
-  it('turns pages with the arrows, wrapping at both ends', async () => {
+  // Owner, 2026-10-05 (RD-1101-01): wrapping hid the end of the list; the slider stops there.
+  it('turns pages with the arrows and stops at both ends, its arrow switched off there', async () => {
     mount()
+    const previous = screen.getByRole('button', { name: 'Previous page' }) as HTMLButtonElement
+    const next = screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement
     expect(shown()).toBe('Alpha Show')
-    await fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(previous.disabled).toBe(true)
+    expect(next.disabled).toBe(false)
+    await fireEvent.click(next)
     expect(shown()).toBe('Beta Show')
-    await fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+    expect(previous.disabled).toBe(false)
+    await fireEvent.click(next)
     expect(shown()).toBe('Gamma Show')
+    expect(next.disabled).toBe(true)
+    await fireEvent.click(previous)
+    expect(shown()).toBe('Beta Show')
+    expect(next.disabled).toBe(false)
   })
 
-  it('turns pages with the arrow keys on the focusable track', async () => {
+  it('has both arrows switched off when everything fits on one page', () => {
+    mount({ items: hits.slice(0, 1) })
+    expect((screen.getByRole('button', { name: 'Previous page' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('turns pages with the arrow keys on the focusable track, and stops at both ends', async () => {
     mount()
     const track = screen.getByTestId('slider-track')
     expect(track.getAttribute('tabindex')).toBe('0')
-    await fireEvent.keyDown(track, { key: 'ArrowRight' })
-    expect(shown()).toBe('Beta Show')
     await fireEvent.keyDown(track, { key: 'ArrowLeft' })
     expect(shown()).toBe('Alpha Show')
+    await fireEvent.keyDown(track, { key: 'ArrowRight' })
+    expect(shown()).toBe('Beta Show')
+    await fireEvent.keyDown(track, { key: 'ArrowRight' })
+    await fireEvent.keyDown(track, { key: 'ArrowRight' })
+    expect(shown()).toBe('Gamma Show')
+    await fireEvent.keyDown(track, { key: 'ArrowLeft' })
+    expect(shown()).toBe('Beta Show')
   })
 
-  it('turns pages with a swipe, and a tap is not a swipe', async () => {
+  it('turns pages with a swipe, a tap is not a swipe, and it stops at both ends', async () => {
     mount()
     const track = screen.getByTestId('slider-track')
-    await fireEvent.pointerDown(track, { clientX: 300 })
-    await fireEvent.pointerUp(track, { clientX: 290 })
+    async function swipe(from: number, to: number): Promise<void> {
+      await fireEvent.pointerDown(track, { clientX: from })
+      await fireEvent.pointerUp(track, { clientX: to })
+    }
+    await swipe(100, 250)
     expect(shown()).toBe('Alpha Show')
-    await fireEvent.pointerDown(track, { clientX: 300 })
-    await fireEvent.pointerUp(track, { clientX: 150 })
+    await swipe(300, 290)
+    expect(shown()).toBe('Alpha Show')
+    await swipe(300, 150)
     expect(shown()).toBe('Beta Show')
-    await fireEvent.pointerDown(track, { clientX: 100 })
-    await fireEvent.pointerUp(track, { clientX: 250 })
-    expect(shown()).toBe('Alpha Show')
+    await swipe(300, 150)
+    await swipe(300, 150)
+    expect(shown()).toBe('Gamma Show')
+    await swipe(100, 250)
+    expect(shown()).toBe('Beta Show')
   })
 
   it('has operable dots that name their page and mark the current one', async () => {
@@ -154,13 +180,22 @@ describe('SubscriptionItemSlider — every hit, read as it is reached', () => {
     expect(emitted().more).toBeUndefined()
   })
 
-  it('wraps from the first page to the last only once it holds every hit', async () => {
-    mount({ items: read, total: 120 })
-    const previous = screen.getByRole('button', { name: 'Previous page' }) as HTMLButtonElement
-    // Wrapping here would mean reading all 120 before the page could be drawn.
-    expect(previous.disabled).toBe(true)
-    await fireEvent.keyDown(screen.getByTestId('slider-track'), { key: 'ArrowLeft' })
-    expect(screen.getByTestId('slider-counter').textContent?.trim()).toBe('Page 1 of 120')
+  it('ends on the last page of every hit, not of the ones read so far', async () => {
+    const { rerender } = mount({ items: read.slice(0, 3), total: 4 })
+    const next = screen.getByRole('button', { name: 'Next page' }) as HTMLButtonElement
+    await fireEvent.click(next)
+    await fireEvent.click(next)
+    expect(next.disabled).toBe(false)
+    await fireEvent.click(next)
+    // Page 4 of 4: its hit is still on its way, but there is nothing after it.
+    expect(screen.getAllByTestId('slider-pending')).toHaveLength(1)
+    expect(next.disabled).toBe(true)
+    await fireEvent.click(next)
+    expect(screen.getAllByTestId('slider-dot')[3]?.getAttribute('aria-current')).toBe('true')
+
+    // A hit that arrives later adds a page, and the way on opens again.
+    await rerender({ items: read.slice(0, 5), total: 5 })
+    expect(next.disabled).toBe(false)
   })
 })
 
@@ -230,7 +265,7 @@ describe('SubscriptionItemSlider — autoplay', () => {
     expect(screen.queryByTestId('slider-autoplay')).toBeNull()
   })
 
-  it('turns a page every interval and wraps from the last page to the first', async () => {
+  it('turns a page every interval and stops on the last page', async () => {
     vi.useFakeTimers()
     mount({ autoplay: true })
     await tick()
@@ -238,7 +273,8 @@ describe('SubscriptionItemSlider — autoplay', () => {
     await tick()
     expect(shown()).toBe('Gamma Show')
     await tick()
-    expect(shown()).toBe('Alpha Show')
+    await tick()
+    expect(shown()).toBe('Gamma Show')
   })
 
   it('stops and resumes with its visible pause control', async () => {

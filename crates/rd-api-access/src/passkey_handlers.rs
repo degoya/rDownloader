@@ -245,7 +245,7 @@ pub async fn passkey_challenge(
     // Metered like the sign-in it starts. This endpoint is public — it has to be — and it
     // allocates server state for an anonymous caller, so an address the limiter has already
     // locked out must not be able to keep starting ceremonies while it waits.
-    state.auth.gate(client.0).await?;
+    let _attempt = state.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
     let passkeys = load_passkeys(&state).await?;
@@ -305,7 +305,7 @@ pub async fn passkey_login(
     // Both halves of the gate: honouring only the lockout left the distributed case -- every
     // attempt from a fresh address, so the per-address counter never builds -- metered on the
     // password login and free here, which is the door an attacker picks.
-    state.auth.gate(client.0).await?;
+    let _attempt = state.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
     let Some(authentication) = state.passkey_authentications.take(&request.ceremony_id) else {

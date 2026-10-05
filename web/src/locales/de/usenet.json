@@ -45,7 +45,8 @@
     "direct": "Direkt",
     "edit": "Server bearbeiten",
     "delete": "Server löschen",
-    "empty": "Noch kein NNTP-Server konfiguriert."
+    "empty": "Noch kein NNTP-Server konfiguriert.",
+    "disabled": "Aus"
   },
   "delete": {
     "title": "Usenet-Server löschen",

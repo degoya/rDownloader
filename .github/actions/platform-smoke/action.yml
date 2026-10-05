@@ -1,0 +1,61 @@
+name: Platform smoke tests
+description: >
+  What a platform ships beside the binaries, checked on the `rust` job's runner after its tests
+  (RD-1101-07 moved the steps here from ci.yml, unchanged): the launchers of the Linux, macOS and
+  Windows archives, the macOS helper app, a debug build started through the portable launcher, the
+  Homebrew formula on macOS and the Scoop manifest on Windows (RD-180-06), both over this tree's
+  build. Each step runs on its own system only; the scripts are scripts/ci-platform-smoke.sh and
+  scripts/ci-platform-smoke.ps1.
+runs:
+  using: composite
+  steps:
+    - name: Check Unix launcher syntax
+      if: runner.os != 'Windows'
+      shell: bash
+      run: scripts/ci-platform-smoke.sh launcher-syntax
+    - name: Check Windows launcher arguments
+      if: runner.os == 'Windows'
+      shell: pwsh
+      # The launcher pauses at the end when started by a double click; unattended it must not.
+      env:
+        RDOWNLOADER_NO_PAUSE: "1"
+      run: ./scripts/ci-platform-smoke.ps1 launcher-args
+    - name: Build and validate macOS NZB helper app
+      if: runner.os == 'macOS'
+      shell: bash
+      run: scripts/ci-platform-smoke.sh macos-helper
+    - name: Smoke-test portable Unix server launcher
+      if: runner.os != 'Windows'
+      shell: bash
+      run: scripts/ci-platform-smoke.sh portable
+    - name: Install through the Homebrew formula
+      if: runner.os == 'macOS'
+      shell: bash
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: "1"
+        HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        HOMEBREW_NO_ANALYTICS: "1"
+      run: scripts/ci-platform-smoke.sh homebrew
+    - name: Smoke-test Windows executables
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: ./scripts/ci-platform-smoke.ps1 executables
+    - name: Smoke-test portable Windows server launcher
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: ./scripts/ci-platform-smoke.ps1 portable
+    # The Scoop manifest in three steps, because the generator is bash and Scoop is PowerShell.
+    - name: Pack a release-layout zip for the Scoop manifest
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: ./scripts/ci-platform-smoke.ps1 scoop-zip
+    - name: Render the Scoop manifest
+      if: runner.os == 'Windows'
+      shell: bash
+      run: scripts/ci-platform-smoke.sh scoop-manifest
+    - name: Install through the Scoop manifest
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        RDOWNLOADER_NO_PAUSE: "1"
+      run: ./scripts/ci-platform-smoke.ps1 scoop-install

@@ -72,5 +72,6 @@
     "view_failed_hint": "Elle se chargera dès que le service sera de nouveau joignable.",
     "reload": "Recharger"
   },
-  "history": "Historique"
+  "history": "Historique",
+  "stats_history": "Statistiques et historique"
 }

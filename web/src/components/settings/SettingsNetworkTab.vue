@@ -180,7 +180,7 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
     >
       <template #proxies>
         <div class="space-y-6">
-          <section data-settings-anchor="network.proxies" class="border border-muted bg-default p-5">
+          <UCard as="section" data-settings-anchor="network.proxies">
             <FormListLayout :list-title="t('settings.proxy.list_title')" :count="proxies.length">
               <template #form>
                 <SectionHeader
@@ -267,9 +267,9 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
                 </div>
               </template>
             </FormListLayout>
-          </section>
+          </UCard>
 
-          <section data-settings-anchor="network.global_proxy" class="grid gap-4 border border-muted bg-default p-5">
+          <UCard as="section" data-settings-anchor="network.global_proxy" :ui="{ body: 'grid gap-4' }">
             <SectionHeader
               :eyebrow="t('settings.global_proxy.eyebrow')"
               :title="t('settings.global_proxy.title')"
@@ -282,7 +282,7 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
             <UFormField data-settings-anchor="network.custom_ca" :label="t('settings.custom_ca.label')" :description="t('settings.custom_ca.description')">
               <UTextarea v-model="settings.custom_ca_pem" :rows="7" class="w-full font-mono text-xs" placeholder="-----BEGIN CERTIFICATE-----" />
             </UFormField>
-          </section>
+          </UCard>
         </div>
       </template>
       <template #auth>

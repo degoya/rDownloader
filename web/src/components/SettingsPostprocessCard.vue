@@ -117,7 +117,7 @@ const sampleMiB = byteModel(
 </script>
 
 <template>
-  <section data-settings-anchor="postprocess.defaults" class="space-y-4 border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="postprocess.defaults" :ui="{ body: 'space-y-4' }">
     <div>
       <SectionHeader
         :eyebrow="t('settings.postprocess.eyebrow')"
@@ -254,5 +254,5 @@ const sampleMiB = byteModel(
     <UFormField data-settings-anchor="postprocess.rclone_executable" :label="t('settings.postprocess.rclone_executable.label')" :description="t('settings.postprocess.rclone_executable.description')">
       <UInput v-model="settings.rclone_executable" icon="i-lucide-terminal" placeholder="/usr/bin/rclone" class="w-full font-mono" />
     </UFormField>
-  </section>
+  </UCard>
 </template>

@@ -115,7 +115,7 @@ describe('AutomationView', () => {
 
     expect(heading.nextElementSibling?.className).toContain('border-dashed')
     await fireEvent.click(screen.getByRole('button', { name: automation.create }))
-    expect(heading.nextElementSibling?.className).toContain('bg-default')
+    expect(heading.nextElementSibling?.contains(screen.getByTestId('automation-form'))).toBe(true)
     expect(heading.nextElementSibling?.className).not.toContain('border-dashed')
   })
 

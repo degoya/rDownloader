@@ -5,6 +5,126 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-05
+
+### Security
+
+- **A notification target's program path needs `api:admin` (RD-1101-11, audit S1).** An apprise
+  target's `config.executable` names a program the service starts; a configuration token could
+  set it over REST, `create_notification_target`/`update_notification_target` and then run any
+  file on disk through the test action, a delivery or an automation. Setting or changing it is
+  now refused without `api:admin` (`auth.scope_insufficient`, `setting: executable`), like the
+  program paths among the settings, and delivery starts only a path an administrator's save
+  sealed (a digest over the target's vault reference and the path, kept in
+  `config.executable_seal`), so a path stored earlier never runs until an administrator saves the
+  target again.
+- **Webhooks, the reconnect's IP check and hotfolders keep to the address and directory rules
+  (RD-1101-14, audit S2, S8, S9).** A webhook and an IP check keep to the rule for an address the
+  person entered, the one plugin requests keep to: their own network and a receiver on this
+  machine are fine, link-local and rDownloader's own ports are refused, names resolve through the
+  guard; a webhook follows no redirect and reads at most 8 KiB of a failed answer, an IP check
+  holds every redirect hop to the rule and reads 1 KiB. `reconnect_enabled`, `reconnect_script`,
+  `reconnect_ip_check_urls`, `passwords_file` and `excluded_domains_file` now cost `api:admin`;
+  the password list and the domain blocklist are read only as regular files, at most 4 MiB. A
+  hotfolder on this machine may not reach the data, scripts, vendor, tools or plugin directory
+  (`hotfolder.protected_directory`), checked before it is created.
+- **File names and the SFTP login (RD-1101-12, audit S3, S20, S22, S23).** A file name whose
+  stem is four bytes with a multi-byte character in it (`😀.jpg`, `42°.txt`) no longer panics the
+  name sanitiser. `CONIN$`, `CONOUT$`, `COM0`/`LPT0` and the superscript `COM¹²³`/`LPT¹²³` are
+  reserved like `CON` and `COM1`. A plugin's `source.rename` is refused for any name the host's
+  own file-name rules would change (a device name, `:`, a trailing dot). An SFTP login without a
+  user name fails with `sftp.no_username` instead of signing in as `root`.
+- **HTTP hardening (RD-1101-15, audit S4, S5, S7, S10, S11, S12).** Every answer carries
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `X-Frame-Options: DENY` and
+  `frame-ancestors 'none'`; the web interface's page has a content security policy of its own
+  (scripts from this origin only, the mount-point script by its hash) — S5. The sign-in limiter
+  counts an IPv6 client by its /64, asks again after its delay and counts an attempt as failed
+  until its verdict is in, so parallel attempts no longer slip past a lockout (S4); Argon2 runs on
+  the blocking pool, two at a time (S10). Several `X-Forwarded-For` or `Forwarded` lines are read
+  together, so a proxy that appends its own line is believed instead of the client (S7). The
+  local control token is compared in constant time (S12). The listener's missing header timeout
+  (S11) is documented: bound beyond loopback, the service belongs behind a reverse proxy.
+- **Usenet and helper tools bounded (RD-1101-16, audit S6, S18, S19, S21).** The size an article's
+  yEnc header announces must lie within the NZB's count for the file
+  (`usenet.declared_size_implausible`), and the holes of missing articles are zero-filled only where
+  the disk keeps its reserve (`usenet.gap_fill_no_space`, retried), and a stop now reaches the fill
+  — one NZB could fill the disk before. NNTP status and body lines are bounded before they are read.
+  The recording remux runs ffmpeg with `-protocol_whitelist file`, and yt-dlp, gallery-dl and
+  streamlink start in an empty private working directory, so a `yt-dlp.conf` where the service was
+  started is no longer read.
+- **SDK, Docker and export hardening from the 1.10.0 audit (RD-1101-17, K1–K4, K6, K7).**
+  `plugin new` writes a `.gitignore` (`plugin-signing.key`, `target/`, `*.rdplug`) before the
+  private key, so a first `git add .` no longer commits it. `sdk/ci/plugin.yml` runs with
+  `contents: read`, signs only on a push to the default branch or a tag (a pull request builds and
+  checks an unsigned development package), pins its actions to commits and checks the release
+  binary against the release's `SHA256SUMS`, as `sdk/ci/repository.yml` now does too. Both pin the
+  release they ship with, written by `scripts/set-version.sh` (they named 1.5.2 and 1.6.0, which
+  refuse plugin API 0.10.0); the templates share `wit-bindgen` 0.62 and `min_app_version` 1.9.0,
+  and `scripts/check-sdk-templates.sh` holds templates and pin together. The Docker entrypoint
+  refuses a non-numeric `PUID`/`PGID` and runs as root only with `RDOWNLOADER_ALLOW_ROOT=1`. The
+  public export finds gitleaks only through `GITLEAKS` or `PATH`.
+
+### Changed
+
+- **Statistics and history are one page with two tabs (RD-1101-05).** The navigation has one
+  entry, *Statistics & history*, where the statistics were; `7` opens it and `H` still opens the
+  history tab. The tab is in the address (`/stats?tab=history`), so a reload and the back button
+  keep it, and `/history` redirects there. The statistics' range buttons and the history's
+  *Refresh* moved from the navbar into their tabs.
+- **Start and pause downloads from the tray (RD-1101-06).** The capture agent's tray menu lists
+  *Start all*, *Pause all*, *Pause for 30 minutes* and *Pause for 1 hour* together, with the web
+  interface's labels, each enabled while it would do something: *Start all* while a timed pause
+  holds or files are paused (failed files stay as they are), *Pause all* while files download or
+  wait. An agent paired without **May pause the queue**, or before 1.10, now shows the entries
+  greyed out with *Pair again to control the queue* instead of hiding them. No new route or right.
+- **The subscription card slider ends at the last hit (RD-1101-01).** It no longer wraps from the
+  last page back to the first, by arrows, arrow keys, swipe or autoplay, so the end of the list is
+  visible: next is disabled on the last page of all the subscription's hits — loaded or not —
+  previous on the first, and autoplay stops on the last page. Further hits still load as the
+  reader gets close; one that arrives later adds a page and enables next again. The *Queue all* /
+  *Dismiss all* pair of a review group is one component in its header and its footer, and the
+  footer stands under every open group with hits, with or without pages.
+- **Cards stand off the page (RD-1101-09).** Every card in the settings, the views' cards and
+  their framed forms are Nuxt UI cards in the `soft` variant, set once as the card default in the
+  theme config: a light ground of their own instead of the page's colour with an outline. A card
+  nested in a card (the installed plugins) keeps its outline.
+- **Soak budgets per platform (RD-1101-02).** `scripts/soak-budgets.toml` takes a
+  `[budgets.<platform>]` table that overrides single budgets on that platform; a typo in it, or a
+  table naming no platform, is refused on every platform, and a verdict says which platform's limit
+  applied. Windows counts process handles, not file descriptors, so its open-files peak budget is
+  1024 (the two-hour `windows-2025` run of 2026-10-05 peaked at 522 with falling growth and failed
+  the Linux 256); the growth budgets stay the same everywhere. `soak.py evaluate --platform`
+  judges another platform's samples.
+
+### Fixed
+
+- **A managed FFmpeg install works again (RD-1101-13, audit D1).** The tool manifest shipped with
+  1.10.0 pinned BtbN's FFmpeg daily build of 2026-09-07, which BtbN deletes after 14 days, so
+  installing `ffmpeg` or `ffprobe` failed with a 404. The re-signed manifest (sequence 3) names
+  BtbN's month-end build `autobuild-2026-09-30-13-08` (FFmpeg 9.0.2), which BtbN keeps for two
+  years; a test refuses a BtbN entry that is not a month-end build, and
+  `scripts/tools-manifest-check.sh`, run weekly by the new `tools-manifest.yml` workflow, asks
+  every manifest URL for its size so the next dead link shows before a user meets it.
+- **The LinkGrabber's column header names what its rows show** (RD-1101-08). Since 1.10 it carried
+  the download list's labels, so *Progress* stood over a column a link row leaves empty and *State*
+  over a link's check state. It now reads *Name*, *Link state*, *Size* and *Hoster · Variant*, and
+  the empty progress cell has neither a label nor a resize handle; the download list is unchanged.
+- **Folder toggles and on/off dots are readable without sight or colour (RD-1101-10).** The
+  folder button of the remote file tree has a name, both file trees say whether a folder is open
+  (`aria-expanded`), and a switched-off hotfolder or NNTP server shows an "Off" badge like rules
+  and indexers already did, instead of a grey dot only.
+- **Swallowed errors are logged, remote links checked, mount path kept (RD-1101-18, audit Q1,
+  Q2, K8, K9, D4, D7).** A stored JSON value that no longer parses still reads as its default,
+  but now leaves a warning naming table, column and row (23 places in the database layer). A
+  failed requeue after a router reconnect is reported instead of "requeued 0"; an unreadable
+  traffic-budget baseline is reported and no longer resets the counters to zero, which charged
+  the whole odometer to the next sample; an update download whose fetcher cannot be had ends as
+  failed instead of "downloading" for good. The statistics page shows the metrics address with
+  the reverse proxy's mount path. A media page address that is not `http(s)` is replaced by the
+  probed link, and the interface links plugin, sign-in, media and tool addresses only when they
+  are `http(s)`. Web dependencies: `js-yaml` 4.3.2, `brace-expansion` 2.1.7/5.0.12, `esbuild`
+  0.28.2 (`pnpm audit` clean); the `deny.toml` notes name where `rsa` really comes from.
+
 ## [1.10.0] - 2026-10-05
 
 ### Added

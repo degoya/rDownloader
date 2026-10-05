@@ -40,6 +40,7 @@ pub mod runner;
 mod service;
 pub mod store;
 pub mod version;
+mod workdir;
 
 pub use compat::{Assessment, Capability, CompatRule, CompatRules, Verdict};
 pub use error::ToolError;

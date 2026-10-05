@@ -63,7 +63,14 @@ pub(crate) async fn read_preference(connection: &mut SqliteConnection) -> Result
         .fetch_optional(&mut *connection)
         .await?;
     Ok(raw
-        .and_then(|value| serde_json::from_str(&value).ok())
+        .and_then(|value| {
+            crate::json_column::lenient(
+                serde_json::from_str(&value),
+                "settings",
+                "value_json",
+                MIRROR_PREFERENCE_KEY,
+            )
+        })
         .unwrap_or_default())
 }
 

@@ -241,10 +241,13 @@ impl SchedulerHandle {
         let windows = self.database.list_bandwidth_windows().await?;
         let mut budgets = self.database.bandwidth_budgets().await?;
         // The odometer is global, not per profile: it says how many bytes the queue had
-        // already committed when the counters were last sampled.
-        let baseline = self.load_budget_baseline().await.unwrap_or_default();
-        for budget in budgets.values_mut() {
-            budget.last_total_bytes = baseline;
+        // already committed when the counters were last sampled. Without a readable one the
+        // counters keep their own last sample; a zero here charged the whole odometer to the
+        // next tick (audit Q2).
+        if let Some(baseline) = self.load_budget_baseline().await? {
+            for budget in budgets.values_mut() {
+                budget.last_total_bytes = baseline;
+            }
         }
         let schedule = WeeklySchedule {
             timezone,
@@ -342,7 +345,7 @@ impl SchedulerHandle {
             // Without an active profile there is no budget; the odometer still advances so
             // the next profile does not inherit that gap as traffic of its own.
             let total = self.committed_total().await?;
-            if self.load_budget_baseline().await != Some(total) {
+            if self.load_budget_baseline().await? != Some(total) {
                 self.store_budget_baseline(total).await?;
             }
             return Ok(());
@@ -353,7 +356,7 @@ impl SchedulerHandle {
             (state.schedule.day_key(now), state.schedule.month_key(now))
         };
         let total = self.committed_total().await?;
-        let baseline = self.load_budget_baseline().await;
+        let baseline = self.load_budget_baseline().await?;
         let key = profile.id.to_string();
         let (state_to_store, exceeded, advanced, budget_event) = {
             let mut state = service.state.write().await;
@@ -408,13 +411,15 @@ impl SchedulerHandle {
         self.database.committed_bytes_total().await
     }
 
-    async fn load_budget_baseline(&self) -> Option<u64> {
-        self.database
+    /// The stored odometer, `None` before the first sample. A database error is the caller's
+    /// rather than a missing value (audit Q2).
+    async fn load_budget_baseline(&self) -> Result<Option<u64>> {
+        Ok(self
+            .database
             .get_setting(BUDGET_BASELINE_KEY)
-            .await
-            .ok()
-            .flatten()
-            .and_then(|value| value.as_u64())
+            .await?
+            .as_ref()
+            .and_then(baseline_of))
     }
 
     async fn store_budget_baseline(&self, total: u64) -> Result<()> {
@@ -462,6 +467,15 @@ impl SchedulerHandle {
 
 #[path = "bandwidth_manual.rs"]
 mod manual;
+
+/// The odometer a stored value holds; any other shape is logged and reads as none.
+fn baseline_of(value: &serde_json::Value) -> Option<u64> {
+    let baseline = value.as_u64();
+    if baseline.is_none() {
+        tracing::warn!(key = BUDGET_BASELINE_KEY, %value, "the stored traffic odometer is unreadable");
+    }
+    baseline
+}
 
 #[cfg(test)]
 #[path = "bandwidth_tests.rs"]

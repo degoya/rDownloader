@@ -12,3 +12,9 @@ nodeLinker: hoisted
 allowBuilds:
   esbuild: true
   vue-demi: false
+
+# esbuild below 0.28.1 lets its development server read arbitrary files on Windows
+# (GHSA-g7r4-m6w7-qqqr). Vite takes 0.28 already; fontless 0.2.1, under @nuxt/fonts 0.14 and
+# Nuxt UI, still asks for ^0.27. Drop the override once fontless moves on (audit D4, 2026-10-05).
+overrides:
+  esbuild: ^0.28.1

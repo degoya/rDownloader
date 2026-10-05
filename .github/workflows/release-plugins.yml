@@ -1,0 +1,143 @@
+name: Release plugins
+
+# The signed plugins of a release, called by release.yml's `plugins` job (RD-1101-07 split it off;
+# the job is unchanged): every bundled plugin built as a wasm component, the packager `rd-pack`,
+# the packages signed with the plugin key, the plugin index signed with the repository key, and
+# the committed site-rule file verified. Its artifacts (`packager`, `plugins`, `plugin-index`,
+# `site-rules`) belong to the release run and are what `packages`, `publish` and the container
+# jobs download.
+on:
+  workflow_call:
+    secrets:
+      RDOWNLOADER_PLUGIN_SIGNING_KEY: {required: false}
+      RDOWNLOADER_REPOSITORY_SIGNING_KEY: {required: false}
+
+# As in release.yml: read-only.
+permissions:
+  contents: read
+
+env:
+  # release.yml's, which a called workflow does not inherit.
+  CARGO_TERM_COLOR: always
+  PLUGIN_RELEASE_TAG: plugins-${{ github.ref_name }}
+
+jobs:
+  plugins:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
+      # rd-api and its `#[derive(RustEmbed)]`.
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+      # Read, never saved (RD-1100-13): a cache saved by a tag's run is readable by that tag only,
+      # so every release stored gigabytes nobody could use against the repository's 10 GB.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: release-plugins
+          save-if: false
+      # Prebuilt through cargo-binstall, as in ci.yml's `components` job whose cache this run
+      # reads, instead of a source build at every release (RD-191-09).
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-component@0.21.1
+      # For the import check scripts/build-plugins.sh runs on every component it builds, and the
+      # one below over all of them.
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-tools@1.261.0
+      - name: Collect the bundled plugins
+        id: plugins
+        shell: bash
+        run: scripts/ci-plugins.sh list
+      # Components are built only when their content changed (RD-150-10). The cache is the one
+      # ci.yml's `components` job fills on `main` — a tag's run may read the default branch's
+      # caches and nothing else — keyed by what goes into a component: toolchain, cargo-component,
+      # the registry half of Cargo.lock and the root Cargo.toml (`deps`), and every plugin's source
+      # hash (`sources`). A miss on `sources` restores the newest set with the same `deps`, and
+      # build-plugins.sh rebuilds what its stamps call stale or missing. Every package is still
+      # signed below, cached component or not.
+      - name: Work out the component cache key
+        id: component-key
+        shell: bash
+        run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
+            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
+          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+      - name: Build plugin components
+        shell: bash
+        run: scripts/build-plugins.sh --components-only
+      - name: Reject accidental WASI capabilities
+        shell: bash
+        run: scripts/ci-plugins.sh imports ${{ steps.plugins.outputs.names }}
+      # The packager, `rd-pack` (RD-150-20): the `plugin` and `site-rules` commands of
+      # `rdownloader` without building the service. `release-test` because it compiles every
+      # component with Wasmtime; `release`'s single code unit and LTO buy a tool nothing. The
+      # packages it writes are the same bytes either way, and the embedded roots are the same.
+      - name: Build the packager
+        run: cargo build --locked --profile release-test -p rd-pack
+      # RD-180-01: `publish` builds the update manifest with it, after the checksums exist.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packager
+          path: target/release-test/rd-pack
+          if-no-files-found: error
+      - name: Package and sign bundled plugins
+        env:
+          RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
+        shell: bash
+        run: scripts/ci-plugins.sh package-signed ${{ steps.plugins.outputs.packageable }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plugins
+          path: dist/plugins/*.rdplug
+          if-no-files-found: error
+      # RD-140-01: the signed plugin repository index, over exactly the packages above. It names
+      # each package by the digest of these bytes, so it can be built nowhere else. `verify`
+      # checks it against the root this build embeds, which also catches a secret that is not
+      # the repository key. Until the secret exists the release carries no index. Its URLs are
+      # absolute, into the plugin release; the index itself is an asset of the application
+      # release, so `releases/latest/download/rdownloader-plugin-index.json` keeps finding it.
+      - name: Build and sign the plugin index
+        env:
+          RDOWNLOADER_REPOSITORY_SIGNING_KEY: ${{ secrets.RDOWNLOADER_REPOSITORY_SIGNING_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "${RDOWNLOADER_REPOSITORY_SIGNING_KEY}" ]]; then
+            echo "::warning::RDOWNLOADER_REPOSITORY_SIGNING_KEY is not set; this release publishes no plugin index"
+            exit 0
+          fi
+          mkdir -p dist/plugin-index
+          target/release-test/rd-pack plugin index build dist/plugins \
+            --out dist/plugin-index/rdownloader-plugin-index.json \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${PLUGIN_RELEASE_TAG}/" \
+            --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json \
+            --notes dist/plugin-notes
+          target/release-test/rd-pack plugin index verify \
+            dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plugin-index
+          path: dist/plugin-index/rdownloader-plugin-index.json
+          if-no-files-found: ignore
+      # RD-130-07: the site rules are not compiled in; every release carries them as a signed file
+      # beside the packages. CI holds only the plugin key, so the file is signed locally with the
+      # site-rules key and committed; this step proves the committed file verifies under this
+      # build's root before `publish` attaches it.
+      - name: Verify the site-rule file
+        shell: bash
+        run: |
+          mkdir -p dist/site-rules
+          cp crates/rd-siterules/resources/site-rules.json dist/site-rules/rdownloader-site-rules.json
+          target/release-test/rd-pack site-rules verify dist/site-rules/rdownloader-site-rules.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-rules
+          path: dist/site-rules/rdownloader-site-rules.json
+          if-no-files-found: error

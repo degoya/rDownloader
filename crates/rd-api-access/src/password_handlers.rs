@@ -54,10 +54,13 @@ pub async fn change_password(
     // with a bounded, expiring lockout and a global delay that can never become a refusal,
     // which is what stops the protection from turning into the attack. A counter of its own
     // here would be a second, weaker copy of that reasoning.
-    if let Err(refusal) = state.auth.gate(client.0).await {
-        note_refusal(&state, &audit, client.0, "locked_out").await;
-        return Err(refusal);
-    }
+    let _attempt = match state.auth.gate(client.0).await {
+        Ok(attempt) => attempt,
+        Err(refusal) => {
+            note_refusal(&state, &audit, client.0, "locked_out").await;
+            return Err(refusal);
+        }
+    };
 
     // Before the current password is consulted, and on purpose: this refusal depends only on
     // what the caller sent, so it tells them nothing they did not already know. Checking the

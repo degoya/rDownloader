@@ -210,14 +210,14 @@ async fn login(
     // SHA-256 and a database lookup, and leaving this door free while the native one is
     // counted makes the counting on the native one decorative: an attacker guesses tokens
     // through whichever door does not answer back.
-    if state.auth.gate(client.0).await.is_err() {
+    let Ok(_attempt) = state.auth.gate(client.0).await else {
         // qBittorrent's own answer for a banned address, which its clients already understand.
         return (
             StatusCode::FORBIDDEN,
             "Your IP address has been banned after too many failed login attempts.",
         )
             .into_response();
-    }
+    };
 
     // Clients send the credentials as a form body; a few send them in the query string.
     // Parsed by hand rather than with a `Form` extractor so an empty or non-form body on a

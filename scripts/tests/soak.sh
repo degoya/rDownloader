@@ -5,8 +5,11 @@
 #
 # A steady run passes the checked-in budgets; the same samples fail once a budget is lowered below
 # them, a leak fails the growth budget, a stall and a corrupt file fail theirs, and each failure
-# names its metric. A budget key naming no metric is refused. The fixture serves ranges that match
-# its own hash and refuses connections during an outage.
+# names its metric. A budget key naming no metric is refused. A `[budgets.windows]` override
+# applies on Windows alone and is named in the verdict; a typo in it, or a table naming no
+# platform, is refused on every platform, and the growth budget still catches a handle leak on
+# Windows. The
+# fixture serves ranges that match its own hash and refuses connections during an outage.
 #
 # Pure python3 and bash: it runs in seconds. check.sh runs it when scripts/ changes, and under
 # --full.
@@ -25,16 +28,18 @@ passed=0
 ok() { echo "ok   $1"; passed=$((passed + 1)); }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# The budgets of `$platform` (linux unless the call sets it), whatever machine runs this.
 # shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 judge() { python3 "$SOAK" evaluate --samples "$1" --budgets "${2:-$BUDGETS}" --shutdown-seconds 2 \
-    > "$SCRATCH/out" 2>&1 && status=0 || status=$?; }
+    --platform "${platform:-linux}" > "$SCRATCH/out" 2>&1 && status=0 || status=$?; }
 has() { grep -qF -- "$1" "$SCRATCH/out"; }
 # The checked-in budgets with one key replaced.
 lowered() { sed -E "s/^$1 = .*/$1 = $2/" "$BUDGETS" > "$SCRATCH/lowered.toml"; }
 
 # An hour sampled every 10 s: flat memory, files and threads, 12 MiB/s, one completion every 5 s.
 # `leak` adds 1 MiB of resident memory per minute, `stall` stops completions for 10 minutes and
-# `corrupt` counts one bad file at the end.
+# `corrupt` counts one bad file at the end. `handles` is the Windows run of 2026-10-05: a handle
+# count peaking at 522 and falling; `handle-leak` adds one handle a minute.
 samples() {
     python3 - "$1" > "$SCRATCH/$1.csv" <<'PY'
 import sys
@@ -47,11 +52,16 @@ for step in range(361):
     if not (shape == "stall" and 1800 <= t < 2400):
         completed = step * 2
     corrupt = 1 if shape == "corrupt" and step == 360 else 0
-    print(f"{t},{rss},{40 + step % 2},{30},{4 + t / 3600},{completed},0,{corrupt},{completed * 60},12")
+    files = 40 + step % 2
+    if shape == "handles":
+        files = 522 - step / 4
+    elif shape == "handle-leak":
+        files = 400 + t / 60
+    print(f"{t},{rss},{files},{30},{4 + t / 3600},{completed},0,{corrupt},{completed * 60},12")
 PY
 }
 
-for shape in steady leak stall corrupt; do samples "$shape"; done
+for shape in steady leak stall corrupt handles handle-leak; do samples "$shape"; done
 
 judge "$SCRATCH/steady.csv"
 expect "a steady run passes the checked-in budgets" '[[ $status -eq 0 ]] && has "soak passed"'
@@ -86,9 +96,34 @@ judge "$SCRATCH/short.csv"
 expect "a run too short for its windows fails as not measured" \
     '[[ $status -eq 1 ]] && has "rss_mib_growth = not measured"'
 
-printf '%s\nrss_mib_peek_max = 1\n' "$(cat "$BUDGETS")" > "$SCRATCH/typo.toml"
+sed 's/^\[budgets\]$/&\nrss_mib_peek_max = 1/' "$BUDGETS" > "$SCRATCH/typo.toml"
 judge "$SCRATCH/steady.csv" "$SCRATCH/typo.toml"
 expect "a budget naming no metric is refused" '[[ $status -eq 2 ]] && has "rss_mib_peek_max"'
+
+platform=windows judge "$SCRATCH/handles.csv"
+expect "522 handles on Windows pass the Windows peak, and the verdict names it" \
+    '[[ $status -eq 0 ]] && has "ok   open_files_peak = 522.00 (budget <= 1024 for windows;" \
+        && has "ok   rss_mib_peak = " && has "(budget <= 256;" && has "(windows budgets)"'
+
+judge "$SCRATCH/handles.csv"
+expect "the same samples fail the Linux peak, which has no override" \
+    '[[ $status -eq 1 ]] && has "FAIL open_files_peak = 522.00 (budget <= 256;" \
+        && has "over budget: open_files_peak (linux budgets)"'
+
+platform=windows judge "$SCRATCH/handle-leak.csv"
+expect "a handle leak on Windows still fails the shared growth budget" \
+    '[[ $status -eq 1 ]] && has "FAIL open_files_growth" && has "ok   open_files_peak"'
+
+printf '%s\nopen_files_peek_max = 1\n' "$(cat "$BUDGETS")" > "$SCRATCH/override-typo.toml"
+judge "$SCRATCH/steady.csv" "$SCRATCH/override-typo.toml"
+expect "a typo in the Windows table is refused on Linux too" \
+    '[[ $status -eq 2 ]] && has "open_files_peek_max"'
+
+printf '%s\n[budgets.windwos]\nopen_files_peak_max = 1\n' "$(cat "$BUDGETS")" \
+    > "$SCRATCH/platform-typo.toml"
+platform=windows judge "$SCRATCH/steady.csv" "$SCRATCH/platform-typo.toml"
+expect "an override table naming no platform is refused" \
+    '[[ $status -eq 2 ]] && has "[budgets.windwos] names no known platform"'
 
 # The fixture: a range matches its own hash, and an outage refuses connections.
 if python3 -B - "$ROOT/scripts/lib" > "$SCRATCH/out" 2>&1 <<'PY'

@@ -35,9 +35,9 @@ claims = ["example"]
 description = "Runs magnets and torrent files as jobs on a {{PLUGIN_NAME}} account."
 author = "Your name"
 license = "MIT"
-# The `remote-job` world does not exist before 1.0.7; an older core refuses this manifest as
-# an unknown plugin type rather than half-loading it.
-min_app_version = "1.0.7"
+# The release that first accepts `api_version` 0.10.0; an older core refuses this manifest
+# rather than half-loading it.
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

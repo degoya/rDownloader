@@ -15,6 +15,10 @@ use crate::ApiError;
 /// Same cap as the password list: a pasted-in file must not grow the matcher unbounded.
 const MAX_ENTRIES: usize = 10_000;
 
+/// The most of the file that is read, the password list's cap as well: a path that names a
+/// device or a huge log must not fill the memory (audit 2026-10-05, S9).
+const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
+
 struct Cached {
     path: PathBuf,
     /// `None` while the file is missing or its metadata unreadable; a readable timestamp
@@ -97,13 +101,15 @@ pub fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
 }
 
 /// A missing file yields an empty list; a blocklist nobody wrote blocks nothing. Any other IO
-/// error is returned, so the caller can tell an unreadable list from an absent one.
+/// error is returned, so the caller can tell an unreadable list from an absent one. Of a file
+/// longer than [`MAX_FILE_BYTES`] the complete lines within it are read.
 ///
 /// # Errors
 ///
-/// Whatever reading the file fails with, except `NotFound`.
+/// Whatever reading the file fails with, except `NotFound`; `InvalidInput` for anything but a
+/// regular file.
 pub fn load_excluded_domains(path: &Path) -> std::io::Result<Vec<String>> {
-    match std::fs::read_to_string(path) {
+    match rd_files::read_text_capped(path, MAX_FILE_BYTES) {
         Ok(content) => Ok(parse(&content)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(error) => Err(error),
@@ -204,5 +210,14 @@ mod tests {
         let path = directory.path().join("excluded-domains.txt");
         std::fs::write(&path, [0xff, 0xfe, 0xfd]).expect("write");
         assert!(load_excluded_domains(&path).is_err());
+    }
+
+    /// A device is refused, not read until the memory runs out (audit 2026-10-05, S9).
+    #[cfg(unix)]
+    #[test]
+    fn a_device_is_an_error_not_a_list() {
+        let error = load_excluded_domains(std::path::Path::new("/dev/zero"))
+            .expect_err("a device is no list");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 }

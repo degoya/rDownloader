@@ -246,6 +246,16 @@ pub async fn patch_with_bearer(
     .await
 }
 
+/// `PUT` with a bearer token and a JSON body.
+pub async fn put_with_bearer(
+    router: &Router,
+    uri: &str,
+    bearer: &str,
+    body: serde_json::Value,
+) -> (StatusCode, serde_json::Value) {
+    send(router, with_json(bearer_request("PUT", uri, bearer), &body)).await
+}
+
 /// `POST /api/v1/capture/batches` with the capture bearer.
 pub async fn post_capture(
     router: &Router,

@@ -77,6 +77,16 @@ describe('useQueueColumns', () => {
     expect(localStorage.getItem(queueColumnsStorageKey('linkgrabber'))).toBeNull()
   })
 
+  // The LinkGrabber leaves the progress cell empty (RD-1101-08): nothing to size, nothing kept.
+  it('keeps the LinkGrabber to the columns it shows', () => {
+    localStorage.setItem(queueColumnsStorageKey('linkgrabber'), JSON.stringify({ progress: 300, meta: 240 }))
+    const columns = useQueueColumns('linkgrabber')
+    expect(columns.widths.value.progress).toBe(QUEUE_COLUMN_DEFAULTS.progress)
+    expect(columns.style.value).toEqual({ '--queue-col-state': '128px', '--queue-col-size': '144px', '--queue-col-meta': '240px' })
+    columns.setWidth('meta', 200)
+    expect(JSON.parse(localStorage.getItem(queueColumnsStorageKey('linkgrabber')) ?? 'null')).toEqual({ meta: 200 })
+  })
+
   it('reads a damaged or hand-edited entry back as defaults, clamped where it can', () => {
     localStorage.setItem(queueColumnsStorageKey('downloads'), '{not json')
     expect(useQueueColumns('downloads').widths.value).toEqual(QUEUE_COLUMN_DEFAULTS)

@@ -21,9 +21,12 @@
 #   scripts/ci-rust-tests.sh --no-run   # build every group's executables, run none
 set -euo pipefail
 
+# --no-fail-fast only for a real run: nextest 0.9.146 refuses it beside --no-run, and the
+# release push's warm-cache job, the one caller with --no-run, failed on v1.10.0 for it.
 no_run=()
+fail_fast=(--no-fail-fast)
 case "${1:-}" in
-    --no-run) no_run=(--no-run) ;;
+    --no-run) no_run=(--no-run); fail_fast=() ;;
     "") ;;
     *) echo "usage: scripts/ci-rust-tests.sh [--no-run]" >&2; exit 2 ;;
 esac
@@ -43,7 +46,7 @@ run_group() {
     echo "::group::nextest ${no_run[*]+${no_run[*]} }$*"
     touch "${stamp}"
     group=$((group + 1))
-    cargo nextest run -P ci --no-fail-fast ${no_run[@]+"${no_run[@]}"} "$@" || failed=1
+    cargo nextest run -P ci ${fail_fast[@]+"${fail_fast[@]}"} ${no_run[@]+"${no_run[@]}"} "$@" || failed=1
     if [[ -f target/nextest/ci/junit.xml ]]; then
         mv target/nextest/ci/junit.xml "${reports}/group-${group}.xml"
     fi

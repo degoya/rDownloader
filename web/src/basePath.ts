@@ -28,3 +28,12 @@ function normalise(value: string): string {
 export function withBase(path: string): string {
   return `${BASE_PATH}${path}`
 }
+
+/**
+ * The service's full address for `path`, as a client outside this page needs it (a scraper,
+ * the extension, the desktop agent, an MCP client): origin and mount point. Built by hand, the
+ * mount point was the part that went missing (audit K8).
+ */
+export function serviceUrl(path = ''): string {
+  return `${window.location.origin}${withBase(path)}`
+}

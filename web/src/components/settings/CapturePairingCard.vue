@@ -8,7 +8,7 @@ import type { CaptureToken } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopy } from '@/composables/useCopy'
-import { BASE_PATH } from '@/basePath'
+import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
@@ -43,7 +43,7 @@ const pairError = ref<string | null>(null)
 const pairing = ref(false)
 const revokingId = ref<string | null>(null)
 
-const serverOrigin = `${window.location.origin}${BASE_PATH}`
+const serverOrigin = serviceUrl()
 const captureCommand = computed(() => bearer.value
   ? `rdownloader-capture configure --service "${serverOrigin}" --token "${bearer.value}"`
   : '')

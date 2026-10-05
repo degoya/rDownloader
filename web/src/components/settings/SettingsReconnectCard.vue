@@ -127,7 +127,7 @@ const dayItems = computed(() =>
 </script>
 
 <template>
-  <section data-settings-anchor="network.reconnect" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="network.reconnect">
     <SectionHeader :eyebrow="t('reconnect.eyebrow')" :title="t('reconnect.title')" :description="t('reconnect.description')" />
 
     <UFormField :label="t('reconnect.enabled_label')" :description="t('reconnect.enabled_description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
@@ -210,5 +210,5 @@ const dayItems = computed(() =>
         </ul>
       </div>
     </div>
-  </section>
+  </UCard>
 </template>

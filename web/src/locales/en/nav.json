@@ -72,5 +72,6 @@
     "view_failed_hint": "It loads as soon as the service is reachable again.",
     "reload": "Reload"
   },
-  "history": "History"
+  "history": "History",
+  "stats_history": "Statistics & history"
 }

@@ -179,7 +179,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="transfers.remote" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="transfers.remote">
 
     <div v-if="pendingKey" class="mb-4 border p-4" :class="pendingKey.changed ? 'border-error bg-error/5' : 'border-warning bg-warning/5'">
       <p class="text-sm font-medium text-highlighted">
@@ -369,5 +369,5 @@ async function confirmForget(key: SshHostKey): Promise<void> {
         <p v-if="!loading && !hostKeys.length" class="p-5 text-center text-sm text-muted">{{ t('remote.host_keys.empty') }}</p>
       </div>
     </div>
-  </section>
+  </UCard>
 </template>

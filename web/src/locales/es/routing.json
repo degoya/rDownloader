@@ -299,6 +299,7 @@
     "poll_description": "Segundos entre dos pasadas de conciliación por todas las carpetas vigiladas (5–3600). Las vigilancias en curso adoptan el valor de inmediato.",
     "poll_saved": "Intervalo de sondeo guardado",
     "poll_save": "Guardar intervalo",
-    "copy_path_hint": "Una copia necesita su propia carpeta: cambia la ruta antes de crearla."
+    "copy_path_hint": "Una copia necesita su propia carpeta: cambia la ruta antes de crearla.",
+    "disabled_badge": "INACTIVA"
   }
 }

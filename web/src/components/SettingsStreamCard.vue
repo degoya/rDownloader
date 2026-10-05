@@ -11,7 +11,7 @@ const qualityItems = streamQualityItems()
 </script>
 
 <template>
-  <section data-settings-anchor="media.streams" class="space-y-4 border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="media.streams" :ui="{ body: 'space-y-4' }">
     <div>
       <SectionHeader
         :eyebrow="t('settings.streams.eyebrow')"
@@ -34,5 +34,5 @@ const qualityItems = streamQualityItems()
     <UFormField :label="t('settings.streams.max_parallel.label')" :description="t('settings.streams.max_parallel.description')">
       <UInput v-model.number="settings.record_max_parallel" type="number" min="1" max="8" icon="i-lucide-layers" class="w-full" />
     </UFormField>
-  </section>
+  </UCard>
 </template>

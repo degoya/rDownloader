@@ -84,7 +84,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications automations
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable automations
 # Signing in through an identity provider (RD-190-15).
 ^crates/rd-api(-[a-z]+)?/src/(oidc_handlers|oidc_settings_handlers|oidc_client|password_login_handlers)(\.rs$|/)   oidc auth step_up
 ^crates/rd-authn/src/(oidc|oidc_token|oidc_testing)(\.rs$|/)                                   + oidc

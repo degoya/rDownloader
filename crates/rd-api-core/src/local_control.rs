@@ -65,12 +65,13 @@ pub struct LocalControl {
 }
 
 impl LocalControl {
-    /// Whether `bearer` is this process's token.
+    /// Whether `bearer` is this process's token, compared like every other stored credential
+    /// (audit 2026-10-05, S12).
     #[must_use]
     pub fn accepts(&self, bearer: &str) -> bool {
-        self.digest
-            .as_deref()
-            .is_some_and(|digest| digest == rd_authn::sha256_hex(bearer))
+        self.digest.as_deref().is_some_and(|digest| {
+            rd_authn::constant_time_eq(digest.as_bytes(), rd_authn::sha256_hex(bearer).as_bytes())
+        })
     }
 
     /// A control that accepts `token`, without writing any file. For tests.

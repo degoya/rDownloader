@@ -206,6 +206,41 @@ async fn a_failing_target_records_its_attempt_without_leaking_the_secret() {
     assert!(!result.to_string().contains(SECRET), "{result}");
 }
 
+/// A webhook keeps to the rule for an entered address (audit 2026-10-05, S2): a cloud's
+/// metadata endpoint and rDownloader's own listeners — Click'n'Load's port on loopback — are
+/// refused before any request, and the refusal is what the history reads, not their answer.
+#[tokio::test]
+async fn a_webhook_never_reaches_link_local_or_our_own_services() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = common::test_router(directory.path()).await;
+    // Target names are unique, so each address gets its own.
+    for (name, endpoint) in [
+        ("link-local", "http://169.254.169.254/latest/meta-data/"),
+        ("own service", "http://127.0.0.1:9666/flash/addcrypted2"),
+    ] {
+        let target = create_target(
+            &router,
+            serde_json::json!({ "name": name, "kind": "webhook", "endpoint": endpoint }),
+        )
+        .await;
+        let id = target["id"].as_str().expect("id");
+        let (status, result) = common::post_json(
+            &router,
+            &format!("/api/v1/notifications/targets/{id}/test"),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{result}");
+        assert_eq!(result["ok"], false, "{result}");
+        assert!(
+            result["detail"]
+                .as_str()
+                .is_some_and(|detail| detail.contains("may not reach")),
+            "{endpoint}: {result}"
+        );
+    }
+}
+
 /// `budget_exhausted` reaches a rule that asks for it (RD-120-62): the scheduler announces a
 /// budget running out as `bandwidth.changed` with `entity: "budget"`, and only that edge
 /// becomes a delivery — a profile edit or the budget coming back notifies nobody.

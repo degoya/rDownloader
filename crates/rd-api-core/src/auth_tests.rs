@@ -274,3 +274,83 @@ fn a_refusal_names_the_scope_it_wanted() {
     .expect("a read-only token must not reach accounts");
     assert_eq!(refusal.code(), "auth.scope_insufficient");
 }
+
+/// Audit 2026-10-05, S10: Argon2 runs on the blocking pool, never more than
+/// `ARGON2_CONCURRENCY` at once, so parallel sign-in attempts cannot stall the async workers.
+#[tokio::test]
+async fn argon2_runs_off_the_async_workers_and_bounded() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let caller = std::thread::current().id();
+    let running = Arc::new(AtomicUsize::new(0));
+    let peak = Arc::new(AtomicUsize::new(0));
+    let attempts: Vec<_> = (0..8)
+        .map(|_| {
+            let running = Arc::clone(&running);
+            let peak = Arc::clone(&peak);
+            tokio::spawn(super::on_argon2_pool(move || {
+                let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+                peak.fetch_max(now, Ordering::SeqCst);
+                std::thread::sleep(std::time::Duration::from_millis(30));
+                running.fetch_sub(1, Ordering::SeqCst);
+                std::thread::current().id()
+            }))
+        })
+        .collect();
+    for attempt in attempts {
+        let thread = attempt.await.expect("joined").expect("ran");
+        assert_ne!(thread, caller, "Argon2 ran on the async worker");
+    }
+    let peak = peak.load(Ordering::SeqCst);
+    assert!(
+        (1..=super::ARGON2_CONCURRENCY).contains(&peak),
+        "{peak} computations ran at once"
+    );
+}
+
+#[tokio::test]
+async fn a_hashed_password_verifies_and_another_does_not() {
+    use argon2::PasswordVerifier;
+    let hash = super::hash_password("correct horse battery")
+        .await
+        .expect("hash");
+    let parsed = argon2::PasswordHash::new(&hash).expect("PHC string");
+    assert!(
+        argon2::Argon2::default()
+            .verify_password(b"correct horse battery", &parsed)
+            .is_ok()
+    );
+    assert!(
+        argon2::Argon2::default()
+            .verify_password(b"wrong horse battery", &parsed)
+            .is_err()
+    );
+}
+
+/// Audit 2026-10-05, S4: an admitted attempt counts until it is dropped, so parallel attempts
+/// from one address cannot all pass the gate before the first failure is counted.
+#[tokio::test]
+async fn the_gate_counts_attempts_still_in_flight() {
+    let auth = super::AuthService::default();
+    let client: std::net::IpAddr = "203.0.113.9".parse().expect("address");
+    let allowed = rd_authn::ThrottleSettings::default().failures_before_lockout + 1;
+    let mut held = Vec::new();
+    for _ in 0..allowed {
+        held.push(auth.gate(client).await.expect("admitted"));
+    }
+    let refusal = auth
+        .gate(client)
+        .await
+        .err()
+        .expect("an attempt beyond the failures left was let in");
+    assert_eq!(refusal.code(), "auth.too_many_attempts");
+    // Another address is not touched.
+    let _other = auth
+        .gate("2001:db8::1".parse().expect("address"))
+        .await
+        .expect("admitted");
+    held.pop();
+    let _again = auth.gate(client).await.expect("a slot came back");
+}

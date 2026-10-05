@@ -1002,15 +1002,16 @@ pub(crate) async fn finish_package_enqueue(
         // Whatever an enricher stored while this enqueue was running (RD-108-15). The claim
         // handed out a snapshot, so a field written after it reached only the candidate row —
         // and this is the last moment that row can still be matched to what it became.
-        let late = sqlx::query_as::<_, (String, Option<String>)>(
-            "SELECT url, enrichment_json FROM link_candidates \
+        let late = sqlx::query_as::<_, (String, String, Option<String>)>(
+            "SELECT id, url, enrichment_json FROM link_candidates \
              WHERE package_id = ? AND state = 'resolving'",
         )
         .bind(package_id.to_string())
         .fetch_all(&mut *tx)
         .await?;
-        for (url, enrichment) in late {
-            let fields = crate::models::parse_enrichment(enrichment.as_deref());
+        for (id, url, enrichment) in late {
+            let fields =
+                crate::models::parse_enrichment(enrichment.as_deref(), "link_candidates", &id);
             crate::package_store::carry_enrichment_for_source(&mut tx, &url, &fields).await?;
         }
         sqlx::query("UPDATE link_candidates SET state = 'enqueued', package_id = NULL WHERE package_id = ? AND state = 'resolving'")
@@ -1088,7 +1089,11 @@ impl TryFrom<PackageRow> for CollectorPackage {
             // In the vault (RD-190-04); revealed for the answers that show it.
             password: None,
             created_at: row.created_at,
-            postprocess_level: crate::models::parse_level(row.postprocess_level.as_deref()),
+            postprocess_level: crate::models::parse_level(
+                row.postprocess_level.as_deref(),
+                "collector_packages",
+                &row.id,
+            ),
             script: row.script,
         })
     }

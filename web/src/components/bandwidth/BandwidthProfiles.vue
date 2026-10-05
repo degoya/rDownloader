@@ -169,7 +169,7 @@ function summary(profile: BandwidthProfile): string {
 </script>
 
 <template>
-  <section data-settings-anchor="bandwidth.profiles" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="bandwidth.profiles">
     <FormListLayout :list-title="t('bandwidth.profile.title')" :count="profiles.length">
       <template #form>
         <SectionHeader
@@ -251,5 +251,5 @@ function summary(profile: BandwidthProfile): string {
         </div>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

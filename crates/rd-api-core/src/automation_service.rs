@@ -93,10 +93,6 @@ impl AutomationService {
                     secrets,
                     scheduler,
                     extraction,
-                    http: reqwest::Client::builder()
-                        .timeout(Duration::from_secs(30))
-                        .build()
-                        .unwrap_or_default(),
                 },
                 shutdown: CancellationToken::new(),
             }),

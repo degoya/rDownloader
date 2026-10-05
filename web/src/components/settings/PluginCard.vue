@@ -6,6 +6,7 @@ import type { ReleaseNote } from '@/api/pluginRepositories'
 import type { InstalledPlugin, PluginExecution, PluginLifecycle } from '@/api/types'
 import PluginVersionPanel from '@/components/settings/PluginVersionPanel.vue'
 import { formatMoment } from '@/utils/format'
+import { safeHttpUrl } from '@/utils/safeUrl'
 
 import { displayName, pluginDescription } from './pluginDisplay'
 import { capabilityLabel as labelOf } from './pluginPermissions'
@@ -83,7 +84,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
 </script>
 
 <template>
-  <UCard as="article" :ui="{ root: 'flex flex-col divide-y-0', header: 'px-4 pt-4 pb-0 sm:px-4', body: 'flex-1 space-y-3 p-4 sm:p-4', footer: 'border-t border-default px-4 py-3 sm:px-4' }">
+  <UCard as="article" variant="outline" :ui="{ root: 'flex flex-col divide-y-0', header: 'px-4 pt-4 pb-0 sm:px-4', body: 'flex-1 space-y-3 p-4 sm:p-4', footer: 'border-t border-default px-4 py-3 sm:px-4' }">
     <template #header>
       <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-default pb-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
         <span class="col-start-1 row-span-2 row-start-1 grid size-9 place-items-center rounded-md bg-primary/10 text-primary" data-plugin-icon><UIcon name="i-lucide-box" /></span>
@@ -115,8 +116,8 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
           <p class="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted sm:flex-nowrap sm:gap-x-1.5" data-plugin-meta>
             <span class="shrink-0">{{ t('plugins.card.author', { author: plugin.author }) }}</span>
             <span v-if="plugin.license" :class="[SEPARATED, 'shrink-0']">{{ plugin.license }}</span>
-            <a v-if="plugin.homepage" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="plugin.homepage" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</a>
-            <a v-if="plugin.support_url" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="plugin.support_url" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</a>
+            <a v-if="safeHttpUrl(plugin.homepage)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="safeHttpUrl(plugin.homepage)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</a>
+            <a v-if="safeHttpUrl(plugin.support_url)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="safeHttpUrl(plugin.support_url)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</a>
             <span :class="[SEPARATED, 'min-w-0 truncate font-mono text-[11px]']">{{ plugin.id }}</span>
           </p>
         </div>

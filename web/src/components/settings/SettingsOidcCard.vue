@@ -199,7 +199,7 @@ async function copy(value: string): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="security.oidc" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="security.oidc">
     <SectionHeader :eyebrow="t('system.oidc.eyebrow')" :title="t('system.oidc.title')" :description="t('system.oidc.description')" />
 
     <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
@@ -339,5 +339,5 @@ async function copy(value: string): Promise<void> {
         </div>
       </form>
     </template>
-  </section>
+  </UCard>
 </template>

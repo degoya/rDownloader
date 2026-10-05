@@ -208,16 +208,33 @@ fn free_subfolder(directory: &Path, archive_base: &str, taken: &HashSet<String>)
     directory.join(format!("{name}-{}", uuid::Uuid::now_v7()))
 }
 
+/// Device names Windows opens instead of a file, whatever the extension: `CON`, `CONIN$`,
+/// `COM1`, `LPT` with a superscript digit and the rest of Microsoft's list.
 fn is_windows_reserved(file_name: &str) -> bool {
     let base = file_name
         .split_once('.')
         .map_or(file_name, |(base, _)| base)
         .trim_end_matches(['.', ' '])
         .to_ascii_uppercase();
-    matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || (base.len() == 4
-            && matches!(&base[..3], "COM" | "LPT")
-            && matches!(base.as_bytes()[3], b'1'..=b'9'))
+    if matches!(
+        base.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) {
+        return true;
+    }
+    // Compared by characters, never sliced by bytes: a four-byte base can be one emoji or
+    // `42` and a degree sign, and a byte index through it panicked (audit 2026-10-05, S3).
+    let Some(port) = base
+        .strip_prefix("COM")
+        .or_else(|| base.strip_prefix("LPT"))
+    else {
+        return false;
+    };
+    let mut digits = port.chars();
+    matches!(
+        (digits.next(), digits.next()),
+        (Some('0'..='9' | '\u{b9}' | '\u{b2}' | '\u{b3}'), None)
+    )
 }
 
 fn truncate_utf16(input: &str, limit: usize) -> String {
@@ -279,6 +296,49 @@ mod tests {
         assert_eq!(sanitize_file_name("CON.txt"), "_CON.txt");
         assert_eq!(sanitize_file_name("bad<name>. "), "bad_name_");
         assert_eq!(sanitize_file_name("   "), "download");
+    }
+
+    /// Audit 2026-10-05, S3: a base of four bytes was sliced at byte three, which panicked
+    /// inside any multi-byte character there.
+    #[test]
+    fn a_multi_byte_name_of_four_bytes_is_kept_without_a_panic() {
+        for name in [
+            "\u{1f600}.jpg",
+            "42\u{b0}.txt",
+            "\u{e4}\u{f6}.mkv",
+            "CO\u{e9}.bin",
+            "COM\u{20ac}.txt",
+            "\u{1f600}",
+        ] {
+            assert_eq!(sanitize_file_name(name), name);
+        }
+    }
+
+    /// Audit 2026-10-05, S20: the console devices and the superscript ports are reserved on
+    /// Windows as well, and `COM0`/`LPT0` since Microsoft's list names them.
+    #[test]
+    fn every_windows_device_name_is_prefixed() {
+        for name in [
+            "CONIN$",
+            "conout$.txt",
+            "COM0.log",
+            "COM9",
+            "COM\u{b9}.txt",
+            "lpt\u{b2}",
+            "LPT\u{b3}.tar.gz",
+            "nul .txt",
+        ] {
+            assert_eq!(sanitize_file_name(name), format!("_{name}"));
+        }
+        for name in [
+            "COM10.txt",
+            "LPT",
+            "COMA.txt",
+            "CONIN.txt",
+            "COM\u{b9}x.txt",
+        ] {
+            assert_eq!(sanitize_file_name(name), name);
+        }
     }
 
     #[test]

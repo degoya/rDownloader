@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { QUEUE_COLUMN_LIMITS, QUEUE_COLUMNS, type QueueColumn } from '@/composables/useQueueColumns'
+import { QUEUE_COLUMN_LIMITS, QUEUE_COLUMNS, QUEUE_VIEW_COLUMNS, type QueueColumn, type QueueColumnsView } from '@/composables/useQueueColumns'
 
 /**
  * The column header above a list on the queue grid (RD-191-11).
@@ -14,11 +14,16 @@ import { QUEUE_COLUMN_LIMITS, QUEUE_COLUMNS, type QueueColumn } from '@/composab
  * reader and a keyboard need: the arrow keys move the edge (left widens, as a drag to the left
  * does), Shift moves it further, Enter and a double click put the column back. The widths
  * themselves belong to `useQueueColumns`; this only reports what was asked for.
+ *
+ * The two lists share the grid, not what is in it, so each names its own cells: a LinkGrabber
+ * link has its link state where a download has its state, the hoster or variant where a
+ * download has its category and account, and nothing in the progress cell — which is drawn
+ * empty there, without a label or a handle (RD-1101-08).
  */
 const props = defineProps<{
   widths: Record<QueueColumn, number>
-  /** What the metadata cell holds differs per list; the other labels are the same in both. */
-  metaLabel: string
+  /** Which list this heads; it decides the labels and which columns can be resized. */
+  view: QueueColumnsView
   /** The list below scrolls inside its own viewport; reserve the same scrollbar gutter. */
   gutter?: boolean
   /** Any column off its default; enables "reset all". */
@@ -33,13 +38,28 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const labels = computed<Record<'name' | QueueColumn, string>>(() => ({
-  name: t('common.queue_columns.name'),
-  state: t('common.queue_columns.state'),
-  progress: t('common.queue_columns.progress'),
-  size: t('common.queue_columns.size'),
-  meta: props.metaLabel
-}))
+/** The catalogue key of each cell's label, per list; a cell the list leaves empty has none. */
+const LABEL_KEYS: Readonly<Record<QueueColumnsView, Partial<Record<'name' | QueueColumn, string>>>> = {
+  downloads: {
+    name: 'common.queue_columns.name',
+    state: 'common.queue_columns.state',
+    progress: 'common.queue_columns.progress',
+    size: 'common.queue_columns.size',
+    meta: 'common.queue_columns.meta_downloads'
+  },
+  linkgrabber: {
+    name: 'common.queue_columns.name',
+    state: 'common.queue_columns.state_linkgrabber',
+    size: 'common.queue_columns.size',
+    meta: 'common.queue_columns.meta_linkgrabber'
+  }
+}
+
+const labels = computed<Partial<Record<'name' | QueueColumn, string>>>(() => Object.fromEntries(
+  Object.entries(LABEL_KEYS[props.view]).map(([cell, key]) => [cell, t(key)])
+))
+
+const resizable = computed(() => new Set(QUEUE_VIEW_COLUMNS[props.view]))
 
 const STEP = 8
 const BIG_STEP = 32
@@ -97,8 +117,9 @@ const menu = computed(() => [[
       <span class="queue-cell-expand" />
       <span class="queue-cell-name truncate">{{ labels.name }}</span>
       <div v-for="column in QUEUE_COLUMNS" :key="column" class="relative min-w-0 items-center" :class="[`queue-cell-${column}`, column === 'size' ? 'text-right' : '']">
-        <span class="block truncate">{{ labels[column] }}</span>
+        <span v-if="labels[column]" class="block truncate">{{ labels[column] }}</span>
         <div
+          v-if="resizable.has(column)"
           role="separator"
           tabindex="0"
           aria-orientation="vertical"

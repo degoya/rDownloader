@@ -113,7 +113,7 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <section v-if="status" class="border border-muted bg-default p-5">
+  <UCard v-if="status" as="section">
     <SectionHeader
       :eyebrow="t('bandwidth.status.eyebrow')"
       :title="status.active_profile?.name ?? t('bandwidth.status.no_profile')"
@@ -190,5 +190,5 @@ defineExpose({ reload: load })
         </li>
       </ul>
     </div>
-  </section>
+  </UCard>
 </template>

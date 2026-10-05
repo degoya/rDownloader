@@ -2,7 +2,7 @@ use url::Url;
 
 use super::{IconKind, Surface, TrayState, Update, initial_tooltip};
 use crate::{
-    activity::{Activity, QueueMenu, TOOLTIP_LIMIT},
+    activity::{Activity, QueueEntries, QueueMenu, TOOLTIP_LIMIT},
     status::{ServerStatus, status_label},
     supervision::AgentNotice,
 };
@@ -28,6 +28,24 @@ fn offering(queue: QueueMenu, detail: &str) -> Activity {
         queue,
         ..transfers(false, detail)
     }
+}
+
+/// The entries for a queue with something waiting and nothing paused.
+fn pausable() -> QueueMenu {
+    QueueMenu::Offered(QueueEntries {
+        start: false,
+        pause: true,
+        timed_pause: true,
+    })
+}
+
+/// The entries while a timed pause holds.
+fn timed_pause_holds() -> QueueMenu {
+    QueueMenu::Offered(QueueEntries {
+        start: true,
+        pause: false,
+        timed_pause: false,
+    })
 }
 
 fn task_stopped(task: &'static str) -> AgentNotice {
@@ -75,31 +93,29 @@ fn a_fresh_tray_shows_the_idle_mark_with_open_disabled_and_the_starting_line() {
     );
 }
 
-/// The queue entries appear with the first reading that allows them, swap between pause and
-/// resume as the reading does, and go when the right goes (RD-1100-06).
+/// The queue entries appear with the first reading, change their enabled state as the reading
+/// does, and turn greyed out with the pairing hint when the right goes (RD-1100-06, RD-1101-06).
 #[test]
 fn the_queue_entries_follow_the_reading_and_are_named_only_on_a_change() {
     let mut state = paired();
-    let update = state.on_transfers(offering(QueueMenu::Pause, "no transfers"));
-    assert_eq!(update.queue, Some(QueueMenu::Pause));
-    assert_eq!(state.surface().queue, QueueMenu::Pause);
+    let update = state.on_transfers(offering(pausable(), "no transfers"));
+    assert_eq!(update.queue, Some(pausable()));
+    assert_eq!(state.surface().queue, pausable());
     assert_eq!(
-        state
-            .on_transfers(offering(QueueMenu::Pause, "1 queued"))
-            .queue,
+        state.on_transfers(offering(pausable(), "1 queued")).queue,
         None,
         "the same entries again rebuild nothing"
     );
-    let update = state.on_transfers(offering(QueueMenu::Resume, "paused until 18:30"));
-    assert_eq!(update.queue, Some(QueueMenu::Resume));
+    let update = state.on_transfers(offering(timed_pause_holds(), "paused until 18:30"));
+    assert_eq!(update.queue, Some(timed_pause_holds()));
     assert!(
         update
             .status_line
             .as_deref()
             .is_some_and(|line| line.ends_with("paused until 18:30"))
     );
-    let update = state.on_transfers(offering(QueueMenu::Hidden, "paused until 18:30"));
-    assert_eq!(update.queue, Some(QueueMenu::Hidden));
+    let update = state.on_transfers(offering(QueueMenu::Locked, "paused until 18:30"));
+    assert_eq!(update.queue, Some(QueueMenu::Locked));
 }
 
 /// An agent that is not paired has no service to name, and says so instead of guessing.
@@ -327,8 +343,9 @@ fn applying_every_update_in_order_reproduces_the_surface() {
         state.on_transfers(transfers(true, "1 active")),
         state.on_notice(&task_stopped("the transfer poll")),
         state.on_transfers(transfers(true, "2 active")),
-        state.on_transfers(offering(QueueMenu::Pause, "1 queued")),
-        state.on_transfers(offering(QueueMenu::Resume, "paused until 18:30")),
+        state.on_transfers(offering(pausable(), "1 queued")),
+        state.on_transfers(offering(timed_pause_holds(), "paused until 18:30")),
+        state.on_transfers(offering(QueueMenu::Locked, "1 queued")),
         state.on_server_status(ServerStatus::Unreachable),
         state.on_notice(&task_stopped("the transfer poll")),
         state.on_transfers(transfers(false, "1 failed")),

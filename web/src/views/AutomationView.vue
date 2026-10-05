@@ -219,157 +219,159 @@ function runsOf(id: string) {
             variant="subtle"
             :description="store.error"
           />
-          <form v-if="open" ref="formElement" class="border border-muted bg-default p-5" data-testid="automation-form" @submit.prevent="save">
-            <div class="grid gap-4">
-              <!-- The trigger is the automation's kind, so it comes first, before its name. -->
-              <UFormField :label="t('automation.trigger_label')" :description="t('automation.trigger_help')">
-                <USelectMenu
-                  :model-value="draft.trigger"
-                  :items="triggerOptions"
-                  value-key="value"
-                  class="w-full"
-                  @update:model-value="(value: AutomationTrigger) => (draft.trigger = value)"
-                />
-              </UFormField>
-              <UFormField :label="t('automation.name')" required>
-                <UInput v-model="draft.name" required maxlength="100" class="w-full" />
-              </UFormField>
-              <UFormField :label="t('automation.enabled')" orientation="horizontal">
-                <USwitch v-model="draft.enabled" />
-              </UFormField>
-            </div>
-
-            <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
-              {{ t('automation.condition.heading') }}
-            </h3>
-            <ConditionTree
-              v-model="draft.condition"
-              :vocabulary="store.vocabulary"
-              :depth="0"
-              :numeric-fields="NUMERIC_FIELDS"
-            />
-
-            <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
-              {{ t('automation.action.heading') }}
-            </h3>
-            <p class="mb-2 text-xs text-muted">{{ t('automation.action.at_least_once') }}</p>
-            <div class="space-y-2">
-              <div
-                v-for="(action, index) in draft.actions"
-                :key="index"
-                class="flex flex-wrap items-center gap-2 border border-muted p-3"
-              >
-                <USelectMenu
-                  :model-value="action.kind"
-                  :items="actionKindOptions"
-                  value-key="value"
-                  :aria-label="t('automation.action.kind')"
-                  class="w-52"
-                  @update:model-value="(value: string) => changeActionKind(index, value)"
-                />
-                <USelect
-                  v-if="action.kind === 'script' && scriptItems.length"
-                  :model-value="action.name"
-                  :items="scriptItems"
-                  value-key="value"
-                  :aria-label="t('automation.action.script_name')"
-                  class="w-56 font-mono"
-                  @update:model-value="(name: string) => (draft.actions[index]!.name = name)"
-                />
-                <p v-else-if="action.kind === 'script'" class="self-center text-xs text-error">
-                  {{ t('automation.action.no_scripts') }}
-                </p>
-                <USelectMenu
-                  v-if="action.kind === 'set_category'"
-                  :model-value="action.category_id"
-                  :items="categories"
-                  value-key="id"
-                  label-key="name"
-                  :aria-label="t('automation.action.category')"
-                  :placeholder="t('automation.action.category')"
-                  class="w-56"
-                  @update:model-value="(id: string) => (draft.actions[index]!.category_id = id)"
-                />
-                <USelectMenu
-                  v-if="action.kind === 'webhook'"
-                  :model-value="action.target_id"
-                  :items="targets"
-                  value-key="id"
-                  label-key="name"
-                  :filter-fields="['name', 'endpoint']"
-                  :aria-label="t('automation.action.target')"
-                  :placeholder="t('automation.action.target')"
-                  class="w-56"
-                  @update:model-value="(id: string) => (draft.actions[index]!.target_id = id)"
-                />
-                <p v-if="action.kind === 'webhook' && !targets.length" class="self-center text-xs text-error">
-                  {{ t('automation.action.no_targets') }}
-                </p>
-                <UButton
-                  icon="i-lucide-x"
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  :aria-label="t('automation.action.remove')"
-                  @click="draft.actions.splice(index, 1)"
-                />
+          <UCard v-if="open">
+            <form ref="formElement" data-testid="automation-form" @submit.prevent="save">
+              <div class="grid gap-4">
+                <!-- The trigger is the automation's kind, so it comes first, before its name. -->
+                <UFormField :label="t('automation.trigger_label')" :description="t('automation.trigger_help')">
+                  <USelectMenu
+                    :model-value="draft.trigger"
+                    :items="triggerOptions"
+                    value-key="value"
+                    class="w-full"
+                    @update:model-value="(value: AutomationTrigger) => (draft.trigger = value)"
+                  />
+                </UFormField>
+                <UFormField :label="t('automation.name')" required>
+                  <UInput v-model="draft.name" required maxlength="100" class="w-full" />
+                </UFormField>
+                <UFormField :label="t('automation.enabled')" orientation="horizontal">
+                  <USwitch v-model="draft.enabled" />
+                </UFormField>
               </div>
-            </div>
-            <UButton
-              class="mt-2"
-              icon="i-lucide-plus"
-              size="xs"
-              color="neutral"
-              variant="soft"
-              :disabled="!canAddAction"
-              :label="t('automation.action.add')"
-              @click="addAction"
-            />
 
-            <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
-              {{ t('automation.dry_run.heading') }}
-            </h3>
-            <p class="mb-2 text-xs text-muted">{{ t('automation.dry_run.help') }}</p>
-            <div class="flex flex-wrap items-end gap-2">
-              <USelectMenu
-                :model-value="dryRunPackage ?? undefined"
-                :items="packages"
-                value-key="id"
-                label-key="name"
-                :aria-label="t('automation.dry_run.package')"
-                :placeholder="t('automation.dry_run.package')"
-                class="w-64"
-                @update:model-value="(id: string | undefined) => (dryRunPackage = id ?? null)"
+              <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
+                {{ t('automation.condition.heading') }}
+              </h3>
+              <ConditionTree
+                v-model="draft.condition"
+                :vocabulary="store.vocabulary"
+                :depth="0"
+                :numeric-fields="NUMERIC_FIELDS"
               />
+
+              <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
+                {{ t('automation.action.heading') }}
+              </h3>
+              <p class="mb-2 text-xs text-muted">{{ t('automation.action.at_least_once') }}</p>
+              <div class="space-y-2">
+                <div
+                  v-for="(action, index) in draft.actions"
+                  :key="index"
+                  class="flex flex-wrap items-center gap-2 border border-muted p-3"
+                >
+                  <USelectMenu
+                    :model-value="action.kind"
+                    :items="actionKindOptions"
+                    value-key="value"
+                    :aria-label="t('automation.action.kind')"
+                    class="w-52"
+                    @update:model-value="(value: string) => changeActionKind(index, value)"
+                  />
+                  <USelect
+                    v-if="action.kind === 'script' && scriptItems.length"
+                    :model-value="action.name"
+                    :items="scriptItems"
+                    value-key="value"
+                    :aria-label="t('automation.action.script_name')"
+                    class="w-56 font-mono"
+                    @update:model-value="(name: string) => (draft.actions[index]!.name = name)"
+                  />
+                  <p v-else-if="action.kind === 'script'" class="self-center text-xs text-error">
+                    {{ t('automation.action.no_scripts') }}
+                  </p>
+                  <USelectMenu
+                    v-if="action.kind === 'set_category'"
+                    :model-value="action.category_id"
+                    :items="categories"
+                    value-key="id"
+                    label-key="name"
+                    :aria-label="t('automation.action.category')"
+                    :placeholder="t('automation.action.category')"
+                    class="w-56"
+                    @update:model-value="(id: string) => (draft.actions[index]!.category_id = id)"
+                  />
+                  <USelectMenu
+                    v-if="action.kind === 'webhook'"
+                    :model-value="action.target_id"
+                    :items="targets"
+                    value-key="id"
+                    label-key="name"
+                    :filter-fields="['name', 'endpoint']"
+                    :aria-label="t('automation.action.target')"
+                    :placeholder="t('automation.action.target')"
+                    class="w-56"
+                    @update:model-value="(id: string) => (draft.actions[index]!.target_id = id)"
+                  />
+                  <p v-if="action.kind === 'webhook' && !targets.length" class="self-center text-xs text-error">
+                    {{ t('automation.action.no_targets') }}
+                  </p>
+                  <UButton
+                    icon="i-lucide-x"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    :aria-label="t('automation.action.remove')"
+                    @click="draft.actions.splice(index, 1)"
+                  />
+                </div>
+              </div>
               <UButton
-                icon="i-lucide-flask-conical"
+                class="mt-2"
+                icon="i-lucide-plus"
+                size="xs"
                 color="neutral"
                 variant="soft"
-                :label="t('automation.dry_run.run')"
-                @click="runDryRun"
+                :disabled="!canAddAction"
+                :label="t('automation.action.add')"
+                @click="addAction"
               />
-            </div>
-            <ul v-if="dryRunResult" class="mt-3 space-y-1 text-sm">
-              <li v-for="match in dryRunResult" :key="match.automation_id" class="text-muted">
-                <span class="font-medium text-highlighted">
-                  {{ store.automations.find(item => item.id === match.automation_id)?.name ?? match.automation_id }}
-                </span>
-                —
-                {{ match.trigger_matches ? t('automation.dry_run.trigger_yes') : t('automation.dry_run.trigger_no') }},
-                {{ match.condition_matches ? t('automation.dry_run.condition_yes') : t('automation.dry_run.condition_no') }}
-              </li>
-              <li v-if="!dryRunResult.length" class="text-muted">{{ t('automation.dry_run.none') }}</li>
-            </ul>
 
-            <FormActions
-              class="mt-5"
-              :editing="editing !== null"
-              :create-label="t('automation.create_title')"
-              :loading="store.busy"
-              :disabled="!canSave"
-              @cancel="cancel"
-            />
-          </form>
+              <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">
+                {{ t('automation.dry_run.heading') }}
+              </h3>
+              <p class="mb-2 text-xs text-muted">{{ t('automation.dry_run.help') }}</p>
+              <div class="flex flex-wrap items-end gap-2">
+                <USelectMenu
+                  :model-value="dryRunPackage ?? undefined"
+                  :items="packages"
+                  value-key="id"
+                  label-key="name"
+                  :aria-label="t('automation.dry_run.package')"
+                  :placeholder="t('automation.dry_run.package')"
+                  class="w-64"
+                  @update:model-value="(id: string | undefined) => (dryRunPackage = id ?? null)"
+                />
+                <UButton
+                  icon="i-lucide-flask-conical"
+                  color="neutral"
+                  variant="soft"
+                  :label="t('automation.dry_run.run')"
+                  @click="runDryRun"
+                />
+              </div>
+              <ul v-if="dryRunResult" class="mt-3 space-y-1 text-sm">
+                <li v-for="match in dryRunResult" :key="match.automation_id" class="text-muted">
+                  <span class="font-medium text-highlighted">
+                    {{ store.automations.find(item => item.id === match.automation_id)?.name ?? match.automation_id }}
+                  </span>
+                  —
+                  {{ match.trigger_matches ? t('automation.dry_run.trigger_yes') : t('automation.dry_run.trigger_no') }},
+                  {{ match.condition_matches ? t('automation.dry_run.condition_yes') : t('automation.dry_run.condition_no') }}
+                </li>
+                <li v-if="!dryRunResult.length" class="text-muted">{{ t('automation.dry_run.none') }}</li>
+              </ul>
+
+              <FormActions
+                class="mt-5"
+                :editing="editing !== null"
+                :create-label="t('automation.create_title')"
+                :loading="store.busy"
+                :disabled="!canSave"
+                @cancel="cancel"
+              />
+            </form>
+          </UCard>
           <!-- Nothing open: the column says what the list on the right is for, and offers the way in. -->
           <section v-else class="border border-dashed border-muted p-5">
             <p class="text-sm leading-6 text-muted">{{ t('automation.pick_or_create') }}</p>

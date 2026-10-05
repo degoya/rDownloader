@@ -135,7 +135,7 @@ async function onInstalled(text: string): Promise<void> {
 </script>
 
 <template>
-  <section data-settings-anchor="plugins.updates" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="plugins.updates">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.updates.eyebrow')" :title="t('plugins.updates.title')" level="sub" />
       <UBadge color="neutral" variant="outline">{{ offers.updates.length }}</UBadge>
@@ -216,5 +216,5 @@ async function onInstalled(text: string): Promise<void> {
     <p v-else-if="!loading && !error" class="mt-4 text-xs text-muted">{{ t('plugins.updates.available_empty') }}</p>
 
     <PluginInstallPreviewModal :source="previewing" @close="previewing = null" @installed="onInstalled" />
-  </section>
+  </UCard>
 </template>

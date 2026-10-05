@@ -284,10 +284,14 @@ impl NntpReader {
         let mut body = Vec::new();
         loop {
             let mut line = Vec::new();
-            let read =
-                tokio::time::timeout(COMMAND_TIMEOUT, self.stream.read_until(b'\n', &mut line))
-                    .await
-                    .context("NNTP body timeout")??;
+            // Bounded before the read, not after it (RD-1101-16, audit S19): a line that never
+            // ends would otherwise be buffered whole until the timeout. What is left of the
+            // budget, plus a stuffed dot and the line ending, so the terminator still fits.
+            let budget = self.max_article_bytes.saturating_sub(body.len()) as u64 + 3;
+            let mut bounded = (&mut self.stream).take(budget);
+            let read = tokio::time::timeout(COMMAND_TIMEOUT, bounded.read_until(b'\n', &mut line))
+                .await
+                .context("NNTP body timeout")??;
             if read == 0 {
                 bail!("NNTP connection closed during article");
             }
@@ -307,7 +311,9 @@ impl NntpReader {
 
     async fn read_status(&mut self) -> Result<String> {
         let mut line = String::new();
-        tokio::time::timeout(COMMAND_TIMEOUT, self.stream.read_line(&mut line))
+        // One byte past the limit, so an overlong line is told apart from one that fits.
+        let mut bounded = (&mut self.stream).take(MAX_STATUS_LINE as u64 + 1);
+        tokio::time::timeout(COMMAND_TIMEOUT, bounded.read_line(&mut line))
             .await
             .context("NNTP status timeout")??;
         if line.len() > MAX_STATUS_LINE {

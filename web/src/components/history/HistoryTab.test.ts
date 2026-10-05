@@ -1,5 +1,5 @@
 /**
- * The download history view draws what the server pages and filters (RD-1100-04). The
+ * The download history tab draws what the server pages and filters (RD-1100-04). The
  * masking of the sources and the retention are server-side promises, tested where they are
  * kept.
  */
@@ -69,8 +69,8 @@ function page(rows: unknown[], total: number) {
 }
 
 async function mountView() {
-  const { default: HistoryView } = await import('./HistoryView.vue')
-  return mountComponent(HistoryView, { messages: { history, system } })
+  const { default: HistoryTab } = await import('./HistoryTab.vue')
+  return mountComponent(HistoryTab, { messages: { history, system } })
 }
 
 beforeEach(() => {
@@ -81,7 +81,7 @@ beforeEach(() => {
   post.mockResolvedValue({ data: { batch: {}, packages: [], candidates: [] } })
 })
 
-describe('HistoryView', () => {
+describe('HistoryTab', () => {
   it('draws each entry with its outcome, kind and size, and says how many match', async () => {
     await mountView()
 

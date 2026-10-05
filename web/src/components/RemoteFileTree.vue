@@ -201,6 +201,8 @@ const range = useRangeSelection(
           color="neutral"
           variant="ghost"
           :icon="collapsed.has(node.path) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+          :aria-label="t('remote.listing.toggle_folder', { name: node.name })"
+          :aria-expanded="!collapsed.has(node.path)"
           @click="toggleCollapse(node.path)"
         />
         <span v-else class="w-6" />

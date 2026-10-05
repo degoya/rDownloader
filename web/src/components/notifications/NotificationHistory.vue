@@ -54,7 +54,7 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <section data-settings-anchor="notifications.history" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="notifications.history">
     <div class="mb-4 flex items-start justify-between">
       <div>
         <SectionHeader :eyebrow="t('notifications.history.eyebrow')" :title="t('notifications.history.title')" />
@@ -83,5 +83,5 @@ defineExpose({ reload: load })
         <p class="text-center text-sm text-muted">{{ t('notifications.history.empty') }}</p>
       </DataState>
     </div>
-  </section>
+  </UCard>
 </template>

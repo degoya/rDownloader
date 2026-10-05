@@ -79,7 +79,7 @@ impl NotificationService {
             let secret = self.resolve_secret(&target).await;
             let vendor = vendor_directory(&self.inner.database).await;
             rd_notify::send(
-                &self.inner.http,
+                &super::webhook_reach(&target),
                 &target,
                 &config,
                 &message,

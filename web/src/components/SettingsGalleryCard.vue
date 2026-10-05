@@ -26,7 +26,7 @@ function addDefaultHosts(): void {
 </script>
 
 <template>
-  <section data-settings-anchor="media.gallery" class="space-y-4 border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="media.gallery" :ui="{ body: 'space-y-4' }">
     <div>
       <SectionHeader
         :eyebrow="t('settings.gallery.eyebrow')"
@@ -59,5 +59,5 @@ function addDefaultHosts(): void {
       </div>
       <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.gallery.hosts.hint') }}</p>
     </UFormField>
-  </section>
+  </UCard>
 </template>

@@ -12,7 +12,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopy } from '@/composables/useCopy'
 import { useFetchState } from '@/composables/useFetchState'
-import { withBase } from '@/basePath'
+import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -49,7 +49,7 @@ const confirm = useConfirm()
 const toast = useToast()
 const copyToClipboard = useCopy()
 
-const mcpEndpoint = `${window.location.origin}${withBase('/mcp')}`
+const mcpEndpoint = serviceUrl('/mcp')
 // Shown for every token: the MCP transport accepts any API area, and which of the sixteen
 // tools a token may call is decided per tool. Hiding the command for a reading token used to
 // be right and is not any more.
@@ -217,7 +217,7 @@ function scopeLabel(token: CaptureToken): string {
 </script>
 
 <template>
-  <section data-settings-anchor="mcp.access" :class="embedded ? '' : 'mt-6 border border-muted bg-default p-5'">
+  <UCard as="section" data-settings-anchor="mcp.access" :class="embedded ? '' : 'mt-6'" :ui="embedded ? { root: 'overflow-visible rounded-none bg-transparent', body: 'p-0 sm:p-0' } : undefined">
     <FormListLayout :list-title="t('system.mcp.tokens_eyebrow')" :count="tokens.length">
       <template #form>
         <SectionHeader :eyebrow="t('system.mcp.eyebrow')" :title="t('system.mcp.title')">
@@ -381,5 +381,5 @@ function scopeLabel(token: CaptureToken): string {
         </DataState>
       </template>
     </FormListLayout>
-  </section>
+  </UCard>
 </template>

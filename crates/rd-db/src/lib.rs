@@ -43,6 +43,7 @@ mod facade_usenet_traffic;
 mod full_backup_store;
 mod history_store;
 mod indexer_store;
+mod json_column;
 mod log_store;
 mod managed_tools_store;
 mod mfa_store;

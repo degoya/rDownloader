@@ -42,7 +42,7 @@ defineExpose({ reload: refresh })
 </script>
 
 <template>
-  <section data-settings-anchor="plugins.bundled" class="border border-muted bg-default p-5" data-testid="plugin-bundled-list">
+  <UCard as="section" data-settings-anchor="plugins.bundled" data-testid="plugin-bundled-list">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader
         :eyebrow="t('plugins.bundled.eyebrow')"
@@ -65,5 +65,5 @@ defineExpose({ reload: refresh })
         {{ services.length ? t('plugins.bundled.all_installed') : t('plugins.bundled.none') }}
       </p>
     </DataState>
-  </section>
+  </UCard>
 </template>

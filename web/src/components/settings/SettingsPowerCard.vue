@@ -81,7 +81,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section data-settings-anchor="unattended.power" class="border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="unattended.power">
     <SectionHeader :eyebrow="t('power.card.eyebrow')" :title="t('power.card.title')" :description="t('power.card.description')" class="mb-4" />
 
     <UFormField data-settings-anchor="unattended.quiet_hours" :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal" class="border-t border-muted pt-4">
@@ -174,5 +174,5 @@ onMounted(async () => {
       <UIcon name="i-lucide-coffee" class="size-3.5 shrink-0" />
       <span>{{ t('power.context.inhibiting') }}</span>
     </p>
-  </section>
+  </UCard>
 </template>

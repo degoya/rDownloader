@@ -72,5 +72,6 @@
     "view_failed_hint": "Die Ansicht wird geladen, sobald der Dienst wieder erreichbar ist.",
     "reload": "Neu laden"
   },
-  "history": "Verlauf"
+  "history": "Verlauf",
+  "stats_history": "Statistik & Verlauf"
 }

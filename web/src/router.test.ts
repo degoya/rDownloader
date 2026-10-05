@@ -1,5 +1,6 @@
 /**
- * The addresses the settings and the remote jobs answer to (RD-110-29).
+ * The addresses the settings, the remote jobs and the statistics and history page answer to
+ * (RD-110-29, RD-1101-05).
  *
  * `/settings` is the overview, the old `?tab=` links and every pre-rubric page address still
  * land on a page, and an address naming no page lands on the overview. The views are stubbed:
@@ -15,7 +16,7 @@ vi.mock('./views/StreamsView.vue', () => view('StreamsView'))
 vi.mock('./views/SubscriptionsView.vue', () => view('SubscriptionsView'))
 vi.mock('./views/RemoteJobsView.vue', () => view('RemoteJobsView'))
 vi.mock('./views/AutomationView.vue', () => view('AutomationView'))
-vi.mock('./views/StatsView.vue', () => view('StatsView'))
+vi.mock('./views/StatsHistoryView.vue', () => view('StatsHistoryView'))
 vi.mock('./views/LogsView.vue', () => view('LogsView'))
 vi.mock('./views/SettingsOverview.vue', () => view('SettingsOverview'))
 vi.mock('./views/SettingsView.vue', () => view('SettingsView'))
@@ -57,5 +58,19 @@ describe('the settings addresses', () => {
 describe('the remote jobs address', () => {
   it('is a route of its own beside the subscriptions', async () => {
     expect(await go('/remote-jobs')).toEqual({ path: '/remote-jobs', name: 'remote-jobs', section: undefined })
+  })
+})
+
+describe('the statistics and history address', () => {
+  it('opens the shared page on the statistics', async () => {
+    await router.push('/stats')
+    expect(router.currentRoute.value.name).toBe('stats')
+    expect(router.currentRoute.value.query.tab).toBeUndefined()
+  })
+
+  it('sends the history address from before RD-1101-05 to the page\'s history tab', async () => {
+    await router.push('/history')
+    expect(router.currentRoute.value.fullPath).toBe('/stats?tab=history')
+    expect(router.currentRoute.value.name).toBe('stats')
   })
 })

@@ -105,7 +105,7 @@ pub(crate) async fn begin(
     purpose: FlowPurpose,
     return_to: &str,
 ) -> Result<Started, ApiError> {
-    state.auth.gate(client).await?;
+    let _attempt = state.auth.gate(client).await?;
     let Some(config) = oidc_client::config(state).await? else {
         return Err(not_configured());
     };

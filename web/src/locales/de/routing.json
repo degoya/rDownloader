@@ -299,6 +299,7 @@
     "poll_description": "Sekunden zwischen zwei Abgleich-Durchläufen über alle überwachten Ordner (5–3600). Laufende Überwachungen übernehmen den Wert sofort.",
     "poll_saved": "Abfrageintervall gespeichert",
     "poll_save": "Intervall speichern",
-    "copy_path_hint": "Eine Kopie braucht einen eigenen Ordner: vor dem Anlegen den Pfad ändern."
+    "copy_path_hint": "Eine Kopie braucht einen eigenen Ordner: vor dem Anlegen den Pfad ändern.",
+    "disabled_badge": "AUS"
   }
 }

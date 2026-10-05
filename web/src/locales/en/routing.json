@@ -299,6 +299,7 @@
     "poll_description": "Seconds between two reconciliation passes over every watched folder (5–3600). Running watchers take the value right away.",
     "poll_saved": "Poll interval saved",
     "poll_save": "Save interval",
-    "copy_path_hint": "A copy needs a folder of its own: change the path before creating it."
+    "copy_path_hint": "A copy needs a folder of its own: change the path before creating it.",
+    "disabled_badge": "OFF"
   }
 }

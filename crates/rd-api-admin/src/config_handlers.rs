@@ -18,7 +18,7 @@ use crate::{
         CreateStorageRootRequest, UpdateAccountRequest,
     },
     error_codes::store_error,
-    protected_roots::{protected_directories, refuse_protected},
+    protected_roots::{protected_directories, refuse_protected, refuse_protected_hotfolder},
 };
 
 mod accounts;

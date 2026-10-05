@@ -64,7 +64,7 @@ function toolDetail(tool: MediaToolStatus): string {
 </script>
 
 <template>
-  <section data-settings-anchor="media.media" class="space-y-4 border border-muted bg-default p-5">
+  <UCard as="section" data-settings-anchor="media.media" :ui="{ body: 'space-y-4' }">
     <div>
       <SectionHeader
         :eyebrow="t('settings.media.eyebrow')"
@@ -129,5 +129,5 @@ function toolDetail(tool: MediaToolStatus): string {
         <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
       </UInput>
     </UFormField>
-  </section>
+  </UCard>
 </template>

@@ -15,7 +15,7 @@ trap 'rm -rf "$SCRATCH"' EXIT
 source "$ROOT/scripts/tests/lib/expect.sh"
 
 TREE="$SCRATCH/tree"
-mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/extension" "$SCRATCH/bin"
+mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/extension" "$TREE/sdk/ci" "$SCRATCH/bin"
 cp "$ROOT/scripts/set-version.sh" "$TREE/scripts/"
 cp "$ROOT/scripts/lib/workspace-version.sh" "$TREE/scripts/lib/"
 printf '#!/bin/sh\necho "$@" >> "%s/cargo.calls"\n' "$SCRATCH" > "$SCRATCH/bin/cargo"
@@ -66,8 +66,22 @@ cat > "$TREE/web/openapi.json" <<'EOF'
   }
 }
 EOF
+# The SDK workflows' release pin, beside a step's own `env:` that must not move.
+for workflow in plugin repository; do
+    cat > "$TREE/sdk/ci/$workflow.yml" <<'EOF'
+env:
+  COMPONENT: myhoster
+  RDOWNLOADER_VERSION: 1.3.1
+
+jobs:
+  plugin:
+    env:
+      TOOL_VERSION: 1.3.1
+EOF
+done
 set_version() { run_status "$TREE/scripts/set-version.sh" "$@"; }
 json_version() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$1"; }
+sdk_pin() { sed -n 's/^  RDOWNLOADER_VERSION: //p' "$TREE/sdk/ci/$1.yml"; }
 api_version() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["info"]["version"])' "$1"; }
 
 set_version --check
@@ -83,6 +97,9 @@ expect "Cargo.toml" "1.4.0" "$(sed -n 's/^version = "\(.*\)"/\1/p' "$TREE/Cargo.
 expect "web/package.json" "1.4.0" "$(json_version "$TREE/web/package.json")"
 expect "extension/manifest.base.json" "1.4.0" "$(json_version "$TREE/extension/manifest.base.json")"
 expect "web/openapi.json info.version" "1.4.0" "$(api_version "$TREE/web/openapi.json")"
+expect "sdk/ci/plugin.yml pins the release" "1.4.0" "$(sdk_pin plugin)"
+expect "sdk/ci/repository.yml pins the release" "1.4.0" "$(sdk_pin repository)"
+expect_true "a step's own version is untouched" 'grep -qF "TOOL_VERSION: 1.3.1" "$TREE/sdk/ci/plugin.yml"'
 expect_true "a schema's own version property is untouched" 'grep -qF "\"example\": \"0.1.0\"" "$TREE/web/openapi.json"'
 set_version --check
 expect_status "--check after the bump" 0
@@ -96,6 +113,7 @@ expect "Cargo.toml carries the suffix" "1.5.0-beta.1" "$("$TREE/scripts/set-vers
 expect "web/package.json carries it" "1.5.0-beta.1" "$(json_version "$TREE/web/package.json")"
 expect "web/openapi.json info.version carries it" "1.5.0-beta.1" "$(api_version "$TREE/web/openapi.json")"
 expect "the browser manifest drops it" "1.5.0" "$(json_version "$TREE/extension/manifest.base.json")"
+expect "the SDK pin names the pre-release tag" "1.5.0-beta.1" "$(sdk_pin plugin)"
 set_version --check
 expect_status "--check on a beta: the bare manifest version agrees" 0
 
@@ -107,6 +125,12 @@ PY
 set_version --check
 expect_status "--check: a lagging copy fails" 1
 expect_true "and is named" 'grep -qF "web/package.json reports 0.0.1" <<< "$output"'
+
+"$TREE/scripts/set-version.sh" 1.5.0-beta.1 > /dev/null 2>&1
+sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.5.2/' "$TREE/sdk/ci/repository.yml"
+set_version --check
+expect_status "--check: a lagging SDK pin fails" 1
+expect_true "and is named" 'grep -qF "sdk/ci/repository.yml reports 1.5.2" <<< "$output"'
 
 before="$(cat "$TREE/Cargo.toml")"
 set_version 1.5

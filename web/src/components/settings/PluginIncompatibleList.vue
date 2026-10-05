@@ -13,7 +13,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="border border-error/40 bg-default p-5">
+  <UCard as="section" class="ring ring-error/40">
     <div class="mb-4 flex items-center justify-between">
       <SectionHeader :eyebrow="t('plugins.incompatible.eyebrow')" :title="t('plugins.incompatible.title')" level="sub" />
       <UBadge color="error" variant="outline">{{ incompatible.length }}</UBadge>
@@ -32,5 +32,5 @@ const { t } = useI18n()
         <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.incompatible.remove')" @click="emit('remove', plugin)" />
       </div>
     </div>
-  </section>
+  </UCard>
 </template>

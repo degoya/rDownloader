@@ -57,7 +57,7 @@ const tabItems = computed(() => subTabItems('security', t))
       </template>
       <template #sessions>
         <div>
-          <section data-settings-anchor="security.session_limits" class="border border-muted bg-default p-5">
+          <UCard as="section" data-settings-anchor="security.session_limits">
             <SectionHeader
               :eyebrow="t('system.session_limits.eyebrow')"
               :title="t('system.session_limits.title')"
@@ -75,7 +75,7 @@ const tabItems = computed(() => subTabItems('security', t))
                 </UInput>
               </UFormField>
             </div>
-          </section>
+          </UCard>
           <SettingsSessions />
         </div>
       </template>

@@ -8,36 +8,57 @@ on:
   push:
   pull_request:
 
+# The job reads the repository and nothing else. The signing key is a secret, handed to the one
+# step that signs, and only on a push to the default branch or a tag.
+permissions:
+  contents: read
+
 env:
   # Name of the built artefact: your crate name with dashes turned into underscores.
   COMPONENT: myhoster
-  # The rDownloader release whose `plugin package`, `verify` and `conformance` run here. Bump it
-  # when you build against a newer contract; the version must be one that supports the
-  # `api_version` in your manifest, or conformance refuses the package.
-  RDOWNLOADER_VERSION: 1.5.2
+  # The rDownloader release whose `plugin package`, `verify` and `conformance` run here: the
+  # release this SDK was published with, which accepts the `api_version` its templates declare
+  # (`scripts/set-version.sh` writes it). Bump it when you build against a newer contract; the
+  # version must be one that supports the `api_version` in your manifest, or conformance refuses
+  # the package.
+  RDOWNLOADER_VERSION: 1.10.1
 
 jobs:
   plugin:
     runs-on: ubuntu-24.04
+    env:
+      # A pull request runs code nobody has merged yet, so it never sees the signing key: it
+      # builds and checks an unsigned development package instead.
+      SIGN: ${{ github.event_name == 'push' && ((github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch) || github.ref_type == 'tag') }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      # Actions are pinned to a commit, the tag beside it, so a moved tag cannot change what runs
+      # with your signing key in the job.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # dtolnay/rust-toolchain has no releases: a commit of its `stable` branch.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
+          toolchain: stable
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       # The same cargo-component the application's own plugins are built with.
       - run: cargo install cargo-component --version 0.21.1 --locked
       # Reads the component's import section; see "Reject accidental WASI imports" below.
-      - uses: taiki-e/install-action@wasm-tools
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-tools
 
       - name: Install the rDownloader release binary
         # The binary embeds the built web interface, so it cannot be `cargo install`ed from the
-        # git repository; the release archive is the supported way to obtain it.
+        # git repository; the release archive is the supported way to obtain it. It reads the
+        # signing key, so the archive has to be the one the release lists in its SHA256SUMS
+        # (entries named `./<file>`).
         run: |
-          curl --fail --silent --show-error --location \
-            --output rdownloader.tar.gz \
-            "https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}/rdownloader-linux-x86_64.tar.gz"
-          tar --extract --gzip --file rdownloader.tar.gz ./rdownloader
+          release="https://github.com/degoya/rDownloader/releases/download/v${RDOWNLOADER_VERSION}"
+          curl --fail --silent --show-error --location --remote-name \
+            "${release}/rdownloader-linux-x86_64.tar.gz"
+          curl --fail --silent --show-error --location --remote-name "${release}/SHA256SUMS"
+          grep '  \./rdownloader-linux-x86_64\.tar\.gz$' SHA256SUMS | sha256sum --check --strict -
+          tar --extract --gzip --file rdownloader-linux-x86_64.tar.gz ./rdownloader
           sudo install --mode 0755 rdownloader /usr/local/bin/rdownloader
           rdownloader --version
 
@@ -60,7 +81,8 @@ jobs:
             exit 1
           fi
 
-      - name: Package and verify
+      - name: Package, sign and verify
+        if: env.SIGN == 'true'
         env:
           # The PEM private key; the CLI reads it from this variable when `--key` is not given.
           RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
@@ -82,8 +104,22 @@ jobs:
             --no-default-plugin-key \
             "${COMPONENT}-${version}.rdplug"
 
-      - uses: actions/upload-artifact@v7
+      - name: Package and verify, unsigned
+        if: env.SIGN != 'true'
+        # What development mode accepts: the same build and conformance checks without the
+        # signature, so a pull request is checked before anything is signed.
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' manifest.toml | head -n 1)
+          rdownloader plugin package --development \
+            --manifest manifest.toml \
+            --component "target/wasm32-unknown-unknown/release/${COMPONENT}.wasm" \
+            --locales locales \
+            --output "${COMPONENT}-${version}.rdplug"
+          rdownloader plugin verify --development-mode "${COMPONENT}-${version}.rdplug"
+          rdownloader plugin conformance --json --development-mode "${COMPONENT}-${version}.rdplug"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: plugin
+          name: ${{ env.SIGN == 'true' && 'plugin' || 'plugin-unsigned' }}
           path: "*.rdplug"
           if-no-files-found: error

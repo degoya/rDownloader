@@ -19,7 +19,7 @@ const { t } = useI18n()
 <template>
   <article class="p-4" :class="props.editing ? 'border-l-2 border-l-primary' : ''">
     <div class="flex flex-wrap items-center gap-3">
-      <span class="size-2" :class="props.automation.enabled ? 'bg-success' : 'bg-muted'" />
+      <span class="size-2" :class="props.automation.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" />
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium text-highlighted">{{ props.automation.name }}</p>
         <p class="text-xs text-muted">

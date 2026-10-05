@@ -34,7 +34,8 @@ function mount(overrides: Record<string, unknown> = {}) {
       SubscriptionItemRow: { template: '<li><slot name="actions" /></li>' },
       SubscriptionItemActions: { template: '<span />' },
       SubscriptionItemSlider: { template: '<div data-testid="slider" />' },
-      DataState: { template: '<div />' }
+      DataState: { template: '<div />' },
+      UPagination: { template: '<nav aria-label="Pages" />' }
     }
   })
 }
@@ -53,6 +54,34 @@ describe('IndexerReviewGroup', () => {
     await fireEvent.click(within(footer).getByText(linkgrabberCatalogue.indexers.dismiss_all))
     expect(emitted('queueAll')).toHaveLength(1)
     expect(emitted('dismissAll')).toHaveLength(1)
+  })
+
+  // Owner, 2026-10-05 (RD-1101-01): the actions belong at the end of a group that fits on one
+  // page as much as of one with pages; the footer must not hang on the pagination bar.
+  it('repeats the bulk actions under a list of one page, without pages', async () => {
+    mount()
+    await openGroup()
+    const footer = screen.getByTestId('subscription-group-footer')
+    expect(within(footer).queryByRole('navigation')).toBeNull()
+    expect(within(footer).getByText(linkgrabberCatalogue.indexers.queue_all)).toBeTruthy()
+    expect(within(footer).getByText(linkgrabberCatalogue.indexers.dismiss_all)).toBeTruthy()
+  })
+
+  it('puts the bulk actions beside the pages when the list has several', async () => {
+    const { emitted } = mount({ total: 120 })
+    await openGroup()
+    const footer = screen.getByTestId('subscription-group-footer')
+    expect(within(footer).getByRole('navigation')).toBeTruthy()
+    await fireEvent.click(within(footer).getByText(linkgrabberCatalogue.indexers.dismiss_all))
+    expect(emitted('dismissAll')).toHaveLength(1)
+  })
+
+  it('locks the bulk actions in header and footer alike while one runs', async () => {
+    mount({ bulkBusy: true })
+    await openGroup()
+    const dismiss = screen.getAllByRole('button', { name: linkgrabberCatalogue.indexers.dismiss_all })
+    expect(dismiss).toHaveLength(2)
+    for (const button of dismiss) expect((button as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('has no footer for an empty list', async () => {
